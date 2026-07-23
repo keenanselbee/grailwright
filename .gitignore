@@ -1,0 +1,19 @@
+# Build scratch
+bin/
+obj/
+Build/
+.vs/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp
+.codex-temp/
+
+# Release artifacts are exported to the Desktop, not kept in this repo.
+*.zip
+
+# Debug symbols
+*.pdb
+*.mdb
+

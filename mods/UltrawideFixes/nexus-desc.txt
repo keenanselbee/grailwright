@@ -1,0 +1,80 @@
+[center][color=#C94A4A][size=6]Ultrawide Fixes[/size][/color]
+[i]Cleaner title and loading screens for wider displays.[/i][/center]
+
+[line]
+
+Ultrawide Fixes improves the title-screen and loading-screen presentation in [b]Tainted Grail: The Fall of Avalon[/b] on wider displays. It patches the title video, title-screen black bars, loading background, and loading blur background at runtime.
+
+By default, the plugin fills your current screen aspect to reduce leftover side bars. It uses configurable crop/stretch behavior because the original title video and loading paintings are native 16:9-style assets; the mod cannot reveal real extra artwork that is not present in the source image.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*]Resizes the title-screen video RawImage for ultrawide displays.[/*]
+[*]Resizes title-video parent RectTransforms so old 16:9 containers do not leave edge bars.[/*]
+[*]Disables title-screen black bar objects.[/*]
+[*]Patches loading-screen background and blurred background images after their real sprites are assigned.[/*]
+[*]Leaves loading text, loading bar, and loading wheel placement alone.[/*]
+[*]Supports current-screen aspect fill or a fixed target aspect such as 21:9.[/*]
+[*]Offers light crop/stretch tuning for title video and loading-screen artwork.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+The config is generated after the game starts once:
+
+[code]
+BepInEx/config/ks.tgfoa.ultrawide-fixes.cfg[/code]
+
+Version 1.0.1 uses [b]ConfigSchemaVersion = 1[/b]. Older configs are backed up and regenerated once so clean defaults apply.
+
+Common entries:
+
+[code]
+Enabled = true
+ConfigSchemaVersion = 1
+PatchTitleVideo = true
+HideTitleBlackBars = true
+PatchLoadingBackground = true
+PatchLoadingBlurBackground = true
+FillCurrentScreen = true
+TargetAspect = 2.333333
+StretchBlend = 0.1
+LoadingStretchBlend = 0.2[/code]
+
+[b]StretchBlend[/b] controls the title video compromise:
+
+[code]
+0.0 = pure crop, no stretch
+0.1 = very light stretch with more crop
+1.0 = full stretch, no crop[/code]
+
+[b]LoadingStretchBlend[/b] controls loading-screen paintings:
+
+[code]
+0.0 = pure crop, preserves painting proportions
+0.2 = light stretch with less vertical crop
+1.0 = full stretch to the display aspect[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/UltrawideFixes/UltrawideFixes.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Notes[/size][/color][/heading]
+This does not edit bundles, video files, resources.assets, sprites, or game files. It only adjusts UI images at runtime.

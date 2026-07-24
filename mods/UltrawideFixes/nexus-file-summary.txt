@@ -1,0 +1,1 @@
+An ultrawide title-screen and loading-screen patch that reduces side bars, improves wide-display framing, and preserves the original video files.

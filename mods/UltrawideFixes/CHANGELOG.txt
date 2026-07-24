@@ -1,0 +1,10 @@
+Version 1.0.1
+Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and regenerated with clean defaults.
+Removed the old per-setting default migration path in favor of schema-based config reset.
+
+Version 1.0.0
+Relaunched as Ultrawide Fixes with the KS prefix removed for a standalone Nexus page.
+Renamed the public plugin identity, DLL, folder, package, README, and Nexus description.
+Switched to a clean standalone plugin GUID and config path: ks.tgfoa.ultrawide-fixes.
+Kept title-screen video, title black-bar, loading-background, and loading-blur ultrawide patch behavior.
+No Vortex deployment or profile state changes are included.

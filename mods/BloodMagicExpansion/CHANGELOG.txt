@@ -1,0 +1,108 @@
+﻿Version 2.0.6
+Added a configurable red no-shadow inner player light while Blood Transfusion, Life Transfusion, or Abhartach's Calling is raised.
+Added Blood Spell Inner Light config for enablement, intensity, range, and fade time.
+Kept the custom light separate from the vanilla HeroLight so No Player Light remains compatible.
+Bumped ConfigSchemaVersion to 6 so the new visual settings generate cleanly.
+
+Version 2.0.5
+Added per-quality-tier no-repeat memory for corpse leech sounds.
+Added subtle FMOD channel pitch randomization for corpse leech audio.
+Added config for repeat avoidance, recent sound memory, and pitch variation.
+Kept quality-matched low, medium, high, and max sound pools unchanged.
+Bumped ConfigSchemaVersion to 5 so the new Audio settings generate cleanly.
+
+Version 2.0.4
+Changed corpse leech audio to choose low, medium, high, or max sound pools from the drained corpse's quality.
+Added five WAV slots per quality tier: corpse_leech_low, corpse_leech_medium, corpse_leech_high, and corpse_leech_max.
+Simplified corpse leech audio config to an enable switch and one global volume.
+Removed prefix, slot count, cooldown, and pitch randomization config from the generated Audio section.
+Bumped ConfigSchemaVersion to 4 so the new audio config is generated cleanly.
+
+Version 2.0.3
+Added FMOD corpse leech audio for successful Blood/Life corpse ritual completions.
+Added random selection from corpse_leech_1.wav through corpse_leech_6.wav in the plugin audio folder.
+Added subtle per-play pitch randomization, configurable volume, cooldown, prefix, and slot count.
+Bumped ConfigSchemaVersion to 3 so the new Audio section is generated cleanly.
+
+Version 2.0.2
+Changed corpse quality from taking the higher of kill XP or max health to a 50/50 blend when both values are known.
+Preserved single-signal fallback behavior when only kill XP or only max health can be resolved.
+Kept corpse XP payout separate from corpse quality; quality still scales corpse healing, Abhartach effects, and Dynamic Crosshair size data only.
+Bumped ConfigSchemaVersion to 2 so generated config comments reflect the new equal-weight quality model.
+
+Version 2.0.1
+Made Enabled a true master switch for live drain, Blood/Life spell tuning, and Abhartach tuning.
+Added active ConfigSchemaVersion enforcement so missing or changed schemas back up the old config and regenerate clean defaults.
+Added conservative cleanup for completed corpse states, destroyed Unity-object aliases, and expired held-cast state.
+Updated README and Nexus wording for the current Blood Magic Expansion identity and paired Crosshair release.
+Kept ConfigSchemaVersion 1 and the existing 2.0.0 gameplay balance.
+
+Version 2.0.0
+Renamed the mod, plugin folder, DLL, GUID, config file, namespace, and API path to Blood Magic Expansion.
+Added the new API path BloodMagicExpansion.BloodMagicApi v4 and removed reliance on old BloodMage/BloodMageExpansion technical identities.
+Reworked the generated config around FoA Mod Manager readability with Core, Main Loop, Corpse Quality, Bloodless Filter, advanced tuning, performance, and diagnostics sections.
+Renamed RewardPreset to Preset and moved the most useful preset/feature toggles into the first two config sections.
+Started from a clean ks.tgfoa.blood-magic-expansion.cfg config path with no old config migration.
+Kept the existing 1.9.9 gameplay balance, corpse quality behavior, focused corpse states, and Patch 1.25 Mono compatibility.
+
+Version 1.9.9
+Added ConfigSchemaVersion; older configs are backed up and regenerated with clean current defaults.
+Replaced old per-setting config migration with the schema reset policy.
+Added Blood Mage API v4 focused corpse state reporting for none, usable, channeling, spent, and blocked corpses.
+Removed legacy corpse-leech API wrapper namespaces; current integrations use BloodMagicExpansion.BloodMagicApi v4.
+Kept corpse quality as effect/scale data only; it no longer has to imply whether a corpse is focused.
+
+Version 1.9.8
+Retuned live-drain XP ticks to 4% every 1s for Blood Rite, 8% every 1.5s for Desecration, and 12% every 2s for Soul Feast.
+Kept live-drain caps, corpse ritual timing, healing, corpse quality, and spell tuning values unchanged.
+
+Version 1.9.7
+Reversed preset ritual timing so Blood Rite is the fast 1s drain, Desecration stays 1.5s, and Soul Feast becomes the slower 2s high-payout drain.
+Matched live-drain tick intervals to the same timing ladder while leaving payout, healing, corpse quality, and spell tuning values unchanged.
+
+Version 1.9.6
+Retuned corpse quality references to 300 kill XP and 600 max health so early T1 monsters no longer cap quality.
+Expanded Blood Mage corpse quality gameplay effects from 0.5x to 1.5x.
+Added Wyrdspawn, Wyrdspirit, Wyrd Spirit, WyrdSlime, Wyrd Slime, and Wyrdness to the default bloodless blacklist while leaving Wights eligible.
+Added config migration for old default quality values and missing Wyrd blacklist terms.
+Added a Nexus/README quality table tracking intended effect and reticle scaling bands.
+
+Version 1.9.5
+Changed unresolved focused corpse quality fallback from 0.5 to 0 so unknown low-tier corpses render at normal Magic reticle size.
+Added configurable FallbackQuality under Corpse Quality.
+Added LogCorpseQuality diagnostics for focused corpse XP, max health, quality, and fallback status.
+
+Version 1.9.4
+Renamed the Abhartach config section from "Abhartach's Calling" to "Abhartach Calling" because BepInEx rejects apostrophes in section and key names.
+Verified all Blood Mage config section and key names are BepInEx-safe.
+Keeps the 1.9.3 config fallback and 1.9.2 guarded Patch 1.25 diagnostics.
+
+Version 1.9.3
+Fixed a startup failure when BepInEx provides a null plugin Config object before Blood Mage binds settings.
+Added a fallback ConfigFile resolver that uses the normal ks.tgfoa.blood-mage.cfg path.
+Logs whether Blood Mage is using the normal BepInEx plugin config or the fallback config file.
+Keeps the 1.9.2 guarded patch diagnostics for the next Patch 1.25 compatibility check.
+
+Version 1.9.2
+Added an early startup breadcrumb before config binding so Blood Mage failures are visible in BepInEx logs.
+Wrapped config binding and each reflected game patch group with defensive exception logging.
+Let one broken 1.25 patch target fail independently instead of silently preventing the whole plugin from finishing startup.
+Added a null-safe update guard for failed startup cases.
+
+Version 1.9.1
+Added modest corpse quality effect scaling for Blood/Life Transfusion corpse healing.
+Added corpse quality scaling for Abhartach's Calling explosion damage, explosion radius, bleed buildup, and held corpse healing.
+Added short Abhartach corpse-quality memory so delayed explosion/healing effects can use the corpse quality aimed at during cast.
+Added Blood Mage API v3 focused corpse quality effect multiplier reporting.
+
+Version 1.9.0
+Added Blood Mage API v2 corpse action reporting for Blood/Life Transfusion and Abhartach's Calling integrations.
+Added focused corpse quality reporting from resolved kill XP and enemy max health for Dynamic Crosshair scaling.
+Added Corpse Quality config references for kill XP and max health normalization.
+Kept the existing Patch 1.25 / build 24270691 compatibility behavior.
+
+Version 1.8.2
+Rebuilt against Tainted Grail: The Fall of Avalon Patch 1.25 / build 24270691.
+Verified the key reflected Harmony targets still exist in the updated game assemblies.
+Kept existing Blood Transfusion, Life Transfusion, live drain, corpse reward, and Abhartach tuning behavior.
+No Vortex deployment or profile state changes are included.

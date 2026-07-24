@@ -1,0 +1,1 @@
+Adds blood-magic corpse draining, XP rewards, corpse quality scaling, Abhartach tuning, FMOD leech sounds, a red inner spell light, and Dynamic Crosshair integration for Tainted Grail's Mono/BepInEx setup.

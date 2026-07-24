@@ -1,0 +1,1 @@
+Controls enemy respawn timing with simple BepInEx config presets, including very fast, fast, default, slow, very slow, and disabled respawns.

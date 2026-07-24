@@ -1,0 +1,15 @@
+Version 1.0.2
+Added broader respawn gates at CanSpawn, CanSpawnAmbush, IsValidState, ShouldSpawn, and SpawnPrefabInternal so enemies that bypass the vanilla cooldown check can still be blocked.
+Added cleanup for locked spawners that still manage to create a location.
+Expanded diagnostics to show blocked gate names and allowed spawn attempts when Diagnostics is enabled.
+
+Version 1.0.1
+Added a config schema marker so old configs are backed up and regenerated when the layout changes.
+Renamed respawn presets to include their timing directly in config menus.
+Updated RespawnMode descriptions with preset timing details.
+
+Version 1.0.0
+Renamed the standalone package to Enemy Respawn Control.
+Updated the plugin GUID and config file to ks.tgfoa.enemy-respawn-control.
+Kept the existing respawn guard behavior, default Slow preset, weather-time timing, and diagnostics.
+Provides VeryFast, Fast, Default, Slow, VerySlow, Custom, and Disabled respawn modes.

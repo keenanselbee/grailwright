@@ -1,0 +1,1 @@
+Adds configurable enemy respawn timing presets for Tainted Grail's Mono/BepInEx setup, with Slow as the default and an option to disable respawns.

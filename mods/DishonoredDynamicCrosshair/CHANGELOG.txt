@@ -1,0 +1,81 @@
+﻿Version 2.8.3
+Fixed a hitch every couple seconds when Blood Magic Expansion was not installed.
+Cached the missing optional Blood Magic API for the current game session instead of retrying a global type lookup.
+Resolved the Blood Magic API from BepInEx's loaded plugin registry when available.
+Kept ConfigSchemaVersion at 3 because this is a compatible runtime fix.
+
+Version 2.8.2
+Added CrouchIndicatorVerticalOffset to move the game's crouch/detection indicator vertically.
+Positive offset values move the indicator lower; negative values move it higher.
+Kept ConfigSchemaVersion at 3 because this is a compatible additive setting.
+
+Version 2.8.1
+Fixed ConfigSchemaVersion detection so current [1. Core] configs are not reset every launch.
+Restored vanilla NPC target-detection range when the plugin is disabled in config.
+Paused custom reticle polling while the plugin is disabled in config.
+Cleaned README wording for Bow and Blood Magic references.
+Kept Blood Magic Expansion API integration on BloodMagicExpansion.BloodMagicApi v4.
+
+Version 2.8.0
+Updated the optional Blood Magic corpse reticle integration to use BloodMagicExpansion.BloodMagicApi v4.
+Removed support expectations for old BloodMage.BloodMagicApi and BloodMageExpansion.BloodMageApi technical identities.
+Updated README and Nexus description references for Blood Magic Expansion 2.0.0+.
+Kept the simplified 2.7.0 config UX and ConfigSchemaVersion 3.
+
+Version 2.7.0
+Reworked the generated config into Core, Reticles, Colors and Opacity, Blood Magic, Advanced, and Diagnostics sections.
+Reduced the normal config surface by removing per context modes, custom visibility switches, per context colors/opacities, layout offsets/rotation, separate vanilla reticle toggles, and Blood Magic curve internals.
+Replaced the old custom mode behavior with direct presets: AlwaysVisible, TargetOnly, CombatReady, and HostilesOnly.
+Kept Blood Magic focused corpse behavior from 2.6.5 while exposing only Mode, RequireRelevantBloodSpell, UseCorpseQualityScale, MaximumQualityScale, and UsableCorpseColor.
+Bumped ConfigSchemaVersion to 3 so older crosshair configs are backed up and regenerated with the cleaner schema.
+
+Version 2.6.5
+Updated Blood Magic corpse reticle integration to use Blood Mage API v4 focused corpse states only.
+Removed old Blood Mage action/bool API fallback handling.
+Shows no blood reticle for no corpse, default color 1x blood reticle for blocked/bloodless or spent corpses, and red quality scaled blood reticle for usable corpses.
+Collapsed Blood Magic action colors into one UsableCorpseColor because corpse quality now changes scale only, not color.
+Bumped ConfigSchemaVersion to 2 so older crosshair configs are backed up and regenerated with the clean current schema.
+
+Version 2.6.4
+Removed ineffective BloodMagic profile, custom visibility, and duplicate color controls; Off/Auto now clearly owns corpse reticle visibility.
+Removed redundant BloodMagic action scale and timing controls so corpse quality alone determines size while action state determines color.
+Added ConfigSchemaVersion; the first 2.6.4 launch backs up older configs and regenerates clean defaults instead of carrying migration code.
+Renamed RequireBloodTransfusionEquipped to RequireRelevantBloodSpell in the clean schema.
+Clarified that the mod overrides the game's crosshair setting while enabled and kept RangeMultiplier at 1.2.
+
+Version 2.6.3
+Added BloodMagic QualityDeadZone and QualityCurveExponent so weak corpses stay at normal Magic size while high quality corpses still reach 2x.
+Kept BloodMagic visual scaling separate from Blood Mage gameplay effect scaling.
+Changed Blood/Life channeling color default to transfusion red and migrates the old default yellow.
+Expanded scale diagnostics with visualT, dead zone, and curve exponent.
+
+Version 2.6.2
+Added optional BloodMagic reticle scale diagnostics showing corpse quality, action, each scale multiplier, and final reticle size.
+Kept the 1x to 2x Magic size Blood Magic quality scaling from 2.6.1.
+
+Version 2.6.1
+Adjusted Blood Magic corpse reticle defaults so low quality corpses match the Magic reticle size and high quality corpses scale up to 2x Magic size.
+Removed action state size boosts by default; action states still provide color feedback without pushing the reticle over the intended size range.
+
+Version 2.6.0
+Added Blood Magic corpse action state reticle colors for transfuse, Abhartach explosion, Abhartach held healing, and channeling.
+Added small configurable action state scale multipliers on top of corpse quality scaling.
+Kept Blood Mage API v2/v3 reflection support and the legacy bool API fallback.
+
+Version 2.5.0
+Added Blood Mage API v2 support for corpse action states and corpse quality.
+Blood Magic corpse reticle can now appear for Abhartach's Calling corpse use when Blood Mage reports a valid corpse.
+Added optional Blood Magic corpse quality reticle scaling with configurable minimum and maximum multipliers.
+Kept the legacy Blood Mage API fallback used by earlier Blood Mage versions.
+
+Version 2.4.0
+Fixed Blood Magic corpse reticle detection when the updated game reports a dead/corpse location as a normal crosshair target state.
+Blood Mage now decides whether the aimed at object is a drainable corpse before Dynamic Crosshair chooses the BloodMagic reticle.
+Kept the Patch 1.25 / build 24270691 crosshair hook compatibility from 2.3.9.
+
+Version 2.3.9
+Updated Harmony hook targets for the Patch 1.25 HeroCrosshair API.
+Replaced the removed OnEquippedChanged hook with current equipment refresh hooks.
+Updated the perspective change hook for the new no argument HeroPerspectiveChanged method.
+Added refresh coverage for the new crosshair accessibility setting changes.
+Rebuilt against Tainted Grail: The Fall of Avalon Patch 1.25 / build 24270691.

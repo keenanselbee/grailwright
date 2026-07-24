@@ -1,0 +1,1 @@
+A PNG-based dynamic crosshair inspired by Dishonored, with weapon-aware reticles, target colors, crouch offset controls, and optional Blood Magic Expansion corpse reticle feedback.

@@ -1,0 +1,93 @@
+[center][color=#C94A4A][size=6]Dishonored Dynamic Crosshair[/size][/color]
+[i]Reactive PNG reticles for weapons, targets, and blood-magic corpse feedback.[/i][/center]
+
+[line]
+
+Dishonored Dynamic Crosshair is a BepInEx 5 plugin for the game's Mono branch. It replaces the vanilla crosshair with PNG reticles that react to your equipped weapon, targeted NPCs, and optional Blood Magic Expansion corpse feedback.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*]Separate hot-reloading PNG reticles for general, bow, magic, and blood-magic corpse contexts.[/*]
+[*]Simple visibility presets: AlwaysVisible, TargetOnly, CombatReady, and HostilesOnly.[/*]
+[*]Shared default, hostile, and friendly/neutral colors for normal reticles.[/*]
+[*]Live hostility updates while the same NPC remains under the reticle.[/*]
+[*]Configurable NPC target-detection range, defaulting to 1.2x vanilla.[/*]
+[*]True screen-pixel or canvas-relative sizing with direct final dimensions.[/*]
+[*]Selectable mipmapped trilinear or bilinear texture filtering.[/*]
+[*]Mounted opacity control; by default the custom reticle is hidden while riding and returns after dismounting.[/*]
+[*]Independent crouch/detection indicator opacity and vertical offset that preserve its animations.[/*]
+[*]One HideVanillaReticles option for the game's default, melee, bow, and item reticles.[/*]
+[*]Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] API v4 support with a dedicated corpse-drain reticle.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*][b]Tainted Grail: The Fall of Avalon Patch 1.25[/b].[/*]
+[*]Steam beta branch [b]mono[/b], build [b]24270691[/b].[/*]
+[*][b]BepInEx 5 Mono[/b] (built against 5.4.23.3).[/*]
+[/list]
+
+This plugin uses the game's managed Mono assemblies. It is [b]not compatible[/b] with the normal public IL2CPP branch (build 23527157) or an IL2CPP BepInEx installation. BepInEx support for both runtimes does not make plugin DLLs interchangeable.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+In Steam, open [b]Properties -> Betas[/b] and select the [b]mono[/b] branch. Install BepInEx 5 Mono, then install this mod.
+
+Install with a mod manager, or place the included folder at:
+
+[b]BepInEx\plugins\DishonoredDynamicCrosshair[/b]
+
+Do not install older reticle DLLs beside [b]DishonoredDynamicCrosshair.dll[/b].
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[b]BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg[/b]
+
+Version 2.8.3 uses [b]ConfigSchemaVersion = 3[/b]. Its first launch from an older schema backs up the previous config beside the active file and generates clean defaults. Compatible future updates retain user settings; defaults reset only when the configuration schema changes.
+
+[b]Core[/b] has [b]Enabled[/b] and [b]Preset[/b].
+
+[b]Reticles[/b] has [b]ReticleSizePixels[/b], the four PNG paths, and scale multipliers for Bow, Magic, and BloodMagic. General uses the global size directly.
+
+[b]Colors and Opacity[/b] has [b]DefaultColor[/b], [b]HostileColor[/b], [b]NonHostileColor[/b], [b]IdleOpacity[/b], [b]TargetOpacity[/b], and [b]MountedOpacityMultiplier[/b].
+
+[b]Blood Magic[/b] has [b]Mode[/b], [b]RequireRelevantBloodSpell[/b], [b]UseCorpseQualityScale[/b], [b]MaximumQualityScale[/b], and [b]UsableCorpseColor[/b].
+
+[b]Advanced[/b] has targeting, sizing, texture filtering, crouch indicator opacity/offset, hands-down behavior, and [b]HideVanillaReticles[/b]. Most users can leave these defaults alone.
+
+When [b]Enabled = false[/b], the custom reticle and background polling pause, and vanilla target-detection range/crouch opacity are restored.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Presets[/size][/color][/heading]
+[list]
+[*][b]AlwaysVisible[/b]: General, Bow, and Magic are always visible and use smart target colors.[/*]
+[*][b]TargetOnly[/b]: hides normal reticles unless a hostile, friendly, or neutral NPC is targeted.[/*]
+[*][b]CombatReady[/b]: General is target-only, while Bow and Magic remain visible.[/*]
+[*][b]HostilesOnly[/b]: all normal reticles appear only over hostile NPCs.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Blood Magic Reticle[/size][/color][/heading]
+[b]Mode = Auto[/b] shows [b]custom_reticle_bloodmagic.png[/b] from Blood Magic Expansion API v4 focused corpse states; [b]Off[/b] disables the integration. When Blood Magic Expansion is not loaded, the optional API is marked unavailable for the current game session instead of being searched for repeatedly. [b]RequireRelevantBloodSpell[/b] keeps it tied to Blood/Life Transfusion or Abhartach's Calling.
+
+No focused corpse shows no blood reticle. Blocked, bloodless, or spent corpses use the blood-magic PNG with the normal Magic/default color path at 1x. Usable or channeling corpses use [b]UsableCorpseColor[/b] and can scale from 1x to [b]MaximumQualityScale[/b] from corpse quality. Quality changes size only, not color. Living enemies keep the normal hostile or magic reticle.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.0.0 or newer is supported for optional blood-magic corpse reticle feedback.[/*]
+[*]Owrocc ModifyColors can remain installed.[/*]
+[*]Owrocc ModifyCrosshair is redundant and should be removed.[/*]
+[*]Other mods that replace or force vanilla crosshair parts may conflict.[/*]
+[/list]

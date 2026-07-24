@@ -1,0 +1,1 @@
+Small compatibility and polish addons for selected Tainted Grail mods, including Wyrd Hunt, More Weapon Loadouts, and TG All Lights Cast Shadows.

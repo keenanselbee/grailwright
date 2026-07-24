@@ -1,0 +1,36 @@
+{
+  "id": "KSAddons",
+  "displayName": "KS Addons",
+  "description": "Companion addons for selected Tainted Grail: The Fall of Avalon mods.",
+  "addons": [
+    {
+      "id": "WyrdHuntAddon",
+      "displayName": "Wyrd Hunt Addon",
+      "importedVersion": "1.2.1",
+      "listedSuiteVersion": "1.2.1",
+      "targetMod": "Wyrd Hunt",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201",
+      "targetNexusFileVersion": "5",
+      "targetPluginVersion": "0.4.65"
+    },
+    {
+      "id": "TGAllLightsCastShadowsAddon",
+      "displayName": "TG All Lights Cast Shadows Addon",
+      "importedVersion": "1.1.0",
+      "targetMod": "TG All Lights Cast Shadows",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133",
+      "targetNexusFileVersion": "1.0.0-mono",
+      "targetPluginVersion": "1.2.0"
+    },
+    {
+      "id": "MoreWeaponLoadoutsAddon",
+      "displayName": "More Weapon Loadouts Addon",
+      "importedVersion": "0.1.2",
+      "listedSuiteVersion": "0.1.2",
+      "targetMod": "Owrocc HUD Tweaks / More Weapon Loadouts",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192",
+      "targetModVersion": "1.5.0",
+      "targetNexusFileVersion": "60.2"
+    }
+  ]
+}

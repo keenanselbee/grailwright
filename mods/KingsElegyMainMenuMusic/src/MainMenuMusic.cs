@@ -1,0 +1,2085 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Logging;
+using FMOD;
+using FMOD.Studio;
+using FMODUnity;
+using HarmonyLib;
+using UnityEngine;
+
+[assembly: AssemblyTitle("Main Menu Music")]
+[assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
+[assembly: AssemblyCompany("KS")]
+[assembly: AssemblyProduct("Main Menu Music")]
+[assembly: AssemblyVersion("2.0.6.0")]
+[assembly: AssemblyFileVersion("2.0.6.0")]
+[assembly: AssemblyInformationalVersion("2.0.6")]
+
+namespace MainMenuMusic
+{
+    public enum MusicMode
+    {
+        LayeredModifiedTaintedGrail,
+        CustomFile,
+        Off
+    }
+
+    internal enum LayerRole
+    {
+        Base,
+        Fire,
+        Wind,
+        Custom
+    }
+
+    [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    public sealed class Plugin : BaseUnityPlugin
+    {
+        public const string PluginGuid = "ks.tgfoa.main-menu-music";
+        public const string PluginName = "Main Menu Music";
+        public const string PluginVersion = "2.0.6";
+
+        private const int ConfigSchemaVersion = 13;
+        private const uint MinimumLoopLengthMs = 250;
+
+        private const string TitleMusicTypeName =
+            "Awaken.TG.Main.UI.TitleScreen.VTitleScreenMusic";
+        private const string MusicEmitterFieldName = "musicEmitter";
+        private const string NonCopyrightedEmitterFieldName =
+            "nonCopyrightedEmitter";
+
+        private static readonly string[] GameLoadingTypeNames =
+        {
+            "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingTypes.NewGameLoading",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingTypes.NewGamePlusLoading",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingTypes.FullLoading",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingTypes.MapChangeLoading"
+        };
+
+        internal static Plugin Instance { get; private set; }
+        internal static ManualLogSource Log { get; private set; }
+
+        private readonly Dictionary<IntPtr, EventInstance> _mutedOriginals =
+            new Dictionary<IntPtr, EventInstance>();
+        private readonly HashSet<string> _loggedMissingPaths =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<MusicLayer> _layers = new List<MusicLayer>();
+        private readonly List<MusicLayer> _fadeOutLayers = new List<MusicLayer>();
+
+        private Harmony _harmony;
+        private FieldInfo _musicEmitterField;
+        private FieldInfo _nonCopyrightedEmitterField;
+
+        private ConfigEntry<bool> _enabled;
+        private ConfigEntry<MusicMode> _musicMode;
+        private ConfigEntry<string> _baseMusicFile;
+        private ConfigEntry<float> _baseMusicVolume;
+        private ConfigEntry<bool> _enableFireAmbience;
+        private ConfigEntry<string> _fireAmbienceFile;
+        private ConfigEntry<float> _fireAmbienceVolume;
+        private ConfigEntry<bool> _enableWindAmbience;
+        private ConfigEntry<string> _windAmbienceFile;
+        private ConfigEntry<float> _windAmbienceVolume;
+        private ConfigEntry<string> _customMusicFile;
+        private ConfigEntry<float> _customMusicVolume;
+        private ConfigEntry<bool> _loop;
+        private ConfigEntry<float> _loopStartSeconds;
+        private ConfigEntry<float> _loopEndTrimSeconds;
+        private ConfigEntry<float> _crossfadeSeconds;
+        private ConfigEntry<bool> _applyEffectsToBaseMusic;
+        private ConfigEntry<float> _semitones;
+        private ConfigEntry<int> _fftSize;
+        private ConfigEntry<int> _overlap;
+        private ConfigEntry<bool> _enableHighFrequencyRestore;
+        private ConfigEntry<float> _highFrequencyGainDb;
+        private ConfigEntry<float> _highFrequencyCrossoverHz;
+        private ConfigEntry<bool> _demonicMode;
+        private ConfigEntry<bool> _enableDistortion;
+        private ConfigEntry<float> _distortionLevel;
+        private ConfigEntry<bool> _enableLowpass;
+        private ConfigEntry<float> _lowpassCutoffHz;
+        private ConfigEntry<bool> _enableEcho;
+        private ConfigEntry<float> _echoDelayMs;
+        private ConfigEntry<float> _echoFeedbackPercent;
+        private ConfigEntry<float> _echoWetLevelDb;
+        private ConfigEntry<bool> _fadeOutOnGameLoad;
+        private ConfigEntry<float> _gameLoadFadeSeconds;
+        private ConfigEntry<bool> _muteOriginalTitleMusic;
+        private ConfigEntry<bool> _restartWhenTitleMusicPlays;
+        private ConfigEntry<bool> _verboseLogging;
+
+        private Coroutine _retryCoroutine;
+        private string _loadedSignature = string.Empty;
+        private uint _musicLengthMs;
+        private uint _loopStartMs;
+        private uint _loopEndMs;
+        private float _loopFadeStartedAt = -1.0f;
+        private float _loopFadeDurationSeconds;
+        private bool _exitFadeActive;
+        private float _exitFadeStartedAt = -1.0f;
+        private float _exitFadeDurationSeconds;
+        private string _exitFadeReason = string.Empty;
+        private bool _titlePlaybackAllowed;
+
+        private float PitchRatio
+        {
+            get
+            {
+                double ratio = Math.Pow(2.0, _semitones.Value / 12.0);
+                return Mathf.Clamp((float)ratio, 0.2f, 2.0f);
+            }
+        }
+
+        private void Awake()
+        {
+            Instance = this;
+            Log = Logger;
+
+            ResetConfigIfSchemaChanged();
+            BindConfig();
+            PatchTitleMusic();
+            PatchGameLoading();
+
+            Logger.LogInfo(
+                PluginName
+                + " "
+                + PluginVersion
+                + " loaded; music mode is "
+                + _musicMode.Value
+                + ".");
+        }
+
+        private void BindConfig()
+        {
+            _enabled = Config.Bind(
+                "1. Core",
+                "Enabled",
+                true,
+                "Master switch.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                "Configuration layout version. Older layouts are backed up and regenerated.");
+            _musicMode = Config.Bind(
+                "1. Core",
+                "MusicMode",
+                MusicMode.LayeredModifiedTaintedGrail,
+                "LayeredModifiedTaintedGrail uses the included title music, fire, and wind layers. CustomFile plays only CustomMusicFile with normal loop controls but no DSP or ambience layers. Off disables replacement music.");
+
+            _baseMusicFile = Config.Bind(
+                "2. Layered Title Music",
+                "BaseMusicFile",
+                "menu_layer_01.ksaudio",
+                "Base title music layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data. Relative paths are resolved from the plugin folder first, then the audio folder.");
+            _baseMusicVolume = Config.Bind(
+                "2. Layered Title Music",
+                "BaseMusicVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Base title music volume.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _enableFireAmbience = Config.Bind(
+                "2. Layered Title Music",
+                "EnableFireAmbience",
+                true,
+                "Play the included fire ambience layer in LayeredModifiedTaintedGrail mode.");
+            _fireAmbienceFile = Config.Bind(
+                "2. Layered Title Music",
+                "FireAmbienceFile",
+                "menu_layer_02.ksaudio",
+                "Fire ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
+            _fireAmbienceVolume = Config.Bind(
+                "2. Layered Title Music",
+                "FireAmbienceVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Fire ambience volume. The included file is already quiet.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _enableWindAmbience = Config.Bind(
+                "2. Layered Title Music",
+                "EnableWindAmbience",
+                true,
+                "Play the included wind ambience layer in LayeredModifiedTaintedGrail mode.");
+            _windAmbienceFile = Config.Bind(
+                "2. Layered Title Music",
+                "WindAmbienceFile",
+                "menu_layer_03.ksaudio",
+                "Wind ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
+            _windAmbienceVolume = Config.Bind(
+                "2. Layered Title Music",
+                "WindAmbienceVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Wind ambience volume. The included file is already quiet.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+
+            _customMusicFile = Config.Bind(
+                "3. Custom File",
+                "CustomMusicFile",
+                "main_menu_music.wav",
+                "WAV to play when MusicMode is CustomFile. Custom playback is affected by Looping settings but not by layered ambience or DSP settings.");
+            _customMusicVolume = Config.Bind(
+                "3. Custom File",
+                "CustomMusicVolume",
+                0.85f,
+                new ConfigDescription(
+                    "Custom file volume.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+
+            _loop = Config.Bind(
+                "4. Looping",
+                "Loop",
+                true,
+                "Loop the active title music while the title menu is open.");
+            _loopStartSeconds = Config.Bind(
+                "4. Looping",
+                "LoopStartSeconds",
+                0.0f,
+                new ConfigDescription(
+                    "Optional loop start point in seconds. The first play starts at the beginning; repeated loops start here.",
+                    new AcceptableValueRange<float>(0.0f, 6000.0f)));
+            _loopEndTrimSeconds = Config.Bind(
+                "4. Looping",
+                "LoopEndTrimSeconds",
+                0.0f,
+                new ConfigDescription(
+                    "Seconds to trim from the end before looping. Useful for removing silence, tails, or export padding.",
+                    new AcceptableValueRange<float>(0.0f, 600.0f)));
+            _crossfadeSeconds = Config.Bind(
+                "4. Looping",
+                "CrossfadeSeconds",
+                3.0f,
+                new ConfigDescription(
+                    "Optional loop crossfade duration in seconds. 0 uses FMOD loop points without crossfade.",
+                    new AcceptableValueRange<float>(0.0f, 30.0f)));
+
+            _applyEffectsToBaseMusic = Config.Bind(
+                "5. Effects",
+                "ApplyEffectsToBaseMusic",
+                true,
+                "Apply pitch, EQ, distortion, lowpass, and echo to the base Tainted Grail title music layer. CustomFile mode is never affected by these settings.");
+            _semitones = Config.Bind(
+                "5. Effects",
+                "Semitones",
+                -9.0f,
+                new ConfigDescription(
+                    "Pitch offset in semitones for the base title music layer.",
+                    new AcceptableValueRange<float>(-24.0f, 0.0f)));
+            _fftSize = Config.Bind(
+                "5. Effects",
+                "FFTSize",
+                4096,
+                new ConfigDescription(
+                    "FMOD pitch-shift FFT size.",
+                    new AcceptableValueRange<int>(256, 4096)));
+            _overlap = Config.Bind(
+                "5. Effects",
+                "Overlap",
+                32,
+                new ConfigDescription(
+                    "FMOD pitch-shift overlap.",
+                    new AcceptableValueRange<int>(1, 32)));
+            _enableHighFrequencyRestore = Config.Bind(
+                "5. Effects",
+                "EnableHighFrequencyRestore",
+                true,
+                "Adds a light high-band EQ after pitch shifting so the treated base music keeps some brightness.");
+            _highFrequencyGainDb = Config.Bind(
+                "5. Effects",
+                "HighFrequencyGainDb",
+                1.5f,
+                new ConfigDescription(
+                    "High-band gain in dB for the restore EQ.",
+                    new AcceptableValueRange<float>(0.0f, 6.0f)));
+            _highFrequencyCrossoverHz = Config.Bind(
+                "5. Effects",
+                "HighFrequencyCrossoverHz",
+                5000.0f,
+                new ConfigDescription(
+                    "Frequency where the restore EQ high band begins.",
+                    new AcceptableValueRange<float>(1000.0f, 12000.0f)));
+            _demonicMode = Config.Bind(
+                "5. Effects",
+                "DemonicMode",
+                true,
+                "Adds a subtle distortion, lowpass, and short echo chain after the pitch shift.");
+            _enableDistortion = Config.Bind(
+                "5. Effects",
+                "EnableDistortion",
+                true,
+                "Adds a small amount of FMOD distortion.");
+            _distortionLevel = Config.Bind(
+                "5. Effects",
+                "DistortionLevel",
+                0.1f,
+                new ConfigDescription(
+                    "FMOD distortion level.",
+                    new AcceptableValueRange<float>(0.0f, 0.5f)));
+            _enableLowpass = Config.Bind(
+                "5. Effects",
+                "EnableLowpass",
+                true,
+                "Darkens the pitched audio by reducing harsh high frequencies.");
+            _lowpassCutoffHz = Config.Bind(
+                "5. Effects",
+                "LowpassCutoffHz",
+                5500.0f,
+                new ConfigDescription(
+                    "Lowpass cutoff in Hz.",
+                    new AcceptableValueRange<float>(1000.0f, 22000.0f)));
+            _enableEcho = Config.Bind(
+                "5. Effects",
+                "EnableEcho",
+                true,
+                "Adds a quiet short echo for a supernatural tail.");
+            _echoDelayMs = Config.Bind(
+                "5. Effects",
+                "EchoDelayMs",
+                100.0f,
+                new ConfigDescription(
+                    "Echo delay in milliseconds.",
+                    new AcceptableValueRange<float>(10.0f, 250.0f)));
+            _echoFeedbackPercent = Config.Bind(
+                "5. Effects",
+                "EchoFeedbackPercent",
+                10.0f,
+                new ConfigDescription(
+                    "Echo feedback percent.",
+                    new AcceptableValueRange<float>(0.0f, 50.0f)));
+            _echoWetLevelDb = Config.Bind(
+                "5. Effects",
+                "EchoWetLevelDb",
+                -36.0f,
+                new ConfigDescription(
+                    "Echo wet level in decibels. More negative is subtler.",
+                    new AcceptableValueRange<float>(-80.0f, 0.0f)));
+
+            _fadeOutOnGameLoad = Config.Bind(
+                "6. Loading Transition",
+                "FadeOutOnGameLoad",
+                true,
+                "Fade out replacement title music when a real game load begins.");
+            _gameLoadFadeSeconds = Config.Bind(
+                "6. Loading Transition",
+                "GameLoadFadeSeconds",
+                2.0f,
+                new ConfigDescription(
+                    "Replacement title music fade-out duration when gameplay/loading starts.",
+                    new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _muteOriginalTitleMusic = Config.Bind(
+                "7. Advanced",
+                "MuteOriginalTitleMusic",
+                true,
+                "Set the game's original title music emitters to volume 0 while replacement music is active.");
+            _restartWhenTitleMusicPlays = Config.Bind(
+                "7. Advanced",
+                "RestartWhenTitleMusicPlays",
+                false,
+                "Restart replacement music each time the game's title music PlayMusic method runs.");
+            _verboseLogging = Config.Bind(
+                "8. Diagnostics",
+                "VerboseLogging",
+                false,
+                "Log title music routing, layer playback, DSP, and transition details.");
+
+            _enabled.SettingChanged += delegate
+            {
+                if (!_enabled.Value)
+                {
+                    StopCustomMusic("disabled");
+                    UnmuteOriginals();
+                    return;
+                }
+
+                RestartCustomMusic();
+            };
+            _musicMode.SettingChanged += delegate { RestartCustomMusic(); };
+            _baseMusicFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
+            _enableFireAmbience.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
+            _fireAmbienceFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
+            _enableWindAmbience.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
+            _windAmbienceFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
+            _customMusicFile.SettingChanged += delegate { RestartCustomMusicIfActive(); };
+            _loop.SettingChanged += delegate { RestartCustomMusic(); };
+            _loopStartSeconds.SettingChanged += delegate { RestartCustomMusic(); };
+            _loopEndTrimSeconds.SettingChanged += delegate { RestartCustomMusic(); };
+            _crossfadeSeconds.SettingChanged += delegate { RestartCustomMusic(); };
+            _applyEffectsToBaseMusic.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _semitones.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _fftSize.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _overlap.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _enableHighFrequencyRestore.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _highFrequencyGainDb.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _highFrequencyCrossoverHz.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _demonicMode.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _enableDistortion.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _distortionLevel.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _enableLowpass.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _lowpassCutoffHz.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _enableEcho.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _echoDelayMs.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _echoFeedbackPercent.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _echoWetLevelDb.SettingChanged += delegate { RefreshLiveEffectSettings(); };
+            _baseMusicVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
+            _fireAmbienceVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
+            _windAmbienceVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
+            _customMusicVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
+            _muteOriginalTitleMusic.SettingChanged += delegate
+            {
+                if (!_muteOriginalTitleMusic.Value)
+                {
+                    UnmuteOriginals();
+                }
+            };
+
+            Config.Save();
+        }
+
+        private void ResetConfigIfSchemaChanged()
+        {
+            string configPath = Config.ConfigFilePath;
+            if (string.IsNullOrWhiteSpace(configPath) || !File.Exists(configPath))
+            {
+                return;
+            }
+
+            int storedSchemaVersion = 0;
+            foreach (string rawLine in File.ReadAllLines(configPath))
+            {
+                string line = rawLine.Trim();
+                const string schemaPrefix = "ConfigSchemaVersion =";
+                if (line.StartsWith(schemaPrefix, StringComparison.Ordinal))
+                {
+                    int parsed;
+                    if (int.TryParse(
+                            line.Substring(schemaPrefix.Length).Trim(),
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out parsed))
+                    {
+                        storedSchemaVersion = parsed;
+                    }
+
+                    break;
+                }
+            }
+
+            if (storedSchemaVersion == ConfigSchemaVersion)
+            {
+                return;
+            }
+
+            string backupPath = configPath
+                + ".pre-schema-"
+                + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
+                + "-"
+                + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)
+                + ".bak";
+
+            try
+            {
+                File.Copy(configPath, backupPath, false);
+                File.WriteAllText(configPath, string.Empty);
+                Config.Clear();
+                Config.Reload();
+                Logger.LogInfo(
+                    "Reset main-menu music config schema from "
+                    + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
+                    + " to "
+                    + ConfigSchemaVersion.ToString(CultureInfo.InvariantCulture)
+                    + ". Generated fresh defaults and backed up the old config to "
+                    + backupPath
+                    + ".");
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    if (File.Exists(backupPath))
+                    {
+                        File.Copy(backupPath, configPath, true);
+                        Config.Clear();
+                        Config.Reload();
+                    }
+                }
+                catch (Exception restoreException)
+                {
+                    Logger.LogError(
+                        "Could not restore the previous main-menu music config after a failed schema reset: "
+                        + restoreException.Message);
+                }
+
+                Logger.LogWarning(
+                    "Could not reset the outdated main-menu music config. The previous config was retained when possible: "
+                    + exception.Message);
+            }
+        }
+
+        private void PatchTitleMusic()
+        {
+            Type titleMusicType = AccessTools.TypeByName(TitleMusicTypeName);
+            if (titleMusicType == null)
+            {
+                Logger.LogWarning(
+                    "Could not find "
+                    + TitleMusicTypeName
+                    + "; main menu music will not be changed.");
+                return;
+            }
+
+            _musicEmitterField = AccessTools.Field(
+                titleMusicType,
+                MusicEmitterFieldName);
+            _nonCopyrightedEmitterField = AccessTools.Field(
+                titleMusicType,
+                NonCopyrightedEmitterFieldName);
+
+            MethodInfo playMusicMethod = AccessTools.Method(
+                titleMusicType,
+                "PlayMusic");
+            if (_musicEmitterField == null
+                || _nonCopyrightedEmitterField == null
+                || playMusicMethod == null)
+            {
+                Logger.LogWarning(
+                    "Could not resolve title-screen music fields or PlayMusic method; main menu music will not be changed.");
+                return;
+            }
+
+            _harmony = new Harmony(PluginGuid);
+            _harmony.Patch(
+                playMusicMethod,
+                postfix: new HarmonyMethod(
+                    typeof(Patches),
+                    "AfterPlayMusic"));
+
+            PatchOptionalTitleMethod(titleMusicType, "OnDisable");
+            PatchOptionalTitleMethod(titleMusicType, "OnDestroy");
+        }
+
+        private void PatchOptionalTitleMethod(Type titleMusicType, string methodName)
+        {
+            MethodInfo method = AccessTools.Method(titleMusicType, methodName);
+            if (method == null)
+            {
+                LogDiagnostic("Title music " + methodName + " method was not found.");
+                return;
+            }
+
+            _harmony.Patch(
+                method,
+                postfix: new HarmonyMethod(
+                    typeof(Patches),
+                    "AfterTitleMusicClosed"));
+            LogDiagnostic("Patched title music " + methodName + ".");
+        }
+
+        private void PatchGameLoading()
+        {
+            if (_harmony == null)
+            {
+                return;
+            }
+
+            foreach (string typeName in GameLoadingTypeNames)
+            {
+                Type loadingType = AccessTools.TypeByName(typeName);
+                if (loadingType == null)
+                {
+                    LogDiagnostic("Game loading type not found: " + typeName + ".");
+                    continue;
+                }
+
+                MethodInfo method = AccessTools.Method(
+                    loadingType,
+                    "BeforeDroppingPreviousDomains");
+                if (method == null)
+                {
+                    LogDiagnostic(
+                        "BeforeDroppingPreviousDomains was not found on "
+                        + typeName
+                        + ".");
+                    continue;
+                }
+
+                _harmony.Patch(
+                    method,
+                    prefix: new HarmonyMethod(
+                        typeof(Patches),
+                        "BeforeGameLoading"));
+                LogDiagnostic("Patched game loading transition: " + typeName + ".");
+            }
+        }
+
+        internal void ApplyToTitleMusic(object titleMusicView)
+        {
+            if (titleMusicView == null)
+            {
+                return;
+            }
+
+            _titlePlaybackAllowed = true;
+            _exitFadeActive = false;
+
+            if (!_enabled.Value || _musicMode.Value == MusicMode.Off)
+            {
+                StopCustomMusic("disabled or off");
+                UnmuteOriginals();
+                return;
+            }
+
+            bool allReady = true;
+            if (_muteOriginalTitleMusic.Value)
+            {
+                allReady &= MuteEmitter(
+                    titleMusicView,
+                    _musicEmitterField,
+                    "copyrighted title music");
+                allReady &= MuteEmitter(
+                    titleMusicView,
+                    _nonCopyrightedEmitterField,
+                    "non-copyrighted title music");
+            }
+            else
+            {
+                UnmuteOriginals();
+            }
+
+            EnsureCustomMusicPlaying(_restartWhenTitleMusicPlays.Value);
+
+            if (!allReady && _retryCoroutine == null)
+            {
+                _retryCoroutine = StartCoroutine(RetryApply(titleMusicView));
+            }
+        }
+
+        private IEnumerator RetryApply(object titleMusicView)
+        {
+            float[] delays = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 4.0f };
+            for (int i = 0; i < delays.Length; i++)
+            {
+                yield return new WaitForSecondsRealtime(delays[i]);
+                if (titleMusicView == null || !_enabled.Value || !_titlePlaybackAllowed)
+                {
+                    break;
+                }
+
+                bool allReady = true;
+                if (_muteOriginalTitleMusic.Value)
+                {
+                    allReady &= MuteEmitter(
+                        titleMusicView,
+                        _musicEmitterField,
+                        "copyrighted title music");
+                    allReady &= MuteEmitter(
+                        titleMusicView,
+                        _nonCopyrightedEmitterField,
+                        "non-copyrighted title music");
+                }
+
+                EnsureCustomMusicPlaying(false);
+
+                if (allReady)
+                {
+                    break;
+                }
+            }
+
+            _retryCoroutine = null;
+        }
+
+        private bool MuteEmitter(
+            object titleMusicView,
+            FieldInfo emitterField,
+            string label)
+        {
+            if (emitterField == null)
+            {
+                return true;
+            }
+
+            StudioEventEmitter emitter =
+                emitterField.GetValue(titleMusicView) as StudioEventEmitter;
+            if (emitter == null)
+            {
+                LogDiagnostic("No " + label + " emitter yet.");
+                return true;
+            }
+
+            EventInstance instance = emitter.EventInstance;
+            if (!instance.isValid())
+            {
+                LogDiagnostic(label + " emitter has no valid FMOD instance yet.");
+                return false;
+            }
+
+            IntPtr handle = instance.handle;
+            if (handle == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            RESULT result = instance.setVolume(0.0f);
+            if (result != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "Failed to mute "
+                    + label
+                    + ": "
+                    + result
+                    + ".");
+                return false;
+            }
+
+            _mutedOriginals[handle] = instance;
+            LogDiagnostic("Muted " + label + ".");
+            return true;
+        }
+
+        private void Update()
+        {
+            if (_exitFadeActive)
+            {
+                UpdateExitFade();
+                return;
+            }
+
+            if (!_enabled.Value
+                || _musicMode.Value == MusicMode.Off
+                || !_titlePlaybackAllowed
+                || string.IsNullOrEmpty(_loadedSignature))
+            {
+                return;
+            }
+
+            UpdateManualCrossfade();
+
+            if (ShouldLoopCurrentMode()
+                && !IsLayerSetPlaying(_layers)
+                && _fadeOutLayers.Count == 0)
+            {
+                EnsureCustomMusicPlaying(false);
+            }
+        }
+
+        private void EnsureCustomMusicPlaying(bool restart)
+        {
+            if (!_enabled.Value
+                || _musicMode.Value == MusicMode.Off
+                || !_titlePlaybackAllowed)
+            {
+                return;
+            }
+
+            string signature = BuildPlaybackSignature();
+            if (string.IsNullOrEmpty(signature))
+            {
+                return;
+            }
+
+            if (!restart
+                && IsLayerSetPlaying(_layers)
+                && string.Equals(
+                    _loadedSignature,
+                    signature,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshLayerVolumes();
+                return;
+            }
+
+            StopCustomMusic("restart");
+            _loggedMissingPaths.Clear();
+
+            List<MusicLayer> nextLayers;
+            if (!TryStartLayerSet(false, 1.0f, out nextLayers))
+            {
+                return;
+            }
+
+            ReplaceLayerList(_layers, nextLayers);
+            _loadedSignature = signature;
+            RefreshLayerVolumes();
+            Logger.LogInfo(
+                "Playing main menu music mode "
+                + _musicMode.Value
+                + " with "
+                + _layers.Count.ToString(CultureInfo.InvariantCulture)
+                + " layer(s), length="
+                + (_musicLengthMs / 1000.0f).ToString("0.###", CultureInfo.InvariantCulture)
+                + "s loopStart="
+                + (_loopStartMs / 1000.0f).ToString("0.###", CultureInfo.InvariantCulture)
+                + "s loopEnd="
+                + (_loopEndMs / 1000.0f).ToString("0.###", CultureInfo.InvariantCulture)
+                + "s crossfade="
+                + _crossfadeSeconds.Value.ToString("0.###", CultureInfo.InvariantCulture)
+                + "s.");
+        }
+
+        private string BuildPlaybackSignature()
+        {
+            List<LayerSpec> specs = BuildLayerSpecs(false);
+            if (specs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            List<string> parts = new List<string>();
+            parts.Add(_musicMode.Value.ToString());
+            parts.Add(_loop.Value.ToString(CultureInfo.InvariantCulture));
+            parts.Add(_loopStartSeconds.Value.ToString(CultureInfo.InvariantCulture));
+            parts.Add(_loopEndTrimSeconds.Value.ToString(CultureInfo.InvariantCulture));
+            parts.Add(_crossfadeSeconds.Value.ToString(CultureInfo.InvariantCulture));
+
+            for (int i = 0; i < specs.Count; i++)
+            {
+                parts.Add(specs[i].Role.ToString());
+                parts.Add(specs[i].Path);
+            }
+
+            return string.Join("|", parts.ToArray());
+        }
+
+        private List<LayerSpec> BuildLayerSpecs(bool logMissing)
+        {
+            List<LayerSpec> specs = new List<LayerSpec>();
+            if (_musicMode.Value == MusicMode.CustomFile)
+            {
+                string customPath = ResolveMusicPath(
+                    _customMusicFile.Value,
+                    "custom music",
+                    logMissing);
+                if (!string.IsNullOrEmpty(customPath))
+                {
+                    specs.Add(
+                        new LayerSpec(
+                            LayerRole.Custom,
+                            "custom music",
+                            customPath,
+                            GetVolumeForRole(LayerRole.Custom),
+                            false,
+                            true));
+                }
+
+                return specs;
+            }
+
+            if (_musicMode.Value != MusicMode.LayeredModifiedTaintedGrail)
+            {
+                return specs;
+            }
+
+            string basePath = ResolveMusicPath(
+                _baseMusicFile.Value,
+                "base title music",
+                logMissing);
+            if (string.IsNullOrEmpty(basePath))
+            {
+                return specs;
+            }
+
+            if (!string.IsNullOrEmpty(basePath))
+            {
+                specs.Add(
+                    new LayerSpec(
+                        LayerRole.Base,
+                        "base title music",
+                        basePath,
+                        GetVolumeForRole(LayerRole.Base),
+                        _applyEffectsToBaseMusic.Value,
+                        true));
+            }
+
+            if (_enableFireAmbience.Value)
+            {
+                string firePath = ResolveMusicPath(
+                    _fireAmbienceFile.Value,
+                    "fire ambience",
+                    logMissing);
+                if (!string.IsNullOrEmpty(firePath))
+                {
+                    specs.Add(
+                        new LayerSpec(
+                            LayerRole.Fire,
+                            "fire ambience",
+                            firePath,
+                            GetVolumeForRole(LayerRole.Fire),
+                            false,
+                            false));
+                }
+            }
+
+            if (_enableWindAmbience.Value)
+            {
+                string windPath = ResolveMusicPath(
+                    _windAmbienceFile.Value,
+                    "wind ambience",
+                    logMissing);
+                if (!string.IsNullOrEmpty(windPath))
+                {
+                    specs.Add(
+                        new LayerSpec(
+                            LayerRole.Wind,
+                            "wind ambience",
+                            windPath,
+                            GetVolumeForRole(LayerRole.Wind),
+                            false,
+                            false));
+                }
+            }
+
+            return specs;
+        }
+
+        private bool TryStartLayerSet(
+            bool startAtLoopStart,
+            float volumeScale,
+            out List<MusicLayer> startedLayers)
+        {
+            startedLayers = new List<MusicLayer>();
+            List<LayerSpec> specs = BuildLayerSpecs(true);
+            if (specs.Count == 0)
+            {
+                return false;
+            }
+
+            bool useBuiltInLoop = ShouldLoopCurrentMode()
+                && !ShouldUseManualCrossfade();
+            _musicLengthMs = 0;
+            _loopStartMs = 0;
+            _loopEndMs = 0;
+
+            for (int i = 0; i < specs.Count; i++)
+            {
+                LayerSpec spec = specs[i];
+                FMOD.Sound sound;
+                if (!TryCreateCustomSound(spec.Path, useBuiltInLoop, out sound))
+                {
+                    if (spec.Required)
+                    {
+                        ReleaseLayerList(startedLayers);
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                if (i == 0)
+                {
+                    CalculateLoopPoints(sound);
+                }
+
+                if (useBuiltInLoop)
+                {
+                    ApplyLoopPointsToSound(sound);
+                }
+
+                MusicLayer layer;
+                if (!TryPlayLayer(spec, sound, startAtLoopStart, volumeScale, out layer))
+                {
+                    sound.release();
+                    if (spec.Required)
+                    {
+                        ReleaseLayerList(startedLayers);
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                startedLayers.Add(layer);
+            }
+
+            if (startedLayers.Count == 0)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryCreateCustomSound(
+            string path,
+            bool useBuiltInLoop,
+            out FMOD.Sound sound)
+        {
+            FMOD.MODE mode = FMOD.MODE.DEFAULT
+                | FMOD.MODE._2D
+                | FMOD.MODE.CREATESTREAM;
+            mode |= useBuiltInLoop ? FMOD.MODE.LOOP_NORMAL : FMOD.MODE.LOOP_OFF;
+
+            RESULT createResult = RuntimeManager.CoreSystem.createSound(
+                path,
+                mode,
+                out sound);
+            if (createResult != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "FMOD createSound failed for main menu music "
+                    + path
+                    + ": "
+                    + createResult
+                    + ".");
+                sound = default(FMOD.Sound);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryPlayLayer(
+            LayerSpec spec,
+            FMOD.Sound sound,
+            bool startAtLoopStart,
+            float volumeScale,
+            out MusicLayer layer)
+        {
+            layer = null;
+            FMOD.ChannelGroup channelGroup;
+            RESULT groupResult = RuntimeManager.CoreSystem.getMasterChannelGroup(
+                out channelGroup);
+            if (groupResult != RESULT.OK)
+            {
+                channelGroup = default(FMOD.ChannelGroup);
+            }
+
+            FMOD.Channel channel;
+            RESULT playResult = RuntimeManager.CoreSystem.playSound(
+                sound,
+                channelGroup,
+                true,
+                out channel);
+            if (playResult != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "FMOD playSound failed for main menu music layer "
+                    + spec.Label
+                    + ": "
+                    + playResult
+                    + ".");
+                channel = default(FMOD.Channel);
+                return false;
+            }
+
+            if (startAtLoopStart && _loopStartMs > 0)
+            {
+                RESULT positionResult = channel.setPosition(_loopStartMs, TIMEUNIT.MS);
+                if (positionResult != RESULT.OK)
+                {
+                    LogDiagnostic(
+                        "Could not start looped layer "
+                        + spec.Label
+                        + " at loop start "
+                        + _loopStartMs.ToString(CultureInfo.InvariantCulture)
+                        + "ms: "
+                        + positionResult
+                        + ".");
+                }
+            }
+
+            layer = new MusicLayer(spec, sound, channel);
+            if (spec.ApplyEffects)
+            {
+                ConfigureLayerDsps(layer);
+            }
+
+            channel.setVolume(Math.Max(0.0f, spec.Volume * volumeScale));
+            channel.setPaused(false);
+            return true;
+        }
+
+        private void CalculateLoopPoints(FMOD.Sound sound)
+        {
+            _musicLengthMs = 0;
+            _loopStartMs = 0;
+            _loopEndMs = 0;
+
+            uint lengthMs;
+            RESULT lengthResult = sound.getLength(out lengthMs, TIMEUNIT.MS);
+            if (lengthResult != RESULT.OK || lengthMs == 0)
+            {
+                Logger.LogWarning(
+                    "Could not read main menu music length: "
+                    + lengthResult
+                    + ".");
+                return;
+            }
+
+            _musicLengthMs = lengthMs;
+            uint startMs = SecondsToMilliseconds(_loopStartSeconds.Value);
+            uint endTrimMs = SecondsToMilliseconds(_loopEndTrimSeconds.Value);
+            uint endMs = lengthMs > endTrimMs ? lengthMs - endTrimMs : lengthMs;
+
+            if (startMs + MinimumLoopLengthMs >= endMs)
+            {
+                Logger.LogWarning(
+                    "Configured loop trim points leave too little audio to loop; using the full file.");
+                startMs = 0;
+                endMs = lengthMs;
+            }
+
+            _loopStartMs = startMs;
+            _loopEndMs = endMs;
+        }
+
+        private uint SecondsToMilliseconds(float seconds)
+        {
+            if (seconds <= 0.0f)
+            {
+                return 0;
+            }
+
+            double milliseconds = seconds * 1000.0;
+            if (milliseconds >= uint.MaxValue)
+            {
+                return uint.MaxValue;
+            }
+
+            return (uint)Math.Round(milliseconds);
+        }
+
+        private void ApplyLoopPointsToSound(FMOD.Sound sound)
+        {
+            if (_loopEndMs <= _loopStartMs + MinimumLoopLengthMs)
+            {
+                return;
+            }
+
+            uint loopEndPoint = _loopEndMs > 0 ? _loopEndMs - 1 : _loopEndMs;
+            RESULT loopResult = sound.setLoopPoints(
+                _loopStartMs,
+                TIMEUNIT.MS,
+                loopEndPoint,
+                TIMEUNIT.MS);
+            if (loopResult != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "Could not apply main menu music loop points: "
+                    + loopResult
+                    + ".");
+            }
+        }
+
+        private bool ShouldUseManualCrossfade()
+        {
+            return _musicMode.Value != MusicMode.Off
+                && _loop.Value
+                && _crossfadeSeconds.Value > 0.001f;
+        }
+
+        private uint GetEffectiveCrossfadeMs()
+        {
+            if (!ShouldUseManualCrossfade())
+            {
+                return 0;
+            }
+
+            uint requestedMs = SecondsToMilliseconds(_crossfadeSeconds.Value);
+            uint loopLengthMs = _loopEndMs > _loopStartMs
+                ? _loopEndMs - _loopStartMs
+                : _musicLengthMs;
+            if (requestedMs == 0 || loopLengthMs <= MinimumLoopLengthMs)
+            {
+                return 0;
+            }
+
+            uint maximumMs = loopLengthMs > 100 ? loopLengthMs - 100 : 0;
+            return Math.Min(requestedMs, maximumMs);
+        }
+
+        private void UpdateManualCrossfade()
+        {
+            UpdateLoopCrossfadeVolumes();
+
+            uint crossfadeMs = GetEffectiveCrossfadeMs();
+            if (crossfadeMs == 0 || _fadeOutLayers.Count > 0)
+            {
+                return;
+            }
+
+            if (_layers.Count == 0 || _loopEndMs <= _loopStartMs)
+            {
+                return;
+            }
+
+            uint positionMs;
+            RESULT positionResult = _layers[0].Channel.getPosition(
+                out positionMs,
+                TIMEUNIT.MS);
+            if (positionResult != RESULT.OK)
+            {
+                return;
+            }
+
+            uint triggerMs = _loopEndMs > crossfadeMs
+                ? _loopEndMs - crossfadeMs
+                : _loopStartMs;
+            if (positionMs >= triggerMs)
+            {
+                StartLoopCrossfade(crossfadeMs);
+            }
+        }
+
+        private void StartLoopCrossfade(uint crossfadeMs)
+        {
+            List<MusicLayer> nextLayers;
+            if (!TryStartLayerSet(true, 0.0f, out nextLayers))
+            {
+                JumpToLoopStart();
+                return;
+            }
+
+            ReleaseLayerList(_fadeOutLayers);
+            ReplaceLayerList(_fadeOutLayers, _layers);
+            ReplaceLayerList(_layers, nextLayers);
+
+            _loopFadeStartedAt = Time.unscaledTime;
+            _loopFadeDurationSeconds = Math.Max(0.01f, crossfadeMs / 1000.0f);
+            LogDiagnostic(
+                "Started main menu music loop crossfade over "
+                + _loopFadeDurationSeconds.ToString("0.###", CultureInfo.InvariantCulture)
+                + "s.");
+        }
+
+        private void UpdateLoopCrossfadeVolumes()
+        {
+            if (_fadeOutLayers.Count == 0)
+            {
+                return;
+            }
+
+            float progress = Mathf.Clamp01(
+                (Time.unscaledTime - _loopFadeStartedAt)
+                / Math.Max(0.01f, _loopFadeDurationSeconds));
+
+            SetLayerSetVolume(_layers, progress);
+            SetLayerSetVolume(_fadeOutLayers, 1.0f - progress);
+
+            if (progress < 1.0f && IsLayerSetPlaying(_fadeOutLayers))
+            {
+                return;
+            }
+
+            ReleaseLayerList(_fadeOutLayers);
+            RefreshLayerVolumes();
+            _loopFadeStartedAt = -1.0f;
+            _loopFadeDurationSeconds = 0.0f;
+            LogDiagnostic("Completed main menu music loop crossfade.");
+        }
+
+        private void JumpToLoopStart()
+        {
+            for (int i = 0; i < _layers.Count; i++)
+            {
+                if (_layers[i].Channel.handle == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                RESULT result = _layers[i].Channel.setPosition(
+                    _loopStartMs,
+                    TIMEUNIT.MS);
+                if (result != RESULT.OK)
+                {
+                    LogDiagnostic(
+                        "Could not jump layer "
+                        + _layers[i].Label
+                        + " to loop start: "
+                        + result
+                        + ".");
+                }
+            }
+        }
+
+        private void ConfigureLayerDsps(MusicLayer layer)
+        {
+            if (!TryCreateAndAttachDsp(
+                    layer.Channel,
+                    DSP_TYPE.PITCHSHIFT,
+                    CHANNELCONTROL_DSP_INDEX.HEAD,
+                    layer.Label + " pitch shifter",
+                    out layer.PitchDsp))
+            {
+                return;
+            }
+
+            ConfigurePitchDsp(layer);
+            ConfigureHighFrequencyRestoreDsp(layer);
+
+            if (!_demonicMode.Value)
+            {
+                ReleaseDemonicDsps(layer);
+                return;
+            }
+
+            ConfigureDistortionDsp(layer);
+            ConfigureLowpassDsp(layer);
+            ConfigureEchoDsp(layer);
+        }
+
+        private void RefreshLiveEffectSettings()
+        {
+            if (!IsLayeredMode())
+            {
+                return;
+            }
+
+            RefreshLiveEffectSettings(_layers);
+            RefreshLiveEffectSettings(_fadeOutLayers);
+        }
+
+        private void RefreshLiveEffectSettings(List<MusicLayer> layers)
+        {
+            for (int i = 0; i < layers.Count; i++)
+            {
+                MusicLayer layer = layers[i];
+                if (layer == null || layer.Role != LayerRole.Base)
+                {
+                    continue;
+                }
+
+                if (!_applyEffectsToBaseMusic.Value)
+                {
+                    ReleaseLayerDsps(layer);
+                    continue;
+                }
+
+                if (layer.PitchDsp.handle == IntPtr.Zero)
+                {
+                    ConfigureLayerDsps(layer);
+                    continue;
+                }
+
+                ConfigurePitchDsp(layer);
+                ConfigureHighFrequencyRestoreDsp(layer);
+
+                if (!_demonicMode.Value)
+                {
+                    ReleaseDemonicDsps(layer);
+                    continue;
+                }
+
+                ConfigureDistortionDsp(layer);
+                ConfigureLowpassDsp(layer);
+                ConfigureEchoDsp(layer);
+            }
+        }
+
+        private bool TryCreateAndAttachDsp(
+            FMOD.Channel channel,
+            DSP_TYPE dspType,
+            int dspIndex,
+            string label,
+            out DSP dsp)
+        {
+            dsp = default(DSP);
+            FMOD.System coreSystem = RuntimeManager.CoreSystem;
+            RESULT createResult = coreSystem.createDSPByType(dspType, out dsp);
+            if (createResult != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "Could not create FMOD DSP for "
+                    + label
+                    + ": "
+                    + createResult
+                    + ".");
+                return false;
+            }
+
+            RESULT addResult = channel.addDSP(dspIndex, dsp);
+            if (addResult != RESULT.OK)
+            {
+                Logger.LogWarning(
+                    "Could not attach FMOD DSP for "
+                    + label
+                    + ": "
+                    + addResult
+                    + ".");
+                dsp.release();
+                dsp = default(DSP);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ConfigurePitchDsp(MusicLayer layer)
+        {
+            RESULT pitchResult = layer.PitchDsp.setParameterFloat(
+                (int)DSP_PITCHSHIFT.PITCH,
+                PitchRatio);
+            RESULT fftResult = layer.PitchDsp.setParameterFloat(
+                (int)DSP_PITCHSHIFT.FFTSIZE,
+                _fftSize.Value);
+            RESULT overlapResult = layer.PitchDsp.setParameterFloat(
+                (int)DSP_PITCHSHIFT.OVERLAP,
+                _overlap.Value);
+
+            LogDiagnostic(
+                "Updated pitch DSP for "
+                + layer.Label
+                + ": pitch="
+                + pitchResult
+                + ", fft="
+                + fftResult
+                + ", overlap="
+                + overlapResult
+                + ", ratio="
+                + PitchRatio.ToString(CultureInfo.InvariantCulture)
+                + ".");
+        }
+
+        private void ConfigureHighFrequencyRestoreDsp(MusicLayer layer)
+        {
+            if (!_enableHighFrequencyRestore.Value)
+            {
+                ReleaseDsp(layer, ref layer.HighFrequencyRestoreDsp);
+                return;
+            }
+
+            if (layer.HighFrequencyRestoreDsp.handle == IntPtr.Zero)
+            {
+                TryCreateAndAttachDsp(
+                    layer.Channel,
+                    DSP_TYPE.THREE_EQ,
+                    CHANNELCONTROL_DSP_INDEX.TAIL,
+                    layer.Label + " high-frequency restore EQ",
+                    out layer.HighFrequencyRestoreDsp);
+            }
+
+            if (layer.HighFrequencyRestoreDsp.handle != IntPtr.Zero)
+            {
+                layer.HighFrequencyRestoreDsp.setParameterFloat(
+                    (int)DSP_THREE_EQ.LOWGAIN,
+                    0.0f);
+                layer.HighFrequencyRestoreDsp.setParameterFloat(
+                    (int)DSP_THREE_EQ.MIDGAIN,
+                    0.0f);
+                layer.HighFrequencyRestoreDsp.setParameterFloat(
+                    (int)DSP_THREE_EQ.HIGHGAIN,
+                    _highFrequencyGainDb.Value);
+                layer.HighFrequencyRestoreDsp.setParameterFloat(
+                    (int)DSP_THREE_EQ.HIGHCROSSOVER,
+                    _highFrequencyCrossoverHz.Value);
+            }
+        }
+
+        private void ConfigureDistortionDsp(MusicLayer layer)
+        {
+            if (!_enableDistortion.Value)
+            {
+                ReleaseDsp(layer, ref layer.DistortionDsp);
+                return;
+            }
+
+            if (layer.DistortionDsp.handle == IntPtr.Zero)
+            {
+                TryCreateAndAttachDsp(
+                    layer.Channel,
+                    DSP_TYPE.DISTORTION,
+                    CHANNELCONTROL_DSP_INDEX.HEAD,
+                    layer.Label + " distortion",
+                    out layer.DistortionDsp);
+            }
+
+            if (layer.DistortionDsp.handle != IntPtr.Zero)
+            {
+                layer.DistortionDsp.setParameterFloat(
+                    (int)DSP_DISTORTION.LEVEL,
+                    _distortionLevel.Value);
+            }
+        }
+
+        private void ConfigureLowpassDsp(MusicLayer layer)
+        {
+            if (!_enableLowpass.Value)
+            {
+                ReleaseDsp(layer, ref layer.LowpassDsp);
+                return;
+            }
+
+            if (layer.LowpassDsp.handle == IntPtr.Zero)
+            {
+                TryCreateAndAttachDsp(
+                    layer.Channel,
+                    DSP_TYPE.LOWPASS,
+                    CHANNELCONTROL_DSP_INDEX.HEAD,
+                    layer.Label + " lowpass",
+                    out layer.LowpassDsp);
+            }
+
+            if (layer.LowpassDsp.handle != IntPtr.Zero)
+            {
+                layer.LowpassDsp.setParameterFloat(
+                    (int)DSP_LOWPASS.CUTOFF,
+                    _lowpassCutoffHz.Value);
+                layer.LowpassDsp.setParameterFloat(
+                    (int)DSP_LOWPASS.RESONANCE,
+                    1.0f);
+            }
+        }
+
+        private void ConfigureEchoDsp(MusicLayer layer)
+        {
+            if (!_enableEcho.Value)
+            {
+                ReleaseDsp(layer, ref layer.EchoDsp);
+                return;
+            }
+
+            if (layer.EchoDsp.handle == IntPtr.Zero)
+            {
+                TryCreateAndAttachDsp(
+                    layer.Channel,
+                    DSP_TYPE.ECHO,
+                    CHANNELCONTROL_DSP_INDEX.HEAD,
+                    layer.Label + " echo",
+                    out layer.EchoDsp);
+            }
+
+            if (layer.EchoDsp.handle != IntPtr.Zero)
+            {
+                layer.EchoDsp.setParameterFloat(
+                    (int)DSP_ECHO.DELAY,
+                    _echoDelayMs.Value);
+                layer.EchoDsp.setParameterFloat(
+                    (int)DSP_ECHO.FEEDBACK,
+                    _echoFeedbackPercent.Value);
+                layer.EchoDsp.setParameterFloat(
+                    (int)DSP_ECHO.DRYLEVEL,
+                    0.0f);
+                layer.EchoDsp.setParameterFloat(
+                    (int)DSP_ECHO.WETLEVEL,
+                    _echoWetLevelDb.Value);
+            }
+        }
+
+        private void ReleaseDemonicDsps(MusicLayer layer)
+        {
+            ReleaseDsp(layer, ref layer.DistortionDsp);
+            ReleaseDsp(layer, ref layer.LowpassDsp);
+            ReleaseDsp(layer, ref layer.EchoDsp);
+        }
+
+        private void ReleaseLayerDsps(MusicLayer layer)
+        {
+            ReleaseDsp(layer, ref layer.EchoDsp);
+            ReleaseDsp(layer, ref layer.LowpassDsp);
+            ReleaseDsp(layer, ref layer.DistortionDsp);
+            ReleaseDsp(layer, ref layer.HighFrequencyRestoreDsp);
+            ReleaseDsp(layer, ref layer.PitchDsp);
+        }
+
+        private void ReleaseDsp(MusicLayer layer, ref DSP dsp)
+        {
+            if (dsp.handle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            if (layer != null && layer.Channel.handle != IntPtr.Zero)
+            {
+                layer.Channel.removeDSP(dsp);
+            }
+
+            dsp.release();
+            dsp = default(DSP);
+        }
+
+        private string ResolveMusicPath(
+            string configured,
+            string label,
+            bool logMissing)
+        {
+            if (string.IsNullOrWhiteSpace(configured))
+            {
+                configured = "main_menu_music.wav";
+            }
+
+            string path = configured.Trim();
+            if (Path.IsPathRooted(path) && File.Exists(path))
+            {
+                return path;
+            }
+
+            string pluginDirectory = Path.GetDirectoryName(
+                Assembly.GetExecutingAssembly().Location);
+            if (string.IsNullOrEmpty(pluginDirectory))
+            {
+                pluginDirectory = Paths.PluginPath;
+            }
+
+            string direct = Path.Combine(pluginDirectory, path);
+            if (File.Exists(direct))
+            {
+                return direct;
+            }
+
+            string audioPath = Path.Combine(
+                Path.Combine(pluginDirectory, "audio"),
+                path);
+            if (File.Exists(audioPath))
+            {
+                return audioPath;
+            }
+
+            if (logMissing && !_loggedMissingPaths.Contains(label + "|" + path))
+            {
+                Logger.LogWarning(
+                    "Main menu music "
+                    + label
+                    + " file was not found. Looked for "
+                    + direct
+                    + " and "
+                    + audioPath
+                    + ".");
+                _loggedMissingPaths.Add(label + "|" + path);
+            }
+
+            return string.Empty;
+        }
+
+        private bool IsLayerSetPlaying(List<MusicLayer> layers)
+        {
+            if (layers.Count == 0)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < layers.Count; i++)
+            {
+                if (layers[i].Channel.handle == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                bool playing;
+                RESULT result = layers[i].Channel.isPlaying(out playing);
+                if (result == RESULT.OK && playing)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void RefreshLayerVolumes()
+        {
+            RefreshLayerVolumes(_layers);
+            if (_fadeOutLayers.Count == 0)
+            {
+                return;
+            }
+
+            RefreshLayerVolumes(_fadeOutLayers);
+            UpdateLoopCrossfadeVolumes();
+        }
+
+        private void RefreshLayerVolumes(List<MusicLayer> layers)
+        {
+            for (int i = 0; i < layers.Count; i++)
+            {
+                layers[i].TargetVolume = GetVolumeForRole(layers[i].Role);
+                if (layers[i].Channel.handle != IntPtr.Zero)
+                {
+                    layers[i].Channel.setVolume(Math.Max(0.0f, layers[i].TargetVolume));
+                }
+            }
+        }
+
+        private void SetLayerSetVolume(List<MusicLayer> layers, float scale)
+        {
+            float safeScale = Mathf.Clamp01(scale);
+            for (int i = 0; i < layers.Count; i++)
+            {
+                layers[i].TargetVolume = GetVolumeForRole(layers[i].Role);
+                if (layers[i].Channel.handle != IntPtr.Zero)
+                {
+                    layers[i].Channel.setVolume(
+                        Math.Max(0.0f, layers[i].TargetVolume * safeScale));
+                }
+            }
+        }
+
+        private float GetVolumeForRole(LayerRole role)
+        {
+            switch (role)
+            {
+                case LayerRole.Base:
+                    return Math.Max(0.0f, _baseMusicVolume.Value);
+                case LayerRole.Fire:
+                    return Math.Max(0.0f, _fireAmbienceVolume.Value);
+                case LayerRole.Wind:
+                    return Math.Max(0.0f, _windAmbienceVolume.Value);
+                case LayerRole.Custom:
+                    return Math.Max(0.0f, _customMusicVolume.Value);
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private void RestartCustomMusic()
+        {
+            if (!_enabled.Value || !_titlePlaybackAllowed)
+            {
+                return;
+            }
+
+            if (_musicMode.Value == MusicMode.Off)
+            {
+                StopCustomMusic("off");
+                UnmuteOriginals();
+                return;
+            }
+
+            StopCustomMusic("config changed");
+            EnsureCustomMusicPlaying(false);
+        }
+
+        private void RestartLayeredMusicIfActive()
+        {
+            if (IsLayeredMode())
+            {
+                RestartCustomMusic();
+            }
+        }
+
+        private void RestartCustomMusicIfActive()
+        {
+            if (_musicMode.Value == MusicMode.CustomFile)
+            {
+                RestartCustomMusic();
+            }
+        }
+
+        private bool IsLayeredMode()
+        {
+            return _musicMode.Value == MusicMode.LayeredModifiedTaintedGrail;
+        }
+
+        private bool ShouldLoopCurrentMode()
+        {
+            return _musicMode.Value != MusicMode.Off && _loop.Value;
+        }
+
+        private void BeginExitFade(string reason)
+        {
+            _titlePlaybackAllowed = false;
+
+            if (_retryCoroutine != null)
+            {
+                StopCoroutine(_retryCoroutine);
+                _retryCoroutine = null;
+            }
+
+            if (!_fadeOutOnGameLoad.Value
+                || _gameLoadFadeSeconds.Value <= 0.001f
+                || (_layers.Count == 0 && _fadeOutLayers.Count == 0))
+            {
+                StopCustomMusic(reason);
+                StopMutedOriginals(reason);
+                return;
+            }
+
+            _exitFadeActive = true;
+            _exitFadeStartedAt = Time.unscaledTime;
+            _exitFadeDurationSeconds = Math.Max(0.01f, _gameLoadFadeSeconds.Value);
+            _exitFadeReason = reason;
+            LogDiagnostic(
+                "Started main menu music exit fade over "
+                + _exitFadeDurationSeconds.ToString("0.###", CultureInfo.InvariantCulture)
+                + "s: "
+                + reason
+                + ".");
+        }
+
+        private void UpdateExitFade()
+        {
+            float progress = Mathf.Clamp01(
+                (Time.unscaledTime - _exitFadeStartedAt)
+                / Math.Max(0.01f, _exitFadeDurationSeconds));
+            float scale = 1.0f - progress;
+            SetLayerSetVolume(_layers, scale);
+            SetLayerSetVolume(_fadeOutLayers, scale);
+
+            if (progress < 1.0f)
+            {
+                return;
+            }
+
+            string reason = string.IsNullOrEmpty(_exitFadeReason)
+                ? "exit fade complete"
+                : _exitFadeReason;
+            StopCustomMusic(reason);
+            StopMutedOriginals(reason);
+        }
+
+        private void StopCustomMusic(string reason)
+        {
+            bool stopped = false;
+            stopped |= ReleaseLayerList(_layers);
+            stopped |= ReleaseLayerList(_fadeOutLayers);
+
+            if (stopped)
+            {
+                LogDiagnostic("Stopped replacement main menu music: " + reason + ".");
+            }
+
+            _loadedSignature = string.Empty;
+            _musicLengthMs = 0;
+            _loopStartMs = 0;
+            _loopEndMs = 0;
+            _loopFadeStartedAt = -1.0f;
+            _loopFadeDurationSeconds = 0.0f;
+            _exitFadeActive = false;
+            _exitFadeStartedAt = -1.0f;
+            _exitFadeDurationSeconds = 0.0f;
+            _exitFadeReason = string.Empty;
+        }
+
+        private bool ReleaseLayerList(List<MusicLayer> layers)
+        {
+            bool stopped = false;
+            for (int i = 0; i < layers.Count; i++)
+            {
+                stopped |= ReleaseLayer(layers[i]);
+            }
+
+            layers.Clear();
+            return stopped;
+        }
+
+        private bool ReleaseLayer(MusicLayer layer)
+        {
+            bool stopped = false;
+            if (layer == null)
+            {
+                return false;
+            }
+
+            ReleaseLayerDsps(layer);
+
+            if (layer.Channel.handle != IntPtr.Zero)
+            {
+                layer.Channel.stop();
+                layer.Channel = default(FMOD.Channel);
+                stopped = true;
+            }
+
+            if (layer.Sound.handle != IntPtr.Zero)
+            {
+                layer.Sound.release();
+                layer.Sound = default(FMOD.Sound);
+            }
+
+            return stopped;
+        }
+
+        private void ReplaceLayerList(
+            List<MusicLayer> destination,
+            List<MusicLayer> source)
+        {
+            destination.Clear();
+            for (int i = 0; i < source.Count; i++)
+            {
+                destination.Add(source[i]);
+            }
+
+            source.Clear();
+        }
+
+        internal void OnTitleMusicClosed(object titleMusicView)
+        {
+            BeginExitFade("title music view closed");
+        }
+
+        internal void OnGameLoadStarted(object loadingOperation)
+        {
+            if (!_enabled.Value)
+            {
+                return;
+            }
+
+            string label = loadingOperation == null
+                ? "game loading"
+                : loadingOperation.GetType().Name;
+            BeginExitFade("game loading started: " + label);
+        }
+
+        private void StopMutedOriginals(string reason)
+        {
+            if (_mutedOriginals.Count == 0)
+            {
+                return;
+            }
+
+            foreach (EventInstance instance in _mutedOriginals.Values)
+            {
+                try
+                {
+                    if (instance.isValid())
+                    {
+                        instance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
+                        instance.setVolume(1.0f);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogDiagnostic(
+                        "Could not stop original title music: "
+                        + exception.Message);
+                }
+            }
+
+            LogDiagnostic("Stopped muted original title emitters: " + reason + ".");
+            _mutedOriginals.Clear();
+        }
+
+        private void UnmuteOriginals()
+        {
+            foreach (EventInstance instance in _mutedOriginals.Values)
+            {
+                try
+                {
+                    if (instance.isValid())
+                    {
+                        instance.setVolume(1.0f);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogDiagnostic(
+                        "Could not restore original title music volume: "
+                        + exception.Message);
+                }
+            }
+
+            if (_mutedOriginals.Count > 0)
+            {
+                LogDiagnostic("Restored original title music volume.");
+            }
+
+            _mutedOriginals.Clear();
+        }
+
+        private void OnDestroy()
+        {
+            if (_retryCoroutine != null)
+            {
+                StopCoroutine(_retryCoroutine);
+                _retryCoroutine = null;
+            }
+
+            StopCustomMusic("plugin destroyed");
+            UnmuteOriginals();
+
+            if (_harmony != null)
+            {
+                _harmony.UnpatchSelf();
+                _harmony = null;
+            }
+
+            Instance = null;
+        }
+
+        private void LogDiagnostic(string message)
+        {
+            if (_verboseLogging != null && _verboseLogging.Value)
+            {
+                Logger.LogInfo(message);
+            }
+        }
+    }
+
+    internal sealed class LayerSpec
+    {
+        internal readonly LayerRole Role;
+        internal readonly string Label;
+        internal readonly string Path;
+        internal readonly float Volume;
+        internal readonly bool ApplyEffects;
+        internal readonly bool Required;
+
+        internal LayerSpec(
+            LayerRole role,
+            string label,
+            string path,
+            float volume,
+            bool applyEffects,
+            bool required)
+        {
+            Role = role;
+            Label = label;
+            Path = path;
+            Volume = volume;
+            ApplyEffects = applyEffects;
+            Required = required;
+        }
+    }
+
+    internal sealed class MusicLayer
+    {
+        internal readonly LayerRole Role;
+        internal readonly string Label;
+        internal readonly string Path;
+        internal float TargetVolume;
+        internal FMOD.Sound Sound;
+        internal FMOD.Channel Channel;
+        internal DSP PitchDsp;
+        internal DSP HighFrequencyRestoreDsp;
+        internal DSP DistortionDsp;
+        internal DSP LowpassDsp;
+        internal DSP EchoDsp;
+
+        internal MusicLayer(
+            LayerSpec spec,
+            FMOD.Sound sound,
+            FMOD.Channel channel)
+        {
+            Role = spec.Role;
+            Label = spec.Label;
+            Path = spec.Path;
+            TargetVolume = spec.Volume;
+            Sound = sound;
+            Channel = channel;
+        }
+    }
+
+    internal static class Patches
+    {
+        internal static void AfterPlayMusic(object __instance)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.ApplyToTitleMusic(__instance);
+            }
+        }
+
+        internal static void AfterTitleMusicClosed(object __instance)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.OnTitleMusicClosed(__instance);
+            }
+        }
+
+        internal static void BeforeGameLoading(object __instance)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.OnGameLoadStarted(__instance);
+            }
+        }
+    }
+}

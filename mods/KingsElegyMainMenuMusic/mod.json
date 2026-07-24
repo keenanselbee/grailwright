@@ -1,0 +1,20 @@
+{
+  "id": "KingsElegyMainMenuMusic",
+  "displayName": "King's Elegy - Main Menu Music",
+  "packageName": "KingsElegyMainMenuMusic",
+  "version": "2.0.6",
+  "pluginGuid": "ks.tgfoa.main-menu-music",
+  "dll": "MainMenuMusic.dll",
+  "sourceFiles": [
+    "src/MainMenuMusic.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UI.dll"
+  ]
+}

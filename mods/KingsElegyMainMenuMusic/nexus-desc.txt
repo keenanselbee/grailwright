@@ -1,0 +1,147 @@
+[center][color=#C94A4A][size=6]King's Elegy - Main Menu Music[/size][/color]
+[i]Layered, configurable title-screen music with fire, wind, and custom WAV support.[/i][/center]
+
+[line]
+
+[center][youtube]OfmT_URTKaI[/youtube][/center]
+
+[line]
+
+[b]King's Elegy - Main Menu Music[/b] is a BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b] that gives you full control over the title-screen music route.
+
+By default, it now builds a layered version of the Tainted Grail title music from separate music, fire, and wind WAV files. The main music layer is lowered and treated with a subtle demonic FMOD DSP chain, while the fire and wind ambience stay unpitched so they keep their natural crackle and movement.
+
+[b]main_menu_music.wav[/b] is included as a small silent placeholder for the raw custom-track option. Replace it with your own WAV if you use [b]MusicMode = CustomFile[/b]. CustomFile still uses loop start, end trim, and crossfade settings, but it is not affected by pitch, demonic effects, fire ambience, wind ambience, or layered title music settings.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*]Mutes the game's original title-screen music emitters while replacement music is active.[/*]
+[*]Default layered title mode using separate music, fire, and wind WAV layers.[/*]
+[*]Pitch/demonic DSP treatment for the base title music layer only.[/*]
+[*]Unpitched fire and wind ambience with independent toggles and volume controls.[/*]
+[*]Raw custom WAV mode for users who only want to play their own track, with the same loop trim and crossfade controls.[/*]
+[*]Loop trimming and optional soft crossfade looping.[/*]
+[*]Fades replacement title music out when a real game load begins.[/*]
+[*]Stops muted original title emitters after the replacement fades out so title music does not bleed into loading or gameplay.[/*]
+[*]Does not replace FMOD banks or edit game files.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Default Mode[/size][/color][/heading]
+[code]
+MusicMode = LayeredModifiedTaintedGrail
+
+BaseMusicFile = menu_layer_01.ksaudio
+BaseMusicVolume = 1.0
+
+EnableFireAmbience = true
+FireAmbienceFile = menu_layer_02.ksaudio
+FireAmbienceVolume = 1.0
+
+EnableWindAmbience = true
+WindAmbienceFile = menu_layer_03.ksaudio
+WindAmbienceVolume = 1.0
+[/code]
+
+The three built-in layered files are stereo 44.1 kHz 16-bit PCM files with WAV data and matching duration for synchronized playback.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Effect Defaults[/size][/color][/heading]
+These effects apply only to the base Tainted Grail title music layer:
+
+[code]
+ApplyEffectsToBaseMusic = true
+Semitones = -9
+FFTSize = 4096
+Overlap = 32
+
+EnableHighFrequencyRestore = true
+HighFrequencyGainDb = 1.5
+HighFrequencyCrossoverHz = 5000
+
+DemonicMode = true
+EnableDistortion = true
+DistortionLevel = 0.1
+EnableLowpass = true
+LowpassCutoffHz = 5500
+EnableEcho = true
+EchoDelayMs = 100
+EchoFeedbackPercent = 10
+EchoWetLevelDb = -36
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Custom Music[/size][/color][/heading]
+To use your own replacement WAV:
+
+[code]
+MusicMode = CustomFile
+CustomMusicFile = main_menu_music.wav
+CustomMusicVolume = 0.85
+[/code]
+
+CustomFile mode plays the configured file as-is. The packaged [b]main_menu_music.wav[/b] is a silent placeholder, so replace it with your own WAV before using this mode. It still uses loop start, end trim, and crossfade settings, but it does not receive the layered title music effects or ambience layers.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Loading Fade[/size][/color][/heading]
+[code]
+FadeOutOnGameLoad = true
+GameLoadFadeSeconds = 2
+[/code]
+
+The plugin patches real game-loading operations and fades replacement title music out when gameplay/loading starts. After the replacement fades out, muted original title emitters are stopped and restored silently so title music does not continue into loading or gameplay.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with a mod manager or place the plugin folder under [b]BepInEx\plugins[/b]:
+
+[code]
+BepInEx/plugins/KingsElegyMainMenuMusic/MainMenuMusic.dll
+BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_01.ksaudio
+BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_02.ksaudio
+BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_03.ksaudio
+BepInEx/plugins/KingsElegyMainMenuMusic/main_menu_music.wav
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+The config is generated after first launch:
+
+[code]
+BepInEx/config/ks.tgfoa.main-menu-music.cfg
+[/code]
+
+Version 2.0.6 uses [b]ConfigSchemaVersion = 13[/b]. Older configs are backed up and regenerated once so the updated defaults apply cleanly. Version 2.0.6 also saves generated defaults after binding config so the schema marker persists consistently with the other Grailwright mods.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Music Credit[/size][/color][/heading]
+The default layered title music is based on [url=https://danheim.bandcamp.com/track/ymir][b]Ymir[/b] by Danheim & Gealdyr[/url].
+
+Please support the original artists on Bandcamp.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon Mono branch.[/*]
+[*]BepInEx 5 Mono.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*]Designed for the Mono branch with BepInEx 5 Mono.[/*]
+[*]Patches [b]Awaken.TG.Main.UI.TitleScreen.VTitleScreenMusic.PlayMusic[/b] at runtime.[/*]
+[*]Patches real game-loading operations so replacement title music can fade out before gameplay.[/*]
+[*]Do not install alongside older experimental builds that patch the same title music route.[/*]
+[/list]

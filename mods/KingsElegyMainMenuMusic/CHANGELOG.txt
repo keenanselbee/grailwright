@@ -1,0 +1,46 @@
+Version 2.0.6
+Saved generated defaults after binding config so ConfigSchemaVersion persists consistently with the other Grailwright mods.
+Kept ConfigSchemaVersion at 13 because no config options or defaults changed.
+No audio, loop, or music behavior changes.
+
+Version 2.0.5
+Restored the default base title music pitch to -9 semitones, matching the original 2.0.0 layered profile.
+Bumped ConfigSchemaVersion to 13 so older configs are backed up and regenerated with the restored default.
+
+Version 2.0.4
+Changed the default base title music pitch from -9 to -11 semitones.
+Bumped ConfigSchemaVersion to 12 so older configs are backed up and regenerated with the updated default.
+
+Version 2.0.3
+Restored the default base title music pitch to -9 semitones.
+Restored the default echo wet level to -36 dB.
+Bumped ConfigSchemaVersion to 11 so older configs are backed up and regenerated with the corrected defaults.
+
+Version 2.0.2
+Changed the default echo wet level from -36 dB to -9 dB.
+Bumped ConfigSchemaVersion to 10 so older configs are backed up and regenerated with the updated default.
+
+Version 2.0.1
+Changed the default base title music pitch from -9 to -7 semitones.
+Changed the default base title music volume from 0.85 to 1.0.
+Bumped ConfigSchemaVersion to 9 so older configs are backed up and regenerated with the updated defaults.
+
+Version 2.0.0
+Added MusicMode with LayeredModifiedTaintedGrail, CustomFile, and Off modes.
+Made LayeredModifiedTaintedGrail the default mode, using separate base title music, fire ambience, and wind ambience WAV layers.
+Applied the approved DSP profile to the base title music layer only: -9 semitones, 4096 FFT size, 32 overlap, high-frequency restore EQ, 0.1 distortion, 5500 Hz lowpass, and short quiet echo at 100 ms / 10% / -36 dB.
+Kept fire and wind ambience unpitched, with independent toggles and volume controls.
+Renamed the built-in layered audio files to menu_layer_01.ksaudio, menu_layer_02.ksaudio, and menu_layer_03.ksaudio while keeping valid WAV data inside each file.
+Kept main_menu_music.wav as a raw CustomFile option with shared loop start, end trim, and crossfade controls, but no layered ambience or DSP effects.
+Replaced bundled main_menu_music.wav with a small silent PCM placeholder so CustomFile mode is safe by default until users add their own track.
+Normalized the built-in layered fire and wind WAVs to match the base title music sample rate: stereo 44.1 kHz 16-bit PCM.
+Added FadeOutOnGameLoad and GameLoadFadeSeconds so replacement title music fades out during real game loading, then muted original title emitters are stopped/restored silently instead of faded back into loading.
+Made live effect config changes reconfigure the active base music DSP where possible instead of restarting playback.
+Added Harmony hooks for NewGameLoading, NewGamePlusLoading, FullLoading, and MapChangeLoading load transitions.
+Bumped ConfigSchemaVersion to 8 so older configs are backed up and regenerated with the new default layer filenames.
+
+Version 1.0.0
+Renamed the mod package to King's Elegy / Main Menu Music.
+Played main_menu_music.wav through FMOD and muted the original title music emitters.
+Added loop trimming and optional soft crossfade looping.
+Included source and a generalized Vortex package export script.

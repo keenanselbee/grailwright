@@ -1,0 +1,1 @@
+Replaces the Tainted Grail title-screen music with a layered FMOD main menu soundtrack, including base music, fire, and wind ambience. Also supports custom WAV playback with loop trim and soft crossfade controls.

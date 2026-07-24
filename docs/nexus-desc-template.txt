@@ -1,0 +1,66 @@
+[center][color=#C94A4A][size=6]{{Mod Display Name}}[/size][/color]
+[i]{{Short one-line subtitle focused on the player-facing benefit.}}[/i][/center]
+
+[line]
+
+{{Short opening summary. Name the mod, say it is for [b]Tainted Grail: The Fall of Avalon[/b], and explain the core purpose in one or two paragraphs.}}
+
+[line]
+
+[heading][color=#C94A4A][size=5]What It Does[/size][/color][/heading]
+[list]
+[*]{{Primary behavior or feature.}}[/*]
+[*]{{Important runtime behavior, safety boundary, or limitation.}}[/*]
+[*]{{What the mod deliberately does not change.}}[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.{{mod-slug}}.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+{{KeyOption}} = {{DefaultValue}}[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/{{PackageName}}/{{DllName}}[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*]{{Known supported integrations, dependencies, or conflicts.}}[/*]
+[*]{{Mention incompatible old DLLs, branch/runtime limits, or mod conflicts when relevant.}}[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Notes[/size][/color][/heading]
+{{Short closing note, tuning warning, credit, or scope boundary.}}
+
+Template rules:
+- Use the accent color [b]#C94A4A[/b] for the title and every major section header.
+- Use `[center][color=#C94A4A][size=6]...[/size][/color]` for the title.
+- Use `[heading][color=#C94A4A][size=5]...[/size][/color][/heading]` for major headers.
+- Use `[line]` between major sections.
+- Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and config file names.
+- Omit sections that do not apply, but keep the remaining section style identical.

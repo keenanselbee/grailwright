@@ -10,10 +10,21 @@ Build/
 *.tmp
 .codex-temp/
 
+# Local credentials and machine-specific publishing settings
+.env
+.env.*
+*.secret
+*.secrets
+*.local.json
+*.local.ps1
+NexusApiKey.txt
+nexus-api-key.txt
+API.txt
+mods/**/API.txt
+
 # Release artifacts are exported to the Desktop, not kept in this repo.
 *.zip
 
 # Debug symbols
 *.pdb
 *.mdb
-

@@ -1,0 +1,17 @@
+﻿Version 0.2.0
+Refactored resistance handling into an internal rule table.
+Changed matching so every applicable rule is checked and the strongest resistance wins.
+Added skeleton/bone resistance to slashing and piercing damage.
+Kept bludgeoning damage normal so maces and warhammers are naturally effective.
+Cached damage source text once per hit for cleaner expandable classification.
+Updated documentation for the new scalable rule model.
+
+Version 0.1.0
+Initial proof-of-concept release.
+Added Bloodied, Forsaken, and Nightmare resistance presets.
+Added skeleton/bone resistance to blood magic and bleed.
+Added golem/stone/construct resistance to blood magic and poison.
+Added Wyrd enemy resistance to Wyrdness damage.
+Added Resistant combat text with resistance-based color intensity.
+Added schema-backed config reset behavior.
+Changed zero-damage counters to show deepest-red Resistant instead of a separate label.

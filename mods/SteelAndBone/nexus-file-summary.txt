@@ -1,0 +1,1 @@
+Adds compact in-game feedback for resisted or ineffective attacks, helping show when armor, damage type, or enemy toughness is reducing your damage.

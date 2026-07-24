@@ -1,0 +1,1 @@
+Adds compact combat feedback for resisted or ineffective attacks so armor, damage type, and enemy toughness are easier to read without changing the underlying combat math.

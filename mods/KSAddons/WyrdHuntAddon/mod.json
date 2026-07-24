@@ -1,0 +1,23 @@
+{
+  "id": "WyrdHuntAddon",
+  "displayName": "Wyrd Hunt Addon",
+  "packageName": "WyrdHuntAddon",
+  "version": "1.2.2",
+  "pluginGuid": "ks.tgfoa.wyrd-hunt-addon",
+  "dll": "WyrdHuntAddon.dll",
+  "sourceFiles": [
+    "src/WyrdHuntAddon.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    {
+      "vortexLatest": "WyrdHunt *",
+      "relativePath": "WyrdHunt/WyrdHunt.dll"
+    }
+  ]
+}

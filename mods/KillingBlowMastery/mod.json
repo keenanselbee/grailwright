@@ -1,0 +1,24 @@
+{
+  "id": "KillingBlowMastery",
+  "displayName": "Killing Blow Mastery",
+  "packageName": "KillingBlowMastery",
+  "version": "1.3.1",
+  "pluginGuid": "ks.tgfoa.killing-blow-mastery",
+  "dll": "KillingBlowMastery.dll",
+  "sourceFiles": [
+    "src/KillingBlowMastery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.IMGUIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextRenderingModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.AudioModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UnityWebRequestModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UnityWebRequestAudioModule.dll"
+  ]
+}

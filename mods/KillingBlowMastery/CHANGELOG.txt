@@ -1,0 +1,117 @@
+﻿Version 1.3.1
+Refreshed selected dry archery finisher sounds.
+Kept the audio format consistent with the runtime set: mono 44.1 kHz 16-bit PCM, conservative leading-silence trimming, and about -3 dB peak headroom.
+No config schema, balance, stats, routing, or notification changes.
+
+Version 1.3.0
+Added optional _dry finisher sound variants for matched bloodless targets.
+Added UseBloodlessSoundVariants, BloodlessSoundBlacklistTerms, and BloodlessSoundWhitelistTerms.
+Bloodless variants are audio-only and do not change XP, stats, notifications, or kill eligibility.
+Added processed normal and _dry finisher sound sets from the new KB batch where available.
+Reprocessed included runtime WAVs as mono 44.1 kHz 16-bit PCM with conservative leading-silence trimming and about -3 dB peak headroom.
+Bumped ConfigSchemaVersion to 8 so older configs regenerate with the new audio settings.
+
+Version 1.2.0
+Added lightweight per-character killing-blow statistics stored in save-backed GameplayMemory.
+Tracks total awards, bonus proficiency XP, DOT-credited kills, proficiency totals, source-pool totals, exact kill-source totals, and enemy totals.
+Added Promoted enemy stats so repeated enemies become named rows while one-off enemies stay as enemy_candidate rows.
+Added save-time TSV report export generated from the current save-backed stats.
+Added StatisticsCharacterKeyOverride, EnemyStatsMode, EnemyPromoteKillCount, and ExportStatisticsReportOnSave.
+Bumped ConfigSchemaVersion to 7 so older configs regenerate with the new statistics settings.
+
+Version 1.1.1
+Added FinisherSoundRangeVolume under Core for optional distance-based finisher sound volume.
+Defaulted range volume strength to 0.5, giving active finisher sounds a subtle realistic fade from 0m to 100m+.
+Applied range fade to WeaponSpecific, Soulslike, and GoatTest modes while Off remains silent.
+Bumped ConfigSchemaVersion to 5 so older test configs regenerate clean defaults.
+
+Version 1.1.0
+Added FinisherSoundMode under Core with WeaponSpecific, Soulslike, GoatTest, and Off modes.
+Replaced the old reward-sound booleans with one clearer mode setting for FoA Mod Manager.
+Kept FMOD as the normal playback path with Unity fallback if FMOD playback fails.
+Kept reward sound volume, cooldown, no-repeat, recent-memory, pitch-randomization, and classified-fallback tuning under Audio.
+Bumped ConfigSchemaVersion to 4 so older test configs regenerate clean defaults.
+
+Version 1.0.2
+Changed classified weapon, shield, and magic kills to use their specific sound pool only by default.
+Added UseKillingBlowFallbackForClassifiedKills for users who still want classified kills to fall back to killing_blow when category audio is missing.
+Routed one-handed unknown subtypes to one_handed_blade, two-handed unknown subtypes to two_handed_blade, and unknown bow tiers to archery_medium.
+Clarified weapon and magic sound routing in the description.
+Bumped ConfigSchemaVersion to 3 so test configs regenerate clean defaults.
+
+Version 1.0.1
+Removed the unnumbered legacy killing_blow.wav fallback.
+Added SoulslikeKillingBlowSound to force every reward sound through killing_blow1.wav.
+Added AvoidRecentSoundRepeats and RecentSoundMemory so random pools try not to repeat the last two sounds.
+Added subtle FMOD pitch randomization with RandomPitchSemitones.
+Bumped ConfigSchemaVersion to 2 so test configs regenerate clean defaults.
+
+Version 1.0.0
+Renamed the mod to Killing Blow Mastery, including folder, DLL, package, GUID, and config identity.
+Promoted the release name to Killing Blow Mastery - Finisher Sounds and Proficiency XP.
+Removed sound-templates from the package; runtime sounds now live in the audio folder.
+Simplified reward sound fallback to specific pool -> killing_blow.
+Processed included runtime WAVs as mono 44.1 kHz 16-bit PCM with safe peak headroom.
+Kept the 4% enemy XP default bonus, 100 XP cap, CompactOverlay notification default, FMOD reward sounds, and damage-over-time attribution behavior.
+
+Version 0.8.3
+Added NotificationMode = CompactOverlay as the default KB-only notification route.
+Added compact overlay scale, font size, position, width, duration, fade, and opacity settings.
+Kept GameHud and Both notification modes available for comparison with the original game HUD route.
+
+Version 0.8.2
+Changed default killing-blow bonus balance to 4% of enemy XP with the existing 100 XP cap.
+Added FMOD reward-sound playback as the default backend, with Unity AudioSource fallback.
+Added damage-over-time kill attribution from recent supported hero damage sources so bleed, burn, poison, and Blood/Life Transfusion-style delayed kills can award the proper proficiency.
+Added AllowDamageOverTimeKills and DamageOverTimeMemorySeconds advanced config options.
+Replaced silent sound-template placeholders with processed example WAVs that are not loaded unless copied into the runtime audio folder.
+Added a raw-template conversion helper for preparing named sound sets.
+Bumped ConfigSchemaVersion to 5 so older configs back up and regenerate clean defaults.
+
+Version 0.8.1
+Enabled killing-blow HUD notifications by default.
+Renamed the user-facing announcement config to Notifications.
+Changed the default notification text to "Killing blow: +{xp} {skill} ({enemy})".
+Bumped ConfigSchemaVersion to 4 so older configs back up and regenerate clean defaults.
+
+Version 0.8.0
+Changed default bonus balance to 5% of enemy XP with a 100 XP cap.
+Simplified the default HUD announcement to "Killing blow: +{xp} {skill}".
+Added AppendEnemyToAnnouncement for optional enemy suffix text such as "(Undead)".
+Added DiagnosticForceGoatSound and goat.wav for unmistakable reward-audio testing.
+Added Shield and Magic killing-blow proficiency bonuses.
+Added routed reward sound pools with specific-to-broad fallback for weapon, shield, and magic kills.
+Added documented magic sound pools for blood, fire, frost, poison, electric, Wyrdness, water, and arcane kills.
+Added audio/magic_blood1.wav through audio/magic_blood5.wav as the default blood-magic reward pool.
+Added tools/Convert-RewardSounds.ps1 for ffmpeg-based sound conversion and peak normalization.
+Added sound-templates showing every supported filename pattern.
+Fixed Shield kill resolution by checking the damage BlockingItem.
+Fixed magic subtype routing for the game's custom indexed subtype collections.
+Bumped ConfigSchemaVersion to 3 so older configs back up and regenerate clean defaults.
+
+Version 0.2.2
+Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and regenerated with clean defaults.
+Saved generated defaults after config binding so the active config reflects the current layout immediately.
+
+Version 0.2.1
+Added random reward sound support for available killing_blow1.wav through killing_blow5.wav files.
+Switched enabled HUD announcements to try the Wyrd-info route before the lower-info route.
+Added clearer diagnostics for notification routing and loaded reward sounds.
+
+Version 0.2.0
+Renamed the mod to KS Killing Blow, including plugin identity, DLL, package, and config file.
+Added an optional custom killing_blow.wav reward sound, enabled by default.
+Kept in-game HUD reward text off by default.
+
+Version 0.1.1
+Added optional in-game HUD announcements for exact killing-blow proficiency rewards.
+Kept AnnounceAwards off by default so normal play stays quiet unless users opt in.
+Added configurable announcement text with {xp}, {skill}, {enemy}, {weapon}, and {enemyXP} tokens.
+
+Version 0.1.0
+Added killing-blow weapon proficiency bonuses for One Handed, Two Handed, Unarmed, and Archery.
+Awards a small capped bonus based on the killed enemy's XP reward.
+Resolves the actual killing weapon from the damage event, including projectile source weapons when available.
+Ignores damage-over-time, thrown items, magic items, non-hero kills, and XP-blocked targets by default.
+Added diagnostics for kill source, resolved proficiency, enemy XP, and awarded bonus.
+Includes Vortex/BepInEx-safe package layout with source files.

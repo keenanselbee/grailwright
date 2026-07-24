@@ -1,0 +1,1 @@
+A state-fix companion for TG All Lights Cast Shadows that applies a more performance-friendly balanced shadow configuration.

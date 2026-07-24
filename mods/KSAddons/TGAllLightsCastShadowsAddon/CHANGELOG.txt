@@ -1,0 +1,9 @@
+Version 1.1.1
+Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and regenerated with clean defaults.
+Kept shadow-state restoration and excluded-light behavior unchanged.
+
+Version 1.1.0
+Companion addon for TG All Lights Cast Shadows 1.2.0.
+Restores Unity global shadow-quality state after the parent mod disables nearby light upgrades.
+Shields configured bonfire and campfire light objects from being upgraded into shadow-casting lights.
+Adds no per-frame scanning and only runs around the parent mod's own light scan.

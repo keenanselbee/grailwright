@@ -1,0 +1,1 @@
+Removes the hidden player-centered HeroLight for darker, more natural lighting so torches, lanterns, caves, interiors, nights, ReShade presets, and lighting mods can carry the scene.

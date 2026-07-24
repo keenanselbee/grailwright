@@ -1,0 +1,30 @@
+Version 1.2.1
+Moved DisableHeroLight into the 1. Core config section.
+Bumped ConfigSchemaVersion to 3 so older configs are backed up and regenerated with the toggle in its new location.
+
+Version 1.2.0
+Added HeroLight.DisableHeroLight so users can choose whether the exact HeroLight object is disabled or left enabled.
+Re-enabled the cached HeroLight object when DisableHeroLight is turned off through a live BepInEx config editor.
+Bumped ConfigSchemaVersion to 2 so older configs are backed up and regenerated with the new HeroLight toggle.
+Raised the standalone plugin version above the old KS No Player Light 1.1.0 package version so stale duplicate deployments cannot win version selection.
+
+Version 1.0.3
+Logged inactive children and child Light components under the exact HeroLight object before disabling it.
+Suppressed misleading no-match diagnostics when an exact HeroLight object was found and disabled earlier in the same scan.
+
+Version 1.0.2
+Added diagnostic runtime scans for active GameObjects and Light components whose names or hierarchy paths contain HeroLight, Light_HeroLight, or Spotlight_Hero.
+Logged exact GameObject.Find("HeroLight") matches before disabling them so the log shows whether the original behavior is actually hitting anything.
+Added the Diagnostics.EnableRuntimeScan config toggle, enabled by default for this diagnostic build.
+
+Version 1.0.1
+Tested the automated Nexus upload workflow with versioned Desktop zip export and Nexus changelog publishing.
+No plugin behavior changes.
+Repacked the release archive to keep local API.txt publishing metadata out of the download.
+
+Version 1.0.0
+Relaunched as No Player Light with the KS prefix removed for a standalone Nexus page.
+Renamed the public plugin identity, DLL, folder, package, README, and Nexus description.
+Switched to a clean standalone plugin GUID: ks.tgfoa.no-player-light.
+Kept the existing HeroLight disabling behavior: startup scan, scene-load retries, cached re-disable, and slow fallback scans.
+No Vortex deployment or profile state changes are included.

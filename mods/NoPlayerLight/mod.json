@@ -1,0 +1,17 @@
+{
+  "id": "NoPlayerLight",
+  "displayName": "No Player Light",
+  "packageName": "NoPlayerLight",
+  "version": "1.2.1",
+  "pluginGuid": "ks.tgfoa.no-player-light",
+  "dll": "NoPlayerLight.dll",
+  "sourceFiles": [
+    "src/NoPlayerLight.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll"
+  ]
+}

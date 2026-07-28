@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.3.1
+Version 1.4.5
 
 Killing Blow Mastery is a standalone BepInEx plugin for Tainted Grail: The
 Fall of Avalon. It gives a small extra proficiency bonus to the combat skill
@@ -20,12 +20,12 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 Killing Blow Mastery starts from a clean plugin identity and uses
-ConfigSchemaVersion 8. Older KS Killing Blow configs are ignored.
+ConfigSchemaVersion 12. Older KS Killing Blow configs are ignored.
 
 Default behavior:
 
 Enabled = true
-ConfigSchemaVersion = 8
+ConfigSchemaVersion = 12
 FinisherSoundMode = WeaponSpecific
 FinisherSoundRangeVolume = 0.5
 BonusPercentOfEnemyXP = 4
@@ -36,10 +36,12 @@ AllowDamageOverTimeKills = true
 DamageOverTimeMemorySeconds = 12
 NotificationsEnabled = true
 NotificationMinimumXP = 1
-NotificationTextFormat = Killing blow: +{xp} {skill} ({enemy})
-NotificationMode = CompactOverlay
-CompactOverlayScale = 0.75
+NotificationTextFormat = Killing blow: +{xp} {skill}
+NotificationMode = GrailFloatingText
 RewardSoundVolume = 0.65
+UseNonCorporealEnemySounds = true
+NonCorporealSoundTerms = Wyrdspirit plus selected Wyrdspawn, Mistling, Banshee, Melancholy, and ghost templates
+NonCorporealSoundExclusionTerms = MistBearer boss/mimic, Tidewraith, and excluded Wyrdspawn variants
 UseKillingBlowFallbackForClassifiedKills = false
 UseBloodlessSoundVariants = true
 BloodlessSoundBlacklistTerms = Stone;Golem;Statue;Construct;Automaton;Crystal;Wisp;Spirit;Ghost;Wraith;Specter;Spectre;Skeleton;Skull;Bone;Animated Armor;Elemental;Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness
@@ -132,8 +134,14 @@ goat.wav can live beside the DLL or inside the audio folder.
 
 Fallback order:
 
+matched non-corporeal enemies -> non_corporeal only
 classified kills -> specific pool only
 unclassified kills -> killing_blow
+
+When UseNonCorporealEnemySounds is true, matched non-corporeal targets use
+non_corporeal1.wav through non_corporeal5.wav only. This target route overrides
+weapon, magic, Soulslike, and _dry routing, while Off remains silent and GoatTest
+still uses goat.wav for diagnostics.
 
 For example, a fire spell kill tries magic_fire1.wav through magic_fire5.wav
 first. If none exist, it does not fall through to killing_blow unless
@@ -198,6 +206,7 @@ archery_short1.wav ... archery_short5.wav
 archery_medium1.wav ... archery_medium5.wav
 archery_heavy1.wav ... archery_heavy5.wav
 shield_bash1.wav ... shield_bash5.wav
+non_corporeal1.wav ... non_corporeal5.wav
 magic_blood1.wav ... magic_blood5.wav
 magic_fire1.wav ... magic_fire5.wav
 magic_frost1.wav ... magic_frost5.wav
@@ -218,13 +227,14 @@ used in this release. Runtime audio should live in the audio folder.
 
 Audio prep tool:
 
-tools/Convert-RewardSounds.ps1 converts MP3/WAV/etc. files into numbered
-44.1 kHz 16-bit PCM WAV reward sounds and peak-normalizes them to a target
-level. It requires ffmpeg on PATH, FFMPEG_PATH, or -FfmpegPath.
+tools/audio/Convert-RewardSounds.ps1 converts MP3/WAV/etc. files into numbered
+44.1 kHz 16-bit PCM WAV reward sounds, trims leading silence by default, and
+peak-normalizes them to a target level. It requires ffmpeg on PATH, FFMPEG_PATH,
+or -FfmpegPath.
 
 Example:
 
-powershell -ExecutionPolicy Bypass -File tools/Convert-RewardSounds.ps1 -InputFiles "input1.mp3","input2.mp3" -Prefix magic_blood -TargetPeakDb -3
+powershell -ExecutionPolicy Bypass -File tools/audio/Convert-RewardSounds.ps1 -InputFiles "input1.mp3","input2.mp3" -Prefix magic_blood -TargetPeakDb -3
 
 Before redistributing replacement sounds publicly, verify the source licenses
 and credit requirements.
@@ -233,16 +243,26 @@ Notifications:
 
 Notifications are on by default. The default notification is:
 
-Killing blow: +{xp} {skill} ({enemy})
+Killing blow: +{xp} {skill}
 
-NotificationMode defaults to CompactOverlay, a small Killing Blow Mastery-only
-text overlay that does not resize the game's shared notification HUD. Set
-NotificationMode = GameHud to use the original Wyrd/lower HUD notification
-route, Both to test both routes at once, or Off to suppress notification display
-while leaving reward audio available.
+NotificationMode defaults to GrailFloatingText, the optional shared Grail
+Floating Text overlay. When Grail Floating Text 1.2.0 or newer is installed,
+reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield,
+Unarmed, and Magic. When Grail Floating Text 1.4.7 or newer is installed,
+killing-blow rewards use the killing-blow event ID and are red by default through
+Grail Floating Text's editable RedEvents group. Set NotificationMode = GameHud to
+use the original Wyrd/lower HUD notification route, Both to use both routes at
+once, or Off to suppress notification display while leaving reward audio
+available.
+
+Grail Floating Text is an optional dependency for the default shared
+notification route. Killing Blow Mastery still loads without it, but reward text
+using NotificationMode = GrailFloatingText is unavailable until Grail Floating
+Text is installed.
 
 Set NotificationsEnabled = false to disable reward text. NotificationTextFormat
-supports {xp}, {skill}, {enemy}, {weapon}, and {enemyXP}.
+supports {xp}, {skill}, {enemy}, {weapon}, and {enemyXP}; add {enemy} to a
+custom format if you want the target name shown.
 
 Diagnostics:
 

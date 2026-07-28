@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using FMODUnity;
@@ -16,19 +17,24 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
-[assembly: AssemblyInformationalVersion("1.3.1")]
+[assembly: AssemblyVersion("1.4.5.0")]
+[assembly: AssemblyFileVersion("1.4.5.0")]
+[assembly: AssemblyInformationalVersion("1.4.5")]
 
 namespace KillingBlowMastery
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class KillingBlowMasteryPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.3.1";
+        public const string PluginVersion = "1.4.5";
 
+        private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
+        private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
+        private const string GrailFloatingTextKillingBlowEventId = "killing-blow";
+        private const string GrailFloatingTextMediumDurationBucket = "Medium";
         private const string NpcElementTypeName = "Awaken.TG.Main.Fights.NPCs.NpcElement";
         private const string HealthElementTypeName = "Awaken.TG.Main.Character.HealthElement";
         private const string HeroTypeName = "Awaken.TG.Main.Heroes.Hero";
@@ -62,9 +68,27 @@ namespace KillingBlowMastery
         private const string MagicWyrdnessSoundPool = "magic_wyrdness";
         private const string MagicWaterSoundPool = "magic_water";
         private const string MagicArcaneSoundPool = "magic_arcane";
+        private const string NonCorporealSoundPool = "non_corporeal";
         private const string BloodlessSoundPoolSuffix = "_bloodless";
         private const string BloodlessSoundFileSuffix = "_dry";
         private const string DefaultBloodlessSoundBlacklistTerms = "Stone;Golem;Statue;Construct;Automaton;Crystal;Wisp;Spirit;Ghost;Wraith;Specter;Spectre;Skeleton;Skull;Bone;Animated Armor;Elemental;Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness";
+        private const string DefaultNonCorporealSoundTerms =
+            "Wyrdspirit;" +
+            "EnemyMonster_T1_Wyrdspawn;EnemyMonster_T2_Wyrdspawn;EnemyMonster_T2better_Wyrdspawn;" +
+            "EnemyMonster_T3_Wyrdspawn;EnemyMonster_T3better_Wyrdspawn;EnemyMonster_T4_Wyrdspawn;" +
+            "EnemyMonster_T4better_Wyrdspawn;EnemyMonster_T5_Wyrdspawn;EnemyMonster_T5better_Wyrdspawn;" +
+            "EnemyMonster_T6_Wyrdspawn;EnemyMonster_T5_Wyrdspawn_IceTrial;" +
+            "EnemyMonster_T2_Mistling_HoS;EnemyMonster_T2_Mistling_Mistbearer;" +
+            "EnemyMonster_T3_Mistling_Cuanacht;EnemyMonster_T4_Mistling_Forlorn;" +
+            "Enemy_Elite_Tier5_Banshee;Enemy_Elite_Tier5_Melancholy;Enemy_Elite_Tier5_MelancholySagremor;" +
+            "EnemyMonster_T3_Ghost_LancelotSquire;EnemyMonster_T3_Ghost_SagremorAristocratFemale;" +
+            "EnemyMonster_T3_Ghost_SagremorAristocratMale;EnemyMonster_T3_Ghost_SagremorServant;" +
+            "EnemyMonster_T4_Ghost_BirthdayGuest;EnemyMonster_T5_DalRiataGunnvaldrGhost;" +
+            "Special_Perceval_Ghost;EnemyMonster_T4_GhostInPainting";
+        private const string DefaultNonCorporealSoundExclusionTerms =
+            "EnemyBoss_T3_MistBearer_Base;EnemyBoss_T3_MistBearer_Mimic;SoS_EnemyMonster_T5_Tidewraith;" +
+            "EnemyMonster_T4_WyrdspawnCharredConclave;EnemyMonster_T5_Wyrdspawn_ChallengeVariant;" +
+            "Enemy_T0_Wyrdspawn_Tutorial";
         private const string DiagnosticGoatSoundPool = "goat";
         private const string DiagnosticGoatSoundFileName = "goat.wav";
         private const string SoulslikeKillingBlowSoundPool = "soulslike_killing_blow";
@@ -80,7 +104,8 @@ namespace KillingBlowMastery
         private const string StatisticsFileName = "ks.tgfoa.killing-blow-mastery.stats.tsv";
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
-        private const int ConfigSchemaVersion = 8;
+        private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
+        private const int ConfigSchemaVersion = 12;
 
         internal static KillingBlowMasteryPlugin Instance;
         internal static ManualLogSource Log;
@@ -101,6 +126,9 @@ namespace KillingBlowMastery
         private MethodInfo _profFromAbstractsMethod;
         private MethodInfo _tryAddXpMethod;
         private MethodInfo _notificationPushMethod;
+        private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
+        private MethodInfo _grailFloatingTextTryShowMethod;
+        private MethodInfo _grailFloatingTextTryShowWithIconMethod;
         private ConstructorInfo _lowerInfoNotificationConstructor;
         private ConstructorInfo _wyrdInfoNotificationConstructor;
         private Type _lowerInfoViewType;
@@ -134,17 +162,12 @@ namespace KillingBlowMastery
         private ConfigEntry<float> _notificationMinimumXp;
         private ConfigEntry<string> _notificationTextFormat;
         private ConfigEntry<string> _notificationMode;
-        private ConfigEntry<float> _compactOverlayScale;
-        private ConfigEntry<int> _compactOverlayFontSize;
-        private ConfigEntry<float> _compactOverlayCenterX;
-        private ConfigEntry<float> _compactOverlayCenterY;
-        private ConfigEntry<float> _compactOverlayWidth;
-        private ConfigEntry<float> _compactOverlayDurationSeconds;
-        private ConfigEntry<float> _compactOverlayFadeSeconds;
-        private ConfigEntry<float> _compactOverlayOpacity;
         private ConfigEntry<float> _rewardSoundVolume;
         private ConfigEntry<float> _rewardSoundCooldownSeconds;
         private ConfigEntry<bool> _useKillingBlowFallbackForClassifiedKills;
+        private ConfigEntry<bool> _useNonCorporealEnemySounds;
+        private ConfigEntry<string> _nonCorporealSoundTerms;
+        private ConfigEntry<string> _nonCorporealSoundExclusionTerms;
         private ConfigEntry<bool> _useBloodlessSoundVariants;
         private ConfigEntry<string> _bloodlessSoundBlacklistTerms;
         private ConfigEntry<string> _bloodlessSoundWhitelistTerms;
@@ -164,18 +187,20 @@ namespace KillingBlowMastery
         private readonly Dictionary<string, Queue<string>> _recentRewardSoundPathsByPool = new Dictionary<string, Queue<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly System.Random _random = new System.Random();
         private AudioSource _rewardAudioSource;
-        private CompactOverlayNotification _compactOverlayNotification;
-        private GUIStyle _compactOverlayTextStyle;
-        private GUIStyle _compactOverlayShadowStyle;
-        private int _compactOverlayStyleFontSize = -1;
         private bool _rewardSoundLoadStarted;
         private bool _statisticsMemoryUnavailableLogged;
+        private bool _grailFloatingTextBridgeResolved;
+        private bool _grailFloatingTextUnavailableLogged;
         private Array _emptyModelOwners;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
         private string[] _cachedBloodlessSoundBlacklistTerms = new string[0];
         private string _cachedBloodlessSoundWhitelistTermsRaw;
         private string[] _cachedBloodlessSoundWhitelistTerms = new string[0];
+        private string _cachedNonCorporealSoundTermsRaw;
+        private string[] _cachedNonCorporealSoundTerms = new string[0];
+        private string _cachedNonCorporealSoundExclusionTermsRaw;
+        private string[] _cachedNonCorporealSoundExclusionTerms = new string[0];
 
         private void Awake()
         {
@@ -284,16 +309,8 @@ namespace KillingBlowMastery
             _requireXpRewardAllowedWhenPresent = Config.Bind("3. Advanced", "RequireXPRewardAllowedWhenPresent", true, "If the killed target exposes XpRewardAllowed, require it to be true.");
             _notificationsEnabled = Config.Bind("4. Notifications", "NotificationsEnabled", true, "Show an in-game HUD notification when killing-blow proficiency XP is awarded.");
             _notificationMinimumXp = Config.Bind("4. Notifications", "NotificationMinimumXP", 1.0f, "Minimum awarded bonus XP required before showing an in-game notification.");
-            _notificationTextFormat = Config.Bind("4. Notifications", "NotificationTextFormat", "Killing blow: +{xp} {skill} ({enemy})", "HUD notification text. Tokens: {xp}, {skill}, {enemy}, {weapon}, {enemyXP}.");
-            _notificationMode = Config.Bind("4. Notifications", "NotificationMode", "CompactOverlay", "Notification route: CompactOverlay, GameHud, Both, or Off.");
-            _compactOverlayScale = Config.Bind("4. Notifications", "CompactOverlayScale", 0.75f, "Scale multiplier for the Killing Blow Mastery compact overlay only.");
-            _compactOverlayFontSize = Config.Bind("4. Notifications", "CompactOverlayFontSize", 20, "Base font size for the compact overlay before scale is applied.");
-            _compactOverlayCenterX = Config.Bind("4. Notifications", "CompactOverlayCenterX", 0.5f, "Compact overlay horizontal center as a fraction of screen width. 0.5 is centered.");
-            _compactOverlayCenterY = Config.Bind("4. Notifications", "CompactOverlayCenterY", 0.38f, "Compact overlay vertical center as a fraction of screen height. 0.5 is centered.");
-            _compactOverlayWidth = Config.Bind("4. Notifications", "CompactOverlayWidth", 520.0f, "Compact overlay text width before scale is applied.");
-            _compactOverlayDurationSeconds = Config.Bind("4. Notifications", "CompactOverlayDurationSeconds", 2.0f, "How long the compact overlay remains visible.");
-            _compactOverlayFadeSeconds = Config.Bind("4. Notifications", "CompactOverlayFadeSeconds", 0.25f, "Compact overlay fade-in and fade-out duration.");
-            _compactOverlayOpacity = Config.Bind("4. Notifications", "CompactOverlayOpacity", 0.9f, "Compact overlay text opacity.");
+            _notificationTextFormat = Config.Bind("4. Notifications", "NotificationTextFormat", DefaultNotificationTextFormat, "HUD notification text. Tokens: {xp}, {skill}, {enemy}, {weapon}, {enemyXP}.");
+            _notificationMode = Config.Bind("4. Notifications", "NotificationMode", "GrailFloatingText", "Notification route: GrailFloatingText, GameHud, Both, or Off.");
             _rewardSoundVolume = Config.Bind(
                 "5. Audio",
                 "RewardSoundVolume",
@@ -303,6 +320,9 @@ namespace KillingBlowMastery
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
             _rewardSoundCooldownSeconds = Config.Bind("5. Audio", "RewardSoundCooldownSeconds", 0.35f, "Minimum real-time seconds between reward sounds.");
             _useKillingBlowFallbackForClassifiedKills = Config.Bind("5. Audio", "UseKillingBlowFallbackForClassifiedKills", false, "Allow classified weapon, shield, and magic kills to fall back to the killing_blow pool when their category pool is missing.");
+            _useNonCorporealEnemySounds = Config.Bind("5. Audio", "UseNonCorporealEnemySounds", true, "Use the target-only non_corporeal sound pool for matched spirit/Wyrd enemies. This overrides weapon, magic, and _dry routing for those targets.");
+            _nonCorporealSoundTerms = Config.Bind("5. Audio", "NonCorporealSoundTerms", DefaultNonCorporealSoundTerms, "Semicolon, comma, pipe, or newline separated target terms that force the non_corporeal sound pool.");
+            _nonCorporealSoundExclusionTerms = Config.Bind("5. Audio", "NonCorporealSoundExclusionTerms", DefaultNonCorporealSoundExclusionTerms, "Optional target terms that prevent non_corporeal routing when both inclusion and exclusion terms match.");
             _useBloodlessSoundVariants = Config.Bind("5. Audio", "UseBloodlessSoundVariants", true, "Use *_dry.wav sound variants for targets whose names, templates, or type text match the bloodless sound terms.");
             _bloodlessSoundBlacklistTerms = Config.Bind("5. Audio", "BloodlessSoundBlacklistTerms", DefaultBloodlessSoundBlacklistTerms, "Semicolon, comma, pipe, or newline separated terms that make a killed target use bloodless sound variants when available.");
             _bloodlessSoundWhitelistTerms = Config.Bind("5. Audio", "BloodlessSoundWhitelistTerms", "", "Optional terms that force normal sounds even if a bloodless sound term also matches.");
@@ -639,7 +659,7 @@ namespace KillingBlowMastery
                 string enemyName = DescribeObject(npc);
 
                 RecordStatistics(npc, proficiency, proficiencyName, item, sourceDamage, sourceName, bonus, damageIsOverTime || usedSourceMemory);
-                ShowAwardNotification(bonus, proficiencyName, enemyName, sourceName, enemyXp);
+                ShowAwardNotification(bonus, DescribeNotificationProficiency(proficiency, proficiencyName), enemyName, sourceName, enemyXp, proficiency);
                 PlayAwardSound(bonus, proficiency, item, sourceDamage, npc);
 
                 LogDiagnostic("Awarded " + bonus.ToString("0.###", CultureInfo.InvariantCulture) + " " +
@@ -883,7 +903,7 @@ namespace KillingBlowMastery
             return null;
         }
 
-        private void ShowAwardNotification(float bonus, string proficiencyName, string enemyName, string weaponName, float enemyXp)
+        private void ShowAwardNotification(float bonus, string proficiencyName, string enemyName, string weaponName, float enemyXp, object proficiency)
         {
             if (!_notificationsEnabled.Value || bonus < Math.Max(0.0f, _notificationMinimumXp.Value))
             {
@@ -902,13 +922,19 @@ namespace KillingBlowMastery
                 return;
             }
 
-            if (mode == "CompactOverlay" || mode == "Both")
+            if (mode == "GrailFloatingText" || mode == "Both")
             {
-                QueueCompactOverlayNotification(text);
-                LogDiagnostic("Queued killing-blow compact overlay notification.");
+                if (TryShowGrailFloatingText(text, ResolveProficiencyIconId(proficiency)))
+                {
+                    LogDiagnostic("Queued killing-blow notification via Grail Floating Text.");
+                }
+                else
+                {
+                    LogDiagnostic("Could not show killing-blow notification via Grail Floating Text.");
+                }
             }
 
-            if (mode == "CompactOverlay")
+            if (mode == "GrailFloatingText")
             {
                 return;
             }
@@ -936,9 +962,16 @@ namespace KillingBlowMastery
         {
             if (string.IsNullOrWhiteSpace(rawMode))
             {
-                return "CompactOverlay";
+                return "GrailFloatingText";
             }
 
+            if (rawMode.Equals("GrailFloatingText", StringComparison.OrdinalIgnoreCase) ||
+                rawMode.Equals("FloatingText", StringComparison.OrdinalIgnoreCase) ||
+                rawMode.Equals("KS", StringComparison.OrdinalIgnoreCase) ||
+                rawMode.Equals("Shared", StringComparison.OrdinalIgnoreCase))
+            {
+                return "GrailFloatingText";
+            }
             if (rawMode.Equals("GameHud", StringComparison.OrdinalIgnoreCase) ||
                 rawMode.Equals("GameHUD", StringComparison.OrdinalIgnoreCase) ||
                 rawMode.Equals("Hud", StringComparison.OrdinalIgnoreCase))
@@ -955,103 +988,172 @@ namespace KillingBlowMastery
                 return "Off";
             }
 
-            return "CompactOverlay";
+            return "GrailFloatingText";
         }
 
-        private void QueueCompactOverlayNotification(string text)
+        private bool TryShowGrailFloatingText(string text, string iconId)
         {
-            _compactOverlayNotification = new CompactOverlayNotification
+            if (string.IsNullOrWhiteSpace(text))
             {
-                Text = text,
-                StartTime = Time.unscaledTime
-            };
+                return false;
+            }
+
+            if (!TryResolveGrailFloatingTextBridge())
+            {
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is not loaded; Killing Blow Mastery reward notifications are unavailable.");
+                return false;
+            }
+
+            try
+            {
+                object result;
+                if (_grailFloatingTextTryShowEventWithIconMethod != null)
+                {
+                    result = _grailFloatingTextTryShowEventWithIconMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, GrailFloatingTextKillingBlowEventId, text, "Reward", "Reward", "Normal", string.Empty, iconId, GrailFloatingTextMediumDurationBucket, 0.25f, 0.9f });
+                }
+                else if (_grailFloatingTextTryShowWithIconMethod != null)
+                {
+                    result = _grailFloatingTextTryShowWithIconMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, text, "Critical", "Reward", "Normal", string.Empty, iconId, 0.0f, 0.25f, 0.9f });
+                }
+                else
+                {
+                    result = _grailFloatingTextTryShowMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, text, "Critical", "Reward", "Normal", string.Empty, 0.0f, 0.25f, 0.9f });
+                }
+
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text failed to show a Killing Blow Mastery reward notification: " + exception.GetBaseException().Message);
+                return false;
+            }
         }
 
-        private void OnGUI()
+        private bool TryResolveGrailFloatingTextBridge()
         {
-            if (_compactOverlayNotification == null || !_enabled.Value || !_notificationsEnabled.Value)
+            if (_grailFloatingTextBridgeResolved)
+            {
+                return _grailFloatingTextTryShowEventWithIconMethod != null ||
+                    _grailFloatingTextTryShowWithIconMethod != null ||
+                    _grailFloatingTextTryShowMethod != null;
+            }
+
+            _grailFloatingTextBridgeResolved = true;
+
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(GrailFloatingTextPluginGuid, out pluginInfo) ||
+                pluginInfo == null ||
+                pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(GrailFloatingTextApiTypeName, false);
+            if (apiType == null)
+            {
+                return false;
+            }
+
+            _grailFloatingTextTryShowEventWithIconMethod = AccessTools.Method(
+                apiType,
+                "TryShowEvent",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float)
+                });
+
+            _grailFloatingTextTryShowWithIconMethod = AccessTools.Method(
+                apiType,
+                "TryShow",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float),
+                    typeof(float)
+                });
+
+            _grailFloatingTextTryShowMethod = AccessTools.Method(
+                apiType,
+                "TryShow",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float),
+                    typeof(float)
+                });
+            return _grailFloatingTextTryShowEventWithIconMethod != null ||
+                _grailFloatingTextTryShowWithIconMethod != null ||
+                _grailFloatingTextTryShowMethod != null;
+        }
+
+        private string ResolveProficiencyIconId(object proficiency)
+        {
+            if (ReferenceEquals(proficiency, _oneHandedProf))
+            {
+                return "one_handed";
+            }
+            if (ReferenceEquals(proficiency, _twoHandedProf))
+            {
+                return "two_handed";
+            }
+            if (ReferenceEquals(proficiency, _unarmedProf))
+            {
+                return "unarmed";
+            }
+            if (ReferenceEquals(proficiency, _archeryProf))
+            {
+                return "archery";
+            }
+            if (ReferenceEquals(proficiency, _shieldProf))
+            {
+                return "shield";
+            }
+            if (ReferenceEquals(proficiency, _magicProf))
+            {
+                return "magic";
+            }
+
+            return "reward";
+        }
+
+        private void LogGrailFloatingTextUnavailableOnce(string message)
+        {
+            if (_grailFloatingTextUnavailableLogged)
             {
                 return;
             }
 
-            float duration = Math.Max(0.05f, _compactOverlayDurationSeconds.Value);
-            float elapsed = Time.unscaledTime - _compactOverlayNotification.StartTime;
-            if (elapsed > duration)
-            {
-                _compactOverlayNotification = null;
-                return;
-            }
-
-            float scale = Math.Max(0.05f, _compactOverlayScale.Value);
-            int fontSize = Math.Max(1, (int)Math.Round(Math.Max(1, _compactOverlayFontSize.Value) * scale));
-            EnsureCompactOverlayStyles(fontSize);
-
-            float width = Math.Max(20.0f, _compactOverlayWidth.Value * scale);
-            float height = Math.Max(fontSize + 10.0f, 32.0f * scale);
-            float centerX = Screen.width * _compactOverlayCenterX.Value;
-            float centerY = Screen.height * _compactOverlayCenterY.Value;
-            Rect rect = new Rect(centerX - width * 0.5f, centerY - height * 0.5f, width, height);
-            Rect shadowRect = new Rect(rect.x + Math.Max(1.0f, 2.0f * scale), rect.y + Math.Max(1.0f, 2.0f * scale), rect.width, rect.height);
-
-            float alpha = GetCompactOverlayAlpha(elapsed, duration) * Math.Max(0.0f, _compactOverlayOpacity.Value);
-            Color previousColor = GUI.color;
-            int previousDepth = GUI.depth;
-            Color previousTextColor = _compactOverlayTextStyle.normal.textColor;
-            Color previousShadowColor = _compactOverlayShadowStyle.normal.textColor;
-
-            GUI.depth = -1000;
-            _compactOverlayTextStyle.normal.textColor = new Color(0.96f, 0.88f, 0.68f, alpha);
-            _compactOverlayShadowStyle.normal.textColor = new Color(0.0f, 0.0f, 0.0f, alpha * 0.75f);
-
-            GUI.Label(shadowRect, _compactOverlayNotification.Text, _compactOverlayShadowStyle);
-            GUI.Label(rect, _compactOverlayNotification.Text, _compactOverlayTextStyle);
-
-            _compactOverlayTextStyle.normal.textColor = previousTextColor;
-            _compactOverlayShadowStyle.normal.textColor = previousShadowColor;
-            GUI.depth = previousDepth;
-            GUI.color = previousColor;
-        }
-
-        private float GetCompactOverlayAlpha(float elapsed, float duration)
-        {
-            float fade = Math.Max(0.0f, _compactOverlayFadeSeconds.Value);
-            if (fade <= 0.001f)
-            {
-                return 1.0f;
-            }
-
-            float alpha = 1.0f;
-            if (elapsed < fade)
-            {
-                alpha = Math.Min(alpha, elapsed / fade);
-            }
-
-            float remaining = duration - elapsed;
-            if (remaining < fade)
-            {
-                alpha = Math.Min(alpha, Math.Max(0.0f, remaining / fade));
-            }
-
-            return Math.Max(0.0f, Math.Min(1.0f, alpha));
-        }
-
-        private void EnsureCompactOverlayStyles(int fontSize)
-        {
-            if (_compactOverlayTextStyle != null && _compactOverlayStyleFontSize == fontSize)
-            {
-                return;
-            }
-
-            _compactOverlayStyleFontSize = fontSize;
-            _compactOverlayTextStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = fontSize,
-                fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Overflow,
-                wordWrap = false
-            };
-            _compactOverlayShadowStyle = new GUIStyle(_compactOverlayTextStyle);
+            _grailFloatingTextUnavailableLogged = true;
+            Log.LogInfo(message);
         }
 
         private string BuildNotificationText(float bonus, string proficiencyName, string enemyName, string weaponName, float enemyXp)
@@ -1059,7 +1161,7 @@ namespace KillingBlowMastery
             string format = _notificationTextFormat.Value;
             if (string.IsNullOrWhiteSpace(format))
             {
-                format = "Killing blow: +{xp} {skill} ({enemy})";
+                format = DefaultNotificationTextFormat;
             }
 
             return format
@@ -1156,12 +1258,6 @@ namespace KillingBlowMastery
             public object Proficiency;
             public string SourceName;
             public float LastSeenTime;
-        }
-
-        private sealed class CompactOverlayNotification
-        {
-            public string Text;
-            public float StartTime;
         }
 
         private void PlayAwardSound(float bonus, object proficiency, object item, object damage, object target)
@@ -1345,6 +1441,7 @@ namespace KillingBlowMastery
                     AddBloodlessRewardSoundPoolFiles(files, poolNames[i]);
                 }
 
+                AddRewardSoundPoolFiles(files, NonCorporealSoundPool);
                 AddRewardSoundFile(files, DiagnosticGoatSoundPool, DiagnosticGoatSoundFileName);
                 AddRewardSoundFile(files, SoulslikeKillingBlowSoundPool, SoulslikeKillingBlowSoundFileName);
                 AddRewardSoundFile(files, GetBloodlessSoundPoolName(SoulslikeKillingBlowSoundPool), "killing_blow1" + BloodlessSoundFileSuffix + ".wav");
@@ -1651,15 +1748,21 @@ namespace KillingBlowMastery
 
         private string[] GetRewardSoundPools(string soundMode, object proficiency, object item, object damage, object target)
         {
+            if (string.Equals(soundMode, FinisherSoundModeGoatTest, StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildSoundFallbackPools(DiagnosticGoatSoundPool);
+            }
+
+            if (IsNonCorporealSoundTarget(target, damage))
+            {
+                return BuildSoundFallbackPools(NonCorporealSoundPool);
+            }
+
             bool useBloodless = IsBloodlessSoundTarget(target, damage);
 
             if (string.Equals(soundMode, FinisherSoundModeSoulslike, StringComparison.OrdinalIgnoreCase))
             {
                 return BuildBloodlessSoundFallbackPools(useBloodless, BuildSoundFallbackPools(SoulslikeKillingBlowSoundPool));
-            }
-            if (string.Equals(soundMode, FinisherSoundModeGoatTest, StringComparison.OrdinalIgnoreCase))
-            {
-                return BuildSoundFallbackPools(DiagnosticGoatSoundPool);
             }
 
             string globalPool = GlobalSoundPool;
@@ -2056,13 +2159,7 @@ namespace KillingBlowMastery
                 return false;
             }
 
-            string text = BuildObjectSearchText(target);
-            object damageTarget = ResolveDamageTargetOwner(null, damage);
-            if (damageTarget != null && !ReferenceEquals(damageTarget, target))
-            {
-                text = text + " " + BuildObjectSearchText(damageTarget);
-            }
-
+            string text = BuildTargetSearchText(target, damage);
             if (string.IsNullOrWhiteSpace(text))
             {
                 return false;
@@ -2082,6 +2179,47 @@ namespace KillingBlowMastery
             }
 
             return false;
+        }
+
+        private bool IsNonCorporealSoundTarget(object target, object damage)
+        {
+            if (_useNonCorporealEnemySounds == null || !_useNonCorporealEnemySounds.Value)
+            {
+                return false;
+            }
+
+            string text = BuildTargetSearchText(target, damage);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            string matched;
+            if (ContainsAnyTerm(text, GetNonCorporealSoundExclusionTerms(), out matched))
+            {
+                LogDiagnostic("Non-corporeal sound routing skipped for " + DescribeObject(target) + ": matched exclusion term '" + matched + "'.");
+                return false;
+            }
+
+            if (ContainsAnyTerm(text, GetNonCorporealSoundTerms(), out matched))
+            {
+                LogDiagnostic("Non-corporeal sound routing enabled for " + DescribeObject(target) + ": matched term '" + matched + "'.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private string BuildTargetSearchText(object target, object damage)
+        {
+            string text = BuildObjectSearchText(target);
+            object damageTarget = ResolveDamageTargetOwner(null, damage);
+            if (damageTarget != null && !ReferenceEquals(damageTarget, target))
+            {
+                text = text + " " + BuildObjectSearchText(damageTarget);
+            }
+
+            return text;
         }
 
         private string[] GetBloodlessSoundBlacklistTerms()
@@ -2106,6 +2244,30 @@ namespace KillingBlowMastery
             }
 
             return _cachedBloodlessSoundWhitelistTerms;
+        }
+
+        private string[] GetNonCorporealSoundTerms()
+        {
+            string raw = _nonCorporealSoundTerms == null ? "" : (_nonCorporealSoundTerms.Value ?? "");
+            if (raw != _cachedNonCorporealSoundTermsRaw)
+            {
+                _cachedNonCorporealSoundTermsRaw = raw;
+                _cachedNonCorporealSoundTerms = SplitTerms(raw);
+            }
+
+            return _cachedNonCorporealSoundTerms;
+        }
+
+        private string[] GetNonCorporealSoundExclusionTerms()
+        {
+            string raw = _nonCorporealSoundExclusionTerms == null ? "" : (_nonCorporealSoundExclusionTerms.Value ?? "");
+            if (raw != _cachedNonCorporealSoundExclusionTermsRaw)
+            {
+                _cachedNonCorporealSoundExclusionTermsRaw = raw;
+                _cachedNonCorporealSoundExclusionTerms = SplitTerms(raw);
+            }
+
+            return _cachedNonCorporealSoundExclusionTerms;
         }
 
         private bool ContainsAnyTerm(string text, string[] terms, out string matched)
@@ -2868,6 +3030,20 @@ namespace KillingBlowMastery
             return value.ToString("0.##", CultureInfo.InvariantCulture);
         }
 
+        private string DescribeNotificationProficiency(object proficiency, string fallback)
+        {
+            if (ReferenceEquals(proficiency, _oneHandedProf))
+            {
+                return "One Handed";
+            }
+            if (ReferenceEquals(proficiency, _twoHandedProf))
+            {
+                return "Two Handed";
+            }
+
+            return string.IsNullOrWhiteSpace(fallback) ? DescribeObject(proficiency) : fallback;
+        }
+
         private string DescribeProficiency(object proficiency)
         {
             if (ReferenceEquals(proficiency, _oneHandedProf))
@@ -2972,7 +3148,7 @@ namespace KillingBlowMastery
 
             AddStatisticsCount(
                 facts,
-                MakeStatisticsKey(characterKey, "source_pool", ResolveStatisticsSourcePool(proficiency, item, damage)),
+                MakeStatisticsKey(characterKey, "source_pool", ResolveStatisticsSourcePool(proficiency, item, damage, npc)),
                 bonus,
                 damageOverTimeKill);
 
@@ -3593,8 +3769,13 @@ namespace KillingBlowMastery
             return BuildStatsKey(displayName);
         }
 
-        private string ResolveStatisticsSourcePool(object proficiency, object item, object damage)
+        private string ResolveStatisticsSourcePool(object proficiency, object item, object damage, object target)
         {
+            if (IsNonCorporealSoundTarget(target, damage))
+            {
+                return NonCorporealSoundPool;
+            }
+
             if (ReferenceEquals(proficiency, _oneHandedProf))
             {
                 return ResolveOneHandedSpecificSoundPool(item);

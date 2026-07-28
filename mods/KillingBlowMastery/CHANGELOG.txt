@@ -1,4 +1,36 @@
-﻿Version 1.3.1
+Version 1.4.5
+Updated Grail Floating Text reward routing to API v4 with the killing-blow event ID so the shared overlay colors killing blows through its Red event group by default.
+Removed the local hardcoded floating-text display duration and now lets Grail Floating Text use its medium/default duration.
+
+Version 1.4.4
+Changed the default notification text to "Killing blow: +{xp} {skill}" so enemy names are no longer appended unless the user adds {enemy}.
+Displayed One Handed and Two Handed with spaces in reward notification skill text.
+Bumped ConfigSchemaVersion to 12 so older configs regenerate with the cleaner notification default.
+
+Version 1.4.3
+Added Grail Floating Text skill icon routing for One Handed, Two Handed, Archery, Shield, Unarmed, and Magic reward notifications when the icon-capable API is available.
+Kept fallback compatibility with older Grail Floating Text versions that do not expose icon IDs.
+
+Version 1.4.2
+Updated the Grail Floating Text integration to API v2 with Reward category and Normal priority.
+Removed old provider-route aliases from active NotificationMode parsing.
+
+Version 1.4.1
+Updated the default shared reward notification route for Grail Floating Text.
+Raised ConfigSchemaVersion to 11 so the renamed default route is regenerated.
+
+Version 1.4.0
+Added target-only non_corporeal finisher sound routing for configured non-corporeal enemies.
+Matched Wyrdspirits, selected Wyrdspawn, Mistling, Banshee, Melancholy, and ghost templates while excluding the MistBearer boss/mimic and Tidewraith.
+Added five processed non_corporeal WAVs as mono 44.1 kHz 16-bit PCM with conservative leading-silence trimming and about -3 dB peak headroom.
+Bumped ConfigSchemaVersion to 10 so older configs regenerate with the new non-corporeal audio settings.
+
+Version 1.3.2
+Moved the default reward notification route to the optional Grail Floating Text shared stack.
+Removed the local CompactOverlay renderer and overlay layout settings.
+Bumped ConfigSchemaVersion to 9 so older configs regenerate without the removed local overlay settings.
+
+Version 1.3.1
 Refreshed selected dry archery finisher sounds.
 Kept the audio format consistent with the runtime set: mono 44.1 kHz 16-bit PCM, conservative leading-silence trimming, and about -3 dB peak headroom.
 No config schema, balance, stats, routing, or notification changes.

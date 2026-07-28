@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("1.0.2.0")]
-[assembly: AssemblyFileVersion("1.0.2.0")]
-[assembly: AssemblyInformationalVersion("1.0.2")]
+[assembly: AssemblyVersion("1.0.9.0")]
+[assembly: AssemblyFileVersion("1.0.9.0")]
+[assembly: AssemblyInformationalVersion("1.0.9")]
 
 namespace EnemyRespawnControl
 {
@@ -23,13 +23,14 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "1.0.2";
-        private const int ConfigSchemaVersion = 1;
+        public const string PluginVersion = "1.0.9";
+        private const int ConfigSchemaVersion = 3;
 
         private const string BaseSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.BaseLocationSpawner";
         private const string GroupSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.GroupLocationSpawner";
         private const string LocationSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.LocationSpawner";
         private const string HideSpotSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.HideSpotLocationSpawner";
+        private const string NpcAttachmentTypeName = "Awaken.TG.Main.Fights.NPCs.NpcAttachment";
 
         internal static EnemyRespawnControlPlugin Instance;
         internal static ManualLogSource Log;
@@ -39,6 +40,7 @@ namespace EnemyRespawnControl
         private readonly Dictionary<string, DateTime> _nextDiagnosticLogUtc = new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private readonly HashSet<string> _expiredKeys = new HashSet<string>(StringComparer.Ordinal);
         private readonly ConditionalWeakTable<object, CachedKey> _keyCache = new ConditionalWeakTable<object, CachedKey>();
+        private readonly ConditionalWeakTable<object, SpecialSpawnedLocation> _specialSpawnedLocations = new ConditionalWeakTable<object, SpecialSpawnedLocation>();
 
         private Harmony _harmony;
         private FieldInfo _lastClearOfGroupField;
@@ -47,7 +49,6 @@ namespace EnemyRespawnControl
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<RespawnMode> _respawnMode;
         private ConfigEntry<float> _customRespawnHours;
-        private ConfigEntry<bool> _useWeatherTime;
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<float> _blockedLogIntervalSeconds;
 
@@ -61,7 +62,7 @@ namespace EnemyRespawnControl
 
             Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Mode=" + _respawnMode.Value +
                 "; CustomRespawnHours=" + _customRespawnHours.Value.ToString("0.###", CultureInfo.InvariantCulture) +
-                "; UseWeatherTime=" + _useWeatherTime.Value.ToString(CultureInfo.InvariantCulture) + ".");
+                "; TimeSource=weather.");
         }
 
         private void OnDestroy()
@@ -84,10 +85,9 @@ namespace EnemyRespawnControl
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
             Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
-            _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Slow72Hours, "Respawn delay after a spawner has produced killed enemies. VeryFast2Hours=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled.");
-            _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours when UseWeatherTime is true.");
-            _useWeatherTime = Config.Bind("1. Core", "UseWeatherTime", true, "Use in-game/weather time for respawn delays. Recommended with TimeMod and for Nexus-style in-game day presets.");
-            _diagnostics = Config.Bind("2. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, cleanup, and expiry decisions.");
+            _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. Vanilla=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled.");
+            _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.");
+            _diagnostics = Config.Bind("2. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped non-enemy spawners, cleanup, and expiry decisions.");
             _blockedLogIntervalSeconds = Config.Bind("2. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
             Config.Save();
         }
@@ -329,10 +329,16 @@ namespace EnemyRespawnControl
             }
         }
 
-        internal void RegisterKilledSpawner(object spawner, string reason)
+        internal void RegisterKilledSpawner(object spawner, object location, string reason)
         {
-            if (!IsActive() || spawner == null)
+            if (!IsActive() || spawner == null || IsSpecialSpawnedLocation(location) || ShouldBypassRespawnControl(spawner, reason))
             {
+                return;
+            }
+
+            if (!ShouldControlSpawner(spawner, reason))
+            {
+                LogNonEnemySpawnerBypass(spawner, reason);
                 return;
             }
 
@@ -353,7 +359,18 @@ namespace EnemyRespawnControl
 
         internal void RegisterSpawnerIfKilledState(object spawner, string reason)
         {
-            if (!IsActive() || spawner == null || !HasKilledLocationState(spawner))
+            if (!IsActive() || spawner == null || ShouldBypassRespawnControl(spawner, reason))
+            {
+                return;
+            }
+
+            if (!ShouldControlSpawner(spawner, reason))
+            {
+                LogNonEnemySpawnerBypass(spawner, reason);
+                return;
+            }
+
+            if (!HasKilledLocationState(spawner))
             {
                 return;
             }
@@ -427,6 +444,13 @@ namespace EnemyRespawnControl
                 return;
             }
 
+            if (ShouldBypassRespawnControl(spawner, "spawned-location-special"))
+            {
+                MarkSpecialSpawnedLocation(location);
+                LogSpecialSpawnBypass(spawner, "spawned-location-special");
+                return;
+            }
+
             string key;
             RespawnLock existing;
             double now;
@@ -459,11 +483,46 @@ namespace EnemyRespawnControl
             now = 0d;
             timeSource = String.Empty;
 
+            if (ShouldBypassRespawnControl(spawner, gateName))
+            {
+                LogSpecialSpawnBypass(spawner, gateName);
+                return false;
+            }
+
+            if (!ShouldControlSpawner(spawner, gateName))
+            {
+                LogNonEnemySpawnerBypass(spawner, gateName);
+                return false;
+            }
+
             if (!TryGetCurrentTimeSeconds(spawner, out now, out timeSource))
             {
+                key = GetSpawnerKey(spawner);
+                bool hasLock = _locks.TryGetValue(key, out respawnLock);
+                bool hasKilledState = HasKilledLocationState(spawner);
+                if (hasLock || hasKilledState)
+                {
+                    if (respawnLock == null)
+                    {
+                        respawnLock = new RespawnLock();
+                        respawnLock.StartSeconds = now;
+                        respawnLock.TimeSource = "weather";
+                        respawnLock.Reason = "weather-time-unavailable";
+                        respawnLock.SpawnerDescription = DescribeSpawner(spawner);
+                    }
+
+                    LogDiagnosticRateLimited(
+                        "time-read-failed-block|" + key + "|" + gateName,
+                        "Could not read in-game/weather time while evaluating respawn gate '" + gateName + "' for " + DescribeSpawner(spawner) +
+                        "; blocking because " + (hasLock ? "a respawn lock exists" : "the spawner has killed-state") + ".");
+                    timeSource = "weather";
+                    return true;
+                }
+
                 LogDiagnosticRateLimited(
                     "time-read-failed|" + DescribeObject(spawner),
-                    "Could not read game time while evaluating respawn gate '" + gateName + "' for " + DescribeSpawner(spawner) + ".");
+                    "Could not read in-game/weather time while evaluating respawn gate '" + gateName + "' for " + DescribeSpawner(spawner) +
+                    "; allowing because no respawn lock or killed-state is known.");
                 return false;
             }
 
@@ -474,6 +533,138 @@ namespace EnemyRespawnControl
             }
 
             return ShouldBlockRespawn(key, spawner, now, timeSource, out respawnLock);
+        }
+
+        private bool ShouldBypassRespawnControl(object spawner, string gateName)
+        {
+            if (spawner == null)
+            {
+                return false;
+            }
+
+            return String.Equals(gateName, "can-spawn-ambush", StringComparison.Ordinal)
+                || IsTruthyMember(spawner, "IsManualSpawner")
+                || IsTruthyMember(spawner, "_isManualSpawner")
+                || IsTruthyMember(spawner, "IsSpawningWyrdSpawns")
+                || IsTruthyMember(spawner, "_isSpawningWyrdSpawns")
+                || IsTruthyMember(spawner, "_spawnOnlyOnAmbush");
+        }
+
+        private bool ShouldControlSpawner(object spawner, string gateName)
+        {
+            bool isHostileToHero;
+            if (TryReadBoolMember(spawner, "IsHostileToHero", out isHostileToHero))
+            {
+                return isHostileToHero;
+            }
+
+            if (!HasNpcSpawnTemplate(spawner))
+            {
+                return false;
+            }
+
+            return HasLikelyEnemyName(spawner);
+        }
+
+        private bool HasNpcSpawnTemplate(object spawner)
+        {
+            IEnumerable templates = GetMemberValue(spawner, "AllUniqueTemplates") as IEnumerable;
+            if (templates == null || templates is string)
+            {
+                return false;
+            }
+
+            Type npcAttachmentType = AccessTools.TypeByName(NpcAttachmentTypeName);
+            if (npcAttachmentType == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                foreach (object template in templates)
+                {
+                    UnityEngine.Component component = template as UnityEngine.Component;
+                    if (component == null)
+                    {
+                        continue;
+                    }
+
+                    if (component.GetComponent(npcAttachmentType) != null || component.GetComponentInChildren(npcAttachmentType) != null)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        private bool HasLikelyEnemyName(object spawner)
+        {
+            string hints = (DescribeSpawner(spawner) + ";" + DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates"))).ToLowerInvariant();
+            return hints.Contains("enemy")
+                || hints.Contains("skeleton")
+                || hints.Contains("corpse")
+                || hints.Contains("redcap")
+                || hints.Contains("gobbler")
+                || hints.Contains("grindylow")
+                || hints.Contains("wyrd")
+                || hints.Contains("zombie")
+                || hints.Contains("ghoul")
+                || hints.Contains("bandit")
+                || hints.Contains("highwayman")
+                || hints.Contains("deranged")
+                || hints.Contains("wolf")
+                || hints.Contains("wolves")
+                || hints.Contains("bear")
+                || hints.Contains("boar")
+                || hints.Contains("spider");
+        }
+
+        private void LogNonEnemySpawnerBypass(object spawner, string gateName)
+        {
+            if (!_diagnostics.Value)
+            {
+                return;
+            }
+
+            string description = DescribeSpawner(spawner);
+            LogDiagnosticRateLimited(
+                "non-enemy-spawner|" + gateName + "|" + StableHash(description),
+                "Ignored non-enemy spawner at " + gateName + ". spawner=" + description + ".");
+        }
+
+        private void MarkSpecialSpawnedLocation(object location)
+        {
+            if (location == null)
+            {
+                return;
+            }
+
+            _specialSpawnedLocations.Remove(location);
+            _specialSpawnedLocations.Add(location, new SpecialSpawnedLocation());
+        }
+
+        private bool IsSpecialSpawnedLocation(object location)
+        {
+            SpecialSpawnedLocation ignored;
+            return location != null && _specialSpawnedLocations.TryGetValue(location, out ignored);
+        }
+
+        private void LogSpecialSpawnBypass(object spawner, string gateName)
+        {
+            if (!_diagnostics.Value)
+            {
+                return;
+            }
+
+            LogDiagnosticRateLimited(
+                "special-spawn-bypass|" + gateName + "|" + DescribeObject(spawner),
+                "Ignored special spawn gate at " + gateName + ". spawner=" + DescribeSpawner(spawner) + ".");
         }
 
         private void LogAllowedSpawnAttempt(string key, object spawner, string gateName, RespawnLock respawnLock)
@@ -488,7 +679,7 @@ namespace EnemyRespawnControl
                 "Allowed spawn attempt at " + gateName +
                 ". hasLock=" + (respawnLock != null).ToString(CultureInfo.InvariantCulture) +
                 "; killedState=" + HasKilledLocationState(spawner).ToString(CultureInfo.InvariantCulture) +
-                "; lastClear=" + lastClearText +
+                "; lastClearPlay=" + lastClearText +
                 "; spawner=" + DescribeSpawner(spawner) + ".");
         }
 
@@ -525,7 +716,8 @@ namespace EnemyRespawnControl
                     return true;
                 }
 
-                if (HasKilledLocationState(spawner) || TryReadLastClearPlaySeconds(spawner, out now))
+                double lastClear;
+                if (HasKilledLocationState(spawner) || TryReadLastClearPlaySeconds(spawner, out lastClear))
                 {
                     RegisterLock(key, spawner, now, timeSource, "disabled-mode", false);
                     _locks.TryGetValue(key, out respawnLock);
@@ -624,7 +816,7 @@ namespace EnemyRespawnControl
         {
             switch (_respawnMode.Value)
             {
-                case RespawnMode.VeryFast2Hours:
+                case RespawnMode.Vanilla:
                     return 2d * 3600d;
                 case RespawnMode.Fast6Hours:
                     return 6d * 3600d;
@@ -639,14 +831,14 @@ namespace EnemyRespawnControl
                 case RespawnMode.Disabled:
                     return Double.PositiveInfinity;
                 default:
-                    return 168d * 3600d;
+                    return 24d * 3600d;
             }
         }
 
         private bool TryGetCurrentTimeSeconds(object spawner, out double seconds, out string source)
         {
             seconds = 0d;
-            source = _useWeatherTime.Value ? "weather" : "play";
+            source = "weather";
 
             object gameRealTime = GetMemberValue(spawner, "GameRealTime");
             if (gameRealTime == null)
@@ -654,31 +846,20 @@ namespace EnemyRespawnControl
                 return false;
             }
 
-            if (_useWeatherTime.Value)
-            {
-                object weatherTime = GetMemberValue(gameRealTime, "WeatherTime");
-                if (TryGetNumericMember(weatherTime, "TotalSeconds", out seconds))
-                {
-                    return true;
-                }
-
-                object date = GetMemberValue(weatherTime, "Date");
-                if (date is DateTime)
-                {
-                    seconds = ((DateTime)date).Ticks / (double)TimeSpan.TicksPerSecond;
-                    return true;
-                }
-
-                return false;
-            }
-
-            if (TryGetNumericMember(gameRealTime, "PlayRealTimeInSeconds", out seconds))
+            object weatherTime = GetMemberValue(gameRealTime, "WeatherTime");
+            if (TryGetNumericMember(weatherTime, "TotalSeconds", out seconds))
             {
                 return true;
             }
 
-            object playTime = GetMemberValue(gameRealTime, "PlayRealTime");
-            return TryGetNumericMember(playTime, "TotalSeconds", out seconds);
+            object date = GetMemberValue(weatherTime, "Date");
+            if (date is DateTime)
+            {
+                seconds = ((DateTime)date).Ticks / (double)TimeSpan.TicksPerSecond;
+                return true;
+            }
+
+            return false;
         }
 
         private bool TryReadLastClearPlaySeconds(object spawner, out double seconds)
@@ -862,22 +1043,35 @@ namespace EnemyRespawnControl
                         continue;
                     }
 
-                    string value = GetStringMember(template, "GUID");
-                    if (String.IsNullOrWhiteSpace(value))
+                    string guid = GetStringMember(template, "GUID");
+                    if (String.IsNullOrWhiteSpace(guid))
                     {
-                        value = GetStringMember(template, "Guid");
+                        guid = GetStringMember(template, "Guid");
                     }
-                    if (String.IsNullOrWhiteSpace(value))
+                    if (String.IsNullOrWhiteSpace(guid))
                     {
-                        value = GetStringMember(template, "TemplateGuid");
+                        guid = GetStringMember(template, "TemplateGuid");
                     }
-                    if (String.IsNullOrWhiteSpace(value))
+
+                    string name = GetStringMember(template, "name");
+                    if (String.IsNullOrWhiteSpace(name))
                     {
-                        value = GetStringMember(template, "name");
+                        name = GetStringMember(template, "Name");
                     }
-                    if (String.IsNullOrWhiteSpace(value))
+                    if (String.IsNullOrWhiteSpace(name))
                     {
-                        value = GetStringMember(template, "Name");
+                        name = GetStringMember(template, "DebugName");
+                    }
+                    if (String.IsNullOrWhiteSpace(name))
+                    {
+                        name = GetStringMember(template, "DisplayName");
+                    }
+
+                    string value = guid;
+                    if (!String.IsNullOrWhiteSpace(name)
+                        && (String.IsNullOrWhiteSpace(value) || !String.Equals(value, name, StringComparison.Ordinal)))
+                    {
+                        value = String.IsNullOrWhiteSpace(value) ? name : value + "|" + name;
                     }
                     if (String.IsNullOrWhiteSpace(value))
                     {
@@ -969,6 +1163,25 @@ namespace EnemyRespawnControl
             }
 
             return null;
+        }
+
+        private static bool IsTruthyMember(object instance, string memberName)
+        {
+            object value = GetMemberValue(instance, memberName);
+            return value is bool && (bool)value;
+        }
+
+        private static bool TryReadBoolMember(object instance, string memberName, out bool result)
+        {
+            result = false;
+            object value = GetMemberValue(instance, memberName);
+            if (value is bool)
+            {
+                result = (bool)value;
+                return true;
+            }
+
+            return false;
         }
 
         private static bool TryGetNumericMember(object instance, string memberName, out double value)
@@ -1071,6 +1284,10 @@ namespace EnemyRespawnControl
             internal string TimeSource;
             internal string Reason;
             internal string SpawnerDescription;
+        }
+
+        private sealed class SpecialSpawnedLocation
+        {
         }
 
         private static class CooldownConditionPatch
@@ -1192,12 +1409,12 @@ namespace EnemyRespawnControl
 
         private static class AfterLocationKilledPatch
         {
-            public static void Postfix(object __instance)
+            public static void Postfix(object __instance, object __1)
             {
                 EnemyRespawnControlPlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.RegisterKilledSpawner(__instance, "after-kill");
+                    plugin.RegisterKilledSpawner(__instance, __1, "after-kill");
                 }
             }
         }
@@ -1241,7 +1458,7 @@ namespace EnemyRespawnControl
 
     public enum RespawnMode
     {
-        VeryFast2Hours,
+        Vanilla,
         Fast6Hours,
         Default24Hours,
         Slow72Hours,

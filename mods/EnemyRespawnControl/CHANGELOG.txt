@@ -1,3 +1,33 @@
+Version 1.0.9
+Logged skipped non-enemy spawners from kill and restore registration paths when Diagnostics is enabled.
+Updated the generated Diagnostics help text to mention skipped non-enemy spawners.
+Included readable template names in spawner keys and diagnostics so enemy fallback checks are less dependent on GUID-only data.
+
+Version 1.0.8
+Limited respawn locks to hostile enemy and hostile NPC spawners so resource, pickable, and passive non-enemy location spawners are left alone.
+Added diagnostics for skipped non-enemy spawners when Diagnostics is enabled.
+
+Version 1.0.7
+Removed the UseWeatherTime config option so ERC always measures respawn presets with in-game/weather time.
+Clarified Nexus and README wording that timescale mods can change how long respawn waits take in real time.
+Blocked known locked or killed regular spawners when in-game/weather time cannot be read instead of allowing them through silently.
+Bumped the config schema so older configs are backed up and regenerated without the removed time-source option.
+
+Version 1.0.6
+Changed the generated default from Slow to Default, which waits 24 in-game/weather hours.
+Renamed the two-hour preset from VeryFast to Vanilla.
+Cleaned Nexus-facing preset wording so public labels use Vanilla, Fast, Default, Slow, and Very Slow without timing suffixes.
+Bumped the config schema so older configs are backed up and regenerated with the new default and preset name.
+
+Version 1.0.4
+Tightened special-spawn bypasses so rest checks no longer let locked regular spawners respawn.
+Kept bypasses for ambush-only, Wyrd-night, and manual/story spawner states.
+Clarified that regular spawners remain controlled even when a rest check considers them as ambush candidates.
+
+Version 1.0.3
+Left rest-interrupt ambushes, Wyrd-night spawns, ambush-only spawners, and manual/story-triggered spawns outside respawn blocking.
+Added diagnostics for special-spawn bypasses when Diagnostics is enabled.
+
 Version 1.0.2
 Added broader respawn gates at CanSpawn, CanSpawnAmbush, IsValidState, ShouldSpawn, and SpawnPrefabInternal so enemies that bypass the vanilla cooldown check can still be blocked.
 Added cleanup for locked spawners that still manage to create a location.

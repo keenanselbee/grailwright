@@ -234,6 +234,36 @@ namespace UltrawideFixes
             Config.Save();
         }
 
+        private void UnregisterConfigHandlers()
+        {
+            Unsubscribe(_enabled, OnConfigChanged);
+            Unsubscribe(_patchTitleVideo, OnConfigChanged);
+            Unsubscribe(_hideTitleBlackBars, OnConfigChanged);
+            Unsubscribe(_patchLoadingBackground, OnConfigChanged);
+            Unsubscribe(_patchLoadingBlurBackground, OnConfigChanged);
+            Unsubscribe(_fillCurrentScreen, OnConfigChanged);
+            Unsubscribe(_useScreenAspect, OnConfigChanged);
+            Unsubscribe(_targetAspect, OnConfigChanged);
+            Unsubscribe(_minimumScreenAspect, OnConfigChanged);
+            Unsubscribe(_cropVideoUv, OnConfigChanged);
+            Unsubscribe(_stretchBlend, OnConfigChanged);
+            Unsubscribe(_verticalCropFocus, OnConfigChanged);
+            Unsubscribe(_resizeRawImageRect, OnConfigChanged);
+            Unsubscribe(_resizeVideoParents, OnConfigChanged);
+            Unsubscribe(_loadingStretchBlend, OnConfigChanged);
+            Unsubscribe(_loadingVerticalCropFocus, OnConfigChanged);
+        }
+
+        private static void Unsubscribe<T>(
+            ConfigEntry<T> entry,
+            EventHandler handler)
+        {
+            if (entry != null)
+            {
+                entry.SettingChanged -= handler;
+            }
+        }
+
         private void ResetConfigIfSchemaChanged()
         {
             string configPath = Config.ConfigFilePath;
@@ -949,6 +979,7 @@ namespace UltrawideFixes
         private void OnDestroy()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
+            UnregisterConfigHandlers();
 
             if (_scanRoutine != null)
             {

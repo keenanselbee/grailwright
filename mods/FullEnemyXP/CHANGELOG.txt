@@ -1,0 +1,10 @@
+Version 1.0.0
+Promoted Full Enemy XP to the first release-ready version.
+Documented the ConfigSchemaVersion setting and schema-reset behavior in the packaged README.
+
+Version 0.1.1
+Changed the in-game BepInEx/FoA Mod Manager display name to Full Enemy XP while keeping the full Nexus-facing title as Full Enemy XP - No Overlevel Penalty.
+
+Version 0.1.0
+Added Full Enemy XP - No Overlevel Penalty as a standalone BepInEx plugin that removes the enemy overlevel kill XP falloff while preserving vanilla enemy base XP, XP multipliers, XP-blocked targets, summons, and non-player kill rules.
+Added configurable diagnostics, dry-run testing, adjusted-kill logs, optional unchanged-kill logs, and session summaries.

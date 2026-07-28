@@ -1,0 +1,47 @@
+[center][size=6]Full Enemy XP - No Overlevel Penalty[/size]
+[i]Keep enemy kill XP steady when you outlevel the fight.[/i][/center]
+
+[b]Full Enemy XP[/b] removes the vanilla enemy overlevel XP penalty in [b]Tainted Grail: The Fall of Avalon[/b].
+
+By default, enemies below your level keep giving their normal enemy kill XP instead of being reduced by the level gap.
+
+[b]What it changes[/b]
+[list]
+[*]Raises the enemy-level XP multiplier for overleveled kills back to full XP.[/*]
+[*]Leaves same-level and higher-level enemy rewards unchanged.[/*]
+[*]Keeps the game's enemy base XP, XP tier, New Game Plus enemy XP bonuses, hero kill XP multiplier, and global XP multiplier intact.[/*]
+[/list]
+
+[b]What it does not override[/b]
+[list]
+[*]XP-blocked enemies stay XP-blocked.[/*]
+[*]Summons and non-player kills follow vanilla rules.[/*]
+[*]Quest, objective, exploration, crafting, and proficiency XP are not changed.[/*]
+[/list]
+
+[b]Configuration[/b]
+
+Config file:
+[code]BepInEx/config/ks.tgfoa.full-enemy-xp.cfg[/code]
+
+Main settings:
+[code]
+Enabled = true
+MinimumOverlevelXPMultiplier = 1
+[/code]
+
+The default value of [b]1[/b] means full enemy XP when you are above the enemy XP level. Lower values allow partial vanilla falloff.
+
+[b]Diagnostics[/b]
+
+For testing, enable:
+[code]
+Diagnostics = true
+DryRun = true
+[/code]
+
+Dry run logs what the mod would change without modifying the actual XP reward. Diagnostic lines include the enemy name, hero level, enemy XP level, base XP, vanilla level multiplier, applied multiplier, and estimated XP before the game's global XP multiplier.
+
+[b]Compatibility[/b]
+
+Full Enemy XP patches the enemy death XP calculation. It should be compatible with mods that add separate bonus XP after kills, but may overlap with mods that replace or heavily transpile enemy death XP rewards.

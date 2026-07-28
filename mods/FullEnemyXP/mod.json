@@ -1,0 +1,18 @@
+{
+  "id": "FullEnemyXP",
+  "displayName": "Full Enemy XP",
+  "packageName": "FullEnemyXP",
+  "version": "1.0.0",
+  "pluginGuid": "ks.tgfoa.full-enemy-xp",
+  "dll": "FullEnemyXP.dll",
+  "sourceFiles": [
+    "src/FullEnemyXP.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll"
+  ]
+}

@@ -1,0 +1,79 @@
+Version 1.5.0
+Standardized stale config schema reset handling with the other Grailwright mods, including timestamped pre-schema backups and legacy General-section schema detection.
+
+Version 1.4.9
+Fixed stale config schema regeneration so upgrading from older configs no longer aborts startup after backing up the old cfg.
+
+Version 1.4.8
+Added built-in XP gain floating text takeover using the new experience icon, White color group, and Short duration bucket.
+Added API v5 XP gain claims so integrations can style the next XP stat gain they trigger without producing a duplicate generic XP entry.
+Added the built-in experience and corpse icon IDs and mapped Blood Magic Expansion corpse XP claims into the Red color group by default.
+Raised ConfigSchemaVersion to 9 so the XP takeover, White group, and new icon defaults regenerate.
+
+Version 1.4.7
+Added API v4 TryShowEvent calls with stable event IDs and named duration buckets.
+Added configurable VeryShort, Short, Medium, Long, and VeryLong duration buckets, with event callbacks defaulting to Medium.
+Added editable color groups with configurable event ID lists and moved Killing Blow Mastery into the Red group by default.
+Changed default Scale to 1 and BaseCenterY to 0.25 while keeping DefaultDurationSeconds at 2.
+Raised ConfigSchemaVersion to 8 so the new layout, duration bucket, and color group defaults regenerate.
+
+Version 1.4.6
+Refreshed the built-in crime, pickpocket, weight, and other event icon masks for clearer tinted in-game rendering.
+
+Version 1.4.5
+Added the pickpocket built-in icon ID.
+Changed built-in pickpocket success and fail notifications to use the pickpocket icon.
+Removed the stale stealth built-in icon ID after replacing that route with the pickpocket icon.
+
+Version 1.4.4
+Added the location built-in icon ID.
+Changed the built-in location cleared notification to use the location icon.
+
+Version 1.4.3
+Added optional default-game-event notifications for encumbrance changes, location clears, pickpocket outcomes, bounty changes, bounty clears, and unforgivable crimes.
+Added optional throttled weak spot and sneak attack combat notifications using the critical icon.
+Added crime, stealth, and weight built-in icon IDs.
+Raised ConfigSchemaVersion to 7 for the new default-event settings.
+
+Version 1.4.2
+Added default-game-event notifications for actual rest duration, including interrupted rest duration.
+Added the new built-in rest icon ID and included it in the shared icon list.
+Added optional throttled block/parry combat defense notifications using the shield and combat icons.
+Updated the API reference with the rest icon and default-game-event feature flags.
+Raised ConfigSchemaVersion to 6 for the new rest and combat default-event settings.
+
+Version 1.3.1
+Added built-in vanilla Wyrd notifications for Wyrd Night changes, Wyrd safety changes, and Wyrd power unlocks.
+Suppressed vanilla Safe/Exposed messages by default while Wyrd Hunt Addon is loaded so Wyrd Scent remains authoritative.
+Added Default Game Events config toggles for vanilla Wyrd notifications and raised ConfigSchemaVersion to 5.
+
+Version 1.2.1
+Replaced the first-pass line icons with painterly transparent icon masks based on the darker Grail-style source sheet.
+Kept the same built-in icon IDs so existing mod integrations continue to work.
+
+Version 1.2.0
+Added API v3 with optional built-in icon IDs for floating text entries.
+Added bundled transparent icon masks for shared message types and skill-level Killing Blow Mastery rewards.
+Added icon rendering, tinting, size, gap, opacity, and enable settings.
+Raised ConfigSchemaVersion to 4 so the icon defaults regenerate.
+
+Version 1.1.0
+Added API v2 with category, priority, and collapse-key routing.
+Added built-in category toggles, source controls, source throttling, duplicate suppression, and source duration multipliers.
+Added richer built-in styles for reward, status, Wyrd, discovery, combat, system, debug, warning, error, and critical messages.
+Raised ConfigSchemaVersion to 3 so the new queue and source-control defaults regenerate.
+
+Version 1.0.2
+Renamed the shared notification overlay to Grail Floating Text.
+Changed the plugin GUID and generated config filename to ks.tgfoa.grail-floating-text.
+Renamed the packaged folder, DLL, source file, and reflection API namespace to GrailFloatingText.
+
+Version 1.0.1
+Added a configurable pop-in scale animation for new notifications.
+Added smooth upward movement when active notifications are pushed into new stacked positions.
+Updated the config schema for the new animation settings.
+
+Version 1.0.0
+Added the initial shared Grail Floating Text stack overlay.
+Added a reflection-friendly NotificationApi for optional mod integrations.
+Added configurable position, scale, width, stack spacing, timing, opacity, maximum visible notifications, and diagnostics.

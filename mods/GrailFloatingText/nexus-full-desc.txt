@@ -1,0 +1,364 @@
+[center][color=#C94A4A][size=6]Grail Floating Text[/size][/color]
+[i]A shared floating text overlay for events and mod messages.[/i][/center]
+
+[line]
+
+[b]Grail Floating Text[/b] is a shared BepInEx 5 Mono overlay for [b]Tainted Grail: The Fall of Avalon[/b] mods.
+
+It gives mod authors one standard place to send short reward, status, event, system, and debug messages instead of each mod drawing its own text stack. Messages can include shared tinted icon masks, appear near the configured screen position, pop in briefly, push older still-visible messages upward, and fade out cleanly.
+
+For players, that means less overlapping HUD text. For mod authors, it means a small reflection-friendly API that can be used as an optional dependency without forcing a hard install requirement.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*]Shared floating text overlay any Tainted Grail mod author can use.[/*]
+[*]Optional default-game-event notices for useful facts the base game does not already show as ordinary notification text.[/*]
+[*]Actual rest duration text, including shortened sleep when rest is interrupted early.[/*]
+[*]Optional throttled block/parry combat defense feedback using the shield and combat icons.[/*]
+[*]Optional event-driven encumbrance, location cleared, pickpocket, bounty, weak spot, and sneak attack feedback.[/*]
+[*]Optional built-in vanilla Wyrd event notices for Wyrd Night, Wyrd safety, and Wyrd power unlocks.[/*]
+[*]Stacked messages so active mod text does not draw directly on top of itself.[/*]
+[*]Smooth pop-in animation for new messages.[/*]
+[*]Smooth stack movement when new messages push older messages upward.[/*]
+[*]API v5 message intent: stable event IDs, duration buckets, style, category, priority, collapse key, optional icon ID, and XP gain claims.[/*]
+[*]Built-in painterly transparent icon masks for shared message types and skill-level reward text.[/*]
+[*]Collapse keys let status messages update in place instead of spamming repeated lines.[/*]
+[*]Priority sorting keeps high-priority messages closer to the active slot.[/*]
+[*]Duplicate suppression for identical rapid-fire messages.[/*]
+[*]Category toggles for General, Combat, Reward, Status, System, and Debug messages.[/*]
+[*]Per-source controls for enabled state, throttle seconds, duration multiplier, and diagnostics.[/*]
+[*]Configurable position, scale, font size, width, spacing, timing, opacity, animation, icons, and maximum visible messages.[/*]
+[*]Reflection-friendly API so other mods can integrate without referencing the DLL at compile time.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Current Integrations[/size][/color][/heading]
+[list]
+[*][b]Built-in rest duration[/b] uses the Rest icon for messages such as [b]Rested 8 hours[/b] or [b]Rest interrupted: 3 hours slept[/b].[/*]
+[*][b]Built-in combat defense[/b] can show throttled [b]Blocked 12 damage[/b] and [b]Parried 12 damage[/b] messages without polling combat state.[/*]
+[*][b]Built-in state and crime events[/b] can show [b]Over-encumbered[/b], [b]Burden lifted[/b], [b]Location cleared[/b] with the Location icon, [b]Pickpocketed Item[/b], [b]Bounty +25: Theft[/b], [b]Bounty cleared[/b], and [b]Unforgivable crime[/b] messages from explicit game callbacks.[/*]
+[*][b]Optional combat hit events[/b] can show throttled [b]Weak spot hit[/b] and [b]Sneak attack: 32 damage[/b] messages using the Critical icon.[/*]
+[*][b]Built-in XP gain takeover[/b] can show each XP gain as its own short white floating text entry with the Experience icon, while suppressing the vanilla XP popup only when the GFT entry is successfully shown.[/*]
+[*][b]Built-in vanilla Wyrd events[/b] use the Wyrd icon for [b]Wyrd Night falls[/b], [b]Wyrd Night fades[/b], [b]Wyrd power unlocked[/b], and optional vanilla Safe/Exposed state text.[/*]
+[*][b]Killing Blow Mastery[/b] uses Grail Floating Text for skill-icon reward messages such as [b]Killing blow: +8 Two Handed[/b].[/*]
+[*][b]Blood Magic Expansion[/b] can claim corpse-leech XP so it appears as red corpse-icon XP text instead of the generic white XP entry.[/*]
+[*][b]KS Wyrd Hunt Addon[/b] uses Grail Floating Text's Wyrd icon for Wyrd Scent status text such as [b]Wyrd Scent: Hunted[/b], [b]Safe from Wyrdness[/b], and [b]Exposed to Wyrdness[/b].[/*]
+[/list]
+
+Grail Floating Text itself listens only to low-frequency or explicitly fired game events plus the vanilla XP gain announcer. XP gains are displayed one award at a time rather than merged into a running total. It still avoids duplicating native advanced notification buffers such as items, proficiency, quests, objectives, recipes, fish, journal unlocks, location discovery, and hero level-up. KS Wyrd Hunt Addon remains responsible for Wyrd Scent wording, hunt/safety interpretation, and scent meter replacement behavior. By default, Grail Floating Text suppresses its own vanilla Safe/Exposed messages while Wyrd Hunt Addon is loaded so those status lines do not compete.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Message Types[/size][/color][/heading]
+Mods can send messages with a category, priority, style, icon ID, and optional collapse key.
+
+[code]
+Category  | Intended use
+General   | Ordinary mod events
+Combat    | Combat feedback
+Reward    | XP, loot, progress, or achievement-style feedback
+Status    | Changing state such as Wyrd Scent
+System    | Setup, compatibility, or availability messages
+Debug     | Diagnostic messages, hidden by default
+[/code]
+
+[code]
+Priority  | Behavior
+Low       | Quiet messages, affected by source throttling
+Normal    | Default message priority
+High      | Bypasses source throttling and sorts ahead of normal text
+Critical  | Highest priority and critical styling fallback
+[/code]
+
+[b]Collapse keys[/b] are for status messages that should update in place. For example, Wyrd Hunt Addon uses one stable collapse key for Wyrd Scent status text, so changing scent states replace the old visible status line instead of building a stack of stale states.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Built-In Styles[/size][/color][/heading]
+Mods can request a named style, or pass a hex color such as [b]#FFD54A[/b].
+
+[code]
+Default
+Reward
+Status
+Wyrd
+Discovery
+Combat
+Weakness
+Resistance
+Immunity
+Warning
+Error
+Critical
+System
+Debug
+[/code]
+
+Steel and Bone handles its own damage numbers, weakness text, and resistance text directly. Grail Floating Text remains available for mods that want shared non-damage floating messages.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Built-In Icons[/size][/color][/heading]
+Mods can request a named icon ID. Blank or [b]Auto[/b] uses the default icon for the message style/category. [b]None[/b] or [b]Off[/b] suppresses the icon for that message.
+
+[code]
+general
+system
+status
+wyrd
+reward
+combat
+warning
+critical
+debug
+rest
+location
+one_handed
+two_handed
+archery
+shield
+unarmed
+magic
+crime
+pickpocket
+weight
+experience
+corpse
+[/code]
+
+Icon PNG masks live in [b]GrailFloatingText/icons[/b] and are tinted at runtime from the message style color.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Configuration is created at:
+
+[code]
+BepInEx/config/ks.tgfoa.grail-floating-text.cfg
+[/code]
+
+Grail Floating Text uses [b]ConfigSchemaVersion = 9[/b]. Older config layouts are backed up beside the active config and regenerated when the schema changes.
+
+Common defaults:
+
+[code]
+Enabled = true
+Scale = 1
+FontSize = 20
+CenterX = 0.5
+BaseCenterY = 0.25
+Width = 520
+StackSpacing = 34
+MaximumVisibleNotifications = 6
+DefaultDurationSeconds = 2
+DefaultFadeSeconds = 0.25
+VeryShortDurationSeconds = 1
+ShortDurationSeconds = 1.5
+MediumDurationSeconds = 2
+LongDurationSeconds = 2.5
+VeryLongDurationSeconds = 3
+GlobalOpacity = 0.9
+SpawnAnimationEnabled = true
+SpawnStartScale = 0.7
+SpawnOvershootScale = 1.12
+SpawnAnimationSeconds = 0.2
+StackMoveAnimationSeconds = 0.16
+DuplicateSuppressSeconds = 0.15
+IconsEnabled = true
+IconSize = 32
+IconGap = 10
+IconOpacity = 0.95
+Diagnostics = false
+[/code]
+
+Default-game-event defaults:
+
+[code]
+NotifyRestDuration = true
+NotifyInterruptedRestDuration = true
+RestDurationTextFormat = Rested {duration}
+RestInterruptedTextFormat = Rest interrupted: {duration} slept
+RestNotificationMinimumMinutes = 1
+NotifyBlockedDamage = true
+NotifyParriedDamage = true
+CombatDefenseMinimumDamage = 1
+CombatDefenseCooldownSeconds = 0.75
+NotifyEncumbranceChanged = true
+NotifyLocationCleared = true
+NotifyPickpocketSuccess = true
+NotifyPickpocketFail = true
+NotifyBountyChanged = true
+NotifyBountyCleared = true
+NotifyUnforgivableCrime = true
+CrimeEventCooldownSeconds = 0.5
+NotifyWeakspotHit = false
+NotifySneakAttack = false
+CombatHitMinimumDamage = 1
+CombatHitCooldownSeconds = 1
+NotifyXpGained = true
+SuppressVanillaXpNotifications = true
+XpTextFormat = +{xp} XP
+XpDurationBucket = Short
+VanillaWyrdEventsEnabled = true
+NotifyWyrdNightChange = true
+NotifyWyrdSafetyChange = true
+SuppressWyrdSafetyWhenWyrdHuntAddonLoaded = true
+NotifyWyrdSoulFragmentCollected = true
+NotifyWyrdSkillToggle = false
+VanillaWyrdEventCooldownSeconds = 0.75
+[/code]
+
+These settings control only Grail Floating Text's built-in default-game-event notices. Wyrd Hunt Addon controls Wyrd Scent notifications separately.
+
+Category defaults:
+
+[code]
+GeneralEnabled = true
+CombatEnabled = true
+RewardEnabled = true
+StatusEnabled = true
+SystemEnabled = true
+DebugEnabled = false
+[/code]
+
+Source-control defaults:
+
+[code]
+PerSourceControlsEnabled = true
+DefaultThrottleSeconds = 0.05
+DefaultDurationMultiplier = 1
+[/code]
+
+When [b]PerSourceControlsEnabled[/b] is true, Grail Floating Text creates a config section for each source that sends messages. Source names are based on the sending mod's plugin GUID.
+
+[code]
+[9. Sources.ks.tgfoa.killing-blow-mastery]
+Enabled = true
+ThrottleSeconds = 0.05
+DurationMultiplier = 1
+Diagnostics = false
+[/code]
+
+Color-group defaults:
+
+[code]
+RedColor = #FF3D2E
+RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack
+GoldColor = #FFDB47
+GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
+BlueColor = #9EE0FF
+BlueEvents = default-burden-lifted
+PurpleColor = #C294FF
+PurpleEvents = wyrd-hunt-status; vanilla-wyrd-night; vanilla-wyrd-safety; vanilla-wyrd-skill
+OrangeColor = #FFB87A
+OrangeEvents = default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed
+PaleColor = #DBE6FF
+PaleEvents = default-rest-duration
+GrayColor = #B3B3B3
+GrayEvents =
+WhiteColor = #FFFFFF
+WhiteEvents = default-xp-gain
+DefaultColor = #F5E0AD
+DefaultEvents =
+[/code]
+
+Event lists accept semicolon, comma, pipe, or newline separated event IDs. If an event ID appears in more than one group, the first matching group in the config order wins.
+
+[line]
+
+[heading][color=#C94A4A][size=5]For Mod Authors[/size][/color][/heading]
+Declare Grail Floating Text as a soft dependency:
+
+[code]
+ks.tgfoa.grail-floating-text
+[/code]
+
+Resolve the API by reflection:
+
+[code]
+GrailFloatingText.NotificationApi
+[/code]
+
+API v5 XP claim call shape:
+
+[code]
+TryClaimXpGain(sourceId, eventId, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity)
+[/code]
+
+XP claims are one-shot. The next matching XP stat gain uses the claimed event/style/icon instead of the generic XP event, without merging multiple XP gains together.
+
+API v4 event-aware call shape:
+
+[code]
+TryShowEvent(sourceId, eventId, text, style, category, priority, collapseKey, iconId, durationBucket, fadeSeconds, opacity)
+[/code]
+
+Duration buckets are [b]VeryShort[/b], [b]Short[/b], [b]Medium[/b], [b]Long[/b], and [b]VeryLong[/b]. Empty or unknown bucket names use [b]Medium[/b].
+
+API v3 call shape:
+
+[code]
+TryShow(sourceId, text, style, category, priority, collapseKey, iconId, durationSeconds, fadeSeconds, opacity)
+[/code]
+
+API v2 calls still work:
+
+[code]
+TryShow(sourceId, text, style, category, priority, collapseKey, durationSeconds, fadeSeconds, opacity)
+[/code]
+
+Recommended examples:
+
+[code]
+Reward message:
+sourceId = your plugin GUID
+eventId = killing-blow
+style = Reward
+category = Reward
+priority = Normal
+collapseKey =
+iconId = archery
+durationBucket = Medium
+
+Status message:
+sourceId = your plugin GUID
+eventId = wyrd-hunt-status
+style = Wyrd
+category = Status
+priority = Normal
+collapseKey = your-stable-status-key
+iconId = wyrd
+durationBucket = Medium
+[/code]
+
+If Grail Floating Text is not installed, integrated mods should still load normally and simply skip their shared floating text route.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a BepInEx plugin, or place the folder under:
+
+[code]
+BepInEx/plugins/GrailFloatingText/GrailFloatingText.dll
+[/code]
+
+Keep the folder intact. The packaged folder name is [b]GrailFloatingText[/b].
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
+[*][b]BepInEx 5 for the Mono build[/b].[/*]
+[*]Optional integrated mods for additional floating text messages.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+Grail Floating Text draws its own IMGUI overlay when another mod queues a message, when an enabled built-in default game event fires, or when the vanilla XP announcer reports an XP gain. It does not modify combat, quests, saves, items, enemies, or stat values. Built-in event notices are event-driven and throttled where needed; they do not poll combat, inventory, quest, or save state.
+
+If messages are too frequent, use the category toggles or the per-source sections in the config. If messages are missing, make sure [b]Enabled[/b] is true, the relevant category is enabled, and the sending mod is installed and configured to use Grail Floating Text.

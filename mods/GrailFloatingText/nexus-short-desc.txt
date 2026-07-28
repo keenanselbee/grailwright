@@ -1,0 +1,1 @@
+Shared animated icon-capable floating text overlay for Tainted Grail mods, with XP, rest, Wyrd, crime, and state notices.

@@ -1,0 +1,23 @@
+{
+  "id": "GrailFloatingText",
+  "displayName": "Grail Floating Text",
+  "packageName": "GrailFloatingText",
+  "version": "1.5.0",
+  "pluginGuid": "ks.tgfoa.grail-floating-text",
+  "dll": "GrailFloatingText.dll",
+  "sourceFiles": [
+    "src/GrailFloatingText.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.ImageConversionModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.IMGUIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextRenderingModule.dll"
+  ]
+}

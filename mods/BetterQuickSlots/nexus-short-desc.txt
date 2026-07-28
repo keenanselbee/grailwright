@@ -1,0 +1,1 @@
+Reworks the HUD quick slot into a movable food, health potion, mana potion, and arrow utility bar with smart potion hotkeys.

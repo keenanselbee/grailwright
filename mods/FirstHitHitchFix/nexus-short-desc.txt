@@ -1,0 +1,1 @@
+Warms combat VFX addressables before and around fights to reduce first-hit stutters from first-use effect loading and shader/material setup.

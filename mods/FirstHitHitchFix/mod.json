@@ -1,0 +1,18 @@
+{
+  "id": "FirstHitHitchFix",
+  "displayName": "First Hit Hitch Fix",
+  "packageName": "FirstHitHitchFix",
+  "version": "0.1.1",
+  "pluginGuid": "ks.tgfoa.first-hit-hitch-fix",
+  "dll": "FirstHitHitchFix.dll",
+  "sourceFiles": [
+    "src/FirstHitHitchFix.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll"
+  ]
+}

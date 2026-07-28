@@ -1,0 +1,52 @@
+[center][size=6]First Hit Hitch Fix[/size]
+[i]Warm combat effects before the first swing has to pay for them.[/i][/center]
+
+[b]First Hit Hitch Fix[/b] is a BepInEx plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It targets the large hitch that can happen the first time a combat hit effect is used in a session.
+
+[b]What it does[/b]
+[list]
+[*]Warms the game's default item-on-surface combat VFX from GameConstants.[/*]
+[*]Warms default critical, backstab, and death VFX.[/*]
+[*]Warms NPC-specific hit, critical, backstab, and death VFX when NPCs initialize.[/*]
+[*]Keeps disabled warm instances resident so their addressable assets and effect objects stay ready.[/*]
+[*]Discovers additional combat VFX from the live spawn path and warms them for later use.[/*]
+[/list]
+
+[b]What it does not do[/b]
+[list]
+[*]It does not change damage, hit detection, AI, animations, audio, or enemy behavior.[/*]
+[*]It does not edit game files or shader caches.[/*]
+[*]It is not a renderer replacement like DXVK.[/*]
+[/list]
+
+[b]Configuration[/b]
+
+Config file:
+[code]BepInEx/config/ks.tgfoa.first-hit-hitch-fix.cfg[/code]
+
+Main settings:
+[code]
+Enabled = true
+WarmDefaultCombatVFX = true
+WarmNpcCombatVFX = true
+WarmDiscoveredCombatVFX = true
+HoldWarmInstances = true
+MaxWarmInstances = 64
+WarmupSpacingSeconds = 0.1
+[/code]
+
+If the warmup itself is too noticeable on your system, increase [b]WarmupSpacingSeconds[/b]. If memory is tight, lower [b]MaxWarmInstances[/b].
+
+[b]Diagnostics[/b]
+
+For testing, enable:
+[code]
+Diagnostics = true
+LogDiscoveredVFX = true
+[/code]
+
+The log will show which combat VFX references are queued, warmed, completed, released, or only discovered after live combat begins. Live discoveries include warmStatus, warmedAs, queuedLate, and settled summary counts for covered versus cold combat VFX keys.
+
+[b]Compatibility[/b]
+
+First Hit Hitch Fix patches combat VFX discovery and NPC initialization. It should be compatible with mods that change unrelated gameplay systems, but may overlap with mods that replace VFXManager or NPC initialization.

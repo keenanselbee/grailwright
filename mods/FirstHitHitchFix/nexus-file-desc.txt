@@ -1,0 +1,1 @@
+Preloads and keeps disabled combat VFX warm to reduce first-hit hitching during fights.

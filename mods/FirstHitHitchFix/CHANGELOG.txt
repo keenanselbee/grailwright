@@ -1,0 +1,9 @@
+Version 0.1.1
+Added coverage-aware discovered VFX diagnostics that report warmStatus, warmedAs, and queuedLate for each live combat effect key.
+Added settled warmup summaries so diagnostics report queued, completed, held, discovered, covered, and cold counts without relying on game shutdown.
+Clarified default warmup diagnostics by reporting unique runtime keys separately from repeated valid references.
+
+Version 0.1.0
+Added First Hit Hitch Fix as a standalone BepInEx plugin that warms common combat VFX addressables before fights and keeps disabled warm instances resident.
+Added NPC-specific combat VFX warmup when NPCs initialize, plus discovery warmup for combat VFX first seen through the live hit-effect path.
+Added config-backed diagnostics and schema reset behavior.

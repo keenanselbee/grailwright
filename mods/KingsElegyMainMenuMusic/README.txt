@@ -1,7 +1,7 @@
 Main Menu Music
 ===============
 
-Version 2.0.6
+Version 2.1.1
 
 Standalone BepInEx 5 Mono plugin for Tainted Grail: The Fall of Avalon.
 
@@ -30,26 +30,36 @@ option.
 Set:
 
   MusicMode = CustomFile
+  CustomMusicVolume = 1.0
 
 CustomFile mode plays the configured custom WAV at CustomMusicVolume. It still
 uses the shared title-loop controls, including loop start, end trim, and
 crossfade. It is not affected by pitch, demonic DSP, fire ambience, wind
 ambience, or layered title music controls.
 
-Default mode
-------------
+Default base music
+------------------
 
   MusicMode = LayeredModifiedTaintedGrail
+  Semitones = -7
   BaseMusicVolume = 1.0
+  ApplyEffectsToBaseMusic = true
+  BaseMusicFile = menu_layer_01.ksaudio
+
+Default ambience layers:
+
   EnableFireAmbience = true
   FireAmbienceVolume = 1.0
+  FireAmbienceFile = menu_layer_02.ksaudio
   EnableWindAmbience = true
   WindAmbienceVolume = 1.0
+  WindAmbienceFile = menu_layer_03.ksaudio
 
-Default effects for the base title music layer:
+Music volume settings are relative mix controls. The default value of 1.0 now
+plays at the previous 0.2 FMOD volume baseline.
 
-  ApplyEffectsToBaseMusic = true
-  Semitones = -9
+Advanced DSP defaults for the base title music layer:
+
   FFTSize = 4096
   Overlap = 32
   EnableHighFrequencyRestore = true
@@ -72,7 +82,7 @@ The plugin now patches real game loading operations and fades replacement title
 music out when gameplay/loading starts.
 
   FadeOutOnGameLoad = true
-  GameLoadFadeSeconds = 2
+  GameLoadFadeSeconds = 10
 
 Muted original title emitters are stopped after the replacement fades out so
 title music does not bleed into loading or gameplay.
@@ -93,7 +103,7 @@ The config is generated after first launch:
 
   BepInEx\config\ks.tgfoa.main-menu-music.cfg
 
-Version 2.0.6 uses ConfigSchemaVersion 13. Older configs are backed up and a
+Version 2.1.1 uses ConfigSchemaVersion 16. Older configs are backed up and a
 fresh config is generated once so the updated defaults apply cleanly.
 
 Install shape

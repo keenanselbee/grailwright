@@ -1,3 +1,24 @@
+Version 2.1.1
+Cleaned up config change handler registration so Main Menu Music unsubscribes all live config callbacks during plugin teardown.
+
+Version 2.1.0
+Reorganized the generated config into clearer playback, base music, advanced DSP, ambience, custom file, looping, loading/compatibility, diagnostics, and internal sections.
+Moved Semitones to the top of the base music section so the main pitch control is easier to find.
+Bumped ConfigSchemaVersion to 16 so older configs are backed up and regenerated with the tidier layout.
+
+Version 2.0.9
+Replaced the bundled fire ambience layer with the corrected menu_layer_02.ksaudio asset.
+
+Version 2.0.8
+Changed the default base title music pitch to -7 semitones.
+Changed all music volume controls so 1.0 now plays at the previous 0.2 FMOD volume baseline.
+Fixed switching MusicMode from Off back to LayeredModifiedTaintedGrail or CustomFile so the vanilla title music emitters are muted again before replacement playback resumes.
+Bumped ConfigSchemaVersion to 15 so older configs are backed up and regenerated with the updated defaults and volume scale.
+
+Version 2.0.7
+Changed the default game-load fade duration from 2 seconds to 10 seconds so title music transitions more slowly during loading.
+Bumped ConfigSchemaVersion to 14 so older configs are backed up and regenerated with the new loading fade default.
+
 Version 2.0.6
 Saved generated defaults after binding config so ConfigSchemaVersion persists consistently with the other Grailwright mods.
 Kept ConfigSchemaVersion at 13 because no config options or defaults changed.

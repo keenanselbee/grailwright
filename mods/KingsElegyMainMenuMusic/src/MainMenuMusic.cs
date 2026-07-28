@@ -17,9 +17,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.0.6.0")]
-[assembly: AssemblyFileVersion("2.0.6.0")]
-[assembly: AssemblyInformationalVersion("2.0.6")]
+[assembly: AssemblyVersion("2.1.1.0")]
+[assembly: AssemblyFileVersion("2.1.1.0")]
+[assembly: AssemblyInformationalVersion("2.1.1")]
 
 namespace MainMenuMusic
 {
@@ -43,9 +43,10 @@ namespace MainMenuMusic
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.0.6";
+        public const string PluginVersion = "2.1.1";
 
-        private const int ConfigSchemaVersion = 13;
+        private const int ConfigSchemaVersion = 16;
+        private const float VolumeOutputScale = 0.2f;
         private const uint MinimumLoopLengthMs = 250;
 
         private const string TitleMusicTypeName =
@@ -126,6 +127,7 @@ namespace MainMenuMusic
         private float _exitFadeDurationSeconds;
         private string _exitFadeReason = string.Empty;
         private bool _titlePlaybackAllowed;
+        private object _activeTitleMusicView;
 
         private float PitchRatio
         {
@@ -158,228 +160,228 @@ namespace MainMenuMusic
         private void BindConfig()
         {
             _enabled = Config.Bind(
-                "1. Core",
+                "1. Playback",
                 "Enabled",
                 true,
                 "Master switch.");
             Config.Bind(
-                "1. Core",
+                "9. Internal",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 "Configuration layout version. Older layouts are backed up and regenerated.");
             _musicMode = Config.Bind(
-                "1. Core",
+                "1. Playback",
                 "MusicMode",
                 MusicMode.LayeredModifiedTaintedGrail,
                 "LayeredModifiedTaintedGrail uses the included title music, fire, and wind layers. CustomFile plays only CustomMusicFile with normal loop controls but no DSP or ambience layers. Off disables replacement music.");
 
-            _baseMusicFile = Config.Bind(
-                "2. Layered Title Music",
-                "BaseMusicFile",
-                "menu_layer_01.ksaudio",
-                "Base title music layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data. Relative paths are resolved from the plugin folder first, then the audio folder.");
-            _baseMusicVolume = Config.Bind(
-                "2. Layered Title Music",
-                "BaseMusicVolume",
-                1.0f,
-                new ConfigDescription(
-                    "Base title music volume.",
-                    new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _enableFireAmbience = Config.Bind(
-                "2. Layered Title Music",
-                "EnableFireAmbience",
-                true,
-                "Play the included fire ambience layer in LayeredModifiedTaintedGrail mode.");
-            _fireAmbienceFile = Config.Bind(
-                "2. Layered Title Music",
-                "FireAmbienceFile",
-                "menu_layer_02.ksaudio",
-                "Fire ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
-            _fireAmbienceVolume = Config.Bind(
-                "2. Layered Title Music",
-                "FireAmbienceVolume",
-                1.0f,
-                new ConfigDescription(
-                    "Fire ambience volume. The included file is already quiet.",
-                    new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _enableWindAmbience = Config.Bind(
-                "2. Layered Title Music",
-                "EnableWindAmbience",
-                true,
-                "Play the included wind ambience layer in LayeredModifiedTaintedGrail mode.");
-            _windAmbienceFile = Config.Bind(
-                "2. Layered Title Music",
-                "WindAmbienceFile",
-                "menu_layer_03.ksaudio",
-                "Wind ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
-            _windAmbienceVolume = Config.Bind(
-                "2. Layered Title Music",
-                "WindAmbienceVolume",
-                1.0f,
-                new ConfigDescription(
-                    "Wind ambience volume. The included file is already quiet.",
-                    new AcceptableValueRange<float>(0.0f, 2.0f)));
-
-            _customMusicFile = Config.Bind(
-                "3. Custom File",
-                "CustomMusicFile",
-                "main_menu_music.wav",
-                "WAV to play when MusicMode is CustomFile. Custom playback is affected by Looping settings but not by layered ambience or DSP settings.");
-            _customMusicVolume = Config.Bind(
-                "3. Custom File",
-                "CustomMusicVolume",
-                0.85f,
-                new ConfigDescription(
-                    "Custom file volume.",
-                    new AcceptableValueRange<float>(0.0f, 2.0f)));
-
-            _loop = Config.Bind(
-                "4. Looping",
-                "Loop",
-                true,
-                "Loop the active title music while the title menu is open.");
-            _loopStartSeconds = Config.Bind(
-                "4. Looping",
-                "LoopStartSeconds",
-                0.0f,
-                new ConfigDescription(
-                    "Optional loop start point in seconds. The first play starts at the beginning; repeated loops start here.",
-                    new AcceptableValueRange<float>(0.0f, 6000.0f)));
-            _loopEndTrimSeconds = Config.Bind(
-                "4. Looping",
-                "LoopEndTrimSeconds",
-                0.0f,
-                new ConfigDescription(
-                    "Seconds to trim from the end before looping. Useful for removing silence, tails, or export padding.",
-                    new AcceptableValueRange<float>(0.0f, 600.0f)));
-            _crossfadeSeconds = Config.Bind(
-                "4. Looping",
-                "CrossfadeSeconds",
-                3.0f,
-                new ConfigDescription(
-                    "Optional loop crossfade duration in seconds. 0 uses FMOD loop points without crossfade.",
-                    new AcceptableValueRange<float>(0.0f, 30.0f)));
-
-            _applyEffectsToBaseMusic = Config.Bind(
-                "5. Effects",
-                "ApplyEffectsToBaseMusic",
-                true,
-                "Apply pitch, EQ, distortion, lowpass, and echo to the base Tainted Grail title music layer. CustomFile mode is never affected by these settings.");
             _semitones = Config.Bind(
-                "5. Effects",
+                "2. Base Music",
                 "Semitones",
-                -9.0f,
+                -7.0f,
                 new ConfigDescription(
                     "Pitch offset in semitones for the base title music layer.",
                     new AcceptableValueRange<float>(-24.0f, 0.0f)));
+            _baseMusicVolume = Config.Bind(
+                "2. Base Music",
+                "BaseMusicVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Base title music relative volume. 1.0 uses the calibrated music playback level.",
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _applyEffectsToBaseMusic = Config.Bind(
+                "2. Base Music",
+                "ApplyEffectsToBaseMusic",
+                true,
+                "Apply pitch, EQ, distortion, lowpass, and echo to the base Tainted Grail title music layer. CustomFile mode is never affected by these settings.");
+            _baseMusicFile = Config.Bind(
+                "2. Base Music",
+                "BaseMusicFile",
+                "menu_layer_01.ksaudio",
+                "Base title music layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data. Relative paths are resolved from the plugin folder first, then the audio folder.");
             _fftSize = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "FFTSize",
                 4096,
                 new ConfigDescription(
                     "FMOD pitch-shift FFT size.",
                     new AcceptableValueRange<int>(256, 4096)));
             _overlap = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "Overlap",
                 32,
                 new ConfigDescription(
                     "FMOD pitch-shift overlap.",
                     new AcceptableValueRange<int>(1, 32)));
             _enableHighFrequencyRestore = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EnableHighFrequencyRestore",
                 true,
                 "Adds a light high-band EQ after pitch shifting so the treated base music keeps some brightness.");
             _highFrequencyGainDb = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "HighFrequencyGainDb",
                 1.5f,
                 new ConfigDescription(
                     "High-band gain in dB for the restore EQ.",
                     new AcceptableValueRange<float>(0.0f, 6.0f)));
             _highFrequencyCrossoverHz = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "HighFrequencyCrossoverHz",
                 5000.0f,
                 new ConfigDescription(
                     "Frequency where the restore EQ high band begins.",
                     new AcceptableValueRange<float>(1000.0f, 12000.0f)));
             _demonicMode = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "DemonicMode",
                 true,
                 "Adds a subtle distortion, lowpass, and short echo chain after the pitch shift.");
             _enableDistortion = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EnableDistortion",
                 true,
                 "Adds a small amount of FMOD distortion.");
             _distortionLevel = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "DistortionLevel",
                 0.1f,
                 new ConfigDescription(
                     "FMOD distortion level.",
                     new AcceptableValueRange<float>(0.0f, 0.5f)));
             _enableLowpass = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EnableLowpass",
                 true,
                 "Darkens the pitched audio by reducing harsh high frequencies.");
             _lowpassCutoffHz = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "LowpassCutoffHz",
                 5500.0f,
                 new ConfigDescription(
                     "Lowpass cutoff in Hz.",
                     new AcceptableValueRange<float>(1000.0f, 22000.0f)));
             _enableEcho = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EnableEcho",
                 true,
                 "Adds a quiet short echo for a supernatural tail.");
             _echoDelayMs = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EchoDelayMs",
                 100.0f,
                 new ConfigDescription(
                     "Echo delay in milliseconds.",
                     new AcceptableValueRange<float>(10.0f, 250.0f)));
             _echoFeedbackPercent = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EchoFeedbackPercent",
                 10.0f,
                 new ConfigDescription(
                     "Echo feedback percent.",
                     new AcceptableValueRange<float>(0.0f, 50.0f)));
             _echoWetLevelDb = Config.Bind(
-                "5. Effects",
+                "3. Base Music Advanced DSP",
                 "EchoWetLevelDb",
                 -36.0f,
                 new ConfigDescription(
                     "Echo wet level in decibels. More negative is subtler.",
                     new AcceptableValueRange<float>(-80.0f, 0.0f)));
 
+            _enableFireAmbience = Config.Bind(
+                "4. Ambience Layers",
+                "EnableFireAmbience",
+                true,
+                "Play the included fire ambience layer in LayeredModifiedTaintedGrail mode.");
+            _fireAmbienceVolume = Config.Bind(
+                "4. Ambience Layers",
+                "FireAmbienceVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Fire ambience relative volume. 1.0 uses the calibrated music playback level.",
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _fireAmbienceFile = Config.Bind(
+                "4. Ambience Layers",
+                "FireAmbienceFile",
+                "menu_layer_02.ksaudio",
+                "Fire ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
+            _enableWindAmbience = Config.Bind(
+                "4. Ambience Layers",
+                "EnableWindAmbience",
+                true,
+                "Play the included wind ambience layer in LayeredModifiedTaintedGrail mode.");
+            _windAmbienceVolume = Config.Bind(
+                "4. Ambience Layers",
+                "WindAmbienceVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Wind ambience relative volume. 1.0 uses the calibrated music playback level.",
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _windAmbienceFile = Config.Bind(
+                "4. Ambience Layers",
+                "WindAmbienceFile",
+                "menu_layer_03.ksaudio",
+                "Wind ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
+
+            _customMusicFile = Config.Bind(
+                "5. Custom File",
+                "CustomMusicFile",
+                "main_menu_music.wav",
+                "WAV to play when MusicMode is CustomFile. Custom playback is affected by Looping settings but not by layered ambience or DSP settings.");
+            _customMusicVolume = Config.Bind(
+                "5. Custom File",
+                "CustomMusicVolume",
+                1.0f,
+                new ConfigDescription(
+                    "Custom file relative volume. 1.0 uses the calibrated music playback level.",
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+
+            _loop = Config.Bind(
+                "6. Looping",
+                "Loop",
+                true,
+                "Loop the active title music while the title menu is open.");
+            _loopStartSeconds = Config.Bind(
+                "6. Looping",
+                "LoopStartSeconds",
+                0.0f,
+                new ConfigDescription(
+                    "Optional loop start point in seconds. The first play starts at the beginning; repeated loops start here.",
+                    new AcceptableValueRange<float>(0.0f, 6000.0f)));
+            _loopEndTrimSeconds = Config.Bind(
+                "6. Looping",
+                "LoopEndTrimSeconds",
+                0.0f,
+                new ConfigDescription(
+                    "Seconds to trim from the end before looping. Useful for removing silence, tails, or export padding.",
+                    new AcceptableValueRange<float>(0.0f, 600.0f)));
+            _crossfadeSeconds = Config.Bind(
+                "6. Looping",
+                "CrossfadeSeconds",
+                3.0f,
+                new ConfigDescription(
+                    "Optional loop crossfade duration in seconds. 0 uses FMOD loop points without crossfade.",
+                    new AcceptableValueRange<float>(0.0f, 30.0f)));
+
             _fadeOutOnGameLoad = Config.Bind(
-                "6. Loading Transition",
+                "7. Loading And Compatibility",
                 "FadeOutOnGameLoad",
                 true,
                 "Fade out replacement title music when a real game load begins.");
             _gameLoadFadeSeconds = Config.Bind(
-                "6. Loading Transition",
+                "7. Loading And Compatibility",
                 "GameLoadFadeSeconds",
-                2.0f,
+                10.0f,
                 new ConfigDescription(
                     "Replacement title music fade-out duration when gameplay/loading starts.",
                     new AcceptableValueRange<float>(0.0f, 10.0f)));
             _muteOriginalTitleMusic = Config.Bind(
-                "7. Advanced",
+                "7. Loading And Compatibility",
                 "MuteOriginalTitleMusic",
                 true,
                 "Set the game's original title music emitters to volume 0 while replacement music is active.");
             _restartWhenTitleMusicPlays = Config.Bind(
-                "7. Advanced",
+                "7. Loading And Compatibility",
                 "RestartWhenTitleMusicPlays",
                 false,
                 "Restart replacement music each time the game's title music PlayMusic method runs.");
@@ -389,57 +391,135 @@ namespace MainMenuMusic
                 false,
                 "Log title music routing, layer playback, DSP, and transition details.");
 
-            _enabled.SettingChanged += delegate
-            {
-                if (!_enabled.Value)
-                {
-                    StopCustomMusic("disabled");
-                    UnmuteOriginals();
-                    return;
-                }
-
-                RestartCustomMusic();
-            };
-            _musicMode.SettingChanged += delegate { RestartCustomMusic(); };
-            _baseMusicFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
-            _enableFireAmbience.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
-            _fireAmbienceFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
-            _enableWindAmbience.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
-            _windAmbienceFile.SettingChanged += delegate { RestartLayeredMusicIfActive(); };
-            _customMusicFile.SettingChanged += delegate { RestartCustomMusicIfActive(); };
-            _loop.SettingChanged += delegate { RestartCustomMusic(); };
-            _loopStartSeconds.SettingChanged += delegate { RestartCustomMusic(); };
-            _loopEndTrimSeconds.SettingChanged += delegate { RestartCustomMusic(); };
-            _crossfadeSeconds.SettingChanged += delegate { RestartCustomMusic(); };
-            _applyEffectsToBaseMusic.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _semitones.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _fftSize.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _overlap.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _enableHighFrequencyRestore.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _highFrequencyGainDb.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _highFrequencyCrossoverHz.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _demonicMode.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _enableDistortion.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _distortionLevel.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _enableLowpass.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _lowpassCutoffHz.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _enableEcho.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _echoDelayMs.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _echoFeedbackPercent.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _echoWetLevelDb.SettingChanged += delegate { RefreshLiveEffectSettings(); };
-            _baseMusicVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
-            _fireAmbienceVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
-            _windAmbienceVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
-            _customMusicVolume.SettingChanged += delegate { RefreshLayerVolumes(); };
-            _muteOriginalTitleMusic.SettingChanged += delegate
-            {
-                if (!_muteOriginalTitleMusic.Value)
-                {
-                    UnmuteOriginals();
-                }
-            };
+            RegisterConfigHandlers();
 
             Config.Save();
+        }
+
+        private void RegisterConfigHandlers()
+        {
+            _enabled.SettingChanged += OnEnabledSettingChanged;
+            _musicMode.SettingChanged += OnMusicModeSettingChanged;
+            _baseMusicFile.SettingChanged += OnLayeredMusicSettingChanged;
+            _enableFireAmbience.SettingChanged += OnLayeredMusicSettingChanged;
+            _fireAmbienceFile.SettingChanged += OnLayeredMusicSettingChanged;
+            _enableWindAmbience.SettingChanged += OnLayeredMusicSettingChanged;
+            _windAmbienceFile.SettingChanged += OnLayeredMusicSettingChanged;
+            _customMusicFile.SettingChanged += OnCustomMusicFileSettingChanged;
+            _loop.SettingChanged += OnCustomLoopSettingChanged;
+            _loopStartSeconds.SettingChanged += OnCustomLoopSettingChanged;
+            _loopEndTrimSeconds.SettingChanged += OnCustomLoopSettingChanged;
+            _crossfadeSeconds.SettingChanged += OnCustomLoopSettingChanged;
+            _applyEffectsToBaseMusic.SettingChanged += OnEffectSettingChanged;
+            _semitones.SettingChanged += OnEffectSettingChanged;
+            _fftSize.SettingChanged += OnEffectSettingChanged;
+            _overlap.SettingChanged += OnEffectSettingChanged;
+            _enableHighFrequencyRestore.SettingChanged += OnEffectSettingChanged;
+            _highFrequencyGainDb.SettingChanged += OnEffectSettingChanged;
+            _highFrequencyCrossoverHz.SettingChanged += OnEffectSettingChanged;
+            _demonicMode.SettingChanged += OnEffectSettingChanged;
+            _enableDistortion.SettingChanged += OnEffectSettingChanged;
+            _distortionLevel.SettingChanged += OnEffectSettingChanged;
+            _enableLowpass.SettingChanged += OnEffectSettingChanged;
+            _lowpassCutoffHz.SettingChanged += OnEffectSettingChanged;
+            _enableEcho.SettingChanged += OnEffectSettingChanged;
+            _echoDelayMs.SettingChanged += OnEffectSettingChanged;
+            _echoFeedbackPercent.SettingChanged += OnEffectSettingChanged;
+            _echoWetLevelDb.SettingChanged += OnEffectSettingChanged;
+            _baseMusicVolume.SettingChanged += OnVolumeSettingChanged;
+            _fireAmbienceVolume.SettingChanged += OnVolumeSettingChanged;
+            _windAmbienceVolume.SettingChanged += OnVolumeSettingChanged;
+            _customMusicVolume.SettingChanged += OnVolumeSettingChanged;
+            _muteOriginalTitleMusic.SettingChanged += OnMuteOriginalTitleMusicSettingChanged;
+        }
+
+        private void UnregisterConfigHandlers()
+        {
+            Unsubscribe(_enabled, OnEnabledSettingChanged);
+            Unsubscribe(_musicMode, OnMusicModeSettingChanged);
+            Unsubscribe(_baseMusicFile, OnLayeredMusicSettingChanged);
+            Unsubscribe(_enableFireAmbience, OnLayeredMusicSettingChanged);
+            Unsubscribe(_fireAmbienceFile, OnLayeredMusicSettingChanged);
+            Unsubscribe(_enableWindAmbience, OnLayeredMusicSettingChanged);
+            Unsubscribe(_windAmbienceFile, OnLayeredMusicSettingChanged);
+            Unsubscribe(_customMusicFile, OnCustomMusicFileSettingChanged);
+            Unsubscribe(_loop, OnCustomLoopSettingChanged);
+            Unsubscribe(_loopStartSeconds, OnCustomLoopSettingChanged);
+            Unsubscribe(_loopEndTrimSeconds, OnCustomLoopSettingChanged);
+            Unsubscribe(_crossfadeSeconds, OnCustomLoopSettingChanged);
+            Unsubscribe(_applyEffectsToBaseMusic, OnEffectSettingChanged);
+            Unsubscribe(_semitones, OnEffectSettingChanged);
+            Unsubscribe(_fftSize, OnEffectSettingChanged);
+            Unsubscribe(_overlap, OnEffectSettingChanged);
+            Unsubscribe(_enableHighFrequencyRestore, OnEffectSettingChanged);
+            Unsubscribe(_highFrequencyGainDb, OnEffectSettingChanged);
+            Unsubscribe(_highFrequencyCrossoverHz, OnEffectSettingChanged);
+            Unsubscribe(_demonicMode, OnEffectSettingChanged);
+            Unsubscribe(_enableDistortion, OnEffectSettingChanged);
+            Unsubscribe(_distortionLevel, OnEffectSettingChanged);
+            Unsubscribe(_enableLowpass, OnEffectSettingChanged);
+            Unsubscribe(_lowpassCutoffHz, OnEffectSettingChanged);
+            Unsubscribe(_enableEcho, OnEffectSettingChanged);
+            Unsubscribe(_echoDelayMs, OnEffectSettingChanged);
+            Unsubscribe(_echoFeedbackPercent, OnEffectSettingChanged);
+            Unsubscribe(_echoWetLevelDb, OnEffectSettingChanged);
+            Unsubscribe(_baseMusicVolume, OnVolumeSettingChanged);
+            Unsubscribe(_fireAmbienceVolume, OnVolumeSettingChanged);
+            Unsubscribe(_windAmbienceVolume, OnVolumeSettingChanged);
+            Unsubscribe(_customMusicVolume, OnVolumeSettingChanged);
+            Unsubscribe(_muteOriginalTitleMusic, OnMuteOriginalTitleMusicSettingChanged);
+        }
+
+        private static void Unsubscribe<T>(
+            ConfigEntry<T> entry,
+            System.EventHandler handler)
+        {
+            if (entry != null)
+            {
+                entry.SettingChanged -= handler;
+            }
+        }
+
+        private void OnEnabledSettingChanged(object sender, EventArgs args)
+        {
+            RefreshPlaybackRoute("enabled changed", true);
+        }
+
+        private void OnMusicModeSettingChanged(object sender, EventArgs args)
+        {
+            RefreshPlaybackRoute("music mode changed", true);
+        }
+
+        private void OnLayeredMusicSettingChanged(object sender, EventArgs args)
+        {
+            RestartLayeredMusicIfActive();
+        }
+
+        private void OnCustomMusicFileSettingChanged(object sender, EventArgs args)
+        {
+            RestartCustomMusicIfActive();
+        }
+
+        private void OnCustomLoopSettingChanged(object sender, EventArgs args)
+        {
+            RestartCustomMusic();
+        }
+
+        private void OnEffectSettingChanged(object sender, EventArgs args)
+        {
+            RefreshLiveEffectSettings();
+        }
+
+        private void OnVolumeSettingChanged(object sender, EventArgs args)
+        {
+            RefreshLayerVolumes();
+        }
+
+        private void OnMuteOriginalTitleMusicSettingChanged(
+            object sender,
+            EventArgs args)
+        {
+            RefreshPlaybackRoute("original title music mute changed", false);
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -625,6 +705,7 @@ namespace MainMenuMusic
                 return;
             }
 
+            _activeTitleMusicView = titleMusicView;
             _titlePlaybackAllowed = true;
             _exitFadeActive = false;
 
@@ -635,29 +716,9 @@ namespace MainMenuMusic
                 return;
             }
 
-            bool allReady = true;
-            if (_muteOriginalTitleMusic.Value)
-            {
-                allReady &= MuteEmitter(
-                    titleMusicView,
-                    _musicEmitterField,
-                    "copyrighted title music");
-                allReady &= MuteEmitter(
-                    titleMusicView,
-                    _nonCopyrightedEmitterField,
-                    "non-copyrighted title music");
-            }
-            else
-            {
-                UnmuteOriginals();
-            }
-
+            bool allReady = ApplyOriginalTitleMusicMute();
             EnsureCustomMusicPlaying(_restartWhenTitleMusicPlays.Value);
-
-            if (!allReady && _retryCoroutine == null)
-            {
-                _retryCoroutine = StartCoroutine(RetryApply(titleMusicView));
-            }
+            RetryApplyIfNeeded(allReady);
         }
 
         private IEnumerator RetryApply(object titleMusicView)
@@ -666,24 +727,16 @@ namespace MainMenuMusic
             for (int i = 0; i < delays.Length; i++)
             {
                 yield return new WaitForSecondsRealtime(delays[i]);
-                if (titleMusicView == null || !_enabled.Value || !_titlePlaybackAllowed)
+                if (titleMusicView == null
+                    || !_enabled.Value
+                    || _musicMode.Value == MusicMode.Off
+                    || !_titlePlaybackAllowed)
                 {
                     break;
                 }
 
-                bool allReady = true;
-                if (_muteOriginalTitleMusic.Value)
-                {
-                    allReady &= MuteEmitter(
-                        titleMusicView,
-                        _musicEmitterField,
-                        "copyrighted title music");
-                    allReady &= MuteEmitter(
-                        titleMusicView,
-                        _nonCopyrightedEmitterField,
-                        "non-copyrighted title music");
-                }
-
+                _activeTitleMusicView = titleMusicView;
+                bool allReady = ApplyOriginalTitleMusicMute();
                 EnsureCustomMusicPlaying(false);
 
                 if (allReady)
@@ -693,6 +746,54 @@ namespace MainMenuMusic
             }
 
             _retryCoroutine = null;
+        }
+
+        private void RefreshPlaybackRoute(string reason, bool restart)
+        {
+            if (!_enabled.Value || _musicMode.Value == MusicMode.Off)
+            {
+                StopCustomMusic(reason);
+                UnmuteOriginals();
+                return;
+            }
+
+            bool allReady = ApplyOriginalTitleMusicMute();
+            EnsureCustomMusicPlaying(restart);
+            RetryApplyIfNeeded(allReady);
+        }
+
+        private bool ApplyOriginalTitleMusicMute()
+        {
+            if (!_muteOriginalTitleMusic.Value)
+            {
+                UnmuteOriginals();
+                return true;
+            }
+
+            if (!_titlePlaybackAllowed || _activeTitleMusicView == null)
+            {
+                return true;
+            }
+
+            bool allReady = true;
+            allReady &= MuteEmitter(
+                _activeTitleMusicView,
+                _musicEmitterField,
+                "copyrighted title music");
+            allReady &= MuteEmitter(
+                _activeTitleMusicView,
+                _nonCopyrightedEmitterField,
+                "non-copyrighted title music");
+
+            return allReady;
+        }
+
+        private void RetryApplyIfNeeded(bool allReady)
+        {
+            if (!allReady && _retryCoroutine == null && _activeTitleMusicView != null)
+            {
+                _retryCoroutine = StartCoroutine(RetryApply(_activeTitleMusicView));
+            }
         }
 
         private bool MuteEmitter(
@@ -1714,16 +1815,21 @@ namespace MainMenuMusic
             switch (role)
             {
                 case LayerRole.Base:
-                    return Math.Max(0.0f, _baseMusicVolume.Value);
+                    return GetScaledVolume(_baseMusicVolume.Value);
                 case LayerRole.Fire:
-                    return Math.Max(0.0f, _fireAmbienceVolume.Value);
+                    return GetScaledVolume(_fireAmbienceVolume.Value);
                 case LayerRole.Wind:
-                    return Math.Max(0.0f, _windAmbienceVolume.Value);
+                    return GetScaledVolume(_windAmbienceVolume.Value);
                 case LayerRole.Custom:
-                    return Math.Max(0.0f, _customMusicVolume.Value);
+                    return GetScaledVolume(_customMusicVolume.Value);
                 default:
                     return 1.0f;
             }
+        }
+
+        private static float GetScaledVolume(float configuredVolume)
+        {
+            return Math.Max(0.0f, configuredVolume) * VolumeOutputScale;
         }
 
         private void RestartCustomMusic()
@@ -1773,6 +1879,7 @@ namespace MainMenuMusic
         private void BeginExitFade(string reason)
         {
             _titlePlaybackAllowed = false;
+            _activeTitleMusicView = null;
 
             if (_retryCoroutine != null)
             {
@@ -1972,6 +2079,8 @@ namespace MainMenuMusic
 
         private void OnDestroy()
         {
+            UnregisterConfigHandlers();
+
             if (_retryCoroutine != null)
             {
                 StopCoroutine(_retryCoroutine);

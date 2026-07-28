@@ -1,0 +1,1 @@
+Adds Wyrd Scent status text, one-shot hunt tuning presets, weighted native hunt spawns, and mixed hunt packs.

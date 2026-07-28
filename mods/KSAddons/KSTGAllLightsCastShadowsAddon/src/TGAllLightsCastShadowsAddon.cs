@@ -181,7 +181,7 @@ namespace TGAllLightsCastShadowsAddon
 
             RefreshExcludedFragments();
             _excludedLightPathFragments.SettingChanged +=
-                delegate { RefreshExcludedFragments(); };
+                OnExcludedLightPathFragmentsChanged;
             Config.Save();
         }
 
@@ -312,6 +312,13 @@ namespace TGAllLightsCastShadowsAddon
             }
 
             _excludedFragments = fragments.ToArray();
+        }
+
+        private void OnExcludedLightPathFragmentsChanged(
+            object sender,
+            EventArgs args)
+        {
+            RefreshExcludedFragments();
         }
 
         private void ProtectExcludedLightsBeforeParentScan()
@@ -724,6 +731,12 @@ namespace TGAllLightsCastShadowsAddon
 
         private void OnDestroy()
         {
+            if (_excludedLightPathFragments != null)
+            {
+                _excludedLightPathFragments.SettingChanged -=
+                    OnExcludedLightPathFragmentsChanged;
+            }
+
             RestoreProtectedLightsAfterParentScan();
 
             if (_originalShadowQualityCaptured)

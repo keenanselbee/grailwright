@@ -1,1 +1,0 @@
-A companion addon for Wyrd Hunt that can hide the scent meter in safe contexts and add weighted native enemy side spawns to hunts.

@@ -1,0 +1,1 @@
+Improves More Weapon Loadouts slot 1 reliability and vanilla key routing.

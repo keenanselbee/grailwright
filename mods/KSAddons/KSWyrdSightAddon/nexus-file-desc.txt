@@ -1,0 +1,1 @@
+Turns Wyrd Sight's highlight key into a safe timed pulse.

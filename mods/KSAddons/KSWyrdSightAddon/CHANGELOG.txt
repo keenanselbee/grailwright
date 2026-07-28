@@ -1,0 +1,16 @@
+Version 1.0.3
+Renamed the visible BepInEx plugin name from KS Wyrd Sight Addon to Wyrd Sight Addon.
+Kept the existing ks.tgfoa.wyrd-sight-addon.cfg config path so saved pulse settings remain compatible.
+
+Version 1.0.2
+Added dedicated pulse timing config entries for state-check cadence, off-retry delay, and off-attempt cap.
+Raised ConfigSchemaVersion to 2 so the new pulse timing defaults generate cleanly.
+
+Version 1.0.1
+Counted failed parent-state reads toward the pulse shutoff retry cap so ownership cannot retry forever if Wyrd Sight internals disappear mid-pulse.
+
+Version 1.0.0
+Added a pulse mode for Wyrd Sight's configured Highlight Key.
+Suppressed Wyrd Sight's original Highlight Key toggle while the addon is enabled.
+Added ownership checks so the addon only turns off pulses it started.
+Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and regenerated with clean defaults.

@@ -8,40 +8,68 @@ using Awaken.TG.Main.Locations.Setup;
 using Awaken.TG.Main.Templates;
 using Awaken.TG.Main.Utility;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("1.2.2.0")]
-[assembly: AssemblyFileVersion("1.2.2.0")]
+[assembly: AssemblyVersion("1.4.1.0")]
+[assembly: AssemblyFileVersion("1.4.1.0")]
 
 namespace Keenan.TGFoA.WyrdHuntAddon
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("kane.tgfoa.wyrd-hunt", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class WyrdHuntAddonPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         public const string PluginName = "Wyrd Hunt Addon";
-        public const string PluginVersion = "1.2.2";
+        public const string PluginVersion = "1.4.1";
 
         private const string AddonProfilePrefix = "keenan-random-";
+        private const string ParentWyrdHuntPluginGuid = "kane.tgfoa.wyrd-hunt";
+        private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
+        private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
+        private const string GrailFloatingTextWyrdStatusEventId = "wyrd-hunt-status";
+        private const string GrailFloatingTextMediumDurationBucket = "Medium";
         private const string WyrdspiritCandidateId = "wyrdspirit";
+        private const string ScentMeterModeParent = "Parent";
+        private const string ScentMeterModeAutoHide = "AutoHide";
+        private const string ScentMeterModeNotificationsOnly = "NotificationsOnly";
         private const float MeterWidth = 340f;
         private const float MeterHeight = 68f;
         private const float HorizontalMargin = 48f;
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 5;
 
         internal static WyrdHuntAddonPlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
 
+        internal static ConfigEntry<string> ScentMeterMode { get; private set; }
         internal static ConfigEntry<bool> HideWhenSafe { get; private set; }
         internal static ConfigEntry<bool> HideOnLoadingScreens { get; private set; }
         internal static ConfigEntry<float> HorizontalOffset { get; private set; }
         internal static ConfigEntry<float> BottomOffset { get; private set; }
 
+        private enum WyrdHuntTuningPreset
+        {
+            Custom,
+            Default,
+            Sparse,
+            Stalker,
+            CursedNight
+        }
+
+        private ConfigEntry<bool> _notificationsEnabled;
+        private ConfigEntry<string> _notificationTextFormat;
+        private ConfigEntry<bool> _showScentNumberInNotifications;
+        private ConfigEntry<bool> _notifyOnStageChange;
+        private ConfigEntry<bool> _notifyOnSafetyChange;
+        private ConfigEntry<float> _notificationCooldownSeconds;
+        private ConfigEntry<WyrdHuntTuningPreset> _huntTuningPreset;
+        private ConfigEntry<string> _lastAppliedHuntTuningPreset;
         private ConfigEntry<bool> _enableRandomizedSpawns;
         private ConfigEntry<bool> _autoProfileOnly;
         private ConfigEntry<bool> _preserveWyrdspiritStalking;
@@ -77,6 +105,25 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         private Harmony _harmony;
         private System.Random _random;
         private string _lastCandidateId;
+        private FieldInfo _managerThreatField;
+        private FieldInfo _managerLastInWyrdnessField;
+        private FieldInfo _managerLastStageField;
+        private FieldInfo _managerLastMeterValueField;
+        private FieldInfo _managerHasMeterBaselineField;
+        private Type _managerAccessorType;
+        private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
+        private MethodInfo _grailFloatingTextTryShowMethod;
+        private MethodInfo _grailFloatingTextTryShowWithIconMethod;
+        private float _lastNotificationTime = -9999f;
+        private float _nextStatusSampleTime;
+        private string _lastObservedStage;
+        private int _lastObservedScent = -1;
+        private bool? _lastObservedInWyrdness;
+        private bool _hasObservedStatus;
+        private bool _managerAccessorFailureLogged;
+        private bool _grailFloatingTextBridgeResolved;
+        private bool _grailFloatingTextUnavailableLogged;
+        private bool _applyingHuntTuningPreset;
 
         private Type _profileType;
         private Type _executionModeType;
@@ -90,6 +137,7 @@ namespace Keenan.TGFoA.WyrdHuntAddon
 
             ResetConfigIfSchemaChanged();
             BindHudConfig();
+            BindHuntTuningPresetConfig();
             BindRandomizationConfig();
             RegisterCandidates();
             RegisterWeightedOptions();
@@ -100,6 +148,9 @@ namespace Keenan.TGFoA.WyrdHuntAddon
 
             _harmony = new Harmony(PluginGuid);
             _harmony.PatchAll(typeof(WyrdHuntAddonPlugin).Assembly);
+            WyrdHuntAddonOptionalPatches.TryPatch(_harmony);
+            LoadingUiTransitionPatch.TryPatch(_harmony);
+            ThreatMeterTransitionHideTracker.Refresh();
 
             Logger.LogInfo(string.Format(
                 CultureInfo.InvariantCulture,
@@ -119,6 +170,8 @@ namespace Keenan.TGFoA.WyrdHuntAddon
                 _harmony.UnpatchSelf();
             }
 
+            ThreatMeterTransitionHideTracker.Shutdown();
+
             if (ReferenceEquals(Instance, this))
             {
                 Instance = null;
@@ -135,6 +188,447 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         {
             float maxY = Mathf.Max(0f, Screen.height - MeterHeight);
             return Mathf.Clamp(Screen.height - BottomOffset.Value, 0f, maxY);
+        }
+
+        internal static string GetScentMeterMode()
+        {
+            string mode = ScentMeterMode == null ? null : ScentMeterMode.Value;
+            if (string.IsNullOrWhiteSpace(mode))
+            {
+                return ScentMeterModeNotificationsOnly;
+            }
+
+            if (mode.Equals(ScentMeterModeParent, StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("Game", StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("Vanilla", StringComparison.OrdinalIgnoreCase))
+            {
+                return ScentMeterModeParent;
+            }
+
+            if (mode.Equals(ScentMeterModeAutoHide, StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("Auto", StringComparison.OrdinalIgnoreCase) ||
+                mode.Equals("Addon", StringComparison.OrdinalIgnoreCase))
+            {
+                return ScentMeterModeAutoHide;
+            }
+
+            return ScentMeterModeNotificationsOnly;
+        }
+
+        internal static bool ShouldSuppressScentMeter()
+        {
+            WyrdHuntAddonPlugin instance = Instance;
+            return string.Equals(GetScentMeterMode(), ScentMeterModeNotificationsOnly, StringComparison.Ordinal) &&
+                instance != null &&
+                instance.CanUseGrailFloatingTextStatus();
+        }
+
+        internal static bool ShouldUseSafeMeterHide()
+        {
+            return string.Equals(GetScentMeterMode(), ScentMeterModeAutoHide, StringComparison.Ordinal) &&
+                HideWhenSafe != null &&
+                HideWhenSafe.Value;
+        }
+
+        internal static bool ShouldUseLoadingScreenMeterHide()
+        {
+            return string.Equals(GetScentMeterMode(), ScentMeterModeAutoHide, StringComparison.Ordinal) &&
+                HideOnLoadingScreens != null &&
+                HideOnLoadingScreens.Value;
+        }
+
+        internal void ObserveWyrdHuntStatus(object manager)
+        {
+            if (_notificationsEnabled == null || !_notificationsEnabled.Value || manager == null)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _nextStatusSampleTime)
+            {
+                return;
+            }
+
+            _nextStatusSampleTime = now + 0.2f;
+
+            WyrdHuntStatus status;
+            if (!TryReadWyrdHuntStatus(manager, out status))
+            {
+                return;
+            }
+
+            if (!_hasObservedStatus)
+            {
+                _hasObservedStatus = true;
+                _lastObservedStage = status.StageName;
+                _lastObservedScent = status.ScentValue;
+                _lastObservedInWyrdness = status.InWyrdness;
+                return;
+            }
+
+            bool stageChanged = _notifyOnStageChange != null &&
+                _notifyOnStageChange.Value &&
+                !string.Equals(status.StageName, _lastObservedStage, StringComparison.Ordinal);
+
+            bool safetyChanged = _notifyOnSafetyChange != null &&
+                _notifyOnSafetyChange.Value &&
+                status.InWyrdness.HasValue &&
+                _lastObservedInWyrdness.HasValue &&
+                status.InWyrdness.Value != _lastObservedInWyrdness.Value;
+
+            _lastObservedStage = status.StageName;
+            _lastObservedScent = status.ScentValue;
+            _lastObservedInWyrdness = status.InWyrdness;
+
+            if (!stageChanged && !safetyChanged)
+            {
+                return;
+            }
+
+            float cooldown = _notificationCooldownSeconds == null ? 0.75f : Math.Max(0f, _notificationCooldownSeconds.Value);
+            if (now - _lastNotificationTime < cooldown)
+            {
+                return;
+            }
+
+            string text = BuildNotificationText(status, stageChanged, safetyChanged);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            _lastNotificationTime = now;
+            TryShowGrailFloatingText(text);
+        }
+
+        private bool TryReadWyrdHuntStatus(object manager, out WyrdHuntStatus status)
+        {
+            status = null;
+
+            Type managerType = manager.GetType();
+            if (_managerAccessorType != managerType)
+            {
+                _managerAccessorType = managerType;
+                _managerThreatField = AccessTools.Field(managerType, "_threat");
+                _managerLastInWyrdnessField = AccessTools.Field(managerType, "_lastInWyrdness");
+                _managerLastStageField = AccessTools.Field(managerType, "_lastThreatMeterStage");
+                _managerLastMeterValueField = AccessTools.Field(managerType, "_lastThreatMeterValue");
+                _managerHasMeterBaselineField = AccessTools.Field(managerType, "_hasThreatMeterBaseline");
+            }
+
+            if (_managerThreatField == null &&
+                _managerLastInWyrdnessField == null &&
+                _managerLastStageField == null &&
+                _managerLastMeterValueField == null)
+            {
+                LogManagerAccessorFailureOnce();
+                return false;
+            }
+
+            try
+            {
+                if (_managerHasMeterBaselineField != null)
+                {
+                    object baseline = _managerHasMeterBaselineField.GetValue(manager);
+                    if (baseline is bool && !(bool)baseline)
+                    {
+                        return false;
+                    }
+                }
+
+                int scentValue = ReadScentValue(manager);
+                string stageName = ReadStageName(manager);
+                bool? inWyrdness = ReadNullableBool(_managerLastInWyrdnessField, manager);
+
+                if (scentValue < 0 && string.IsNullOrWhiteSpace(stageName) && !inWyrdness.HasValue)
+                {
+                    return false;
+                }
+
+                status = new WyrdHuntStatus(stageName, scentValue, inWyrdness);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (!_managerAccessorFailureLogged)
+                {
+                    _managerAccessorFailureLogged = true;
+                    Log.LogWarning("Could not read Wyrd Hunt status for compact notifications: " + exception.GetBaseException().Message);
+                }
+
+                return false;
+            }
+        }
+
+        private int ReadScentValue(object manager)
+        {
+            if (_managerLastMeterValueField != null)
+            {
+                object value = _managerLastMeterValueField.GetValue(manager);
+                if (value is int)
+                {
+                    return Mathf.Clamp((int)value, 0, 100);
+                }
+            }
+
+            if (_managerThreatField != null)
+            {
+                object value = _managerThreatField.GetValue(manager);
+                if (value is float)
+                {
+                    return Mathf.Clamp(Mathf.RoundToInt((float)value), 0, 100);
+                }
+            }
+
+            return -1;
+        }
+
+        private string ReadStageName(object manager)
+        {
+            if (_managerLastStageField == null)
+            {
+                return string.Empty;
+            }
+
+            object value = _managerLastStageField.GetValue(manager);
+            return value == null ? string.Empty : value.ToString();
+        }
+
+        private static bool? ReadNullableBool(FieldInfo field, object instance)
+        {
+            if (field == null)
+            {
+                return null;
+            }
+
+            object value = field.GetValue(instance);
+            if (value is bool)
+            {
+                return (bool)value;
+            }
+
+            return null;
+        }
+
+        private void LogManagerAccessorFailureOnce()
+        {
+            if (_managerAccessorFailureLogged)
+            {
+                return;
+            }
+
+            _managerAccessorFailureLogged = true;
+            Log.LogWarning("Could not find Wyrd Hunt status fields; compact Wyrd Hunt status notifications are disabled.");
+        }
+
+        private string BuildNotificationText(WyrdHuntStatus status, bool stageChanged, bool safetyChanged)
+        {
+            if (safetyChanged && status.InWyrdness.HasValue)
+            {
+                return FormatWyrdnessState(status.InWyrdness);
+            }
+
+            if (!stageChanged)
+            {
+                return string.Empty;
+            }
+
+            string format = _notificationTextFormat == null ? null : _notificationTextFormat.Value;
+            if (string.IsNullOrWhiteSpace(format))
+            {
+                format = "Wyrd Scent: {stage}";
+            }
+
+            string stage = FormatStageName(status.StageName);
+            string scent = status.ScentValue >= 0 ? status.ScentValue.ToString(CultureInfo.InvariantCulture) : "?";
+            string state = FormatWyrdnessState(status.InWyrdness);
+            string safe = status.InWyrdness.HasValue
+                ? (status.InWyrdness.Value ? "false" : "true")
+                : string.Empty;
+
+            string text = format
+                .Replace("{stage}", stage)
+                .Replace("{scent}", scent)
+                .Replace("{state}", state)
+                .Replace("{safe}", safe);
+
+            if (_showScentNumberInNotifications != null &&
+                _showScentNumberInNotifications.Value &&
+                status.ScentValue >= 0 &&
+                format.IndexOf("{scent}", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                text = text.TrimEnd() + " " + scent;
+            }
+
+            return text;
+        }
+
+        private static string FormatStageName(string rawStage)
+        {
+            if (string.IsNullOrWhiteSpace(rawStage))
+            {
+                return "Unknown";
+            }
+
+            return rawStage.Replace("_", " ");
+        }
+
+        private static string FormatWyrdnessState(bool? inWyrdness)
+        {
+            if (!inWyrdness.HasValue)
+            {
+                return string.Empty;
+            }
+
+            return inWyrdness.Value ? "Exposed to Wyrdness" : "Safe from Wyrdness";
+        }
+
+        private bool TryShowGrailFloatingText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            if (!TryResolveGrailFloatingTextBridge())
+            {
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is not loaded; Wyrd Hunt Addon status notifications are unavailable.");
+                return false;
+            }
+
+            try
+            {
+                object result;
+                if (_grailFloatingTextTryShowEventWithIconMethod != null)
+                {
+                    result = _grailFloatingTextTryShowEventWithIconMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, GrailFloatingTextWyrdStatusEventId, text, "Wyrd", "Status", "Normal", GrailFloatingTextWyrdStatusEventId, "wyrd", GrailFloatingTextMediumDurationBucket, 0.25f, 0.9f });
+                }
+                else if (_grailFloatingTextTryShowWithIconMethod != null)
+                {
+                    result = _grailFloatingTextTryShowWithIconMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, text, "Wyrd", "Status", "Normal", GrailFloatingTextWyrdStatusEventId, "wyrd", 0.0f, 0.25f, 0.9f });
+                }
+                else
+                {
+                    result = _grailFloatingTextTryShowMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, text, "Wyrd", "Status", "Normal", GrailFloatingTextWyrdStatusEventId, 0.0f, 0.25f, 0.9f });
+                }
+
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text failed to show a Wyrd Hunt status notification: " + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool TryResolveGrailFloatingTextBridge()
+        {
+            if (_grailFloatingTextBridgeResolved)
+            {
+                return _grailFloatingTextTryShowEventWithIconMethod != null ||
+                    _grailFloatingTextTryShowWithIconMethod != null ||
+                    _grailFloatingTextTryShowMethod != null;
+            }
+
+            _grailFloatingTextBridgeResolved = true;
+
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(GrailFloatingTextPluginGuid, out pluginInfo) ||
+                pluginInfo == null ||
+                pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(GrailFloatingTextApiTypeName, false);
+            if (apiType == null)
+            {
+                return false;
+            }
+
+            _grailFloatingTextTryShowEventWithIconMethod = AccessTools.Method(
+                apiType,
+                "TryShowEvent",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float)
+                });
+
+            _grailFloatingTextTryShowWithIconMethod = AccessTools.Method(
+                apiType,
+                "TryShow",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float),
+                    typeof(float)
+                });
+
+            _grailFloatingTextTryShowMethod = AccessTools.Method(
+                apiType,
+                "TryShow",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float),
+                    typeof(float)
+                });
+            return _grailFloatingTextTryShowEventWithIconMethod != null ||
+                _grailFloatingTextTryShowWithIconMethod != null ||
+                _grailFloatingTextTryShowMethod != null;
+        }
+
+        private bool CanUseGrailFloatingTextStatus()
+        {
+            if (_notificationsEnabled == null || !_notificationsEnabled.Value)
+            {
+                return false;
+            }
+
+            bool canNotify = (_notifyOnStageChange != null && _notifyOnStageChange.Value) ||
+                (_notifyOnSafetyChange != null && _notifyOnSafetyChange.Value);
+            return canNotify && TryResolveGrailFloatingTextBridge();
+        }
+
+        private void LogGrailFloatingTextUnavailableOnce(string message)
+        {
+            if (_grailFloatingTextUnavailableLogged)
+            {
+                return;
+            }
+
+            _grailFloatingTextUnavailableLogged = true;
+            Log.LogInfo(message);
         }
 
         internal void TryRandomizeSelection(ref bool result, object[] args)
@@ -344,17 +838,23 @@ namespace Keenan.TGFoA.WyrdHuntAddon
                 ConfigSchemaVersion,
                 "Configuration layout version. Older layouts are backed up and regenerated.");
 
+            ScentMeterMode = Config.Bind(
+                "Visibility",
+                "Scent Meter Mode",
+                ScentMeterModeNotificationsOnly,
+                "Parent keeps Wyrd Hunt's meter behavior, AutoHide hides it only in safe/loading contexts, and NotificationsOnly hides the meter only when Grail Floating Text is loaded and status notifications are enabled.");
+
             HideWhenSafe = Config.Bind(
                 "Visibility",
                 "Hide When Safe From Wyrdness",
                 true,
-                "Hide the meter while Wyrd Hunt reports that the player is safe from Wyrdness.");
+                "In AutoHide meter mode, hide the meter while Wyrd Hunt reports that the player is safe from Wyrdness.");
 
             HideOnLoadingScreens = Config.Bind(
                 "Visibility",
                 "Hide On Loading Screens",
                 true,
-                "Hide the meter during title, loading, startup, and other non-hero scenes.");
+                "In AutoHide meter mode, hide the meter during title, loading, startup, portal transitions, and other non-hero scenes.");
 
             HorizontalOffset = Config.Bind(
                 "Position",
@@ -373,6 +873,260 @@ namespace Keenan.TGFoA.WyrdHuntAddon
                     "Distance in pixels from the bottom of the screen to the top of the meter.",
                     new AcceptableValueRange<float>(68f, 1000f),
                     new object[0]));
+
+            _notificationsEnabled = Config.Bind(
+                "Notifications",
+                "Notifications Enabled",
+                true,
+                "Show Grail Floating Text text when Wyrd Hunt status changes.");
+
+            _notificationTextFormat = Config.Bind(
+                "Notifications",
+                "Notification Text Format",
+                "Wyrd Scent: {stage}",
+                "Grail Floating Text stage-change text. Tokens: {stage}, {scent}, {state}, {safe}. Safety changes use fixed clean text.");
+
+            _showScentNumberInNotifications = Config.Bind(
+                "Notifications",
+                "Show Scent Number",
+                false,
+                "Append the current Wyrd Scent number to stage-change notifications when the text format does not already include {scent}.");
+
+            _notifyOnStageChange = Config.Bind(
+                "Notifications",
+                "Notify On Stage Change",
+                true,
+                "Show Grail Floating Text text when Wyrd Hunt's stage label changes.");
+
+            _notifyOnSafetyChange = Config.Bind(
+                "Notifications",
+                "Notify On Safety Change",
+                true,
+                "Show Grail Floating Text text when Wyrd Hunt changes between safe and exposed states.");
+
+            _notificationCooldownSeconds = Config.Bind(
+                "Notifications",
+                "Notification Cooldown Seconds",
+                0.75f,
+                new ConfigDescription(
+                    "Minimum seconds between Wyrd Hunt status notifications.",
+                    new AcceptableValueRange<float>(0f, 10f),
+                    new object[0]));
+        }
+
+        private void BindHuntTuningPresetConfig()
+        {
+            _huntTuningPreset = Config.Bind(
+                "Preset",
+                "Hunt Tuning Preset",
+                WyrdHuntTuningPreset.Custom,
+                "One-time Wyrd Hunt tuning template. Selecting Default, Sparse, Stalker, or CursedNight immediately writes parent Wyrd Hunt hunt/threat settings, saves them, then resets this selector to Custom.");
+
+            _lastAppliedHuntTuningPreset = Config.Bind(
+                "Preset",
+                "Last Applied Hunt Tuning Preset",
+                "None",
+                "Informational only. Shows the last preset that wrote values into kane.tgfoa.wyrd-hunt.cfg.");
+
+            _huntTuningPreset.SettingChanged += HuntTuningPresetSettingChanged;
+            if (_huntTuningPreset.Value != WyrdHuntTuningPreset.Custom)
+            {
+                ApplyHuntTuningPreset(_huntTuningPreset.Value);
+            }
+        }
+
+        private void HuntTuningPresetSettingChanged(object sender, EventArgs args)
+        {
+            if (_applyingHuntTuningPreset ||
+                _huntTuningPreset == null ||
+                _huntTuningPreset.Value == WyrdHuntTuningPreset.Custom)
+            {
+                return;
+            }
+
+            ApplyHuntTuningPreset(_huntTuningPreset.Value);
+        }
+
+        private void ApplyHuntTuningPreset(WyrdHuntTuningPreset preset)
+        {
+            HuntTuningPresetValues values = GetHuntTuningPresetValues(preset);
+            if (values == null)
+            {
+                return;
+            }
+
+            _applyingHuntTuningPreset = true;
+
+            try
+            {
+                bool liveParentConfig;
+                ConfigFile parentConfig = ResolveParentWyrdHuntConfig(out liveParentConfig);
+                if (parentConfig == null)
+                {
+                    Log.LogWarning("Could not apply Wyrd Hunt tuning preset because the parent Wyrd Hunt config was not available.");
+                    return;
+                }
+
+                SetParentIntValue(parentConfig, "Hunt", "HunterPackThreshold", values.HunterPackThreshold, 0, 100, "Threat threshold where stronger hunter-pack hunts may begin.");
+                SetParentFloatValue(parentConfig, "Hunt", "BossThreshold", values.BossThreshold, 0f, 100f, "Threat threshold where boss-tier hunts may begin.");
+                SetParentIntValue(parentConfig, "Hunt", "MinSecondsBetweenHunts", values.MinSecondsBetweenHunts, 0, 3600, "Fallback cooldown between hunt requests.");
+                SetParentIntValue(parentConfig, "Hunt", "MaxHuntersAlive", values.MaxHuntersAlive, 0, 20, "Planned maximum active hunters.");
+                SetParentBoolValue(parentConfig, "Hunt", "AllowBossHunter", values.AllowBossHunter, "Allow the named boss hunter once boss spawning is researched.");
+                SetParentIntValue(parentConfig, "Hunt", "HunterSpawnDistanceMeters", values.HunterSpawnDistanceMeters, 20, 60, "Requested hunt spawn distance from the player.");
+                SetParentIntValue(parentConfig, "Hunt", "ActiveEncounterLockSeconds", values.ActiveEncounterLockSeconds, 0, 600, "Minimum lockout while a hunt encounter is active.");
+                SetParentIntValue(parentConfig, "Hunt", "ActiveEncounterTimeoutSeconds", values.ActiveEncounterTimeoutSeconds, 10, 1800, "Maximum active encounter age before the encounter lock can expire.");
+                SetParentIntValue(parentConfig, "Hunt", "MaxHuntsPerScene", values.MaxHuntsPerScene, 0, 100, "Maximum hunt budget units allowed in one loaded scene.");
+                SetParentIntValue(parentConfig, "Hunt", "MaxHuntsPerSession", values.MaxHuntsPerSession, 0, 100, "Maximum hunt budget units allowed in one plugin session.");
+                SetParentIntValue(parentConfig, "Hunt", "GuardAwarenessMaxGuardsPerEncounter", values.GuardAwarenessMaxGuardsPerEncounter, 0, 12, "Maximum nearby guards that can respond to an active hunt.");
+                SetParentFloatValue(parentConfig, "Hunt", "CustomEnemyAiRadiusMeters", values.CustomEnemyAiRadiusMeters, 8f, 80f, "Radius for active-hunt enemy combat re-acquisition scans.");
+                SetParentFloatValue(parentConfig, "Hunt", "CustomEnemyAiScanIntervalSeconds", values.CustomEnemyAiScanIntervalSeconds, 0.25f, 10f, "Seconds between active-hunt enemy AI scans.");
+                SetParentBoolValue(parentConfig, "Hunt", "EnableShargPursuitMovement", values.EnableShargPursuitMovement, "Allow controlled pursuit movement refreshes for the layer-4 Sharg hunt.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatGainPerMinute", values.ThreatGainPerMinute, 0f, 120f, "Wyrd Scent gained per minute during live Wyrdness exposure.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatGainWhileSprintingPerMinute", values.ThreatGainWhileSprintingPerMinute, 0f, 120f, "Extra Wyrd Scent gained per minute while sprinting or fast swimming.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatGainOnCombatAction", values.ThreatGainOnCombatAction, 0f, 100f, "Wyrd Scent gained from each throttled combat proficiency event.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatGainOnKill", values.ThreatGainOnKill, 0f, 100f, "Wyrd Scent gained when killing a Wyrd-converted or Wyrdness-bound enemy.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatGainOnLoot", values.ThreatGainOnLoot, 0f, 100f, "Wyrd Scent gained from looting during Wyrdness.");
+                SetParentFloatValue(parentConfig, "Threat", "ThreatDecayNearSafeLight", values.ThreatDecayNearSafeLight, 0f, 120f, "Wyrd Scent decay per minute while safe from Wyrdness.");
+                SetParentFloatValue(parentConfig, "Threat", "CombatThreatCooldownSeconds", values.CombatThreatCooldownSeconds, 0f, 10f, "Cooldown between combat-action Wyrd Scent gains.");
+
+                parentConfig.Save();
+                _lastAppliedHuntTuningPreset.Value = FormatHuntTuningPresetName(preset);
+                _huntTuningPreset.Value = WyrdHuntTuningPreset.Custom;
+                Config.Save();
+
+                Log.LogInfo(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Applied {0} Wyrd Hunt tuning preset to {1}. Parent config source={2}.",
+                    FormatHuntTuningPresetName(preset),
+                    parentConfig.ConfigFilePath,
+                    liveParentConfig ? "loaded Wyrd Hunt plugin" : "fallback config file"));
+            }
+            catch (Exception exception)
+            {
+                Log.LogError("Failed to apply Wyrd Hunt tuning preset " + preset + ": " + exception.GetBaseException().Message);
+            }
+            finally
+            {
+                _applyingHuntTuningPreset = false;
+            }
+        }
+
+        private ConfigFile ResolveParentWyrdHuntConfig(out bool liveParentConfig)
+        {
+            liveParentConfig = false;
+
+            try
+            {
+                PluginInfo parentInfo;
+                if (Chainloader.PluginInfos.TryGetValue(ParentWyrdHuntPluginGuid, out parentInfo) &&
+                    parentInfo != null &&
+                    parentInfo.Instance != null)
+                {
+                    BaseUnityPlugin parentPlugin = parentInfo.Instance as BaseUnityPlugin;
+                    if (parentPlugin != null && parentPlugin.Config != null)
+                    {
+                        liveParentConfig = true;
+                        return parentPlugin.Config;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.LogWarning("Could not access loaded Wyrd Hunt config: " + exception.GetBaseException().Message);
+            }
+
+            try
+            {
+                string configPath = Path.Combine(Paths.ConfigPath, ParentWyrdHuntPluginGuid + ".cfg");
+                return new ConfigFile(configPath, true);
+            }
+            catch (Exception exception)
+            {
+                Log.LogWarning("Could not open Wyrd Hunt fallback config file: " + exception.GetBaseException().Message);
+                return null;
+            }
+        }
+
+        private static HuntTuningPresetValues GetHuntTuningPresetValues(WyrdHuntTuningPreset preset)
+        {
+            switch (preset)
+            {
+                case WyrdHuntTuningPreset.Default:
+                    return new HuntTuningPresetValues(25, 85f, 300, 4, true, 30, 30, 120, 0, 0, 4, 45f, 0.75f, true, 24f, 4f, 1f, 12f, 4f, 10f, 1f);
+                case WyrdHuntTuningPreset.Sparse:
+                    return new HuntTuningPresetValues(45, 100f, 900, 1, false, 45, 420, 300, 1, 4, 1, 22f, 4f, false, 10f, 2f, 0.5f, 4f, 1f, 16f, 4f);
+                case WyrdHuntTuningPreset.Stalker:
+                    return new HuntTuningPresetValues(35, 95f, 720, 1, true, 40, 360, 420, 1, 6, 2, 32f, 2f, true, 14f, 3f, 0.75f, 6f, 2f, 12f, 3f);
+                case WyrdHuntTuningPreset.CursedNight:
+                    return new HuntTuningPresetValues(25, 90f, 480, 2, true, 35, 240, 360, 2, 10, 3, 38f, 1.25f, true, 20f, 5f, 1f, 10f, 4f, 8f, 2f);
+                default:
+                    return null;
+            }
+        }
+
+        private static void SetParentIntValue(
+            ConfigFile config,
+            string section,
+            string key,
+            int value,
+            int min,
+            int max,
+            string description)
+        {
+            ConfigEntry<int> entry;
+            if (!config.TryGetEntry<int>(section, key, out entry))
+            {
+                entry = config.Bind(
+                    section,
+                    key,
+                    value,
+                    new ConfigDescription(description, new AcceptableValueRange<int>(min, max), new object[0]));
+            }
+
+            entry.Value = value;
+        }
+
+        private static void SetParentFloatValue(
+            ConfigFile config,
+            string section,
+            string key,
+            float value,
+            float min,
+            float max,
+            string description)
+        {
+            ConfigEntry<float> entry;
+            if (!config.TryGetEntry<float>(section, key, out entry))
+            {
+                entry = config.Bind(
+                    section,
+                    key,
+                    value,
+                    new ConfigDescription(description, new AcceptableValueRange<float>(min, max), new object[0]));
+            }
+
+            entry.Value = value;
+        }
+
+        private static void SetParentBoolValue(
+            ConfigFile config,
+            string section,
+            string key,
+            bool value,
+            string description)
+        {
+            ConfigEntry<bool> entry;
+            if (!config.TryGetEntry<bool>(section, key, out entry))
+            {
+                entry = config.Bind(section, key, value, description);
+            }
+
+            entry.Value = value;
+        }
+
+        private static string FormatHuntTuningPresetName(WyrdHuntTuningPreset preset)
+        {
+            return preset == WyrdHuntTuningPreset.CursedNight ? "CursedNight" : preset.ToString();
         }
 
         private void BindRandomizationConfig()
@@ -1461,6 +2215,91 @@ namespace Keenan.TGFoA.WyrdHuntAddon
             }
         }
 
+        private sealed class WyrdHuntStatus
+        {
+            internal readonly string StageName;
+            internal readonly int ScentValue;
+            internal readonly bool? InWyrdness;
+
+            internal WyrdHuntStatus(string stageName, int scentValue, bool? inWyrdness)
+            {
+                StageName = stageName ?? string.Empty;
+                ScentValue = scentValue;
+                InWyrdness = inWyrdness;
+            }
+        }
+
+        private sealed class HuntTuningPresetValues
+        {
+            internal readonly int HunterPackThreshold;
+            internal readonly float BossThreshold;
+            internal readonly int MinSecondsBetweenHunts;
+            internal readonly int MaxHuntersAlive;
+            internal readonly bool AllowBossHunter;
+            internal readonly int HunterSpawnDistanceMeters;
+            internal readonly int ActiveEncounterLockSeconds;
+            internal readonly int ActiveEncounterTimeoutSeconds;
+            internal readonly int MaxHuntsPerScene;
+            internal readonly int MaxHuntsPerSession;
+            internal readonly int GuardAwarenessMaxGuardsPerEncounter;
+            internal readonly float CustomEnemyAiRadiusMeters;
+            internal readonly float CustomEnemyAiScanIntervalSeconds;
+            internal readonly bool EnableShargPursuitMovement;
+            internal readonly float ThreatGainPerMinute;
+            internal readonly float ThreatGainWhileSprintingPerMinute;
+            internal readonly float ThreatGainOnCombatAction;
+            internal readonly float ThreatGainOnKill;
+            internal readonly float ThreatGainOnLoot;
+            internal readonly float ThreatDecayNearSafeLight;
+            internal readonly float CombatThreatCooldownSeconds;
+
+            internal HuntTuningPresetValues(
+                int hunterPackThreshold,
+                float bossThreshold,
+                int minSecondsBetweenHunts,
+                int maxHuntersAlive,
+                bool allowBossHunter,
+                int hunterSpawnDistanceMeters,
+                int activeEncounterLockSeconds,
+                int activeEncounterTimeoutSeconds,
+                int maxHuntsPerScene,
+                int maxHuntsPerSession,
+                int guardAwarenessMaxGuardsPerEncounter,
+                float customEnemyAiRadiusMeters,
+                float customEnemyAiScanIntervalSeconds,
+                bool enableShargPursuitMovement,
+                float threatGainPerMinute,
+                float threatGainWhileSprintingPerMinute,
+                float threatGainOnCombatAction,
+                float threatGainOnKill,
+                float threatGainOnLoot,
+                float threatDecayNearSafeLight,
+                float combatThreatCooldownSeconds)
+            {
+                HunterPackThreshold = hunterPackThreshold;
+                BossThreshold = bossThreshold;
+                MinSecondsBetweenHunts = minSecondsBetweenHunts;
+                MaxHuntersAlive = maxHuntersAlive;
+                AllowBossHunter = allowBossHunter;
+                HunterSpawnDistanceMeters = hunterSpawnDistanceMeters;
+                ActiveEncounterLockSeconds = activeEncounterLockSeconds;
+                ActiveEncounterTimeoutSeconds = activeEncounterTimeoutSeconds;
+                MaxHuntsPerScene = maxHuntsPerScene;
+                MaxHuntsPerSession = maxHuntsPerSession;
+                GuardAwarenessMaxGuardsPerEncounter = guardAwarenessMaxGuardsPerEncounter;
+                CustomEnemyAiRadiusMeters = customEnemyAiRadiusMeters;
+                CustomEnemyAiScanIntervalSeconds = customEnemyAiScanIntervalSeconds;
+                EnableShargPursuitMovement = enableShargPursuitMovement;
+                ThreatGainPerMinute = threatGainPerMinute;
+                ThreatGainWhileSprintingPerMinute = threatGainWhileSprintingPerMinute;
+                ThreatGainOnCombatAction = threatGainOnCombatAction;
+                ThreatGainOnKill = threatGainOnKill;
+                ThreatGainOnLoot = threatGainOnLoot;
+                ThreatDecayNearSafeLight = threatDecayNearSafeLight;
+                CombatThreatCooldownSeconds = combatThreatCooldownSeconds;
+            }
+        }
+
         private sealed class SpawnCandidate
         {
             internal readonly string Id;
@@ -1506,6 +2345,238 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
+    internal static class ThreatMeterTransitionHideTracker
+    {
+        private const float SceneTransitionHideSeconds = 1.5f;
+        private const float LoadingUiHideSeconds = 2.5f;
+
+        private static float _hideUntilRealtime;
+        private static bool _initialized;
+
+        internal static void Initialize()
+        {
+            if (_initialized || !WyrdHuntAddonPlugin.ShouldUseLoadingScreenMeterHide())
+            {
+                return;
+            }
+
+            _initialized = true;
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+            MarkSceneTransition();
+        }
+
+        internal static void Shutdown()
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            _initialized = false;
+            _hideUntilRealtime = 0f;
+        }
+
+        internal static void Refresh()
+        {
+            if (WyrdHuntAddonPlugin.ShouldUseLoadingScreenMeterHide())
+            {
+                Initialize();
+            }
+            else
+            {
+                Shutdown();
+            }
+        }
+
+        internal static bool IsTransitionHideActive()
+        {
+            return Time.realtimeSinceStartup < _hideUntilRealtime;
+        }
+
+        internal static void MarkLoadingUiActivity()
+        {
+            ExtendHideWindow(LoadingUiHideSeconds);
+        }
+
+        private static void MarkSceneTransition()
+        {
+            ExtendHideWindow(SceneTransitionHideSeconds);
+        }
+
+        private static void OnActiveSceneChanged(Scene previousScene, Scene nextScene)
+        {
+            MarkSceneTransition();
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            MarkSceneTransition();
+        }
+
+        private static void OnSceneUnloaded(Scene scene)
+        {
+            MarkSceneTransition();
+        }
+
+        private static void ExtendHideWindow(float seconds)
+        {
+            if (seconds <= 0f)
+            {
+                return;
+            }
+
+            float until = Time.realtimeSinceStartup + seconds;
+            if (until > _hideUntilRealtime)
+            {
+                _hideUntilRealtime = until;
+            }
+        }
+    }
+
+    internal static class LoadingUiTransitionPatch
+    {
+        private static readonly string[] TargetTypeNames =
+        {
+            "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingScreenUI",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.VLoadingScreenUI",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.VLoadingBarOverlayUI",
+            "Awaken.TG.Main.UI.TitleScreen.Loading.VLoadingWheelOverlayUI",
+            "Awaken.TG.Main.UI.TitleScreen.TitleScreenUI",
+            "Awaken.TG.Main.UI.TitleScreen.VTitleScreenUI"
+        };
+
+        private static readonly string[] TargetMethodNames =
+        {
+            "OnInitialize",
+            "OnFullyInitialized",
+            "OnDiscard",
+            "OnShow",
+            "OnHide",
+            "OnOpen",
+            "OnClose",
+            "OnEnable",
+            "OnDisable",
+            "Show",
+            "Hide",
+            "Open",
+            "Close",
+            "StartLoading",
+            "BeginLoading",
+            "FinishLoading",
+            "CompleteLoading",
+            "EndLoading"
+        };
+
+        internal static void TryPatch(Harmony harmony)
+        {
+            if (harmony == null || !WyrdHuntAddonPlugin.ShouldUseLoadingScreenMeterHide())
+            {
+                return;
+            }
+
+            MethodInfo prefix = AccessTools.Method(typeof(LoadingUiTransitionPatch), "MarkLoadingActivity");
+            if (prefix == null)
+            {
+                return;
+            }
+
+            int patched = 0;
+            try
+            {
+                foreach (MethodBase method in TargetMethods())
+                {
+                    harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+                    patched++;
+                }
+            }
+            catch (Exception exception)
+            {
+                WyrdHuntAddonPlugin.Log.LogWarning("Could not patch optional loading UI scent-meter hide hooks: " + exception.GetBaseException().Message);
+            }
+
+            if (patched == 0)
+            {
+                WyrdHuntAddonPlugin.Log.LogWarning("Could not find optional loading UI methods for scent-meter hide hooks; scene-transition hiding remains active.");
+            }
+        }
+
+        private static IEnumerable<MethodBase> TargetMethods()
+        {
+            HashSet<MethodBase> methods = new HashSet<MethodBase>();
+            for (int i = 0; i < TargetTypeNames.Length; i++)
+            {
+                Type type = AccessTools.TypeByName(TargetTypeNames[i]);
+                if (type == null)
+                {
+                    continue;
+                }
+
+                foreach (MethodInfo method in AccessTools.GetDeclaredMethods(type))
+                {
+                    if (method == null ||
+                        method.IsAbstract ||
+                        method.IsSpecialName ||
+                        method.ContainsGenericParameters ||
+                        !IsTargetMethodName(method.Name) ||
+                        !methods.Add(method))
+                    {
+                        continue;
+                    }
+
+                    yield return method;
+                }
+            }
+        }
+
+        private static bool IsTargetMethodName(string methodName)
+        {
+            for (int i = 0; i < TargetMethodNames.Length; i++)
+            {
+                if (string.Equals(methodName, TargetMethodNames[i], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return methodName.IndexOf("Loading", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                methodName.IndexOf("Update", StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
+        [HarmonyPrefix]
+        private static void MarkLoadingActivity()
+        {
+            if (WyrdHuntAddonPlugin.ShouldUseLoadingScreenMeterHide())
+            {
+                ThreatMeterTransitionHideTracker.MarkLoadingUiActivity();
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class ThreatMeterStatusPatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            Type managerType = AccessTools.TypeByName("WyrdHunt.WyrdHuntManager");
+            return managerType == null ? null : AccessTools.Method(managerType, "UpdateThreatMeterVisibilityPulse");
+        }
+
+        [HarmonyPostfix]
+        private static void ObserveStatus(object __instance)
+        {
+            WyrdHuntAddonPlugin instance = WyrdHuntAddonPlugin.Instance;
+            if (instance != null)
+            {
+                instance.ObserveWyrdHuntStatus(__instance);
+            }
+        }
+    }
+
     [HarmonyPatch]
     internal static class ThreatMeterVisibilityPatch
     {
@@ -1524,20 +2595,31 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         [HarmonyPostfix]
         private static void HideWhileSafe(object __instance, ref bool __result)
         {
+            WyrdHuntAddonPlugin instance = WyrdHuntAddonPlugin.Instance;
+            if (instance != null)
+            {
+                instance.ObserveWyrdHuntStatus(__instance);
+            }
+
+            if (WyrdHuntAddonPlugin.ShouldSuppressScentMeter())
+            {
+                __result = false;
+                return;
+            }
+
             if (!__result)
             {
                 return;
             }
 
-            if (WyrdHuntAddonPlugin.HideOnLoadingScreens != null &&
-                WyrdHuntAddonPlugin.HideOnLoadingScreens.Value &&
+            if (WyrdHuntAddonPlugin.ShouldUseLoadingScreenMeterHide() &&
                 ShouldHideForLoadingOrTitle())
             {
                 __result = false;
                 return;
             }
 
-            if (WyrdHuntAddonPlugin.HideWhenSafe == null || !WyrdHuntAddonPlugin.HideWhenSafe.Value)
+            if (!WyrdHuntAddonPlugin.ShouldUseSafeMeterHide())
             {
                 return;
             }
@@ -1567,6 +2649,11 @@ namespace Keenan.TGFoA.WyrdHuntAddon
 
         private static bool ShouldHideForLoadingOrTitle()
         {
+            if (ThreatMeterTransitionHideTracker.IsTransitionHideActive())
+            {
+                return true;
+            }
+
             if (HeroCurrentUnavailable())
             {
                 return true;
@@ -1682,9 +2769,97 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
-    [HarmonyPatch]
+    internal static class WyrdHuntAddonOptionalPatches
+    {
+        internal static void TryPatch(Harmony harmony)
+        {
+            if (harmony == null)
+            {
+                return;
+            }
+
+            int patched = 0;
+            const int total = 5;
+            if (HuntProfileSelectionPatch.TryPatch(harmony))
+            {
+                patched++;
+            }
+
+            if (HuntExecutionPolicyPatch.TryPatch(harmony))
+            {
+                patched++;
+            }
+
+            if (HunterSpawnerMixedPackPatch.TryPatch(harmony))
+            {
+                patched++;
+            }
+
+            if (HuntRoleSummaryPatch.TryPatch(harmony))
+            {
+                patched++;
+            }
+
+            if (HuntPressureIntentPatch.TryPatch(harmony))
+            {
+                patched++;
+            }
+
+            WyrdHuntAddonPlugin.Log.LogInfo(string.Format(
+                CultureInfo.InvariantCulture,
+                "Wyrd Hunt Addon optional hunt patches active: {0}/{1}.",
+                patched,
+                total));
+        }
+
+        internal static bool TryPatchPostfix(Harmony harmony, string label, MethodBase target, MethodInfo postfix)
+        {
+            if (harmony == null)
+            {
+                return false;
+            }
+
+            if (target == null)
+            {
+                WyrdHuntAddonPlugin.Log.LogWarning("Optional Wyrd Hunt Addon patch skipped; target method not found: " + label);
+                return false;
+            }
+
+            if (postfix == null)
+            {
+                WyrdHuntAddonPlugin.Log.LogWarning("Optional Wyrd Hunt Addon patch skipped; postfix method not found: " + label);
+                return false;
+            }
+
+            try
+            {
+                harmony.Patch(target, postfix: new HarmonyMethod(postfix));
+                return true;
+            }
+            catch (Exception exception)
+            {
+                WyrdHuntAddonPlugin.Log.LogWarning(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Optional Wyrd Hunt Addon patch failed: {0}: {1}",
+                    label,
+                    exception.GetBaseException().Message));
+                return false;
+            }
+        }
+    }
+
     internal static class HuntProfileSelectionPatch
     {
+        internal static bool TryPatch(Harmony harmony)
+        {
+            MethodInfo postfix = AccessTools.Method(typeof(HuntProfileSelectionPatch), "RandomizeSelection");
+            return WyrdHuntAddonOptionalPatches.TryPatchPostfix(
+                harmony,
+                "profile selection randomizer",
+                TargetMethod(),
+                postfix);
+        }
+
         private static MethodBase TargetMethod()
         {
             Type catalogType = AccessTools.TypeByName("WyrdHunt.HuntProfileCatalog");
@@ -1711,9 +2886,18 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
-    [HarmonyPatch]
     internal static class HuntExecutionPolicyPatch
     {
+        internal static bool TryPatch(Harmony harmony)
+        {
+            MethodInfo postfix = AccessTools.Method(typeof(HuntExecutionPolicyPatch), "ApproveAddonProfiles");
+            return WyrdHuntAddonOptionalPatches.TryPatchPostfix(
+                harmony,
+                "custom execution-policy approval",
+                TargetMethod(),
+                postfix);
+        }
+
         private static MethodBase TargetMethod()
         {
             Type policyType = AccessTools.TypeByName("WyrdHunt.HuntExecutionPolicy");
@@ -1742,9 +2926,18 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
-    [HarmonyPatch]
     internal static class HunterSpawnerMixedPackPatch
     {
+        internal static bool TryPatch(Harmony harmony)
+        {
+            MethodInfo postfix = AccessTools.Method(typeof(HunterSpawnerMixedPackPatch), "SpawnMixedPackMates");
+            return WyrdHuntAddonOptionalPatches.TryPatchPostfix(
+                harmony,
+                "mixed-pack spawn companions",
+                TargetMethod(),
+                postfix);
+        }
+
         private static MethodBase TargetMethod()
         {
             Type spawnerType = AccessTools.TypeByName("WyrdHunt.HunterSpawner");
@@ -1776,9 +2969,18 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
-    [HarmonyPatch]
     internal static class HuntRoleSummaryPatch
     {
+        internal static bool TryPatch(Harmony harmony)
+        {
+            MethodInfo postfix = AccessTools.Method(typeof(HuntRoleSummaryPatch), "DescribeRole");
+            return WyrdHuntAddonOptionalPatches.TryPatchPostfix(
+                harmony,
+                "custom hunt role summary",
+                TargetMethod(),
+                postfix);
+        }
+
         private static MethodBase TargetMethod()
         {
             Type catalogType = AccessTools.TypeByName("WyrdHunt.HuntProfileCatalog");
@@ -1803,9 +3005,18 @@ namespace Keenan.TGFoA.WyrdHuntAddon
         }
     }
 
-    [HarmonyPatch]
     internal static class HuntPressureIntentPatch
     {
+        internal static bool TryPatch(Harmony harmony)
+        {
+            MethodInfo postfix = AccessTools.Method(typeof(HuntPressureIntentPatch), "DescribePressure");
+            return WyrdHuntAddonOptionalPatches.TryPatchPostfix(
+                harmony,
+                "custom hunt pressure intent",
+                TargetMethod(),
+                postfix);
+        }
+
         private static MethodBase TargetMethod()
         {
             Type catalogType = AccessTools.TypeByName("WyrdHunt.HuntProfileCatalog");

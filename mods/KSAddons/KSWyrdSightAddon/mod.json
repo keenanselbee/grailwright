@@ -1,0 +1,23 @@
+{
+  "id": "WyrdSightAddon",
+  "displayName": "KS Wyrd Sight Addon",
+  "packageName": "WyrdSightAddon",
+  "version": "1.0.3",
+  "pluginGuid": "ks.tgfoa.wyrd-sight-addon",
+  "dll": "WyrdSightAddon.dll",
+  "sourceFiles": [
+    "src/WyrdSightAddon.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.InputLegacyModule.dll",
+    {
+      "vortexLatest": "Wyrd Sight*",
+      "relativePath": "WyrdSight.dll"
+    }
+  ]
+}

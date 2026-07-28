@@ -77,10 +77,21 @@ namespace MoreWeaponLoadoutsAddon
 
         private void OnDestroy()
         {
+            if (_postLoadCoroutine != null)
+            {
+                StopCoroutine(_postLoadCoroutine);
+                _postLoadCoroutine = null;
+            }
+
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
                 _harmony = null;
+            }
+
+            if (ReferenceEquals(Instance, this))
+            {
+                Instance = null;
             }
         }
 

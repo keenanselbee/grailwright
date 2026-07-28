@@ -1,0 +1,1 @@
+Adds source-specific finisher sounds, non-corporeal enemy cues, kill stats, and a proficiency XP bonus for the skill that lands the kill.

@@ -1,9 +1,7 @@
+[center][youtube]JZh5Ne4cCs0[/youtube][/center]
+
 [center][color=#C94A4A][size=6]King's Elegy - Main Menu Music[/size][/color]
 [i]Layered, configurable title-screen music with fire, wind, and custom WAV support.[/i][/center]
-
-[line]
-
-[center][youtube]OfmT_URTKaI[/youtube][/center]
 
 [line]
 
@@ -30,32 +28,34 @@ By default, it now builds a layered version of the Tainted Grail title music fro
 
 [line]
 
-[heading][color=#C94A4A][size=5]Default Mode[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Default Base Music[/size][/color][/heading]
 [code]
 MusicMode = LayeredModifiedTaintedGrail
-
-BaseMusicFile = menu_layer_01.ksaudio
+Semitones = -7
 BaseMusicVolume = 1.0
+ApplyEffectsToBaseMusic = true
+BaseMusicFile = menu_layer_01.ksaudio[/code]
 
+[heading][color=#C94A4A][size=5]Default Ambience Layers[/size][/color][/heading]
+[code]
 EnableFireAmbience = true
-FireAmbienceFile = menu_layer_02.ksaudio
 FireAmbienceVolume = 1.0
+FireAmbienceFile = menu_layer_02.ksaudio
 
 EnableWindAmbience = true
-WindAmbienceFile = menu_layer_03.ksaudio
 WindAmbienceVolume = 1.0
-[/code]
+WindAmbienceFile = menu_layer_03.ksaudio[/code]
+
+Music volume settings are relative mix controls. The default value of 1.0 now plays at the previous 0.2 FMOD volume baseline.
 
 The three built-in layered files are stereo 44.1 kHz 16-bit PCM files with WAV data and matching duration for synchronized playback.
 
 [line]
 
-[heading][color=#C94A4A][size=5]Effect Defaults[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Advanced DSP Defaults[/size][/color][/heading]
 These effects apply only to the base Tainted Grail title music layer:
 
 [code]
-ApplyEffectsToBaseMusic = true
-Semitones = -9
 FFTSize = 4096
 Overlap = 32
 
@@ -71,8 +71,7 @@ LowpassCutoffHz = 5500
 EnableEcho = true
 EchoDelayMs = 100
 EchoFeedbackPercent = 10
-EchoWetLevelDb = -36
-[/code]
+EchoWetLevelDb = -36[/code]
 
 [line]
 
@@ -82,8 +81,7 @@ To use your own replacement WAV:
 [code]
 MusicMode = CustomFile
 CustomMusicFile = main_menu_music.wav
-CustomMusicVolume = 0.85
-[/code]
+CustomMusicVolume = 1.0[/code]
 
 CustomFile mode plays the configured file as-is. The packaged [b]main_menu_music.wav[/b] is a silent placeholder, so replace it with your own WAV before using this mode. It still uses loop start, end trim, and crossfade settings, but it does not receive the layered title music effects or ambience layers.
 
@@ -92,8 +90,7 @@ CustomFile mode plays the configured file as-is. The packaged [b]main_menu_music
 [heading][color=#C94A4A][size=5]Loading Fade[/size][/color][/heading]
 [code]
 FadeOutOnGameLoad = true
-GameLoadFadeSeconds = 2
-[/code]
+GameLoadFadeSeconds = 10[/code]
 
 The plugin patches real game-loading operations and fades replacement title music out when gameplay/loading starts. After the replacement fades out, muted original title emitters are stopped and restored silently so title music does not continue into loading or gameplay.
 
@@ -107,8 +104,7 @@ BepInEx/plugins/KingsElegyMainMenuMusic/MainMenuMusic.dll
 BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_01.ksaudio
 BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_02.ksaudio
 BepInEx/plugins/KingsElegyMainMenuMusic/audio/menu_layer_03.ksaudio
-BepInEx/plugins/KingsElegyMainMenuMusic/main_menu_music.wav
-[/code]
+BepInEx/plugins/KingsElegyMainMenuMusic/main_menu_music.wav[/code]
 
 [line]
 
@@ -116,10 +112,9 @@ BepInEx/plugins/KingsElegyMainMenuMusic/main_menu_music.wav
 The config is generated after first launch:
 
 [code]
-BepInEx/config/ks.tgfoa.main-menu-music.cfg
-[/code]
+BepInEx/config/ks.tgfoa.main-menu-music.cfg[/code]
 
-Version 2.0.6 uses [b]ConfigSchemaVersion = 13[/b]. Older configs are backed up and regenerated once so the updated defaults apply cleanly. Version 2.0.6 also saves generated defaults after binding config so the schema marker persists consistently with the other Grailwright mods.
+Version 2.1.1 uses [b]ConfigSchemaVersion = 16[/b]. Older configs are backed up and regenerated once so the updated config layout applies cleanly.
 
 [line]
 

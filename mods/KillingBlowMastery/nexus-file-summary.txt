@@ -1,1 +1,0 @@
-Adds weapon, shield, and magic finisher sounds plus a configurable proficiency XP bonus to the skill that lands the killing blow, with lightweight per-character stats.

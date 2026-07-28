@@ -1,0 +1,1 @@
+Small compatibility and polish addons for selected Tainted Grail mods, including Wyrd Hunt tuning presets, Wyrd Sight pulses, More Weapon Loadouts fixes, and TG light-shadow support.

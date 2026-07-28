@@ -7,7 +7,7 @@
 
 The goal is to make side weapons, shields, archery, and magic less painful to train without turning last-hitting into a replacement for normal combat practice. Soften an enemy with your main setup, swap to the weapon or spell you want to train, and earn a modest finishing bonus if that source lands the kill.
 
-It also adds optional finisher feedback: a compact on-screen reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
+It also adds optional finisher feedback: a shared Grail Floating Text reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
 
 [line]
 
@@ -16,10 +16,11 @@ It also adds optional finisher feedback: a compact on-screen reward message and 
 [*]Killing blow proficiency XP for One Handed, Two Handed, Unarmed, Archery, Shield, and Magic.[/*]
 [*]Small default reward based on enemy XP, with a minimum and cap to keep it controlled.[/*]
 [*]Damage-over-time attribution for recent supported hero damage sources.[/*]
-[*]Compact optional reward text showing the exact skill and XP gained.[/*]
+[*]Shared Grail Floating Text reward text showing the exact skill and XP gained, with skill-level icons when Grail Floating Text 1.2.0 or newer is installed.[/*]
 [*]FMOD finisher sounds with weapon-specific, soulslike, goat-test, and off modes.[/*]
 [*]Category sound pools for blades, axes, blunt weapons, bows, shield bashes, unarmed kills, and magic types.[/*]
-[*]Includes 160 finisher sound effects: 100 standard weapon, shield, and magic sounds plus 60 optional dry variants for bloodless targets.[/*]
+[*]Includes 165 finisher sound effects: 100 standard weapon, shield, and magic sounds, 60 optional dry variants for bloodless targets, and 5 non-corporeal target sounds.[/*]
+[*]Target-only [b]non_corporeal[/b] sound routing for Wyrdspirits, selected Wyrdspawn, Mistlings, Banshee/Melancholy, and selected ghost enemies.[/*]
 [*]Optional [b]_dry[/b] sound variants for skeletons, stone bodies, spirits, Wyrd variants, and similar targets.[/*]
 [*]Lightweight per-character statistics for rewarded killing blows, proficiency XP, kill sources, and repeated enemy types.[/*]
 [/list]
@@ -32,12 +33,12 @@ It also adds optional finisher feedback: a compact on-screen reward message and 
 [*][b]Minimum:[/b] 1 proficiency XP.[/*]
 [*][b]Maximum:[/b] 100 proficiency XP.[/*]
 [*][b]Damage-over-time kills:[/b] supported when the kill can be traced to a recent hero damage source.[/*]
-[*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Archery (Undead)[/b].[/*]
-[*][b]Sounds:[/b] weapon-specific FMOD finisher sounds by default, with bloodless variants enabled when matching files exist.[/*]
+[*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Two Handed[/b].[/*]
+[*][b]Sounds:[/b] weapon-specific FMOD finisher sounds by default, with non-corporeal enemy sounds and bloodless variants enabled when matching files exist.[/*]
 [*][b]Statistics:[/b] on by default, grouped by character, save-backed, and exported as a readable report when the game saves.[/*]
 [/list]
 
-[code=plaintext]
+[code]
 Enemy XP | Bonus
 25       | +1
 100      | +4
@@ -52,7 +53,7 @@ This mod awards [b]combat proficiency XP[/b]. It does not multiply weapon damage
 [line]
 
 [heading][color=#C94A4A][size=5]Eligible Skills[/size][/color][/heading]
-[code=plaintext]
+[code]
 One Handed
 Two Handed
 Unarmed
@@ -81,13 +82,13 @@ Stats are counted only after the proficiency XP award succeeds. The mod stores c
 
 When the game saves, the mod exports a small readable tab-separated report:
 
-[code=plaintext]
+[code]
 BepInEx/config/ks.tgfoa.killing-blow-mastery.stats.tsv
 [/code]
 
 The file is separated by character automatically when the game exposes a stable hero identifier. If you want to force a specific run name, set [b]StatisticsCharacterKeyOverride[/b].
 
-[code=plaintext]
+[code]
 TrackStatistics = true
 EnemyStatsMode = Promoted
 EnemyPromoteKillCount = 2
@@ -101,7 +102,7 @@ The TSV is only a report generated from the current save-backed stats. Deleting 
 [heading][color=#C94A4A][size=5]Finisher Sounds[/size][/color][/heading]
 The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matching category sound for the kill source, then uses FMOD for playback with optional no-repeat selection, subtle pitch randomization, and distance-based volume fade.
 
-[code=plaintext]
+[code]
 Mode           | Sound style
 WeaponSpecific | category pools
 Soulslike      | killing_blow1.wav
@@ -111,7 +112,7 @@ Off            | silent
 
 [b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. Set it to 1 for the full 0m = 100%, 100m+ = 10% curve. The default 0.5 uses a half-strength fade:
 
-[code=plaintext]
+[code]
 Distance | Volume
 0m       | 100%
 25m      | 89%
@@ -122,6 +123,8 @@ Distance | Volume
 
 If FMOD playback fails, the mod falls back to the older Unity AudioSource path and logs the failure when Diagnostics is enabled.
 
+[b]UseNonCorporealEnemySounds[/b] is enabled by default. Matched non-corporeal targets use [b]non_corporeal1.wav[/b] through [b]non_corporeal5.wav[/b] only, overriding weapon, magic, Soulslike, and [b]_dry[/b] routing for those targets. [b]GoatTest[/b] still uses [b]goat.wav[/b] for diagnostics, and [b]Off[/b] remains silent.
+
 [b]UseBloodlessSoundVariants[/b] is enabled by default. Targets whose names, templates, or type text match [b]BloodlessSoundBlacklistTerms[/b] try matching [b]_dry[/b] files before their normal pool sound. [b]BloodlessSoundWhitelistTerms[/b] can force normal sounds for specific targets. This only changes sound routing; it does not change XP, statistics, or kill eligibility.
 
 [line]
@@ -129,8 +132,9 @@ If FMOD playback fails, the mod falls back to the older Unity AudioSource path a
 [heading][color=#C94A4A][size=5]Sound Routing[/size][/color][/heading]
 Classified kills use their specific pool by default. That keeps, for example, a two-handed axe kill from falling through to the general killing_blow pool unless you explicitly enable that fallback.
 
-[code=plaintext]
+[code]
 Group       | Kill type              | Sound pool
+Target      | matched non-corporeal  | non_corporeal
 One Handed  | blunt                  | one_handed_blunt
 One Handed  | axe                    | one_handed_axe
 One Handed  | blade/dagger/sickle    | one_handed_blade
@@ -159,7 +163,7 @@ Broad [b]one_handed[/b], [b]two_handed[/b], [b]archery[/b], [b]shield[/b], and [
 
 For bloodless targets, each routed pool can have matching [b]_dry[/b] files. The dry file is tried before the normal file it replaces:
 
-[code=plaintext]
+[code]
 Normal file                  | Bloodless variant
 two_handed_blade1.wav        | two_handed_blade1_dry.wav
 magic_fire3.wav              | magic_fire3_dry.wav
@@ -171,7 +175,7 @@ killing_blow1.wav            | killing_blow1_dry.wav
 [heading][color=#C94A4A][size=5]Custom Sounds[/size][/color][/heading]
 Place numbered WAV files beside [b]KillingBlowMastery.dll[/b] or inside an [b]audio[/b] folder beside it. The mod only loads files that exist.
 
-[code=plaintext]
+[code]
 BepInEx/plugins/KillingBlowMastery/
   KillingBlowMastery.dll
   audio/
@@ -184,7 +188,7 @@ BepInEx/plugins/KillingBlowMastery/
 
 Supported numbered pools:
 
-[code=plaintext]
+[code]
 killing_blow1.wav ... killing_blow5.wav
 one_handed_blade1.wav ... one_handed_blade5.wav
 one_handed_axe1.wav ... one_handed_axe5.wav
@@ -197,6 +201,7 @@ archery_short1.wav ... archery_short5.wav
 archery_medium1.wav ... archery_medium5.wav
 archery_heavy1.wav ... archery_heavy5.wav
 shield_bash1.wav ... shield_bash5.wav
+non_corporeal1.wav ... non_corporeal5.wav
 magic_blood1.wav ... magic_blood5.wav
 magic_fire1.wav ... magic_fire5.wav
 magic_frost1.wav ... magic_frost5.wav
@@ -209,7 +214,7 @@ magic_arcane1.wav ... magic_arcane5.wav
 
 Bloodless variants use the same pool names and slot numbers with [b]_dry[/b] appended before [b].wav[/b], for example:
 
-[code=plaintext]
+[code]
 one_handed_blade1_dry.wav ... one_handed_blade5_dry.wav
 two_handed_blunt1_dry.wav ... two_handed_blunt5_dry.wav
 magic_blood1_dry.wav ... magic_blood5_dry.wav
@@ -220,18 +225,18 @@ The included runtime WAVs are processed as mono 44.1 kHz 16-bit PCM, with conser
 [line]
 
 [heading][color=#C94A4A][size=5]Notifications[/size][/color][/heading]
-Notifications are on by default and show the exact bonus, skill, and enemy name.
+Notifications are on by default and show the exact bonus and skill.
 
-[code=plaintext]
-Default text: Killing blow: +{xp} {skill} ({enemy})
-Example:      Killing blow: +8 Archery (Undead)
+[code]
+Default text: Killing blow: +{xp} {skill}
+Example:      Killing blow: +8 Two Handed
 [/code]
 
-[b]NotificationMode[/b] defaults to [b]CompactOverlay[/b], a small Killing Blow Mastery-only overlay that does not resize the game's shared notification HUD.
+[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared Grail Floating Text overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
 
 [b]NotificationTextFormat[/b] supports:
 
-[code=plaintext]
+[code]
 {xp}
 {skill}
 {enemy}
@@ -244,11 +249,11 @@ Example:      Killing blow: +8 Archery (Undead)
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 Configuration is created at:
 
-[code=plaintext]
+[code]
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [/code]
 
-Killing Blow Mastery uses [b]ConfigSchemaVersion = 8[/b]. Older [b]ks.tgfoa.killing-blow.cfg[/b] configs are ignored so the renamed mod starts from a clean identity.
+Killing Blow Mastery uses [b]ConfigSchemaVersion = 12[/b]. Older [b]ks.tgfoa.killing-blow.cfg[/b] configs are ignored so the renamed mod starts from a clean identity.
 
 [line]
 
@@ -257,4 +262,5 @@ Killing Blow Mastery uses [b]ConfigSchemaVersion = 8[/b]. Older [b]ks.tgfoa.kill
 [*]Tainted Grail: The Fall of Avalon[/*]
 [*]Steam beta branch: mono[/*]
 [*]BepInEx 5 Mono[/*]
+[*]Grail Floating Text is optional, but required for the default shared reward text route.[/*]
 [/list]

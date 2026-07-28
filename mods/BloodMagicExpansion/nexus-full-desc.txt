@@ -27,7 +27,7 @@ Feed on living enemies for capped XP ticks during combat
 [*]Corpse XP comes from the enemy's normal kill XP.[/*]
 [*]Corpse healing starts from the preset reward, then scales by enemy max HP and corpse quality.[/*]
 [*]Successful corpse drains can play a short quality-matched FMOD ritual sound.[/*]
-[*]Raised blood spells can cast a configurable red no-shadow inner player light.[/*]
+[*]Readied blood spells can cast a configurable red no-shadow inner player light, with a temporary cast boost.[/*]
 [*]Live drain gives small capped XP ticks while Blood/Life Transfusion damages living enemies.[/*]
 [*]Corpse quality affects healing and Abhartach effects. It does [b]not[/b] multiply corpse XP again.[/*]
 [*]Bloodless enemies can be blocked by name/type terms so stone, spirits, skeletons, Wyrd variants, and similar targets do not feed the loop.[/*]
@@ -66,23 +66,30 @@ Start the game once to generate:
 
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config migration. The old [b]ks.tgfoa.blood-mage.cfg[/b] and interim [b]ks.tgfoa.blood-mage-expansion.cfg[/b] files are ignored.
 
-Version 2.0.6 enforces [b]ConfigSchemaVersion = 6[/b] because the blood spell inner light adds new visual settings. If the schema marker is missing or outdated, the old config is backed up beside the active file and fresh defaults are generated.
+Version 2.1.8 and newer enforce [b]ConfigSchemaVersion = 9[/b] because the optional Grail Floating Text corpse XP integration was added. If the schema marker is missing or outdated, the old config is backed up beside the active file and fresh defaults are generated.
 
 Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. Most users should only touch [b]PlayCorpseLeechSound[/b] or [b]CorpseLeechSoundVolume[/b].
+
+When Grail Floating Text 1.4.8 or newer is installed, corpse-leech character XP is claimed before the XP stat change and shown as red corpse-icon floating text. The XP still uses the normal character XP stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks use Grail Floating Text's generic XP display.
+
+[code=plaintext]
+ClaimGrailFloatingTextCorpseXP = true
+[/code]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Blood Spell Inner Light[/size][/color][/heading]
-Raising Blood Transfusion, Life Transfusion, or Abhartach's Calling can cast a red no-shadow point light from the player camera. The light is separate from the vanilla HeroLight, so No Player Light can stay installed while BME provides only the blood-spell glow.
+Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and raising the magic hands can cast a red no-shadow point light slightly forward from the player camera. Sheathing or lowering hands disables it, and actual blood spell casting temporarily triples the brightness immediately before fading back down when the cast performs, ends, or cancels. The light is separate from the vanilla HeroLight, so No Player Light can stay installed while BME provides only the blood-spell glow.
 
 [code=plaintext]
 Enabled = true
-Intensity = 1.25
-Range = 4.0
+Intensity = 0.75
+Range = 5.0
 FadeSeconds = 0.12
+LogBloodSpellInnerLight = true
 [/code]
 
-Lower intensity or range for a subtler effect. Set Enabled to false, or Intensity to zero, for no visual light.
+Lower intensity or range for a subtler effect. Set Enabled to false, or Intensity to zero, for no visual light. Diagnostics are limited and can be disabled after confirming readiness and visibility.
 
 [line]
 
@@ -171,6 +178,7 @@ Install with a mod manager, or place the included folder at:
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
+[*][b]Grail Floating Text[/b] 1.4.8+ is supported as an optional soft dependency for red corpse-icon corpse XP text.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
 [*]Do not deploy older [b]BloodMage.dll[/b] or interim [b]BloodMageExpansion.dll[/b] beside [b]BloodMagicExpansion.dll[/b].[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]
@@ -179,4 +187,4 @@ Install with a mod manager, or place the included folder at:
 [line]
 
 [heading][color=#C94A4A][size=5]Performance[/size][/color][/heading]
-Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red inner light is one cached no-shadow point light, enabled only while a matching blood spell is raised. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Spirituality is cached briefly before spell tuning reads it. Noisy diagnostics default to off; startup and patch-warning logs remain enabled.
+Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red inner light is one cached no-shadow point light, enabled only while a matching blood spell is equipped and the magic hands are raised. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Spirituality is cached briefly before spell tuning reads it. Noisy diagnostics default to off; startup and patch-warning logs remain enabled.

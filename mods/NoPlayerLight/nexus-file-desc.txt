@@ -1,0 +1,1 @@
+Disables the hidden player-centered HeroLight during startup and scene-load retries, then stops.

@@ -1,0 +1,1 @@
+Improves title-screen and loading-screen presentation on wider displays by patching title video bars, loading backgrounds, and backgrounds at runtime.

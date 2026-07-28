@@ -1,1 +1,0 @@
-Adds category-specific finisher sounds, lightweight kill stats, and a configurable proficiency XP bonus to the weapon, shield, or magic skill that lands the killing blow.

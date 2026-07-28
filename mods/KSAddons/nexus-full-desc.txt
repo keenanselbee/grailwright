@@ -11,10 +11,40 @@ Each addon has its own folder and README. Install only the addons whose original
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]Wyrd Hunt Addon 1.2.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] Nexus file Version 5, which loads in BepInEx as plugin version 0.4.65.[/*]
-[*][b]TG All Lights Cast Shadows Addon 1.1.0[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]More Weapon Loadouts Addon 0.1.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Owrocc HUD Tweaks / More Weapon Loadouts[/url] 1.5.0, from Owrocc HUD Tweaks file 60.2.[/*]
+[*][b]Wyrd Sight Addon 1.0.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.1.1.[/*]
+[*][b]Wyrd Hunt Addon 1.4.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] Nexus file Version 5, which loads in BepInEx as plugin version 0.4.65.[/*]
+[*][b]TG All Lights Cast Shadows Addon 1.1.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]More Weapon Loadouts Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Owrocc HUD Tweaks / More Weapon Loadouts[/url] 1.5.0, from Owrocc HUD Tweaks file 60.2.[/*]
 [/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Wyrd Sight Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url].
+
+[list]
+[*]Turns Wyrd Sight's configured Highlight Key from a toggle into a timed pulse.[/*]
+[*]Only turns off pulses the addon started, so externally enabled Wyrd Sight stays alone.[/*]
+[*]Lets repeated key presses extend the current addon-owned pulse.[/*]
+[*]Keeps pulse duration, state-check cadence, off-retry delay, and retry cap configurable in the addon's own config.[/*]
+[*]For the clean pulse look, Wyrd Sight is best used with [b]Enable Glow Shape = true[/b] and [b]Enable Wyrd Sight Particles = false[/b].[/*]
+[/list]
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.wyrd-sight-addon.cfg[/code]
+
+Version 1.0.3 appears as [b]Wyrd Sight Addon[/b] in BepInEx and Configuration Manager while keeping the same config path.
+
+Common entries:
+
+[code]
+Enabled = true
+PulseDurationSeconds = 3
+PulseStateCheckIntervalSeconds = 0.25
+OffRetryDelaySeconds = 0.25
+MaximumOffAttempts = 3[/code]
 
 [line]
 
@@ -22,12 +52,14 @@ Each addon has its own folder and README. Install only the addons whose original
 Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url].
 
 [list]
-[*]Can hide the Wyrd Scent meter while Wyrd Hunt reports the player is safe from Wyrdness.[/*]
-[*]Hides the Wyrd Scent meter during title, loading, startup, and other non-hero scenes.[/*]
+[*]Adds Grail Floating Text Wyrd Scent status text with the shared Wyrd icon when Wyrd Hunt status changes.[/*]
+[*]If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.[/*]
+[*]Can alternatively keep the parent meter and hide it only while safe or during title, loading, startup, and portal transitions.[/*]
 [*]Keeps the Wyrd Scent meter position configurable with horizontal and bottom offsets.[/*]
 [*]Adds weighted random Wyrd Hunt spawns from whitelisted native enemy templates.[/*]
 [*]Adds optional mixed hunt packs with rare extra same-or-lower-tier pack mates beside the primary hunt target.[/*]
 [*]Favors weaker sidecars, reduces same-tier and same-family picks, and treats Wyrdspirit as a prioritized 1-4 spirit sidecar cluster.[/*]
+[*]Adds one-shot tuning presets for rarer, more focused hunts without locking manual settings.[/*]
 [*]Avoids immediate repeat hunts by default when another valid monster is available.[/*]
 [*]Includes optional hard hunt pools, disabled by default.[/*]
 [/list]
@@ -40,6 +72,11 @@ BepInEx/config/ks.tgfoa.wyrd-hunt-addon.cfg[/code]
 Common entries:
 
 [code]
+Hunt Tuning Preset = Custom
+Scent Meter Mode = NotificationsOnly
+Notifications Enabled = true
+Notification Text Format = Wyrd Scent: {stage}
+Show Scent Number = false
 Hide When Safe From Wyrdness = true
 Hide On Loading Screens = true
 Bottom Offset = 205
@@ -56,7 +93,13 @@ Wyrdspirit Max Pack Count = 4
 Same Tier Pack Mate Weight Percent = 25
 Same Family Pack Mate Weight Percent = 35[/code]
 
+Preset behavior is one-shot. [b]Hunt Tuning Preset[/b] defaults to [b]Custom[/b]. Selecting [b]Default[/b], [b]Sparse[/b], [b]Stalker[/b], or [b]CursedNight[/b] immediately writes Wyrd Hunt's own hunt/threat settings in [b]kane.tgfoa.wyrd-hunt.cfg[/b], saves them, records [b]Last Applied Hunt Tuning Preset[/b], and returns the selector to [b]Custom[/b]. After that, individual Wyrd Hunt settings remain editable.
+
+[b]Sparse[/b] makes hunts rare and calmer. [b]Stalker[/b] is the recommended rare-but-tense profile. [b]CursedNight[/b] keeps nights dangerous while still capping scene/session pressure. [b]Default[/b] restores Wyrd Hunt's original tuning.
+
 Weights live under [b]Weights.Contact[/b], [b]Weights.Stalking[/b], [b]Weights.Hunter[/b], [b]Weights.Pursuit[/b], and [b]Weights.Marked[/b]. Set a weight to [b]0[/b] to disable that entry.
+
+Grail Floating Text is an optional soft requirement for visible Wyrd Hunt Addon status text. If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.
 
 [line]
 
@@ -115,19 +158,21 @@ Only enable [b]ReapplyCurrentVirtualSlotAfterLoad[/b] if slot 1 still comes back
 Install with Vortex as [b]BepInEx plugins[/b], or place the selected addon folders under:
 
 [code]
+BepInEx/plugins/WyrdSightAddon/WyrdSightAddon.dll
 BepInEx/plugins/WyrdHuntAddon/WyrdHuntAddon.dll
 BepInEx/plugins/TGAllLightsCastShadowsAddon/TGAllLightsCastShadowsAddon.dll
 BepInEx/plugins/MoreWeaponLoadoutsAddon/MoreWeaponLoadoutsAddon.dll[/code]
 
-Keep each addon's original mod installed. Wyrd Hunt Addon and TG All Lights Cast Shadows Addon declare hard dependencies, so they will not run without their original mods. More Weapon Loadouts Addon uses a soft dependency and simply leaves its redirect inactive if More Weapon Loadouts is missing.
+Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and TG All Lights Cast Shadows Addon declare hard dependencies, so they will not run without their original mods. Wyrd Hunt Addon also declares Grail Floating Text as a soft dependency for shared status text. More Weapon Loadouts Addon uses a soft dependency and simply leaves its redirect inactive if More Weapon Loadouts is missing.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
-[*][b]BepInEx 5 for the Mono build.[/*]
+[*][b]BepInEx 5 for the Mono build[/b].[/*]
 [*]The original mod required by each addon you install.[/*]
+[*][b]Optional/soft requirement:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] for Wyrd Hunt Addon's shared status text and default meter replacement.[/*]
 [/list]
 
 [line]

@@ -1,0 +1,1 @@
+Simple plugin that removes the hidden player-centered HeroLight so caves, nights, torches, lanterns, and lighting mods can carry the scene. No polling, no per-frame work, no ongoing performance cost.

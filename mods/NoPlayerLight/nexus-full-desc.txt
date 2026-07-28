@@ -1,0 +1,47 @@
+[center][color=#C94A4A][size=6]No Player Light[/size][/color]
+[i]No config. No polling. No ongoing performance cost.[/i][/center]
+
+[line]
+
+No Player Light does one small thing: it removes the hidden player-centered [b]HeroLight[/b] from [b]Tainted Grail: The Fall of Avalon[/b].
+
+That means caves, nights, interiors, torches, lanterns, ReShade presets, and lighting mods get to carry the scene without a constant artificial glow around the player.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Simple By Design[/size][/color][/heading]
+[list]
+[*]No config file.[/*]
+[*]No per-frame update loop.[/*]
+[*]No background polling.[/*]
+[*]No diagnostic scanning or log spam.[/*]
+[*]No game files, bundles, scenes, world lights, weather, shadows, or post-processing edits.[/*]
+[/list]
+
+The plugin only checks for [b]HeroLight[/b] on startup and during a few short scene-load retries. If it finds the object, it disables it. After that retry window, it stops doing work until the next scene load.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/NoPlayerLight/NoPlayerLight.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Want More Control?[/size][/color][/heading]
+No Player Light is intentionally minimal. If you want more lighting controls, use [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/229]Player Inner Light Control[/url].
+
+[line]
+
+[heading][color=#C94A4A][size=5]Notes[/size][/color][/heading]
+This mod does not rebalance lighting. If an area becomes too dark, use a torch, lantern, ReShade adjustment, or lighting mod. No Player Light only removes the player-centered helper light.

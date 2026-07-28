@@ -2,7 +2,7 @@
   "id": "SteelAndBone",
   "displayName": "Steel and Bone",
   "packageName": "SteelAndBone",
-  "version": "0.2.0",
+  "version": "0.9.1",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [

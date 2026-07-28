@@ -13,12 +13,12 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Steel and Bone")]
-[assembly: AssemblyDescription("Enemy weakness and resistance proof of concept for Tainted Grail: The Fall of Avalon")]
+[assembly: AssemblyDescription("Knowledge-based weakness and resistance difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyFileVersion("0.2.0.0")]
-[assembly: AssemblyInformationalVersion("0.2.0")]
+[assembly: AssemblyVersion("0.9.1.0")]
+[assembly: AssemblyFileVersion("0.9.1.0")]
+[assembly: AssemblyInformationalVersion("0.9.1")]
 
 namespace SteelAndBone
 {
@@ -27,66 +27,154 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.9.1";
 
-        private const int ConfigSchemaVersion = 3;
+        private const int ConfigSchemaVersion = 11;
+        private const string DefaultDamageNumberBaseColor = "#E3BD02";
+        private const int MaxPendingDamageFeedback = 128;
+        private const float PendingDamageFeedbackLifetimeSeconds = 4.0f;
         private const string HealthElementTypeName = "Awaken.TG.Main.Character.HealthElement";
         private const string HeroTypeName = "Awaken.TG.Main.Heroes.Hero";
+        private const string DamageSubTypeTypeName = "Awaken.TG.Main.Fights.DamageInfo.DamageSubType";
+        private const string DamageReceivedMultiplierDataBaseTypeName = "Awaken.TG.Main.Fights.DamageInfo.DamageReceivedMultiplierDataBase";
 
-        private static readonly ResistanceRule[] ResistanceRules =
+        private static readonly Color DefaultDamageNumberColor = new Color32(0xE3, 0xBD, 0x02, 0xFF);
+        private static readonly Color ResistedDamageNumberColor = new Color32(0x68, 0x68, 0x66, 0xFF);
+        private static readonly Color WeaknessDamageNumberColor = new Color32(0xFF, 0x2F, 0x18, 0xFF);
+        private static readonly Color ImmuneDamageNumberColor = new Color32(0xB8, 0xB8, 0xB4, 0xFF);
+        private static readonly Color DamageNumberOutlineColor = new Color32(0x16, 0x10, 0x08, 0xFF);
+
+        private static readonly DamageRule[] DamageRules =
         {
-            new ResistanceRule(TargetFamily.Skeleton, DamageTag.BloodMagic | DamageTag.Bleed, "Skeleton", "Blood/Bleed", 0.45f, 0.25f, 0.0f),
-            new ResistanceRule(TargetFamily.Skeleton, DamageTag.Slashing | DamageTag.Piercing, "Skeleton", "Slash/Pierce", 0.75f, 0.55f, 0.35f),
-            new ResistanceRule(TargetFamily.Golem, DamageTag.BloodMagic | DamageTag.Poison, "Golem", "Blood/Poison", 0.45f, 0.25f, 0.0f),
-            new ResistanceRule(TargetFamily.Wyrd, DamageTag.Wyrdness, "Wyrd", "Wyrdness", 0.45f, 0.25f, 0.0f)
+            new DamageRule(TargetFamily.BoneUndead, DamageTag.BloodMagic | DamageTag.Bleed, "Bone", "Blood/Bleed", 0.25f, 100),
+            new DamageRule(TargetFamily.BoneUndead, DamageTag.Slashing | DamageTag.Piercing, "Bone", "Slash/Pierce", 0.55f, 80),
+            new DamageRule(TargetFamily.BoneUndead, DamageTag.Bludgeoning, "Bone", "Blunt", 1.08f, 70),
+            new DamageRule(TargetFamily.BoneUndead, DamageTag.GenericPhysical, "Bone", "Physical", 0.85f, 40),
+            new DamageRule(TargetFamily.Construct, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Construct", "Blood/Bleed/Poison", 0.25f, 100),
+            new DamageRule(TargetFamily.Construct, DamageTag.Slashing | DamageTag.Piercing, "Construct", "Slash/Pierce", 0.75f, 70),
+            new DamageRule(TargetFamily.Construct, DamageTag.Bludgeoning, "Construct", "Blunt", 1.15f, 80),
+            new DamageRule(TargetFamily.Construct, DamageTag.GenericPhysical, "Construct", "Physical", 0.85f, 40),
+            new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Slashing | DamageTag.GenericPhysical, "Armor", "Slash/Physical", 0.88f, 65),
+            new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Bludgeoning, "Armor", "Blunt", 1.10f, 66),
+            new DamageRule(TargetFamily.Flesh, DamageTag.Bleed | DamageTag.Poison, "Flesh", "Bleed/Poison", 1.06f, 20),
+            new DamageRule(TargetFamily.Flesh, DamageTag.Slashing | DamageTag.Piercing, "Flesh", "Slash/Pierce", 1.04f, 15),
+            new DamageRule(TargetFamily.FleshUndead, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Undead", "Blood/Bleed/Poison", 0.78f, 55),
+            new DamageRule(TargetFamily.FleshUndead, DamageTag.Fire, "Undead", "Fire", 1.08f, 50),
+            new DamageRule(TargetFamily.FleshUndead, DamageTag.Bludgeoning, "Undead", "Blunt", 1.05f, 45),
+            new DamageRule(TargetFamily.Wyrd, DamageTag.Wyrdness, "Wyrd", "Wyrdness", 0.35f, 70),
+            new DamageRule(TargetFamily.DrownedZombie, DamageTag.BloodMagic | DamageTag.Bleed, "Drowned", "Blood/Bleed", 0.65f, 80),
+            new DamageRule(TargetFamily.DrownedZombie, DamageTag.Electric, "Drowned", "Electric", 1.15f, 70),
+            new DamageRule(TargetFamily.DrownedZombie, DamageTag.Bludgeoning, "Drowned", "Blunt", 1.10f, 60),
+            new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Poison, "Infected", "Poison", 0.66f, 80),
+            new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Fire, "Infected", "Fire", 1.15f, 70),
+            new DamageRule(TargetFamily.SeaFlesh, DamageTag.Cold, "Sea", "Cold", 0.70f, 70),
+            new DamageRule(TargetFamily.SeaFlesh, DamageTag.Electric, "Sea", "Electric", 1.12f, 60),
+            new DamageRule(TargetFamily.Spirit, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Spirit", "Blood/Bleed/Poison", 0.35f, 90),
+            new DamageRule(TargetFamily.Spirit, DamageTag.GenericPhysical | DamageTag.Slashing | DamageTag.Piercing | DamageTag.Bludgeoning, "Spirit", "Physical", 0.85f, 50),
+            new DamageRule(TargetFamily.Flora, DamageTag.Poison | DamageTag.Bleed | DamageTag.Piercing, "Flora", "Poison/Bleed/Pierce", 0.70f, 70),
+            new DamageRule(TargetFamily.Flora, DamageTag.Fire | DamageTag.Slashing, "Flora", "Fire/Slash", 1.15f, 70)
+        };
+
+        private static readonly NativeSubtypeCheck[] NativeSubtypeChecks =
+        {
+            new NativeSubtypeCheck(DamageTag.Wyrdness, "Wyrdness"),
+            new NativeSubtypeCheck(DamageTag.GenericPhysical, "GenericPhysical"),
+            new NativeSubtypeCheck(DamageTag.Slashing, "Slashing"),
+            new NativeSubtypeCheck(DamageTag.Piercing, "Piercing"),
+            new NativeSubtypeCheck(DamageTag.Bludgeoning, "Bludgeoning"),
+            new NativeSubtypeCheck(DamageTag.GenericMagical, "GenericMagical"),
+            new NativeSubtypeCheck(DamageTag.Fire, "Fire"),
+            new NativeSubtypeCheck(DamageTag.Cold, "Cold"),
+            new NativeSubtypeCheck(DamageTag.Poison, "Poison"),
+            new NativeSubtypeCheck(DamageTag.Electric, "Electric"),
+            new NativeSubtypeCheck(DamageTag.Wet, "Wet")
         };
 
         private static readonly string[] BleedTerms = { "bleed" };
         private static readonly string[] PoisonTerms = { "poison", "toxic", "venom" };
         private static readonly string[] WyrdTerms = { "wyrd" };
         private static readonly string[] BloodMagicTerms = { "blood", "transfusion", "abhartach", "sanguine", "sanguis", "hematic" };
+        private static readonly string[] MetadataBoneUndeadTerms = { "HitBones", "Skeleton", "BoneMask" };
+        private static readonly string[] MetadataConstructTerms = { "HitStone", "Construct", "Automaton", "Golem" };
+        private static readonly string[] MetadataWyrdTerms = { "WyrdnessBound" };
+        private static readonly string[] MetadataDrownedZombieTerms = { "Scourge" };
+        private static readonly string[] MetadataSeaFleshTerms = { "SarrasCreature", "ReefboundBody" };
+        private static readonly string[] MetadataSpiritTerms = { "Ghost" };
+        private static readonly string[] MetadataFloraTerms = { "Flora" };
+        private static readonly string[] MetadataFleshUndeadTerms = { "Zombie", "Bloody" };
+        private static readonly string[] MetadataFleshTerms = { "Animal", "Animal_Prey", "Bandit", "Cultist", "Human", "Humanoid" };
+        private static readonly string[] MetadataEliteTerms = { "Elite", "MiniBoss", "Boss", "Type:Elite" };
 
         internal static SteelAndBonePlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
 
         private Harmony _harmony;
         private MethodInfo _heroCurrentGetter;
+        private Type _damageSubTypeType;
+        private MethodInfo _getMultiplierForSubtypeMethod;
+        private DamageNumberRenderer _damageNumberRenderer;
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<Preset> _preset;
-        private ConfigEntry<bool> _resistanceTextEnabled;
-        private ConfigEntry<float> _resistanceTextScale;
-        private ConfigEntry<int> _resistanceTextFontSize;
-        private ConfigEntry<float> _resistanceTextCenterX;
-        private ConfigEntry<float> _resistanceTextCenterY;
-        private ConfigEntry<float> _resistanceTextWidth;
-        private ConfigEntry<float> _resistanceTextDurationSeconds;
-        private ConfigEntry<float> _resistanceTextFadeSeconds;
-        private ConfigEntry<float> _resistanceTextOpacity;
-        private ConfigEntry<float> _resistanceTextCooldownSeconds;
-        private ConfigEntry<string> _skeletonTerms;
-        private ConfigEntry<string> _golemTerms;
+        private ConfigEntry<bool> _respectVanillaMultipliers;
+        private ConfigEntry<bool> _amplifyVanillaMultipliers;
+        private ConfigEntry<float> _temperedVanillaAmplification;
+        private ConfigEntry<float> _hardenedVanillaAmplification;
+        private ConfigEntry<float> _crucibleVanillaAmplification;
+        private ConfigEntry<float> _minimumAmplifiedVanillaResistance;
+        private ConfigEntry<float> _maximumAmplifiedVanillaWeakness;
+        private ConfigEntry<bool> _eliteRuleClampsEnabled;
+        private ConfigEntry<float> _eliteWeaknessBonusReduction;
+        private ConfigEntry<float> _eliteMinimumResistanceMultiplier;
+        private ConfigEntry<bool> _damageNumbersEnabled;
+        private ConfigEntry<string> _damageNumberBaseColor;
+        private ConfigEntry<int> _damageNumberFontSize;
+        private ConfigEntry<float> _damageNumberDurationSeconds;
+        private ConfigEntry<float> _damageNumberCriticalDurationSeconds;
+        private ConfigEntry<float> _damageNumberMinimumAmount;
+        private ConfigEntry<int> _damageNumberMaximumActive;
+        private ConfigEntry<string> _boneUndeadTerms;
+        private ConfigEntry<string> _constructTerms;
         private ConfigEntry<string> _wyrdTerms;
+        private ConfigEntry<string> _drownedZombieTerms;
+        private ConfigEntry<string> _infectedFleshTerms;
+        private ConfigEntry<string> _seaFleshTerms;
+        private ConfigEntry<string> _spiritTerms;
+        private ConfigEntry<string> _floraTerms;
+        private ConfigEntry<string> _fleshUndeadTerms;
+        private ConfigEntry<string> _fleshTerms;
+        private ConfigEntry<string> _armoredHumanoidTerms;
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _logPatchWarnings;
 
         private readonly Dictionary<int, TargetClassification> _targetClassifications =
             new Dictionary<int, TargetClassification>();
+        private readonly Dictionary<int, PendingDamageFeedback> _pendingDamageFeedback =
+            new Dictionary<int, PendingDamageFeedback>();
 
-        private string _cachedSkeletonTermsRaw;
-        private string[] _cachedSkeletonTerms = new string[0];
-        private string _cachedGolemTermsRaw;
-        private string[] _cachedGolemTerms = new string[0];
+        private string _cachedBoneUndeadTermsRaw;
+        private string[] _cachedBoneUndeadTerms = new string[0];
+        private string _cachedConstructTermsRaw;
+        private string[] _cachedConstructTerms = new string[0];
         private string _cachedWyrdTermsRaw;
         private string[] _cachedWyrdTerms = new string[0];
+        private string _cachedDrownedZombieTermsRaw;
+        private string[] _cachedDrownedZombieTerms = new string[0];
+        private string _cachedInfectedFleshTermsRaw;
+        private string[] _cachedInfectedFleshTerms = new string[0];
+        private string _cachedSeaFleshTermsRaw;
+        private string[] _cachedSeaFleshTerms = new string[0];
+        private string _cachedSpiritTermsRaw;
+        private string[] _cachedSpiritTerms = new string[0];
+        private string _cachedFloraTermsRaw;
+        private string[] _cachedFloraTerms = new string[0];
+        private string _cachedFleshUndeadTermsRaw;
+        private string[] _cachedFleshUndeadTerms = new string[0];
+        private string _cachedFleshTermsRaw;
+        private string[] _cachedFleshTerms = new string[0];
+        private string _cachedArmoredHumanoidTermsRaw;
+        private string[] _cachedArmoredHumanoidTerms = new string[0];
         private int _targetTermsRevision = 1;
-
-        private GUIStyle _overlayTextStyle;
-        private GUIStyle _overlayShadowStyle;
-        private int _overlayStyleFontSize = -1;
-        private ResistanceOverlayNotification _overlayNotification;
-        private float _lastOverlayTime = -999.0f;
-        private float _lastOverlayMultiplier = 1.0f;
 
         private void Awake()
         {
@@ -96,6 +184,8 @@ namespace SteelAndBone
             try
             {
                 BindConfig();
+                _damageNumberRenderer = gameObject.AddComponent<DamageNumberRenderer>();
+                _damageNumberRenderer.Initialize(this);
                 CacheGameAccessors();
                 PatchGame();
                 Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Preset=" + _preset.Value + ".");
@@ -115,6 +205,13 @@ namespace SteelAndBone
                 _harmony = null;
             }
 
+            _pendingDamageFeedback.Clear();
+            if (_damageNumberRenderer != null)
+            {
+                Destroy(_damageNumberRenderer);
+                _damageNumberRenderer = null;
+            }
+
             Instance = null;
         }
 
@@ -124,37 +221,85 @@ namespace SteelAndBone
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
             Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
-            _preset = Config.Bind("1. Core", "Preset", Preset.Forsaken, "Resistance profile. Bloodied is light, Forsaken is the default, and Nightmare turns the strongest proof-of-concept counters into zero-damage counters.");
+            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Damage-rule strength profile. Tempered is lighter, Hardened is the default, and Crucible makes every Steel and Bone rule matter more.");
+            _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, "Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.");
+            _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, "Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.");
+            _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, "Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets. 0.10 turns a 1.15 weakness into 1.05.");
+            _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, "Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets.");
 
-            _resistanceTextEnabled = Config.Bind("2. Feedback", "ResistanceTextEnabled", true, "Show a compact warning when a hit is resisted.");
-            _resistanceTextScale = Config.Bind("2. Feedback", "ResistanceTextScale", 0.75f, "Scale multiplier for the compact resistance text.");
-            _resistanceTextFontSize = Config.Bind("2. Feedback", "ResistanceTextFontSize", 20, "Base font size before scale is applied.");
-            _resistanceTextCenterX = Config.Bind("2. Feedback", "ResistanceTextCenterX", 0.5f, "Horizontal center as a fraction of screen width. 0.5 is centered.");
-            _resistanceTextCenterY = Config.Bind("2. Feedback", "ResistanceTextCenterY", 0.38f, "Vertical center as a fraction of screen height. This matches the default Killing Blow Mastery text position.");
-            _resistanceTextWidth = Config.Bind("2. Feedback", "ResistanceTextWidth", 520.0f, "Text width before scale is applied.");
-            _resistanceTextDurationSeconds = Config.Bind("2. Feedback", "ResistanceTextDurationSeconds", 1.25f, "How long the resistance text remains visible.");
-            _resistanceTextFadeSeconds = Config.Bind("2. Feedback", "ResistanceTextFadeSeconds", 0.20f, "Fade-in and fade-out duration.");
-            _resistanceTextOpacity = Config.Bind("2. Feedback", "ResistanceTextOpacity", 0.95f, "Maximum resistance text opacity.");
-            _resistanceTextCooldownSeconds = Config.Bind("2. Feedback", "ResistanceTextCooldownSeconds", 0.18f, "Minimum real-time seconds between same-or-weaker resistance text refreshes.");
+            _amplifyVanillaMultipliers = Config.Bind("2. Vanilla Multipliers", "AmplifyVanillaMultipliers", true, "Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.");
+            _temperedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered. 0 leaves vanilla unchanged.");
+            _hardenedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened.");
+            _crucibleVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible.");
+            _minimumAmplifiedVanillaResistance = Config.Bind("2. Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, "Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce.");
+            _maximumAmplifiedVanillaWeakness = Config.Bind("2. Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, "Highest vanilla weakness multiplier Steel and Bone amplification can produce.");
 
-            _skeletonTerms = Config.Bind(
-                "3. Target Families",
-                "SkeletonTerms",
-                "Skeleton;Skull;Bone;Animated Armor;JollySkeleton",
-                "Semicolon, comma, pipe, or newline separated target terms for skeleton or bone enemies.");
-            _golemTerms = Config.Bind(
-                "3. Target Families",
-                "GolemTerms",
-                "Stone;Golem;Construct;Automaton;Statue;Crystal",
+            _damageNumbersEnabled = Config.Bind("3. Feedback", "DamageNumbersEnabled", true, "Show Steel and Bone floating damage numbers for outgoing player hits.");
+            _damageNumberBaseColor = Config.Bind("3. Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, "Neutral outgoing damage-number color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.");
+            _damageNumberFontSize = Config.Bind("3. Feedback", "DamageNumberFontSize", 34, "Base floating damage-number font size.");
+            _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, "Seconds a normal Steel and Bone damage number remains visible.");
+            _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, "Seconds a critical Steel and Bone damage number remains visible.");
+            _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, "Suppress non-immune damage numbers below this final damage amount.");
+            _damageNumberMaximumActive = Config.Bind("3. Feedback", "DamageNumberMaximumActive", 36, "Maximum Steel and Bone floating damage numbers kept on screen at once.");
+
+            _boneUndeadTerms = Config.Bind(
+                "4. Target Families",
+                "BoneUndeadTerms",
+                "Skeleton;Skull;Bone;Animated Armor;JollySkeleton;Keeper Of The Barrow;KeeperOfTheBarrow",
+                "Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.");
+            _constructTerms = Config.Bind(
+                "4. Target Families",
+                "ConstructTerms",
+                "Stone;Golem;Construct;Automaton;Statue;Crystal;Lost Knight;LostKnight;Forgeborn;ForgeBorn;Cairnguard;Tibby;Sentinel;Barnaclator",
                 "Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.");
             _wyrdTerms = Config.Bind(
-                "3. Target Families",
+                "4. Target Families",
                 "WyrdTerms",
                 "Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness",
                 "Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.");
+            _drownedZombieTerms = Config.Bind(
+                "4. Target Families",
+                "DrownedZombieTerms",
+                "Drowner;Drowned;Drowned Knight;Ghost Crew;Scourge",
+                "Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.");
+            _infectedFleshTerms = Config.Bind(
+                "4. Target Families",
+                "InfectedFleshTerms",
+                "Red Death;RedDeath;Infected",
+                "Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.");
+            _seaFleshTerms = Config.Bind(
+                "4. Target Families",
+                "SeaFleshTerms",
+                "Sarras;Finbled;Tadpole;Tidewraith;Scion;Archivist;Floatling;Reefback;Wailcap;Grindylow;Croakmaw",
+                "Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.");
+            _spiritTerms = Config.Bind(
+                "4. Target Families",
+                "SpiritTerms",
+                "Ghost;Spirit;Wraith;Banshee;Melancholy;Mistling;Mistbearer;Strawchild;Strawfather",
+                "Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.");
+            _floraTerms = Config.Bind(
+                "4. Target Families",
+                "FloraTerms",
+                "Dryad;Gloomfrond;Fleshtree;Wailcap;Viridian",
+                "Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.");
+            _fleshUndeadTerms = Config.Bind(
+                "4. Target Families",
+                "FleshUndeadTerms",
+                "Zombie;Undead;Wight;Bloody;Frostbitten Warrior;Plaguewraith",
+                "Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.");
+            _fleshTerms = Config.Bind(
+                "4. Target Families",
+                "FleshTerms",
+                "Bandit;Outlaw;Human;Humanoid;Remor;Redcap;Corpse Eater;Wolf;Bear",
+                "Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.");
+            _armoredHumanoidTerms = Config.Bind(
+                "4. Target Families",
+                "ArmoredHumanoidTerms",
+                "Knight;Guard;Squire;Warrior;Deserter;Kamelot;Soldier;Armor;Armored",
+                "Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.");
 
-            _diagnostics = Config.Bind("4. Diagnostics", "Diagnostics", false, "Log resisted hit classification and multiplier decisions.");
-            _logPatchWarnings = Config.Bind("4. Diagnostics", "LogPatchWarnings", true, "Log warnings when required game methods cannot be patched.");
+            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, "Log damage-rule classification, vanilla multiplier checks, and multiplier decisions.");
+            _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, "Log warnings when required game methods cannot be patched.");
 
             Config.Save();
         }
@@ -246,6 +391,13 @@ namespace SteelAndBone
             {
                 _heroCurrentGetter = AccessTools.PropertyGetter(heroType, "Current");
             }
+
+            _damageSubTypeType = AccessTools.TypeByName(DamageSubTypeTypeName);
+            Type multiplierDataBaseType = AccessTools.TypeByName(DamageReceivedMultiplierDataBaseTypeName);
+            if (multiplierDataBaseType != null)
+            {
+                _getMultiplierForSubtypeMethod = AccessTools.Method(multiplierDataBaseType, "GetMultiplierForSubtype");
+            }
         }
 
         private void PatchGame()
@@ -269,9 +421,20 @@ namespace SteelAndBone
 
             _harmony.Patch(original, null, new HarmonyMethod(postfix));
             LogDiagnostic("Patched " + healthElementType.FullName + ".ApplyDamageModifiers.");
+
+            MethodInfo outcomeOriginal = AccessTools.Method(healthElementType, "AfterHealthDecreaseEvents");
+            MethodInfo outcomePostfix = AccessTools.Method(typeof(AfterHealthDecreaseEventsPatch), "Postfix");
+            if (outcomeOriginal == null || outcomePostfix == null)
+            {
+                Warn("Could not patch HealthElement.AfterHealthDecreaseEvents. Steel and Bone damage numbers are unavailable, but damage rules remain active.");
+                return;
+            }
+
+            _harmony.Patch(outcomeOriginal, null, new HarmonyMethod(outcomePostfix));
+            LogDiagnostic("Patched " + healthElementType.FullName + ".AfterHealthDecreaseEvents.");
         }
 
-        internal void ApplyResistanceModifier(object healthElement, object damage, ref float damageModifier)
+        internal void ApplyDamageRuleModifier(object healthElement, object damage, ref float damageModifier)
         {
             if (_enabled == null || !_enabled.Value || healthElement == null || damage == null)
             {
@@ -298,96 +461,519 @@ namespace SteelAndBone
 
             TargetClassification targetClass = GetTargetClassification(target, healthElement);
             DamageClassification damageClass = ClassifyDamage(damage);
+            LogDamageCheckDiagnostic(target ?? healthElement, damage, targetClass, damageClass);
 
-            float resistanceMultiplier;
-            string targetFamily;
-            string damageFamily;
-            if (!TryResolveResistance(targetClass, damageClass, out resistanceMultiplier, out targetFamily, out damageFamily))
+            VanillaMultiplierAmplification vanillaAmplification;
+            bool appliedVanillaAmplification =
+                TryApplyVanillaMultiplierAmplification(damage, damageClass, ref damageModifier, out vanillaAmplification);
+
+            DamageRuleMatch match;
+            bool skippedForVanilla;
+            bool skippedForEliteClamp;
+            bool matchedRule = TryResolveDamageRule(
+                targetClass,
+                damageClass,
+                damage,
+                out match,
+                out skippedForVanilla,
+                out skippedForEliteClamp);
+            if (!matchedRule && !appliedVanillaAmplification)
             {
+                LogNoRuleDiagnostic(target ?? healthElement, targetClass, damageClass, skippedForVanilla, skippedForEliteClamp);
                 return;
             }
 
-            resistanceMultiplier = Clamp(resistanceMultiplier, 0.0f, 1.0f);
-            if (resistanceMultiplier >= 0.999f)
+            if (!matchedRule)
             {
+                LogNoRuleDiagnostic(target ?? healthElement, targetClass, damageClass, skippedForVanilla, skippedForEliteClamp);
+                RememberDamageFeedback(
+                    damage,
+                    vanillaAmplification.AmplifiedMultiplier,
+                    "Vanilla",
+                    vanillaAmplification.SubtypeName);
                 return;
             }
 
+            float multiplier = Clamp(match.Multiplier, 0.05f, 2.0f);
             float before = damageModifier;
-            damageModifier *= resistanceMultiplier;
-            if (resistanceMultiplier <= 0.0001f)
+            damageModifier *= multiplier;
+            if (multiplier <= 0.0001f)
             {
                 damageModifier = 0.0f;
             }
 
-            QueueResistanceText(resistanceMultiplier);
-            LogDiagnostic(
-                "Applied resistance: target="
-                + DescribeObject(target)
-                + ", family="
-                + targetFamily
-                + ", damage="
-                + damageFamily
-                + ", preset="
-                + _preset.Value
-                + ", multiplier="
-                + resistanceMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
-                + ", damageModifier "
-                + before.ToString("0.###", CultureInfo.InvariantCulture)
-                + " -> "
-                + damageModifier.ToString("0.###", CultureInfo.InvariantCulture)
-                + ".");
+            float feedbackMultiplier = multiplier;
+            if (appliedVanillaAmplification && vanillaAmplification != null)
+            {
+                feedbackMultiplier *= vanillaAmplification.AmplifiedMultiplier;
+            }
+
+            RememberDamageFeedback(damage, feedbackMultiplier, match.TargetLabel, match.DamageLabel);
+            if (DiagnosticsEnabled())
+            {
+                LogDiagnostic(
+                    "Applied damage rule: target="
+                    + DescribeObject(target ?? healthElement)
+                    + ", detectedFamilies="
+                    + DescribeTargetFamilies(targetClass)
+                    + ", targetFlags="
+                    + DescribeTargetFlags(targetClass)
+                    + ", detectedDamageTags="
+                    + DescribeDamageTags(damageClass)
+                    + ", family="
+                    + match.TargetLabel
+                    + ", damage="
+                    + match.DamageLabel
+                    + ", preset="
+                    + _preset.Value
+                    + ", multiplier="
+                    + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + (match.WasEliteClamped
+                        ? ", eliteClamp="
+                            + match.PresetMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                            + " -> "
+                            + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                        : "")
+                    + ", damageModifier "
+                    + before.ToString("0.###", CultureInfo.InvariantCulture)
+                    + " -> "
+                    + damageModifier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ".");
+            }
         }
 
-        private bool TryResolveResistance(
+        private bool TryApplyVanillaMultiplierAmplification(
+            object damage,
+            DamageClassification damageClass,
+            ref float damageModifier,
+            out VanillaMultiplierAmplification amplification)
+        {
+            amplification = null;
+            if (_amplifyVanillaMultipliers == null
+                || !_amplifyVanillaMultipliers.Value
+                || damage == null
+                || damageClass == null)
+            {
+                return false;
+            }
+
+            float strength = GetVanillaAmplificationStrength();
+            if (strength <= 0.0001f)
+            {
+                return false;
+            }
+
+            if (!TryBuildVanillaMultiplierAmplification(damage, damageClass, strength, out amplification))
+            {
+                return false;
+            }
+
+            if (!HasMeaningfulEffect(amplification.AdjustmentMultiplier))
+            {
+                amplification = null;
+                return false;
+            }
+
+            float before = damageModifier;
+            damageModifier *= amplification.AdjustmentMultiplier;
+
+            if (DiagnosticsEnabled())
+            {
+                LogDiagnostic(
+                    "Amplified vanilla multiplier: subtypes="
+                    + amplification.SubtypeName
+                    + ", preset="
+                    + (_preset == null ? Preset.Hardened : _preset.Value).ToString()
+                    + ", vanillaMultiplier="
+                    + amplification.NativeMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ", amplifiedMultiplier="
+                    + amplification.AmplifiedMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ", adjustment="
+                    + amplification.AdjustmentMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ", damageModifier "
+                    + before.ToString("0.###", CultureInfo.InvariantCulture)
+                    + " -> "
+                    + damageModifier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ".");
+            }
+
+            return true;
+        }
+
+        private bool TryBuildVanillaMultiplierAmplification(
+            object damage,
+            DamageClassification damageClass,
+            float strength,
+            out VanillaMultiplierAmplification amplification)
+        {
+            amplification = null;
+            if (damage == null || damageClass == null)
+            {
+                return false;
+            }
+
+            StringBuilder subtypeBuilder = new StringBuilder();
+            float nativeProduct = 1.0f;
+            float amplifiedProduct = 1.0f;
+            float adjustmentProduct = 1.0f;
+            bool found = false;
+
+            for (int i = 0; i < NativeSubtypeChecks.Length; i++)
+            {
+                NativeSubtypeCheck check = NativeSubtypeChecks[i];
+                if (!damageClass.HasAny(check.Tag) || !DamageHasSubtype(damage, check.SubtypeName))
+                {
+                    continue;
+                }
+
+                float multiplier;
+                if (!TryGetNativeDamageMultiplier(damage, check.SubtypeName, out multiplier) || !HasMeaningfulEffect(multiplier))
+                {
+                    continue;
+                }
+
+                if (multiplier <= 0.0001f)
+                {
+                    continue;
+                }
+
+                float amplifiedMultiplier = AmplifyVanillaMultiplier(multiplier, strength);
+                if (!HasMeaningfulEffect(amplifiedMultiplier)
+                    || Math.Abs(amplifiedMultiplier - multiplier) <= 0.001f)
+                {
+                    continue;
+                }
+
+                if (subtypeBuilder.Length > 0)
+                {
+                    subtypeBuilder.Append("|");
+                }
+
+                subtypeBuilder.Append(check.SubtypeName);
+                nativeProduct *= multiplier;
+                amplifiedProduct *= amplifiedMultiplier;
+                adjustmentProduct *= amplifiedMultiplier / multiplier;
+                found = true;
+            }
+
+            if (!found)
+            {
+                return false;
+            }
+
+            amplification = new VanillaMultiplierAmplification
+            {
+                SubtypeName = subtypeBuilder.ToString(),
+                NativeMultiplier = nativeProduct,
+                AmplifiedMultiplier = amplifiedProduct,
+                AdjustmentMultiplier = adjustmentProduct
+            };
+            return true;
+        }
+
+        private float AmplifyVanillaMultiplier(float nativeMultiplier, float strength)
+        {
+            float amplified = 1.0f + ((nativeMultiplier - 1.0f) * (1.0f + strength));
+            if (nativeMultiplier < 1.0f)
+            {
+                return Clamp(amplified, GetMinimumAmplifiedVanillaResistance(), 0.999f);
+            }
+
+            return Clamp(amplified, 1.001f, GetMaximumAmplifiedVanillaWeakness());
+        }
+
+        private float GetVanillaAmplificationStrength()
+        {
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float value;
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    value = _temperedVanillaAmplification == null ? 0.0f : _temperedVanillaAmplification.Value;
+                    break;
+                case Preset.Crucible:
+                    value = _crucibleVanillaAmplification == null ? 0.70f : _crucibleVanillaAmplification.Value;
+                    break;
+                case Preset.Hardened:
+                default:
+                    value = _hardenedVanillaAmplification == null ? 0.35f : _hardenedVanillaAmplification.Value;
+                    break;
+            }
+
+            return Clamp(value, 0.0f, 2.0f);
+        }
+
+        private float GetMinimumAmplifiedVanillaResistance()
+        {
+            float value = _minimumAmplifiedVanillaResistance == null ? 0.20f : _minimumAmplifiedVanillaResistance.Value;
+            return Clamp(value, 0.01f, 0.95f);
+        }
+
+        private float GetMaximumAmplifiedVanillaWeakness()
+        {
+            float value = _maximumAmplifiedVanillaWeakness == null ? 1.85f : _maximumAmplifiedVanillaWeakness.Value;
+            return Clamp(value, 1.05f, 3.00f);
+        }
+
+        private bool EliteRuleClampsEnabled()
+        {
+            return _eliteRuleClampsEnabled == null || _eliteRuleClampsEnabled.Value;
+        }
+
+        private float GetEliteWeaknessBonusReduction()
+        {
+            float value = _eliteWeaknessBonusReduction == null ? 0.10f : _eliteWeaknessBonusReduction.Value;
+            return Clamp(value, 0.0f, 0.50f);
+        }
+
+        private float GetEliteMinimumResistanceMultiplier()
+        {
+            float value = _eliteMinimumResistanceMultiplier == null ? 0.20f : _eliteMinimumResistanceMultiplier.Value;
+            return Clamp(value, 0.05f, 0.95f);
+        }
+
+        private float ApplyEliteRuleClamp(float multiplier, TargetClassification targetClass)
+        {
+            if (!EliteRuleClampsEnabled()
+                || targetClass == null
+                || !targetClass.IsEliteClass
+                || !HasMeaningfulEffect(multiplier))
+            {
+                return multiplier;
+            }
+
+            if (multiplier > 1.0f)
+            {
+                float bonus = multiplier - 1.0f;
+                float reducedBonus = Math.Max(0.0f, bonus - GetEliteWeaknessBonusReduction());
+                return Clamp(1.0f + reducedBonus, 1.0f, 2.0f);
+            }
+
+            return Clamp(Math.Max(multiplier, GetEliteMinimumResistanceMultiplier()), 0.05f, 1.0f);
+        }
+
+        private bool TryResolveDamageRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
-            out float multiplier,
-            out string targetFamily,
-            out string damageFamily)
+            object damage,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla,
+            out bool skippedForEliteClamp)
         {
-            multiplier = 1.0f;
-            targetFamily = "";
-            damageFamily = "";
+            match = null;
+            skippedForVanilla = false;
+            skippedForEliteClamp = false;
 
             if (targetClass == null || damageClass == null)
             {
                 return false;
             }
 
-            bool matched = false;
-            Preset preset = _preset == null ? Preset.Forsaken : _preset.Value;
-            for (int i = 0; i < ResistanceRules.Length; i++)
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            for (int i = 0; i < DamageRules.Length; i++)
             {
-                ResistanceRule rule = ResistanceRules[i];
+                DamageRule rule = DamageRules[i];
                 if (!TargetMatchesRule(targetClass, rule.TargetFamily) || !damageClass.HasAny(rule.DamageTags))
                 {
                     continue;
                 }
 
-                float ruleMultiplier = rule.GetMultiplier(preset);
-                if (!matched || ruleMultiplier < multiplier)
+                string vanillaSubtype;
+                float vanillaMultiplier;
+                if (ShouldSkipForVanillaMultiplier(rule, damageClass, damage, out vanillaSubtype, out vanillaMultiplier))
                 {
-                    matched = true;
-                    multiplier = ruleMultiplier;
-                    targetFamily = rule.TargetLabel;
-                    damageFamily = rule.DamageLabel;
+                    skippedForVanilla = true;
+                    if (DiagnosticsEnabled())
+                    {
+                        LogDiagnostic(
+                            "Skipped Steel and Bone rule because vanilla already modifies "
+                            + vanillaSubtype
+                            + ": detectedFamilies="
+                            + DescribeTargetFamilies(targetClass)
+                            + ", targetFlags="
+                            + DescribeTargetFlags(targetClass)
+                            + ", detectedDamageTags="
+                            + DescribeDamageTags(damageClass)
+                            + ", targetFamily="
+                            + rule.TargetLabel
+                            + ", damage="
+                            + rule.DamageLabel
+                            + ", vanillaMultiplier="
+                            + vanillaMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ".");
+                    }
+                    continue;
+                }
+
+                float ruleMultiplier = ApplyPresetIntensity(rule.BaseMultiplier, preset);
+                float presetMultiplier = ruleMultiplier;
+                ruleMultiplier = ApplyEliteRuleClamp(ruleMultiplier, targetClass);
+                if (!HasMeaningfulEffect(ruleMultiplier))
+                {
+                    if (Math.Abs(presetMultiplier - ruleMultiplier) > 0.001f)
+                    {
+                        skippedForEliteClamp = true;
+                    }
+                    continue;
+                }
+
+                DamageRuleMatch candidate = new DamageRuleMatch
+                {
+                    Multiplier = ruleMultiplier,
+                    TargetLabel = rule.TargetLabel,
+                    DamageLabel = rule.DamageLabel,
+                    Priority = rule.Priority,
+                    Impact = GetRuleImpact(ruleMultiplier),
+                    PresetMultiplier = presetMultiplier,
+                    WasEliteClamped = Math.Abs(presetMultiplier - ruleMultiplier) > 0.001f
+                };
+
+                if (match == null
+                    || candidate.Priority > match.Priority
+                    || (candidate.Priority == match.Priority && candidate.Impact > match.Impact))
+                {
+                    match = candidate;
                 }
             }
 
-            return matched;
+            return match != null;
+        }
+
+        private bool ShouldSkipForVanillaMultiplier(
+            DamageRule rule,
+            DamageClassification damageClass,
+            object damage,
+            out string subtypeName,
+            out float nativeMultiplier)
+        {
+            subtypeName = "";
+            nativeMultiplier = 1.0f;
+
+            if (_respectVanillaMultipliers == null
+                || !_respectVanillaMultipliers.Value
+                || damageClass == null
+                || damage == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < NativeSubtypeChecks.Length; i++)
+            {
+                NativeSubtypeCheck check = NativeSubtypeChecks[i];
+                if (!rule.MatchesDamageTag(check.Tag)
+                    || !damageClass.HasAny(check.Tag)
+                    || !DamageHasSubtype(damage, check.SubtypeName))
+                {
+                    continue;
+                }
+
+                float multiplier;
+                if (TryGetNativeDamageMultiplier(damage, check.SubtypeName, out multiplier) && HasMeaningfulEffect(multiplier))
+                {
+                    subtypeName = check.SubtypeName;
+                    nativeMultiplier = multiplier;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryGetNativeDamageMultiplier(object damage, string subtypeName, out float multiplier)
+        {
+            multiplier = 1.0f;
+
+            if (_damageSubTypeType == null || _getMultiplierForSubtypeMethod == null || string.IsNullOrEmpty(subtypeName))
+            {
+                return false;
+            }
+
+            object multiplierData = GetOptionalPropertyValue(damage, "DamageReceivedMultiplierData");
+            if (multiplierData == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object subtype = Enum.Parse(_damageSubTypeType, subtypeName);
+                object raw = _getMultiplierForSubtypeMethod.Invoke(multiplierData, new[] { subtype });
+                if (raw is float)
+                {
+                    multiplier = (float)raw;
+                    return true;
+                }
+                if (raw is double)
+                {
+                    multiplier = (float)(double)raw;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        private float ApplyPresetIntensity(float baseMultiplier, Preset preset)
+        {
+            float strength = GetPresetIntensity(preset);
+            float scaled = 1.0f + ((baseMultiplier - 1.0f) * strength);
+            return Clamp(scaled, 0.05f, 2.0f);
+        }
+
+        private float GetPresetIntensity(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    return 0.55f;
+                case Preset.Crucible:
+                    return 1.35f;
+                case Preset.Hardened:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private bool HasMeaningfulEffect(float multiplier)
+        {
+            return GetRuleImpact(multiplier) > 0.001f;
+        }
+
+        private float GetRuleImpact(float multiplier)
+        {
+            return Math.Abs(multiplier - 1.0f);
         }
 
         private bool TargetMatchesRule(TargetClassification targetClass, TargetFamily family)
         {
             switch (family)
             {
-                case TargetFamily.Skeleton:
-                    return targetClass.IsSkeleton;
-                case TargetFamily.Golem:
-                    return targetClass.IsGolem;
+                case TargetFamily.BoneUndead:
+                    return targetClass.IsBoneUndead;
+                case TargetFamily.Construct:
+                    return targetClass.IsConstruct;
+                case TargetFamily.ArmoredHumanoid:
+                    return targetClass.IsArmoredHumanoid;
+                case TargetFamily.Flesh:
+                    return targetClass.IsFlesh;
+                case TargetFamily.FleshUndead:
+                    return targetClass.IsFleshUndead;
                 case TargetFamily.Wyrd:
                     return targetClass.IsWyrd;
+                case TargetFamily.DrownedZombie:
+                    return targetClass.IsDrownedZombie;
+                case TargetFamily.InfectedFlesh:
+                    return targetClass.IsInfectedFlesh;
+                case TargetFamily.SeaFlesh:
+                    return targetClass.IsSeaFlesh;
+                case TargetFamily.Spirit:
+                    return targetClass.IsSpirit;
+                case TargetFamily.Flora:
+                    return targetClass.IsFlora;
                 default:
                     return false;
             }
@@ -419,14 +1005,243 @@ namespace SteelAndBone
             TargetClassification classification = new TargetClassification
             {
                 Key = key,
-                Revision = _targetTermsRevision,
-                IsSkeleton = ContainsAnyTerm(text, GetSkeletonTerms()),
-                IsGolem = ContainsAnyTerm(text, GetGolemTerms()),
-                IsWyrd = ContainsAnyTerm(text, GetWyrdTerms())
+                Revision = _targetTermsRevision
             };
+
+            string metadataText = BuildTargetMetadataSearchText(target, healthElement);
+            ApplyMetadataTargetClassification(classification, metadataText);
+            if (!classification.HasMetadataFamily())
+            {
+                ApplyTermTargetClassification(classification, text);
+            }
+            else
+            {
+                ApplyBroadFamilyTermOverrides(classification, text);
+                ApplySpecificTermTargetClassification(classification, text);
+            }
 
             _targetClassifications[cacheKey] = classification;
             return classification;
+        }
+
+        private void ApplyMetadataTargetClassification(TargetClassification classification, string metadataText)
+        {
+            if (classification == null || string.IsNullOrEmpty(metadataText))
+            {
+                return;
+            }
+
+            if (ContainsAnyTerm(metadataText, MetadataBoneUndeadTerms))
+            {
+                classification.IsBoneUndead = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:BoneUndead");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataConstructTerms))
+            {
+                classification.IsConstruct = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:Construct");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataWyrdTerms))
+            {
+                classification.IsWyrd = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:Wyrd");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataDrownedZombieTerms))
+            {
+                classification.IsDrownedZombie = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:DrownedZombie");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataSeaFleshTerms))
+            {
+                classification.IsSeaFlesh = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:SeaFlesh");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataSpiritTerms))
+            {
+                classification.IsSpirit = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:Spirit");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataFloraTerms))
+            {
+                classification.IsFlora = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:Flora");
+            }
+            if (!classification.HasAnyFamily() && ContainsAnyTerm(metadataText, MetadataFleshUndeadTerms))
+            {
+                classification.IsFleshUndead = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:FleshUndead");
+            }
+            if (!classification.HasAnyFamily() && ContainsAnyTerm(metadataText, MetadataFleshTerms))
+            {
+                classification.IsFlesh = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:Flesh");
+            }
+            if (ContainsAnyTerm(metadataText, MetadataEliteTerms))
+            {
+                classification.IsEliteClass = true;
+                classification.HasMetadataEvidence = true;
+                AppendClassificationEvidence(classification, "metadata:EliteClass");
+            }
+        }
+
+        private void ApplyTermTargetClassification(TargetClassification classification, string text)
+        {
+            if (classification == null || string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (ContainsAnyTerm(text, GetBoneUndeadTerms()))
+            {
+                classification.IsBoneUndead = true;
+                AppendClassificationEvidence(classification, "terms:BoneUndead");
+            }
+            if (ContainsAnyTerm(text, GetConstructTerms()))
+            {
+                classification.IsConstruct = true;
+                AppendClassificationEvidence(classification, "terms:Construct");
+            }
+            if (ContainsAnyTerm(text, GetWyrdTerms()))
+            {
+                classification.IsWyrd = true;
+                AppendClassificationEvidence(classification, "terms:Wyrd");
+            }
+            if (ContainsAnyTerm(text, GetDrownedZombieTerms()))
+            {
+                classification.IsDrownedZombie = true;
+                AppendClassificationEvidence(classification, "terms:DrownedZombie");
+            }
+            if (ContainsAnyTerm(text, GetInfectedFleshTerms()))
+            {
+                classification.IsInfectedFlesh = true;
+                AppendClassificationEvidence(classification, "terms:InfectedFlesh");
+            }
+            if (ContainsAnyTerm(text, GetSeaFleshTerms()))
+            {
+                classification.IsSeaFlesh = true;
+                AppendClassificationEvidence(classification, "terms:SeaFlesh");
+            }
+            if (ContainsAnyTerm(text, GetSpiritTerms()))
+            {
+                classification.IsSpirit = true;
+                AppendClassificationEvidence(classification, "terms:Spirit");
+            }
+            if (ContainsAnyTerm(text, GetFloraTerms()))
+            {
+                classification.IsFlora = true;
+                AppendClassificationEvidence(classification, "terms:Flora");
+            }
+            if (!classification.HasAnyFamily() && ContainsAnyTerm(text, GetFleshUndeadTerms()))
+            {
+                classification.IsFleshUndead = true;
+                AppendClassificationEvidence(classification, "terms:FleshUndead");
+            }
+            ApplySpecificTermTargetClassification(classification, text);
+            if (!classification.HasAnyFamily() && ContainsAnyTerm(text, GetFleshTerms()))
+            {
+                classification.IsFlesh = true;
+                AppendClassificationEvidence(classification, "terms:Flesh");
+            }
+        }
+
+        private void ApplyBroadFamilyTermOverrides(TargetClassification classification, string text)
+        {
+            if (classification == null || string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+            if (!classification.IsFlesh && !classification.IsFleshUndead)
+            {
+                return;
+            }
+
+            if (ContainsAnyTerm(text, GetBoneUndeadTerms()))
+            {
+                classification.IsBoneUndead = true;
+                AppendClassificationEvidence(classification, "terms:BoneUndead");
+            }
+            if (ContainsAnyTerm(text, GetConstructTerms()))
+            {
+                classification.IsConstruct = true;
+                AppendClassificationEvidence(classification, "terms:Construct");
+            }
+            if (ContainsAnyTerm(text, GetWyrdTerms()))
+            {
+                classification.IsWyrd = true;
+                AppendClassificationEvidence(classification, "terms:Wyrd");
+            }
+            if (ContainsAnyTerm(text, GetDrownedZombieTerms()))
+            {
+                classification.IsDrownedZombie = true;
+                AppendClassificationEvidence(classification, "terms:DrownedZombie");
+            }
+            if (ContainsAnyTerm(text, GetInfectedFleshTerms()))
+            {
+                classification.IsInfectedFlesh = true;
+                AppendClassificationEvidence(classification, "terms:InfectedFlesh");
+            }
+            if (ContainsAnyTerm(text, GetSeaFleshTerms()))
+            {
+                classification.IsSeaFlesh = true;
+                AppendClassificationEvidence(classification, "terms:SeaFlesh");
+            }
+            if (ContainsAnyTerm(text, GetSpiritTerms()))
+            {
+                classification.IsSpirit = true;
+                AppendClassificationEvidence(classification, "terms:Spirit");
+            }
+            if (ContainsAnyTerm(text, GetFloraTerms()))
+            {
+                classification.IsFlora = true;
+                AppendClassificationEvidence(classification, "terms:Flora");
+            }
+        }
+
+        private void ApplySpecificTermTargetClassification(TargetClassification classification, string text)
+        {
+            if (classification == null || string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (classification.HasAnyFamily() && !classification.IsFlesh && !classification.IsFleshUndead)
+            {
+                return;
+            }
+
+            if (ContainsAnyTerm(text, GetArmoredHumanoidTerms()))
+            {
+                classification.IsArmoredHumanoid = true;
+                AppendClassificationEvidence(classification, "terms:ArmoredHumanoid");
+            }
+        }
+
+        private void AppendClassificationEvidence(TargetClassification classification, string evidence)
+        {
+            if (classification == null || string.IsNullOrEmpty(evidence))
+            {
+                return;
+            }
+
+            if (classification.Evidence == null)
+            {
+                classification.Evidence = evidence;
+                return;
+            }
+
+            if (classification.Evidence.IndexOf(evidence, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                classification.Evidence = classification.Evidence + "|" + evidence;
+            }
         }
 
         private DamageClassification ClassifyDamage(object damage)
@@ -450,6 +1265,17 @@ namespace SteelAndBone
             classification.IsPiercing = DamageHasSubtype(damage, "Piercing");
             classification.IsBludgeoning = DamageHasSubtype(damage, "Bludgeoning");
             classification.IsGenericPhysical = DamageHasSubtype(damage, "GenericPhysical");
+            if (!classification.HasSpecificPhysicalType()
+                && (classification.IsGenericPhysical || ValueNameContains(GetOptionalPropertyValue(damage, "Type"), "PhysicalHitSource")))
+            {
+                AddPhysicalWeaponTypeHints(damage, classification);
+            }
+            classification.IsGenericMagical = DamageHasSubtype(damage, "GenericMagical");
+            classification.IsBurn = ValueNameContains(GetOptionalPropertyValue(damage, "StatusDamageType"), "Burn");
+            classification.IsFire = DamageHasSubtype(damage, "Fire") || classification.IsBurn;
+            classification.IsCold = DamageHasSubtype(damage, "Cold");
+            classification.IsElectric = DamageHasSubtype(damage, "Electric");
+            classification.IsWet = DamageHasSubtype(damage, "Wet");
 
             if (classification.IsBloodMagic)
             {
@@ -483,6 +1309,30 @@ namespace SteelAndBone
             {
                 classification.Tags |= DamageTag.GenericPhysical;
             }
+            if (classification.IsGenericMagical)
+            {
+                classification.Tags |= DamageTag.GenericMagical;
+            }
+            if (classification.IsFire)
+            {
+                classification.Tags |= DamageTag.Fire;
+            }
+            if (classification.IsCold)
+            {
+                classification.Tags |= DamageTag.Cold;
+            }
+            if (classification.IsElectric)
+            {
+                classification.Tags |= DamageTag.Electric;
+            }
+            if (classification.IsWet)
+            {
+                classification.Tags |= DamageTag.Wet;
+            }
+            if (classification.IsBurn)
+            {
+                classification.Tags |= DamageTag.Burn;
+            }
 
             return classification;
         }
@@ -491,6 +1341,189 @@ namespace SteelAndBone
         {
             return EnumerablePartsContainName(GetOptionalPropertyValue(damage, "SubTypes"), "SubType", subtypeName)
                 || EnumerablePartsContainName(GetOptionalPropertyValue(GetOptionalPropertyValue(damage, "DamageTypeData"), "OriginalParts"), "SubType", subtypeName);
+        }
+
+        private void AddPhysicalWeaponTypeHints(object damage, DamageClassification classification)
+        {
+            if (damage == null || classification == null)
+            {
+                return;
+            }
+
+            if (TryApplyPhysicalWeaponTypeHint(GetOptionalPropertyValue(damage, "Item"), classification))
+            {
+                return;
+            }
+
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            if (TryApplyPhysicalWeaponTypeHint(GetOptionalPropertyValue(projectile, "SourceWeapon"), classification))
+            {
+                return;
+            }
+
+            TryApplyPhysicalWeaponTypeHint(GetOptionalPropertyValue(projectile, "SourceProjectile"), classification);
+        }
+
+        private bool TryApplyPhysicalWeaponTypeHint(object candidate, DamageClassification classification)
+        {
+            if (candidate == null || classification == null || IsDestroyedUnityObject(candidate))
+            {
+                return false;
+            }
+
+            if (TryApplyPhysicalWeaponTypeHintFromSingleObject(candidate, classification))
+            {
+                return true;
+            }
+
+            object item = GetOptionalPropertyValue(candidate, "Item");
+            if (item != null && !ReferenceEquals(item, candidate) && TryApplyPhysicalWeaponTypeHintFromSingleObject(item, classification))
+            {
+                return true;
+            }
+
+            object parent = GetOptionalPropertyValue(candidate, "ParentModel");
+            if (parent != null && !ReferenceEquals(parent, candidate) && TryApplyPhysicalWeaponTypeHintFromSingleObject(parent, classification))
+            {
+                return true;
+            }
+
+            object template = GetOptionalPropertyValue(candidate, "Template");
+            return template != null
+                && !ReferenceEquals(template, candidate)
+                && TryApplyPhysicalWeaponTypeHintFromSingleObject(template, classification);
+        }
+
+        private bool TryApplyPhysicalWeaponTypeHintFromSingleObject(object candidate, DamageClassification classification)
+        {
+            if (candidate == null || classification == null || IsDestroyedUnityObject(candidate))
+            {
+                return false;
+            }
+
+            if (GetOptionalBoolProperty(candidate, "IsBlunt"))
+            {
+                classification.IsBludgeoning = true;
+                classification.PhysicalTypeHint = "Bludgeoning from " + DescribeObject(candidate);
+                return true;
+            }
+
+            if (GetOptionalBoolProperty(candidate, "IsPolearm")
+                || GetOptionalBoolProperty(candidate, "IsDagger")
+                || GetOptionalBoolProperty(candidate, "IsRanged")
+                || GetOptionalBoolProperty(candidate, "IsArrow"))
+            {
+                classification.IsPiercing = true;
+                classification.PhysicalTypeHint = "Piercing from " + DescribeObject(candidate);
+                return true;
+            }
+
+            if (GetOptionalBoolProperty(candidate, "IsSword") || GetOptionalBoolProperty(candidate, "IsAxe"))
+            {
+                classification.IsSlashing = true;
+                classification.PhysicalTypeHint = "Slashing from " + DescribeObject(candidate);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void LogDamageCheckDiagnostic(
+            object target,
+            object damage,
+            TargetClassification targetClass,
+            DamageClassification damageClass)
+        {
+            if (!DiagnosticsEnabled())
+            {
+                return;
+            }
+
+            object item = GetOptionalPropertyValue(damage, "Item");
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            string physicalHint = string.IsNullOrEmpty(damageClass.PhysicalTypeHint)
+                ? ""
+                : ", physicalHint=" + damageClass.PhysicalTypeHint;
+            string targetEvidence = targetClass == null || string.IsNullOrEmpty(targetClass.Evidence)
+                ? ""
+                : ", familyEvidence=" + targetClass.Evidence;
+            string targetFlags = DescribeTargetFlags(targetClass);
+
+            LogDiagnostic(
+                "Damage check: target="
+                + DescribeObject(target)
+                + ", families="
+                + DescribeTargetFamilies(targetClass)
+                + targetEvidence
+                + ", targetFlags="
+                + targetFlags
+                + ", damageType="
+                + DescribeValue(GetOptionalPropertyValue(damage, "Type"))
+                + ", statusDamageType="
+                + DescribeValue(GetOptionalPropertyValue(damage, "StatusDamageType"))
+                + ", item="
+                + DescribeObject(item)
+                + ", projectile="
+                + DescribeObject(projectile)
+                + ", damageTags="
+                + DescribeDamageTags(damageClass)
+                + physicalHint
+                + ".");
+        }
+
+        private void LogNoRuleDiagnostic(
+            object target,
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            bool skippedForVanilla,
+            bool skippedForEliteClamp)
+        {
+            if (!DiagnosticsEnabled())
+            {
+                return;
+            }
+
+            LogDiagnostic(
+                "No Steel and Bone rule matched: target="
+                + DescribeObject(target)
+                + ", families="
+                + DescribeTargetFamilies(targetClass)
+                + ", targetFlags="
+                + DescribeTargetFlags(targetClass)
+                + ", damageTags="
+                + DescribeDamageTags(damageClass)
+                + ", reason="
+                + GetNoRuleReason(targetClass, damageClass, skippedForVanilla, skippedForEliteClamp)
+                + ".");
+        }
+
+        private string GetNoRuleReason(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            bool skippedForVanilla,
+            bool skippedForEliteClamp)
+        {
+            if (skippedForVanilla)
+            {
+                return "vanilla already handled matching subtype";
+            }
+
+            if (skippedForEliteClamp)
+            {
+                return "elite clamp neutralized custom rule";
+            }
+
+            if (targetClass == null || !targetClass.HasAnyFamily())
+            {
+                return "no target family";
+            }
+
+            if (damageClass == null || damageClass.Tags == DamageTag.None)
+            {
+                return "no damage tags";
+            }
+
+            return "no family/tag rule";
         }
 
         private bool EnumerablePartsContainName(object parts, string propertyName, string expected)
@@ -600,6 +1633,14 @@ namespace SteelAndBone
             AppendStringProperty(builder, obj, "TechnicalName");
             AppendStringProperty(builder, obj, "Id");
             AppendStringProperty(builder, obj, "ID");
+            AppendMemberSearchText(builder, obj, "SurfaceType");
+            AppendMemberSearchText(builder, obj, "surfaceType");
+            AppendMemberSearchText(builder, obj, "NpcType");
+            AppendMemberSearchText(builder, obj, "npcType");
+            AppendMemberSearchText(builder, obj, "Tags");
+            AppendMemberSearchText(builder, obj, "tags");
+            AppendMemberSearchText(builder, obj, "AbstractTypes");
+            AppendMemberSearchText(builder, obj, "_abstractTypes");
 
             object template = GetOptionalPropertyValue(obj, "Template");
             if (template != null && !ReferenceEquals(template, obj) && !IsDestroyedUnityObject(template))
@@ -613,9 +1654,57 @@ namespace SteelAndBone
                 AppendStringProperty(builder, template, "TechnicalName");
                 AppendStringProperty(builder, template, "GUID");
                 AppendStringProperty(builder, template, "Guid");
+                AppendMemberSearchText(builder, template, "SurfaceType");
+                AppendMemberSearchText(builder, template, "surfaceType");
+                AppendMemberSearchText(builder, template, "NpcType");
+                AppendMemberSearchText(builder, template, "npcType");
+                AppendMemberSearchText(builder, template, "Tags");
+                AppendMemberSearchText(builder, template, "tags");
+                AppendMemberSearchText(builder, template, "AbstractTypes");
+                AppendMemberSearchText(builder, template, "_abstractTypes");
             }
 
             return builder.ToString();
+        }
+
+        private string BuildTargetMetadataSearchText(object target, object healthElement)
+        {
+            StringBuilder builder = new StringBuilder();
+            AppendTargetMetadataSearchText(builder, target);
+            if (healthElement != null && !ReferenceEquals(healthElement, target))
+            {
+                AppendTargetMetadataSearchText(builder, healthElement);
+            }
+
+            return builder.ToString();
+        }
+
+        private void AppendTargetMetadataSearchText(StringBuilder builder, object obj)
+        {
+            if (builder == null || obj == null || IsDestroyedUnityObject(obj))
+            {
+                return;
+            }
+
+            AppendSingleTargetMetadataSearchText(builder, obj);
+
+            object template = GetOptionalPropertyValue(obj, "Template");
+            if (template != null && !ReferenceEquals(template, obj) && !IsDestroyedUnityObject(template))
+            {
+                AppendSingleTargetMetadataSearchText(builder, template);
+            }
+        }
+
+        private void AppendSingleTargetMetadataSearchText(StringBuilder builder, object obj)
+        {
+            AppendMemberSearchText(builder, obj, "SurfaceType");
+            AppendMemberSearchText(builder, obj, "surfaceType");
+            AppendMemberSearchText(builder, obj, "NpcType");
+            AppendMemberSearchText(builder, obj, "npcType");
+            AppendMemberSearchText(builder, obj, "Tags");
+            AppendMemberSearchText(builder, obj, "tags");
+            AppendMemberSearchText(builder, obj, "AbstractTypes");
+            AppendMemberSearchText(builder, obj, "_abstractTypes");
         }
 
         private void AppendStringProperty(StringBuilder builder, object obj, string propertyName)
@@ -633,6 +1722,67 @@ namespace SteelAndBone
             }
 
             if (!string.IsNullOrWhiteSpace(value))
+            {
+                builder.Append(value).Append(' ');
+            }
+        }
+
+        private void AppendMemberSearchText(StringBuilder builder, object obj, string memberName)
+        {
+            object value = GetOptionalMemberValue(obj, memberName);
+            AppendSearchValue(builder, value, 0);
+        }
+
+        private void AppendSearchValue(StringBuilder builder, object value, int depth)
+        {
+            if (builder == null || value == null || IsDestroyedUnityObject(value) || depth > 2)
+            {
+                return;
+            }
+
+            string text = value as string;
+            if (text != null)
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    builder.Append(text).Append(' ');
+                }
+                return;
+            }
+
+            Type type = value.GetType();
+            if (type.IsEnum || type.IsPrimitive || value is decimal)
+            {
+                builder.Append(value).Append(' ');
+                return;
+            }
+
+            IEnumerable enumerable = value as IEnumerable;
+            if (enumerable != null)
+            {
+                int count = 0;
+                foreach (object item in enumerable)
+                {
+                    if (count >= 32)
+                    {
+                        break;
+                    }
+
+                    AppendSearchValue(builder, item, depth + 1);
+                    count++;
+                }
+                return;
+            }
+
+            if (depth < 2)
+            {
+                builder.Append(type.Name).Append(' ');
+                AppendStringProperty(builder, value, "Name");
+                AppendStringProperty(builder, value, "DisplayName");
+                AppendStringProperty(builder, value, "DebugName");
+                AppendStringProperty(builder, value, "TechnicalName");
+            }
+            else
             {
                 builder.Append(value).Append(' ');
             }
@@ -737,19 +1887,59 @@ namespace SteelAndBone
             return false;
         }
 
-        private string[] GetSkeletonTerms()
+        private string[] GetBoneUndeadTerms()
         {
-            return GetTerms(_skeletonTerms, ref _cachedSkeletonTermsRaw, ref _cachedSkeletonTerms);
+            return GetTerms(_boneUndeadTerms, ref _cachedBoneUndeadTermsRaw, ref _cachedBoneUndeadTerms);
         }
 
-        private string[] GetGolemTerms()
+        private string[] GetConstructTerms()
         {
-            return GetTerms(_golemTerms, ref _cachedGolemTermsRaw, ref _cachedGolemTerms);
+            return GetTerms(_constructTerms, ref _cachedConstructTermsRaw, ref _cachedConstructTerms);
         }
 
         private string[] GetWyrdTerms()
         {
             return GetTerms(_wyrdTerms, ref _cachedWyrdTermsRaw, ref _cachedWyrdTerms);
+        }
+
+        private string[] GetDrownedZombieTerms()
+        {
+            return GetTerms(_drownedZombieTerms, ref _cachedDrownedZombieTermsRaw, ref _cachedDrownedZombieTerms);
+        }
+
+        private string[] GetInfectedFleshTerms()
+        {
+            return GetTerms(_infectedFleshTerms, ref _cachedInfectedFleshTermsRaw, ref _cachedInfectedFleshTerms);
+        }
+
+        private string[] GetSeaFleshTerms()
+        {
+            return GetTerms(_seaFleshTerms, ref _cachedSeaFleshTermsRaw, ref _cachedSeaFleshTerms);
+        }
+
+        private string[] GetSpiritTerms()
+        {
+            return GetTerms(_spiritTerms, ref _cachedSpiritTermsRaw, ref _cachedSpiritTerms);
+        }
+
+        private string[] GetFloraTerms()
+        {
+            return GetTerms(_floraTerms, ref _cachedFloraTermsRaw, ref _cachedFloraTerms);
+        }
+
+        private string[] GetFleshUndeadTerms()
+        {
+            return GetTerms(_fleshUndeadTerms, ref _cachedFleshUndeadTermsRaw, ref _cachedFleshUndeadTerms);
+        }
+
+        private string[] GetFleshTerms()
+        {
+            return GetTerms(_fleshTerms, ref _cachedFleshTermsRaw, ref _cachedFleshTerms);
+        }
+
+        private string[] GetArmoredHumanoidTerms()
+        {
+            return GetTerms(_armoredHumanoidTerms, ref _cachedArmoredHumanoidTermsRaw, ref _cachedArmoredHumanoidTerms);
         }
 
         private string[] GetTerms(ConfigEntry<string> entry, ref string cachedRaw, ref string[] cachedTerms)
@@ -805,129 +1995,328 @@ namespace SteelAndBone
             return false;
         }
 
-        private void QueueResistanceText(float multiplier)
+        private void RememberDamageFeedback(object damage, float multiplier, string targetLabel, string damageLabel)
         {
-            if (_resistanceTextEnabled == null || !_resistanceTextEnabled.Value)
+            if (_damageNumbersEnabled == null || !_damageNumbersEnabled.Value || damage == null)
             {
                 return;
             }
 
             float now = Time.unscaledTime;
-            float cooldown = _resistanceTextCooldownSeconds == null ? 0.0f : Math.Max(0.0f, _resistanceTextCooldownSeconds.Value);
-            if (cooldown > 0.0f && now - _lastOverlayTime < cooldown && multiplier >= _lastOverlayMultiplier)
-            {
-                return;
-            }
+            PrunePendingDamageFeedback(now);
 
-            _lastOverlayTime = now;
-            _lastOverlayMultiplier = multiplier;
-            _overlayNotification = new ResistanceOverlayNotification
+            int key = RuntimeHelpers.GetHashCode(damage);
+            _pendingDamageFeedback[key] = new PendingDamageFeedback
             {
-                Text = "Resistant",
+                Damage = damage,
                 Multiplier = multiplier,
-                StartTime = now
+                TargetLabel = targetLabel,
+                DamageLabel = damageLabel,
+                CreatedAt = now
+            };
+
+            TrimPendingDamageFeedback();
+        }
+
+        internal void HandleDamageOutcome(object healthElement, object damageOutcome)
+        {
+            if (damageOutcome == null || !DamageNumbersActive())
+            {
+                return;
+            }
+
+            object damage = GetOptionalMemberValue(damageOutcome, "Damage");
+            PendingDamageFeedback feedback;
+            if (!TryConsumeDamageFeedback(damage, out feedback) && !IsOutgoingHeroDamageOutcome(healthElement, damage))
+            {
+                return;
+            }
+
+            float finalAmount;
+            if (!TryGetFloatMemberValue(damageOutcome, "FinalAmount", out finalAmount)
+                && !TryGetFloatMemberValue(damage, "Amount", out finalAmount))
+            {
+                return;
+            }
+
+            if (float.IsNaN(finalAmount) || float.IsInfinity(finalAmount) || finalAmount < 0.0f)
+            {
+                return;
+            }
+
+            bool immune = finalAmount <= 0.0001f;
+            if (!immune && finalAmount <= GetDamageNumberMinimumAmount())
+            {
+                return;
+            }
+
+            Vector3 position;
+            if (!TryGetVector3MemberValue(damageOutcome, "Position", out position)
+                && !TryGetVector3MemberValue(damage, "Position", out position))
+            {
+                position = Vector3.zero;
+            }
+
+            object modifiersInfo = GetOptionalMemberValue(damageOutcome, "DamageModifiersInfo");
+            bool critical = IsTrueMember(damage, "Critical")
+                || IsTrueMember(damage, "IsCritical")
+                || IsTrueMember(modifiersInfo, "AnyCritical");
+            bool weakSpot = IsTrueMember(damage, "WeakSpotHit")
+                || IsTrueMember(damage, "IsWeakSpot")
+                || IsTrueMember(modifiersInfo, "IsWeakSpot");
+
+            DamageNumberVisual visual = BuildDamageNumberVisual(finalAmount, feedback, critical, weakSpot, immune);
+            _damageNumberRenderer.ShowDamageNumber(position, visual);
+        }
+
+        private bool DamageNumbersActive()
+        {
+            return _enabled != null
+                && _enabled.Value
+                && _damageNumbersEnabled != null
+                && _damageNumbersEnabled.Value
+                && _damageNumberRenderer != null;
+        }
+
+        private bool IsOutgoingHeroDamageOutcome(object healthElement, object damage)
+        {
+            object hero = GetCurrentHero();
+            if (hero == null || !IsHeroDamageSource(damage, hero))
+            {
+                return false;
+            }
+
+            object heroHealthElement = GetOptionalPropertyValue(hero, "HealthElement");
+            if (ReferenceEquals(healthElement, heroHealthElement))
+            {
+                return false;
+            }
+
+            object target = ResolveDamageTargetOwner(healthElement, damage);
+            return target == null || !IsSameModelOrOwner(target, hero);
+        }
+
+        private bool TryConsumeDamageFeedback(object damage, out PendingDamageFeedback feedback)
+        {
+            feedback = null;
+            if (damage == null)
+            {
+                return false;
+            }
+
+            PrunePendingDamageFeedback(Time.unscaledTime);
+
+            int key = RuntimeHelpers.GetHashCode(damage);
+            PendingDamageFeedback pending;
+            if (!_pendingDamageFeedback.TryGetValue(key, out pending) || !ReferenceEquals(pending.Damage, damage))
+            {
+                return false;
+            }
+
+            _pendingDamageFeedback.Remove(key);
+            feedback = pending;
+            return true;
+        }
+
+        private void PrunePendingDamageFeedback(float now)
+        {
+            if (_pendingDamageFeedback.Count == 0)
+            {
+                return;
+            }
+
+            List<int> expiredKeys = null;
+            foreach (KeyValuePair<int, PendingDamageFeedback> pair in _pendingDamageFeedback)
+            {
+                if (now - pair.Value.CreatedAt <= PendingDamageFeedbackLifetimeSeconds)
+                {
+                    continue;
+                }
+
+                if (expiredKeys == null)
+                {
+                    expiredKeys = new List<int>();
+                }
+
+                expiredKeys.Add(pair.Key);
+            }
+
+            if (expiredKeys == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < expiredKeys.Count; i++)
+            {
+                _pendingDamageFeedback.Remove(expiredKeys[i]);
+            }
+        }
+
+        private void TrimPendingDamageFeedback()
+        {
+            while (_pendingDamageFeedback.Count > MaxPendingDamageFeedback)
+            {
+                int oldestKey = 0;
+                bool foundOldest = false;
+                float oldestTime = float.MaxValue;
+                foreach (KeyValuePair<int, PendingDamageFeedback> pair in _pendingDamageFeedback)
+                {
+                    if (!foundOldest || pair.Value.CreatedAt < oldestTime)
+                    {
+                        foundOldest = true;
+                        oldestKey = pair.Key;
+                        oldestTime = pair.Value.CreatedAt;
+                    }
+                }
+
+                if (!foundOldest)
+                {
+                    return;
+                }
+
+                _pendingDamageFeedback.Remove(oldestKey);
+            }
+        }
+
+        private DamageNumberVisual BuildDamageNumberVisual(
+            float finalAmount,
+            PendingDamageFeedback feedback,
+            bool critical,
+            bool weakSpot,
+            bool immune)
+        {
+            float multiplier = feedback == null ? 1.0f : feedback.Multiplier;
+            float resistance = multiplier < 0.999f ? Mathf.Clamp01((1.0f - multiplier) / 0.95f) : 0.0f;
+            float weakness = multiplier > 1.001f ? Mathf.Clamp01(multiplier - 1.0f) : 0.0f;
+
+            Color baseColor = GetDamageNumberBaseColor();
+            Color color = baseColor;
+            float scale = 1.0f;
+            float duration = GetDamageNumberDurationSeconds();
+            float fadeStart = 0.58f;
+            float horizontalDistance = UnityEngine.Random.Range(18.0f, 42.0f);
+            float verticalRise = UnityEngine.Random.Range(68.0f, 92.0f);
+            float gravity = UnityEngine.Random.Range(12.0f, 24.0f);
+
+            if (resistance > 0.0f)
+            {
+                float tone = Mathf.Clamp01(0.18f + (resistance * 0.82f));
+                color = Color.Lerp(baseColor, ResistedDamageNumberColor, tone);
+                scale = Mathf.Lerp(0.96f, 0.68f, resistance);
+                duration = Mathf.Lerp(duration, 0.60f, resistance);
+                fadeStart = 0.44f;
+                horizontalDistance = UnityEngine.Random.Range(26.0f, 52.0f);
+                verticalRise = UnityEngine.Random.Range(42.0f, 66.0f);
+                gravity = UnityEngine.Random.Range(18.0f, 32.0f);
+            }
+            else if (weakness > 0.0f)
+            {
+                float tone = Mathf.Clamp01(0.30f + (weakness * 0.70f));
+                color = Color.Lerp(baseColor, WeaknessDamageNumberColor, tone);
+                scale = Mathf.Lerp(1.12f, 1.46f, weakness);
+                duration = Mathf.Max(duration, Mathf.Lerp(duration, 1.05f, weakness));
+                fadeStart = 0.62f;
+                horizontalDistance = UnityEngine.Random.Range(8.0f, 24.0f);
+                verticalRise = UnityEngine.Random.Range(82.0f, 122.0f);
+                gravity = UnityEngine.Random.Range(8.0f, 18.0f);
+            }
+
+            if (immune)
+            {
+                color = ImmuneDamageNumberColor;
+                scale = 0.82f;
+                duration = 0.72f;
+                fadeStart = 0.46f;
+                horizontalDistance = UnityEngine.Random.Range(16.0f, 34.0f);
+                verticalRise = UnityEngine.Random.Range(36.0f, 52.0f);
+                gravity = UnityEngine.Random.Range(18.0f, 30.0f);
+            }
+
+            if (critical)
+            {
+                scale *= 1.25f;
+                duration = Mathf.Max(duration, GetDamageNumberCriticalDurationSeconds());
+                fadeStart = Mathf.Max(fadeStart, 0.64f);
+                horizontalDistance *= 0.58f;
+                verticalRise += 26.0f;
+                gravity *= 0.72f;
+            }
+
+            if (weakSpot)
+            {
+                scale += 0.08f;
+                verticalRise += 8.0f;
+            }
+
+            return new DamageNumberVisual
+            {
+                Text = immune ? "IMMUNE" : FormatDamageAmount(finalAmount),
+                Color = color,
+                OutlineColor = DamageNumberOutlineColor,
+                FontSize = GetDamageNumberFontSize(),
+                StartScale = Mathf.Clamp(scale * (critical ? 1.18f : 1.05f), 0.55f, 1.95f),
+                EndScale = Mathf.Clamp(scale, 0.55f, 1.80f),
+                DurationSeconds = duration,
+                FadeStart = Mathf.Clamp(fadeStart, 0.20f, 0.90f),
+                Direction = UnityEngine.Random.value < 0.5f ? -1.0f : 1.0f,
+                HorizontalDistance = horizontalDistance,
+                VerticalRise = verticalRise,
+                Gravity = gravity,
+                Critical = critical
             };
         }
 
-        private void OnGUI()
+        private string FormatDamageAmount(float finalAmount)
         {
-            if (_overlayNotification == null || _enabled == null || !_enabled.Value || _resistanceTextEnabled == null || !_resistanceTextEnabled.Value)
+            if (finalAmount >= 10.0f)
             {
-                return;
+                return Mathf.RoundToInt(finalAmount).ToString("N0", CultureInfo.InvariantCulture);
             }
 
-            float duration = Math.Max(0.05f, _resistanceTextDurationSeconds.Value);
-            float elapsed = Time.unscaledTime - _overlayNotification.StartTime;
-            if (elapsed > duration)
-            {
-                _overlayNotification = null;
-                return;
-            }
-
-            float scale = Math.Max(0.05f, _resistanceTextScale.Value);
-            int fontSize = Math.Max(1, (int)Math.Round(Math.Max(1, _resistanceTextFontSize.Value) * scale));
-            EnsureOverlayStyles(fontSize);
-
-            float width = Math.Max(20.0f, _resistanceTextWidth.Value * scale);
-            float height = Math.Max(fontSize + 10.0f, 32.0f * scale);
-            float centerX = Screen.width * _resistanceTextCenterX.Value;
-            float centerY = Screen.height * _resistanceTextCenterY.Value;
-            Rect rect = new Rect(centerX - width * 0.5f, centerY - height * 0.5f, width, height);
-            Rect shadowRect = new Rect(rect.x + Math.Max(1.0f, 2.0f * scale), rect.y + Math.Max(1.0f, 2.0f * scale), rect.width, rect.height);
-
-            float alpha = GetOverlayAlpha(elapsed, duration) * Math.Max(0.0f, _resistanceTextOpacity.Value);
-            Color textColor = GetResistanceTextColor(_overlayNotification.Multiplier, alpha);
-            Color previousColor = GUI.color;
-            int previousDepth = GUI.depth;
-            Color previousTextColor = _overlayTextStyle.normal.textColor;
-            Color previousShadowColor = _overlayShadowStyle.normal.textColor;
-
-            GUI.depth = -1000;
-            _overlayTextStyle.normal.textColor = textColor;
-            _overlayShadowStyle.normal.textColor = new Color(0.0f, 0.0f, 0.0f, alpha * 0.8f);
-
-            GUI.Label(shadowRect, _overlayNotification.Text, _overlayShadowStyle);
-            GUI.Label(rect, _overlayNotification.Text, _overlayTextStyle);
-
-            _overlayTextStyle.normal.textColor = previousTextColor;
-            _overlayShadowStyle.normal.textColor = previousShadowColor;
-            GUI.depth = previousDepth;
-            GUI.color = previousColor;
+            return finalAmount.ToString("0.#", CultureInfo.InvariantCulture);
         }
 
-        private Color GetResistanceTextColor(float multiplier, float alpha)
+        private Color GetDamageNumberBaseColor()
         {
-            if (multiplier <= 0.0001f)
+            Color color;
+            string configured = _damageNumberBaseColor == null ? null : _damageNumberBaseColor.Value;
+            if (!string.IsNullOrWhiteSpace(configured) && ColorUtility.TryParseHtmlString(configured.Trim(), out color))
             {
-                return new Color(1.0f, 0.04f, 0.02f, alpha);
+                color.a = 1.0f;
+                return color;
             }
 
-            float severity = 1.0f - Clamp(multiplier / 0.75f, 0.0f, 1.0f);
-            Color start = new Color(1.0f, 0.72f, 0.18f, alpha);
-            Color end = new Color(1.0f, 0.08f, 0.03f, alpha);
-            return Color.Lerp(start, end, severity);
+            return DefaultDamageNumberColor;
         }
 
-        private float GetOverlayAlpha(float elapsed, float duration)
+        private int GetDamageNumberFontSize()
         {
-            float fade = Math.Max(0.0f, _resistanceTextFadeSeconds.Value);
-            if (fade <= 0.001f)
-            {
-                return 1.0f;
-            }
-
-            float alpha = 1.0f;
-            if (elapsed < fade)
-            {
-                alpha = Math.Min(alpha, elapsed / fade);
-            }
-
-            float remaining = duration - elapsed;
-            if (remaining < fade)
-            {
-                alpha = Math.Min(alpha, Math.Max(0.0f, remaining / fade));
-            }
-
-            return Clamp(alpha, 0.0f, 1.0f);
+            int value = _damageNumberFontSize == null ? 34 : _damageNumberFontSize.Value;
+            return Math.Max(12, Math.Min(80, value));
         }
 
-        private void EnsureOverlayStyles(int fontSize)
+        private float GetDamageNumberDurationSeconds()
         {
-            if (_overlayTextStyle != null && _overlayStyleFontSize == fontSize)
-            {
-                return;
-            }
+            float value = _damageNumberDurationSeconds == null ? 0.85f : _damageNumberDurationSeconds.Value;
+            return Clamp(value, 0.35f, 2.50f);
+        }
 
-            _overlayStyleFontSize = fontSize;
-            _overlayTextStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = fontSize,
-                fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Overflow,
-                wordWrap = false
-            };
-            _overlayShadowStyle = new GUIStyle(_overlayTextStyle);
+        private float GetDamageNumberCriticalDurationSeconds()
+        {
+            float value = _damageNumberCriticalDurationSeconds == null ? 1.10f : _damageNumberCriticalDurationSeconds.Value;
+            return Clamp(value, 0.45f, 3.00f);
+        }
+
+        private float GetDamageNumberMinimumAmount()
+        {
+            float value = _damageNumberMinimumAmount == null ? 0.10f : _damageNumberMinimumAmount.Value;
+            return Clamp(value, 0.0f, 1000.0f);
+        }
+
+        private int GetDamageNumberMaximumActive()
+        {
+            int value = _damageNumberMaximumActive == null ? 36 : _damageNumberMaximumActive.Value;
+            return Math.Max(1, Math.Min(128, value));
         }
 
         private object GetOptionalPropertyValue(object instance, string propertyName)
@@ -953,6 +2342,35 @@ namespace SteelAndBone
             return null;
         }
 
+        private object GetOptionalMemberValue(object instance, string memberName)
+        {
+            if (instance == null || string.IsNullOrEmpty(memberName))
+            {
+                return null;
+            }
+
+            object value = GetOptionalPropertyValue(instance, memberName);
+            if (value != null)
+            {
+                return value;
+            }
+
+            try
+            {
+                FieldInfo field = instance.GetType().GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    return field.GetValue(instance);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
+        }
+
         private int GetOptionalIntProperty(object instance, string propertyName, int fallback)
         {
             object value = GetOptionalPropertyValue(instance, propertyName);
@@ -967,6 +2385,93 @@ namespace SteelAndBone
             }
 
             return fallback;
+        }
+
+        private bool GetOptionalBoolProperty(object instance, string propertyName)
+        {
+            object value = GetOptionalPropertyValue(instance, propertyName);
+            return value is bool && (bool)value;
+        }
+
+        private bool IsTrueMember(object instance, string memberName)
+        {
+            bool value;
+            return TryGetBoolMemberValue(instance, memberName, out value) && value;
+        }
+
+        private bool TryGetBoolMemberValue(object instance, string memberName, out bool value)
+        {
+            value = false;
+            object raw = GetOptionalMemberValue(instance, memberName);
+            if (raw is bool)
+            {
+                value = (bool)raw;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryGetFloatMemberValue(object instance, string memberName, out float value)
+        {
+            value = 0.0f;
+            object raw = GetOptionalMemberValue(instance, memberName);
+            if (raw == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                if (raw is float)
+                {
+                    value = (float)raw;
+                    return true;
+                }
+
+                if (raw is double)
+                {
+                    value = (float)(double)raw;
+                    return true;
+                }
+
+                if (raw is int)
+                {
+                    value = (int)raw;
+                    return true;
+                }
+
+                if (raw is long)
+                {
+                    value = (long)raw;
+                    return true;
+                }
+
+                if (raw is IConvertible)
+                {
+                    value = Convert.ToSingle(raw, CultureInfo.InvariantCulture);
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        private bool TryGetVector3MemberValue(object instance, string memberName, out Vector3 value)
+        {
+            value = Vector3.zero;
+            object raw = GetOptionalMemberValue(instance, memberName);
+            if (raw is Vector3)
+            {
+                value = (Vector3)raw;
+                return true;
+            }
+
+            return false;
         }
 
         private PropertyInfo GetIndexerProperty(Type type)
@@ -1049,6 +2554,85 @@ namespace SteelAndBone
             return value.GetType().Name;
         }
 
+        private string DescribeValue(object value)
+        {
+            if (value == null)
+            {
+                return "null";
+            }
+
+            string text = value as string;
+            if (text != null)
+            {
+                return text.Length == 0 ? "\"\"" : text;
+            }
+
+            Type type = value.GetType();
+            if (type.IsEnum || type.IsPrimitive || value is decimal)
+            {
+                return value.ToString();
+            }
+
+            return DescribeObject(value);
+        }
+
+        private string DescribeTargetFamilies(TargetClassification classification)
+        {
+            if (classification == null)
+            {
+                return "None";
+            }
+
+            StringBuilder builder = new StringBuilder();
+            AppendDiagnosticLabel(builder, classification.IsBoneUndead, "BoneUndead");
+            AppendDiagnosticLabel(builder, classification.IsConstruct, "Construct");
+            AppendDiagnosticLabel(builder, classification.IsArmoredHumanoid, "ArmoredHumanoid");
+            AppendDiagnosticLabel(builder, classification.IsFlesh, "Flesh");
+            AppendDiagnosticLabel(builder, classification.IsFleshUndead, "FleshUndead");
+            AppendDiagnosticLabel(builder, classification.IsWyrd, "Wyrd");
+            AppendDiagnosticLabel(builder, classification.IsDrownedZombie, "DrownedZombie");
+            AppendDiagnosticLabel(builder, classification.IsInfectedFlesh, "InfectedFlesh");
+            AppendDiagnosticLabel(builder, classification.IsSeaFlesh, "SeaFlesh");
+            AppendDiagnosticLabel(builder, classification.IsSpirit, "Spirit");
+            AppendDiagnosticLabel(builder, classification.IsFlora, "Flora");
+            return builder.Length == 0 ? "None" : builder.ToString();
+        }
+
+        private string DescribeTargetFlags(TargetClassification classification)
+        {
+            if (classification == null || !classification.IsEliteClass)
+            {
+                return "None";
+            }
+
+            return "EliteClass";
+        }
+
+        private string DescribeDamageTags(DamageClassification classification)
+        {
+            if (classification == null || classification.Tags == DamageTag.None)
+            {
+                return "None";
+            }
+
+            return classification.Tags.ToString();
+        }
+
+        private void AppendDiagnosticLabel(StringBuilder builder, bool include, string label)
+        {
+            if (!include)
+            {
+                return;
+            }
+
+            if (builder.Length > 0)
+            {
+                builder.Append("|");
+            }
+
+            builder.Append(label);
+        }
+
         private float Clamp(float value, float min, float max)
         {
             if (value < min)
@@ -1065,10 +2649,15 @@ namespace SteelAndBone
 
         private void LogDiagnostic(string message)
         {
-            if (_diagnostics != null && _diagnostics.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo(message);
             }
+        }
+
+        private bool DiagnosticsEnabled()
+        {
+            return _diagnostics != null && _diagnostics.Value;
         }
 
         private void Warn(string message)
@@ -1081,16 +2670,24 @@ namespace SteelAndBone
 
         private enum Preset
         {
-            Bloodied,
-            Forsaken,
-            Nightmare
+            Tempered,
+            Hardened,
+            Crucible
         }
 
         private enum TargetFamily
         {
-            Skeleton,
-            Golem,
-            Wyrd
+            BoneUndead,
+            Construct,
+            ArmoredHumanoid,
+            Flesh,
+            FleshUndead,
+            Wyrd,
+            DrownedZombie,
+            InfectedFlesh,
+            SeaFlesh,
+            Spirit,
+            Flora
         }
 
         [Flags]
@@ -1104,50 +2701,75 @@ namespace SteelAndBone
             Slashing = 16,
             Piercing = 32,
             Bludgeoning = 64,
-            GenericPhysical = 128
+            GenericPhysical = 128,
+            GenericMagical = 256,
+            Fire = 512,
+            Cold = 1024,
+            Electric = 2048,
+            Wet = 4096,
+            Burn = 8192
         }
 
-        private sealed class ResistanceRule
+        private sealed class NativeSubtypeCheck
+        {
+            public readonly DamageTag Tag;
+            public readonly string SubtypeName;
+
+            public NativeSubtypeCheck(DamageTag tag, string subtypeName)
+            {
+                Tag = tag;
+                SubtypeName = subtypeName;
+            }
+        }
+
+        private sealed class DamageRule
         {
             public readonly TargetFamily TargetFamily;
             public readonly DamageTag DamageTags;
             public readonly string TargetLabel;
             public readonly string DamageLabel;
-            private readonly float _bloodiedMultiplier;
-            private readonly float _forsakenMultiplier;
-            private readonly float _nightmareMultiplier;
+            public readonly float BaseMultiplier;
+            public readonly int Priority;
 
-            public ResistanceRule(
+            public DamageRule(
                 TargetFamily targetFamily,
                 DamageTag damageTags,
                 string targetLabel,
                 string damageLabel,
-                float bloodiedMultiplier,
-                float forsakenMultiplier,
-                float nightmareMultiplier)
+                float baseMultiplier,
+                int priority)
             {
                 TargetFamily = targetFamily;
                 DamageTags = damageTags;
                 TargetLabel = targetLabel;
                 DamageLabel = damageLabel;
-                _bloodiedMultiplier = bloodiedMultiplier;
-                _forsakenMultiplier = forsakenMultiplier;
-                _nightmareMultiplier = nightmareMultiplier;
+                BaseMultiplier = baseMultiplier;
+                Priority = priority;
             }
 
-            public float GetMultiplier(Preset preset)
+            public bool MatchesDamageTag(DamageTag tag)
             {
-                switch (preset)
-                {
-                    case Preset.Bloodied:
-                        return _bloodiedMultiplier;
-                    case Preset.Nightmare:
-                        return _nightmareMultiplier;
-                    case Preset.Forsaken:
-                    default:
-                        return _forsakenMultiplier;
-                }
+                return (DamageTags & tag) != DamageTag.None;
             }
+        }
+
+        private sealed class DamageRuleMatch
+        {
+            public float Multiplier;
+            public string TargetLabel;
+            public string DamageLabel;
+            public int Priority;
+            public float Impact;
+            public float PresetMultiplier;
+            public bool WasEliteClamped;
+        }
+
+        private sealed class VanillaMultiplierAmplification
+        {
+            public string SubtypeName;
+            public float NativeMultiplier;
+            public float AmplifiedMultiplier;
+            public float AdjustmentMultiplier;
         }
 
         private sealed class TargetClassification
@@ -1156,9 +2778,40 @@ namespace SteelAndBone
 
             public object Key;
             public int Revision;
-            public bool IsSkeleton;
-            public bool IsGolem;
+            public bool HasMetadataEvidence;
+            public string Evidence;
+            public bool IsBoneUndead;
+            public bool IsConstruct;
+            public bool IsArmoredHumanoid;
+            public bool IsFlesh;
+            public bool IsFleshUndead;
             public bool IsWyrd;
+            public bool IsDrownedZombie;
+            public bool IsInfectedFlesh;
+            public bool IsSeaFlesh;
+            public bool IsSpirit;
+            public bool IsFlora;
+            public bool IsEliteClass;
+
+            public bool HasAnyFamily()
+            {
+                return IsBoneUndead
+                    || IsConstruct
+                    || IsArmoredHumanoid
+                    || IsFlesh
+                    || IsFleshUndead
+                    || IsWyrd
+                    || IsDrownedZombie
+                    || IsInfectedFlesh
+                    || IsSeaFlesh
+                    || IsSpirit
+                    || IsFlora;
+            }
+
+            public bool HasMetadataFamily()
+            {
+                return HasMetadataEvidence && HasAnyFamily();
+            }
         }
 
         private sealed class DamageClassification
@@ -1173,7 +2826,19 @@ namespace SteelAndBone
             public bool IsPiercing;
             public bool IsBludgeoning;
             public bool IsGenericPhysical;
+            public bool IsGenericMagical;
+            public bool IsFire;
+            public bool IsCold;
+            public bool IsElectric;
+            public bool IsWet;
+            public bool IsBurn;
             public DamageTag Tags;
+            public string PhysicalTypeHint;
+
+            public bool HasSpecificPhysicalType()
+            {
+                return IsSlashing || IsPiercing || IsBludgeoning;
+            }
 
             public bool HasAny(DamageTag tags)
             {
@@ -1181,11 +2846,183 @@ namespace SteelAndBone
             }
         }
 
-        private sealed class ResistanceOverlayNotification
+        private sealed class PendingDamageFeedback
+        {
+            public object Damage;
+            public float Multiplier;
+            public string TargetLabel;
+            public string DamageLabel;
+            public float CreatedAt;
+        }
+
+        private sealed class DamageNumberVisual
         {
             public string Text;
-            public float Multiplier;
+            public Color Color;
+            public Color OutlineColor;
+            public int FontSize;
+            public float StartScale;
+            public float EndScale;
+            public float DurationSeconds;
+            public float FadeStart;
+            public float Direction;
+            public float HorizontalDistance;
+            public float VerticalRise;
+            public float Gravity;
+            public bool Critical;
+        }
+
+        private sealed class DamageNumberEntry
+        {
+            public Vector3 WorldPosition;
             public float StartTime;
+            public DamageNumberVisual Visual;
+        }
+
+        private sealed class DamageNumberRenderer : MonoBehaviour
+        {
+            private readonly List<DamageNumberEntry> _entries = new List<DamageNumberEntry>();
+            private SteelAndBonePlugin _plugin;
+            private GUIStyle _style;
+
+            public void Initialize(SteelAndBonePlugin plugin)
+            {
+                _plugin = plugin;
+                hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            public void ShowDamageNumber(Vector3 worldPosition, DamageNumberVisual visual)
+            {
+                if (_plugin == null || visual == null || string.IsNullOrEmpty(visual.Text))
+                {
+                    return;
+                }
+
+                int maximumActive = _plugin.GetDamageNumberMaximumActive();
+                while (_entries.Count >= maximumActive)
+                {
+                    _entries.RemoveAt(0);
+                }
+
+                _entries.Add(new DamageNumberEntry
+                {
+                    WorldPosition = worldPosition + (Vector3.up * UnityEngine.Random.Range(0.25f, 0.65f)),
+                    StartTime = Time.unscaledTime,
+                    Visual = visual
+                });
+            }
+
+            private void OnGUI()
+            {
+                if (_plugin == null || _entries.Count == 0 || Event.current == null || Event.current.type != EventType.Repaint)
+                {
+                    return;
+                }
+
+                Camera camera = Camera.main;
+                if (camera == null)
+                {
+                    return;
+                }
+
+                EnsureStyle();
+
+                float now = Time.unscaledTime;
+                for (int i = _entries.Count - 1; i >= 0; i--)
+                {
+                    DamageNumberEntry entry = _entries[i];
+                    DamageNumberVisual visual = entry.Visual;
+                    float duration = Math.Max(0.05f, visual.DurationSeconds);
+                    float elapsed = now - entry.StartTime;
+                    if (elapsed >= duration)
+                    {
+                        _entries.RemoveAt(i);
+                        continue;
+                    }
+
+                    Vector3 projected = camera.WorldToScreenPoint(entry.WorldPosition);
+                    if (projected.z <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    float t = Mathf.Clamp01(elapsed / duration);
+                    DrawEntry(projected, visual, t);
+                }
+            }
+
+            private void EnsureStyle()
+            {
+                if (_style != null)
+                {
+                    return;
+                }
+
+                _style = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    clipping = TextClipping.Overflow,
+                    fontStyle = FontStyle.Bold,
+                    richText = false,
+                    wordWrap = false
+                };
+            }
+
+            private void DrawEntry(Vector3 projected, DamageNumberVisual visual, float t)
+            {
+                float smoothT = Mathf.SmoothStep(0.0f, 1.0f, t);
+                float scale = Mathf.Lerp(visual.StartScale, visual.EndScale, smoothT);
+                if (visual.Critical)
+                {
+                    scale *= Mathf.Lerp(1.16f, 1.0f, Mathf.Clamp01(t / 0.22f));
+                }
+
+                float fadeStart = Mathf.Clamp(visual.FadeStart, 0.01f, 0.99f);
+                float alpha = t <= fadeStart ? 1.0f : 1.0f - Mathf.Clamp01((t - fadeStart) / (1.0f - fadeStart));
+                if (alpha <= 0.01f)
+                {
+                    return;
+                }
+
+                float xOffset = visual.Direction * visual.HorizontalDistance * Mathf.Sin(t * Mathf.PI * 0.75f);
+                float yOffset = (-visual.VerticalRise * t) + (visual.Gravity * t * t);
+                float centerX = projected.x + xOffset;
+                float centerY = Screen.height - projected.y + yOffset;
+
+                int fontSize = Math.Max(8, Mathf.RoundToInt(visual.FontSize * scale));
+                _style.fontSize = fontSize;
+
+                GUIContent content = new GUIContent(visual.Text);
+                Vector2 size = _style.CalcSize(content);
+                Rect rect = new Rect(
+                    centerX - (size.x * 0.5f) - 6.0f,
+                    centerY - (size.y * 0.5f) - 3.0f,
+                    size.x + 12.0f,
+                    size.y + 6.0f);
+
+                DrawOutlinedLabel(rect, content, WithAlpha(visual.Color, alpha), WithAlpha(visual.OutlineColor, alpha * 0.88f));
+            }
+
+            private void DrawOutlinedLabel(Rect rect, GUIContent content, Color textColor, Color outlineColor)
+            {
+                _style.normal.textColor = outlineColor;
+                const float offset = 2.0f;
+                GUI.Label(new Rect(rect.x - offset, rect.y, rect.width, rect.height), content, _style);
+                GUI.Label(new Rect(rect.x + offset, rect.y, rect.width, rect.height), content, _style);
+                GUI.Label(new Rect(rect.x, rect.y - offset, rect.width, rect.height), content, _style);
+                GUI.Label(new Rect(rect.x, rect.y + offset, rect.width, rect.height), content, _style);
+                GUI.Label(new Rect(rect.x - offset, rect.y - offset, rect.width, rect.height), content, _style);
+                GUI.Label(new Rect(rect.x + offset, rect.y + offset, rect.width, rect.height), content, _style);
+
+                _style.normal.textColor = textColor;
+                GUI.Label(rect, content, _style);
+            }
+
+            private static Color WithAlpha(Color color, float alpha)
+            {
+                color.a *= Mathf.Clamp01(alpha);
+                return color;
+            }
         }
 
         private static class ApplyDamageModifiersPatch
@@ -1195,7 +3032,19 @@ namespace SteelAndBone
                 SteelAndBonePlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.ApplyResistanceModifier(__instance, damage, ref dmgModifier);
+                    plugin.ApplyDamageRuleModifier(__instance, damage, ref dmgModifier);
+                }
+            }
+        }
+
+        private static class AfterHealthDecreaseEventsPatch
+        {
+            public static void Postfix(object __instance, object[] __args)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null && __args != null && __args.Length > 0)
+                {
+                    plugin.HandleDamageOutcome(__instance, __args[0]);
                 }
             }
         }

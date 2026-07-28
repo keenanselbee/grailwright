@@ -1,4 +1,71 @@
-﻿Version 0.2.0
+Version 0.9.1
+Changed built-in damage numbers to display all outgoing player damage, using the base color for neutral hits.
+Updated feedback config descriptions and raised ConfigSchemaVersion to 11 so regenerated configs no longer imply damage numbers are limited to weakness or resistance hits.
+
+Version 0.9.0
+Added a cautious FleshUndead family for reliable Zombie and Bloody metadata paths, with mild blood/bleed/poison resistance and modest Fire/blunt weaknesses.
+Changed broad Flesh and FleshUndead metadata classification so high-signal configured terms can refine them into more specific families such as DrownedZombie, InfectedFlesh, Spirit, Flora, Wyrd, BoneUndead, Construct, or ArmoredHumanoid.
+Documented the 0.9.0 atlas boundary between classified families, elite-class target flags, and intentionally neutral metadata paths.
+Raised ConfigSchemaVersion to 10 for the new FleshUndead family defaults.
+
+Version 0.8.0
+Added cautious Flesh and ArmoredHumanoid target families with mild ordinary-flesh weaknesses and higher-priority armored physical matchups.
+Added elite-class detection from reachable Elite, MiniBoss, Boss, and Type:Elite metadata, plus configurable clamps for custom Steel and Bone rule strength on elite targets.
+Expanded diagnostics with elite-class target flags, elite-clamp adjustments, and a no-rule reason when an elite clamp neutralizes a mild custom rule.
+Raised ConfigSchemaVersion to 9 for new family and elite-clamp defaults.
+
+Version 0.7.0
+Added metadata-first target classification for reachable template/runtime signals such as HitBones, HitStone, WyrdnessBound, SarrasCreature, ReefboundBody, Ghost, and Scourge.
+Changed display-name and configurable term matching to act as fallback when metadata does not identify a target family.
+Expanded diagnostics with family evidence so runtime logs show whether a family came from metadata or fallback terms.
+
+Version 0.6.1
+Tightened vanilla amplification so it only amplifies native subtypes actually carried by the hit, not Steel and Bone's inferred weapon-type hints.
+Changed multi-subtype vanilla amplification to apply the product of each amplified-to-native ratio.
+
+Version 0.6.0
+Added preset-based vanilla weakness and resistance amplification.
+Changed Hardened and Crucible to push non-neutral vanilla enemy subtype multipliers farther from neutral while Tempered leaves vanilla unchanged by default.
+Kept true vanilla immunities intact and clamped amplified vanilla resistances and weaknesses to configurable safe ranges.
+Raised ConfigSchemaVersion to 8 for the new vanilla amplification settings.
+
+Version 0.5.1
+Synced packaged design docs for built-in floating damage-number feedback and the 0.5.x validation plan.
+
+Version 0.5.0
+Added built-in floating damage numbers for Steel and Bone-modified hits, using #E3BD02 as the baseline color.
+Changed resistance and weakness feedback to render directly from Steel and Bone instead of KS Notifications.
+Added resistance-based shrinking/desaturation, weakness-based red-orange scaling, critical pop scaling, and final-damage outcome display.
+Added damage-number config options and raised ConfigSchemaVersion to 7 for regenerated feedback defaults.
+
+Version 0.4.3
+Moved resistance and weakness feedback to the optional KS Notifications shared stack.
+Removed the local combat feedback overlay renderer and overlay layout settings.
+Raised ConfigSchemaVersion to 6 so regenerated configs no longer include removed local overlay settings.
+
+Version 0.4.2
+Synced packaged documentation for the diagnostics testing pass, including the default diagnostics setting, current-versus-future family status, ordinary flesh as a control sample, and the implemented vanilla multiplier skip policy.
+
+Version 0.4.1
+Expanded diagnostics to log detected target families, damage tags, physical weapon-type hints, no-match reasons, vanilla multiplier skips, and applied rules for the upcoming runtime validation pass.
+
+Version 0.4.0
+Renamed presets from Bloodied, Forsaken, and Nightmare to Tempered, Hardened, and Crucible.
+Changed the default preset name to Hardened while keeping the 0.3 rule-strength behavior.
+Added physical weapon-type hints so generic physical hits can still resolve through sword/axe, dagger/polearm/ranged, and blunt lanes when Tainted Grail exposes those item properties.
+Added mild GenericPhysical fallback resistance for bone undead and constructs so untyped physical hits do not bypass special-material matchups.
+Incremented the config schema so old preset names regenerate cleanly.
+
+Version 0.3.2
+Changed the internal rule table from resistance-only rules into general damage rules that can apply weaknesses as well as resistances.
+Changed presets into general rule-strength profiles: Bloodied is lighter, Forsaken is default, and Nightmare makes all Steel and Bone rules more decisive without adding exclusive Nightmare-only matchups.
+Added vanilla-aware subtype checks so Steel and Bone skips a subtype overlay when the target already has a non-neutral vanilla multiplier for that same damage subtype.
+Added Fire, Cold, Electric, Wet, Burn, and GenericMagical damage classification.
+Added Drowned, Infected, Sea, Spirit, and Flora target-family term lists alongside Bone, Construct, and Wyrd.
+Added compact reason feedback such as Bone resists Slash/Pierce and Flora weak to Fire/Slash.
+Expanded diagnostics to log skipped vanilla multiplier cases and selected damage-rule decisions.
+
+Version 0.2.0
 Refactored resistance handling into an internal rule table.
 Changed matching so every applicable rule is checked and the strongest resistance wins.
 Added skeleton/bone resistance to slashing and piercing damage.

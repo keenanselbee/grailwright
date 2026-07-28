@@ -591,6 +591,81 @@ namespace DishonoredDynamicCrosshair
 
         }
 
+        private void UnregisterSettingHandlers()
+        {
+            Unsubscribe(_enabled, OnBehaviorSettingChanged);
+            Unsubscribe(_preset, OnPresetSettingChanged);
+            Unsubscribe(_magicDetection, OnBehaviorSettingChanged);
+            Unsubscribe(_useGeneralWhenHandsDown, OnBehaviorSettingChanged);
+            Unsubscribe(_bloodMagicCorpseReticleMode, OnBehaviorSettingChanged);
+            Unsubscribe(_bloodMagicRequireRelevantSpell, OnBehaviorSettingChanged);
+            Unsubscribe(_bloodMagicUseQualityScale, OnBehaviorSettingChanged);
+            Unsubscribe(_bloodMagicMaximumQualityScale, OnBehaviorSettingChanged);
+            Unsubscribe(_bloodMagicUsableCorpseColor, OnBehaviorSettingChanged);
+            Unsubscribe(_sizeMode, OnBehaviorSettingChanged);
+            Unsubscribe(_textureFiltering, OnTextureFilteringSettingChanged);
+            Unsubscribe(_baseSizePixels, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _targetDetectionRangeMultiplier,
+                OnTargetDetectionRangeSettingChanged);
+            Unsubscribe(_defaultOpacity, OnBehaviorSettingChanged);
+            Unsubscribe(_hostileOpacity, OnBehaviorSettingChanged);
+            if (!ReferenceEquals(_nonHostileOpacity, _hostileOpacity))
+            {
+                Unsubscribe(_nonHostileOpacity, OnBehaviorSettingChanged);
+            }
+            Unsubscribe(_mountedOpacityMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(_showCrouchIndicator, OnBehaviorSettingChanged);
+            Unsubscribe(_crouchIndicatorOpacity, OnBehaviorSettingChanged);
+            Unsubscribe(_crouchIndicatorVerticalOffset, OnBehaviorSettingChanged);
+            Unsubscribe(_hideDefaultReticle, OnBehaviorSettingChanged);
+            if (!ReferenceEquals(_hideMeleeReticle, _hideDefaultReticle))
+            {
+                Unsubscribe(_hideMeleeReticle, OnBehaviorSettingChanged);
+            }
+            if (!ReferenceEquals(_hideBowReticle, _hideDefaultReticle))
+            {
+                Unsubscribe(_hideBowReticle, OnBehaviorSettingChanged);
+            }
+            if (!ReferenceEquals(_hideItemSpecificReticles, _hideDefaultReticle))
+            {
+                Unsubscribe(_hideItemSpecificReticles, OnBehaviorSettingChanged);
+            }
+
+            UnregisterContextHandlers(_general);
+            UnregisterContextHandlers(_bow);
+            UnregisterContextHandlers(_magic);
+            UnregisterContextHandlers(_bloodMagic);
+        }
+
+        private void UnregisterContextHandlers(ContextSettings settings)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            Unsubscribe(settings.SpriteFile, OnSpriteSettingChanged);
+            Unsubscribe(settings.ScaleMultiplier, OnBehaviorSettingChanged);
+
+            if (settings.DefaultColor != null)
+            {
+                Unsubscribe(settings.DefaultColor, OnBehaviorSettingChanged);
+                Unsubscribe(settings.HostileColor, OnBehaviorSettingChanged);
+                Unsubscribe(settings.NonHostileColor, OnBehaviorSettingChanged);
+            }
+        }
+
+        private static void Unsubscribe<T>(
+            ConfigEntry<T> entry,
+            EventHandler handler)
+        {
+            if (entry != null)
+            {
+                entry.SettingChanged -= handler;
+            }
+        }
+
         private void ApplyPreset(ReticlePreset preset)
         {
             ApplyReticleState();
@@ -2233,6 +2308,7 @@ namespace DishonoredDynamicCrosshair
 
         private void OnDestroy()
         {
+            UnregisterSettingHandlers();
             RestoreTargetDetectionRange();
 
             if (_harmony != null)

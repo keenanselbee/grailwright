@@ -43,6 +43,19 @@ function Convert-ToSafePackageName {
     return $safe
 }
 
+function Convert-ToSafeArchiveNameStem {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $safe = $Name -replace '[\\/:*?"<>|]', "-"
+    $safe = $safe -replace "\s+", " "
+    $safe = $safe.Trim(".- ")
+    if ([string]::IsNullOrWhiteSpace($safe)) {
+        throw "Could not infer a safe archive name."
+    }
+
+    return $safe
+}
+
 function Test-PathInsideRoot {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -66,12 +79,24 @@ if (-not (Test-Path -LiteralPath $PackageArchive -PathType Leaf)) {
 
 $manifest = Read-ModManifest -Root $ModRoot
 $packageName = Convert-ToSafePackageName ([string]$manifest.packageName)
+$displayName = [string]$manifest.displayName
+if ([string]::IsNullOrWhiteSpace($displayName)) {
+    $displayName = $packageName
+}
+
+$archiveName = Convert-ToSafeArchiveNameStem $displayName
 $version = [string]$manifest.version
 if ([string]::IsNullOrWhiteSpace($version)) {
     throw "Manifest $($manifest.id) has no version."
 }
 
-$variantFolderName = "$packageName-$version"
+$expectedArchiveLeaf = "$archiveName $version.zip"
+$actualArchiveLeaf = Split-Path -Leaf $PackageArchive
+if (-not [string]::Equals($actualArchiveLeaf, $expectedArchiveLeaf, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Package archive '$actualArchiveLeaf' does not match the required readable archive name '$expectedArchiveLeaf'. Rebuild with tools/Build-Mod.ps1 so displayName and version are used."
+}
+
+$variantFolderName = [System.IO.Path]::GetFileNameWithoutExtension($expectedArchiveLeaf)
 $resolvedVortexModsRoot = Resolve-VortexModsRoot -Candidate $VortexModsRoot
 New-Item -ItemType Directory -Force -Path $resolvedVortexModsRoot | Out-Null
 
@@ -116,7 +141,9 @@ try {
     [pscustomobject]@{
         StagedId = $variantFolderName
         PackageName = $packageName
+        ArchiveName = $archiveName
         Version = $version
+        ZipPath = $PackageArchive
         VortexPath = $targetRoot
     }
 } finally {

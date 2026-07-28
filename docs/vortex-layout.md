@@ -12,8 +12,13 @@ ModFolder/
 Asset folders such as `audio/` or reticle PNG files stay beside the DLL when
 the runtime expects them there.
 
+Archive filenames and staged Vortex variant folders use the readable mod
+display name plus version, such as `Blood Magic Expansion 2.0.7`. The archive
+payload keeps the compact plugin folder from `mod.json`, such as
+`BloodMagicExpansion`.
+
 Repository-only content such as `src/`, `tools/`, `mod.json`, and
-`nexus-desc.txt` is not included in release zips. Nexus descriptions are
+`nexus-full-desc.txt` is not included in release zips. Nexus descriptions are
 publishing source, not runtime install payload.
 
 Vortex should install the package as a BepInEx plugin mod so the payload lands

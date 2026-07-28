@@ -652,8 +652,8 @@ function Write-PublishPlan {
     param(
         [object]$Manifest,
         [string[]]$ChangelogEntries,
-        [string]$PageSummary,
-        [string]$FileSummary
+        [string]$ShortDescription,
+        [string]$FileDescriptionSource
     )
 
     [pscustomobject]@{
@@ -674,10 +674,10 @@ function Write-PublishPlan {
         ArchiveExistingFile = $script:ArchiveExistingFile
         FileDescription = $script:FileDescription
         FileDescriptionLength = $script:FileDescription.Length
-        FileSummary = $FileSummary
-        FileSummaryLength = $FileSummary.Length
-        PageSummary = $PageSummary
-        PageSummaryLength = $PageSummary.Length
+        FileDescriptionSource = $FileDescriptionSource
+        FileDescriptionSourceLength = $FileDescriptionSource.Length
+        ShortDescription = $ShortDescription
+        ShortDescriptionLength = $ShortDescription.Length
         AddChangelog = [bool]$script:AddChangelog
         ChangelogEntries = $ChangelogEntries
         DescriptionUpdate = "Manual/browser step: v3 API does not expose a main mod description update endpoint."
@@ -742,10 +742,10 @@ if ([string]::IsNullOrWhiteSpace($FileName)) {
 }
 
 $changelogEntries = @(Get-CurrentChangelogEntries -Root $resolvedModRoot -Version $FileVersion)
-$pageSummary = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-page-summary.txt" -MaximumLength 350 -SearchParents
-$fileSummary = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-file-summary.txt" -MaximumLength 255
-if ([string]::IsNullOrWhiteSpace($FileDescription) -and -not [string]::IsNullOrWhiteSpace($fileSummary)) {
-    $FileDescription = $fileSummary
+$shortDescription = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-short-desc.txt" -MaximumLength 350 -SearchParents
+$fileDescriptionSource = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-file-desc.txt" -MaximumLength 255
+if ([string]::IsNullOrWhiteSpace($FileDescription) -and -not [string]::IsNullOrWhiteSpace($fileDescriptionSource)) {
+    $FileDescription = $fileDescriptionSource
 }
 
 if ($FileDescription.Length -gt 255) {
@@ -753,12 +753,12 @@ if ($FileDescription.Length -gt 255) {
 }
 
 if ($DryRun) {
-    Write-PublishPlan -Manifest $manifest -ChangelogEntries $changelogEntries -PageSummary $pageSummary -FileSummary $fileSummary
+    Write-PublishPlan -Manifest $manifest -ChangelogEntries $changelogEntries -ShortDescription $shortDescription -FileDescriptionSource $fileDescriptionSource
     return
 }
 
 if ([string]::IsNullOrWhiteSpace($FileDescription)) {
-    throw "Missing Nexus file upload description. Add nexus-file-summary.txt beside the mod or pass -FileDescription."
+    throw "Missing Nexus file upload description. Add nexus-file-desc.txt beside the mod or pass -FileDescription."
 }
 
 if ([string]::IsNullOrWhiteSpace($ModFileId)) {
@@ -800,7 +800,7 @@ if ($AddChangelog) {
 
     $changelogRequest = @{
         version = $FileVersion
-        entries = @($changelogEntries)
+        changelog = ($changelogEntries -join "`n")
     }
 
     Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null

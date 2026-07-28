@@ -8,6 +8,9 @@ param(
     [int]$StartIndex = 1,
     [double]$TargetPeakDb = -3.0,
     [int]$SampleRate = 44100,
+    [double]$LeadingSilenceThresholdDb = -50.0,
+    [double]$LeadingSilenceDurationSeconds = 0.03,
+    [switch]$NoTrimLeadingSilence,
     [switch]$Stereo,
     [string]$FfmpegPath = ""
 )
@@ -91,6 +94,10 @@ if ($SampleRate -lt 8000) {
     throw "SampleRate must be at least 8000."
 }
 
+if ($LeadingSilenceDurationSeconds -lt 0) {
+    throw "LeadingSilenceDurationSeconds must be zero or greater."
+}
+
 if ([string]::IsNullOrWhiteSpace($Prefix) -or $Prefix -match '[\\/:*?"<>|]') {
     throw "Prefix must be a non-empty filename-safe value."
 }
@@ -118,6 +125,16 @@ foreach ($input in $InputFiles) {
     $maxVolumeDb = Get-MaxVolumeDb -Ffmpeg $ffmpeg -InputFile $inputFull
     $gainDb = $TargetPeakDb - $maxVolumeDb
     $gainText = $gainDb.ToString("0.###", [System.Globalization.CultureInfo]::InvariantCulture)
+    $filters = New-Object "System.Collections.Generic.List[string]"
+
+    if (-not $NoTrimLeadingSilence) {
+        $thresholdText = $LeadingSilenceThresholdDb.ToString("0.###", [System.Globalization.CultureInfo]::InvariantCulture)
+        $durationText = $LeadingSilenceDurationSeconds.ToString("0.###", [System.Globalization.CultureInfo]::InvariantCulture)
+        $filters.Add("silenceremove=start_periods=1:start_duration=${durationText}:start_threshold=${thresholdText}dB")
+    }
+
+    $filters.Add("volume=${gainText}dB")
+    $filterText = [string]::Join(",", $filters)
 
     $oldErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
@@ -130,7 +147,7 @@ foreach ($input in $InputFiles) {
             -ac $channels `
             -ar $SampleRate `
             -c:a pcm_s16le `
-            -af "volume=${gainText}dB" `
+            -af $filterText `
             $outputFile 2>&1 | Out-Null
     }
     finally {
@@ -147,6 +164,7 @@ foreach ($input in $InputFiles) {
         MaxVolumeDb = $maxVolumeDb
         GainDb = $gainDb
         TargetPeakDb = $TargetPeakDb
+        TrimLeadingSilence = -not $NoTrimLeadingSilence
     }
 
     $index++

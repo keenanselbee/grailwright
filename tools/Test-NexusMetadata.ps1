@@ -90,6 +90,35 @@ function Test-MetadataText {
     }
 }
 
+function Get-NormalizedMetadataText {
+    param([string]$Text)
+
+    return (($Text.ToLowerInvariant() -replace '[^a-z0-9]+', ' ').Trim() -replace '\s+', ' ')
+}
+
+function Test-FileDescriptionShape {
+    param(
+        [object]$ShortDescription,
+        [object]$FileDescription
+    )
+
+    if ($ShortDescription.State -ne "OK" -or $FileDescription.State -ne "OK") {
+        return "SKIP"
+    }
+
+    if ($FileDescription.Length -ge $ShortDescription.Length) {
+        return "NOT_SHORTER"
+    }
+
+    $shortText = Get-Content -LiteralPath (Join-Path $RepoRoot $ShortDescription.Path) -Raw
+    $fileText = Get-Content -LiteralPath (Join-Path $RepoRoot $FileDescription.Path) -Raw
+    if ((Get-NormalizedMetadataText $shortText) -eq (Get-NormalizedMetadataText $fileText)) {
+        return "COPIED"
+    }
+
+    return "OK"
+}
+
 function Get-CurrentChangelogEntryCount {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -163,21 +192,23 @@ foreach ($manifestFile in $manifestFiles) {
         continue
     }
 
-    $pageSummary = Test-MetadataText -Root $root -FileName "nexus-page-summary.txt" -MaximumLength 350 -SearchParents
-    $fileSummary = Test-MetadataText -Root $root -FileName "nexus-file-summary.txt" -MaximumLength 255
+    $shortDescription = Test-MetadataText -Root $root -FileName "nexus-short-desc.txt" -MaximumLength 350 -SearchParents
+    $fileDescription = Test-MetadataText -Root $root -FileName "nexus-file-desc.txt" -MaximumLength 255
+    $fileDescriptionShape = Test-FileDescriptionShape -ShortDescription $shortDescription -FileDescription $fileDescription
     $api = Test-ApiMetadata -Root $root
     $changelogCount = Get-CurrentChangelogEntryCount -Root $root -Version ([string]$manifest.version)
     $changelogState = if ($changelogCount -gt 0) { "OK" } elseif ($changelogCount -eq 0) { "MISSING" } else { "NO FILE" }
 
-    if ($pageSummary.State -ne "OK" -or $fileSummary.State -ne "OK" -or $api.State -eq "SECRET" -or ($RequireApi -and $api.State -ne "OK")) {
+    if ($shortDescription.State -ne "OK" -or $fileDescription.State -ne "OK" -or $fileDescriptionShape -notin @("OK", "SKIP") -or $api.State -eq "SECRET" -or ($RequireApi -and $api.State -ne "OK")) {
         $hasFailure = $true
     }
 
     $rows.Add([pscustomobject]@{
         Mod = [string]$manifest.packageName
         Version = [string]$manifest.version
-        PageSummary = "$($pageSummary.State) $($pageSummary.Length)/$($pageSummary.Limit)"
-        FileSummary = "$($fileSummary.State) $($fileSummary.Length)/$($fileSummary.Limit)"
+        ShortDescription = "$($shortDescription.State) $($shortDescription.Length)/$($shortDescription.Limit)"
+        FileDescription = "$($fileDescription.State) $($fileDescription.Length)/$($fileDescription.Limit)"
+        FileDescriptionShape = $fileDescriptionShape
         Api = $api.State
         Changelog = "$changelogState $changelogCount"
     })

@@ -74,6 +74,22 @@ function Get-TextFileContent {
     return ""
 }
 
+function Find-ManifestDisplayName {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    $manifestPath = Join-Path $Root "mod.json"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        return ""
+    }
+
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($manifest.PSObject.Properties.Name -contains "displayName") {
+        return [string]$manifest.displayName
+    }
+
+    return ""
+}
+
 function Find-ModVersion {
     param([Parameter(Mandatory = $true)][string]$Root)
 
@@ -82,11 +98,11 @@ function Find-ModVersion {
         "CHANGELOG.md",
         "README.txt",
         "README.md",
-        "nexus-desc.txt"
+        "nexus-full-desc.txt"
     ) | ForEach-Object { Join-Path $Root $_ }
 
     $candidateFiles += Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match "^(README|CHANGELOG|nexus-desc).*\.(txt|md)$" } |
+        Where-Object { $_.Name -match "^(README|CHANGELOG|nexus-full-desc).*\.(txt|md)$" } |
         Select-Object -ExpandProperty FullName
 
     foreach ($file in ($candidateFiles | Select-Object -Unique)) {
@@ -212,7 +228,7 @@ function Test-ShouldSkipExportFile {
 
     $relativePath = Get-RelativePathCompat -Root $Root -Path $File.FullName
     $segments = $relativePath -split '[\\/]'
-    if ($segments | Where-Object { $_ -in @(".git", ".svn", ".vs", "bin", "obj", "__pycache__", "src", "Source", "tools") }) {
+    if ($segments | Where-Object { $_ -in @(".git", ".svn", ".vs", "bin", "obj", "__pycache__", "images", "src", "Source", "tools") }) {
         return $true
     }
 
@@ -220,7 +236,7 @@ function Test-ShouldSkipExportFile {
         return $true
     }
 
-    if ($File.Name -match '^(?i:nexus-(?:desc|page-summary|file-summary))\.(txt|md)$') {
+    if ($File.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc))\.(txt|md)$') {
         return $true
     }
 
@@ -294,10 +310,10 @@ function Assert-PackageScratchLayout {
         throw "Export top-level folder '$($topLevelItems[0].Name)' does not match package name '$PackageName'."
     }
 
-    $nexusDescriptions = @(Get-ChildItem -LiteralPath $topLevelItems[0].FullName -Recurse -File -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^(?i:nexus-desc)\.(txt|md)$' })
-    if ($nexusDescriptions.Count -gt 0) {
-        throw "Nexus description files are publishing source and must not be included in release zips."
+    $nexusMetadata = @(Get-ChildItem -LiteralPath $topLevelItems[0].FullName -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc))\.(txt|md)$' })
+    if ($nexusMetadata.Count -gt 0) {
+        throw "Nexus metadata files are publishing source and must not be included in release zips."
     }
 }
 
@@ -377,7 +393,12 @@ if ([string]::IsNullOrWhiteSpace($PackageName)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($ArchiveName)) {
-    $ArchiveName = $PackageName
+    $manifestDisplayName = Find-ManifestDisplayName -Root $ModRoot
+    if ([string]::IsNullOrWhiteSpace($manifestDisplayName)) {
+        $ArchiveName = Convert-ToArchiveFileNameStem $PackageName
+    } else {
+        $ArchiveName = Convert-ToArchiveFileNameStem $manifestDisplayName
+    }
 } else {
     $ArchiveName = Convert-ToArchiveFileNameStem $ArchiveName
 }

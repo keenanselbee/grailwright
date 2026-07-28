@@ -60,6 +60,22 @@ Project Discovery
 - Do not assume a language, framework, package manager, build system, or test runner that is not present in the repository.
 
 
+Local Paths And Tooling
+-----------------------
+
+- Current local Tainted Grail: The Fall of Avalon game root: `G:\Steam\steamapps\common\Tainted Grail FoA`.
+- Game managed assemblies are under `G:\Steam\steamapps\common\Tainted Grail FoA\Fall of Avalon_Data\Managed`; the primary game assembly for BepInEx mod inspection is `TG.Main.dll`.
+- Game addressable assets are under `G:\Steam\steamapps\common\Tainted Grail FoA\Fall of Avalon_Data\StreamingAssets\aa`.
+- Do not edit the live game install. It may be read for compile references, diagnostics, and game-file inspection only unless the user explicitly asks for a specific live-game change.
+- .NET SDK is installed at `C:\Program Files\dotnet\sdk\10.0.302`; prefer the x64 `dotnet` host at `C:\Program Files\dotnet\dotnet.exe`.
+- Build scripts still resolve the game root from `-GameRoot`, then `TAINTED_GRAIL_FOA_DIR`, then the known local Steam path. Prefer passing `-GameRoot` only when the auto-detected path is wrong.
+- Game inspection tools live under `tools/game-inspection/`.
+- Use `tools/game-inspection/Invoke-ILSpy.ps1` for managed assembly decompilation and metadata inspection.
+- Use `tools/game-inspection/Invoke-UnityPython.ps1` for UnityPy, dnfile, pefile, and other repo-local Python inspection packages.
+- Use `tools/game-inspection/Invoke-AssetRipper.ps1` for AssetRipper. Prefer `--headless` when launching it for non-interactive investigation.
+- Treat `tools/game-inspection/downloads/`, extracted tool package directories, and generated inspection output as tool/cache material. Do not hand-edit downloaded tool contents unless replacing or upgrading the tool intentionally.
+
+
 SKSE Plugin Repositories
 ------------------------
 
@@ -136,23 +152,28 @@ Repository-Specific Notes
 - Keep KS Fixes suite components as individual mod folders under `mods/KSAddons/`, not as loose files at the repository root.
 - Keep shared tooling under `tools/`; do not copy build, export, audio, or staging scripts back into individual mod folders.
 - Prefer updating a mod's `mod.json` when its version, DLL name, package name, source file, package layout, or Nexus-facing identity changes.
+- Do not create Grailwright authored mod versions with a patch component of 10 or higher. When a patch sequence would roll from `X.Y.9` to `X.Y.10`, bump the minor version instead, such as `2.0.9` to `2.1.0`.
 - Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and generated config filenames. Do not use personal-name prefixes or bare `tgfoa` GUIDs for authored mods.
 - When a plugin GUID changes, update the source constant, `mod.json`, README, changelog, Nexus description, and any template/docs references together.
 - Any Grailwright BepInEx plugin that binds config options must define and bind `ConfigSchemaVersion`, back up stale or unversioned configs beside the active `.cfg`, clear/reload the config, and save regenerated defaults. Increment the schema only when settings are added, removed, renamed, reinterpreted, or defaults materially change. Prefer schema reset over carrying old per-setting migration code.
-- Do not add or use a repo-local `dist` folder. Release zips should go to the user's Desktop by default.
+- Do not add or use a repo-local `dist` folder.
+- For any mod build the user is expected to test in game, stage to Vortex by default: build/export with `-StageToVortex` and keep the intermediate zip under `.codex-temp` unless the user explicitly asks for a Desktop zip. This applies to implementation, diagnostic, verification, and iteration builds; do not treat "just verifying" as a reason to skip Vortex staging when the build is for user testing.
+- If the user says "send to Desktop", "Desktop only", or similar, export only to the user's Desktop and do not stage to Vortex.
 - When exporting a new version to the Desktop, remove older same-package version zips so the Desktop keeps only the latest built zip for each mod.
 - Release zip filenames should use the readable display name plus version, for example `No Player Light 1.0.2.zip`; the zip payload should still use the compact package folder from `mod.json`.
 - Exported zips must contain exactly one top-level mod folder with the DLL, README/changelog docs, and runtime assets inside it. This prevents Vortex from flattening conflicting README or changelog files across mods.
-- Exported zips must not contain `src`, `tools`, `mod.json`, `API.txt`, `nexus-desc.txt`, `nexus-page-summary.txt`, `nexus-file-summary.txt`, `.codex-temp`, git files, or repo-only build/publishing scaffolding.
+- Exported zips must not contain `src`, `tools`, `mod.json`, `API.txt`, `nexus-full-desc.txt`, `nexus-short-desc.txt`, `nexus-file-desc.txt`, `.codex-temp`, git files, or repo-only build/publishing scaffolding.
 - Keep top-level `README.txt` files as packaged installed-user quick references. They should summarize what the mod does, the current version, config path, defaults, custom assets, compatibility notes, and troubleshooting only when relevant.
 - Keep folder-specific README files only when the folder needs runtime instructions, such as audio or custom asset naming rules.
-- Keep full Nexus page copy in `nexus-desc.txt`; do not duplicate the whole Nexus description into README files.
-- Keep `nexus-file-summary.txt` as a stable one- or two-sentence file-row description of what the mod does. Do not use it for version-specific changelog notes; those belong only in `CHANGELOG.txt` and Nexus changelog entries.
+- Keep full Nexus page copy in `nexus-full-desc.txt`; do not duplicate the whole Nexus description into README files.
+- Keep `nexus-short-desc.txt` as the Nexus page short description, 350 characters max.
+- Keep `nexus-file-desc.txt` as a stable, concise file-row description of what the mod does. It must be shorter than `nexus-short-desc.txt` and must not be copied from, or lightly reworded from, the short description. Do not use it for version-specific changelog notes; those belong only in `CHANGELOG.txt` and Nexus changelog entries.
+- When the user asks to "update the Nexus mod", "upload to Nexus", "publish to Nexus", or similar without narrowing the scope, treat it as the full Nexus update: upload/update the mod file/version with `nexus-file-desc.txt`, update the Nexus short description from `nexus-short-desc.txt`, update the full page description from `nexus-full-desc.txt`, add the current changelog when applicable, and verify the uploaded file/version and saved descriptions afterward.
 - Keep `CHANGELOG.txt` plain text, newest first, and Nexus-pasteable. Version blocks must use `Version X.Y.Z`, immediately followed by change lines with no blank line after the version header, one blank line between version blocks, and no Markdown bullets.
 - Do not add changelog entries whose only purpose is to say something did not change, such as "No audio, loop, or music behavior changes." Changelogs should list meaningful user-facing or technical changes, not absence-of-change reassurance.
 - Build and export with `tools/Build-Mod.ps1` or `tools/Build-All.ps1` unless a more specific repo tool is documented.
 - Use `-SkipCompile` only when intentionally repacking docs/assets around an already-built DLL.
-- Use `-StageToVortex` only when the user asks to stage a built mod into Vortex.
+- Use `-StageToVortex` for new build requests and user-testable verification builds by default unless the user explicitly asks for Desktop-only output.
 - Vortex staging means copying the exported package into the Vortex mods directory as a new folder for a new version. It must not edit Vortex metadata, profile state, enablement, deployment state, or `state.v2`.
 - Staging must refuse to overwrite an existing same-version Vortex mod folder. Bump the mod version or ask the user before replacing an existing staged folder.
 - Do not deploy Vortex mods, change active variants, or enable/disable Vortex mods unless the user explicitly asks.

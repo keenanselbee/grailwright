@@ -1,4 +1,71 @@
-﻿Version 2.0.6
+﻿Version 2.1.9
+Changed the 3x blood spell inner-light boost to fade down over a short 0.25 second ramp instead of snapping back to readied brightness.
+Fixed post-cast boost flicker by suppressing all cast-evidence refreshes during the fade-down window while still allowing a real new cast start to boost immediately.
+Kept readied inner-light state alive through weapon-hide callbacks when the magic layer is still raised to reduce off/on light flapping.
+Kept ConfigSchemaVersion 9 because no config settings changed.
+
+Version 2.1.8
+Added optional Grail Floating Text integration for corpse-leech XP, claiming the next XP stat gain as a red corpse-icon floating text entry when Grail Floating Text 1.4.8 or newer is loaded.
+Kept live-drain XP on the generic XP notification path so each live tick remains its own normal XP entry.
+Bumped ConfigSchemaVersion to 9 so the new integration toggle generates cleanly.
+
+Version 2.1.7
+Changed Blood Spell Inner Light defaults to 0.75 intensity and 5.0 range.
+Changed the blood spell inner-light cast boost from 2x to 3x and made it ramp in immediately.
+Added MagicFSM end/cancel hooks so the boost can ramp down as soon as held casting ends or cancels instead of waiting only for the perform-cast callback.
+Bumped ConfigSchemaVersion to 8 so the new inner-light defaults generate cleanly.
+
+Version 2.1.6
+Changed the 2x blood spell inner-light boost to wait 0.5 seconds after cast start before ramping in.
+Changed performed-cast callbacks to close the boost window so the ramp-down starts at release instead of lingering after the cast.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.5
+Fixed actual Blood/Life and Abhartach cast callbacks so they refresh the readied inner-light state before applying the 2x spellcast brightness boost.
+Stopped the MagicFSM.OnUpdate held-state grace path from starting a 2x boost before real cast or charge evidence.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.4
+Fixed the red blood spell inner light readiness check so an active magic layer in equip, idle, movement, or cast states keeps the normal light on while blood spell hands are raised.
+Stopped MagicFSM.OnUpdate readiness probes from triggering the 2x cast brightness boost; the boost now stays tied to actual casting and charging evidence.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.3
+Made the red blood spell inner light more reliable when weapon show/hide callbacks flap by keeping a short readied-state grace window and refreshing readiness from SpellAttackHeld when the blood spell is actually held raised.
+Changed the 2x cast brightness boost to ramp up over 0.5 seconds and ramp down over 0.5 seconds.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.2
+Cleaned up the red blood spell inner light implementation by reducing readied-state tracking to the active spell summary and removing old held-probe diagnostics from the earlier activation experiments.
+Reused the existing reflection setter path for HDRP light data setup instead of keeping a separate one-off member setter block.
+Clarified the generated config comments for the readied-hands behavior and 2x cast boost.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.1
+Changed the red blood spell inner light to turn on when a matching blood spell is equipped and the magic hands are raised, then turn off when hands are lowered or weapons are hidden.
+Changed blood spell cast events to provide a temporary 2x brightness boost instead of activating the light by themselves.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.1.0
+Scaled the red blood spell inner light's configured brightness into HDRP-scale render intensity so the enabled custom light is visibly strong in game.
+Added runtime HDRP additional light data setup and all-layer light culling for the custom red light when the renderer component is available.
+Kept ConfigSchemaVersion 7 because no config settings changed.
+
+Version 2.0.9
+Changed the red blood spell inner light to stay active for a short minimum window after confirmed blood-spell activation instead of depending only on fragile per-frame MagicFSM raised-state flags.
+Kept ConfigSchemaVersion 7 because no settings changed.
+
+Version 2.0.8
+Fixed the red blood spell inner light turning off while Blood Transfusion is still raised after the game clears SpellAttackHeld.
+Kept ConfigSchemaVersion 7 because no settings changed.
+
+Version 2.0.7
+Added limited blood spell inner light diagnostics for activation, camera resolution, and visibility transitions.
+Changed the custom red light to sit slightly forward and below the player camera for better visibility.
+Added active camera fallback when Camera.main is unavailable during a raised blood spell.
+Bumped ConfigSchemaVersion to 7 so the diagnostic setting generates cleanly.
+
+Version 2.0.6
 Added a configurable red no-shadow inner player light while Blood Transfusion, Life Transfusion, or Abhartach's Calling is raised.
 Added Blood Spell Inner Light config for enablement, intensity, range, and fade time.
 Kept the custom light separate from the vanilla HeroLight so No Player Light remains compatible.

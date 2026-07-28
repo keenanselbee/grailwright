@@ -27,7 +27,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.0.6
+Version: 2.1.9
 ```
 
 This is a clean technical rename from Blood Mage. Do not deploy the older
@@ -41,7 +41,7 @@ Drain the corpse with Blood/Life Transfusion
 Gain corpse XP and immediate healing
 Higher-quality corpses improve healing and Abhartach effects
 Preset + Spirituality improve Blood/Life spell behavior
-Raise a blood spell to cast a scalable red inner player light
+Ready a blood spell with raised hands to cast a scalable red inner player light
 Feed on living enemies for capped XP ticks during combat
 Hear a short randomized FMOD ritual sound on successful corpse drains
 ```
@@ -89,27 +89,46 @@ BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-Version 2.0.6 enforces ConfigSchemaVersion 6 because the blood spell inner
-light adds new visual settings. If the schema marker is
+Version 2.1.8 and newer enforce ConfigSchemaVersion 9 because the optional
+Grail Floating Text corpse XP integration was added. If the schema marker is
 missing or outdated, the old config is backed up beside the active file and
 fresh defaults are generated.
 
+## Grail Floating Text
+
+When Grail Floating Text 1.4.8 or newer is installed, corpse-leech character XP
+is claimed before the XP stat change and shown as a red floating text entry
+with the corpse icon. The XP amount still comes from the normal character XP
+stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP
+ticks use the generic XP display from Grail Floating Text.
+
+```text
+ClaimGrailFloatingTextCorpseXP = true
+```
+
 ## Blood Spell Inner Light
 
-Raising Blood Transfusion, Life Transfusion, or Abhartach's Calling can cast a
-red no-shadow point light from the player camera. The light is separate from
-the vanilla HeroLight, so No Player Light can stay installed while BME provides
-only the blood-spell glow.
+Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and
+raising the magic hands can cast a red no-shadow point light from the player
+camera. Sheathing or lowering hands disables it. Actual blood spell casting
+temporarily triples the light brightness immediately, then fades back down when
+the cast performs, ends, or cancels.
+The light is separate from the vanilla HeroLight, so No Player Light can stay
+installed while BME provides only the blood-spell glow. The configured
+brightness is scaled internally for the game's HDRP renderer so small config
+values remain human-friendly.
 
 ```text
 Enabled = true
-Intensity = 1.25
-Range = 4.0
+Intensity = 0.75
+Range = 5.0
 FadeSeconds = 0.12
+LogBloodSpellInnerLight = true
 ```
 
 Lower intensity or range for a subtler effect. Set Enabled to false, or
-Intensity to zero, for no visual light.
+Intensity to zero, for no visual light. Diagnostics are limited and can be
+disabled after confirming readiness and visibility.
 
 ## Corpse Leech Audio
 
@@ -243,7 +262,8 @@ the same time unless you intentionally want overlapping XP systems.
 Corpse rituals use lightweight held-state checks and camera raycasts only while
 Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active.
 The red inner light is one cached no-shadow point light, enabled only while a
-matching blood spell is raised. Live draining and Abhartach tuning are
-event-driven from real damage, status, and spell events. Spirituality is cached
+matching blood spell is equipped and the magic hands are raised. Live draining
+and Abhartach tuning are event-driven from real damage, status, and spell
+events. Spirituality is cached
 briefly before spell tuning reads it. Noisy diagnostics default to off; startup
 and patch-warning logs remain enabled.

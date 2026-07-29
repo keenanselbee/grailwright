@@ -58,6 +58,124 @@ function boundedTimeout(timeoutMs, maximumMs) {
   return Math.max(1000, Math.min(timeoutMs, maximumMs));
 }
 
+function browserIsConnected(browser) {
+  return browser && typeof browser.isConnected === "function" && browser.isConnected();
+}
+
+function waitForBrowserDisconnect(browser, timeoutMs) {
+  if (!browserIsConnected(browser)) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    let done = false;
+    let timer = null;
+    const finish = (disconnected) => {
+      if (done) {
+        return;
+      }
+
+      done = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+
+      if (typeof browser.off === "function") {
+        browser.off("disconnected", onDisconnected);
+      } else if (typeof browser.removeListener === "function") {
+        browser.removeListener("disconnected", onDisconnected);
+      }
+
+      resolve(disconnected);
+    };
+    const onDisconnected = () => finish(true);
+
+    browser.once("disconnected", onDisconnected);
+    timer = setTimeout(() => {
+      finish(!browserIsConnected(browser));
+    }, timeoutMs);
+  });
+}
+
+async function withTimeout(promise, timeoutMs, message) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+function logBrowserCloseWarning(request, message, error) {
+  const prefix = request && request.packageName
+    ? `[nexus-description] ${request.packageName}:`
+    : "[nexus-description]";
+  const suffix = error
+    ? ` ${error && error.message ? error.message : String(error)}`
+    : "";
+  console.error(`${prefix} ${message}${suffix}`);
+}
+
+async function closeBrowserCleanly(browser, request) {
+  const timeoutMs = boundedTimeout(Number(request.timeoutSeconds || 10) * 1000, 10000);
+  if (!browserIsConnected(browser)) {
+    return;
+  }
+
+  try {
+    const session = await browser.newBrowserCDPSession();
+    try {
+      const disconnected = waitForBrowserDisconnect(browser, timeoutMs);
+      try {
+        await withTimeout(session.send("Browser.close"), timeoutMs, "Timed out sending DevTools Browser.close.");
+      } catch (error) {
+        if (!(await disconnected)) {
+          throw error;
+        }
+
+        return;
+      }
+
+      if (await disconnected) {
+        return;
+      }
+
+      logBrowserCloseWarning(request, "Chrome did not disconnect after the DevTools close request.");
+    } finally {
+      await session.detach().catch(() => {});
+    }
+  } catch (error) {
+    if (!browserIsConnected(browser)) {
+      return;
+    }
+
+    logBrowserCloseWarning(request, "Chrome DevTools close request failed:", error);
+  }
+
+  if (!browserIsConnected(browser)) {
+    return;
+  }
+
+  try {
+    const disconnected = waitForBrowserDisconnect(browser, timeoutMs);
+    await withTimeout(browser.close(), timeoutMs, "Timed out waiting for Playwright browser.close().");
+    if (!(await disconnected)) {
+      logBrowserCloseWarning(request, "Chrome did not disconnect after Playwright browser.close().");
+    }
+  } catch (error) {
+    if (browserIsConnected(browser)) {
+      logBrowserCloseWarning(request, "Playwright browser.close() failed:", error);
+    }
+  }
+}
+
 function summarizeButtons(buttons) {
   return buttons
     .slice(0, 20)
@@ -756,7 +874,7 @@ async function main() {
   } finally {
     if (browser) {
       if (!request.keepOpen) {
-        await browser.close();
+        await closeBrowserCleanly(browser, request);
       }
     }
   }

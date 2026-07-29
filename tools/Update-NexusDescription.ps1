@@ -339,6 +339,7 @@ function Start-CdpBrowser {
         "--remote-debugging-port=$Port",
         "--user-data-dir=$UserDataDir",
         "--no-first-run",
+        "--disable-background-mode",
         "--hide-crash-restore-bubble",
         "--window-position=198,198",
         "--window-size=1300,1044",
@@ -360,6 +361,26 @@ function Start-CdpBrowser {
     throw "Started $RequestedBrowser, but its remote debugging endpoint did not appear on 127.0.0.1:$Port."
 }
 
+function Get-IsolatedCdpBrowserProcesses {
+    param(
+        [string]$ProcessName,
+        [string]$UserDataDir,
+        [int]$Port
+    )
+
+    $fullUserDataDir = [System.IO.Path]::GetFullPath($UserDataDir)
+    $cimProcesses = Get-CimInstance Win32_Process -Filter "Name = '$ProcessName'" -ErrorAction SilentlyContinue |
+        Where-Object {
+            $commandLine = [string]$_.CommandLine
+            $commandLine.IndexOf("--remote-debugging-port=$Port", [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+            $commandLine.IndexOf($fullUserDataDir, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+        }
+
+    foreach ($cimProcess in $cimProcesses) {
+        Get-Process -Id $cimProcess.ProcessId -ErrorAction SilentlyContinue
+    }
+}
+
 function Stop-IsolatedCdpBrowser {
     param(
         [string]$RequestedBrowser,
@@ -368,22 +389,38 @@ function Stop-IsolatedCdpBrowser {
     )
 
     $processName = "chrome.exe"
-    $fullUserDataDir = [System.IO.Path]::GetFullPath($UserDataDir)
 
-    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
     while ((Test-CdpEndpoint -Port $Port) -and [DateTime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 250
     }
 
-    $processes = Get-CimInstance Win32_Process -Filter "Name = '$processName'" -ErrorAction SilentlyContinue |
-        Where-Object {
-            $commandLine = [string]$_.CommandLine
-            $commandLine.IndexOf("--remote-debugging-port=$Port", [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -and
-            $commandLine.IndexOf($fullUserDataDir, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
-        }
+    if (-not (Test-CdpEndpoint -Port $Port)) {
+        return
+    }
 
+    $processes = @(Get-IsolatedCdpBrowserProcesses -ProcessName $processName -UserDataDir $UserDataDir -Port $Port)
     foreach ($process in $processes) {
-        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+        if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
+            $process.CloseMainWindow() | Out-Null
+        }
+    }
+
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    while ((Test-CdpEndpoint -Port $Port) -and [DateTime]::UtcNow -lt $deadline) {
+        Start-Sleep -Milliseconds 250
+    }
+
+    if (-not (Test-CdpEndpoint -Port $Port)) {
+        return
+    }
+
+    $remaining = @(Get-IsolatedCdpBrowserProcesses -ProcessName $processName -UserDataDir $UserDataDir -Port $Port)
+    if ($remaining.Count -gt 0) {
+        Write-Warning "Chrome did not exit after DevTools and window-close requests; forcing the isolated browser process to stop."
+        foreach ($process in $remaining) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 

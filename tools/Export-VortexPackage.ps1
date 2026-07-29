@@ -240,7 +240,7 @@ function Test-ShouldSkipExportFile {
         return $true
     }
 
-    if ($File.Extension -in @(".zip", ".7z", ".rar", ".nupkg", ".pdb", ".tmp")) {
+    if ($File.Extension -in @(".zip", ".7z", ".rar", ".nupkg", ".pdb", ".pdn", ".tmp")) {
         return $true
     }
 

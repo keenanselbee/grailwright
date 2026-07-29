@@ -42,6 +42,9 @@ param(
     [switch]$UseTestContent,
 
     [Parameter(ParameterSetName = "Update")]
+    [switch]$ForceSave,
+
+    [Parameter(ParameterSetName = "Update")]
     [string]$ShortDescription = "",
 
     [Parameter(ParameterSetName = "Update")]
@@ -61,7 +64,22 @@ param(
     [Parameter(ParameterSetName = "Update")]
     [Parameter(ParameterSetName = "Login")]
     [Parameter(ParameterSetName = "Revert")]
-    [int]$TimeoutSeconds = 180
+    [int]$TimeoutSeconds = 180,
+
+    [Parameter(ParameterSetName = "Update")]
+    [Parameter(ParameterSetName = "Login")]
+    [Parameter(ParameterSetName = "Revert")]
+    [int]$LockWaitSeconds = 0,
+
+    [Parameter(ParameterSetName = "Update")]
+    [Parameter(ParameterSetName = "Login")]
+    [Parameter(ParameterSetName = "Revert")]
+    [int]$LockStaleAfterMinutes = 720,
+
+    [Parameter(ParameterSetName = "Update")]
+    [Parameter(ParameterSetName = "Login")]
+    [Parameter(ParameterSetName = "Revert")]
+    [switch]$ForceStaleLock
 )
 
 Set-StrictMode -Version Latest
@@ -72,6 +90,12 @@ $NodeToolRoot = Join-Path $RepoRoot ".codex-temp\nexus-description-tool"
 $RequestRoot = Join-Path $RepoRoot ".codex-temp\nexus-description-requests"
 $BackupRoot = Join-Path $RepoRoot ".codex-temp\nexus-description-backups"
 $ScriptPath = Join-Path $PSScriptRoot "nexus\update-nexus-description.mjs"
+$LockScript = Join-Path $PSScriptRoot "Lock-Operation.ps1"
+if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
+    throw "Missing lock helper: $LockScript"
+}
+
+. $LockScript
 
 function Test-JsonProperty {
     param(
@@ -315,6 +339,9 @@ function Start-CdpBrowser {
         "--remote-debugging-port=$Port",
         "--user-data-dir=$UserDataDir",
         "--no-first-run",
+        "--hide-crash-restore-bubble",
+        "--window-position=198,198",
+        "--window-size=1300,1044",
         "--new-window",
         $StartUrl
     )
@@ -387,6 +414,10 @@ if (-not (Test-Path -LiteralPath $ScriptPath -PathType Leaf)) {
 }
 
 $resolvedModRoot = Resolve-ModRoot -RequestedMod $Mod -RequestedModRoot $ModRoot
+$nexusLockModName = if ([string]::IsNullOrWhiteSpace($Mod)) { Split-Path -Leaf $resolvedModRoot } else { $Mod }
+$nexusLock = Enter-GrailwrightLock -Name "nexus" -Action "update-nexus-description" -Mod $nexusLockModName -RepoRoot $RepoRoot -TimeoutSeconds $LockWaitSeconds -StaleAfterMinutes $LockStaleAfterMinutes -ForceStaleLock:$ForceStaleLock
+
+try {
 $manifest = Read-ModManifest -Root $resolvedModRoot
 $apiSettings = Read-LocalApiSettings -Root $resolvedModRoot
 $resolvedNexusUrl = Get-NexusUrl -RequestedUrl $NexusUrl -ApiSettings $apiSettings -Manifest $manifest
@@ -489,6 +520,7 @@ $request = [pscustomobject]@{
     remoteDebuggingPort = $RemoteDebuggingPort
     desiredShortDescription = $desiredShort
     desiredFullDescription = $desiredFull
+    forceSave = [bool]$ForceSave
     restoreBackupPath = $restoreBackupPath
     keepOpen = [bool]$KeepOpen
     timeoutSeconds = $TimeoutSeconds
@@ -523,4 +555,7 @@ finally {
     else {
         $env:NEXUS_DESCRIPTION_TOOL_ROOT = $oldToolRoot
     }
+}
+} finally {
+    Exit-GrailwrightLock -Lock $nexusLock
 }

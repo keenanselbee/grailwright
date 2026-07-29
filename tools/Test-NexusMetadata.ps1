@@ -134,7 +134,7 @@ function Get-CurrentChangelogEntryCount {
     $inSection = $false
     foreach ($line in Get-Content -LiteralPath $path) {
         $trimmed = $line.Trim()
-        $isHeader = $trimmed -match '^(?:Version\s+)?[A-Za-z0-9 ''().:_-]*\b[0-9]+(?:\.[0-9]+){1,3}\b\s*$'
+        $isHeader = $trimmed -match '^(?:Version\s+)?[A-Za-z0-9 ''().:_-]*\b[0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z][0-9A-Za-z._-]*)?\b\s*$'
         if ($isHeader) {
             if ($inSection) {
                 break

@@ -5,7 +5,10 @@ param(
     [string]$VortexModsRoot = "",
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
-    [switch]$StageToVortex
+    [switch]$StageToVortex,
+    [int]$LockWaitSeconds = 0,
+    [int]$LockStaleAfterMinutes = 720,
+    [switch]$ForceStaleLock
 )
 
 Set-StrictMode -Version Latest
@@ -49,6 +52,12 @@ foreach ($manifest in $manifests) {
 
     if ($StageToVortex) {
         $args.StageToVortex = $true
+    }
+
+    $args.LockWaitSeconds = $LockWaitSeconds
+    $args.LockStaleAfterMinutes = $LockStaleAfterMinutes
+    if ($ForceStaleLock) {
+        $args.ForceStaleLock = $true
     }
 
     try {

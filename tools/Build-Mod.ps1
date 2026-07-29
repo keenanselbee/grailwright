@@ -8,13 +8,22 @@ param(
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
     [switch]$StageToVortex,
-    [switch]$KeepScratch
+    [switch]$KeepScratch,
+    [int]$LockWaitSeconds = 0,
+    [int]$LockStaleAfterMinutes = 720,
+    [switch]$ForceStaleLock
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+$LockScript = Join-Path $PSScriptRoot "Lock-Operation.ps1"
+if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
+    throw "Missing lock helper: $LockScript"
+}
+
+. $LockScript
 
 function Get-SteamRootCandidates {
     $roots = New-Object "System.Collections.Generic.List[string]"
@@ -274,6 +283,18 @@ function Get-DesktopDirectory {
 
 $ResolvedModRoot = Resolve-ModRoot -RequestedMod $Mod -RequestedModRoot $ModRoot
 $Manifest = Read-ModManifest -Root $ResolvedModRoot
+$lockModName = Split-Path -Leaf $ResolvedModRoot
+if ((Test-JsonProperty -Object $Manifest -Name "packageName") -and -not [string]::IsNullOrWhiteSpace([string]$Manifest.packageName)) {
+    $lockModName = [string]$Manifest.packageName
+} elseif ((Test-JsonProperty -Object $Manifest -Name "id") -and -not [string]::IsNullOrWhiteSpace([string]$Manifest.id)) {
+    $lockModName = [string]$Manifest.id
+}
+
+$buildAction = if ($StageToVortex) { "build-stage-mod" } else { "build-mod" }
+$modLock = Enter-GrailwrightLock -Name "mod-$lockModName" -Action $buildAction -Mod $lockModName -RepoRoot $RepoRoot -TimeoutSeconds $LockWaitSeconds -StaleAfterMinutes $LockStaleAfterMinutes -ForceStaleLock:$ForceStaleLock
+
+try {
+$Manifest = Read-ModManifest -Root $ResolvedModRoot
 $ResolvedGameRoot = Resolve-GameRoot -Candidate $GameRoot
 $ResolvedVortexModsRoot = Resolve-VortexModsRoot -Candidate $VortexModsRoot
 $ResolvedBepInExRoot = Resolve-BepInExRoot -Candidate $BepInExRoot -ResolvedGameRoot $ResolvedGameRoot -ResolvedVortexModsRoot $ResolvedVortexModsRoot
@@ -375,4 +396,7 @@ if ($StageToVortex) {
     & $stageScript @stageArgs
 } else {
     $exportResult
+}
+} finally {
+    Exit-GrailwrightLock -Lock $modLock
 }

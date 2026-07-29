@@ -29,7 +29,10 @@ param(
     [switch]$ListFiles,
     [switch]$AddChangelog,
     [switch]$DryRun,
-    [string]$ApiBaseUrl = "https://api.nexusmods.com/v3"
+    [string]$ApiBaseUrl = "https://api.nexusmods.com/v3",
+    [int]$LockWaitSeconds = 0,
+    [int]$LockStaleAfterMinutes = 720,
+    [switch]$ForceStaleLock
 )
 
 Set-StrictMode -Version Latest
@@ -38,6 +41,12 @@ Add-Type -AssemblyName System.Net.Http | Out-Null
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $ApiKey = $env:NEXUS_API_KEY
+$LockScript = Join-Path $PSScriptRoot "Lock-Operation.ps1"
+if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
+    throw "Missing lock helper: $LockScript"
+}
+
+. $LockScript
 
 function Test-JsonProperty {
     param(
@@ -369,7 +378,7 @@ function Get-CurrentChangelogEntries {
 
     foreach ($line in $lines) {
         $trimmed = $line.Trim()
-        $isHeader = $trimmed -match '^(?:Version\s+)?[A-Za-z0-9 ''().:_-]*\b[0-9]+(?:\.[0-9]+){1,3}\b\s*$'
+        $isHeader = $trimmed -match '^(?:Version\s+)?[A-Za-z0-9 ''().:_-]*\b[0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z][0-9A-Za-z._-]*)?\b\s*$'
         if ($isHeader) {
             if ($inSection) {
                 break
@@ -484,6 +493,12 @@ function Build-Archive {
 
     if (-not [string]::IsNullOrWhiteSpace($Destination)) {
         $buildArgs.DestinationDirectory = $Destination
+    }
+
+    $buildArgs.LockWaitSeconds = $script:LockWaitSeconds
+    $buildArgs.LockStaleAfterMinutes = $script:LockStaleAfterMinutes
+    if ($script:ForceStaleLock) {
+        $buildArgs.ForceStaleLock = $true
     }
 
     $result = & $buildScript @buildArgs | Select-Object -Last 1
@@ -757,62 +772,106 @@ if ($DryRun) {
     return
 }
 
-if ([string]::IsNullOrWhiteSpace($FileDescription)) {
-    throw "Missing Nexus file upload description. Add nexus-file-desc.txt beside the mod or pass -FileDescription."
+$nexusLockModName = $FileName
+if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName") -and -not [string]::IsNullOrWhiteSpace([string]$manifest.packageName)) {
+    $nexusLockModName = [string]$manifest.packageName
 }
 
-if ([string]::IsNullOrWhiteSpace($ModFileId)) {
-    throw "Pass -ModFileId/-GroupId for new versions of an existing Nexus file. Use -ListFiles to inspect candidates."
-}
+$nexusLock = Enter-GrailwrightLock -Name "nexus" -Action "publish-nexus" -Mod $nexusLockModName -RepoRoot $RepoRoot -TimeoutSeconds $LockWaitSeconds -StaleAfterMinutes $LockStaleAfterMinutes -ForceStaleLock:$ForceStaleLock
+try {
+    if ($manifest -ne $null) {
+        $manifest = Read-ModManifest -Root $resolvedModRoot
+        if (-not $PSBoundParameters.ContainsKey("FileName") -or [string]::IsNullOrWhiteSpace($FileName)) {
+            $FileName = [string]$manifest.displayName
+        }
 
-$archiveItem = Get-Item -LiteralPath $ArchivePath
-$uploadId = Send-MultipartUpload -Path $archiveItem.FullName
-Invoke-NexusApi -Method POST -Path ("/uploads/{0}/finalise" -f $uploadId) | Out-Null
-Wait-NexusUploadAvailable -UploadId $uploadId
-
-$versionRequest = @{
-    upload_id = $uploadId
-    name = $FileName
-    version = $FileVersion
-    description = $FileDescription
-    file_category = $FileCategory
-    primary_mod_manager_download = $PrimaryModManagerDownload
-    allow_mod_manager_download = $AllowModManagerDownload
-    show_requirements_pop_up = $ShowRequirementsPopUp
-    update_mod_version = $UpdateModVersion
-    archive_existing_file = $ArchiveExistingFile
-}
-
-if (-not [string]::IsNullOrWhiteSpace($PreviousVersionId)) {
-    $versionRequest.previous_version_id = $PreviousVersionId
-}
-
-$createdVersion = Invoke-NexusApi -Method POST -Path ("/mod-files/{0}/versions" -f $ModFileId) -Body $versionRequest
-
-if ($AddChangelog) {
-    if ([string]::IsNullOrWhiteSpace($ModId)) {
-        throw "Cannot add changelog without ModId. Provide -ModId or -NexusUrl so it can be resolved."
+        if (-not $PSBoundParameters.ContainsKey("FileVersion") -or [string]::IsNullOrWhiteSpace($FileVersion)) {
+            $FileVersion = [string]$manifest.version
+        }
     }
 
-    if ($changelogEntries.Count -eq 0) {
-        throw "Cannot add changelog: no entries found for version $FileVersion."
+    if ([string]::IsNullOrWhiteSpace($FileName) -and -not [string]::IsNullOrWhiteSpace($ArchivePath)) {
+        $FileName = [System.IO.Path]::GetFileNameWithoutExtension($ArchivePath)
     }
 
-    $changelogRequest = @{
+    if ([string]::IsNullOrWhiteSpace($FileVersion)) {
+        throw "Could not infer FileVersion. Pass -FileVersion or use a mod manifest."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($FileName)) {
+        throw "Could not infer FileName. Pass -FileName or use a mod manifest."
+    }
+
+    $changelogEntries = @(Get-CurrentChangelogEntries -Root $resolvedModRoot -Version $FileVersion)
+    $shortDescription = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-short-desc.txt" -MaximumLength 350 -SearchParents
+    $fileDescriptionSource = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-file-desc.txt" -MaximumLength 255
+    if (-not $PSBoundParameters.ContainsKey("FileDescription") -or [string]::IsNullOrWhiteSpace($FileDescription)) {
+        $FileDescription = $fileDescriptionSource
+    }
+
+    if ($FileDescription.Length -gt 255) {
+        throw "FileDescription is $($FileDescription.Length) characters, over Nexus file description limit 255."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($FileDescription)) {
+        throw "Missing Nexus file upload description. Add nexus-file-desc.txt beside the mod or pass -FileDescription."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ModFileId)) {
+        throw "Pass -ModFileId/-GroupId for new versions of an existing Nexus file. Use -ListFiles to inspect candidates."
+    }
+
+    $archiveItem = Get-Item -LiteralPath $ArchivePath
+    $uploadId = Send-MultipartUpload -Path $archiveItem.FullName
+    Invoke-NexusApi -Method POST -Path ("/uploads/{0}/finalise" -f $uploadId) | Out-Null
+    Wait-NexusUploadAvailable -UploadId $uploadId
+
+    $versionRequest = @{
+        upload_id = $uploadId
+        name = $FileName
         version = $FileVersion
-        changelog = ($changelogEntries -join "`n")
+        description = $FileDescription
+        file_category = $FileCategory
+        primary_mod_manager_download = $PrimaryModManagerDownload
+        allow_mod_manager_download = $AllowModManagerDownload
+        show_requirements_pop_up = $ShowRequirementsPopUp
+        update_mod_version = $UpdateModVersion
+        archive_existing_file = $ArchiveExistingFile
     }
 
-    Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
-}
+    if (-not [string]::IsNullOrWhiteSpace($PreviousVersionId)) {
+        $versionRequest.previous_version_id = $PreviousVersionId
+    }
 
-[pscustomobject]@{
-    UploadedArchive = $archiveItem.FullName
-    UploadId = $uploadId
-    ModFileId = $ModFileId
-    CreatedFileId = if ($createdVersion.data.file -ne $null) { [string]$createdVersion.data.file.id } else { "" }
-    CreatedVersionId = if ($createdVersion.data.version -ne $null) { [string]$createdVersion.data.version.id } else { "" }
-    Version = $FileVersion
-    ChangelogAdded = [bool]$AddChangelog
-    DescriptionUpdate = "Manual/browser step: v3 API does not expose a main mod description update endpoint."
+    $createdVersion = Invoke-NexusApi -Method POST -Path ("/mod-files/{0}/versions" -f $ModFileId) -Body $versionRequest
+
+    if ($AddChangelog) {
+        if ([string]::IsNullOrWhiteSpace($ModId)) {
+            throw "Cannot add changelog without ModId. Provide -ModId or -NexusUrl so it can be resolved."
+        }
+
+        if ($changelogEntries.Count -eq 0) {
+            throw "Cannot add changelog: no entries found for version $FileVersion."
+        }
+
+        $changelogRequest = @{
+            version = $FileVersion
+            changelog = ($changelogEntries -join "`n")
+        }
+
+        Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
+    }
+
+    [pscustomobject]@{
+        UploadedArchive = $archiveItem.FullName
+        UploadId = $uploadId
+        ModFileId = $ModFileId
+        CreatedFileId = if ($createdVersion.data.file -ne $null) { [string]$createdVersion.data.file.id } else { "" }
+        CreatedVersionId = if ($createdVersion.data.version -ne $null) { [string]$createdVersion.data.version.id } else { "" }
+        Version = $FileVersion
+        ChangelogAdded = [bool]$AddChangelog
+        DescriptionUpdate = "Manual/browser step: v3 API does not expose a main mod description update endpoint."
+    }
+} finally {
+    Exit-GrailwrightLock -Lock $nexusLock
 }

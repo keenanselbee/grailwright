@@ -48,6 +48,7 @@ BepInEx/plugins/{{PackageName}}/{{DllName}}[/code]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]{{Known supported integrations, dependencies, or conflicts.}}[/*]
 [*]{{Mention incompatible old DLLs, branch/runtime limits, or mod conflicts when relevant.}}[/*]
 [/list]
@@ -63,4 +64,6 @@ Template rules:
 - Use `[heading][color=#C94A4A][size=5]...[/size][/color][/heading]` for major headers.
 - Use `[line]` between major sections.
 - Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and config file names.
+- Link the first nearby mention of each published mod name with `[url=...]Mod Name[/url]`; leave close repeats unlinked or bold so the page does not become link-noisy.
+- Put the optional Grail Floating Text diagnostics sentence in Compatibility or Optional Integrations when the section exists.
 - Omit sections that do not apply, but keep the remaining section style identical.

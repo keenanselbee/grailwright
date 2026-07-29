@@ -48,6 +48,46 @@ function normalizeText(value) {
   }).join("\n").trim();
 }
 
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function boundedTimeout(timeoutMs, maximumMs) {
+  return Math.max(1000, Math.min(timeoutMs, maximumMs));
+}
+
+function summarizeButtons(buttons) {
+  return buttons
+    .slice(0, 20)
+    .map((button) => {
+      const label = `${button.text || button.aria || button.title || "(blank)"}`.replace(/\s+/g, " ").trim();
+      return `${label}@${Math.round(button.top)},${Math.round(button.left)}${button.disabled ? ":disabled" : ""}`;
+    });
+}
+
+async function recordProgress(request, page, phase, details = {}) {
+  if (!request || !request.repoRoot || !request.packageName) {
+    return;
+  }
+
+  const progressRoot = path.join(request.repoRoot, ".codex-temp", "nexus-description-progress");
+  await ensureDirectory(progressRoot);
+  const progressPath = path.join(progressRoot, `${request.packageName}.json`);
+  const payload = {
+    updatedAt: new Date().toISOString(),
+    packageName: request.packageName,
+    displayName: request.displayName,
+    action: request.action,
+    phase,
+    currentUrl: page && !page.isClosed() ? page.url() : null,
+    ...details
+  };
+  await writeJson(progressPath, payload);
+  console.error(`[nexus-description] ${request.packageName}: ${phase}`);
+}
+
 function assertTextEquals(actual, expected, label) {
   const actualNormalized = normalizeText(actual);
   const expectedNormalized = normalizeText(expected);
@@ -120,7 +160,9 @@ async function replaceTextareaValue(page, textarea, value) {
 }
 
 async function clickButtonInfo(page, button) {
-  await page.mouse.click(button.left + (button.width / 2), button.top + (button.height / 2));
+  const locator = page.locator(`[data-nexus-button-id="${button.id}"]`);
+  await locator.scrollIntoViewIfNeeded();
+  await locator.click();
 }
 
 async function getVisibleTextareas(page) {
@@ -200,6 +242,74 @@ async function getButtons(page) {
   });
 }
 
+async function getEditorState(page) {
+  const [textareas, buttons, editorCount] = await Promise.all([
+    getVisibleTextareas(page),
+    getButtons(page),
+    page.locator(".ProseMirror, [contenteditable='true']").count()
+  ]);
+
+  return {
+    textareaCount: textareas.length,
+    textareas: textareas.map((textarea) => ({
+      top: Math.round(textarea.top),
+      left: Math.round(textarea.left),
+      width: Math.round(textarea.width),
+      height: Math.round(textarea.height),
+      valueLength: normalizeText(textarea.value).length,
+      placeholder: textarea.placeholder,
+      ariaLabel: textarea.ariaLabel
+    })),
+    editorCount,
+    buttons: summarizeButtons(buttons)
+  };
+}
+
+function hasFullDescriptionEditorShell(state) {
+  const buttonText = state.buttons.join(" ").toLowerCase();
+  return buttonText.includes("import description")
+    || (buttonText.includes("insert a link") && buttonText.includes("bullet list"))
+    || (buttonText.includes("bold") && buttonText.includes("underline") && buttonText.includes("font color"))
+    || state.editorCount > 0;
+}
+
+async function scrollToFullDescriptionEditor(page, timeoutMs) {
+  const fullDescription = page.getByText("Full description", { exact: false });
+  const fullDescriptionTimeoutMs = boundedTimeout(timeoutMs, 45000);
+  const deadline = Date.now() + fullDescriptionTimeoutMs;
+  do {
+    if (await isVisible(fullDescription)) {
+      await fullDescription.scrollIntoViewIfNeeded();
+      return;
+    }
+
+    const state = await getEditorState(page);
+    if (hasFullDescriptionEditorShell(state)) {
+      return;
+    }
+
+    await page.evaluate(() => {
+      window.scrollBy({
+        top: Math.max(600, Math.floor(window.innerHeight * 0.8)),
+        behavior: "instant"
+      });
+    });
+    await delay(350);
+  } while (Date.now() < deadline);
+
+  const state = await getEditorState(page);
+  throw new Error(`Full description editor did not appear within ${fullDescriptionTimeoutMs}ms after opening the General editor. Editor state: ${JSON.stringify(state)}`);
+}
+
+async function waitForGeneralEditor(page, timeoutMs) {
+  await page.getByText("Short description", { exact: false }).waitFor({
+    state: "visible",
+    timeout: boundedTimeout(timeoutMs, 45000)
+  });
+
+  await scrollToFullDescriptionEditor(page, timeoutMs);
+}
+
 async function isLoggedOut(page) {
   if (await isVisible(page.getByText("Log in to Nexus Mods", { exact: true }))) {
     return true;
@@ -264,13 +374,16 @@ async function openEditor(page, modUrl, timeoutMs) {
   const editUrl = buildEditUrl(modUrl);
   if (page.url().startsWith(editUrl)) {
     await requireLoggedIn(page);
-    await page.getByText("Short description", { exact: true }).waitFor({ state: "visible", timeout: timeoutMs });
-    await page.getByText("Full description", { exact: true }).waitFor({ state: "visible", timeout: timeoutMs });
+    await waitForGeneralEditor(page, timeoutMs);
     return;
   }
 
   await page.goto(modUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
   await requireLoggedIn(page);
+  if (page.url().startsWith(editUrl)) {
+    await waitForGeneralEditor(page, timeoutMs);
+    return;
+  }
 
   const manageButton = page.locator("button, a, [role='button']").filter({ hasText: "Manage" }).first();
   const manageCount = await page.locator("button, a, [role='button']").filter({ hasText: "Manage" }).count();
@@ -294,12 +407,11 @@ async function openEditor(page, modUrl, timeoutMs) {
     await page.goto(editUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
   }
 
-  await page.getByText("Short description", { exact: true }).waitFor({ state: "visible", timeout: timeoutMs });
-  await page.getByText("Full description", { exact: true }).waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForGeneralEditor(page, timeoutMs);
 }
 
 async function ensureSourceMode(page, timeoutMs) {
-  await page.getByText("Full description", { exact: true }).scrollIntoViewIfNeeded();
+  await scrollToFullDescriptionEditor(page, timeoutMs);
   let textareas = await getVisibleTextareas(page);
   if (textareas.length >= 2) {
     return textareas;
@@ -329,12 +441,14 @@ async function ensureSourceMode(page, timeoutMs) {
     .sort((a, b) => b.top - a.top)[0];
 
   if (!sourceButton) {
-    throw new Error("Could not find the full-description source toggle or rich-text editor.");
+    const state = await getEditorState(page);
+    throw new Error(`Could not find the full-description source toggle or rich-text editor. Editor state: ${JSON.stringify(state)}`);
   }
 
   await clickButtonInfo(page, sourceButton);
 
-  const deadline = Date.now() + timeoutMs;
+  const sourceModeTimeoutMs = boundedTimeout(timeoutMs, 20000);
+  const deadline = Date.now() + sourceModeTimeoutMs;
   do {
     textareas = await getVisibleTextareas(page);
     if (textareas.length >= 2) {
@@ -344,7 +458,39 @@ async function ensureSourceMode(page, timeoutMs) {
     await page.waitForTimeout(250);
   } while (Date.now() < deadline);
 
-  throw new Error("Full-description source textarea did not appear after opening source mode.");
+  const state = await getEditorState(page);
+  throw new Error(`Full-description source textarea did not appear within ${sourceModeTimeoutMs}ms after opening source mode. Editor state: ${JSON.stringify(state)}`);
+}
+
+async function leaveFullDescriptionSourceMode(page, timeoutMs) {
+  const context = page.context();
+  const buttons = await getButtons(page);
+  const sourceButton = buttons
+    .filter((button) => {
+      const haystack = `${button.text} ${button.aria} ${button.title}`.toLowerCase();
+      return haystack.includes("source")
+        || button.text === "[]"
+        || button.text === "<>"
+        || button.text === "</>";
+    })
+    .sort((a, b) => b.top - a.top)[0];
+
+  if (!sourceButton) {
+    throw new Error("Could not find the full-description source toggle before saving.");
+  }
+
+  await clickButtonInfo(page, sourceButton);
+  await delay(1500);
+
+  const livePage = page.isClosed()
+    ? context.pages().find((candidate) => !candidate.isClosed() && candidate.url().includes("nexusmods.com"))
+    : page;
+  if (!livePage) {
+    throw new Error("Nexus page closed after leaving source mode.");
+  }
+
+  livePage.setDefaultTimeout(timeoutMs);
+  return livePage;
 }
 
 async function readDescriptions(page, timeoutMs) {
@@ -380,18 +526,27 @@ async function fillDescriptions(page, desiredShort, desiredFull, timeoutMs) {
 }
 
 async function clickSave(page, timeoutMs) {
+  const saveTimeoutMs = boundedTimeout(timeoutMs, 30000);
+  const deadline = Date.now() + saveTimeoutMs;
+  do {
+    const buttons = await getButtons(page);
+    const saveButton = buttons
+      .filter((button) => button.text === "Save" && !button.disabled)
+      .sort((a, b) => a.top - b.top)[0];
+
+    if (saveButton) {
+      await delay(500);
+      await clickButtonInfo(page, saveButton);
+      await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 15000) }).catch(() => {});
+      await page.waitForTimeout(2500);
+      return;
+    }
+
+    await delay(500);
+  } while (Date.now() < deadline);
+
   const buttons = await getButtons(page);
-  const saveButton = buttons
-    .filter((button) => button.text === "Save" && !button.disabled)
-    .sort((a, b) => b.top - a.top)[0];
-
-  if (!saveButton) {
-    throw new Error("Could not find an enabled Save button after editing.");
-  }
-
-  await clickButtonInfo(page, saveButton);
-  await page.waitForLoadState("networkidle", { timeout: Math.min(timeoutMs, 15000) }).catch(() => {});
-  await page.waitForTimeout(2500);
+  throw new Error(`Could not find an enabled Save button within ${saveTimeoutMs}ms after editing. Buttons: ${JSON.stringify(summarizeButtons(buttons))}`);
 }
 
 async function hasUnsavedModal(page) {
@@ -488,13 +643,17 @@ async function main() {
   });
 
   try {
+    await recordProgress(request, page, "started");
     if (request.action === "login") {
+      await recordProgress(request, page, "opening-login-page");
       await page.goto("https://www.nexusmods.com/", { waitUntil: "domcontentloaded", timeout: timeoutMs });
+      await recordProgress(request, page, "waiting-for-login");
       const loggedIn = await waitForLogin(page, timeoutMs);
       if (!loggedIn) {
         throw new Error("Timed out waiting for Nexus login in the isolated browser profile.");
       }
 
+      await recordProgress(request, page, "logged-in");
       console.log(JSON.stringify({
         status: "logged-in",
         profileRoot: request.profileRoot,
@@ -503,8 +662,14 @@ async function main() {
       return;
     }
 
+    await recordProgress(request, page, "opening-editor");
     await openEditor(page, request.nexusUrl, timeoutMs);
+    await recordProgress(request, page, "reading-current-descriptions");
     const previous = await readDescriptions(page, timeoutMs);
+    await recordProgress(request, page, "read-current-descriptions", {
+      currentShortLength: normalizeText(previous.shortDescription).length,
+      currentFullLength: normalizeText(previous.fullDescription).length
+    });
 
     let desired = {
       shortDescription: request.desiredShortDescription,
@@ -517,10 +682,16 @@ async function main() {
     }
 
     const backupPath = await createBackup(request, previous, desired, request.action);
+    await recordProgress(request, page, "backup-created", { backupPath });
     const shortDescriptionChanged = normalizeText(previous.shortDescription) !== normalizeText(desired.shortDescription);
     const fullDescriptionChanged = normalizeText(previous.fullDescription) !== normalizeText(desired.fullDescription);
 
     if (request.action === "review" || request.action === "revert-review") {
+      await recordProgress(request, page, "reviewed", {
+        backupPath,
+        shortDescriptionChanged,
+        fullDescriptionChanged
+      });
       console.log(JSON.stringify({
         status: "reviewed",
         action: request.action,
@@ -537,7 +708,8 @@ async function main() {
       return;
     }
 
-    if (!shortDescriptionChanged && !fullDescriptionChanged) {
+    if (!shortDescriptionChanged && !fullDescriptionChanged && !request.forceSave) {
+      await recordProgress(request, page, "already-current", { backupPath });
       console.log(JSON.stringify({
         status: "already-current",
         action: request.action,
@@ -550,9 +722,22 @@ async function main() {
       return;
     }
 
+    await recordProgress(request, page, "filling-descriptions", {
+      desiredShortLength: normalizeText(desired.shortDescription).length,
+      desiredFullLength: normalizeText(desired.fullDescription).length
+    });
     await fillDescriptions(page, desired.shortDescription, desired.fullDescription, timeoutMs);
+    await recordProgress(request, page, "leaving-source-mode");
+    page = await leaveFullDescriptionSourceMode(page, timeoutMs);
+    await recordProgress(request, page, "saving");
     await clickSave(page, timeoutMs);
+    await recordProgress(request, page, "verifying-save");
     const verified = await verifySaved(page, request.nexusUrl, desired.shortDescription, desired.fullDescription, timeoutMs);
+    await recordProgress(request, page, "saved-and-verified", {
+      backupPath,
+      shortLength: normalizeText(verified.shortDescription).length,
+      fullLength: normalizeText(verified.fullDescription).length
+    });
 
     console.log(JSON.stringify({
       status: "saved-and-verified",
@@ -563,6 +748,11 @@ async function main() {
       shortLength: normalizeText(verified.shortDescription).length,
       fullLength: normalizeText(verified.fullDescription).length
     }, null, 2));
+  } catch (error) {
+    await recordProgress(request, page, "failed", {
+      error: error && error.message ? error.message : String(error)
+    }).catch(() => {});
+    throw error;
   } finally {
     if (browser) {
       if (!request.keepOpen) {

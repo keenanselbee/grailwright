@@ -10,6 +10,12 @@ Build/
 *.tmp
 .codex-temp/
 
+# Local game inspection tool caches
+tools/game-inspection/assetripper/
+tools/game-inspection/downloads/
+tools/game-inspection/ilspycmd/
+tools/game-inspection/python/
+
 # Local credentials and machine-specific publishing settings
 .env
 .env.*

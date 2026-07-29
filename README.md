@@ -14,20 +14,22 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 
 | Mod | Version | Nexus |
 | --- | --- | --- |
-| [Better Quick Slots](mods/BetterQuickSlots) | 0.2.1 | Unpublished |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.1.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.8.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 1.0.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
-| [First Hit Hitch Fix](mods/FirstHitHitchFix) | 0.1.1 | Unpublished |
-| [Full Enemy XP - No Overlevel Penalty](mods/FullEnemyXP) | 1.0.0 | Unpublished |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
-| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
-| [More Weapon Loadouts Addon](mods/KSAddons/MoreWeaponLoadoutsAddon) | 0.1.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Owrocc HUD Tweaks / More Weapon Loadouts](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192) |
-| [No Player Light](mods/NoPlayerLight) | 1.3.2 | Unpublished |
-| [Steel and Bone](mods/SteelAndBone) | 0.9.0 | Unpublished |
-| [TG All Lights Cast Shadows Addon](mods/KSAddons/TGAllLightsCastShadowsAddon) | 1.1.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
-| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.0 | Unpublished |
-| [Wyrd Hunt Addon](mods/KSAddons/KSWyrdHuntAddon) | 1.4.1 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Hunt](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201) |
+| [Better Quick Slots](mods/BetterQuickSlots) | 0.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.2.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.8.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.0.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [First Hit Hitch Fix](mods/FirstHitHitchFix) | 0.1.2 | Unpublished |
+| [Full Enemy XP](mods/FullEnemyXP) | 1.0.1 | Unpublished |
+| [Grail Floating Text](mods/GrailFloatingText) | 1.5.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.1.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
+| [KS More Weapon Loadouts Addon](mods/KSAddons/KSMoreWeaponLoadoutsAddon) | 0.1.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Owrocc HUD Tweaks / More Weapon Loadouts](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192) |
+| [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.1.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
+| [KS Wyrd Hunt Addon](mods/KSAddons/KSWyrdHuntAddon) | 1.4.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Hunt](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201) |
+| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.0.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
+| [No Player Light](mods/NoPlayerLight) | 1.3.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
+| [Steel and Bone](mods/SteelAndBone) | 0.9.3-beta | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
+| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
 
 ## Layout
 
@@ -46,13 +48,15 @@ mods/
   UltrawideFixes/
   KSAddons/
     KSWyrdHuntAddon/
-    TGAllLightsCastShadowsAddon/
-    MoreWeaponLoadoutsAddon/
+    KSWyrdSightAddon/
+    KSTGAllLightsCastShadowsAddon/
+    KSMoreWeaponLoadoutsAddon/
 
 tools/
   Build-Mod.ps1
   Build-All.ps1
   Export-VortexPackage.ps1
+  Lock-Operation.ps1
   Publish-NexusMod.ps1
   audio/
     Convert-RewardSounds.ps1
@@ -71,6 +75,12 @@ Archive filenames use the readable display name plus version, such as
 `No Player Light 1.0.2.zip`. The zip payload still contains one compact
 top-level mod folder, such as `NoPlayerLight`, so plugin folder identity and
 Vortex staging checks stay stable.
+
+`Build-Mod.ps1` and `Build-All.ps1` acquire a per-mod lock under
+`.codex-temp\locks\mod-<package>.lock` while compiling, exporting, and staging.
+If another thread already owns that mod lock, the command stops and prints the
+owner details from `owner.json`. Use `-LockWaitSeconds` when waiting is desired,
+or `-ForceStaleLock` only after confirming the recorded owner is gone.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion -DestinationDirectory .\.codex-temp\builds -StageToVortex
@@ -109,6 +119,14 @@ not expose a mod description update endpoint.
 Chrome profile under `.codex-temp\nexus-browser-profile-chrome`. Chrome is the
 only supported browser path; run it with `-LoginOnly` when the profile needs a
 fresh Nexus login, then rerun with `-Save`.
+
+Nexus updates are serialized by a global `.codex-temp\locks\nexus.lock`.
+`Publish-NexusMod.ps1` builds the archive before taking the global lock, then
+rereads the mod manifest, changelog, and Nexus metadata while it owns the lock
+before uploading. `Update-NexusDescription.ps1` takes the same lock before
+reading description files or launching browser automation. The same
+`-LockWaitSeconds` and `-ForceStaleLock` options are available for explicit
+waiting or stale-lock recovery.
 
 Keep the Nexus API key out of repo files. Set it only in your shell environment:
 
@@ -209,6 +227,12 @@ nexus-short-desc.txt   # Nexus page short description, 350 characters max
 nexus-file-desc.txt    # Nexus file-row description, 255 characters max
 nexus-full-desc.txt    # full Nexus description, manual/browser update
 ```
+
+In `nexus-full-desc.txt`, link the first nearby mention of each published mod
+name to its Nexus page with BBCode `[url=...]Name[/url]`. Leave repeated
+mentions in the same paragraph, list, or nearby section unlinked or bold. Put
+the concise Grail Floating Text diagnostics note under Compatibility or
+Optional Integrations when present.
 
 `Publish-NexusMod.ps1` uses `nexus-file-desc.txt` as the file upload
 description unless `-FileDescription` is passed. Keep that file to one or two

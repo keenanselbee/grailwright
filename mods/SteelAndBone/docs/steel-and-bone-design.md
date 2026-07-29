@@ -185,6 +185,7 @@ True vanilla immunities remain true vanilla immunities. Non-immune amplified res
 | Implemented item | Current behavior | Keep or change |
 |---|---|---|
 | `DamageNumbersEnabled` | Shows built-in floating damage numbers for outgoing player hits. Neutral hits use the base color, while resistance and weakness hits still scale color/size from the applied multiplier. | Keep. This replaces the older reason-text feedback route. |
+| `DamageNumberFontMode` | Follows the game's Accessibility font choice by default and can force the simple Sans, stylized Serif, or Unity IMGUI fallback font. | Keep in parity with Grail Floating Text's font support. |
 | Damage-number color scaling | The baseline number color is `#E3BD02`; stronger resistances shrink and desaturate toward grey, while stronger weaknesses grow and warm toward red-orange. | Tune after in-game visibility testing. |
 | Final-damage outcome hook | Patches the post-health-decrease event and reads the game's final damage amount and hit position for display. | Keep. This is more accurate than showing the pre-final `Damage.Amount`. |
 | Vanilla amplification config | `AmplifyVanillaMultipliers`, per-preset amplification values, and min/max clamps control how strongly vanilla-authored matchups are pushed. | Keep. This is central to the 0.9.0 atlas goal because it makes confirmed vanilla data matter more without duplicating it as custom rules. |

@@ -37,6 +37,14 @@
       <HintPath>$(BepInExStagingDir)\BepInEx\core\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="TG.Main">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\TG.Main.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Awaken.Utility">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\Awaken.Utility.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.dll</HintPath>
       <Private>false</Private>
@@ -51,6 +59,10 @@
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreTextEngineModule">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.TextCoreTextEngineModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

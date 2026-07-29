@@ -1,3 +1,7 @@
+Version 0.9.4-beta
+Added DamageNumberFontMode so built-in damage numbers can follow the game's Accessibility font choice or force the simple Sans, stylized Serif, or IMGUI fallback font.
+Raised ConfigSchemaVersion to 12 for regenerated feedback font defaults.
+
 Version 0.9.3-beta
 Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
 Stopped reporting a successful load when the required damage-rule hook is unavailable.

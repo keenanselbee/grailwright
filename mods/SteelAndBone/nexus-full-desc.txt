@@ -8,7 +8,7 @@
 Tainted Grail already gives some enemies hand-authored damage reactions. Skeletons, for example, already have a vanilla blunt weakness. Steel and Bone keeps those vanilla rules first, can amplify them by preset, and then adds its own material-based rules where the same damage type is still neutral.
 
 [center][color=#F0B35A][b]Beta testing note[/b][/color]
-This 0.9.2-beta upload needs in-game testing. Please report odd enemy classifications, surprising resistance/weakness outcomes, duplicate damage numbers, or unreadable combat text.[/center]
+This 0.9.4-beta upload needs in-game testing. Please report odd enemy classifications, surprising resistance/weakness outcomes, duplicate damage numbers, or unreadable combat text.[/center]
 
 [b]Tempered[/b] is the Vanilla+ preset: it stays close to the base game and leaves vanilla enemy multipliers unchanged by default. [b]Hardened[/b] and [b]Crucible[/b] make weaknesses and resistances sharper, so the higher you set the preset, the more important it becomes to read the enemy and choose the right damage type.
 
@@ -28,14 +28,14 @@ This 0.9.2-beta upload needs in-game testing. Please report odd enemy classifica
 [*]Generic physical hits can fall back to Tainted Grail's own weapon identity, so swords, daggers, polearms, bows, axes, and blunt weapons still have readable lanes when a hit is otherwise untyped.[/*]
 [*]Bone undead, constructs, armored humanoids, ordinary flesh, flesh undead, Wyrd enemies, drowned enemies, infected flesh, sea creatures, spirits, and flora have editable target-family term lists.[/*]
 [*]Recognizes physical subtypes, Fire, Cold, Poison, Electric, Wet, Wyrdness, Burn, Bleed, and blood-magic text cues.[/*]
-[*]Built-in floating damage numbers for outgoing player hits, with #E3BD02 neutral color, smaller/desaturated resistance numbers, warmer/larger weakness numbers, and critical pop scaling.[/*]
+[*]Built-in floating damage numbers for outgoing player hits, with #E3BD02 neutral color, smaller/desaturated resistance numbers, warmer/larger weakness numbers, critical pop scaling, and a font mode that can follow or force the game's Sans and Serif styles.[/*]
 [*]Event-driven damage hook with cached target classification; no enemy scanning.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Built-In Damage Numbers[/size][/color][/heading]
-Steel and Bone includes its own configurable floating damage-number system. Outgoing player hits show final damage values directly in the world: neutral hits use an amber-yellow baseline, resisted hits appear smaller and duller, weakness hits grow warmer and redder, and critical or weak-spot hits get extra pop.
+Steel and Bone includes its own configurable floating damage-number system. Outgoing player hits show final damage values directly in the world: neutral hits use an amber-yellow baseline, resisted hits appear smaller and duller, weakness hits grow warmer and redder, and critical or weak-spot hits get extra pop. By default, damage numbers follow the game's Accessibility font choice; the config can also force the simple Sans font, the stylized Serif font, or Unity's IMGUI fallback font.
 
 This is meant to replace separate combat-text overlays for Steel and Bone feedback. To avoid duplicate numbers, disable other damage-number mods such as [b]DamageNumbers.dll[/b] or Immersive HUD's damage text option.
 
@@ -100,12 +100,14 @@ EliteMinimumResistanceMultiplier = 0.2
 DamageNumbersEnabled = true
 DamageNumberBaseColor = #E3BD02
 DamageNumberFontSize = 34
+DamageNumberFontMode = GameDefault
 Diagnostics = false[/code]
 
 Steel and Bone draws its own damage-number feedback for outgoing player hits
 when [b]DamageNumbersEnabled[/b] is true. To avoid duplicate combat text,
 disable other damage-number overlays such as [b]DamageNumbers.dll[/b] or
-Immersive HUD's damage text option.
+Immersive HUD's damage text option. [b]DamageNumberFontMode[/b] can be
+[b]GameDefault[/b], [b]Sans[/b], [b]Serif[/b], or [b]ImguiDefault[/b].
 
 [line]
 

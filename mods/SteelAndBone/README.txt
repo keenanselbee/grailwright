@@ -1,5 +1,5 @@
 Steel and Bone
-Version 0.9.3-beta
+Version 0.9.4-beta
 
 Beta testing note: this build needs in-game testing before it should be treated
 as a stable tuning release. Please watch for odd enemy classifications,
@@ -53,6 +53,7 @@ EliteMinimumResistanceMultiplier = 0.2
 DamageNumbersEnabled = true
 DamageNumberBaseColor = #E3BD02
 DamageNumberFontSize = 34
+DamageNumberFontMode = GameDefault
 Diagnostics = false
 
 Combat feedback is built into Steel and Bone. When DamageNumbersEnabled is true,
@@ -61,7 +62,9 @@ player hits near the hit position using the final damage amount reported by the
 game. Neutral hits use the #E3BD02 base color. Resistance numbers shrink and
 desaturate toward grey as resistance gets stronger, weakness numbers grow and
 warm toward red-orange as the bonus gets stronger, and critical or weakspot hits
-get a larger pop.
+get a larger pop. DamageNumberFontMode defaults to GameDefault, which follows
+the game's Accessibility font choice. Set it to Sans, Serif, or ImguiDefault to
+force one font for Steel and Bone damage numbers.
 
 If another damage-number mod is installed, both mods can draw numbers. Disable
 other damage-number overlays such as DamageNumbers.dll or Immersive HUD's damage

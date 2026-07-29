@@ -6,19 +6,22 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Awaken.TG.MVC;
+using Awaken.TG.Main.Settings.Accessibility;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 [assembly: AssemblyTitle("Steel and Bone")]
 [assembly: AssemblyDescription("Knowledge-based weakness and resistance difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("0.9.3.0")]
-[assembly: AssemblyFileVersion("0.9.3.0")]
-[assembly: AssemblyInformationalVersion("0.9.3-beta")]
+[assembly: AssemblyVersion("0.9.4.0")]
+[assembly: AssemblyFileVersion("0.9.4.0")]
+[assembly: AssemblyInformationalVersion("0.9.4-beta")]
 
 namespace SteelAndBone
 {
@@ -28,9 +31,9 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "0.9.3";
+        public const string PluginVersion = "0.9.4";
 
-        private const int ConfigSchemaVersion = 11;
+        private const int ConfigSchemaVersion = 12;
         private const string DefaultDamageNumberBaseColor = "#E3BD02";
         private const int MaxPendingDamageFeedback = 128;
         private const float PendingDamageFeedbackLifetimeSeconds = 4.0f;
@@ -130,6 +133,7 @@ namespace SteelAndBone
         private ConfigEntry<bool> _damageNumbersEnabled;
         private ConfigEntry<string> _damageNumberBaseColor;
         private ConfigEntry<int> _damageNumberFontSize;
+        private ConfigEntry<DamageNumberFontMode> _damageNumberFontMode;
         private ConfigEntry<float> _damageNumberDurationSeconds;
         private ConfigEntry<float> _damageNumberCriticalDurationSeconds;
         private ConfigEntry<float> _damageNumberMinimumAmount;
@@ -176,6 +180,7 @@ namespace SteelAndBone
         private string _cachedArmoredHumanoidTermsRaw;
         private string[] _cachedArmoredHumanoidTerms = new string[0];
         private int _targetTermsRevision = 1;
+        private string _lastDamageNumberFontDiagnosticKey;
 
         private void Awake()
         {
@@ -245,6 +250,7 @@ namespace SteelAndBone
             _damageNumbersEnabled = Config.Bind("3. Feedback", "DamageNumbersEnabled", true, "Show Steel and Bone floating damage numbers for outgoing player hits.");
             _damageNumberBaseColor = Config.Bind("3. Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, "Neutral outgoing damage-number color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.");
             _damageNumberFontSize = Config.Bind("3. Feedback", "DamageNumberFontSize", 34, "Base floating damage-number font size.");
+            _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, "Font used by Steel and Bone damage numbers. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
             _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, "Seconds a normal Steel and Bone damage number remains visible.");
             _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, "Seconds a critical Steel and Bone damage number remains visible.");
             _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, "Suppress non-immune damage numbers below this final damage amount.");
@@ -2306,6 +2312,93 @@ namespace SteelAndBone
             return Math.Max(12, Math.Min(80, value));
         }
 
+        private Font ResolveDamageNumberFont()
+        {
+            DamageNumberFontMode mode = GetDamageNumberFontMode();
+            if (mode == DamageNumberFontMode.ImguiDefault)
+            {
+                return null;
+            }
+
+            try
+            {
+                if (mode == DamageNumberFontMode.Sans)
+                {
+                    return ResolveFontFamily(FontFamily.Sans, "Sans");
+                }
+
+                if (mode == DamageNumberFontMode.Serif)
+                {
+                    return ResolveFontFamily(FontFamily.Serif, "Serif");
+                }
+
+                FontChooseSetting setting = World.Any<FontChooseSetting>();
+                if (setting == null)
+                {
+                    return null;
+                }
+
+                FontFamily activeFont = setting.ActiveFont;
+                return ResolveFontFamily(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
+            }
+            catch (Exception ex)
+            {
+                LogDamageNumberFontDiagnosticOnce(
+                    "ResolveDamageNumberFont:" + mode.ToString() + ":" + ex.GetType().FullName,
+                    "Could not resolve " + mode + " font for Steel and Bone damage numbers; using Unity IMGUI fallback font. "
+                    + ex.GetBaseException().Message);
+                return null;
+            }
+        }
+
+        private DamageNumberFontMode GetDamageNumberFontMode()
+        {
+            return _damageNumberFontMode == null ? DamageNumberFontMode.GameDefault : _damageNumberFontMode.Value;
+        }
+
+        private Font ResolveFontFamily(FontFamily fontFamily, string label)
+        {
+            if (fontFamily == null)
+            {
+                LogDamageNumberFontDiagnosticOnce(
+                    "FontFamilyMissing:" + label,
+                    "Could not resolve " + label + " font family for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            FontAsset fontAsset = fontFamily.FontAsset;
+            if (fontAsset == null)
+            {
+                LogDamageNumberFontDiagnosticOnce(
+                    "FontAssetMissing:" + fontFamily.EnumName,
+                    "Could not resolve " + label + " FontAsset for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            Font sourceFont = fontAsset.sourceFontFile;
+            if (sourceFont == null)
+            {
+                LogDamageNumberFontDiagnosticOnce(
+                    "SourceFontMissing:" + fontFamily.EnumName + ":" + fontAsset.name,
+                    "The " + label + " FontAsset '" + fontAsset.name
+                    + "' does not expose a UnityEngine.Font source file for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            return sourceFont;
+        }
+
+        private void LogDamageNumberFontDiagnosticOnce(string key, string message)
+        {
+            if (!DiagnosticsEnabled() || string.Equals(_lastDamageNumberFontDiagnosticKey, key, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastDamageNumberFontDiagnosticKey = key;
+            Logger.LogWarning(message);
+        }
+
         private float GetDamageNumberDurationSeconds()
         {
             float value = _damageNumberDurationSeconds == null ? 0.85f : _damageNumberDurationSeconds.Value;
@@ -2686,6 +2779,14 @@ namespace SteelAndBone
             Crucible
         }
 
+        private enum DamageNumberFontMode
+        {
+            GameDefault,
+            Sans,
+            Serif,
+            ImguiDefault
+        }
+
         private enum TargetFamily
         {
             BoneUndead,
@@ -2895,6 +2996,7 @@ namespace SteelAndBone
             private readonly List<DamageNumberEntry> _entries = new List<DamageNumberEntry>();
             private SteelAndBonePlugin _plugin;
             private GUIStyle _style;
+            private Font _styleFont;
 
             public void Initialize(SteelAndBonePlugin plugin)
             {
@@ -2964,11 +3066,13 @@ namespace SteelAndBone
 
             private void EnsureStyle()
             {
-                if (_style != null)
+                Font styleFont = _plugin.ResolveDamageNumberFont();
+                if (_style != null && ReferenceEquals(_styleFont, styleFont))
                 {
                     return;
                 }
 
+                _styleFont = styleFont;
                 _style = new GUIStyle(GUI.skin.label)
                 {
                     alignment = TextAnchor.MiddleCenter,
@@ -2977,6 +3081,10 @@ namespace SteelAndBone
                     richText = false,
                     wordWrap = false
                 };
+                if (styleFont != null)
+                {
+                    _style.font = styleFont;
+                }
             }
 
             private void DrawEntry(Vector3 projected, DamageNumberVisual visual, float t)

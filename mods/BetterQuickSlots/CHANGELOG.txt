@@ -1,3 +1,7 @@
+Version 0.2.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when the required quick-slot icon hook is unavailable.
+
 Version 0.2.1
 Added ArrowSlotOffsetX, ArrowSlotOffsetY, and ArrowSlotScale config controls for in-game arrow slot tuning.
 

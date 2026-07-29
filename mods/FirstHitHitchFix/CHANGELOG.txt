@@ -1,3 +1,7 @@
+Version 0.1.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Disabled the plugin cleanly after startup failure so partial initialization does not keep running.
+
 Version 0.1.1
 Added coverage-aware discovered VFX diagnostics that report warmStatus, warmedAs, and queuedLate for each live combat effect key.
 Added settled warmup summaries so diagnostics report queued, completed, held, discovered, covered, and cold counts without relying on game shutdown.

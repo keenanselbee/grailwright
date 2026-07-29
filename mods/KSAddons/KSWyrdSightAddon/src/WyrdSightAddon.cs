@@ -12,18 +12,19 @@ using UnityEngine;
 [assembly: AssemblyDescription("Pulse-key companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.0.3.0")]
-[assembly: AssemblyFileVersion("1.0.3.0")]
+[assembly: AssemblyVersion("1.0.4.0")]
+[assembly: AssemblyFileVersion("1.0.4.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(ParentPluginGuid, BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class WyrdSightAddonPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.0.3";
+        public const string PluginVersion = "1.0.4";
         public const string ParentPluginGuid = "WyrdSight";
 
         private const int ConfigSchemaVersion = 2;
@@ -78,6 +79,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 {
                     Logger.LogWarning(
                         "Could not resolve the Wyrd Sight parent plugin. The addon will stay inactive until Wyrd Sight is available.");
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Parent plugin unavailable; check BepInEx log.");
                     return;
                 }
 
@@ -111,6 +113,8 @@ namespace Keenan.TGFoA.WyrdSightAddon
             catch (Exception exception)
             {
                 Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
         }
 

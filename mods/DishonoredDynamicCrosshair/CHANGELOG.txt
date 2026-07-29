@@ -1,4 +1,8 @@
-﻿Version 2.8.3
+Version 2.8.4
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Disabled the plugin cleanly after startup failure so partial initialization does not keep running.
+
+Version 2.8.3
 Fixed a hitch every couple seconds when Blood Magic Expansion was not installed.
 Cached the missing optional Blood Magic API for the current game session instead of retrying a global type lookup.
 Resolved the Blood Magic API from BepInEx's loaded plugin registry when available.

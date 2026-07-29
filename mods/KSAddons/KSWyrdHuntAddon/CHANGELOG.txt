@@ -1,3 +1,7 @@
+Version 1.4.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Disabled the addon cleanly after startup failure so partial initialization does not keep running.
+
 Version 1.4.1
 Added one-shot Wyrd Hunt tuning presets: Sparse, Stalker, CursedNight, and Default.
 Selecting a preset now writes Wyrd Hunt's hunt/threat settings, saves them, records the last applied preset, and resets the selector to Custom so manual edits remain active.

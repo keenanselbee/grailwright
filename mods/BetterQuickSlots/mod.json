@@ -2,11 +2,12 @@
   "id": "BetterQuickSlots",
   "displayName": "Better Quick Slots",
   "packageName": "BetterQuickSlots",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "pluginGuid": "ks.tgfoa.better-quick-slots",
   "dll": "BetterQuickSlots.dll",
   "sourceFiles": [
-    "src/BetterQuickSlots.cs"
+    "src/BetterQuickSlots.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

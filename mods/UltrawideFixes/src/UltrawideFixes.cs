@@ -16,17 +16,18 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Ultrawide presentation fixes for Tainted Grail title and loading screens")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Ultrawide Fixes")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyFileVersion("1.0.2.0")]
 
 namespace UltrawideFixes
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.ultrawide-fixes";
         public const string PluginName = "Ultrawide Fixes";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.0.2";
 
         private const float SourceVideoAspect = 16.0f / 9.0f;
         private const float DefaultTargetAspect = 21.0f / 9.0f;
@@ -69,28 +70,38 @@ namespace UltrawideFixes
         {
             Instance = this;
             Log = Logger;
-            BindConfig();
-
-            _lastScreenWidth = Screen.width;
-            _lastScreenHeight = Screen.height;
 
             try
             {
-                _harmony = new Harmony(PluginGuid);
-                _harmony.PatchAll(typeof(Plugin).Assembly);
+                BindConfig();
+
+                _lastScreenWidth = Screen.width;
+                _lastScreenHeight = Screen.height;
+
+                try
+                {
+                    _harmony = new Harmony(PluginGuid);
+                    _harmony.PatchAll(typeof(Plugin).Assembly);
+                }
+                catch (Exception exception)
+                {
+                    Logger.LogWarning(
+                        "Could not patch loading screen initialization. "
+                        + "Title-screen ultrawide fixes can still run. "
+                        + exception.Message);
+                }
+
+                SceneManager.sceneLoaded += OnSceneLoaded;
+                StartScan("plugin load");
+
+                Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
             }
             catch (Exception exception)
             {
-                Logger.LogWarning(
-                    "Could not patch loading screen initialization. "
-                    + "Title-screen ultrawide fixes can still run. "
-                    + exception.Message);
+                Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
-
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            StartScan("plugin load");
-
-            Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
         }
 
         private void BindConfig()
@@ -351,7 +362,7 @@ namespace UltrawideFixes
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (!_enabled.Value)
+            if (_enabled == null || !_enabled.Value)
             {
                 return;
             }
@@ -386,7 +397,7 @@ namespace UltrawideFixes
 
         private void StartScan(string reason)
         {
-            if (!_enabled.Value || !isActiveAndEnabled)
+            if (_enabled == null || !_enabled.Value || !isActiveAndEnabled)
             {
                 return;
             }

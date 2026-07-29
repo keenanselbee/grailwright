@@ -16,18 +16,19 @@ using UnityEngine.SceneManagement;
 [assembly: AssemblyDescription("Warms combat VFX addressables to reduce first-hit hitches in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("First Hit Hitch Fix")]
-[assembly: AssemblyVersion("0.1.1.0")]
-[assembly: AssemblyFileVersion("0.1.1.0")]
-[assembly: AssemblyInformationalVersion("0.1.1")]
+[assembly: AssemblyVersion("0.1.2.0")]
+[assembly: AssemblyFileVersion("0.1.2.0")]
+[assembly: AssemblyInformationalVersion("0.1.2")]
 
 namespace FirstHitHitchFix
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class FirstHitHitchFixPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.first-hit-hitch-fix";
         public const string PluginName = "First Hit Hitch Fix";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.1.2";
         private const int ConfigSchemaVersion = 1;
         private const float SettledSummaryQuietSeconds = 1.0f;
 
@@ -123,28 +124,38 @@ namespace FirstHitHitchFix
             Instance = this;
             Log = Logger;
 
-            BindConfig();
-            CacheTypes();
-            PatchGame();
+            try
+            {
+                BindConfig();
+                CacheTypes();
+                PatchGame();
 
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            _warmupQueueRoutine = StartCoroutine(WarmupQueueLoop());
-            _maintenanceRoutine = StartCoroutine(MaintenanceLoop());
-            RestartDefaultWarmup();
+                SceneManager.sceneLoaded += OnSceneLoaded;
+                _warmupQueueRoutine = StartCoroutine(WarmupQueueLoop());
+                _maintenanceRoutine = StartCoroutine(MaintenanceLoop());
+                RestartDefaultWarmup();
 
-            Log.LogInfo(
-                PluginName
-                + " "
-                + PluginVersion
-                + " loaded. Enabled="
-                + FormatBool(_enabled.Value)
-                + "; WarmDefaultCombatVFX="
-                + FormatBool(_warmDefaultCombatVfx.Value)
-                + "; WarmNpcCombatVFX="
-                + FormatBool(_warmNpcCombatVfx.Value)
-                + "; MaxWarmInstances="
-                + _maxWarmInstances.Value.ToString(CultureInfo.InvariantCulture)
-                + ".");
+                Log.LogInfo(
+                    PluginName
+                    + " "
+                    + PluginVersion
+                    + " loaded. Enabled="
+                    + FormatBool(_enabled.Value)
+                    + "; WarmDefaultCombatVFX="
+                    + FormatBool(_warmDefaultCombatVfx.Value)
+                    + "; WarmNpcCombatVFX="
+                    + FormatBool(_warmNpcCombatVfx.Value)
+                    + "; MaxWarmInstances="
+                    + _maxWarmInstances.Value.ToString(CultureInfo.InvariantCulture)
+                    + ".");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
+                Log.LogError(ex.ToString());
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
+            }
         }
 
         private void OnDestroy()

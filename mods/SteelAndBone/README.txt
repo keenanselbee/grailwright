@@ -1,5 +1,10 @@
 Steel and Bone
-Version 0.9.1
+Version 0.9.3-beta
+
+Beta testing note: this build needs in-game testing before it should be treated
+as a stable tuning release. Please watch for odd enemy classifications,
+unexpected resistance or weakness outcomes, and damage-number readability
+issues.
 
 Steel and Bone is a BepInEx 5 Mono knowledge-based difficulty plugin for Tainted Grail: The Fall of Avalon.
 

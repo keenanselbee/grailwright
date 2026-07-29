@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.4.5.0")]
-[assembly: AssemblyFileVersion("1.4.5.0")]
-[assembly: AssemblyInformationalVersion("1.4.5")]
+[assembly: AssemblyVersion("1.4.6.0")]
+[assembly: AssemblyFileVersion("1.4.6.0")]
+[assembly: AssemblyInformationalVersion("1.4.6")]
 
 namespace KillingBlowMastery
 {
@@ -29,7 +29,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.4.5";
+        public const string PluginVersion = "1.4.6";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -207,14 +207,29 @@ namespace KillingBlowMastery
             Instance = this;
             Log = Logger;
 
-            BindConfig();
-            CacheGameAccessors();
-            PatchGame();
-            EnsureRewardSoundLoadStarted();
+            try
+            {
+                BindConfig();
+                CacheGameAccessors();
+                if (!PatchGame())
+                {
+                    enabled = false;
+                    return;
+                }
 
-            Log.LogInfo(PluginName + " " + PluginVersion + " loaded. BonusPercentOfEnemyXP=" +
-                _bonusPercentOfEnemyXp.Value.ToString("0.###", CultureInfo.InvariantCulture) +
-                "; MaxBonusXP=" + _maximumBonusXp.Value.ToString("0.###", CultureInfo.InvariantCulture) + ".");
+                EnsureRewardSoundLoadStarted();
+
+                Log.LogInfo(PluginName + " " + PluginVersion + " loaded. BonusPercentOfEnemyXP=" +
+                    _bonusPercentOfEnemyXp.Value.ToString("0.###", CultureInfo.InvariantCulture) +
+                    "; MaxBonusXP=" + _maximumBonusXp.Value.ToString("0.###", CultureInfo.InvariantCulture) + ".");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
+                Log.LogError(ex.ToString());
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
+            }
         }
 
         private void OnDestroy()
@@ -485,7 +500,7 @@ namespace KillingBlowMastery
             CacheNotificationAccessors();
         }
 
-        private void PatchGame()
+        private bool PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
 
@@ -493,7 +508,8 @@ namespace KillingBlowMastery
             if (npcElementType == null)
             {
                 Log.LogError("Could not find " + NpcElementTypeName + ". " + PluginName + " is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             MethodInfo original = AccessTools.Method(npcElementType, "DeathNonCriticalFunctions");
@@ -501,7 +517,8 @@ namespace KillingBlowMastery
             if (original == null || postfix == null)
             {
                 Log.LogError("Could not patch NPC death handling. " + PluginName + " is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             _harmony.Patch(original, null, new HarmonyMethod(postfix));
@@ -518,7 +535,7 @@ namespace KillingBlowMastery
             if (damageOriginal == null || damagePostfix == null)
             {
                 LogDiagnostic("Could not patch HealthElement.BeforeHealthDecreaseEvents; damage-over-time kill source memory is unavailable.");
-                return;
+                return true;
             }
 
             try
@@ -530,6 +547,8 @@ namespace KillingBlowMastery
             {
                 Log.LogWarning("Failed to patch HealthElement.BeforeHealthDecreaseEvents for damage-over-time kill source memory: " + ex.GetBaseException().Message);
             }
+
+            return true;
         }
 
         private void PatchGameplayMemorySerialization()

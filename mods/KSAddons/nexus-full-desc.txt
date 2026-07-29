@@ -7,6 +7,8 @@ KS Addons is a small BepInEx 5 Mono collection for [b]Tainted Grail: The Fall of
 
 Each addon has its own folder and README. Install only the addons whose original mods you use.
 
+[b]Config updates:[/b] These add-ons use schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
+
 [line]
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
@@ -35,8 +37,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.wyrd-sight-addon.cfg[/code]
 
-Version 1.0.3 appears as [b]Wyrd Sight Addon[/b] in BepInEx and Configuration Manager while keeping the same config path.
-
 Common entries:
 
 [code]
@@ -52,7 +52,7 @@ MaximumOffAttempts = 3[/code]
 Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url].
 
 [list]
-[*]Adds Grail Floating Text Wyrd Scent status text with the shared Wyrd icon when Wyrd Hunt status changes.[/*]
+[*]Adds [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] Wyrd Scent status text with the shared Wyrd icon when Wyrd Hunt status changes.[/*]
 [*]If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.[/*]
 [*]Can alternatively keep the parent meter and hide it only while safe or during title, loading, startup, and portal transitions.[/*]
 [*]Keeps the Wyrd Scent meter position configurable with horizontal and bottom offsets.[/*]
@@ -95,11 +95,11 @@ Same Family Pack Mate Weight Percent = 35[/code]
 
 Preset behavior is one-shot. [b]Hunt Tuning Preset[/b] defaults to [b]Custom[/b]. Selecting [b]Default[/b], [b]Sparse[/b], [b]Stalker[/b], or [b]CursedNight[/b] immediately writes Wyrd Hunt's own hunt/threat settings in [b]kane.tgfoa.wyrd-hunt.cfg[/b], saves them, records [b]Last Applied Hunt Tuning Preset[/b], and returns the selector to [b]Custom[/b]. After that, individual Wyrd Hunt settings remain editable.
 
-[b]Sparse[/b] makes hunts rare and calmer. [b]Stalker[/b] is the recommended rare-but-tense profile. [b]CursedNight[/b] keeps nights dangerous while still capping scene/session pressure. [b]Default[/b] restores Wyrd Hunt's original tuning.
+[b]Sparse[/b] makes hunts rare and calmer. [b]Stalker[/b] is the recommended rare-but-tense profile. These reduced-pressure presets are especially useful for slower-timescale or longer-night setups, where players may spend more real time in Wyrdness and want less hunt buildup across the night. [b]CursedNight[/b] keeps nights dangerous while still capping scene/session pressure. [b]Default[/b] restores Wyrd Hunt's original tuning.
 
 Weights live under [b]Weights.Contact[/b], [b]Weights.Stalking[/b], [b]Weights.Hunter[/b], [b]Weights.Pursuit[/b], and [b]Weights.Marked[/b]. Set a weight to [b]0[/b] to disable that entry.
 
-Grail Floating Text is an optional soft requirement for visible Wyrd Hunt Addon status text. If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for Wyrd Hunt Addon notification text. If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.
 
 [line]
 
@@ -163,7 +163,7 @@ BepInEx/plugins/WyrdHuntAddon/WyrdHuntAddon.dll
 BepInEx/plugins/TGAllLightsCastShadowsAddon/TGAllLightsCastShadowsAddon.dll
 BepInEx/plugins/MoreWeaponLoadoutsAddon/MoreWeaponLoadoutsAddon.dll[/code]
 
-Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and TG All Lights Cast Shadows Addon declare hard dependencies, so they will not run without their original mods. Wyrd Hunt Addon also declares Grail Floating Text as a soft dependency for shared status text. More Weapon Loadouts Addon uses a soft dependency and simply leaves its redirect inactive if More Weapon Loadouts is missing.
+Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and TG All Lights Cast Shadows Addon declare hard dependencies, so they will not run without their original mods. Wyrd Hunt Addon also declares [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] as a soft dependency for notification text. More Weapon Loadouts Addon uses a soft dependency and simply leaves its redirect inactive if More Weapon Loadouts is missing.
 
 [line]
 
@@ -172,7 +172,8 @@ Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
 [*]The original mod required by each addon you install.[/*]
-[*][b]Optional/soft requirement:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] for Wyrd Hunt Addon's shared status text and default meter replacement.[/*]
+[*][b]Optional/soft dependency:[/b] [b]Grail Floating Text[/b] for Wyrd Hunt Addon's notification text and default meter replacement.[/*]
+[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]

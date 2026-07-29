@@ -114,7 +114,7 @@ The config is generated after first launch:
 [code]
 BepInEx/config/ks.tgfoa.main-menu-music.cfg[/code]
 
-Version 2.1.1 uses [b]ConfigSchemaVersion = 16[/b]. Older configs are backed up and regenerated once so the updated config layout applies cleanly.
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 [line]
 
@@ -138,5 +138,6 @@ Please support the original artists on Bandcamp.
 [*]Designed for the Mono branch with BepInEx 5 Mono.[/*]
 [*]Patches [b]Awaken.TG.Main.UI.TitleScreen.VTitleScreenMusic.PlayMusic[/b] at runtime.[/*]
 [*]Patches real game-loading operations so replacement title music can fade out before gameplay.[/*]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]Do not install alongside older experimental builds that patch the same title music route.[/*]
 [/list]

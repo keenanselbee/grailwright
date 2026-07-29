@@ -2,11 +2,12 @@
   "id": "NoPlayerLight",
   "displayName": "No Player Light",
   "packageName": "NoPlayerLight",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "pluginGuid": "ks.tgfoa.no-player-light",
   "dll": "NoPlayerLight.dll",
   "sourceFiles": [
-    "src/NoPlayerLight.cs"
+    "src/NoPlayerLight.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

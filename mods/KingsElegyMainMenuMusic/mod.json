@@ -2,11 +2,12 @@
   "id": "KingsElegyMainMenuMusic",
   "displayName": "King's Elegy - Main Menu Music",
   "packageName": "KingsElegyMainMenuMusic",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "pluginGuid": "ks.tgfoa.main-menu-music",
   "dll": "MainMenuMusic.dll",
   "sourceFiles": [
-    "src/MainMenuMusic.cs"
+    "src/MainMenuMusic.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

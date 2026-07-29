@@ -1,5 +1,5 @@
 First Hit Hitch Fix
-Version 0.1.1
+Version 0.1.2
 
 First Hit Hitch Fix is a standalone BepInEx plugin for Tainted Grail: The Fall
 of Avalon. It tries to reduce the large hitch that can happen the first time a

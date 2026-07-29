@@ -13,18 +13,19 @@ using HarmonyLib;
 [assembly: AssemblyDescription("Removes the enemy overlevel kill XP penalty in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Full Enemy XP")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
-[assembly: AssemblyInformationalVersion("1.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyInformationalVersion("1.0.1")]
 
 namespace FullEnemyXP
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class FullEnemyXPPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.full-enemy-xp";
         public const string PluginName = "Full Enemy XP";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
         private const int ConfigSchemaVersion = 1;
 
         private const string NpcElementTypeName = "Awaken.TG.Main.Fights.NPCs.NpcElement";
@@ -60,21 +61,35 @@ namespace FullEnemyXP
             Instance = this;
             Log = Logger;
 
-            BindConfig();
-            CacheGameAccessors();
-            PatchGame();
+            try
+            {
+                BindConfig();
+                CacheGameAccessors();
+                if (!PatchGame())
+                {
+                    enabled = false;
+                    return;
+                }
 
-            Log.LogInfo(
-                PluginName
-                + " "
-                + PluginVersion
-                + " loaded. Enabled="
-                + _enabled.Value.ToString(CultureInfo.InvariantCulture)
-                + "; MinimumOverlevelXPMultiplier="
-                + FormatFloat(_minimumOverlevelXpMultiplier.Value)
-                + "; DryRun="
-                + _dryRun.Value.ToString(CultureInfo.InvariantCulture)
-                + ".");
+                Log.LogInfo(
+                    PluginName
+                    + " "
+                    + PluginVersion
+                    + " loaded. Enabled="
+                    + _enabled.Value.ToString(CultureInfo.InvariantCulture)
+                    + "; MinimumOverlevelXPMultiplier="
+                    + FormatFloat(_minimumOverlevelXpMultiplier.Value)
+                    + "; DryRun="
+                    + _dryRun.Value.ToString(CultureInfo.InvariantCulture)
+                    + ".");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
+                Log.LogError(ex.ToString());
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
+            }
         }
 
         private void OnDestroy()
@@ -213,7 +228,7 @@ namespace FullEnemyXP
             }
         }
 
-        private void PatchGame()
+        private bool PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
 
@@ -221,7 +236,8 @@ namespace FullEnemyXP
             if (npcElementType == null)
             {
                 Log.LogError("Could not find " + NpcElementTypeName + ". Full Enemy XP is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             MethodInfo original = AccessTools.Method(npcElementType, "DeathNonCriticalFunctions");
@@ -229,11 +245,13 @@ namespace FullEnemyXP
             if (original == null || transpiler == null)
             {
                 Log.LogError("Could not patch NPC death XP handling. Full Enemy XP is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             _harmony.Patch(original, null, null, new HarmonyMethod(transpiler));
             LogDiagnostic("Patched " + npcElementType.FullName + ".DeathNonCriticalFunctions.");
+            return true;
         }
 
         internal static float AdjustLevelMultiplier(object npc, float vanillaLevelMultiplier)

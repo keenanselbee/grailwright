@@ -1,3 +1,7 @@
+Version 1.0.4
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and parent-plugin resolution failures.
+Disabled the addon cleanly after startup failure so partial initialization does not keep running.
+
 Version 1.0.3
 Renamed the visible BepInEx plugin name from KS Wyrd Sight Addon to Wyrd Sight Addon.
 Kept the existing ks.tgfoa.wyrd-sight-addon.cfg config path so saved pulse settings remain compatible.

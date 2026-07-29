@@ -1,7 +1,7 @@
 No Player Light
 ===============
 
-Version 1.3.2
+Version 1.3.3
 
 No Player Light is a standalone BepInEx 5 Mono plugin for Tainted Grail: The
 Fall of Avalon.
@@ -52,7 +52,7 @@ Plugin GUID:
 Configuration
 -------------
 
-Version 1.3.2 has no config options. It disables HeroLight when one of its
+Version 1.3.3 has no config options. It disables HeroLight when one of its
 bounded scans finds it.
 
 Older BepInEx config files from previous versions are ignored by this version

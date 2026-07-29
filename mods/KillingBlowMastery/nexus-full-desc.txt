@@ -7,7 +7,7 @@
 
 The goal is to make side weapons, shields, archery, and magic less painful to train without turning last-hitting into a replacement for normal combat practice. Soften an enemy with your main setup, swap to the weapon or spell you want to train, and earn a modest finishing bonus if that source lands the kill.
 
-It also adds optional finisher feedback: a shared Grail Floating Text reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
+It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
 
 [line]
 
@@ -39,13 +39,14 @@ It also adds optional finisher feedback: a shared Grail Floating Text reward mes
 [/list]
 
 [code]
-Enemy XP | Bonus
-25       | +1
-100      | +4
-200      | +8
-500      | +20
-1000     | +40
-2500+    | +100 cap
+| Enemy XP | Bonus    |
+|----------|----------|
+| 25       | +1       |
+| 100      | +4       |
+| 200      | +8       |
+| 500      | +20      |
+| 1000     | +40      |
+| 2500+    | +100 cap |
 [/code]
 
 This mod awards [b]combat proficiency XP[/b]. It does not multiply weapon damage, does not add normal character XP, and does not reward kills the game marks as XP-ineligible.
@@ -103,22 +104,24 @@ The TSV is only a report generated from the current save-backed stats. Deleting 
 The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matching category sound for the kill source, then uses FMOD for playback with optional no-repeat selection, subtle pitch randomization, and distance-based volume fade.
 
 [code]
-Mode           | Sound style
-WeaponSpecific | category pools
-Soulslike      | killing_blow1.wav
-GoatTest       | goat.wav
-Off            | silent
+| Mode           | Sound style       |
+|----------------|-------------------|
+| WeaponSpecific | category pools    |
+| Soulslike      | killing_blow1.wav |
+| GoatTest       | goat.wav          |
+| Off            | silent            |
 [/code]
 
 [b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. Set it to 1 for the full 0m = 100%, 100m+ = 10% curve. The default 0.5 uses a half-strength fade:
 
 [code]
-Distance | Volume
-0m       | 100%
-25m      | 89%
-50m      | 78%
-75m      | 66%
-100m+    | 55%
+| Distance | Volume |
+|----------|--------|
+| 0m       | 100%   |
+| 25m      | 89%    |
+| 50m      | 78%    |
+| 75m      | 66%    |
+| 100m+    | 55%    |
 [/code]
 
 If FMOD playback fails, the mod falls back to the older Unity AudioSource path and logs the failure when Diagnostics is enabled.
@@ -133,30 +136,31 @@ If FMOD playback fails, the mod falls back to the older Unity AudioSource path a
 Classified kills use their specific pool by default. That keeps, for example, a two-handed axe kill from falling through to the general killing_blow pool unless you explicitly enable that fallback.
 
 [code]
-Group       | Kill type              | Sound pool
-Target      | matched non-corporeal  | non_corporeal
-One Handed  | blunt                  | one_handed_blunt
-One Handed  | axe                    | one_handed_axe
-One Handed  | blade/dagger/sickle    | one_handed_blade
-One Handed  | unknown subtype        | one_handed_blade
-Two Handed  | blunt                  | two_handed_blunt
-Two Handed  | axe                    | two_handed_axe
-Two Handed  | blade/polearm          | two_handed_blade
-Two Handed  | unknown subtype        | two_handed_blade
-Archery     | short bow              | archery_short
-Archery     | medium/unknown bow     | archery_medium
-Archery     | heavy bow              | archery_heavy
-Shield      | bash                   | shield_bash
-Unarmed     | unarmed                | unarmed
-Magic       | blood                  | magic_blood
-Magic       | fire                   | magic_fire
-Magic       | frost                  | magic_frost
-Magic       | poison                 | magic_poison
-Magic       | electric               | magic_electric
-Magic       | wyrdness               | magic_wyrdness
-Magic       | water                  | magic_water
-Magic       | other                  | magic_arcane
-Other       | unclassified eligible  | killing_blow
+| Group      | Kill type             | Sound pool        |
+|------------|-----------------------|-------------------|
+| Target     | matched non-corporeal | non_corporeal     |
+| One Handed | blunt                 | one_handed_blunt  |
+| One Handed | axe                   | one_handed_axe    |
+| One Handed | blade/dagger/sickle   | one_handed_blade  |
+| One Handed | unknown subtype       | one_handed_blade  |
+| Two Handed | blunt                 | two_handed_blunt  |
+| Two Handed | axe                   | two_handed_axe    |
+| Two Handed | blade/polearm         | two_handed_blade  |
+| Two Handed | unknown subtype       | two_handed_blade  |
+| Archery    | short bow             | archery_short     |
+| Archery    | medium/unknown bow    | archery_medium    |
+| Archery    | heavy bow             | archery_heavy     |
+| Shield     | bash                  | shield_bash       |
+| Unarmed    | unarmed               | unarmed           |
+| Magic      | blood                 | magic_blood       |
+| Magic      | fire                  | magic_fire        |
+| Magic      | frost                 | magic_frost       |
+| Magic      | poison                | magic_poison      |
+| Magic      | electric              | magic_electric    |
+| Magic      | wyrdness              | magic_wyrdness    |
+| Magic      | water                 | magic_water       |
+| Magic      | other                 | magic_arcane      |
+| Other      | unclassified eligible | killing_blow      |
 [/code]
 
 Broad [b]one_handed[/b], [b]two_handed[/b], [b]archery[/b], [b]shield[/b], and [b]magic[/b] fallback pools are not used in this release.
@@ -164,10 +168,11 @@ Broad [b]one_handed[/b], [b]two_handed[/b], [b]archery[/b], [b]shield[/b], and [
 For bloodless targets, each routed pool can have matching [b]_dry[/b] files. The dry file is tried before the normal file it replaces:
 
 [code]
-Normal file                  | Bloodless variant
-two_handed_blade1.wav        | two_handed_blade1_dry.wav
-magic_fire3.wav              | magic_fire3_dry.wav
-killing_blow1.wav            | killing_blow1_dry.wav
+| Normal file           | Bloodless variant        |
+|-----------------------|--------------------------|
+| two_handed_blade1.wav | two_handed_blade1_dry.wav |
+| magic_fire3.wav       | magic_fire3_dry.wav       |
+| killing_blow1.wav     | killing_blow1_dry.wav     |
 [/code]
 
 [line]
@@ -232,7 +237,7 @@ Default text: Killing blow: +{xp} {skill}
 Example:      Killing blow: +8 Two Handed
 [/code]
 
-[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared Grail Floating Text overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
+[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
 
 [b]NotificationTextFormat[/b] supports:
 
@@ -253,7 +258,7 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [/code]
 
-Killing Blow Mastery uses [b]ConfigSchemaVersion = 12[/b]. Older [b]ks.tgfoa.killing-blow.cfg[/b] configs are ignored so the renamed mod starts from a clean identity.
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 [line]
 
@@ -262,5 +267,6 @@ Killing Blow Mastery uses [b]ConfigSchemaVersion = 12[/b]. Older [b]ks.tgfoa.kil
 [*]Tainted Grail: The Fall of Avalon[/*]
 [*]Steam beta branch: mono[/*]
 [*]BepInEx 5 Mono[/*]
-[*]Grail Floating Text is optional, but required for the default shared reward text route.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is optional, but required for the default shared reward text route.[/*]
+[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]

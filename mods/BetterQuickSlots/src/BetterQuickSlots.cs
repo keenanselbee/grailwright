@@ -15,9 +15,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Smart food, health, mana, and arrow quick-slot HUD for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Better Quick Slots")]
-[assembly: AssemblyVersion("0.2.1.0")]
-[assembly: AssemblyFileVersion("0.2.1.0")]
-[assembly: AssemblyInformationalVersion("0.2.1")]
+[assembly: AssemblyVersion("0.2.2.0")]
+[assembly: AssemblyFileVersion("0.2.2.0")]
+[assembly: AssemblyInformationalVersion("0.2.2")]
 
 namespace BetterQuickSlots
 {
@@ -35,11 +35,12 @@ namespace BetterQuickSlots
     }
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class BetterQuickSlotsPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.better-quick-slots";
         public const string PluginName = "Better Quick Slots";
-        public const string PluginVersion = "0.2.1";
+        public const string PluginVersion = "0.2.2";
 
         private const int ConfigSchemaVersion = 4;
         private const float FoodPinIntervalSeconds = 0.25f;
@@ -141,7 +142,12 @@ namespace BetterQuickSlots
             {
                 BindConfig();
                 CacheGameAccessors();
-                PatchGame();
+                if (!PatchGame())
+                {
+                    enabled = false;
+                    return;
+                }
+
                 Config.Save();
 
                 Logger.LogInfo(
@@ -151,6 +157,8 @@ namespace BetterQuickSlots
             catch (Exception exception)
             {
                 Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
         }
 
@@ -454,19 +462,21 @@ namespace BetterQuickSlots
             _heroHudArrowsCounterField = AccessTools.Field(_heroHudViewType, "arrowsCounter");
         }
 
-        private void PatchGame()
+        private bool PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
 
             Type selectedQuickSlotViewType = AccessTools.TypeByName(SelectedQuickSlotViewTypeName);
             PatchMethod(selectedQuickSlotViewType, "OnAttach", typeof(SelectedQuickSlotOnAttachPatch), "Postfix", false);
-            PatchMethod(selectedQuickSlotViewType, "UpdateIcon", typeof(SelectedQuickSlotUpdateIconPatch), "Postfix", true);
+            bool requiredPatched = PatchMethod(selectedQuickSlotViewType, "UpdateIcon", typeof(SelectedQuickSlotUpdateIconPatch), "Postfix", true);
             PatchMethod(selectedQuickSlotViewType, "OnDiscard", typeof(SelectedQuickSlotOnDiscardPatch), "Postfix", false);
 
             Type heroHudViewType = _heroHudViewType ?? AccessTools.TypeByName(HeroHudViewTypeName);
             PatchMethod(heroHudViewType, "AfterFullyInitialized", typeof(HeroHudAfterFullyInitializedPatch), "Postfix", false);
             PatchMethod(heroHudViewType, "Update", typeof(HeroHudUpdatePatch), "Postfix", false);
             PatchMethod(heroHudViewType, "OnDiscard", typeof(HeroHudOnDiscardPatch), "Postfix", false);
+
+            return requiredPatched;
         }
 
         private bool PatchMethod(Type declaringType, string methodName, Type patchType, string patchMethodName, bool required)
@@ -520,6 +530,11 @@ namespace BetterQuickSlots
             if (required || (_logPatchWarnings != null && _logPatchWarnings.Value))
             {
                 Logger.LogWarning(message);
+            }
+
+            if (required)
+            {
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
             }
         }
 

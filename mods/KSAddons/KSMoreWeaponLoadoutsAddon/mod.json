@@ -2,11 +2,12 @@
   "id": "MoreWeaponLoadoutsAddon",
   "displayName": "KS More Weapon Loadouts Addon",
   "packageName": "MoreWeaponLoadoutsAddon",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "pluginGuid": "ks.tgfoa.more-weapon-loadouts-addon",
   "dll": "MoreWeaponLoadoutsAddon.dll",
   "sourceFiles": [
-    "src/MoreWeaponLoadoutsAddon.cs"
+    "src/MoreWeaponLoadoutsAddon.cs",
+    "../../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

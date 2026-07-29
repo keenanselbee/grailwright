@@ -1,7 +1,7 @@
 TG All Lights Cast Shadows Addon
 ==============================
 
-Version: 1.1.1
+Version: 1.1.2
 
 Original mod: TG All Lights Cast Shadows 1.2.0
 
@@ -42,7 +42,7 @@ Start the game once to generate:
 
   BepInEx\config\ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg
 
-Version 1.1.1 uses ConfigSchemaVersion 1. Older configs are backed up and a
+Version 1.1.2 uses ConfigSchemaVersion 1. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly.
 
 Default excluded light path fragments:

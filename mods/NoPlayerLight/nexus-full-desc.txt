@@ -38,6 +38,13 @@ BepInEx/plugins/NoPlayerLight/NoPlayerLight.dll[/code]
 
 [line]
 
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[/list]
+
+[line]
+
 [heading][color=#C94A4A][size=5]Want More Control?[/size][/color][/heading]
 No Player Light is intentionally minimal. If you want more lighting controls, use [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/229]Player Inner Light Control[/url].
 

@@ -17,18 +17,19 @@ using UnityEngine;
 [assembly: AssemblyDescription("Companion addon for Owrocc More Weapon Loadouts")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("More Weapon Loadouts Addon")]
-[assembly: AssemblyVersion("0.1.3.0")]
-[assembly: AssemblyFileVersion("0.1.3.0")]
+[assembly: AssemblyVersion("0.1.4.0")]
+[assembly: AssemblyFileVersion("0.1.4.0")]
 
 namespace MoreWeaponLoadoutsAddon
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("owrocc.MoreWeaponSlots", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class MoreWeaponLoadoutsAddonPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.more-weapon-loadouts-addon";
         public const string PluginName = "More Weapon Loadouts Addon";
-        public const string PluginVersion = "0.1.3";
+        public const string PluginVersion = "0.1.4";
         private const int ConfigSchemaVersion = 1;
 
         internal static MoreWeaponLoadoutsAddonPlugin Instance { get; private set; }
@@ -61,10 +62,10 @@ namespace MoreWeaponLoadoutsAddon
         private void Awake()
         {
             Instance = this;
-            BindConfig();
 
             try
             {
+                BindConfig();
                 _harmony = new Harmony(PluginGuid);
                 _harmony.PatchAll(typeof(MoreWeaponLoadoutsAddonPlugin).Assembly);
                 Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
@@ -72,6 +73,8 @@ namespace MoreWeaponLoadoutsAddon
             catch (Exception exception)
             {
                 Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
         }
 

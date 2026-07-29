@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Reflection;
 using BepInEx;
@@ -8,17 +9,18 @@ using UnityEngine.SceneManagement;
 [assembly: AssemblyDescription("Disables the player HeroLight object in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("No Player Light")]
-[assembly: AssemblyVersion("1.3.2.0")]
-[assembly: AssemblyFileVersion("1.3.2.0")]
+[assembly: AssemblyVersion("1.3.3.0")]
+[assembly: AssemblyFileVersion("1.3.3.0")]
 
 namespace NoPlayerLight
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.no-player-light";
         public const string PluginName = "No Player Light";
-        public const string PluginVersion = "1.3.2";
+        public const string PluginVersion = "1.3.3";
 
         private const string HeroLightObjectName = "HeroLight";
 
@@ -28,14 +30,24 @@ namespace NoPlayerLight
 
         private void Awake()
         {
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            DisableHeroLight();
+            try
+            {
+                SceneManager.sceneLoaded += OnSceneLoaded;
+                DisableHeroLight();
 
-            Logger.LogInfo(
-                PluginName
-                + " "
-                + PluginVersion
-                + " loaded; HeroLight scans run only during startup and scene-load retries.");
+                Logger.LogInfo(
+                    PluginName
+                    + " "
+                    + PluginVersion
+                    + " loaded; HeroLight scans run only during startup and scene-load retries.");
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                SceneManager.sceneLoaded -= OnSceneLoaded;
+                enabled = false;
+            }
         }
 
         private void OnDestroy()

@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.4.5
+Version 1.4.6
 
 Killing Blow Mastery is a standalone BepInEx plugin for Tainted Grail: The
 Fall of Avalon. It gives a small extra proficiency bonus to the combat skill

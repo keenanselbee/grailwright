@@ -3,7 +3,7 @@
 
 [line]
 
-Dishonored Dynamic Crosshair is a BepInEx 5 plugin for the game's Mono branch. It replaces the vanilla crosshair with PNG reticles that react to your equipped weapon, targeted NPCs, and optional Blood Magic Expansion corpse feedback.
+Dishonored Dynamic Crosshair is a BepInEx 5 plugin for the game's Mono branch. It replaces the vanilla crosshair with PNG reticles that react to your equipped weapon, targeted NPCs, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback.
 
 [line]
 
@@ -19,7 +19,7 @@ Dishonored Dynamic Crosshair is a BepInEx 5 plugin for the game's Mono branch. I
 [*]Mounted opacity control; by default the custom reticle is hidden while riding and returns after dismounting.[/*]
 [*]Independent crouch/detection indicator opacity and vertical offset that preserve its animations.[/*]
 [*]One HideVanillaReticles option for the game's default, melee, bow, and item reticles.[/*]
-[*]Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] API v4 support with a dedicated corpse-drain reticle.[/*]
+[*]Optional [b]Blood Magic Expansion[/b] API v4 support with a dedicated corpse-drain reticle.[/*]
 [/list]
 
 [line]
@@ -51,7 +51,7 @@ Start the game once to generate:
 
 [b]BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg[/b]
 
-Version 2.8.3 uses [b]ConfigSchemaVersion = 3[/b]. Its first launch from an older schema backs up the previous config beside the active file and generates clean defaults. Compatible future updates retain user settings; defaults reset only when the configuration schema changes.
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 [b]Core[/b] has [b]Enabled[/b] and [b]Preset[/b].
 
@@ -78,7 +78,7 @@ When [b]Enabled = false[/b], the custom reticle and background polling pause, an
 [line]
 
 [heading][color=#C94A4A][size=5]Blood Magic Reticle[/size][/color][/heading]
-[b]Mode = Auto[/b] shows [b]custom_reticle_bloodmagic.png[/b] from Blood Magic Expansion API v4 focused corpse states; [b]Off[/b] disables the integration. When Blood Magic Expansion is not loaded, the optional API is marked unavailable for the current game session instead of being searched for repeatedly. [b]RequireRelevantBloodSpell[/b] keeps it tied to Blood/Life Transfusion or Abhartach's Calling.
+[b]Mode = Auto[/b] shows [b]custom_reticle_bloodmagic.png[/b] from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] API v4 focused corpse states; [b]Off[/b] disables the integration. When Blood Magic Expansion is not loaded, the optional API is marked unavailable for the current game session instead of being searched for repeatedly. [b]RequireRelevantBloodSpell[/b] keeps it tied to Blood/Life Transfusion or Abhartach's Calling.
 
 No focused corpse shows no blood reticle. Blocked, bloodless, or spent corpses use the blood-magic PNG with the normal Magic/default color path at 1x. Usable or channeling corpses use [b]UsableCorpseColor[/b] and can scale from 1x to [b]MaximumQualityScale[/b] from corpse quality. Quality changes size only, not color. Living enemies keep the normal hostile or magic reticle.
 
@@ -86,7 +86,8 @@ No focused corpse shows no blood reticle. Blocked, bloodless, or spent corpses u
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.0.0 or newer is supported for optional blood-magic corpse reticle feedback.[/*]
+[*][b]Blood Magic Expansion[/b] 2.0.0 or newer is supported for optional blood-magic corpse reticle feedback.[/*]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]Owrocc ModifyColors can remain installed.[/*]
 [*]Owrocc ModifyCrosshair is redundant and should be removed.[/*]
 [*]Other mods that replace or force vanilla crosshair parts may conflict.[/*]

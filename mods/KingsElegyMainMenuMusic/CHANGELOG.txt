@@ -1,3 +1,7 @@
+Version 2.1.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required title-music hook failures.
+Stopped reporting a successful load when the title-screen music hook surface is unavailable.
+
 Version 2.1.1
 Cleaned up config change handler registration so Main Menu Music unsubscribes all live config callbacks during plugin teardown.
 

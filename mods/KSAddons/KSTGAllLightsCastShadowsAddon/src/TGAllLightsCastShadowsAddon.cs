@@ -13,8 +13,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Companion addon for TG All Lights Cast Shadows shadow state and excluded bonfire lights")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("TG All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -22,12 +22,13 @@ namespace TGAllLightsCastShadowsAddon
     [BepInDependency(
         ParentPluginGuid,
         BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "TG All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.1.2";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
         private const int ConfigSchemaVersion = 1;
@@ -112,6 +113,8 @@ namespace TGAllLightsCastShadowsAddon
             {
                 Logger.LogError(
                     PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
         }
 

@@ -1,1 +1,1 @@
-Expands Tainted Grail's vanilla weakness/resistance system with presets, material logic, and built-in floating damage numbers.
+Expands Tainted Grail's vanilla weakness and resistance system with material-based matchups, configurable presets, and dynamic damage numbers that visually react to weaknesses, resistances, critical hits, and immunities.

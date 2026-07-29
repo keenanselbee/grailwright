@@ -2,11 +2,12 @@
   "id": "SteelAndBone",
   "displayName": "Steel and Bone",
   "packageName": "SteelAndBone",
-  "version": "0.9.1",
+  "version": "0.9.3-beta",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [
-    "src/SteelAndBone.cs"
+    "src/SteelAndBone.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

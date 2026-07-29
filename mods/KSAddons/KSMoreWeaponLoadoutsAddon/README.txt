@@ -1,7 +1,7 @@
 More Weapon Loadouts Addon
 ========================
 
-Version: 0.1.3
+Version: 0.1.4
 
 Original mod: More Weapon Loadouts 1.5.0 from Owrocc HUD Tweaks file 60.2
 
@@ -42,7 +42,7 @@ Generated at:
 
   BepInEx\config\ks.tgfoa.more-weapon-loadouts-addon.cfg
 
-Version 0.1.3 uses ConfigSchemaVersion 1. Older configs are backed up and a
+Version 0.1.4 uses ConfigSchemaVersion 1. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly.
 
 Defaults:

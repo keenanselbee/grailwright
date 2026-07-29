@@ -1,4 +1,4 @@
-Better Quick Slots 0.2.1
+Better Quick Slots 0.2.2
 
 Better Quick Slots reworks the HUD quick-slot display into a focused food,
 health potion, mana potion, and arrow utility bar.

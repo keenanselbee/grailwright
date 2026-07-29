@@ -1,1 +1,1 @@
-Feature-complete enemy atlas with elite-safe floating feedback.
+Expands enemy weaknesses and resistances with material-based combat rules and dynamic damage numbers.

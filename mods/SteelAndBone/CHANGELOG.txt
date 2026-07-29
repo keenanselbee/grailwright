@@ -1,3 +1,11 @@
+Version 0.9.3-beta
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when the required damage-rule hook is unavailable.
+
+Version 0.9.2-beta
+Marked this upload as a beta that needs in-game testing in the Nexus-facing descriptions and packaged quick reference.
+Kept the BepInEx loader-facing plugin version numeric while exposing 0.9.2-beta through package and Nexus metadata.
+
 Version 0.9.1
 Changed built-in damage numbers to display all outgoing player damage, using the base color for neutral hits.
 Updated feedback config descriptions and raised ConfigSchemaVersion to 11 so regenerated configs no longer imply damage numbers are limited to weakness or resistance hits.

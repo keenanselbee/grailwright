@@ -1,3 +1,7 @@
+Version 1.0.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Disabled the plugin cleanly after startup failure so partial initialization does not keep running.
+
 Version 1.0.1
 Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and regenerated with clean defaults.
 Removed the old per-setting default migration path in favor of schema-based config reset.

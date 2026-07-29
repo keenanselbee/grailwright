@@ -7,7 +7,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 2.8.3
+  Version: 2.8.4
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -32,7 +32,7 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 2.8.3 uses ConfigSchemaVersion 3. On first launch from an older
+Version 2.8.4 uses ConfigSchemaVersion 3. On first launch from an older
 schema, the previous config is backed up beside the active config as a dated
 .bak file and fresh defaults are generated. Future releases keep user settings
 unless another configuration change requires the schema version to increase.

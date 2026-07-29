@@ -2,11 +2,12 @@
   "id": "WyrdSightAddon",
   "displayName": "KS Wyrd Sight Addon",
   "packageName": "WyrdSightAddon",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "pluginGuid": "ks.tgfoa.wyrd-sight-addon",
   "dll": "WyrdSightAddon.dll",
   "sourceFiles": [
-    "src/WyrdSightAddon.cs"
+    "src/WyrdSightAddon.cs",
+    "../../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

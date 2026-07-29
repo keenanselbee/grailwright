@@ -1,3 +1,7 @@
+Version 1.3.3
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Unsubscribed scene-load callbacks and disabled the plugin after startup failure.
+
 Version 1.3.2
 Removed the temporary 1.3.1 diagnostic logging.
 Kept quiet runtime behavior: startup and scene-load retry scans only, with no per-frame check, no timed fallback poll, and no config file.

@@ -24,6 +24,8 @@ By default, enemies below your level keep giving their normal enemy kill XP inst
 Config file:
 [code]BepInEx/config/ks.tgfoa.full-enemy-xp.cfg[/code]
 
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
+
 Main settings:
 [code]
 Enabled = true
@@ -45,3 +47,5 @@ Dry run logs what the mod would change without modifying the actual XP reward. D
 [b]Compatibility[/b]
 
 Full Enemy XP patches the enemy death XP calculation. It should be compatible with mods that add separate bonus XP after kills, but may overlap with mods that replace or heavily transpile enemy death XP rewards.
+
+[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.

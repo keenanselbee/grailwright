@@ -2,11 +2,12 @@
   "id": "WyrdHuntAddon",
   "displayName": "KS Wyrd Hunt Addon",
   "packageName": "WyrdHuntAddon",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "pluginGuid": "ks.tgfoa.wyrd-hunt-addon",
   "dll": "WyrdHuntAddon.dll",
   "sourceFiles": [
-    "src/WyrdHuntAddon.cs"
+    "src/WyrdHuntAddon.cs",
+    "../../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

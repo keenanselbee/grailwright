@@ -15,8 +15,8 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: AssemblyVersion("1.4.1.0")]
-[assembly: AssemblyFileVersion("1.4.1.0")]
+[assembly: AssemblyVersion("1.4.2.0")]
+[assembly: AssemblyFileVersion("1.4.2.0")]
 
 namespace Keenan.TGFoA.WyrdHuntAddon
 {
@@ -27,7 +27,7 @@ namespace Keenan.TGFoA.WyrdHuntAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         public const string PluginName = "Wyrd Hunt Addon";
-        public const string PluginVersion = "1.4.1";
+        public const string PluginVersion = "1.4.2";
 
         private const string AddonProfilePrefix = "keenan-random-";
         private const string ParentWyrdHuntPluginGuid = "kane.tgfoa.wyrd-hunt";
@@ -135,32 +135,41 @@ namespace Keenan.TGFoA.WyrdHuntAddon
             Instance = this;
             Log = Logger;
 
-            ResetConfigIfSchemaChanged();
-            BindHudConfig();
-            BindHuntTuningPresetConfig();
-            BindRandomizationConfig();
-            RegisterCandidates();
-            RegisterWeightedOptions();
-            Config.Save();
+            try
+            {
+                ResetConfigIfSchemaChanged();
+                BindHudConfig();
+                BindHuntTuningPresetConfig();
+                BindRandomizationConfig();
+                RegisterCandidates();
+                RegisterWeightedOptions();
+                Config.Save();
 
-            int seed = _randomSeed.Value;
-            _random = seed == 0 ? new System.Random() : new System.Random(seed);
+                int seed = _randomSeed.Value;
+                _random = seed == 0 ? new System.Random() : new System.Random(seed);
 
-            _harmony = new Harmony(PluginGuid);
-            _harmony.PatchAll(typeof(WyrdHuntAddonPlugin).Assembly);
-            WyrdHuntAddonOptionalPatches.TryPatch(_harmony);
-            LoadingUiTransitionPatch.TryPatch(_harmony);
-            ThreatMeterTransitionHideTracker.Refresh();
+                _harmony = new Harmony(PluginGuid);
+                _harmony.PatchAll(typeof(WyrdHuntAddonPlugin).Assembly);
+                WyrdHuntAddonOptionalPatches.TryPatch(_harmony);
+                LoadingUiTransitionPatch.TryPatch(_harmony);
+                ThreatMeterTransitionHideTracker.Refresh();
 
-            Logger.LogInfo(string.Format(
-                CultureInfo.InvariantCulture,
-                "{0} {1} loaded. Randomized spawns={2}, mixed packs={3}, hard hunts={4}, seed={5}.",
-                PluginName,
-                PluginVersion,
-                _enableRandomizedSpawns.Value,
-                _enableMixedHuntPacks.Value,
-                _enableHardHunts.Value,
-                seed == 0 ? "runtime" : seed.ToString(CultureInfo.InvariantCulture)));
+                Logger.LogInfo(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} {1} loaded. Randomized spawns={2}, mixed packs={3}, hard hunts={4}, seed={5}.",
+                    PluginName,
+                    PluginVersion,
+                    _enableRandomizedSpawns.Value,
+                    _enableMixedHuntPacks.Value,
+                    _enableHardHunts.Value,
+                    seed == 0 ? "runtime" : seed.ToString(CultureInfo.InvariantCulture)));
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
+            }
         }
 
         private void OnDestroy()

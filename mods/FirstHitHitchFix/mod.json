@@ -2,11 +2,12 @@
   "id": "FirstHitHitchFix",
   "displayName": "First Hit Hitch Fix",
   "packageName": "FirstHitHitchFix",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "pluginGuid": "ks.tgfoa.first-hit-hitch-fix",
   "dll": "FirstHitHitchFix.dll",
   "sourceFiles": [
-    "src/FirstHitHitchFix.cs"
+    "src/FirstHitHitchFix.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

@@ -1,7 +1,7 @@
 Wyrd Hunt Addon
 ===================
 
-Version: 1.4.1
+Version: 1.4.2
 
 Companion addon for Wyrd Hunt 0.4.65.
 
@@ -20,7 +20,7 @@ What it does
 
 Config file: ks.tgfoa.wyrd-hunt-addon.cfg
 
-Version 1.4.1 uses ConfigSchemaVersion 5. Older configs are backed up and a
+Version 1.4.2 uses ConfigSchemaVersion 5. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly.
 
 Preset behavior:
@@ -50,5 +50,8 @@ Safe from Wyrdness
 Exposed to Wyrdness
 
 Requires BepInEx 5 Mono and Wyrd Hunt 0.4.65. Grail Floating Text is an optional
-soft dependency for the notification display. If Grail Floating Text is installed,
-the parent Wyrd Scent meter is hidden by default.
+soft dependency for notification text:
+https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247
+
+If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by
+default.

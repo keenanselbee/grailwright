@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("2.8.3.0")]
-[assembly: AssemblyFileVersion("2.8.3.0")]
+[assembly: AssemblyVersion("2.8.4.0")]
+[assembly: AssemblyFileVersion("2.8.4.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -84,11 +84,12 @@ namespace DishonoredDynamicCrosshair
     }
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DishonoredDynamicCrosshairPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "2.8.3";
+        public const string PluginVersion = "2.8.4";
         private const int ConfigSchemaVersion = 3;
         private const string BloodMagicExpansionPluginGuid =
             "ks.tgfoa.blood-magic-expansion";
@@ -206,13 +207,13 @@ namespace DishonoredDynamicCrosshair
         private void Awake()
         {
             Instance = this;
-            ResetConfigIfSchemaChanged();
-            BindConfig();
-            RegisterSettingHandlers();
-            ApplyPreset(_preset.Value);
 
             try
             {
+                ResetConfigIfSchemaChanged();
+                BindConfig();
+                RegisterSettingHandlers();
+                ApplyPreset(_preset.Value);
                 PatchGame();
                 LoadAllSprites();
                 Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
@@ -220,6 +221,8 @@ namespace DishonoredDynamicCrosshair
             catch (Exception exception)
             {
                 Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
             }
         }
 

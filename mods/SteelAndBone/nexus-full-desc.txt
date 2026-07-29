@@ -7,6 +7,9 @@
 
 Tainted Grail already gives some enemies hand-authored damage reactions. Skeletons, for example, already have a vanilla blunt weakness. Steel and Bone keeps those vanilla rules first, can amplify them by preset, and then adds its own material-based rules where the same damage type is still neutral.
 
+[center][color=#F0B35A][b]Beta testing note[/b][/color]
+This 0.9.2-beta upload needs in-game testing. Please report odd enemy classifications, surprising resistance/weakness outcomes, duplicate damage numbers, or unreadable combat text.[/center]
+
 [b]Tempered[/b] is the Vanilla+ preset: it stays close to the base game and leaves vanilla enemy multipliers unchanged by default. [b]Hardened[/b] and [b]Crucible[/b] make weaknesses and resistances sharper, so the higher you set the preset, the more important it becomes to read the enemy and choose the right damage type.
 
 [line]
@@ -40,10 +43,12 @@ This is meant to replace separate combat-text overlays for Steel and Bone feedba
 
 [heading][color=#C94A4A][size=5]Preset Model[/size][/color][/heading]
 [code]
-Preset     | Meaning
-Tempered   | Vanilla+; close to the base game
-Hardened   | Intended default; matchups matter more
-Crucible   | Strongest; enemy knowledge matters most[/code]
+| Preset   | Meaning                                 |
+|----------|-----------------------------------------|
+| Tempered | Vanilla+; close to the base game        |
+| Hardened | Intended default; matchups matter more  |
+| Crucible | Strongest; enemy knowledge matters most |
+[/code]
 
 Presets change intensity, not the list of matchups. Every Steel and Bone overlay has one base multiplier, and the preset scales that multiplier toward or away from neutral. Vanilla-authored enemy multipliers can also be amplified: Tempered defaults to 0% extra distance from neutral, Hardened to 35%, and Crucible to 70%, with true vanilla immunities left intact and extremes clamped.
 
@@ -54,18 +59,20 @@ Presets change intensity, not the list of matchups. Every Steel and Bone overlay
 These are the general combat lessons Steel and Bone teaches. Exact strength depends on your preset and on whether Tainted Grail already gave that enemy a vanilla weakness or resistance for the same damage type.
 
 [code]
-Enemy family      | Weaknesses                   | Resistances
-Bone undead       | Blunt                        | Blood, bleed, slash, pierce, untyped physical
-Construct         | Blunt                        | Blood, bleed, poison, slash, pierce, untyped physical
-Armored humanoid  | Blunt                        | Slash, untyped physical
-Ordinary flesh    | Bleed, poison, slash, pierce | Mostly neutral; specific families win first
-Flesh undead      | Fire, blunt                  | Blood, bleed, poison
-Wyrd              | Non-Wyrdness tools           | Wyrdness
-Drowned           | Electric, blunt              | Blood, bleed
-Infected flesh    | Fire                         | Poison
-Sea creatures     | Electric                     | Cold
-Spirit            | Special or enchanted answers | Blood, bleed, poison, plain physical
-Flora             | Fire, slash                  | Poison, bleed, pierce[/code]
+| Enemy family     | Weaknesses                   | Resistances                                             |
+|------------------|------------------------------|---------------------------------------------------------|
+| Bone undead      | Blunt                        | Blood, bleed, slash, pierce, untyped physical           |
+| Construct        | Blunt                        | Blood, bleed, poison, slash, pierce, untyped physical   |
+| Armored humanoid | Blunt                        | Slash, untyped physical                                 |
+| Ordinary flesh   | Bleed, poison, slash, pierce | Mostly neutral; specific families win first             |
+| Flesh undead     | Fire, blunt                  | Blood, bleed, poison                                    |
+| Wyrd             | Non-Wyrdness tools           | Wyrdness                                                |
+| Drowned          | Electric, blunt              | Blood, bleed                                            |
+| Infected flesh   | Fire                         | Poison                                                  |
+| Sea creatures    | Electric                     | Cold                                                    |
+| Spirit           | Special or enchanted answers | Blood, bleed, poison, plain physical                    |
+| Flora            | Fire, slash                  | Poison, bleed, pierce                                   |
+[/code]
 
 [line]
 
@@ -74,6 +81,8 @@ Start the game once to generate:
 
 [code]
 BepInEx/config/ks.tgfoa.steel-and-bone.cfg[/code]
+
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Common entries:
 
@@ -112,6 +121,13 @@ BepInEx/plugins/SteelAndBone/SteelAndBone.dll[/code]
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]

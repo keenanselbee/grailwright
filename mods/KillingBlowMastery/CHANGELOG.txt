@@ -1,3 +1,7 @@
+Version 1.4.6
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when the required NPC death reward hook is unavailable.
+
 Version 1.4.5
 Updated Grail Floating Text reward routing to API v4 with the killing-blow event ID so the shared overlay colors killing blows through its Red event group by default.
 Removed the local hardcoded floating-text display duration and now lets Grail Floating Text use its medium/default duration.

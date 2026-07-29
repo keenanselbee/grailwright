@@ -18,5 +18,9 @@ Default hotkeys:
 Configuration is generated at:
 BepInEx/config/ks.tgfoa.better-quick-slots.cfg
 
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
+
 Compatibility:
 Better Quick Slots patches vanilla quick-slot HUD, hero HUD arrow counter, and HeroItems selection behavior. Mods that replace or reposition the same HUD components, or deeply rewrite quick-slot cycling, may conflict.
+
+[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.

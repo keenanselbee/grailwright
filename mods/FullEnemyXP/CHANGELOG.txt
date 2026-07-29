@@ -1,3 +1,7 @@
+Version 1.0.1
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when the required NPC death XP hook is unavailable.
+
 Version 1.0.0
 Promoted Full Enemy XP to the first release-ready version.
 Documented the ConfigSchemaVersion setting and schema-reset behavior in the packaged README.

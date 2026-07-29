@@ -1,7 +1,7 @@
 Ultrawide Fixes
 ===============
 
-Version 1.0.1
+Version 1.0.2
 
 Ultrawide Fixes is a standalone BepInEx 5 Mono plugin for Tainted Grail: The
 Fall of Avalon.
@@ -39,7 +39,7 @@ The config is generated after the game starts once:
 
   BepInEx\config\ks.tgfoa.ultrawide-fixes.cfg
 
-Version 1.0.1 uses ConfigSchemaVersion 1. Older configs are backed up and a
+Version 1.0.2 uses ConfigSchemaVersion 1. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly.
 
 Useful config entries:

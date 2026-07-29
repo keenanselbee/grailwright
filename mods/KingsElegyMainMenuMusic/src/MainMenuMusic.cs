@@ -17,9 +17,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.1.1.0")]
-[assembly: AssemblyFileVersion("2.1.1.0")]
-[assembly: AssemblyInformationalVersion("2.1.1")]
+[assembly: AssemblyVersion("2.1.2.0")]
+[assembly: AssemblyFileVersion("2.1.2.0")]
+[assembly: AssemblyInformationalVersion("2.1.2")]
 
 namespace MainMenuMusic
 {
@@ -39,11 +39,12 @@ namespace MainMenuMusic
     }
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class Plugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.1.1";
+        public const string PluginVersion = "2.1.2";
 
         private const int ConfigSchemaVersion = 16;
         private const float VolumeOutputScale = 0.2f;
@@ -143,18 +144,32 @@ namespace MainMenuMusic
             Instance = this;
             Log = Logger;
 
-            ResetConfigIfSchemaChanged();
-            BindConfig();
-            PatchTitleMusic();
-            PatchGameLoading();
+            try
+            {
+                ResetConfigIfSchemaChanged();
+                BindConfig();
+                if (!PatchTitleMusic())
+                {
+                    enabled = false;
+                    return;
+                }
 
-            Logger.LogInfo(
-                PluginName
-                + " "
-                + PluginVersion
-                + " loaded; music mode is "
-                + _musicMode.Value
-                + ".");
+                PatchGameLoading();
+
+                Logger.LogInfo(
+                    PluginName
+                    + " "
+                    + PluginVersion
+                    + " loaded; music mode is "
+                    + _musicMode.Value
+                    + ".");
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(PluginName + " failed to initialize: " + exception);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
+                enabled = false;
+            }
         }
 
         private void BindConfig()
@@ -602,7 +617,7 @@ namespace MainMenuMusic
             }
         }
 
-        private void PatchTitleMusic()
+        private bool PatchTitleMusic()
         {
             Type titleMusicType = AccessTools.TypeByName(TitleMusicTypeName);
             if (titleMusicType == null)
@@ -611,7 +626,8 @@ namespace MainMenuMusic
                     "Could not find "
                     + TitleMusicTypeName
                     + "; main menu music will not be changed.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Main menu music inactive; check BepInEx log.");
+                return false;
             }
 
             _musicEmitterField = AccessTools.Field(
@@ -630,7 +646,8 @@ namespace MainMenuMusic
             {
                 Logger.LogWarning(
                     "Could not resolve title-screen music fields or PlayMusic method; main menu music will not be changed.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Main menu music inactive; check BepInEx log.");
+                return false;
             }
 
             _harmony = new Harmony(PluginGuid);
@@ -642,6 +659,7 @@ namespace MainMenuMusic
 
             PatchOptionalTitleMethod(titleMusicType, "OnDisable");
             PatchOptionalTitleMethod(titleMusicType, "OnDestroy");
+            return true;
         }
 
         private void PatchOptionalTitleMethod(Type titleMusicType, string methodName)
@@ -852,7 +870,8 @@ namespace MainMenuMusic
                 return;
             }
 
-            if (!_enabled.Value
+            if (_enabled == null
+                || !_enabled.Value
                 || _musicMode.Value == MusicMode.Off
                 || !_titlePlaybackAllowed
                 || string.IsNullOrEmpty(_loadedSignature))

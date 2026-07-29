@@ -1,7 +1,7 @@
 Main Menu Music
 ===============
 
-Version 2.1.1
+Version 2.1.2
 
 Standalone BepInEx 5 Mono plugin for Tainted Grail: The Fall of Avalon.
 
@@ -103,7 +103,7 @@ The config is generated after first launch:
 
   BepInEx\config\ks.tgfoa.main-menu-music.cfg
 
-Version 2.1.1 uses ConfigSchemaVersion 16. Older configs are backed up and a
+Version 2.1.2 uses ConfigSchemaVersion 16. Older configs are backed up and a
 fresh config is generated once so the updated defaults apply cleanly.
 
 Install shape

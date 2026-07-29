@@ -28,13 +28,12 @@ The config is generated after the game starts once:
 [code]
 BepInEx/config/ks.tgfoa.ultrawide-fixes.cfg[/code]
 
-Version 1.0.1 uses [b]ConfigSchemaVersion = 1[/b]. Older configs are backed up and regenerated once so clean defaults apply.
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Common entries:
 
 [code]
 Enabled = true
-ConfigSchemaVersion = 1
 PatchTitleVideo = true
 HideTitleBlackBars = true
 PatchLoadingBackground = true
@@ -72,6 +71,13 @@ BepInEx/plugins/UltrawideFixes/UltrawideFixes.dll[/code]
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]

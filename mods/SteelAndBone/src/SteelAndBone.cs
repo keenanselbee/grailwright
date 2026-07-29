@@ -16,18 +16,19 @@ using UnityEngine;
 [assembly: AssemblyDescription("Knowledge-based weakness and resistance difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("0.9.1.0")]
-[assembly: AssemblyFileVersion("0.9.1.0")]
-[assembly: AssemblyInformationalVersion("0.9.1")]
+[assembly: AssemblyVersion("0.9.3.0")]
+[assembly: AssemblyFileVersion("0.9.3.0")]
+[assembly: AssemblyInformationalVersion("0.9.3-beta")]
 
 namespace SteelAndBone
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class SteelAndBonePlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "0.9.1";
+        public const string PluginVersion = "0.9.3";
 
         private const int ConfigSchemaVersion = 11;
         private const string DefaultDamageNumberBaseColor = "#E3BD02";
@@ -187,13 +188,20 @@ namespace SteelAndBone
                 _damageNumberRenderer = gameObject.AddComponent<DamageNumberRenderer>();
                 _damageNumberRenderer.Initialize(this);
                 CacheGameAccessors();
-                PatchGame();
+                if (!PatchGame())
+                {
+                    enabled = false;
+                    return;
+                }
+
                 Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Preset=" + _preset.Value + ".");
             }
             catch (Exception ex)
             {
                 Log.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
                 Log.LogError(ex.ToString());
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
             }
         }
 
@@ -400,7 +408,7 @@ namespace SteelAndBone
             }
         }
 
-        private void PatchGame()
+        private bool PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
 
@@ -408,7 +416,8 @@ namespace SteelAndBone
             if (healthElementType == null)
             {
                 Warn("Could not find " + HealthElementTypeName + ". " + PluginName + " is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             MethodInfo original = AccessTools.Method(healthElementType, "ApplyDamageModifiers");
@@ -416,7 +425,8 @@ namespace SteelAndBone
             if (original == null || postfix == null)
             {
                 Warn("Could not patch HealthElement.ApplyDamageModifiers. " + PluginName + " is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             _harmony.Patch(original, null, new HarmonyMethod(postfix));
@@ -427,11 +437,12 @@ namespace SteelAndBone
             if (outcomeOriginal == null || outcomePostfix == null)
             {
                 Warn("Could not patch HealthElement.AfterHealthDecreaseEvents. Steel and Bone damage numbers are unavailable, but damage rules remain active.");
-                return;
+                return true;
             }
 
             _harmony.Patch(outcomeOriginal, null, new HarmonyMethod(outcomePostfix));
             LogDiagnostic("Patched " + healthElementType.FullName + ".AfterHealthDecreaseEvents.");
+            return true;
         }
 
         internal void ApplyDamageRuleModifier(object healthElement, object damage, ref float damageModifier)

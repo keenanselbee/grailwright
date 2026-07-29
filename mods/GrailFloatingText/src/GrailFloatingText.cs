@@ -19,26 +19,28 @@ using Awaken.TG.Main.Heroes.Items;
 using Awaken.TG.Main.Heroes.Resting;
 using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Locations;
+using Awaken.TG.Main.Settings.Accessibility;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.TextCore.Text;
 
 [assembly: AssemblyTitle("Grail Floating Text")]
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("1.5.0.0")]
-[assembly: AssemblyFileVersion("1.5.0.0")]
-[assembly: AssemblyInformationalVersion("1.5.0")]
+[assembly: AssemblyVersion("1.5.5.0")]
+[assembly: AssemblyFileVersion("1.5.5.0")]
+[assembly: AssemblyInformationalVersion("1.5.5")]
 
 namespace GrailFloatingText
 {
     public static class NotificationApi
     {
-        public const int ApiVersion = 5;
+        public const int ApiVersion = 6;
 
         public static bool SupportsFeature(string feature)
         {
@@ -121,6 +123,7 @@ namespace GrailFloatingText
         public static bool TryClaimXpGain(
             string sourceId,
             string eventId,
+            string text,
             string style,
             string category,
             string priority,
@@ -131,7 +134,7 @@ namespace GrailFloatingText
             float opacity)
         {
             GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
-            return plugin != null && plugin.TryClaimXpGain(sourceId, eventId, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity);
+            return plugin != null && plugin.TryClaimXpGain(sourceId, eventId, text, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity);
         }
 
         public static string[] GetBuiltInIconIds()
@@ -145,10 +148,10 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "1.5.0";
+        public const string PluginVersion = "1.5.5";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
-        private const int ConfigSchemaVersion = 9;
+        private const int ConfigSchemaVersion = 12;
         private const float DefaultMinimumDurationSeconds = 0.05f;
         private const float DefaultVeryShortDurationSeconds = 1.0f;
         private const float DefaultShortDurationSeconds = 1.5f;
@@ -160,6 +163,7 @@ namespace GrailFloatingText
         private const float XpClaimAmountTolerance = 0.01f;
         private const float DirectXpDuplicateSuppressSeconds = 0.05f;
         private const string DefaultXpGainEventId = "default-xp-gain";
+        private const string KillingBlowEventId = "killing-blow";
         private const int PriorityLow = 0;
         private const int PriorityNormal = 100;
         private const int PriorityHigh = 200;
@@ -204,6 +208,14 @@ namespace GrailFloatingText
             VeryLong
         }
 
+        private enum FontMode
+        {
+            GameDefault,
+            Sans,
+            Serif,
+            ImguiDefault
+        }
+
         internal static GrailFloatingTextPlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
 
@@ -214,6 +226,7 @@ namespace GrailFloatingText
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<float> _scale;
         private ConfigEntry<int> _fontSize;
+        private ConfigEntry<FontMode> _fontMode;
         private ConfigEntry<float> _centerX;
         private ConfigEntry<float> _baseCenterY;
         private ConfigEntry<float> _width;
@@ -295,6 +308,8 @@ namespace GrailFloatingText
         private GUIStyle _shadowStyle;
         private GUIStyle _textLeftStyle;
         private GUIStyle _shadowLeftStyle;
+        private Font _styleFont;
+        private string _lastFontDiagnosticKey = string.Empty;
         private Coroutine _defaultGameEventBindingCoroutine;
         private IEventListener _restingInitiatedListener;
         private IEventListener _restingInterruptedListener;
@@ -357,6 +372,8 @@ namespace GrailFloatingText
             catch (Exception ex)
             {
                 Logger.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
             }
         }
 
@@ -387,7 +404,7 @@ namespace GrailFloatingText
             return string.Equals(feature, "ApiVersion2", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion3", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion4", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(feature, "ApiVersion5", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion6", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Categories", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Priority", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "CollapseKey", StringComparison.OrdinalIgnoreCase) ||
@@ -1781,6 +1798,7 @@ namespace GrailFloatingText
         internal bool TryClaimXpGain(
             string sourceId,
             string eventId,
+            string text,
             string style,
             string category,
             string priority,
@@ -1802,6 +1820,7 @@ namespace GrailFloatingText
             {
                 SourceId = NormalizeSourceId(sourceId),
                 EventId = NormalizeEventId(eventId),
+                Text = string.IsNullOrWhiteSpace(text) ? string.Empty : text.Trim(),
                 Style = string.IsNullOrWhiteSpace(style) ? "White" : style,
                 Category = string.IsNullOrWhiteSpace(category) ? "Reward" : category,
                 Priority = string.IsNullOrWhiteSpace(priority) ? "High" : priority,
@@ -1891,12 +1910,15 @@ namespace GrailFloatingText
                 : claim.DurationBucket;
             float fadeSeconds = claim == null ? -1.0f : claim.FadeSeconds;
             float opacity = claim == null ? 0.9f : claim.Opacity;
+            string text = claim == null || string.IsNullOrWhiteSpace(claim.Text)
+                ? FormatXpText(gainedXp)
+                : claim.Text;
             string collapseKey = eventId + "-entry-" + (++_nextXpEntrySequence).ToString(CultureInfo.InvariantCulture);
 
             return TryShowCore(
                 sourceId,
                 eventId,
-                FormatXpText(gainedXp),
+                text,
                 style,
                 category,
                 priority,
@@ -2471,12 +2493,43 @@ namespace GrailFloatingText
 
         private static bool ShouldDisplayBefore(NotificationEntry existing, NotificationEntry incoming)
         {
+            int eventOrderComparison = CompareEventDisplayOrder(existing.EventId, incoming.EventId);
+            if (eventOrderComparison != 0)
+            {
+                return eventOrderComparison < 0;
+            }
+
             if (existing.PriorityValue != incoming.PriorityValue)
             {
                 return existing.PriorityValue > incoming.PriorityValue;
             }
 
             return existing.Sequence > incoming.Sequence;
+        }
+
+        private static int CompareEventDisplayOrder(string leftEventId, string rightEventId)
+        {
+            bool leftIsKillingBlow = EventIdEquals(leftEventId, KillingBlowEventId);
+            bool rightIsKillingBlow = EventIdEquals(rightEventId, KillingBlowEventId);
+            bool leftIsDefaultXp = EventIdEquals(leftEventId, DefaultXpGainEventId);
+            bool rightIsDefaultXp = EventIdEquals(rightEventId, DefaultXpGainEventId);
+
+            if (leftIsKillingBlow && rightIsDefaultXp)
+            {
+                return -1;
+            }
+
+            if (leftIsDefaultXp && rightIsKillingBlow)
+            {
+                return 1;
+            }
+
+            return 0;
+        }
+
+        private static bool EventIdEquals(string eventId, string expectedEventId)
+        {
+            return string.Equals(eventId, NormalizeEventId(expectedEventId), StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeSourceId(string sourceId)
@@ -2858,13 +2911,14 @@ namespace GrailFloatingText
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch for the shared Grail Floating Text overlay.");
             Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. Older layouts are backed up and regenerated.");
 
-            _scale = Config.Bind("2. Layout", "Scale", 1.0f, new ConfigDescription("Scale multiplier for all floating text.", new AcceptableValueRange<float>(0.1f, 3.0f)));
+            _scale = Config.Bind("2. Layout", "Scale", 1.2f, new ConfigDescription("Scale multiplier for all floating text.", new AcceptableValueRange<float>(0.1f, 3.0f)));
             _fontSize = Config.Bind("2. Layout", "FontSize", 20, new ConfigDescription("Base font size before scale is applied.", new AcceptableValueRange<int>(8, 72)));
+            _fontMode = Config.Bind("2. Layout", "FontMode", FontMode.GameDefault, "Font used by the overlay. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
             _centerX = Config.Bind("2. Layout", "CenterX", 0.5f, new ConfigDescription("Horizontal center as a fraction of screen width.", new AcceptableValueRange<float>(0.0f, 1.0f)));
             _baseCenterY = Config.Bind("2. Layout", "BaseCenterY", 0.25f, new ConfigDescription("Vertical center for the newest notification as a fraction of screen height.", new AcceptableValueRange<float>(0.0f, 1.0f)));
             _width = Config.Bind("2. Layout", "Width", 520.0f, new ConfigDescription("Text width before scale is applied.", new AcceptableValueRange<float>(100.0f, 1600.0f)));
             _stackSpacing = Config.Bind("2. Layout", "StackSpacing", 34.0f, new ConfigDescription("Vertical distance between stacked active notifications before scale is applied.", new AcceptableValueRange<float>(16.0f, 160.0f)));
-            _maximumVisibleNotifications = Config.Bind("2. Layout", "MaximumVisibleNotifications", 6, new ConfigDescription("Maximum active notifications kept on screen at once. Oldest entries are dropped first.", new AcceptableValueRange<int>(1, 12)));
+            _maximumVisibleNotifications = Config.Bind("2. Layout", "MaximumVisibleNotifications", 16, new ConfigDescription("Maximum active notifications kept on screen at once. Oldest entries are dropped first.", new AcceptableValueRange<int>(1, 24)));
 
             _defaultDurationSeconds = Config.Bind("3. Timing", "DefaultDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Default display duration used when a caller does not request one.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _defaultFadeSeconds = Config.Bind("3. Timing", "DefaultFadeSeconds", 0.25f, new ConfigDescription("Default fade-in and fade-out duration used when a caller does not request one.", new AcceptableValueRange<float>(0.0f, 5.0f)));
@@ -3205,12 +3259,14 @@ namespace GrailFloatingText
 
         private void EnsureStyles(int fontSize)
         {
-            if (_textStyle != null && _styleFontSize == fontSize)
+            Font styleFont = ResolveConfiguredFont();
+            if (_textStyle != null && _styleFontSize == fontSize && ReferenceEquals(_styleFont, styleFont))
             {
                 return;
             }
 
             _styleFontSize = fontSize;
+            _styleFont = styleFont;
             _textStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
@@ -3219,12 +3275,99 @@ namespace GrailFloatingText
                 clipping = TextClipping.Overflow,
                 wordWrap = false
             };
+            if (styleFont != null)
+            {
+                _textStyle.font = styleFont;
+            }
+
             _shadowStyle = new GUIStyle(_textStyle);
             _textLeftStyle = new GUIStyle(_textStyle)
             {
                 alignment = TextAnchor.MiddleLeft
             };
             _shadowLeftStyle = new GUIStyle(_textLeftStyle);
+        }
+
+        private Font ResolveConfiguredFont()
+        {
+            FontMode mode = _fontMode == null ? FontMode.GameDefault : _fontMode.Value;
+            if (mode == FontMode.ImguiDefault)
+            {
+                return null;
+            }
+
+            try
+            {
+                if (mode == FontMode.Sans)
+                {
+                    return ResolveFontFamily(FontFamily.Sans, "Sans");
+                }
+
+                if (mode == FontMode.Serif)
+                {
+                    return ResolveFontFamily(FontFamily.Serif, "Serif");
+                }
+
+                FontChooseSetting setting = World.Any<FontChooseSetting>();
+                if (setting == null)
+                {
+                    return null;
+                }
+
+                FontFamily activeFont = setting.ActiveFont;
+                return ResolveFontFamily(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
+            }
+            catch (Exception ex)
+            {
+                LogFontDiagnosticOnce(
+                    "ResolveConfiguredFont:" + mode.ToString() + ":" + ex.GetType().FullName,
+                    "Could not resolve " + mode + " font for IMGUI overlay; using Unity IMGUI fallback font. "
+                    + ex.GetBaseException().Message);
+                return null;
+            }
+        }
+
+        private Font ResolveFontFamily(FontFamily fontFamily, string label)
+        {
+            if (fontFamily == null)
+            {
+                LogFontDiagnosticOnce(
+                    "FontFamilyMissing:" + label,
+                    "Could not resolve " + label + " font family for IMGUI overlay; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            FontAsset fontAsset = fontFamily.FontAsset;
+            if (fontAsset == null)
+            {
+                LogFontDiagnosticOnce(
+                    "FontAssetMissing:" + fontFamily.EnumName,
+                    "Could not resolve " + label + " FontAsset for IMGUI overlay; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            Font sourceFont = fontAsset.sourceFontFile;
+            if (sourceFont == null)
+            {
+                LogFontDiagnosticOnce(
+                    "SourceFontMissing:" + fontFamily.EnumName + ":" + fontAsset.name,
+                    "The " + label + " FontAsset '" + fontAsset.name
+                    + "' does not expose a UnityEngine.Font source file for IMGUI; using Unity IMGUI fallback font.");
+                return null;
+            }
+
+            return sourceFont;
+        }
+
+        private void LogFontDiagnosticOnce(string key, string message)
+        {
+            if (_diagnostics == null || !_diagnostics.Value || string.Equals(_lastFontDiagnosticKey, key, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastFontDiagnosticKey = key;
+            Logger.LogWarning(message);
         }
 
         private Color ResolveStyleColor(string style, float alpha)
@@ -3419,6 +3562,7 @@ namespace GrailFloatingText
         {
             internal string SourceId;
             internal string EventId;
+            internal string Text;
             internal string Style;
             internal string Category;
             internal string Priority;

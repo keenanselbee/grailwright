@@ -1,3 +1,20 @@
+Version 1.5.5
+Added FontMode so the overlay can follow the game's Accessibility font choice or force the simple Sans, stylized Serif, or IMGUI fallback font.
+Raised ConfigSchemaVersion to 12 so upgraded configs regenerate with the new font setting.
+
+Version 1.5.4
+Changed XP gain claims to API v6, adding caller-provided text so integrations can claim an XP stat gain while controlling the displayed wording.
+Changed Blood Magic Expansion corpse XP claims to support labels such as +42 XP (Worthy).
+Kept ConfigSchemaVersion 11 because no config settings changed.
+
+Version 1.5.3
+Added shared load-time error notifier support for Grailwright mods that want startup failures surfaced through the overlay.
+Raised default MaximumVisibleNotifications to 16 and ConfigSchemaVersion to 11 so simultaneous load-time errors can stay visible.
+
+Version 1.5.2
+Changed default Scale to 1.2 and raised ConfigSchemaVersion to 10 so upgraded configs regenerate with the larger default layout.
+Changed queue ordering so Killing Blow Mastery reward text is placed ahead of generic XP gain entries when both are visible.
+
 Version 1.5.0
 Standardized stale config schema reset handling with the other Grailwright mods, including timestamped pre-schema backups and legacy General-section schema detection.
 

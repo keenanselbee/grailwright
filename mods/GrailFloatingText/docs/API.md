@@ -45,6 +45,7 @@ private bool TryResolveGrailFloatingText()
             typeof(string),
             typeof(string),
             typeof(string),
+            typeof(string),
             typeof(float),
             typeof(float),
             typeof(float)
@@ -108,13 +109,13 @@ private bool TryResolveGrailFloatingText()
 }
 ```
 
-API v5 XP claim call shape:
+API v6 XP claim call shape:
 
 ```csharp
-TryClaimXpGain(sourceId, eventId, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity)
+TryClaimXpGain(sourceId, eventId, text, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity)
 ```
 
-Use XP claims immediately before your mod changes the hero XP stat. The next matching XP gain uses the claimed event/style/icon instead of the generic XP event, and the claim is consumed without merging multiple XP gains.
+Use XP claims immediately before your mod changes the hero XP stat. The next matching XP gain uses the claimed text/event/style/icon instead of the generic XP event, and the claim is consumed without merging multiple XP gains.
 
 API v4 event-aware call shape:
 
@@ -144,6 +145,7 @@ Recommended values:
 - `collapseKey`: leave blank for stacking event messages; set a stable key for status messages that should update in place.
 - `iconId`: blank or `Auto` uses the default icon for the style/category. Use `None` or `Off` to suppress the icon for one message.
 - `durationBucket`: `VeryShort`, `Short`, `Medium`, `Long`, or `VeryLong`; blank or unknown values use `Medium`.
+- `text`: the exact XP text to show, such as `+42 XP (Worthy)`.
 - `expectedAmount`: the XP amount your mod is about to add. Grail Floating Text matches exact amounts first, then very recent claims so game XP multipliers can still display the final adjusted amount.
 
 Built-in icon IDs:
@@ -154,9 +156,9 @@ Built-in icon IDs:
 
 Feature probes:
 
-- `ApiVersion5`: provider supports XP gain claims through `TryClaimXpGain`.
+- `ApiVersion6`: provider supports text-aware XP gain claims through `TryClaimXpGain`.
 - `ApiVersion4`: provider supports event IDs and duration buckets through `TryShowEvent`.
-- `XpGainClaims`: provider can claim and style the next XP gain.
+- `XpGainClaims`: provider can claim, style, and name the next XP gain.
 - `XpNotifications`: provider can take over vanilla XP gain display.
 - `EventIds`: provider accepts stable event IDs for configurable color-group routing.
 - `DurationBuckets`: provider accepts named duration buckets.

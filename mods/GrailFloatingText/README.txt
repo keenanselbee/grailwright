@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 1.5.0
+Version 1.5.5
 
 Grail Floating Text is a shared BepInEx 5 Mono floating text overlay any
 Tainted Grail: The Fall of Avalon mod author can use.
@@ -28,14 +28,15 @@ BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 Default settings:
 
 Enabled = true
-ConfigSchemaVersion = 9
-Scale = 1
+ConfigSchemaVersion = 12
+Scale = 1.2
 FontSize = 20
+FontMode = GameDefault
 CenterX = 0.5
 BaseCenterY = 0.25
 Width = 520
 StackSpacing = 34
-MaximumVisibleNotifications = 6
+MaximumVisibleNotifications = 16
 DefaultDurationSeconds = 2
 DefaultFadeSeconds = 0.25
 VeryShortDurationSeconds = 1
@@ -115,9 +116,9 @@ WhiteEvents = default-xp-gain
 DefaultColor = #F5E0AD
 DefaultEvents =
 
-Mods can integrate with Grail Floating Text as an optional dependency. API v5
-adds XP gain claims so a mod can style the next XP stat change it triggers
-without producing a duplicate generic XP entry. API v4 adds optional event IDs
+Mods can integrate with Grail Floating Text as an optional dependency. API v6
+adds text-aware XP gain claims so a mod can style and name the next XP stat
+change it triggers without producing a duplicate generic XP entry. API v4 adds optional event IDs
 and named duration buckets through TryShowEvent. API v3 supports category,
 priority, collapse-key, and icon routing through reflection, and API v2 and v3
 calls still work.

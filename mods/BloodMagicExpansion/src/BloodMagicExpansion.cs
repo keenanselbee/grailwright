@@ -19,8 +19,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.1.9.0")]
-[assembly: AssemblyFileVersion("2.1.9.0")]
+[assembly: AssemblyVersion("2.2.5.0")]
+[assembly: AssemblyFileVersion("2.2.5.0")]
 
 namespace BloodMagicExpansion
 {
@@ -39,7 +39,7 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.1.9";
+        public const string PluginVersion = "2.2.5";
         private const int ConfigSchemaVersion = 9;
         private const float CacheCleanupIntervalSeconds = 30f;
         private const float CompletedCorpseRetentionSeconds = 120f;
@@ -54,7 +54,7 @@ namespace BloodMagicExpansion
         private const float BloodSpellInnerLightMinimumIntensity = 0.001f;
         private const float BloodSpellInnerLightHdrpIntensityMultiplier = 50000.0f;
         private const float BloodSpellInnerLightCastBoostMultiplier = 3.0f;
-        private const float BloodSpellInnerLightCastBoostDelaySeconds = 0.0f;
+        private const float BloodSpellInnerLightCastBoostStartDelaySeconds = 0.3f;
         private const float BloodSpellInnerLightCastBoostRampUpSeconds = 0.01f;
         private const float BloodSpellInnerLightCastBoostRampDownSeconds = 0.25f;
         private const float BloodSpellInnerLightCastBoostFinishLeadSeconds = 0.5f;
@@ -65,9 +65,13 @@ namespace BloodMagicExpansion
         private const string CorpseLeechMediumTier = "medium";
         private const string CorpseLeechHighTier = "high";
         private const string CorpseLeechMaxTier = "max";
-        private const float CorpseLeechMediumQualityThreshold = 0.35f;
-        private const float CorpseLeechHighQualityThreshold = 0.65f;
-        private const float CorpseLeechMaxQualityThreshold = 0.90f;
+        private const string CorpseQualityMeagerLabel = "Meager";
+        private const string CorpseQualityWorthyLabel = "Worthy";
+        private const string CorpseQualityPotentLabel = "Potent";
+        private const string CorpseQualityPrimeLabel = "Prime";
+        private const float CorpseLeechMeagerQualityMax = 0.25f;
+        private const float CorpseLeechWorthyQualityMax = 0.50f;
+        private const float CorpseLeechPotentQualityMax = 0.75f;
 
         private const string HealthElementTypeName = "Awaken.TG.Main.Character.HealthElement";
         private const string MagicFsmTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.Machines.MagicFSM";
@@ -79,6 +83,7 @@ namespace BloodMagicExpansion
         private const string CharacterTypeName = "Awaken.TG.Main.Character.ICharacter";
         private const string CorpseTypeName = "Awaken.TG.Main.Locations.Attachments.Elements.Corpse";
         private const string CharacterStatusesTypeName = "Awaken.TG.Main.Heroes.Statuses.CharacterStatuses";
+        private const string GameConstantsTypeName = "Awaken.TG.Main.General.Configs.GameConstants";
         private const string DamageUtilsTypeName = "Awaken.TG.Main.Fights.DamageInfo.DamageUtils";
         private const string HealingUtilsTypeName = "Awaken.TG.Main.Fights.Utils.HealingUtils";
         private const string DamageDealingProjectileTypeName = "Awaken.TG.Main.AI.Fights.Projectiles.DamageDealingProjectile";
@@ -285,6 +290,7 @@ namespace BloodMagicExpansion
         private CorpseState _focusedCorpse;
         private bool _loggedHealingResolution;
         private bool _heroGetterResolved;
+        private bool _gameConstantsGetterResolved;
         private bool _equipmentReflectionResolved;
         private bool _lastBloodTransfusionEquipped;
         private bool _lastAbhartachEquipped;
@@ -306,6 +312,7 @@ namespace BloodMagicExpansion
         private bool _loggedMissingCorpseLeechSounds;
         private bool _loggedBloodSpellInnerLightCreated;
         private bool _loggedBloodSpellInnerLightHdrpUnavailable;
+        private bool _loggedVanillaXpFalloffUnavailable;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextUnavailableLogged;
         private bool _lastBloodSpellInnerLightVisible;
@@ -315,6 +322,7 @@ namespace BloodMagicExpansion
         private Type _hdAdditionalLightDataType;
         private bool _hdAdditionalLightDataResolved;
         private MethodInfo _heroGetter;
+        private MethodInfo _gameConstantsGetter;
         private MethodInfo _skillUnitsSkillMethod;
         private MethodInfo _getHeroItemsMethod;
         private MethodInfo _equippedItemMethod;
@@ -339,6 +347,7 @@ namespace BloodMagicExpansion
             catch (Exception ex)
             {
                 LogStartupException("BindConfig", ex);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
                 ClearStaticReferences();
                 enabled = false;
                 return;
@@ -356,6 +365,9 @@ namespace BloodMagicExpansion
             catch (Exception ex)
             {
                 LogStartupException("PatchGame", ex);
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
+                return;
             }
 
             if (ShouldLogStartup())
@@ -422,7 +434,7 @@ namespace BloodMagicExpansion
             _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Spirituality.");
 
             _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow inner player light while Blood Transfusion, Life Transfusion, or Abhartach's Calling is equipped and the magic hands are raised.");
-            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.75f, new ConfigDescription("Brightness of the red inner player light while a blood spell is readied. Actual casting temporarily triples this value immediately, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.75f, new ConfigDescription("Brightness of the red inner player light while a blood spell is readied. Actual casting temporarily triples this value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
             _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 5.0f, new ConfigDescription("Range in meters for the red inner player light. Smaller ranges are cheaper and subtler.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightFadeSeconds = config.Bind("2. Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -452,7 +464,7 @@ namespace BloodMagicExpansion
             _healMinimumPowerScale = config.Bind("5. Advanced - Corpse Rewards", "HealMinimumPowerScale", 0.5f, new ConfigDescription("Lowest multiplier applied to baseline healing when enemy max HP is low.", new AcceptableValueRange<float>(0.0f, 10.0f)));
             _healMaximumPowerScale = config.Bind("5. Advanced - Corpse Rewards", "HealMaximumPowerScale", 2.0f, new ConfigDescription("Highest multiplier applied to baseline healing when enemy max HP is high.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            _customPayoutPercentOfKillXp = config.Bind("6. Advanced - Custom Preset", "CustomCorpseXPPercent", 50.0f, "Corpse payout as a percent of the enemy's normal kill XP when Preset is Custom.");
+            _customPayoutPercentOfKillXp = config.Bind("6. Advanced - Custom Preset", "CustomCorpseXPPercent", 50.0f, "Corpse payout as a percent of the enemy's vanilla effective kill XP when Preset is Custom.");
             _secondsRequired = config.Bind("6. Advanced - Custom Preset", "CustomRitualSeconds", 3.0f, "Seconds of continuous corpse focus required when Preset is Custom.");
             _customLiveDrainXpTickIntervalSeconds = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks when Preset is Custom.");
             _customLiveDrainXpPercentPerTick = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 7.0f, "Percent of target kill XP paid per live-drain XP tick when Preset is Custom.");
@@ -1154,12 +1166,15 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightCastBoostState.HasWindow = true;
                 _bloodSpellInnerLightCastBoostState.StartAt =
-                    now + Math.Max(0.0f, BloodSpellInnerLightCastBoostDelaySeconds);
+                    now + Math.Max(0.0f, BloodSpellInnerLightCastBoostStartDelaySeconds);
                 _bloodSpellInnerLightCastBoostState.ActiveUntil =
                     _bloodSpellInnerLightCastBoostState.StartAt;
             }
 
-            float activeUntil = now + GetBloodSpellInnerLightCastBoostEvidenceGraceSeconds();
+            float evidenceGrace = GetBloodSpellInnerLightCastBoostEvidenceGraceSeconds();
+            float activeUntil = Math.Max(
+                now + evidenceGrace,
+                _bloodSpellInnerLightCastBoostState.StartAt + evidenceGrace);
             _bloodSpellInnerLightCastBoostState.ActiveUntil = Math.Max(
                 _bloodSpellInnerLightCastBoostState.ActiveUntil,
                 activeUntil);
@@ -1171,7 +1186,7 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightCastBoostState.HasWindow = true;
                 _bloodSpellInnerLightCastBoostState.StartAt =
-                    now + Math.Max(0.0f, BloodSpellInnerLightCastBoostDelaySeconds);
+                    now;
             }
 
             _bloodSpellInnerLightCastBoostState.ActiveUntil = Math.Min(
@@ -2099,7 +2114,8 @@ namespace BloodMagicExpansion
 
             if (_logAwards.Value)
             {
-                Log.LogInfo("Registered corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " target " + DescribeCorpse(state) + " with kill XP " + state.TargetKillXp.ToString("0.###", CultureInfo.InvariantCulture) + ".");
+                float effectiveKillXp = ResolveCorpseEffectiveKillXp(state);
+                Log.LogInfo("Registered corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " target " + DescribeCorpse(state) + " with base kill XP " + state.TargetKillXp.ToString("0.###", CultureInfo.InvariantCulture) + " and vanilla effective XP " + effectiveKillXp.ToString("0.###", CultureInfo.InvariantCulture) + ".");
             }
         }
 
@@ -2438,7 +2454,7 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            return !xpEnabled || ResolveCorpseBaseXp(state) > 0f;
+            return !xpEnabled || ResolveCorpseEffectiveKillXp(state) > 0f;
         }
 
         private bool IsCorpseBloodMagicEligibleForInterop(CorpseState state)
@@ -2501,10 +2517,10 @@ namespace BloodMagicExpansion
 
             if (xpEnabled && !state.XpAwarded)
             {
-                float baseXp = ResolveCorpseBaseXp(state);
+                float baseXp = ResolveCorpseEffectiveKillXp(state);
                 if (baseXp <= 0f)
                 {
-                    failures = AppendFailure(failures, "normal kill XP could not be resolved");
+                    failures = AppendFailure(failures, "vanilla kill XP could not be resolved");
                 }
                 else
                 {
@@ -2522,7 +2538,7 @@ namespace BloodMagicExpansion
                     else
                     {
                         float rawXp = amount * Math.Max(0f, _rawCharacterXpPerCorpseXp.Value);
-                        TryClaimGrailFloatingTextCorpseXp(rawXp);
+                        TryClaimGrailFloatingTextCorpseXp(rawXp, state);
                         if (AwardRawCharacterXp(rawXp))
                         {
                             state.XpAwarded = true;
@@ -2692,19 +2708,19 @@ namespace BloodMagicExpansion
         private string GetCorpseLeechSoundTier(float quality)
         {
             quality = Mathf.Clamp01(quality);
-            if (quality >= CorpseLeechMaxQualityThreshold)
+            if (quality <= CorpseLeechMeagerQualityMax)
             {
-                return CorpseLeechMaxTier;
+                return CorpseLeechLowTier;
             }
 
-            if (quality >= CorpseLeechHighQualityThreshold)
+            if (quality <= CorpseLeechWorthyQualityMax)
             {
-                return CorpseLeechHighTier;
+                return CorpseLeechMediumTier;
             }
 
-            return quality >= CorpseLeechMediumQualityThreshold
-                ? CorpseLeechMediumTier
-                : CorpseLeechLowTier;
+            return quality <= CorpseLeechPotentQualityMax
+                ? CorpseLeechHighTier
+                : CorpseLeechMaxTier;
         }
 
         private string PickCorpseLeechSoundPath(string preferredTier, out string selectedTier)
@@ -3427,14 +3443,21 @@ namespace BloodMagicExpansion
 
         private float ResolveLiveDrainBaseXp(object healthElement, object target, object damage)
         {
-            float value = TryReadExpReward(target);
+            bool hasLevelContext;
+            float value = TryResolveVanillaEffectiveKillXp(target, out hasLevelContext);
             if (value > 0f)
             {
                 return value;
             }
 
             object owner = ResolveHealthElementOwner(healthElement);
-            value = TryReadExpReward(owner);
+            value = TryResolveVanillaEffectiveKillXp(owner, out hasLevelContext);
+            if (value > 0f)
+            {
+                return value;
+            }
+
+            value = TryResolveVanillaEffectiveKillXp(healthElement, out hasLevelContext);
             if (value > 0f)
             {
                 return value;
@@ -4120,6 +4143,52 @@ namespace BloodMagicExpansion
             }
 
             return state.TargetKillXp;
+        }
+
+        private float ResolveCorpseEffectiveKillXp(CorpseState state)
+        {
+            if (state == null)
+            {
+                return 0f;
+            }
+
+            if (state.TargetEffectiveKillXp <= 0f || !state.TargetEffectiveKillXpHasLevelContext)
+            {
+                StoreCorpseEffectiveKillXp(state, state.TargetObject);
+            }
+            if (state.TargetEffectiveKillXp <= 0f || !state.TargetEffectiveKillXpHasLevelContext)
+            {
+                StoreCorpseEffectiveKillXp(state, state.Corpse);
+            }
+            if (state.TargetEffectiveKillXp <= 0f)
+            {
+                state.TargetEffectiveKillXp = Math.Max(0f, _fallbackKillXp.Value);
+            }
+
+            return state.TargetEffectiveKillXp;
+        }
+
+        private void StoreCorpseEffectiveKillXp(CorpseState state, object owner)
+        {
+            if (state == null || owner == null)
+            {
+                return;
+            }
+
+            bool hasLevelContext;
+            float effectiveKillXp = TryResolveVanillaEffectiveKillXp(owner, out hasLevelContext);
+            if (effectiveKillXp <= 0f)
+            {
+                return;
+            }
+
+            if (state.TargetEffectiveKillXp <= 0f ||
+                (hasLevelContext && !state.TargetEffectiveKillXpHasLevelContext) ||
+                (hasLevelContext == state.TargetEffectiveKillXpHasLevelContext && effectiveKillXp > state.TargetEffectiveKillXp))
+            {
+                state.TargetEffectiveKillXp = effectiveKillXp;
+                state.TargetEffectiveKillXpHasLevelContext = hasLevelContext;
+            }
         }
 
         private float ResolveCorpseTargetMaxHealth(CorpseState state)
@@ -5046,7 +5115,7 @@ namespace BloodMagicExpansion
             return (float)(Math.Round(amount / roundTo, MidpointRounding.AwayFromZero) * roundTo);
         }
 
-        private bool TryClaimGrailFloatingTextCorpseXp(float amount)
+        private bool TryClaimGrailFloatingTextCorpseXp(float amount, CorpseState state)
         {
             if (amount <= 0f ||
                 _claimGrailFloatingTextCorpseXp == null ||
@@ -5068,6 +5137,7 @@ namespace BloodMagicExpansion
                     {
                         PluginGuid,
                         GrailFloatingTextCorpseXpEventId,
+                        BuildCorpseXpFloatingText(amount, state),
                         "Red",
                         "Reward",
                         "High",
@@ -5085,6 +5155,30 @@ namespace BloodMagicExpansion
                 LogGrailFloatingTextUnavailableOnce("Grail Floating Text failed to claim corpse-leech XP text: " + exception.GetBaseException().Message);
                 return false;
             }
+        }
+
+        private string BuildCorpseXpFloatingText(float amount, CorpseState state)
+        {
+            string amountText = amount.ToString("F0", CultureInfo.InvariantCulture);
+            return "+" + amountText + " XP (" + GetCorpseQualityLabel(GetCorpseQuality01(state)) + ")";
+        }
+
+        private string GetCorpseQualityLabel(float quality)
+        {
+            string tier = GetCorpseLeechSoundTier(quality);
+            if (string.Equals(tier, CorpseLeechMaxTier, StringComparison.OrdinalIgnoreCase))
+            {
+                return CorpseQualityPrimeLabel;
+            }
+
+            if (string.Equals(tier, CorpseLeechHighTier, StringComparison.OrdinalIgnoreCase))
+            {
+                return CorpseQualityPotentLabel;
+            }
+
+            return string.Equals(tier, CorpseLeechMediumTier, StringComparison.OrdinalIgnoreCase)
+                ? CorpseQualityWorthyLabel
+                : CorpseQualityMeagerLabel;
         }
 
         private bool TryResolveGrailFloatingTextBridge()
@@ -5123,6 +5217,7 @@ namespace BloodMagicExpansion
                     typeof(string),
                     typeof(string),
                     typeof(string),
+                    typeof(string),
                     typeof(float),
                     typeof(float),
                     typeof(float)
@@ -5130,7 +5225,7 @@ namespace BloodMagicExpansion
 
             if (_grailFloatingTextTryClaimXpGainMethod == null)
             {
-                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but it does not support XP gain claims.");
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but it does not support XP gain text claims.");
             }
 
             return _grailFloatingTextTryClaimXpGainMethod != null;
@@ -5718,6 +5813,8 @@ namespace BloodMagicExpansion
             {
                 state.TargetKillXp = killXp;
             }
+            StoreCorpseEffectiveKillXp(state, target);
+            StoreCorpseEffectiveKillXp(state, healthElement);
 
             float targetMaxHealth = TryGetMaxHealth(target);
             if (targetMaxHealth <= 0f)
@@ -6419,6 +6516,157 @@ namespace BloodMagicExpansion
             }
 
             return null;
+        }
+
+        private float TryResolveVanillaEffectiveKillXp(object owner, out bool hasLevelContext)
+        {
+            hasLevelContext = false;
+            if (owner == null)
+            {
+                return 0f;
+            }
+
+            float baseXp = TryReadExpReward(owner);
+            if (baseXp <= 0f)
+            {
+                return 0f;
+            }
+
+            float levelMultiplier = ResolveVanillaEnemyLevelMultiplier(owner, out hasLevelContext);
+            float killMultiplier = ResolveHeroKillExpMultiplier();
+            return Math.Max(0f, baseXp * levelMultiplier * killMultiplier);
+        }
+
+        private float ResolveVanillaEnemyLevelMultiplier(object owner, out bool hasLevelContext)
+        {
+            hasLevelContext = false;
+
+            float enemyExpLevel = TryReadExpLevel(owner);
+            if (enemyExpLevel < 0f)
+            {
+                return 1f;
+            }
+
+            float heroLevel = TryReadHeroLevel();
+            if (heroLevel < 0f)
+            {
+                return 1f;
+            }
+
+            float levelsBelowHero = heroLevel - enemyExpLevel;
+            if (levelsBelowHero <= 0f)
+            {
+                hasLevelContext = true;
+                return 1f;
+            }
+
+            float deductedPerLevel;
+            float minimumMultiplier;
+            if (!TryReadVanillaXpFalloffConstants(out deductedPerLevel, out minimumMultiplier))
+            {
+                WarnVanillaXpFalloffUnavailable();
+                return 1f;
+            }
+
+            float multiplier = 1f - levelsBelowHero * deductedPerLevel;
+            if (multiplier < minimumMultiplier)
+            {
+                multiplier = minimumMultiplier;
+            }
+
+            hasLevelContext = true;
+            return Math.Max(0f, multiplier);
+        }
+
+        private float TryReadExpLevel(object owner)
+        {
+            if (owner == null)
+            {
+                return -1f;
+            }
+
+            object template = GetOptionalPropertyValue(owner, "Template");
+            if (template != null && !ReferenceEquals(template, owner))
+            {
+                float value = GetOptionalFloatProperty(template, "ExpLevel", -1f);
+                if (value >= 0f)
+                {
+                    return value;
+                }
+            }
+
+            return GetOptionalFloatProperty(owner, "ExpLevel", -1f);
+        }
+
+        private float TryReadHeroLevel()
+        {
+            object hero = GetHero();
+            object level = GetOptionalPropertyValue(hero, "Level");
+            float value = ReadStatValue(level);
+            return value >= 0f ? value : -1f;
+        }
+
+        private float ResolveHeroKillExpMultiplier()
+        {
+            object hero = GetHero();
+            object heroMultStats = GetOptionalPropertyValue(hero, "HeroMultStats");
+            object killExpMultiplier = GetOptionalPropertyValue(heroMultStats, "KillExpMultiplier");
+            float value = ReadStatValue(killExpMultiplier);
+            return value >= 0f ? Math.Max(0f, value) : 1f;
+        }
+
+        private bool TryReadVanillaXpFalloffConstants(out float deductedPerLevel, out float minimumMultiplier)
+        {
+            deductedPerLevel = 0f;
+            minimumMultiplier = 0f;
+
+            object constants = GetGameConstants();
+            if (constants == null)
+            {
+                return false;
+            }
+
+            deductedPerLevel = GetOptionalFloatProperty(constants, "ExpMultiDeductedPerEnemyLevelBelowHero", float.NaN);
+            minimumMultiplier = GetOptionalFloatProperty(constants, "MinExpMultiFromEnemyLevelBelowHero", float.NaN);
+            return !float.IsNaN(deductedPerLevel) && !float.IsNaN(minimumMultiplier);
+        }
+
+        private void WarnVanillaXpFalloffUnavailable()
+        {
+            if (_loggedVanillaXpFalloffUnavailable)
+            {
+                return;
+            }
+
+            _loggedVanillaXpFalloffUnavailable = true;
+            Warn("Could not resolve GameConstants XP falloff; Blood Magic Expansion XP will use raw kill XP until the game's constants are available.");
+        }
+
+        private object GetGameConstants()
+        {
+            if (!_gameConstantsGetterResolved)
+            {
+                _gameConstantsGetterResolved = true;
+                Type gameConstantsType = AccessTools.TypeByName(GameConstantsTypeName);
+                if (gameConstantsType != null)
+                {
+                    _gameConstantsGetter = AccessTools.PropertyGetter(gameConstantsType, "Get");
+                }
+            }
+
+            if (_gameConstantsGetter == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return _gameConstantsGetter.Invoke(null, null);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private float TryReadExpReward(object owner)
@@ -8428,6 +8676,7 @@ namespace BloodMagicExpansion
             public string DisplayName;
             public string SearchText;
             public float TargetKillXp;
+            public float TargetEffectiveKillXp;
             public float TargetMaxHealth;
             public Vector3 LastKnownPosition;
             public float ChannelStartTime;
@@ -8439,6 +8688,7 @@ namespace BloodMagicExpansion
             public bool Exhausted;
             public bool XpAwarded;
             public bool Healed;
+            public bool TargetEffectiveKillXpHasLevelContext;
             public bool LoggedReject;
         }
 

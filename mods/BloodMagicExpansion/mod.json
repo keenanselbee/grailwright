@@ -2,11 +2,12 @@
   "id": "BloodMagicExpansion",
   "displayName": "Blood Magic Expansion",
   "packageName": "BloodMagicExpansion",
-  "version": "2.1.9",
+  "version": "2.2.5",
   "pluginGuid": "ks.tgfoa.blood-magic-expansion",
   "dll": "BloodMagicExpansion.dll",
   "sourceFiles": [
-    "src/BloodMagicExpansion.cs"
+    "src/BloodMagicExpansion.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

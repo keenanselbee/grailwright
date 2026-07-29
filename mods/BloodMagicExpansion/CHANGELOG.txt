@@ -1,4 +1,27 @@
-﻿Version 2.1.9
+Version 2.2.5
+Changed corpse quality tiers for both leech sounds and Grail Floating Text labels to quartile bands: Meager, Worthy, Potent, and Prime.
+Kept ConfigSchemaVersion 9 because no config settings changed.
+
+Version 2.2.4
+Changed Grail Floating Text corpse XP claims to include the corpse quality label, for example +42 XP (Worthy).
+Mapped corpse labels to the existing quality/audio tiers: Meager, Worthy, Potent, and Prime.
+Changed the integration to require Grail Floating Text API v6 text XP claims.
+Kept ConfigSchemaVersion 9 because no config settings changed.
+
+Version 2.2.3
+Changed corpse-leech and live-drain XP to use the game's vanilla effective kill XP basis, including lower-level enemy XP falloff, instead of raw enemy base XP.
+Kept corpse quality based on base kill XP and max health so quality scaling remains an enemy-power signal.
+Kept ConfigSchemaVersion 9 because no config settings changed.
+
+Version 2.2.1
+Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
+Disabled the plugin cleanly after startup patch failures instead of continuing as if fully loaded.
+
+Version 2.2.0
+Changed the 3x blood spell inner-light boost to begin 0.3 seconds after cast start while preserving the current cast-end fade-down behavior.
+Kept ConfigSchemaVersion 9 because no config settings changed.
+
+Version 2.1.9
 Changed the 3x blood spell inner-light boost to fade down over a short 0.25 second ramp instead of snapping back to readied brightness.
 Fixed post-cast boost flicker by suppressing all cast-evidence refreshes during the fade-down window while still allowing a real new cast start to boost immediately.
 Kept readied inner-light state alive through weapon-hide callbacks when the magic layer is still raised to reduce off/on light flapping.

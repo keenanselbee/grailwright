@@ -14,7 +14,7 @@ This is not a broad magic overhaul. It is a blood-magic expansion built around c
 [line]
 
 [heading][color=#C94A4A][size=5]The Loop[/size][/color][/heading]
-[code=plaintext]
+[code]
 Kill a blood-plausible enemy
 Drain the corpse with Blood/Life Transfusion
 Gain corpse XP and immediate healing
@@ -24,7 +24,7 @@ Feed on living enemies for capped XP ticks during combat
 [/code]
 
 [list]
-[*]Corpse XP comes from the enemy's normal kill XP.[/*]
+[*]Corpse XP comes from the enemy's vanilla effective kill XP, including lower-level enemy XP falloff.[/*]
 [*]Corpse healing starts from the preset reward, then scales by enemy max HP and corpse quality.[/*]
 [*]Successful corpse drains can play a short quality-matched FMOD ritual sound.[/*]
 [*]Readied blood spells can cast a configurable red no-shadow inner player light, with a temporary cast boost.[/*]
@@ -38,21 +38,23 @@ Feed on living enemies for capped XP ticks during combat
 [heading][color=#C94A4A][size=5]Presets[/size][/color][/heading]
 Preset is the main user-facing control. It affects corpse ritual timing, corpse XP and healing baseline, live-drain XP rhythm, Blood/Life spell tuning, and Abhartach tuning.
 
-[code=plaintext]
-Preset      | Role      | Ritual | XP  | Heal
-Blood Rite  | restraint | 1.0s   | 30% | 15%
-Desecration | balanced  | 1.5s   | 40% | 20%
-Soul Feast  | feast     | 2.0s   | 50% | 25%
-Custom      | tuned     | config | cfg | cfg
+[code]
+| Preset      | Role      | Ritual | XP  | Heal |
+|-------------|-----------|--------|-----|------|
+| Blood Rite  | restraint | 1.0s   | 30% | 15%  |
+| Desecration | balanced  | 1.5s   | 40% | 20%  |
+| Soul Feast  | feast     | 2.0s   | 50% | 25%  |
+| Custom      | tuned     | config | cfg | cfg  |
 [/code]
 
 Single-held casting pays half of the effective corpse XP and healing by default. Dual-held Blood Transfusion or Life Transfusion pays the full amount.
 
-[code=plaintext]
-Preset      | XP tick    | Cap | Tap   | Held
-Blood Rite  | 4% / 1.0s  | 20% | 1.03x | 1.00x
-Desecration | 8% / 1.5s  | 35% | 1.06x | 1.01x
-Soul Feast  | 12% / 2.0s | 50% | 1.12x | 1.02x
+[code]
+| Preset      | XP tick    | Cap | Tap   | Held  |
+|-------------|------------|-----|-------|-------|
+| Blood Rite  | 4% / 1.0s  | 20% | 1.03x | 1.00x |
+| Desecration | 8% / 1.5s  | 35% | 1.06x | 1.01x |
+| Soul Feast  | 12% / 2.0s | 50% | 1.12x | 1.02x |
 [/code]
 
 Live drain timing is reward pacing, not attack speed. Spirituality supplies most late-game spell growth, while held channel speed stays deliberately modest.
@@ -64,29 +66,31 @@ Start the game once to generate:
 
 [b]BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg[/b]
 
-Version 2.0.0 and newer use a clean GUID and config path. There is no old config migration. The old [b]ks.tgfoa.blood-mage.cfg[/b] and interim [b]ks.tgfoa.blood-mage-expansion.cfg[/b] files are ignored.
-
-Version 2.1.8 and newer enforce [b]ConfigSchemaVersion = 9[/b] because the optional Grail Floating Text corpse XP integration was added. If the schema marker is missing or outdated, the old config is backed up beside the active file and fresh defaults are generated.
+[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. Most users should only touch [b]PlayCorpseLeechSound[/b] or [b]CorpseLeechSoundVolume[/b].
 
-When Grail Floating Text 1.4.8 or newer is installed, corpse-leech character XP is claimed before the XP stat change and shown as red corpse-icon floating text. The XP still uses the normal character XP stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks use Grail Floating Text's generic XP display.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.5.4 or newer is installed, corpse-leech character XP is claimed before the XP stat change and shown as red corpse-icon text such as [b]+42 XP (Worthy)[/b]. Labels use the corpse quality tier: [b]Meager[/b], [b]Worthy[/b], [b]Potent[/b], or [b]Prime[/b]. The XP still uses the normal character XP stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks use Grail Floating Text's generic XP display.
 
-[code=plaintext]
+Corpse leech sounds use the same quality bands: [b]<=0.25 Meager/low[/b], [b]<=0.50 Worthy/medium[/b], [b]<=0.75 Potent/high[/b], and [b]>0.75 Prime/max[/b].
+
+[code]
 ClaimGrailFloatingTextCorpseXP = true
 [/code]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Blood Spell Inner Light[/size][/color][/heading]
-Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and raising the magic hands can cast a red no-shadow point light slightly forward from the player camera. Sheathing or lowering hands disables it, and actual blood spell casting temporarily triples the brightness immediately before fading back down when the cast performs, ends, or cancels. The light is separate from the vanilla HeroLight, so No Player Light can stay installed while BME provides only the blood-spell glow.
+Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and raising the magic hands can cast a red no-shadow point light slightly forward from the player camera. Sheathing or lowering hands disables it, and actual blood spell casting temporarily triples the brightness 0.3 seconds after cast start before fading back down when the cast performs, ends, or cancels. The light is separate from the vanilla HeroLight, so [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] can stay installed while BME provides only the blood-spell glow.
 
-[code=plaintext]
-Enabled = true
-Intensity = 0.75
-Range = 5.0
-FadeSeconds = 0.12
-LogBloodSpellInnerLight = true
+[code]
+| Setting                 | Default |
+|-------------------------|---------|
+| Enabled                 | true    |
+| Intensity               | 0.75    |
+| Range                   | 5.0     |
+| FadeSeconds             | 0.12    |
+| LogBloodSpellInnerLight | true    |
 [/code]
 
 Lower intensity or range for a subtler effect. Set Enabled to false, or Intensity to zero, for no visual light. Diagnostics are limited and can be disabled after confirming readiness and visibility.
@@ -94,54 +98,58 @@ Lower intensity or range for a subtler effect. Set Enabled to false, or Intensit
 [line]
 
 [heading][color=#C94A4A][size=5]Corpse Quality[/size][/color][/heading]
-Each blood-plausible corpse receives a quality value from 0 to 1. When both signals are known, quality is a 50/50 blend of resolved kill XP and enemy max health. If only one signal is available, that signal is used by itself.
+Each blood-plausible corpse receives a quality value from 0 to 1. When both signals are known, quality is a 50/50 blend of base kill XP and enemy max health. If only one signal is available, that signal is used by itself.
 
-[code=plaintext]
-ReferenceKillXP         = 300
-ReferenceMaxHealth      = 600
-MinimumEffectMultiplier = 0.5
-MaximumEffectMultiplier = 1.5
+[code]
+| Setting                 | Default |
+|-------------------------|---------|
+| ReferenceKillXP         | 300     |
+| ReferenceMaxHealth      | 600     |
+| MinimumEffectMultiplier | 0.5     |
+| MaximumEffectMultiplier | 1.5     |
 [/code]
 
-By default, corpse quality scales Blood/Life corpse healing and Abhartach corpse effects from 0.5x to 1.5x. Character XP is not multiplied again because it already comes from the corpse's kill XP. The 50/50 blend keeps large, lower-XP bodies from outranking similarly valuable monsters from HP alone while still letting enemy bulk matter.
+By default, corpse quality scales Blood/Life corpse healing and Abhartach corpse effects from 0.5x to 1.5x. Character XP is not multiplied again because it already comes from vanilla effective kill XP. The 50/50 blend keeps large, lower-XP bodies from outranking similarly valuable monsters from HP alone while still letting enemy bulk matter.
 
 When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is installed, the blood-magic corpse reticle can scale visually from the same quality. Reticle size is visual-only and defaults to 1.0x to 2.0x Magic reticle size with a low-quality dead zone. Quality changes scale only; valid usable corpses stay the same blood-red color.
 
 [b]Working quality table[/b]
 
-[code=plaintext]
-Band         | Example              | Quality | Effect  | Reticle
-Bloodless    | Wyrd variants        | --      | blocked | 1.00x default
-Tiny         | chicken/cow          | 0.04    | 0.54x   | 1.00x
-Passive      | deer                 | 0.08    | 0.58x   | 1.00x
-Animal       | wolf                 | 0.11    | 0.61x   | 1.00x
-Tutorial     | weak enemy           | 0.16    | 0.66x   | 1.00x
-Weak human   | outcast/outlaw       | 0.23    | 0.73x   | 1.00x
-T1 small     | Flamegobbler         | 0.29    | 0.79x   | 1.02x
-T1 monster   | Redcap/CorpseEater   | 0.38    | 0.88x   | 1.07x
-T2 human     | deranged/highwayman  | 0.45    | 0.95x   | 1.12x
-T2 monster   | LostKnight/Bullrat   | 0.52    | 1.02x   | 1.19x
-Large animal | bear                 | 0.55    | 1.05x   | 1.23x
-T2 monster   | Grindylow            | 0.55    | 1.05x   | 1.23x
-T3 common    | Cuanacht             | 0.63    | 1.13x   | 1.33x
-T4 human     | Dal Riata            | 0.68    | 1.18x   | 1.40x
-T3 heavy     | Ogre/Syldren         | 0.75    | 1.25x   | 1.51x
-T4 strong    | Wight                | 0.75    | 1.25x   | 1.51x
-T4 heavy     | Nuckelavee           | 0.85    | 1.35x   | 1.69x
-T5 elite     | Beholder/IceWeaver   | 0.90    | 1.40x   | 1.79x
-T5 strong    | Archivist/Tidewraith | 0.92    | 1.42x   | 1.83x
-T6 giant     | giant/ancient        | 0.97    | 1.47x   | 1.93x
-T6 boss      | boss-tier            | 1.00    | 1.50x   | 2.00x
+[code]
+| Band         | Example              | Quality | Effect  | Reticle       |
+|--------------|----------------------|---------|---------|---------------|
+| Bloodless    | Wyrd variants        | --      | blocked | 1.00x default |
+| Tiny         | chicken/cow          | 0.04    | 0.54x   | 1.00x         |
+| Passive      | deer                 | 0.08    | 0.58x   | 1.00x         |
+| Animal       | wolf                 | 0.11    | 0.61x   | 1.00x         |
+| Tutorial     | weak enemy           | 0.16    | 0.66x   | 1.00x         |
+| Weak human   | outcast/outlaw       | 0.23    | 0.73x   | 1.00x         |
+| T1 small     | Flamegobbler         | 0.29    | 0.79x   | 1.02x         |
+| T1 monster   | Redcap/CorpseEater   | 0.38    | 0.88x   | 1.07x         |
+| T2 human     | deranged/highwayman  | 0.45    | 0.95x   | 1.12x         |
+| T2 monster   | LostKnight/Bullrat   | 0.52    | 1.02x   | 1.19x         |
+| Large animal | bear                 | 0.55    | 1.05x   | 1.23x         |
+| T2 monster   | Grindylow            | 0.55    | 1.05x   | 1.23x         |
+| T3 common    | Cuanacht             | 0.63    | 1.13x   | 1.33x         |
+| T4 human     | Dal Riata            | 0.68    | 1.18x   | 1.40x         |
+| T3 heavy     | Ogre/Syldren         | 0.75    | 1.25x   | 1.51x         |
+| T4 strong    | Wight                | 0.75    | 1.25x   | 1.51x         |
+| T4 heavy     | Nuckelavee           | 0.85    | 1.35x   | 1.69x         |
+| T5 elite     | Beholder/IceWeaver   | 0.90    | 1.40x   | 1.79x         |
+| T5 strong    | Archivist/Tidewraith | 0.92    | 1.42x   | 1.83x         |
+| T6 giant     | giant/ancient        | 0.97    | 1.47x   | 1.93x         |
+| T6 boss      | boss-tier            | 1.00    | 1.50x   | 2.00x         |
 [/code]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Abhartach's Calling[/size][/color][/heading]
-[code=plaintext]
-Preset      | Damage | Radius | Bleed | Heal  | Search
-Blood Rite  | 1.00x  | 1.05x  | 1.05x | 1.10x | 1.00x
-Desecration | 1.05x  | 1.10x  | 1.12x | 1.20x | 1.05x
-Soul Feast  | 1.12x  | 1.20x  | 1.20x | 1.35x | 1.10x
+[code]
+| Preset      | Damage | Radius | Bleed | Heal  | Search |
+|-------------|--------|--------|-------|-------|--------|
+| Blood Rite  | 1.00x  | 1.05x  | 1.05x | 1.10x | 1.00x  |
+| Desecration | 1.05x  | 1.10x  | 1.12x | 1.20x | 1.05x  |
+| Soul Feast  | 1.12x  | 1.20x  | 1.20x | 1.35x | 1.10x  |
 [/code]
 
 Spirituality can add up to +40% explosion damage, +35% explosion radius, +40% bleed buildup, +40% held corpse healing, and +35% corpse search range at 50 Spirituality.
@@ -178,7 +186,8 @@ Install with a mod manager, or place the included folder at:
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
-[*][b]Grail Floating Text[/b] 1.4.8+ is supported as an optional soft dependency for red corpse-icon corpse XP text.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.5.4+ is supported as an optional soft dependency for red corpse-icon corpse XP text with quality labels.[/*]
+[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
 [*]Do not deploy older [b]BloodMage.dll[/b] or interim [b]BloodMageExpansion.dll[/b] beside [b]BloodMagicExpansion.dll[/b].[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]

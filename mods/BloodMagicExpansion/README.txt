@@ -27,7 +27,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.1.9
+Version: 2.2.5
 ```
 
 This is a clean technical rename from Blood Mage. Do not deploy the older
@@ -46,8 +46,9 @@ Feed on living enemies for capped XP ticks during combat
 Hear a short randomized FMOD ritual sound on successful corpse drains
 ```
 
-Corpse XP comes from the enemy's normal kill XP. Corpse quality can scale
-healing and Abhartach effects, but character XP is not multiplied again.
+Corpse XP comes from the enemy's vanilla effective kill XP, including the
+lower-level enemy XP falloff. Corpse quality can scale healing and Abhartach
+effects, but character XP is not multiplied again.
 
 ## Presets
 
@@ -96,11 +97,12 @@ fresh defaults are generated.
 
 ## Grail Floating Text
 
-When Grail Floating Text 1.4.8 or newer is installed, corpse-leech character XP
-is claimed before the XP stat change and shown as a red floating text entry
-with the corpse icon. The XP amount still comes from the normal character XP
-stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP
-ticks use the generic XP display from Grail Floating Text.
+When Grail Floating Text 1.5.4 or newer is installed, corpse-leech character XP
+is claimed before the XP stat change and shown as red corpse-icon text such as
+`+42 XP (Worthy)`. The label uses the corpse quality tier: Meager, Worthy,
+Potent, or Prime. The XP amount still comes from the normal character XP stat
+path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks
+use the generic XP display from Grail Floating Text.
 
 ```text
 ClaimGrailFloatingTextCorpseXP = true
@@ -111,8 +113,8 @@ ClaimGrailFloatingTextCorpseXP = true
 Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and
 raising the magic hands can cast a red no-shadow point light from the player
 camera. Sheathing or lowering hands disables it. Actual blood spell casting
-temporarily triples the light brightness immediately, then fades back down when
-the cast performs, ends, or cancels.
+temporarily triples the light brightness 0.3 seconds after cast start, then
+fades back down when the cast performs, ends, or cancels.
 The light is separate from the vanilla HeroLight, so No Player Light can stay
 installed while BME provides only the blood-spell glow. The configured
 brightness is scaled internally for the game's HDRP renderer so small config
@@ -151,10 +153,10 @@ quality tier and applies a subtle per-play FMOD pitch variation so repeated
 rituals feel less identical.
 
 ```text
-Quality < 0.35 -> low
-Quality < 0.65 -> medium
-Quality < 0.90 -> high
-Quality >=0.90 -> max
+Quality <=0.25 -> low    / Meager
+Quality <=0.50 -> medium / Worthy
+Quality <=0.75 -> high   / Potent
+Quality >0.75  -> max    / Prime
 ```
 
 ```text
@@ -168,7 +170,7 @@ CorpseLeechRandomPitchSemitones = 0.20
 ## Corpse Quality
 
 Blood Magic Expansion reports focused corpse quality from 0 to 1. When both
-signals are known, quality is a 50/50 blend of resolved kill XP and enemy max
+signals are known, quality is a 50/50 blend of base kill XP and enemy max
 health. If only one signal is available, that signal is used by itself.
 
 ```text
@@ -180,8 +182,9 @@ MaximumEffectMultiplier = 1.5
 
 By default, corpse quality scales Blood/Life corpse healing and Abhartach
 corpse effects from 0.5x to 1.5x. Character XP is not multiplied again.
-The 50/50 blend keeps large, lower-XP bodies from outranking similarly valuable
-monsters from HP alone while still letting enemy bulk matter.
+Character XP already comes from vanilla effective kill XP. The 50/50 blend
+keeps large, lower-XP bodies from outranking similarly valuable monsters from
+HP alone while still letting enemy bulk matter.
 
 When Dishonored Dynamic Crosshair is installed, the blood-magic corpse reticle
 can scale visually from the same quality. Reticle size is visual-only and

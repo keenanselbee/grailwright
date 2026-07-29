@@ -1,1 +1,1 @@
-Adjust hostile enemy respawn timing with simple presets.
+Adjust regular mob respawn timing with simple presets.

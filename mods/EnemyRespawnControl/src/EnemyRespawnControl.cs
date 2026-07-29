@@ -12,25 +12,158 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("1.0.9.0")]
-[assembly: AssemblyFileVersion("1.0.9.0")]
-[assembly: AssemblyInformationalVersion("1.0.9")]
+[assembly: AssemblyVersion("2.0.2.0")]
+[assembly: AssemblyFileVersion("2.0.2.0")]
+[assembly: AssemblyInformationalVersion("2.0.2")]
 
 namespace EnemyRespawnControl
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class EnemyRespawnControlPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "1.0.9";
-        private const int ConfigSchemaVersion = 3;
+        public const string PluginVersion = "2.0.2";
+        private const int ConfigSchemaVersion = 4;
 
         private const string BaseSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.BaseLocationSpawner";
         private const string GroupSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.GroupLocationSpawner";
         private const string LocationSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.LocationSpawner";
         private const string HideSpotSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.HideSpotLocationSpawner";
         private const string NpcAttachmentTypeName = "Awaken.TG.Main.Fights.NPCs.NpcAttachment";
+
+        private static readonly string[] EmptyTerms = new string[0];
+        private static readonly string[] BuiltInControlledSpawnerTerms = new string[]
+        {
+            "enemy",
+            "enemies",
+            "monster",
+            "bandit",
+            "bandits",
+            "outlaw",
+            "outcasts",
+            "outcast",
+            "highwayman",
+            "deranged",
+            "cultist",
+            "remor",
+            "red death",
+            "red guard",
+            "red priest",
+            "priestess",
+            "guard",
+            "guards",
+            "galahad",
+            "dalriata",
+            "dal riata",
+            "knight",
+            "soldier",
+            "warrior",
+            "deserter",
+            "kamelot",
+            "skeleton",
+            "undead",
+            "corpse",
+            "zombie",
+            "ghoul",
+            "wight",
+            "ghost",
+            "spirit",
+            "wraith",
+            "banshee",
+            "melancholy",
+            "tidewraith",
+            "lost knight",
+            "lostknight",
+            "redcap",
+            "gobbler",
+            "flamegobbler",
+            "grindylow",
+            "mistling",
+            "mistbearer",
+            "wyrd",
+            "wyrdspirit",
+            "wyrd spirit",
+            "wyrdspawn",
+            "wyrdstalker",
+            "wyrdheir",
+            "wyrddeer",
+            "wyrdslime",
+            "wyrdstump",
+            "hollowdruid",
+            "hollow druid",
+            "drowner",
+            "drowned knight",
+            "curlghast",
+            "wolf",
+            "wolves",
+            "bear",
+            "boar",
+            "spider",
+            "bullrat",
+            "syldren",
+            "wailcap",
+            "finbled",
+            "tadpole",
+            "floatling",
+            "scion",
+            "reefback",
+            "reefbound",
+            "reef",
+            "scourge",
+            "nuckelavee",
+            "beholder",
+            "iceweaver",
+            "ice weaver",
+            "crystalcrawler",
+            "crystal crawler",
+            "blood abomination",
+            "bonemask",
+            "cairnguard",
+            "forgeborn",
+            "sentinel",
+            "bottomless",
+            "brimshade",
+            "tibby",
+            "fae",
+            "eldritch",
+            "reaver",
+            "construct",
+            "automaton",
+            "golem"
+        };
+
+        private static readonly string[] BuiltInIgnoredSpawnerTerms = new string[]
+        {
+            "spec_source",
+            "source_metal",
+            "usable_copper",
+            "usable_iron",
+            "usable_meteorite",
+            "usable_titanium",
+            "pickable",
+            "gatherable",
+            "resource",
+            "chest",
+            "container",
+            "loot",
+            "herb",
+            "flower",
+            "mushroom",
+            "cow",
+            "cows",
+            "pig",
+            "pigs",
+            "chicken",
+            "chickens",
+            "hen",
+            "hens",
+            "rooster",
+            "goat",
+            "goats",
+            "sheep"
+        };
 
         internal static EnemyRespawnControlPlugin Instance;
         internal static ManualLogSource Log;
@@ -40,29 +173,52 @@ namespace EnemyRespawnControl
         private readonly Dictionary<string, DateTime> _nextDiagnosticLogUtc = new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private readonly HashSet<string> _expiredKeys = new HashSet<string>(StringComparer.Ordinal);
         private readonly ConditionalWeakTable<object, CachedKey> _keyCache = new ConditionalWeakTable<object, CachedKey>();
+        private readonly ConditionalWeakTable<object, CachedClassification> _classificationCache = new ConditionalWeakTable<object, CachedClassification>();
         private readonly ConditionalWeakTable<object, SpecialSpawnedLocation> _specialSpawnedLocations = new ConditionalWeakTable<object, SpecialSpawnedLocation>();
 
         private Harmony _harmony;
         private FieldInfo _lastClearOfGroupField;
         private FieldInfo _killedLocationsField;
+        private Type _npcAttachmentType;
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<RespawnMode> _respawnMode;
         private ConfigEntry<float> _customRespawnHours;
+        private ConfigEntry<bool> _controlFactionNeutralNpcSpawners;
+        private ConfigEntry<string> _additionalControlledSpawnerTerms;
+        private ConfigEntry<string> _ignoredSpawnerTerms;
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<float> _blockedLogIntervalSeconds;
+        private string _cachedAdditionalControlledSpawnerTermsRaw;
+        private string[] _cachedAdditionalControlledSpawnerTerms;
+        private string _cachedIgnoredSpawnerTermsRaw;
+        private string[] _cachedIgnoredSpawnerTerms;
 
         private void Awake()
         {
             Instance = this;
             Log = Logger;
 
-            BindConfig();
-            PatchGame();
+            try
+            {
+                BindConfig();
+                if (!PatchGame())
+                {
+                    enabled = false;
+                    return;
+                }
 
-            Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Mode=" + _respawnMode.Value +
-                "; CustomRespawnHours=" + _customRespawnHours.Value.ToString("0.###", CultureInfo.InvariantCulture) +
-                "; TimeSource=weather.");
+                Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Mode=" + _respawnMode.Value +
+                    "; CustomRespawnHours=" + _customRespawnHours.Value.ToString("0.###", CultureInfo.InvariantCulture) +
+                    "; TimeSource=weather.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(PluginName + " " + PluginVersion + " failed during startup: " + ex.GetBaseException().Message);
+                Log.LogError(ex.ToString());
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, ex);
+                enabled = false;
+            }
         }
 
         private void OnDestroy()
@@ -87,8 +243,11 @@ namespace EnemyRespawnControl
             Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
             _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. Vanilla=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled.");
             _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.");
-            _diagnostics = Config.Bind("2. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped non-enemy spawners, cleanup, and expiry decisions.");
-            _blockedLogIntervalSeconds = Config.Bind("2. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
+            _controlFactionNeutralNpcSpawners = Config.Bind("2. Spawner Classification", "ControlFactionNeutralNpcSpawners", true, "Control NPC-template spawners with killed-state even when the current faction hostility check is false. This catches regular world mobs whose hostility is conditional or not restored yet.");
+            _additionalControlledSpawnerTerms = Config.Bind("2. Spawner Classification", "AdditionalControlledSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force into respawn control when the built-in classifier misses a regular mob family.");
+            _ignoredSpawnerTerms = Config.Bind("2. Spawner Classification", "IgnoredSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force out of respawn control when a world object or passive spawner is misclassified.");
+            _diagnostics = Config.Bind("3. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped spawners with classification reasons, cleanup, and expiry decisions.");
+            _blockedLogIntervalSeconds = Config.Bind("3. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
             Config.Save();
         }
 
@@ -172,7 +331,7 @@ namespace EnemyRespawnControl
             }
         }
 
-        private void PatchGame()
+        private bool PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
 
@@ -184,21 +343,23 @@ namespace EnemyRespawnControl
             if (baseSpawnerType == null)
             {
                 Log.LogError("Could not find " + BaseSpawnerTypeName + ". Enemy Respawn Control is inactive.");
-                return;
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Mod inactive; check BepInEx log.");
+                return false;
             }
 
             _lastClearOfGroupField = AccessTools.Field(baseSpawnerType, "lastClearOfGroup");
             _killedLocationsField = AccessTools.Field(baseSpawnerType, "killedLocations");
 
-            PatchMethod(baseSpawnerType, "get_CooldownCondition", typeof(CooldownConditionPatch), true);
-            PatchMethod(baseSpawnerType, "get_CanSpawn", typeof(CanSpawnPatch), true);
+            bool requiredPatched = true;
+            requiredPatched &= PatchMethod(baseSpawnerType, "get_CooldownCondition", typeof(CooldownConditionPatch), true);
+            requiredPatched &= PatchMethod(baseSpawnerType, "get_CanSpawn", typeof(CanSpawnPatch), true);
             PatchMethod(baseSpawnerType, "get_CanSpawnAmbush", typeof(CanSpawnAmbushPatch), false);
             PatchMethod(baseSpawnerType, "get_IsValidState", typeof(IsValidStatePatch), false);
             PatchMethod(baseSpawnerType, "OnLocationSpawned", typeof(OnLocationSpawnedPatch), false);
             PatchMethod(baseSpawnerType, "AfterTimeSkipped", typeof(AfterTimeSkippedPatch), false);
             PatchMethod(baseSpawnerType, "AfterHeroTeleport", typeof(AfterHeroTeleportPatch), false);
             PatchMethod(baseSpawnerType, "OnRestore", typeof(OnRestorePatch), false);
-            PatchMethod(baseSpawnerType, "AfterLocationKilled", typeof(AfterLocationKilledPatch), true);
+            requiredPatched &= PatchMethod(baseSpawnerType, "AfterLocationKilled", typeof(AfterLocationKilledPatch), true);
             PatchMethod(baseSpawnerType, "OnLocationDiscardedOrKilled", typeof(OnLocationDiscardedOrKilledPatch), false);
             PatchMethod(baseSpawnerType, "SceneInitializationEndedCallback", typeof(SceneInitializationEndedPatch), false);
             PatchMethodsByName(groupSpawnerType, "InitFromAttachment", typeof(SpawnerInitPatch), false);
@@ -210,17 +371,20 @@ namespace EnemyRespawnControl
             PatchMethodsByNamePrefix(groupSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
             PatchMethodsByNamePrefix(locationSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
             PatchMethodsByNamePrefix(hideSpotSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
+
+            return requiredPatched;
         }
 
-        private void PatchMethod(Type declaringType, string methodName, Type patchType, bool required)
+        private bool PatchMethod(Type declaringType, string methodName, Type patchType, bool required)
         {
             if (declaringType == null)
             {
                 if (required)
                 {
                     Log.LogError("Could not patch " + methodName + " because the declaring type was not found.");
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
                 }
-                return;
+                return !required;
             }
 
             MethodInfo original = AccessTools.Method(declaringType, methodName);
@@ -229,15 +393,21 @@ namespace EnemyRespawnControl
                 if (required)
                 {
                     Log.LogError("Could not find " + declaringType.FullName + "." + methodName + ".");
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
                 }
-                return;
+                return !required;
             }
 
             MethodInfo postfix = AccessTools.Method(patchType, "Postfix");
             if (postfix == null)
             {
                 Log.LogError("Could not find postfix " + patchType.FullName + ".Postfix.");
-                return;
+                if (required)
+                {
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
+                }
+
+                return !required;
             }
 
             _harmony.Patch(original, null, new HarmonyMethod(postfix));
@@ -245,6 +415,8 @@ namespace EnemyRespawnControl
             {
                 Log.LogInfo("Patched " + original.DeclaringType.FullName + "." + original.Name + ".");
             }
+
+            return true;
         }
 
         private void PatchMethodsByName(Type declaringType, string methodName, Type patchType, bool required)
@@ -336,9 +508,10 @@ namespace EnemyRespawnControl
                 return;
             }
 
-            if (!ShouldControlSpawner(spawner, reason))
+            string classificationReason;
+            if (!ShouldControlSpawner(spawner, reason, out classificationReason))
             {
-                LogNonEnemySpawnerBypass(spawner, reason);
+                LogSpawnerClassificationBypass(spawner, reason, classificationReason);
                 return;
             }
 
@@ -364,14 +537,15 @@ namespace EnemyRespawnControl
                 return;
             }
 
-            if (!ShouldControlSpawner(spawner, reason))
+            if (!HasKilledLocationState(spawner))
             {
-                LogNonEnemySpawnerBypass(spawner, reason);
                 return;
             }
 
-            if (!HasKilledLocationState(spawner))
+            string classificationReason;
+            if (!ShouldControlSpawner(spawner, reason, out classificationReason))
             {
+                LogSpawnerClassificationBypass(spawner, reason, classificationReason);
                 return;
             }
 
@@ -489,9 +663,10 @@ namespace EnemyRespawnControl
                 return false;
             }
 
-            if (!ShouldControlSpawner(spawner, gateName))
+            string classificationReason;
+            if (!ShouldControlSpawner(spawner, gateName, out classificationReason))
             {
-                LogNonEnemySpawnerBypass(spawner, gateName);
+                LogSpawnerClassificationBypass(spawner, gateName, classificationReason);
                 return false;
             }
 
@@ -550,20 +725,107 @@ namespace EnemyRespawnControl
                 || IsTruthyMember(spawner, "_spawnOnlyOnAmbush");
         }
 
-        private bool ShouldControlSpawner(object spawner, string gateName)
+        private bool ShouldControlSpawner(object spawner, string gateName, out string reason)
         {
+            bool hasHostilitySignal = false;
             bool isHostileToHero;
             if (TryReadBoolMember(spawner, "IsHostileToHero", out isHostileToHero))
             {
-                return isHostileToHero;
+                hasHostilitySignal = true;
+                if (isHostileToHero)
+                {
+                    reason = "hostile-to-hero";
+                    return true;
+                }
+            }
+
+            CachedClassification classification = GetSpawnerClassification(spawner, hasHostilitySignal);
+            if (classification.HasStaticDecision)
+            {
+                reason = classification.Reason;
+                return classification.ShouldControl;
+            }
+
+            if ((_controlFactionNeutralNpcSpawners == null || _controlFactionNeutralNpcSpawners.Value)
+                && HasKilledLocationState(spawner))
+            {
+                reason = hasHostilitySignal
+                    ? "npc-template-killed-state-not-hostile"
+                    : "npc-template-killed-state";
+                return true;
+            }
+
+            reason = hasHostilitySignal
+                ? "npc-template-not-hostile-unclassified"
+                : classification.Reason;
+            return false;
+        }
+
+        private CachedClassification GetSpawnerClassification(object spawner, bool hasHostilitySignal)
+        {
+            string additionalTermsRaw = _additionalControlledSpawnerTerms == null ? "" : _additionalControlledSpawnerTerms.Value;
+            string ignoredTermsRaw = _ignoredSpawnerTerms == null ? "" : _ignoredSpawnerTerms.Value;
+
+            CachedClassification cached;
+            if (_classificationCache.TryGetValue(spawner, out cached)
+                && cached.Matches(additionalTermsRaw, ignoredTermsRaw))
+            {
+                return cached;
+            }
+
+            CachedClassification classification = BuildSpawnerClassification(spawner, additionalTermsRaw, ignoredTermsRaw, hasHostilitySignal);
+            if (classification.Cacheable)
+            {
+                _classificationCache.Remove(spawner);
+                _classificationCache.Add(spawner, classification);
+            }
+
+            return classification;
+        }
+
+        private CachedClassification BuildSpawnerClassification(object spawner, string additionalTermsRaw, string ignoredTermsRaw, bool hasHostilitySignal)
+        {
+            CachedClassification classification = new CachedClassification();
+            classification.AdditionalTermsRaw = additionalTermsRaw;
+            classification.IgnoredTermsRaw = ignoredTermsRaw;
+
+            string searchText = BuildSpawnerSearchText(spawner);
+            string matchedTerm;
+            if (TryFindTerm(searchText, BuiltInIgnoredSpawnerTerms, out matchedTerm)
+                || TryFindTerm(searchText, GetIgnoredSpawnerTerms(), out matchedTerm))
+            {
+                classification.Cacheable = true;
+                classification.HasStaticDecision = true;
+                classification.ShouldControl = false;
+                classification.Reason = "ignored-term:" + matchedTerm;
+                return classification;
             }
 
             if (!HasNpcSpawnTemplate(spawner))
             {
-                return false;
+                classification.Cacheable = false;
+                classification.HasStaticDecision = true;
+                classification.ShouldControl = false;
+                classification.Reason = hasHostilitySignal ? "not-hostile-no-npc-template" : "no-npc-template";
+                return classification;
             }
 
-            return HasLikelyEnemyName(spawner);
+            classification.Cacheable = true;
+            if (TryFindTerm(searchText, BuiltInControlledSpawnerTerms, out matchedTerm)
+                || TryFindTerm(searchText, GetAdditionalControlledSpawnerTerms(), out matchedTerm))
+            {
+                classification.HasStaticDecision = true;
+                classification.ShouldControl = true;
+                classification.Reason = "npc-template-controlled-term:" + matchedTerm;
+                return classification;
+            }
+
+            classification.HasStaticDecision = false;
+            classification.ShouldControl = false;
+            classification.Reason = hasHostilitySignal
+                ? "npc-template-not-hostile-unclassified"
+                : "npc-template-unclassified";
+            return classification;
         }
 
         private bool HasNpcSpawnTemplate(object spawner)
@@ -574,7 +836,7 @@ namespace EnemyRespawnControl
                 return false;
             }
 
-            Type npcAttachmentType = AccessTools.TypeByName(NpcAttachmentTypeName);
+            Type npcAttachmentType = GetNpcAttachmentType();
             if (npcAttachmentType == null)
             {
                 return false;
@@ -584,13 +846,7 @@ namespace EnemyRespawnControl
             {
                 foreach (object template in templates)
                 {
-                    UnityEngine.Component component = template as UnityEngine.Component;
-                    if (component == null)
-                    {
-                        continue;
-                    }
-
-                    if (component.GetComponent(npcAttachmentType) != null || component.GetComponentInChildren(npcAttachmentType) != null)
+                    if (GetNpcAttachment(template) != null)
                     {
                         return true;
                     }
@@ -603,29 +859,343 @@ namespace EnemyRespawnControl
             return false;
         }
 
-        private bool HasLikelyEnemyName(object spawner)
+        private Type GetNpcAttachmentType()
         {
-            string hints = (DescribeSpawner(spawner) + ";" + DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates"))).ToLowerInvariant();
-            return hints.Contains("enemy")
-                || hints.Contains("skeleton")
-                || hints.Contains("corpse")
-                || hints.Contains("redcap")
-                || hints.Contains("gobbler")
-                || hints.Contains("grindylow")
-                || hints.Contains("wyrd")
-                || hints.Contains("zombie")
-                || hints.Contains("ghoul")
-                || hints.Contains("bandit")
-                || hints.Contains("highwayman")
-                || hints.Contains("deranged")
-                || hints.Contains("wolf")
-                || hints.Contains("wolves")
-                || hints.Contains("bear")
-                || hints.Contains("boar")
-                || hints.Contains("spider");
+            if (_npcAttachmentType == null)
+            {
+                _npcAttachmentType = AccessTools.TypeByName(NpcAttachmentTypeName);
+            }
+
+            return _npcAttachmentType;
         }
 
-        private void LogNonEnemySpawnerBypass(object spawner, string gateName)
+        private object GetNpcAttachment(object template)
+        {
+            UnityEngine.Component component = template as UnityEngine.Component;
+            if (component == null)
+            {
+                return null;
+            }
+
+            Type npcAttachmentType = GetNpcAttachmentType();
+            if (npcAttachmentType == null)
+            {
+                return null;
+            }
+
+            object attachment = component.GetComponent(npcAttachmentType);
+            if (attachment != null)
+            {
+                return attachment;
+            }
+
+            return component.GetComponentInChildren(npcAttachmentType);
+        }
+
+        private object GetNpcTemplateFromLocationTemplate(object template)
+        {
+            object attachment = GetNpcAttachment(template);
+            return attachment == null ? null : GetMemberValue(attachment, "NpcTemplate");
+        }
+
+        private string BuildSpawnerSearchText(object spawner)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append(DescribeSpawner(spawner)).Append(';');
+            builder.Append(DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates"))).Append(';');
+            AppendSpawnerTemplateSearchText(builder, GetMemberValue(spawner, "AllUniqueTemplates"));
+            return builder.ToString();
+        }
+
+        private void AppendSpawnerTemplateSearchText(StringBuilder builder, object templatesObject)
+        {
+            IEnumerable enumerable = templatesObject as IEnumerable;
+            if (builder == null || enumerable == null || templatesObject is string)
+            {
+                return;
+            }
+
+            try
+            {
+                int count = 0;
+                foreach (object template in enumerable)
+                {
+                    if (count >= 12)
+                    {
+                        break;
+                    }
+
+                    if (template == null)
+                    {
+                        continue;
+                    }
+
+                    AppendObjectSearchText(builder, template);
+
+                    object npcTemplate = GetNpcTemplateFromLocationTemplate(template);
+                    if (npcTemplate != null && !ReferenceEquals(npcTemplate, template))
+                    {
+                        AppendObjectSearchText(builder, npcTemplate);
+                    }
+
+                    count++;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static void AppendObjectSearchText(StringBuilder builder, object value)
+        {
+            if (builder == null || value == null)
+            {
+                return;
+            }
+
+            Type type = value.GetType();
+            builder.Append(type.FullName).Append(' ');
+            builder.Append(type.Name).Append(' ');
+            AppendStringMember(builder, value, "GUID");
+            AppendStringMember(builder, value, "Guid");
+            AppendStringMember(builder, value, "TemplateGuid");
+            AppendStringMember(builder, value, "Name");
+            AppendStringMember(builder, value, "name");
+            AppendStringMember(builder, value, "DisplayName");
+            AppendStringMember(builder, value, "DebugName");
+            AppendStringMember(builder, value, "TechnicalName");
+            AppendStringMember(builder, value, "DifficultyTag");
+            AppendMemberSearchText(builder, value, "SurfaceType");
+            AppendMemberSearchText(builder, value, "surfaceType");
+            AppendMemberSearchText(builder, value, "NpcType");
+            AppendMemberSearchText(builder, value, "npcType");
+            AppendMemberSearchText(builder, value, "Tags");
+            AppendMemberSearchText(builder, value, "tags");
+            AppendMemberSearchText(builder, value, "_abstractTypes");
+            AppendTruthyMemberSearchText(builder, value, "IsPreyAnimal");
+            AppendTruthyMemberSearchText(builder, value, "IsHumanoid");
+            AppendTruthyMemberSearchText(builder, value, "IsWyrdnessBound");
+            AppendTruthyMemberSearchText(builder, value, "IsSummon");
+            builder.Append(';');
+        }
+
+        private static void AppendStringMember(StringBuilder builder, object value, string memberName)
+        {
+            string text = GetStringMember(value, memberName);
+            if (!String.IsNullOrWhiteSpace(text))
+            {
+                builder.Append(text).Append(' ');
+            }
+        }
+
+        private static void AppendMemberSearchText(StringBuilder builder, object value, string memberName)
+        {
+            AppendSearchValue(builder, GetMemberValue(value, memberName), 0);
+        }
+
+        private static void AppendTruthyMemberSearchText(StringBuilder builder, object value, string memberName)
+        {
+            bool memberValue;
+            if (TryReadBoolMember(value, memberName, out memberValue) && memberValue)
+            {
+                builder.Append(memberName).Append(' ');
+            }
+        }
+
+        private static void AppendSearchValue(StringBuilder builder, object value, int depth)
+        {
+            if (builder == null || value == null || depth > 2)
+            {
+                return;
+            }
+
+            string text = value as string;
+            if (text != null)
+            {
+                if (!String.IsNullOrWhiteSpace(text))
+                {
+                    builder.Append(text).Append(' ');
+                }
+                return;
+            }
+
+            Type type = value.GetType();
+            if (type.IsEnum || type.IsPrimitive || value is decimal)
+            {
+                builder.Append(value).Append(' ');
+                return;
+            }
+
+            IEnumerable enumerable = value as IEnumerable;
+            if (enumerable != null)
+            {
+                int count = 0;
+                foreach (object item in enumerable)
+                {
+                    if (count >= 32)
+                    {
+                        break;
+                    }
+
+                    AppendSearchValue(builder, item, depth + 1);
+                    count++;
+                }
+                return;
+            }
+
+            if (depth < 2)
+            {
+                builder.Append(type.Name).Append(' ');
+                AppendStringMember(builder, value, "GUID");
+                AppendStringMember(builder, value, "Guid");
+                AppendStringMember(builder, value, "TemplateGuid");
+                AppendStringMember(builder, value, "Name");
+                AppendStringMember(builder, value, "name");
+                AppendStringMember(builder, value, "DisplayName");
+                AppendStringMember(builder, value, "DebugName");
+                AppendStringMember(builder, value, "TechnicalName");
+            }
+            else
+            {
+                builder.Append(value).Append(' ');
+            }
+        }
+
+        private string[] GetAdditionalControlledSpawnerTerms()
+        {
+            string raw = _additionalControlledSpawnerTerms == null ? "" : _additionalControlledSpawnerTerms.Value;
+            if (_cachedAdditionalControlledSpawnerTerms == null
+                || !String.Equals(raw, _cachedAdditionalControlledSpawnerTermsRaw, StringComparison.Ordinal))
+            {
+                _cachedAdditionalControlledSpawnerTermsRaw = raw;
+                _cachedAdditionalControlledSpawnerTerms = SplitTerms(raw);
+            }
+
+            return _cachedAdditionalControlledSpawnerTerms;
+        }
+
+        private string[] GetIgnoredSpawnerTerms()
+        {
+            string raw = _ignoredSpawnerTerms == null ? "" : _ignoredSpawnerTerms.Value;
+            if (_cachedIgnoredSpawnerTerms == null
+                || !String.Equals(raw, _cachedIgnoredSpawnerTermsRaw, StringComparison.Ordinal))
+            {
+                _cachedIgnoredSpawnerTermsRaw = raw;
+                _cachedIgnoredSpawnerTerms = SplitTerms(raw);
+            }
+
+            return _cachedIgnoredSpawnerTerms;
+        }
+
+        private static string[] SplitTerms(string raw)
+        {
+            if (String.IsNullOrWhiteSpace(raw))
+            {
+                return EmptyTerms;
+            }
+
+            string[] pieces = raw.Split(new char[] { ';', ',', '|', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            List<string> terms = new List<string>();
+            for (int i = 0; i < pieces.Length; i++)
+            {
+                string term = pieces[i].Trim();
+                if (term.Length > 0)
+                {
+                    terms.Add(term);
+                }
+            }
+
+            return terms.Count == 0 ? EmptyTerms : terms.ToArray();
+        }
+
+        private static bool TryFindTerm(string value, string[] terms, out string matchedTerm)
+        {
+            matchedTerm = "";
+            if (String.IsNullOrEmpty(value) || terms == null)
+            {
+                return false;
+            }
+
+            string normalizedValue = NormalizeTermText(value);
+            if (normalizedValue.Length == 0)
+            {
+                return false;
+            }
+
+            string paddedValue = " " + normalizedValue + " ";
+            for (int i = 0; i < terms.Length; i++)
+            {
+                string term = terms[i];
+                string normalizedTerm = NormalizeTermText(term);
+                if (NormalizedTermMatches(paddedValue, normalizedTerm))
+                {
+                    matchedTerm = term;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool NormalizedTermMatches(string paddedValue, string normalizedTerm)
+        {
+            if (String.IsNullOrEmpty(normalizedTerm))
+            {
+                return false;
+            }
+
+            if (paddedValue.IndexOf(" " + normalizedTerm + " ", StringComparison.Ordinal) >= 0)
+            {
+                return true;
+            }
+
+            return normalizedTerm.Length >= 4
+                && (paddedValue.IndexOf(" " + normalizedTerm + "s ", StringComparison.Ordinal) >= 0
+                    || paddedValue.IndexOf(" " + normalizedTerm + "es ", StringComparison.Ordinal) >= 0);
+        }
+
+        private static string NormalizeTermText(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value))
+            {
+                return "";
+            }
+
+            StringBuilder builder = new StringBuilder(value.Length + 8);
+            bool previousWasSeparator = true;
+            char previousSource = '\0';
+            for (int i = 0; i < value.Length; i++)
+            {
+                char current = value[i];
+                if (Char.IsUpper(current) && i > 0 && Char.IsLower(previousSource) && !previousWasSeparator)
+                {
+                    builder.Append(' ');
+                    previousWasSeparator = true;
+                }
+
+                if (Char.IsLetterOrDigit(current))
+                {
+                    builder.Append(Char.ToLowerInvariant(current));
+                    previousWasSeparator = false;
+                }
+                else if (!previousWasSeparator)
+                {
+                    builder.Append(' ');
+                    previousWasSeparator = true;
+                }
+
+                previousSource = current;
+            }
+
+            if (builder.Length > 0 && builder[builder.Length - 1] == ' ')
+            {
+                builder.Length--;
+            }
+
+            return builder.ToString();
+        }
+
+        private void LogSpawnerClassificationBypass(object spawner, string gateName, string reason)
         {
             if (!_diagnostics.Value)
             {
@@ -634,8 +1204,10 @@ namespace EnemyRespawnControl
 
             string description = DescribeSpawner(spawner);
             LogDiagnosticRateLimited(
-                "non-enemy-spawner|" + gateName + "|" + StableHash(description),
-                "Ignored non-enemy spawner at " + gateName + ". spawner=" + description + ".");
+                "skipped-spawner|" + gateName + "|" + StableHash(description + "|" + reason),
+                "Skipped respawn control at " + gateName + " because " + reason +
+                ". spawner=" + description +
+                "; templates=" + DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates")) + ".");
         }
 
         private void MarkSpecialSpawnedLocation(object location)
@@ -1275,6 +1847,22 @@ namespace EnemyRespawnControl
             internal CachedKey(string value)
             {
                 Value = value;
+            }
+        }
+
+        private sealed class CachedClassification
+        {
+            internal string AdditionalTermsRaw;
+            internal string IgnoredTermsRaw;
+            internal bool Cacheable;
+            internal bool HasStaticDecision;
+            internal bool ShouldControl;
+            internal string Reason;
+
+            internal bool Matches(string additionalTermsRaw, string ignoredTermsRaw)
+            {
+                return String.Equals(AdditionalTermsRaw, additionalTermsRaw, StringComparison.Ordinal)
+                    && String.Equals(IgnoredTermsRaw, ignoredTermsRaw, StringComparison.Ordinal);
             }
         }
 

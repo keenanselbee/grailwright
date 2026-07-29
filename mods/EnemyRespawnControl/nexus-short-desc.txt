@@ -1,1 +1,1 @@
-Controls hostile enemy respawn timing with game-world presets while leaving resource and flagged special event spawns alone.
+Controls regular world mob respawn timing with game-world presets while leaving resources and flagged special event spawns alone.

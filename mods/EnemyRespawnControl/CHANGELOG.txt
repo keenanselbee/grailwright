@@ -1,3 +1,19 @@
+Version 2.0.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when required respawn-control hooks are unavailable.
+
+Version 2.0.1
+Removed a disposable pooled-list metadata read from spawner classification while keeping safe template tags, type, surface, and private abstract-reference evidence.
+Added lightweight cached classification evidence per spawner while keeping current hostility and killed-state checks live.
+Changed term matching to normalized whole-token matching so short ignore terms do not accidentally match unrelated enemy names.
+
+Version 2.0.0
+Reworked spawner classification so a false game hostility check no longer excludes regular NPC-template mob spawners.
+Added built-in coverage for enemy families seen in game templates and diagnostics, including Wyrdspirits, Dal Riata and Galahad guards, bandits, druids, undead, beasts, and constructs.
+Added ControlFactionNeutralNpcSpawners, AdditionalControlledSpawnerTerms, and IgnoredSpawnerTerms for ambiguous or misclassified spawner families.
+Kept bypasses for manual/story spawners, ambush-only spawners, and active Wyrd-night spawner state.
+Improved diagnostics with classification reasons and template names for skipped spawners.
+
 Version 1.0.9
 Logged skipped non-enemy spawners from kill and restore registration paths when Diagnostics is enabled.
 Updated the generated Diagnostics help text to mention skipped non-enemy spawners.

@@ -2,11 +2,12 @@
   "id": "EnemyRespawnControl",
   "displayName": "Enemy Respawn Control",
   "packageName": "EnemyRespawnControl",
-  "version": "1.0.9",
+  "version": "2.0.2",
   "pluginGuid": "ks.tgfoa.enemy-respawn-control",
   "dll": "EnemyRespawnControl.dll",
   "sourceFiles": [
-    "src/EnemyRespawnControl.cs"
+    "src/EnemyRespawnControl.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

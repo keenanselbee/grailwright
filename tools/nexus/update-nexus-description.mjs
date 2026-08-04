@@ -673,7 +673,20 @@ async function hasUnsavedModal(page) {
 
 async function verifySaved(page, modUrl, expectedShort, expectedFull, timeoutMs) {
   const editUrl = buildEditUrl(modUrl);
-  await page.goto(editUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await page.goto(editUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+      break;
+    } catch (error) {
+      const navigationWasAborted = String(error?.message || error).includes("net::ERR_ABORTED");
+      if (!navigationWasAborted || attempt === 3) {
+        throw error;
+      }
+
+      await delay(1000);
+    }
+  }
+
   await page.waitForLoadState("domcontentloaded", { timeout: timeoutMs });
   if (await hasUnsavedModal(page)) {
     throw new Error("Nexus showed the Unsaved changes prompt during verification. The save likely did not complete.");

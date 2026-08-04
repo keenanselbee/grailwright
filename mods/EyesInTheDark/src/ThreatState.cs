@@ -371,7 +371,6 @@ namespace EyesInTheDark
     internal sealed class ThreatActivityLimiter
     {
         private const float MovementCommitSeconds = 15f;
-        private const float CombatWindowSeconds = 3f;
         private const float AcquisitionWindowSeconds = 5f;
         private const float CombatImmediateRepeatSeconds = 0.1f;
 
@@ -481,11 +480,16 @@ namespace EyesInTheDark
                 && _killedWyrdNpcIds.Add(npcId);
         }
 
-        public float FlushCombat(double activeSeconds, float maximumPerWindow)
+        public float FlushCombat(
+            double activeSeconds,
+            float maximumPerWindow,
+            float responseSeconds)
         {
             return _combat.Flush(
                 activeSeconds,
-                CombatWindowSeconds,
+                IsFinitePositive(responseSeconds)
+                    ? responseSeconds
+                    : 0.1f,
                 maximumPerWindow);
         }
 

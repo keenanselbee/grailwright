@@ -37,30 +37,179 @@ namespace EyesInTheDark
             Ensure(!unknown.Success,
                 "Unknown region produces an empty pool");
 
+            HunterProfile[] reviewedProfiles = Profiles();
+            Ensure(reviewedProfiles.Length == 50,
+                "One universal plus 49 regional profiles are reviewed");
+            var profileIds = new System.Collections.Generic.HashSet<string>();
+            var regionalTemplates =
+                new System.Collections.Generic.HashSet<string>();
+            int eliteCount = 0;
+            foreach (HunterProfile profile in reviewedProfiles)
+            {
+                Ensure(profileIds.Add(profile.Id),
+                    profile.Id + " profile id is unique");
+                Ensure(profile.TemplateGuid.Length == 32,
+                    profile.Id + " template GUID length");
+                if (!profile.IsUniversal)
+                {
+                    Ensure(profile.MaximumCopies == 1,
+                        profile.Id + " regional one-copy limit");
+                    Ensure(regionalTemplates.Add(
+                            profile.Region + ":" + profile.TemplateGuid),
+                        profile.Id + " region/template pair is unique");
+                }
+                if (profile.IsElite)
+                {
+                    eliteCount++;
+                }
+                foreach (string blocked in new[]
+                {
+                    "Boss", "MiniBoss", "Friendly", "Summon", "Challenge",
+                    "Trial", "Story", "Custom", "Arena", "HeroSummon"
+                })
+                {
+                    Ensure(profile.TemplateName.IndexOf(
+                            blocked,
+                            System.StringComparison.OrdinalIgnoreCase) < 0,
+                        profile.Id + " excludes unsafe " + blocked
+                            + " variants");
+                }
+            }
+            Ensure(eliteCount == 5,
+                "Exactly five shipped Elite actors are reviewed");
+
             AssertProfile("wyrdspirit-contact", HuntRegion.Unknown, 1, 8f,
                 HunterSafetyFlags.ReviewedUniversal
                     | HunterSafetyFlags.CanBeSidecar
                     | HunterSafetyFlags.WyrdspiritCluster, 3);
+            AssertProfile("flamegobbler-hos", HuntRegion.HornsOfTheSouth,
+                4, 9f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("grindylow-hos", HuntRegion.HornsOfTheSouth,
+                5, 10f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("redcap-hos", HuntRegion.HornsOfTheSouth,
+                4, 10f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("corpse-eater-hos", HuntRegion.HornsOfTheSouth,
+                7, 12f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("zombie-hos", HuntRegion.HornsOfTheSouth,
+                6, 10f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("drowner-hos", HuntRegion.HornsOfTheSouth,
+                7, 11f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("skeleton-hos", HuntRegion.HornsOfTheSouth,
+                8, 13f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("mistling-hos", HuntRegion.HornsOfTheSouth,
+                10, 14f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("bee-swarm-hos", HuntRegion.HornsOfTheSouth,
+                10, 12f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("sharg-hos", HuntRegion.HornsOfTheSouth,
+                15, 18f, HunterSafetyFlags.Elite, 1);
+            AssertProfile("ogre-hos", HuntRegion.HornsOfTheSouth,
+                20, 24f, HunterSafetyFlags.SoloOnly, 1);
             AssertProfile("corpse-eater-cuanacht", HuntRegion.Cuanacht, 15, 16f,
                 HunterSafetyFlags.CanBeSidecar, 1);
-            AssertProfile("mistling-cuanacht", HuntRegion.Cuanacht, 18, 18f,
+            AssertProfile("flamegobbler-cuanacht", HuntRegion.Cuanacht,
+                15, 16f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("grindylow-cuanacht", HuntRegion.Cuanacht,
+                15, 18f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("redcap-cuanacht", HuntRegion.Cuanacht,
+                15, 17f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("zombie-cuanacht", HuntRegion.Cuanacht,
+                16, 16f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("mistling-cuanacht", HuntRegion.Cuanacht, 20, 18f,
                 HunterSafetyFlags.CanBeSidecar, 1);
-            AssertProfile("sharg-cuanacht", HuntRegion.Cuanacht, 22, 22f,
+            AssertProfile("skeleton-cuanacht", HuntRegion.Cuanacht,
+                20, 20f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("drowner-cuanacht", HuntRegion.Cuanacht,
+                20, 20f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("lost-knight-cuanacht", HuntRegion.Cuanacht,
+                20, 22f, HunterSafetyFlags.None, 1);
+            AssertProfile("slugholder-mage-cuanacht", HuntRegion.Cuanacht,
+                20, 22f, HunterSafetyFlags.None, 1);
+            AssertProfile("sharg-cuanacht", HuntRegion.Cuanacht, 30, 30f,
                 HunterSafetyFlags.None, 1);
+            AssertProfile("barnaclator-cuanacht", HuntRegion.Cuanacht,
+                30, 28f, HunterSafetyFlags.None, 1);
+            AssertProfile("nuckelavee-cuanacht", HuntRegion.Cuanacht,
+                30, 30f, HunterSafetyFlags.None, 1);
             AssertProfile("ogre-cuanacht", HuntRegion.Cuanacht, 26, 28f,
                 HunterSafetyFlags.SoloOnly, 1);
-            AssertProfile("redcap-forlorn", HuntRegion.Forlorn, 22, 18f,
+            AssertProfile("redcap-forlorn", HuntRegion.Forlorn, 25, 20f,
                 HunterSafetyFlags.CanBeSidecar, 1);
-            AssertProfile("mistling-forlorn", HuntRegion.Forlorn, 26, 24f,
+            AssertProfile("mistling-forlorn", HuntRegion.Forlorn, 30, 24f,
                 HunterSafetyFlags.None, 1);
-            AssertProfile("corpse-eater-forlorn", HuntRegion.Forlorn, 30, 28f,
+            AssertProfile("bonemask-mage-forlorn", HuntRegion.Forlorn,
+                30, 24f, HunterSafetyFlags.None, 1);
+            AssertProfile("bonemask-melee-forlorn", HuntRegion.Forlorn,
+                30, 25f, HunterSafetyFlags.None, 1);
+            AssertProfile("zombie-forlorn", HuntRegion.Forlorn,
+                30, 28f, HunterSafetyFlags.None, 1);
+            AssertProfile("corpse-eater-forlorn", HuntRegion.Forlorn, 40, 28f,
                 HunterSafetyFlags.None, 1);
-            AssertProfile("wyrdspawn-sarras-t5", HuntRegion.Sarras, 28, 26f,
-                HunterSafetyFlags.None, 1);
-            AssertProfile("wyrdspawn-sarras-t6", HuntRegion.Sarras, 34, 32f,
-                HunterSafetyFlags.None, 1);
-            AssertProfile("wyrdheir-sarras", HuntRegion.Sarras, 36, 34f,
-                HunterSafetyFlags.SoloOnly, 1);
+            AssertProfile("frostbitten-forlorn", HuntRegion.Forlorn,
+                40, 32f, HunterSafetyFlags.None, 1);
+            AssertProfile("smaller-sharg-forlorn", HuntRegion.Forlorn,
+                40, 32f, HunterSafetyFlags.None, 1);
+            AssertProfile("skeleton-archer-forlorn", HuntRegion.Forlorn,
+                40, 30f, HunterSafetyFlags.None, 1);
+            AssertProfile("swarm-forlorn", HuntRegion.Forlorn,
+                40, 28f, HunterSafetyFlags.None, 1);
+            AssertProfile("elite-skeleton-forlorn", HuntRegion.Forlorn,
+                50, 38f, HunterSafetyFlags.Elite, 1);
+            AssertProfile("elite-sharg-forlorn", HuntRegion.Forlorn,
+                60, 44f, HunterSafetyFlags.Elite
+                    | HunterSafetyFlags.SoloOnly, 1);
+            AssertProfile("drowner-sarras", HuntRegion.Sarras,
+                25, 18f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("drowner-two-hand-sarras", HuntRegion.Sarras,
+                27, 20f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("deckhand-sarras", HuntRegion.Sarras,
+                28, 20f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("mariner-sarras", HuntRegion.Sarras,
+                28, 22f, HunterSafetyFlags.None, 1);
+            AssertProfile("finbled-light-sarras", HuntRegion.Sarras,
+                30, 24f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("finbled-javelin-sarras", HuntRegion.Sarras,
+                30, 26f, HunterSafetyFlags.None, 1);
+            AssertProfile("finbled-heavy-sarras", HuntRegion.Sarras,
+                30, 28f, HunterSafetyFlags.None, 1);
+            AssertProfile("tadpole-sarras", HuntRegion.Sarras,
+                30, 24f, HunterSafetyFlags.CanBeSidecar, 1);
+            AssertProfile("wailcap-sarras", HuntRegion.Sarras,
+                30, 26f, HunterSafetyFlags.None, 1);
+            AssertProfile("tidewraith-sarras", HuntRegion.Sarras,
+                30, 28f, HunterSafetyFlags.None, 1);
+            AssertProfile("drowned-knight-sarras", HuntRegion.Sarras,
+                35, 36f, HunterSafetyFlags.Elite, 1);
+            AssertProfile("drowned-knight-female-sarras", HuntRegion.Sarras,
+                35, 36f, HunterSafetyFlags.Elite, 1);
+
+            HunterProfile hornElite = Profile("sharg-hos");
+            HunterSelectionContext elitesOff = Context(
+                HuntRegion.HornsOfTheSouth, 60, 100f, 200f, 3, 1f);
+            Ensure(HardFilter(earlyDirector, hornElite, elitesOff)
+                    == "elite-disabled",
+                "Elite toggle is a hard eligibility gate");
+            HunterSelectionContext threshold = elitesOff;
+            threshold.AllowEliteEnemies = true;
+            threshold.Threat = 75f;
+            Ensure(HardFilter(earlyDirector, hornElite, threshold)
+                    == "threat<=75",
+                "Elites require threat strictly greater than 75 percent");
+            threshold.Threat = 75.01f;
+            Ensure(HardFilter(earlyDirector, hornElite, threshold)
+                    == string.Empty,
+                "Elites become eligible immediately above 75 percent");
+
+            foreach (HunterProfile profile in Profiles())
+            {
+                if (!profile.IsElite)
+                {
+                    continue;
+                }
+                Ensure(!profile.CanBeSidecar,
+                    profile.Id + " elite is never a sidecar");
+                Ensure(profile.MaximumCopies == 1,
+                    profile.Id + " elite has a one-copy limit");
+            }
 
             foreach (HunterProfile profile in Profiles())
             {
@@ -79,6 +228,11 @@ namespace EyesInTheDark
                     1f);
                 HunterSelectionContext exact = below;
                 exact.PlayerLevel = profile.MinimumPlayerLevel;
+                if (profile.IsElite)
+                {
+                    below.AllowEliteEnemies = true;
+                    exact.AllowEliteEnemies = true;
+                }
                 Ensure(HardFilter(gateDirector, profile, below)
                         == "level<" + profile.MinimumPlayerLevel,
                     profile.Id + " exact lower level gate");
@@ -333,7 +487,8 @@ namespace EyesInTheDark
             float threat,
             float budget,
             int maximumPackSize,
-            float sidecarChance)
+            float sidecarChance,
+            bool allowEliteEnemies = false)
         {
             return new HunterSelectionContext
             {
@@ -343,7 +498,8 @@ namespace EyesInTheDark
                 RemainingBudget = budget,
                 DangerCostMultiplier = 1f,
                 SidecarChance = sidecarChance,
-                MaximumPackSize = maximumPackSize
+                MaximumPackSize = maximumPackSize,
+                AllowEliteEnemies = allowEliteEnemies
             };
         }
 

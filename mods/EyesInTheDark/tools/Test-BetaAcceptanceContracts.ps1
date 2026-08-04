@@ -32,6 +32,8 @@ $meterSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\ThreatMeter.cs") -Raw
 $boundarySource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\BoundaryController.cs") -Raw
+$layeredBoundarySource = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\LayeredBoundaryPass.cs") -Raw
 $atmosphereSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\Atmosphere.cs") -Raw
 $gftBridgeSource = Get-Content -LiteralPath (
@@ -60,17 +62,17 @@ $gftModJson = Get-Content -LiteralPath (
 $repoReadme = Get-Content -LiteralPath (
     Join-Path $repoRoot "README.md") -Raw
 
-Assert-Contract ($modJson.version -eq "0.8.6") "mod.json version is not 0.8.6."
+Assert-Contract ($modJson.version -eq "0.9.1") "mod.json version is not 0.9.1."
 Assert-Contract ($modJson.displayName -eq "Eyes in the Dark - Wyrdnight Encounters") "mod.json display name is stale."
 Assert-Contract ($pluginSource.Contains('public const string PluginName = "Eyes in the Dark";')) "config/plugin title is not Eyes in the Dark."
-Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "0.8.6";')) "plugin version is not 0.8.6."
-Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("0.8.6.0")]')) "assembly version is not 0.8.6.0."
+Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "0.9.1";')) "plugin version is not 0.9.1."
+Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("0.9.1.0")]')) "assembly version is not 0.9.1.0."
 Assert-Contract ($pluginSource.Contains('[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Encounters")]')) "assembly title is stale."
-Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 5;')) "config schema is not 5."
-Assert-Contract ($readme.Contains('Version: 0.8.6')) "installed README version is stale."
+Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 6;')) "config schema is not 6."
+Assert-Contract ($readme.Contains('Version: 0.9.1')) "installed README version is stale."
 Assert-Contract ($readme.StartsWith('Eyes in the Dark - Wyrdnight Encounters')) "installed README title is stale."
-Assert-Contract ($changelog.StartsWith('Version 0.8.6')) "changelog does not start with 0.8.6."
-Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Encounters](mods/EyesInTheDark) | 0.8.6 |')) "top-level README row is stale."
+Assert-Contract ($changelog.StartsWith('Version 0.9.1')) "changelog does not start with 0.9.1."
+Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Encounters](mods/EyesInTheDark) | 0.9.1 |')) "top-level README row is stale."
 Assert-Contract ($gftModJson.version -eq "1.9.8") "GFT mod.json version is not 1.9.8."
 Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 24;')) "GFT config schema is not 24."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleWyrdness'))) "retired Purple Wyrdness package remains in the repository."
@@ -87,6 +89,7 @@ foreach ($requiredSource in @(
     'src/Atmosphere.cs',
     'src/GrailFloatingTextBridge.cs',
     'src/BoundaryController.cs',
+    'src/LayeredBoundaryPass.cs',
     'src/HuntDirector.cs',
     'src/HunterCatalog.cs',
     'src/FirstHunterRuntime.cs')) {
@@ -111,18 +114,26 @@ foreach ($required in @(
     '"wyrdspirit-contact"',
     '"redcap-hos"',
     '"corpse-eater-hos"',
+    '"mistling-hos"',
     '"sharg-hos"',
     '"ogre-hos"',
     '"corpse-eater-cuanacht"',
+    '"lost-knight-cuanacht"',
+    '"barnaclator-cuanacht"',
     '"mistling-cuanacht"',
     '"sharg-cuanacht"',
     '"ogre-cuanacht"',
     '"redcap-forlorn"',
+    '"bonemask-mage-forlorn"',
     '"mistling-forlorn"',
     '"corpse-eater-forlorn"',
-    '"wyrdspawn-sarras-t5"',
-    '"wyrdspawn-sarras-t6"',
-    '"wyrdheir-sarras"',
+    '"elite-skeleton-forlorn"',
+    '"drowner-sarras"',
+    '"finbled-heavy-sarras"',
+    '"tidewraith-sarras"',
+    '"drowned-knight-sarras"',
+    'HunterSafetyFlags.Elite',
+    'EliteThreatThreshold = 75f',
     'FailureRejectionCount = 3',
     'SafetyPackCap',
     'PrimaryWeight',
@@ -152,6 +163,9 @@ foreach ($required in @(
     '"EnableDynamicTimescale"',
     '"DayTimescale"',
     '"NightTimescale"',
+    '"AllowEliteEnemies"',
+    '_allowEliteEnemies.Value = false;',
+    '_allowEliteEnemies.Value = true;',
     'DefaultDayTimescale = 0.23f',
     'DefaultNightTimescale = 0.413f',
     'ListenerRetryBackoffSeconds = 30.0f',
@@ -176,6 +190,8 @@ foreach ($required in @(
     'ICharacter.Events.OnAttackStart',
     'ICharacter.Events.HitEnvironment',
     '_environmentImpactSeenThisAttack',
+    'maximum * 0.5f',
+    '"CombatResponseSeconds"',
     '"ThreatMeterColor"')) {
     Assert-Contract ($pluginSource.Contains($required)) "environment-impact threat or meter color config is missing $required."
 }
@@ -185,13 +201,19 @@ foreach ($required in @(
     'ApplyColor(colorText);')) {
     Assert-Contract ($meterSource.Contains($required)) "configurable meter color is missing $required."
 }
-Assert-Contract (!$boundarySource.Contains('maskIntensity')) "boundary controller touches gameplay mask intensity."
+Assert-Contract (!$boundarySource.Contains('_maskIntensityField.SetValue')) "boundary controller modifies native mask intensity."
+Assert-Contract ($layeredBoundarySource.Contains('material.SetFloat(MaskIntensityId, _maskIntensity);')) "layered boundary does not preserve the native visual mask value."
+Assert-Contract ($boundarySource.Contains('Mathf.Clamp(_settings.PulseAmount, 0f, 1f)')) "runtime pulse amount is not bounded to 0-1."
+Assert-Contract ($boundarySource.Contains('_settings.OuterIntensityMultiplier')) "outer ring brightness is not applied independently."
+Assert-Contract ($pluginSource.Contains('new AcceptableValueRange<float>(0f, 1f)')) "config pulse amount is not exposed across 0-1."
 foreach ($required in @(
     'private const string DefaultBoundaryColor = "#B878FF";',
     'private const float DefaultBoundaryHdrIntensity = 271.529f;',
-    'private const float DefaultBoundaryVisualRadius = 32.0f;',
-    'private const float DefaultBoundaryThickness = 0.25f;',
-    'BoundaryThreatReactivity.Disabled')) {
+    'private const float DefaultBoundaryNearRadius = 12.0f;',
+    'private const float DefaultBoundaryMiddleRadius = 22.0f;',
+    'private const float DefaultBoundaryOuterRadius = 32.0f;',
+    'private const float DefaultBoundaryOuterIntensity = 1.0f;',
+    'BoundaryThreatReactivity.Subtle')) {
     Assert-Contract ($pluginSource.Contains($required)) "vanilla-adjacent purple boundary defaults are missing $required."
 }
 
@@ -248,7 +270,7 @@ Assert-Contract ($nexusFull.Contains('DayTimescale 0.23')) "Nexus 60-minute day 
 Assert-Contract ($nexusFull.Contains('NightTimescale 0.413')) "Nexus 15-minute night target is missing."
 Assert-Contract ($nexusFull.Contains('inspired by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url]')) "Nexus copy omits the inspiration statement."
 Assert-Contract ($nexusFull.Contains('Diagnostics is enabled')) "Nexus copy omits diagnostic GFT behavior."
-Assert-Contract ($roadmap.Contains('Begin this pass only after the `0.8.3` implementation')) "roadmap does not defer consolidated in-game testing until implementation completion."
+Assert-Contract ($roadmap.Contains('Begin this pass only after the `0.9.0` implementation')) "roadmap does not defer consolidated in-game testing until implementation completion."
 
 if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     Assert-Contract (Test-Path -LiteralPath $PackagePath -PathType Leaf) "package path does not exist."
@@ -272,4 +294,4 @@ if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     }
 }
 
-Write-Host "Eyes in the Dark 0.8.6 beta acceptance contracts passed."
+Write-Host "Eyes in the Dark 0.9.1 beta acceptance contracts passed."

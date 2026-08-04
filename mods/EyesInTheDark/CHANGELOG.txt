@@ -1,3 +1,27 @@
+Version 0.9.1
+Doubled confirmed scenery and non-damageable-object impact threat from 25% to 50% of CombatThreatPerWindow, producing 1 threat per accepted impact at the default cap while retaining one contribution per attack.
+Added CombatResponseSeconds with a 1.5-second default, replacing the hard-coded 3-second combat aggregation delay while retaining the combined combat-window cap and pause-aware active-time behavior.
+
+Version 0.9.0
+Expanded the curated director to 50 reviewed profiles using shipped location specs, direct open-world scene references, and Steel and Bone NPC-template data for level, durability, family, and enemy-type review.
+Replaced the speculative generic Sarras Wyrdspawn pool with native Sarras Drowners, Drowned crew, Finbled roles, Tadpole, Wailcap, Tidewraith, and Drowned Knights; Horns, Cuanacht, and Forlorn also gained broader native regional variety.
+Added Allow Elite Enemies. Reviewed elites remain ineligible until Wyrd Threat is strictly greater than 75 percent, can never be sidecars, and are disabled by Uneasy and Watchful while Cursed enables them.
+Reclassified the Horns Sharg through its shipped Elite actor data and added reviewed Forlorn and Sarras elites while continuing to reject bosses, minibosses, friendlies, summons, story, challenge, trial, custom, arena, and hero-summon variants.
+Adjusted several player-level gates and danger costs to reflect the resolved NPC template rather than relying on the location-spec tier name alone.
+Kept ConfigSchemaVersion at 6 because AllowEliteEnemies is additive; existing configs receive its safe false default.
+
+Version 0.8.9
+Added OuterRingIntensityMultiplier with a 1.0 default so the near, middle, and outer rings all expose the same explicit brightness control beneath the shared BoundaryHdrIntensity master.
+
+Version 0.8.8
+Expanded BoundaryPulseAmount from 0-0.5 to 0-1.0 so each independently timed ring can be tuned from a restrained ebb to a full dim-to-double-brightness pulse; the default remains 0.12.
+
+Version 0.8.7
+Added an EITD-owned three-ring Wyrd boundary with independently configurable near, middle, and outer radii, brightness, and thickness; disabling layered mode restores the native single-edge presentation.
+Added smooth bounded per-ring pulse animation and subtle Wyrd Threat response for brightness and thickness without changing any ring radius, native mask intensity, protection, or gameplay detection.
+Reorganized FoA Mod Manager into focused threat, hunt, HUD, boundary, notification, and diagnostic groups while retaining every existing stored section and key.
+Advanced ConfigSchemaVersion to 6 because the default boundary threat response changed from Disabled to Subtle; the stale config is backed up and regenerated before compatible customized values are restored.
+
 Version 0.8.6
 Added Wyrd Threat from confirmed melee impacts against scenery and non-damageable objects, limited to one contribution per attack and routed through the existing short combat aggregation cap; empty swings add nothing.
 Added the live ThreatMeterColor setting with a #B878FF default and safe fallback for invalid HTML RGB values.

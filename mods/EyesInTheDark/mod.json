@@ -2,7 +2,7 @@
   "id": "EyesInTheDark",
   "displayName": "Eyes in the Dark - Wyrdnight Encounters",
   "packageName": "EyesInTheDark",
-  "version": "0.8.6",
+  "version": "0.9.1",
   "pluginGuid": "ks.tgfoa.eyes-in-the-dark",
   "dll": "EyesInTheDark.dll",
   "sourceFiles": [
@@ -15,6 +15,7 @@
     "src/Atmosphere.cs",
     "src/GrailFloatingTextBridge.cs",
     "src/BoundaryController.cs",
+    "src/LayeredBoundaryPass.cs",
     "src/HuntDirector.cs",
     "src/HunterCatalog.cs",
     "src/FirstHunterRuntime.cs",
@@ -31,6 +32,8 @@
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UI.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UIModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextCoreTextEngineModule.dll",
-    "%GAME%/Fall of Avalon_Data/Managed/Unity.TextMeshPro.dll"
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.TextMeshPro.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.Core.Runtime.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.HighDefinition.Runtime.dll"
   ]
 }

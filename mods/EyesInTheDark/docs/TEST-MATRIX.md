@@ -1,13 +1,13 @@
-# Eyes in the Dark 0.8.6 consolidated in-game matrix
+# Eyes in the Dark 0.9.1 consolidated in-game matrix
 
 Candidate:
 
-- Eyes in the Dark `0.8.6`
+- Eyes in the Dark `0.9.1`
 - Glorious UI `1.7.0` when the integration case calls for it
 - Grail Floating Text `1.9.8` when the notification case calls for it
 - Tainted Grail Mono patch `1.25`
 
-Run this matrix only against the staged `0.8.6` candidate. Keep Wyrd Hunt,
+Run this matrix only against the staged `0.9.1` candidate. Keep Wyrd Hunt,
 Custom Timescale, and KS Wyrd Hunt Addon absent except for isolated
 incompatibility-notice cases.
 For each failure, save the relevant BepInEx log, fix the candidate, rebuild, and
@@ -39,7 +39,10 @@ output; the BepInEx log remains the authoritative detailed record.
 | B7 | Exit the interior | Meter returns with retained threat; activity grace prevents an immediate surge or hunt | Pending |
 | B8 | Fast travel, portal, and loading-screen transitions | Meter fails hidden during transitions and returns once the exterior state is valid | Pending |
 | B9 | HUD rebuild, resolution change, and non-default UI scale | One correctly positioned meter remains readable and attached | Pending |
-| B10 | Change boundary color, HDR, radius, thickness, and reactivity | Visuals change; protection behavior, gameplay radius, and mask intensity do not | Pending |
+| B10 | Observe the default layered boundary, then change each ring's radius, brightness, and thickness | Three distinct near/middle/outer rings respond independently; protection behavior, gameplay detection, and native mask intensity do not change | Pending |
+| B11 | Raise and lower threat, then test pulse amounts 0, 0.12, and 1.0 | Every ring has its own smoothly changing target and timing; threat response remains shared and no ring radius moves; 1.0 stays within dim-to-double brightness | Pending |
+| B12 | Pause, resume, select Single Ring, disable customization, then re-enable Three Rings | Pulses freeze while paused; native presentation is restored cleanly in single/disabled modes; no duplicate pass or material leak appears after re-enable | Pending |
+| B13 | Review FoA Mod Manager tabs | Settings appear in focused threat, hunt, HUD, boundary, notification, and diagnostic groups; Import Previous Settings remains last | Pending |
 
 ## C. Threat inputs and anti-spam behavior
 
@@ -48,7 +51,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | C1 | Remain exposed through measurable world-night progress | Passive threat follows normalized night progress, not elapsed Unity time | Pending |
 | C2 | Walk, then sustain sprinting or fast swimming | Walking adds no movement threat; sustained fast movement adds throttled threat | Pending |
 | C3 | Deal and receive meaningful combat damage | Damage aggregates within the short window and respects its cap | Pending |
-| C3a | Swing into empty space, then strike scenery or a non-damageable object several times | Empty swings add nothing; confirmed impacts add at most one contribution per attack and respect the combat-window cap | Pending |
+| C3a | Swing into empty space, then strike scenery or a non-damageable object several times | Empty swings add nothing; each confirmed impact queues half the combat-window cap, commits after about 1.5 active seconds by default, adds at most once per attack, and respects the combined cap | Pending |
 | C4 | Kill an eligible Wyrd-converted or Wyrd-bound ordinary NPC | One Wyrd-kill threat input is accepted | Pending |
 | C5 | Take direct pickups and loot several container/corpse items | Unique acquisitions add capped queued threat; repeated low-value input cannot farm it | Pending |
 | C6 | Pause during active cooldowns | Threat windows, GFT cooldowns, warning, recovery, and interior decay do not advance while paused | Pending |
@@ -59,9 +62,9 @@ output; the BepInEx log remains the authoritative detailed record.
 
 | ID | Setup and action | Expected result | Status |
 | --- | --- | --- | --- |
-| D1 | Apply Uneasy Night in FoA Mod Manager | Gameplay values are written, selector returns to Custom, presentation/diagnostics stay unchanged | Pending |
-| D2 | Apply Watchful Night | Recommended defaults are written and selector returns to Custom | Pending |
-| D3 | Apply Cursed Night | Higher-pressure values are written and selector returns to Custom without changing presentation | Pending |
+| D1 | Apply Uneasy Night in FoA Mod Manager | Gameplay values are written, elites are disabled, selector returns to Custom, and presentation/diagnostics stay unchanged | Pending |
+| D2 | Apply Watchful Night | Recommended defaults are written, elites are disabled, and selector returns to Custom | Pending |
+| D3 | Apply Cursed Night | Higher-pressure values and elite permission are written; selector returns to Custom without changing presentation | Pending |
 | D4 | Observe a representative Watchful night at world timescale `1.0` | Quiet stretches, warning, one active hunt, recovery, and budget behavior remain coherent | Pending |
 | D5 | Repeat at `0.5` | Passive baseline follows world progress and total pressure remains within the capped budget design | Pending |
 | D6 | Repeat at `0.25` | No catch-up threat, instant encounter, or linear multiplication of hunts | Pending |
@@ -80,8 +83,8 @@ output; the BepInEx log remains the authoritative detailed record.
 | ID | Setup and action | Expected result | Status |
 | --- | --- | --- | --- |
 | E1 | Level 1 in Horns of the South | Eligible pool contains only Wyrdspirit and pack size is one | Pending |
-| E2 | Levels 4, 7, 12, and 20 in Horns; inspect diagnostic weights | Redcap, Corpse Eater, Sharg, and Ogre become eligible gradually; lower tiers retain weight | Pending |
-| E3 | Cuanacht at levels 15, 18, 22, and 26 | Native Corpse Eater, Mistling, Sharg, and Ogre become eligible at their exact gates and place on native navigation | Pending |
+| E2 | Horns at levels 4, 5, 6, 7, 8, 10, 15, and 20; inspect diagnostics | Native low-tier monsters and undead enter gradually; Sharg remains filtered unless elites are enabled above 75 threat; Ogre remains solo | Pending |
+| E3 | Cuanacht at levels 15, 16, 20, 26, and 30 | Native monster, undead, Lost Knight, Slugholder, Ogre, Sharg, Barnaclator, and Nuckelavee gates and placement match the catalog | Pending |
 | E4 | Watchful, level 8+, high threat, sufficient budget | A two-member allowed composition can occur; sidecar is not stronger than primary | Pending |
 | E5 | Cursed, level 15+, high threat, sufficient budget | A three-member Wyrdspirit cluster can occur without exceeding cost or copy caps | Pending |
 | E6 | Reduce remaining budget near a profile/composition cost | Ineligible members are filtered; the final plan never overspends | Pending |
@@ -94,12 +97,16 @@ output; the BepInEx log remains the authoritative detailed record.
 | E13 | Trigger player death, dawn, gameplay load, and exterior scene change in separate hunts | Each resolves once; no duplicate hunt, stale lock, or surprise budget spend | Pending |
 | E14 | Complete several hunts in one session | Immediate profile and family repeats are visibly reduced in diagnostic weights | Pending |
 | E15 | Make one template fail three times in a diagnostic session | Template becomes session-rejected; an empty pool skips safely | Pending |
-| E16 | Forlorn at levels 22, 26, and 30 | Native Redcap, Mistling, and Corpse Eater become eligible at exact gates and place natively | Pending |
-| E17 | Sarras at levels 28, 34, and 36 | T5/T6 Wyrdspawn and solo Wyrdheir become eligible at exact gates and place natively | Pending |
+| E16 | Forlorn at levels 25, 30, and 40 with elites disabled | Native Redcap, Mistling, Bonemasks, undead, Frostbitten, smaller Sharg, Skeleton Archer, and Swarm enter at reviewed gates; no elite enters | Pending |
+| E17 | Sarras at levels 25, 27, 28, and 30 with elites disabled | Native Drowners, Drowned crew, Finbled roles, Tadpole, Wailcap, and Tidewraith enter at reviewed gates; no generic Wyrdspawn or out-of-map enemy enters | Pending |
 | E18 | Inspect repeated regional compositions | Every regional profile has a one-copy limit; only Wyrdspirit clusters; solo profiles never gain sidecars | Pending |
 | E19 | Force one member to fail exact Hero combat confirmation after placement | Atomic composition is discarded, budget cost is zero, and failed-placement recovery begins | Pending |
 | E20 | Let a nearby hunter disengage while exposed in the same exterior | Native combat is reasserted no sooner than two active seconds apart and no more than three times per member | Pending |
 | E21 | Disengage beyond 60 m, while protected, during loading, or after scene change | No reacquisition occurs; normal sustained escape remains available | Pending |
+| E22 | Enable elites at exactly 75 threat, then raise threat above 75 | Every elite remains filtered at 75 and becomes eligible immediately above 75, subject to level, region, cost, and session safety | Pending |
+| E23 | Disable elites at 100 threat on each supported map | No Elite actor enters the eligible pool; normal high-tier weighting continues | Pending |
+| E24 | Cursed at high level and threat above 75 in Horns, Forlorn, and Sarras | Only reviewed regional Sharg, Skeleton, or Drowned Knight elites appear; none is selected as a sidecar and every profile remains one-copy | Pending |
+| E25 | Inspect rejected shipped variants through diagnostics/contracts | Boss, miniboss, friendly, summon, story, challenge, trial, custom, arena, and hero-summon variants never enter any pool | Pending |
 
 ## F. GFT atmosphere and diagnostics
 
@@ -122,7 +129,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | --- | --- | --- | --- |
 | G1 | Complete a long `0.1`-timescale night with Diagnostics off | No repeated exceptions, per-poll log spam, duplicate meter, or uninterrupted chain of hunts | Pending |
 | G2 | Review the full session log | No startup, placement, transition, HUD, boundary, or GFT exception loop; every spent cost has a confirmed composition | Pending |
-| G3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `0.8.6.0` | Pending |
+| G3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `0.9.1.0` | Pending |
 | G4 | Complete a long diagnostics-on default-cycle soak | No per-frame warnings, passive-threat log flood, repeated clock setters, or stale GFT diagnostics | Pending |
 
 The goal is complete only after every row is Passed or the user explicitly

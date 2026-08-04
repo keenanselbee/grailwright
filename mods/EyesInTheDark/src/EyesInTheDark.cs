@@ -35,12 +35,22 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Encounters")]
-[assembly: AssemblyVersion("0.8.6.0")]
-[assembly: AssemblyFileVersion("0.8.6.0")]
-[assembly: AssemblyInformationalVersion("0.8.6")]
+[assembly: AssemblyVersion("0.9.1.0")]
+[assembly: AssemblyFileVersion("0.9.1.0")]
+[assembly: AssemblyInformationalVersion("0.9.1")]
 
 namespace EyesInTheDark
 {
+    internal sealed class FoASettingUiMetadata
+    {
+        public string DisplaySection { get; set; }
+        public string DisplayName { get; set; }
+        public string ChoiceLabels { get; set; }
+        public int SectionOrder { get; set; }
+        public int Order { get; set; }
+        public bool Hidden { get; set; }
+    }
+
     public static class EyesInTheDarkHudApi
     {
         public static int ContractVersion
@@ -69,11 +79,11 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "0.8.6";
+        public const string PluginVersion = "0.9.1";
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 5;
+        private const int ConfigSchemaVersion = 6;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -113,6 +123,7 @@ namespace EyesInTheDark
         private const float DefaultPassiveThreatPerNight = 20.0f;
         private const float DefaultSprintThreatPerMinute = 4.0f;
         private const float DefaultCombatThreatPerWindow = 2.0f;
+        private const float DefaultCombatResponseSeconds = 1.5f;
         private const float DefaultWyrdKillThreat = 5.0f;
         private const float DefaultAcquisitionThreatPerItem = 0.75f;
         private const float DefaultProtectedDecayPerMinute = 4.0f;
@@ -143,11 +154,21 @@ namespace EyesInTheDark
         private const float StandaloneMeterBaselineOffsetY = -9.0f;
         private const string DefaultBoundaryColor = "#B878FF";
         private const float DefaultBoundaryHdrIntensity = 271.529f;
-        private const float DefaultBoundaryVisualRadius = 32.0f;
-        private const float DefaultBoundaryThickness = 0.25f;
+        private const float DefaultBoundaryNearRadius = 12.0f;
+        private const float DefaultBoundaryNearIntensity = 0.35f;
+        private const float DefaultBoundaryNearThickness = 0.08f;
+        private const float DefaultBoundaryMiddleRadius = 22.0f;
+        private const float DefaultBoundaryMiddleIntensity = 0.60f;
+        private const float DefaultBoundaryMiddleThickness = 0.14f;
+        private const float DefaultBoundaryOuterRadius = 32.0f;
+        private const float DefaultBoundaryOuterIntensity = 1.0f;
+        private const float DefaultBoundaryOuterThickness = 0.25f;
         private const float DefaultBoundaryMinimumIntensity = 1.0f;
         private const float DefaultBoundaryMaximumIntensity = 1.2f;
         private const float DefaultBoundaryMaximumThickness = 1.15f;
+        private const float DefaultBoundaryPulseAmount = 0.12f;
+        private const float DefaultBoundaryPulseMinimumSeconds = 2.5f;
+        private const float DefaultBoundaryPulseMaximumSeconds = 6.0f;
         private const float DefaultGftCooldownSeconds = 8.0f;
         private const float DefaultDiagnosticGftCooldownSeconds = 3.0f;
 
@@ -180,6 +201,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _passiveThreatPerNight;
         private ConfigEntry<float> _sprintThreatPerMinute;
         private ConfigEntry<float> _combatThreatPerWindow;
+        private ConfigEntry<float> _combatResponseSeconds;
         private ConfigEntry<float> _wyrdKillThreat;
         private ConfigEntry<float> _acquisitionThreatPerItem;
         private ConfigEntry<float> _protectedDecayPerMinute;
@@ -203,6 +225,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _dangerCostMultiplier;
         private ConfigEntry<int> _maximumPackSize;
         private ConfigEntry<float> _sidecarChance;
+        private ConfigEntry<bool> _allowEliteEnemies;
         private ConfigEntry<float> _hunterSpawnDistance;
         private ConfigEntry<float> _escapeDistance;
         private ConfigEntry<float> _escapeSustainSeconds;
@@ -212,15 +235,27 @@ namespace EyesInTheDark
         private ConfigEntry<float> _escapeRecoverySeconds;
         private ConfigEntry<float> _failedPlacementRecoverySeconds;
         private ConfigEntry<bool> _boundaryEnabled;
+        private ConfigEntry<BoundaryRenderMode> _boundaryRenderMode;
         private ConfigEntry<string> _boundaryColor;
         private ConfigEntry<float> _boundaryHdrIntensity;
         private ConfigEntry<float> _boundaryVisualRadius;
         private ConfigEntry<float> _boundaryThickness;
+        private ConfigEntry<float> _boundaryNearRadius;
+        private ConfigEntry<float> _boundaryNearIntensity;
+        private ConfigEntry<float> _boundaryNearThickness;
+        private ConfigEntry<float> _boundaryMiddleRadius;
+        private ConfigEntry<float> _boundaryMiddleIntensity;
+        private ConfigEntry<float> _boundaryMiddleThickness;
+        private ConfigEntry<float> _boundaryOuterIntensity;
         private ConfigEntry<BoundaryThreatReactivity>
             _boundaryThreatReactivity;
         private ConfigEntry<float> _boundaryMinimumIntensity;
         private ConfigEntry<float> _boundaryMaximumIntensity;
         private ConfigEntry<float> _boundaryMaximumThickness;
+        private ConfigEntry<bool> _boundaryPulseEnabled;
+        private ConfigEntry<float> _boundaryPulseAmount;
+        private ConfigEntry<float> _boundaryPulseMinimumSeconds;
+        private ConfigEntry<float> _boundaryPulseMaximumSeconds;
         private ConfigEntry<bool> _gftEnabled;
         private ConfigEntry<GftNotificationPreset> _gftPreset;
         private ConfigEntry<bool> _gftDetailedExactThreat;
@@ -328,6 +363,17 @@ namespace EyesInTheDark
 
             TrackHero(Hero.Current);
             BindAcquisitionListeners();
+
+            if (_boundary != null)
+            {
+                _boundary.Tick(
+                    unscaledDelta,
+                    !paused
+                        && IsFeatureEnabled()
+                        && _hasContext
+                        && IsKnownValidWyrdNight(_currentContext)
+                        && _currentContext.Observation.IsOutdoor);
+            }
 
             if (unscaledDelta > 0f
                 && !float.IsNaN(unscaledDelta)
@@ -575,7 +621,10 @@ namespace EyesInTheDark
                     now,
                     ValueOrDefault(
                         _combatThreatPerWindow,
-                        DefaultCombatThreatPerWindow)),
+                        DefaultCombatThreatPerWindow),
+                    ValueOrDefault(
+                        _combatResponseSeconds,
+                        DefaultCombatResponseSeconds)),
                 ThreatChangeCause.Combat);
             float acquisitionPerItem = ValueOrDefault(
                 _acquisitionThreatPerItem,
@@ -810,7 +859,7 @@ namespace EyesInTheDark
                 _combatThreatPerWindow,
                 DefaultCombatThreatPerWindow);
             bool accepted = _activity.RecordCombat(
-                maximum * 0.25f,
+                maximum * 0.5f,
                 "environment:" + ModelId(data.Item),
                 _activeRealTimeClock.Seconds);
             if (accepted)
@@ -1474,6 +1523,8 @@ namespace EyesInTheDark
                     SidecarChance = ValueOrDefault(
                         _sidecarChance,
                         DefaultSidecarChance),
+                    AllowEliteEnemies = _allowEliteEnemies != null
+                        && _allowEliteEnemies.Value,
                     MaximumPackSize = _maximumPackSize == null
                         ? DefaultMaximumPackSize
                         : _maximumPackSize.Value
@@ -1493,6 +1544,10 @@ namespace EyesInTheDark
                 + _pacing.RemainingBudget.ToString(
                     "0.##",
                     CultureInfo.InvariantCulture)
+                + "; elites="
+                + (selectionContext.AllowEliteEnemies
+                    ? "enabled>75"
+                    : "disabled")
                 + "; filters=["
                 + selection.FilterSummary
                 + "]; weights=["
@@ -1576,6 +1631,10 @@ namespace EyesInTheDark
                 + _pacing.RemainingBudget.ToString(
                     "0.#",
                     CultureInfo.InvariantCulture)
+                + "; elites "
+                + (selectionContext.AllowEliteEnemies
+                    ? "on>75"
+                    : "off")
                 + "; weights "
                 + selection.WeightSummary);
         }
@@ -2095,18 +2154,42 @@ namespace EyesInTheDark
 
             return new BoundarySettings
             {
+                RenderMode = _boundaryRenderMode == null
+                    ? BoundaryRenderMode.Layered
+                    : _boundaryRenderMode.Value,
                 Color = _parsedBoundaryColor,
                 HdrIntensity = ValueOrDefault(
                     _boundaryHdrIntensity,
                     DefaultBoundaryHdrIntensity),
-                VisualRadius = ValueOrDefault(
+                NearRadius = ValueOrDefault(
+                    _boundaryNearRadius,
+                    DefaultBoundaryNearRadius),
+                NearIntensityMultiplier = ValueOrDefault(
+                    _boundaryNearIntensity,
+                    DefaultBoundaryNearIntensity),
+                NearThickness = ValueOrDefault(
+                    _boundaryNearThickness,
+                    DefaultBoundaryNearThickness),
+                MiddleRadius = ValueOrDefault(
+                    _boundaryMiddleRadius,
+                    DefaultBoundaryMiddleRadius),
+                MiddleIntensityMultiplier = ValueOrDefault(
+                    _boundaryMiddleIntensity,
+                    DefaultBoundaryMiddleIntensity),
+                MiddleThickness = ValueOrDefault(
+                    _boundaryMiddleThickness,
+                    DefaultBoundaryMiddleThickness),
+                OuterRadius = ValueOrDefault(
                     _boundaryVisualRadius,
-                    DefaultBoundaryVisualRadius),
-                Thickness = ValueOrDefault(
+                    DefaultBoundaryOuterRadius),
+                OuterIntensityMultiplier = ValueOrDefault(
+                    _boundaryOuterIntensity,
+                    DefaultBoundaryOuterIntensity),
+                OuterThickness = ValueOrDefault(
                     _boundaryThickness,
-                    DefaultBoundaryThickness),
+                    DefaultBoundaryOuterThickness),
                 ThreatReactivity = _boundaryThreatReactivity == null
-                    ? BoundaryThreatReactivity.Disabled
+                    ? BoundaryThreatReactivity.Subtle
                     : _boundaryThreatReactivity.Value,
                 MinimumIntensityMultiplier = ValueOrDefault(
                     _boundaryMinimumIntensity,
@@ -2116,7 +2199,18 @@ namespace EyesInTheDark
                     DefaultBoundaryMaximumIntensity),
                 MaximumThicknessMultiplier = ValueOrDefault(
                     _boundaryMaximumThickness,
-                    DefaultBoundaryMaximumThickness)
+                    DefaultBoundaryMaximumThickness),
+                PulseEnabled = _boundaryPulseEnabled == null
+                    || _boundaryPulseEnabled.Value,
+                PulseAmount = ValueOrDefault(
+                    _boundaryPulseAmount,
+                    DefaultBoundaryPulseAmount),
+                PulseMinimumSeconds = ValueOrDefault(
+                    _boundaryPulseMinimumSeconds,
+                    DefaultBoundaryPulseMinimumSeconds),
+                PulseMaximumSeconds = ValueOrDefault(
+                    _boundaryPulseMaximumSeconds,
+                    DefaultBoundaryPulseMaximumSeconds)
             };
         }
 
@@ -2652,6 +2746,7 @@ namespace EyesInTheDark
                         _warningSeconds.Value = 8f;
                         _maximumPackSize.Value = 1;
                         _sidecarChance.Value = 0f;
+                        _allowEliteEnemies.Value = false;
                         _killRecoverySeconds.Value = 120f;
                         _escapeRecoverySeconds.Value = 240f;
                         _failedPlacementRecoverySeconds.Value = 45f;
@@ -2687,6 +2782,7 @@ namespace EyesInTheDark
                             DefaultMaximumPackSize;
                         _sidecarChance.Value =
                             DefaultSidecarChance;
+                        _allowEliteEnemies.Value = false;
                         _killRecoverySeconds.Value =
                             DefaultKillRecoverySeconds;
                         _escapeRecoverySeconds.Value =
@@ -2710,6 +2806,7 @@ namespace EyesInTheDark
                         _warningSeconds.Value = 4f;
                         _maximumPackSize.Value = 3;
                         _sidecarChance.Value = 0.8f;
+                        _allowEliteEnemies.Value = true;
                         _killRecoverySeconds.Value = 60f;
                         _escapeRecoverySeconds.Value = 120f;
                         _failedPlacementRecoverySeconds.Value = 20f;
@@ -2727,6 +2824,10 @@ namespace EyesInTheDark
                     + FormatGameplayPreset(preset)
                     + "; pack cap "
                     + _maximumPackSize.Value
+                    + "; elites "
+                    + (_allowEliteEnemies.Value
+                        ? "enabled above 75% threat"
+                        : "disabled")
                     + "; next-night budget "
                     + _baseDangerBudget.Value.ToString(
                         "0.#",
@@ -2763,24 +2864,46 @@ namespace EyesInTheDark
                 new ConfigDescription(
                     "Internal config schema marker. Do not edit this value.",
                     null,
-                    new BrowsableAttribute(false)));
+                    new BrowsableAttribute(false),
+                    new FoASettingUiMetadata
+                    {
+                        DisplaySection = "General",
+                        DisplayName = "Config Schema Version",
+                        SectionOrder = 0,
+                        Order = 0,
+                        Hidden = true
+                    }));
             _featureEnabled = Config.Bind(
                 "1. Core",
                 "Enabled",
                 true,
-                "Master switch for Eyes in the Dark world timescale, threat, official hunts, meter, boundary presentation, pacing, and notifications.");
+                UiDescription(
+                    "Master switch for Eyes in the Dark world timescale, threat, official hunts, meter, boundary presentation, pacing, and notifications.",
+                    "General",
+                    "Enable Eyes in the Dark",
+                    0,
+                    10));
 
             _enableDynamicTimescale = Config.Bind(
                 "2. World Timescale",
                 "EnableDynamicTimescale",
                 true,
-                "Let Eyes own separate day and night world-weather rates. This never changes Unity gameplay Time.timeScale.");
+                UiDescription(
+                    "Let Eyes own separate day and night world-weather rates. This never changes Unity gameplay Time.timeScale.",
+                    "World Clock",
+                    "Use Separate Day and Night Rates",
+                    10,
+                    10));
             _dayTimescale = Config.Bind(
                 "2. World Timescale",
                 "DayTimescale",
                 DefaultDayTimescale,
-                new ConfigDescription(
+                UiDescription(
                     "World-weather multiplier used during the day. 0.23 produces approximately 60 real minutes of daylight.",
+                    "World Clock",
+                    "Day Timescale",
+                    10,
+                    20,
                     new AcceptableValueRange<float>(
                         WorldTimescalePolicy.MinimumMultiplier,
                         WorldTimescalePolicy.MaximumMultiplier)));
@@ -2788,8 +2911,12 @@ namespace EyesInTheDark
                 "2. World Timescale",
                 "NightTimescale",
                 DefaultNightTimescale,
-                new ConfigDescription(
+                UiDescription(
                     "World-weather multiplier used at night. 0.413 produces approximately 15 real minutes of night.",
+                    "World Clock",
+                    "Night Timescale",
+                    10,
+                    30,
                     new AcceptableValueRange<float>(
                         WorldTimescalePolicy.MinimumMultiplier,
                         WorldTimescalePolicy.MaximumMultiplier)));
@@ -2798,322 +2925,587 @@ namespace EyesInTheDark
                 "2. Gameplay Preset",
                 "ApplyPreset",
                 GameplayTuningPreset.Custom,
-                "One-shot gameplay template. Uneasy Night, Watchful Night, or Cursed Night writes threat and encounter tuning, then returns to Custom. HUD, GFT, boundary, and diagnostic preferences are preserved.");
+                UiDescription(
+                    "One-shot gameplay template. Uneasy Night, Watchful Night, or Cursed Night writes threat and encounter tuning, then returns to Custom. HUD, GFT, boundary, and diagnostic preferences are preserved.",
+                    "General",
+                    "Apply Gameplay Preset",
+                    0,
+                    20,
+                    choiceLabels: "Custom=Custom;UneasyNight=Uneasy Night;WatchfulNight=Watchful Night;CursedNight=Cursed Night"));
 
             _passiveThreatPerNight = BindThreatValue(
                 "PassiveThreatPerNight",
                 DefaultPassiveThreatPerNight,
                 0f,
                 100f,
-                "Threat gained across one complete exposed outdoor Wyrdnight. Progress-based calculation keeps this baseline independent of world timescale.");
+                "Threat gained across one complete exposed outdoor Wyrdnight. Progress-based calculation keeps this baseline independent of world timescale.",
+                "Threat - Generation",
+                "Passive Threat per Night",
+                20,
+                10);
             _sprintThreatPerMinute = BindThreatValue(
                 "SprintThreatPerMinute",
                 DefaultSprintThreatPerMinute,
                 0f,
                 30f,
-                "Threat gained per minute of sustained exposed sprinting or fast swimming, committed in non-spammable intervals.");
+                "Threat gained per minute of sustained exposed sprinting or fast swimming, committed in non-spammable intervals.",
+                "Threat - Generation",
+                "Sprint Threat per Minute",
+                20,
+                20);
             _combatThreatPerWindow = BindThreatValue(
                 "CombatThreatPerWindow",
                 DefaultCombatThreatPerWindow,
                 0f,
                 10f,
-                "Maximum threat from meaningful damage events in each short aggregation window.");
+                "Maximum threat from meaningful damage events in each short aggregation window.",
+                "Threat - Generation",
+                "Combat Threat per Window",
+                20,
+                30);
+            _combatResponseSeconds = BindThreatValue(
+                "CombatResponseSeconds",
+                DefaultCombatResponseSeconds,
+                0.25f,
+                5f,
+                "Active real-time delay before queued combat and confirmed environment-impact threat is committed. The same window caps their combined contribution.",
+                "Threat - Generation",
+                "Combat Response Delay",
+                20,
+                40);
             _wyrdKillThreat = BindThreatValue(
                 "WyrdKillThreat",
                 DefaultWyrdKillThreat,
                 0f,
                 20f,
-                "Threat gained when the Hero kills a Wyrd-converted or Wyrdness-bound NPC.");
+                "Threat gained when the Hero kills a Wyrd-converted or Wyrdness-bound NPC.",
+                "Threat - Generation",
+                "Wyrd Kill Threat",
+                20,
+                50);
             _acquisitionThreatPerItem = BindThreatValue(
                 "AcquisitionThreatPerItem",
                 DefaultAcquisitionThreatPerItem,
                 0f,
                 5f,
-                "Threat queued for each unique direct pickup or item taken from a location while exposed. Short windows cap bulk looting.");
+                "Threat queued for each unique direct pickup or item taken from a location while exposed. Short windows cap bulk looting.",
+                "Threat - Generation",
+                "Item Acquisition Threat",
+                20,
+                60);
             _protectedDecayPerMinute = BindThreatValue(
                 "ProtectedDecayPerMinute",
                 DefaultProtectedDecayPerMinute,
                 0f,
                 60f,
-                "Threat removed per active real-time minute while outdoors and protected from the Wyrdness.");
+                "Threat removed per active real-time minute while outdoors and protected from the Wyrdness.",
+                "Threat - Decay and Loading",
+                "Protected Decay per Minute",
+                30,
+                10);
             _interiorDecayPerMinute = BindThreatValue(
                 "InteriorDecayPerMinute",
                 DefaultInteriorDecayPerMinute,
                 0f,
                 30f,
-                "Threat removed per active real-time minute indoors during a valid Wyrdnight.");
+                "Threat removed per active real-time minute indoors during a valid Wyrdnight.",
+                "Threat - Decay and Loading",
+                "Interior Decay per Minute",
+                30,
+                20);
             _loadReconstructionAtDawn = BindThreatValue(
                 "LoadReconstructionAtDawn",
                 DefaultLoadReconstructionAtDawn,
                 0f,
                 40f,
-                "Maximum modest threat reconstructed by dawn progress after loading during a Wyrdnight.");
+                "Maximum modest threat reconstructed by dawn progress after loading during a Wyrdnight.",
+                "Threat - Decay and Loading",
+                "Load Reconstruction at Dawn",
+                30,
+                30);
             _graceSeconds = BindThreatValue(
                 "LoadAndInteriorExitGraceSeconds",
                 DefaultGraceSeconds,
                 0f,
                 60f,
-                "Active real-time seconds during which activity threat is suppressed after a Wyrdnight load or interior exit.");
+                "Active real-time seconds during which activity threat is suppressed after a Wyrdnight load or interior exit.",
+                "Threat - Decay and Loading",
+                "Load and Exit Grace",
+                30,
+                40);
 
             _baseDangerBudget = Config.Bind(
                 "4. Encounters",
                 "BaseNightlyDangerBudget",
                 DefaultBaseDangerBudget,
-                new ConfigDescription(
+                UiDescription(
                     "Base danger budget calculated once per Wyrdnight and spent only after complete curated encounter placement is confirmed.",
+                    "Hunts - Pacing", "Nightly Danger Budget", 40, 10,
                     new AcceptableValueRange<float>(0f, 200f)));
             _longNightBonusScale = Config.Bind(
                 "4. Encounters",
                 "LongNightBonusScale",
                 DefaultLongNightBonusScale,
-                new ConfigDescription(
+                UiDescription(
                     "Scales the sublinear square-root budget bonus for world-clock nights longer than the game's default.",
+                    "Hunts - Pacing", "Long Night Bonus Scale", 40, 20,
                     new AcceptableValueRange<float>(0f, 2f)));
             _maximumLongNightBonus = Config.Bind(
                 "4. Encounters",
                 "MaximumLongNightBonus",
                 DefaultMaximumLongNightBonus,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum extra fraction of the base nightly budget granted for an extended world-clock night. 0.75 caps the total at 175% of base.",
+                    "Hunts - Pacing", "Maximum Long Night Bonus", 40, 30,
                     new AcceptableValueRange<float>(0f, 3f)));
             _baseHazardPerMinute = Config.Bind(
                 "4. Encounters",
                 "BaseHazardPerMinute",
                 DefaultBaseHazardPerMinute,
-                new ConfigDescription(
+                UiDescription(
                     "Quiet baseline added to accumulated hunt hazard per active exposed minute. This is not an independent random roll.",
+                    "Hunts - Pacing", "Base Hazard per Minute", 40, 40,
                     new AcceptableValueRange<float>(0f, 5f)));
             _threatHazardPerMinute = Config.Bind(
                 "4. Encounters",
                 "ThreatHazardPerMinute",
                 DefaultThreatHazardPerMinute,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum additional accumulated hazard per exposed minute from Wyrd Threat. Threat uses a rising nonlinear curve.",
+                    "Hunts - Pacing", "Threat Hazard per Minute", 40, 50,
                     new AcceptableValueRange<float>(0f, 5f)));
             _nightProgressHazardPerMinute = Config.Bind(
                 "4. Encounters",
                 "NightProgressHazardPerMinute",
                 DefaultNightProgressHazardPerMinute,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum additional accumulated hazard per exposed minute as the Wyrdnight advances.",
+                    "Hunts - Pacing", "Night Progress Hazard per Minute", 40, 60,
                     new AcceptableValueRange<float>(0f, 5f)));
             _minimumHazardTarget = Config.Bind(
                 "4. Encounters",
                 "MinimumHazardTarget",
                 DefaultMinimumHazardTarget,
-                new ConfigDescription(
+                UiDescription(
                     "Lower bound for the randomized accumulated-hazard target selected for each hunt opportunity.",
+                    "Hunts - Pacing", "Minimum Hazard Target", 40, 70,
                     new AcceptableValueRange<float>(0.1f, 10f)));
             _maximumHazardTarget = Config.Bind(
                 "4. Encounters",
                 "MaximumHazardTarget",
                 DefaultMaximumHazardTarget,
-                new ConfigDescription(
+                UiDescription(
                     "Upper bound for the randomized accumulated-hazard target selected for each hunt opportunity.",
+                    "Hunts - Pacing", "Maximum Hazard Target", 40, 80,
                     new AcceptableValueRange<float>(0.1f, 10f)));
             _warningSeconds = Config.Bind(
                 "4. Encounters",
                 "WarningSeconds",
                 DefaultWarningSeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Active-real-time warning delay between hunt commitment and placement. Eligibility is checked again before spawning.",
+                    "Hunts - Pacing", "Warning Duration", 40, 90,
                     new AcceptableValueRange<float>(1f, 30f)));
             _dangerCostMultiplier = Config.Bind(
                 "4. Encounters",
                 "DangerCostMultiplier",
                 DefaultDangerCostMultiplier,
-                new ConfigDescription(
+                UiDescription(
                     "Multiplier applied to each curated profile's reviewed danger cost. Budget is spent only after the complete encounter is confirmed.",
+                    "Hunts - Composition", "Danger Cost Multiplier", 50, 10,
                     new AcceptableValueRange<float>(0.5f, 2f)));
             _maximumPackSize = Config.Bind(
                 "4. Encounters",
                 "MaximumEncounterSize",
                 DefaultMaximumPackSize,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum official encounter size. Player level, profile safety, composition rules, and remaining danger budget can reduce it.",
+                    "Hunts - Composition", "Maximum Encounter Size", 50, 20,
                     new AcceptableValueRange<int>(1, 3)));
             _sidecarChance = Config.Bind(
                 "4. Encounters",
                 "SidecarChance",
                 DefaultSidecarChance,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum chance to add each weaker curated sidecar. Actual chance rises smoothly with Wyrd Threat and is capped by level, preset, profile safety, and budget.",
+                    "Hunts - Composition", "Sidecar Chance", 50, 30,
                     new AcceptableValueRange<float>(0f, 1f)));
+            _allowEliteEnemies = Config.Bind(
+                "4. Encounters",
+                "AllowEliteEnemies",
+                false,
+                UiDescription(
+                    "Allow reviewed elite official hunters only when Wyrd Threat is greater than 75%. Bosses, minibosses, story actors, summons, and challenge or trial variants remain excluded.",
+                    "Hunts - Composition", "Allow Elite Enemies", 50, 35));
             _hunterSpawnDistance = Config.Bind(
                 "4. Encounters",
                 "HunterSpawnDistanceMeters",
                 DefaultHunterSpawnDistance,
-                new ConfigDescription(
+                UiDescription(
                     "Requested distance for curated official hunters. Native navigation placement and member separation are verified before spawning.",
+                    "Hunts - Composition", "Hunter Spawn Distance", 50, 40,
                     new AcceptableValueRange<float>(20f, 60f)));
             _escapeDistance = Config.Bind(
                 "4. Encounters",
                 "EscapeDistanceMeters",
                 DefaultEscapeDistance,
-                new ConfigDescription(
+                UiDescription(
                     "Distance that must be sustained from the exact official hunter to escape outdoors.",
+                    "Hunts - Resolution", "Escape Distance", 60, 10,
                     new AcceptableValueRange<float>(30f, 200f)));
             _escapeSustainSeconds = Config.Bind(
                 "4. Encounters",
                 "EscapeSustainSeconds",
                 DefaultEscapeSustainSeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Active real-time seconds the escape distance must be sustained.",
+                    "Hunts - Resolution", "Escape Sustain Duration", 60, 20,
                     new AcceptableValueRange<float>(1f, 60f)));
             _killThreatRelief = Config.Bind(
                 "4. Encounters",
                 "OfficialHunterKillThreatRelief",
                 DefaultKillThreatRelief,
-                new ConfigDescription(
+                UiDescription(
                     "Wyrd Threat removed when the exact official hunter dies. This should remain greater than escape relief.",
+                    "Hunts - Resolution", "Kill Threat Relief", 60, 30,
                     new AcceptableValueRange<float>(0f, 100f)));
             _escapeThreatRelief = Config.Bind(
                 "4. Encounters",
                 "OfficialHunterEscapeThreatRelief",
                 DefaultEscapeThreatRelief,
-                new ConfigDescription(
+                UiDescription(
                     "Wyrd Threat removed after a sustained outdoor escape or interior escape.",
+                    "Hunts - Resolution", "Escape Threat Relief", 60, 40,
                     new AcceptableValueRange<float>(0f, 100f)));
             _killRecoverySeconds = Config.Bind(
                 "4. Encounters",
                 "KillRecoverySeconds",
                 DefaultKillRecoverySeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Active real-time recovery after killing the official hunter.",
+                    "Hunts - Resolution", "Kill Recovery", 60, 50,
                     new AcceptableValueRange<float>(10f, 600f)));
             _escapeRecoverySeconds = Config.Bind(
                 "4. Encounters",
                 "EscapeRecoverySeconds",
                 DefaultEscapeRecoverySeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Longer active real-time Recently Pursued recovery after escaping the official hunter.",
+                    "Hunts - Resolution", "Escape Recovery", 60, 60,
                     new AcceptableValueRange<float>(10f, 900f)));
             _failedPlacementRecoverySeconds = Config.Bind(
                 "4. Encounters",
                 "FailedPlacementRecoverySeconds",
                 DefaultFailedPlacementRecoverySeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Short active real-time retry protection after an invalid or failed placement. No danger budget is spent.",
+                    "Hunts - Resolution", "Failed Placement Recovery", 60, 70,
                     new AcceptableValueRange<float>(5f, 180f)));
 
             _threatMeterColor = Config.Bind(
                 "7. Threat Meter",
                 "ThreatMeterColor",
                 ThreatMeterController.DefaultColorText,
-                "HTML RGB color for the Wyrd Threat meter, such as #B878FF.");
+                UiDescription(
+                    "HTML RGB color for the Wyrd Threat meter, such as #B878FF.",
+                    "HUD - Threat Meter", "Meter Color", 70, 10));
             _showExactThreat = Config.Bind(
                 "7. Threat Meter",
                 "ShowExactThreatValue",
                 false,
-                "Show the rounded 0-100 Wyrd Threat value beside the meter.");
+                UiDescription(
+                    "Show the rounded 0-100 Wyrd Threat value beside the meter.",
+                    "HUD - Threat Meter", "Show Exact Threat", 70, 20));
             _meterOffsetX = Config.Bind(
                 "7. Threat Meter",
                 "MeterOffsetX",
                 0f,
-                new ConfigDescription(
+                UiDescription(
                     "Horizontal adjustment from the automatic placement baseline in local Hero HUD pixels.",
+                    "HUD - Threat Meter", "Horizontal Offset", 70, 30,
                     new AcceptableValueRange<float>(-500f, 500f)));
             _meterOffsetY = Config.Bind(
                 "7. Threat Meter",
                 "MeterOffsetY",
                 0f,
-                new ConfigDescription(
+                UiDescription(
                     "Vertical adjustment from the automatic placement baseline in local Hero HUD pixels. Positive values move it upward.",
+                    "HUD - Threat Meter", "Vertical Offset", 70, 40,
                     new AcceptableValueRange<float>(-500f, 500f)));
 
             _boundaryEnabled = Config.Bind(
                 "8. Wyrd Boundary",
                 "EnableBoundaryCustomization",
                 true,
-                "Customize only the native visual Wyrd boundary. Protection, mask intensity, and gameplay radius are never changed.");
+                UiDescription(
+                    "Customize only the visual Wyrd boundary. Protection, mask intensity, and gameplay detection are never changed.",
+                    "Boundary - Appearance",
+                    "Customize Wyrd Boundary",
+                    80,
+                    10));
+            _boundaryRenderMode = Config.Bind(
+                "8. Wyrd Boundary",
+                "BoundaryRenderMode",
+                BoundaryRenderMode.Layered,
+                UiDescription(
+                    "Layered draws independent near, middle, and outer visual rings. Single keeps one native-style outer edge.",
+                    "Boundary - Appearance",
+                    "Boundary Style",
+                    80,
+                    20,
+                    choiceLabels: "Single=Single Ring;Layered=Three Rings"));
             _boundaryColor = Config.Bind(
                 "8. Wyrd Boundary",
                 "BoundaryColor",
                 DefaultBoundaryColor,
-                "HTML RGB or RGBA color for the visual Wyrd boundary, such as #B878FF.");
+                UiDescription(
+                    "HTML RGB or RGBA color for the visual Wyrd boundary, such as #B878FF.",
+                    "Boundary - Appearance",
+                    "Boundary Color",
+                    80,
+                    30));
             _boundaryHdrIntensity = Config.Bind(
                 "8. Wyrd Boundary",
                 "BoundaryHdrIntensity",
                 DefaultBoundaryHdrIntensity,
-                new ConfigDescription(
+                UiDescription(
                     "HDR multiplier applied to the configured boundary color.",
+                    "Boundary - Appearance",
+                    "HDR Intensity",
+                    80,
+                    40,
                     new AcceptableValueRange<float>(0f, 500f)));
+            _boundaryNearRadius = Config.Bind(
+                "8. Wyrd Boundary",
+                "NearRingRadius",
+                DefaultBoundaryNearRadius,
+                UiDescription(
+                    "Visual-only radius of the nearest ring.",
+                    "Boundary - Rings",
+                    "Near Radius",
+                    90,
+                    10,
+                    new AcceptableValueRange<float>(0f, 100f)));
+            _boundaryNearIntensity = Config.Bind(
+                "8. Wyrd Boundary",
+                "NearRingIntensityMultiplier",
+                DefaultBoundaryNearIntensity,
+                UiDescription(
+                    "Brightness of the near ring relative to the outer ring.",
+                    "Boundary - Rings",
+                    "Near Brightness",
+                    90,
+                    20,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _boundaryNearThickness = Config.Bind(
+                "8. Wyrd Boundary",
+                "NearRingThickness",
+                DefaultBoundaryNearThickness,
+                UiDescription(
+                    "Base visual thickness of the near ring.",
+                    "Boundary - Rings",
+                    "Near Thickness",
+                    90,
+                    30,
+                    new AcceptableValueRange<float>(0f, 1f)));
+            _boundaryMiddleRadius = Config.Bind(
+                "8. Wyrd Boundary",
+                "MiddleRingRadius",
+                DefaultBoundaryMiddleRadius,
+                UiDescription(
+                    "Visual-only radius of the middle ring.",
+                    "Boundary - Rings",
+                    "Middle Radius",
+                    90,
+                    40,
+                    new AcceptableValueRange<float>(0f, 100f)));
+            _boundaryMiddleIntensity = Config.Bind(
+                "8. Wyrd Boundary",
+                "MiddleRingIntensityMultiplier",
+                DefaultBoundaryMiddleIntensity,
+                UiDescription(
+                    "Brightness of the middle ring relative to the outer ring.",
+                    "Boundary - Rings",
+                    "Middle Brightness",
+                    90,
+                    50,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _boundaryMiddleThickness = Config.Bind(
+                "8. Wyrd Boundary",
+                "MiddleRingThickness",
+                DefaultBoundaryMiddleThickness,
+                UiDescription(
+                    "Base visual thickness of the middle ring.",
+                    "Boundary - Rings",
+                    "Middle Thickness",
+                    90,
+                    60,
+                    new AcceptableValueRange<float>(0f, 1f)));
             _boundaryVisualRadius = Config.Bind(
                 "8. Wyrd Boundary",
                 "BoundaryVisualRadius",
-                DefaultBoundaryVisualRadius,
-                new ConfigDescription(
-                    "Visual-only radius of the native Wyrd edge. This does not alter protection or Wyrdness detection.",
+                DefaultBoundaryOuterRadius,
+                UiDescription(
+                    "Visual-only radius of the outer ring. This does not alter protection or Wyrdness detection.",
+                    "Boundary - Rings",
+                    "Outer Radius",
+                    90,
+                    70,
                     new AcceptableValueRange<float>(0f, 100f)));
+            _boundaryOuterIntensity = Config.Bind(
+                "8. Wyrd Boundary",
+                "OuterRingIntensityMultiplier",
+                DefaultBoundaryOuterIntensity,
+                UiDescription(
+                    "Brightness of the outer ring relative to the shared HDR intensity.",
+                    "Boundary - Rings",
+                    "Outer Brightness",
+                    90,
+                    80,
+                    new AcceptableValueRange<float>(0f, 3f)));
             _boundaryThickness = Config.Bind(
                 "8. Wyrd Boundary",
                 "BoundaryThickness",
-                DefaultBoundaryThickness,
-                new ConfigDescription(
-                    "Base visual thickness of the native Wyrd edge.",
+                DefaultBoundaryOuterThickness,
+                UiDescription(
+                    "Base visual thickness of the outer ring.",
+                    "Boundary - Rings",
+                    "Outer Thickness",
+                    90,
+                    90,
                     new AcceptableValueRange<float>(0f, 1f)));
             _boundaryThreatReactivity = Config.Bind(
                 "8. Wyrd Boundary",
                 "ThreatReactivity",
-                BoundaryThreatReactivity.Disabled,
-                "Disabled preserves the vanilla static presentation. Subtle gently brightens and thickens it as Wyrd Threat rises without changing radius.");
+                BoundaryThreatReactivity.Subtle,
+                UiDescription(
+                    "Subtle gently brightens and thickens every ring as Wyrd Threat rises without changing radius.",
+                    "Boundary - Motion",
+                    "Threat Response",
+                    100,
+                    10));
             _boundaryMinimumIntensity = Config.Bind(
                 "8. Wyrd Boundary",
                 "MinimumThreatIntensityMultiplier",
                 DefaultBoundaryMinimumIntensity,
-                new ConfigDescription(
+                UiDescription(
                     "Boundary intensity multiplier at zero threat when Subtle reactivity is selected.",
+                    "Boundary - Motion",
+                    "Minimum Threat Brightness",
+                    100,
+                    20,
                     new AcceptableValueRange<float>(0f, 3f)));
             _boundaryMaximumIntensity = Config.Bind(
                 "8. Wyrd Boundary",
                 "MaximumThreatIntensityMultiplier",
                 DefaultBoundaryMaximumIntensity,
-                new ConfigDescription(
+                UiDescription(
                     "Boundary intensity multiplier at maximum threat when Subtle reactivity is selected.",
+                    "Boundary - Motion",
+                    "Maximum Threat Brightness",
+                    100,
+                    30,
                     new AcceptableValueRange<float>(0f, 3f)));
             _boundaryMaximumThickness = Config.Bind(
                 "8. Wyrd Boundary",
                 "MaximumThreatThicknessMultiplier",
                 DefaultBoundaryMaximumThickness,
-                new ConfigDescription(
+                UiDescription(
                     "Boundary thickness multiplier at maximum threat when Subtle reactivity is selected.",
+                    "Boundary - Motion",
+                    "Maximum Threat Thickness",
+                    100,
+                    40,
                     new AcceptableValueRange<float>(1f, 3f)));
+            _boundaryPulseEnabled = Config.Bind(
+                "8. Wyrd Boundary",
+                "EnableBoundaryPulse",
+                true,
+                UiDescription(
+                    "Let each ring smoothly and independently ebb and swell within the configured limit.",
+                    "Boundary - Motion",
+                    "Enable Organic Pulse",
+                    100,
+                    50));
+            _boundaryPulseAmount = Config.Bind(
+                "8. Wyrd Boundary",
+                "BoundaryPulseAmount",
+                DefaultBoundaryPulseAmount,
+                UiDescription(
+                    "Maximum random brightness variation around each ring's base intensity. 1.0 permits a range from fully dimmed to roughly double brightness.",
+                    "Boundary - Motion",
+                    "Pulse Amount",
+                    100,
+                    60,
+                    new AcceptableValueRange<float>(0f, 1f)));
+            _boundaryPulseMinimumSeconds = Config.Bind(
+                "8. Wyrd Boundary",
+                "BoundaryPulseMinimumSeconds",
+                DefaultBoundaryPulseMinimumSeconds,
+                UiDescription(
+                    "Shortest time used for a smooth pulse transition.",
+                    "Boundary - Motion",
+                    "Minimum Pulse Duration",
+                    100,
+                    70,
+                    new AcceptableValueRange<float>(0.5f, 30f)));
+            _boundaryPulseMaximumSeconds = Config.Bind(
+                "8. Wyrd Boundary",
+                "BoundaryPulseMaximumSeconds",
+                DefaultBoundaryPulseMaximumSeconds,
+                UiDescription(
+                    "Longest time used for a smooth pulse transition.",
+                    "Boundary - Motion",
+                    "Maximum Pulse Duration",
+                    100,
+                    80,
+                    new AcceptableValueRange<float>(0.5f, 30f)));
 
             _gftEnabled = Config.Bind(
                 "9. Grail Floating Text",
                 "EnableNotifications",
                 true,
-                "Use optional Grail Floating Text for meaningful Wyrdnight transitions. Gameplay remains independent when GFT is absent.");
+                UiDescription(
+                    "Use optional Grail Floating Text for meaningful Wyrdnight transitions. Gameplay remains independent when GFT is absent.",
+                    "Notifications", "Enable Notifications", 110, 10));
             _gftPreset = Config.Bind(
                 "9. Grail Floating Text",
                 "NotificationPreset",
                 GftNotificationPreset.Atmospheric,
-                "Minimal shows committed hunts and outcomes. Atmospheric adds night and upward-stage messages. Detailed also adds downward stages, protection changes, and major surges.");
+                UiDescription(
+                    "Minimal shows committed hunts and outcomes. Atmospheric adds night and upward-stage messages. Detailed also adds downward stages, protection changes, and major surges.",
+                    "Notifications", "Notification Detail", 110, 20));
             _gftDetailedExactThreat = Config.Bind(
                 "9. Grail Floating Text",
                 "DetailedShowExactThreat",
                 false,
-                "Append the rounded Wyrd Threat value to Detailed atmospheric notifications.");
+                UiDescription(
+                    "Append the rounded Wyrd Threat value to Detailed atmospheric notifications.",
+                    "Notifications", "Show Exact Threat in Detailed Text", 110, 30));
             _gftCooldownSeconds = Config.Bind(
                 "9. Grail Floating Text",
                 "NotificationCooldownSeconds",
                 DefaultGftCooldownSeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Minimum active-real-time spacing within each atmospheric notification lane. Paused time does not advance it.",
+                    "Notifications", "Notification Cooldown", 110, 40,
                     new AcceptableValueRange<float>(1f, 60f)));
             _diagnosticGftCooldownSeconds = Config.Bind(
                 "10. Diagnostics",
                 "GftSystemCooldownSeconds",
                 DefaultDiagnosticGftCooldownSeconds,
-                new ConfigDescription(
+                UiDescription(
                     "Minimum active-real-time spacing between concise diagnostics-only GFT System summaries.",
+                    "Diagnostics", "Diagnostic Text Cooldown", 120, 20,
                     new AcceptableValueRange<float>(1f, 60f)));
 
             _diagnostics = Config.Bind(
                 "10. Diagnostics",
                 "Diagnostics",
                 false,
-                "Log accepted and rejected threat inputs, pacing, and presentation details. When GFT is available, also show concise low-priority System summaries of meaningful behind-the-scenes state changes.");
+                UiDescription(
+                    "Log accepted and rejected threat inputs, pacing, and presentation details. When GFT is available, also show concise low-priority System summaries of meaningful behind-the-scenes state changes.",
+                    "Diagnostics", "Enable Diagnostics", 120, 10));
 
             _gameplayPreset.SettingChanged += OnGameplayPresetChanged;
 
@@ -3135,17 +3527,49 @@ namespace EyesInTheDark
             float defaultValue,
             float minimum,
             float maximum,
-            string description)
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order)
         {
             return Config.Bind(
                 "3. Wyrd Threat",
                 key,
                 defaultValue,
-                new ConfigDescription(
+                UiDescription(
                     description,
+                    displaySection,
+                    displayName,
+                    sectionOrder,
+                    order,
                     new AcceptableValueRange<float>(
                         minimum,
                         maximum)));
+        }
+
+        private static ConfigDescription UiDescription(
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order,
+            AcceptableValueBase acceptableValues = null,
+            string choiceLabels = "",
+            bool hidden = false)
+        {
+            return new ConfigDescription(
+                description,
+                acceptableValues,
+                new FoASettingUiMetadata
+                {
+                    DisplaySection = displaySection,
+                    DisplayName = displayName,
+                    ChoiceLabels = choiceLabels,
+                    SectionOrder = sectionOrder,
+                    Order = order,
+                    Hidden = hidden
+                });
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -3271,6 +3695,7 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "PassiveThreatPerNight");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "SprintThreatPerMinute");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "CombatThreatPerWindow");
+            CapturePreservedValue<float>(profile, "3. Wyrd Threat", "CombatResponseSeconds");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "WyrdKillThreat");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "AcquisitionThreatPerItem");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "ProtectedDecayPerMinute");
@@ -3289,6 +3714,7 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "4. Encounters", "DangerCostMultiplier");
             CapturePreservedValue<int>(profile, "4. Encounters", "MaximumEncounterSize");
             CapturePreservedValue<float>(profile, "4. Encounters", "SidecarChance");
+            CapturePreservedValue<bool>(profile, "4. Encounters", "AllowEliteEnemies");
             CapturePreservedValue<float>(profile, "4. Encounters", "HunterSpawnDistanceMeters");
             CapturePreservedValue<float>(profile, "4. Encounters", "EscapeDistanceMeters");
             CapturePreservedValue<float>(profile, "4. Encounters", "EscapeSustainSeconds");
@@ -3302,14 +3728,26 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetX");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetY");
             CapturePreservedValue<bool>(profile, "8. Wyrd Boundary", "EnableBoundaryCustomization");
+            CapturePreservedValue<BoundaryRenderMode>(profile, "8. Wyrd Boundary", "BoundaryRenderMode");
             CapturePreservedValue<string>(profile, "8. Wyrd Boundary", "BoundaryColor");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryHdrIntensity");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "NearRingRadius");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "NearRingIntensityMultiplier");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "NearRingThickness");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MiddleRingRadius");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MiddleRingIntensityMultiplier");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MiddleRingThickness");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryVisualRadius");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "OuterRingIntensityMultiplier");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryThickness");
             CapturePreservedValue<BoundaryThreatReactivity>(profile, "8. Wyrd Boundary", "ThreatReactivity");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MinimumThreatIntensityMultiplier");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MaximumThreatIntensityMultiplier");
             CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "MaximumThreatThicknessMultiplier");
+            CapturePreservedValue<bool>(profile, "8. Wyrd Boundary", "EnableBoundaryPulse");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryPulseAmount");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryPulseMinimumSeconds");
+            CapturePreservedValue<float>(profile, "8. Wyrd Boundary", "BoundaryPulseMaximumSeconds");
             CapturePreservedValue<bool>(profile, "9. Grail Floating Text", "EnableNotifications");
             CapturePreservedValue<GftNotificationPreset>(profile, "9. Grail Floating Text", "NotificationPreset");
             CapturePreservedValue<bool>(profile, "9. Grail Floating Text", "DetailedShowExactThreat");
@@ -3351,6 +3789,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_passiveThreatPerNight, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_sprintThreatPerMinute, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_combatThreatPerWindow, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_combatResponseSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdKillThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_acquisitionThreatPerItem, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_protectedDecayPerMinute, ref restored, ref clamped, ref invalid);
@@ -3369,6 +3808,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_dangerCostMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_maximumPackSize, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_sidecarChance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_allowEliteEnemies, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_hunterSpawnDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_escapeDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_escapeSustainSeconds, ref restored, ref clamped, ref invalid);

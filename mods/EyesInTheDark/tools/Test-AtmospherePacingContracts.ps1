@@ -143,6 +143,8 @@ $pluginSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\EyesInTheDark.cs") -Raw
 $boundarySource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\BoundaryController.cs") -Raw
+$layeredBoundarySource = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\LayeredBoundaryPass.cs") -Raw
 $gftSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\GrailFloatingTextBridge.cs") -Raw
 
@@ -163,15 +165,27 @@ foreach ($required in @(
     'AccessTools.Field(_edgeType, "color")',
     'AccessTools.Field(_edgeType, "radius")',
     'AccessTools.Field(_edgeType, "thickness")',
+    'AccessTools.Field(_edgeType, "maskIntensity")',
+    "LayeredBoundaryPass",
+    "customPasses.Insert",
+    "System.Random",
+    "Mathf.SmoothStep",
     "_originalColor",
     "Restore()")) {
     if (!$boundarySource.Contains($required)) {
         throw "Boundary ownership is missing source token: $required"
     }
 }
-if ($boundarySource.Contains("maskIntensity") -or
-    $boundarySource.Contains("MaskIntensity")) {
+if ($boundarySource.Contains("_maskIntensityField.SetValue")) {
     throw "Boundary customization must not modify native mask intensity."
+}
+foreach ($required in @(
+    'material.SetFloat(MaskIntensityId, _maskIntensity);',
+    "CoreUtils.DrawFullScreen",
+    "ReleaseMaterials()")) {
+    if (!$layeredBoundarySource.Contains($required)) {
+        throw "Layered boundary rendering is missing source token: $required"
+    }
 }
 
 foreach ($required in @(

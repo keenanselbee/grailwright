@@ -49,6 +49,7 @@ below 10; roll to the next minor version instead of using an `X.Y.10` version.
 | 0.6.0 | Curated director | Level/region roster weighting, mixed encounters, and gameplay presets work. |
 | 0.7.0 | HUD integration and hardening | Glorious placement, transition resilience, and final config/API surfaces work. |
 | 0.8.3 | Dynamic clock and hardening | The 60/15 clock, expanded regional roster, and runtime hardening are validated. |
+| 0.9.0 | Native roster data pass | Scene-backed regional variety and opt-in high-threat elites are validated. |
 
 ## 0.1.0 - Scaffold
 
@@ -179,9 +180,11 @@ introducing hunters.
 
 Implement:
 
-- Configurable Wyrd boundary color, HDR intensity, visual radius, and thickness
-  with the documented purple defaults.
-- Optional restrained threat-reactive boundary intensity and thickness.
+- Configurable single- or three-ring Wyrd boundary color, HDR intensity,
+  per-ring visual radius, brightness, and thickness with documented purple
+  defaults.
+- Restrained threat-reactive intensity and thickness plus independent smooth,
+  bounded pulses.
 - GFT optional integration using the shared Wyrd icon and three notification
   presets: Minimal, Atmospheric, and Detailed.
 - Randomized built-in text pools by event category with immediate-repeat
@@ -223,7 +226,8 @@ Verification:
 - GFT present/absent and Minimal/Atmospheric/Detailed matrix.
 - Diagnostics on/off, System collapse, repeat suppression, immediate-only
   delivery, and GFT API-failure isolation checks.
-- Boundary defaults, custom values, and threat-reactivity checks.
+- Boundary single/layered restoration, defaults, per-ring custom values,
+  pulse bounds, and threat-reactivity checks.
 - Pause and long-night timing checks.
 - Config recovery and package validation.
 
@@ -467,7 +471,7 @@ Reliability:
 
 ### Consolidated in-game test pass
 
-Begin this pass only after the `0.8.3` implementation, automated contracts, and
+Begin this pass only after the `0.9.0` implementation, automated contracts, and
 clean build are complete. Execute every accumulated milestone Verification
 matrix against the same candidate build, recording failures and fixes. Rebuild
 and repeat affected scenarios after a fix; do not mark the goal complete merely
@@ -475,7 +479,44 @@ because all planned features have been written.
 
 Use [TEST-MATRIX.md](TEST-MATRIX.md) as the candidate checklist and record.
 
-## Explicitly deferred beyond 0.8.3
+## 0.9.0 - Native roster data pass
+
+Status: implementation, isolated Eyes contracts, shared config recovery and
+preservation contracts, clean compile, package inspection, and Vortex staging
+complete. The consolidated in-game matrix remains pending against the staged
+`0.9.0` candidate.
+
+Purpose: replace the small speculative roster with a broad but explicit
+allowlist grounded in shipped open-world references and resolved NPC data.
+
+Implemented scope:
+
+- Cross-check every selected profile against the Addressables catalog,
+  location-spec bundle, open-world scene references, and extracted NPC-template
+  classification and combat statistics.
+- Expand the catalog to one universal Wyrdspirit plus 49 map-specific profiles.
+- Replace the generic Sarras Wyrdspawn assumptions with actual Sarras Drowner,
+  Drowned, Finbled, Tadpole, Wailcap, Tidewraith, and Drowned Knight specs.
+- Add `AllowEliteEnemies`, default off. Elites require threat strictly greater
+  than `75`, are never sidecars, and retain one-copy limits.
+- Make Uneasy and Watchful write elite permission off and Cursed write it on.
+- Retain unconditional rejection of bosses, minibosses, friendlies, summons,
+  unique/story actors, challenge, trial, custom, arena, and hero-summon specs.
+- Recalibrate affected level gates and costs from resolved actor data rather
+  than location-spec tier names alone.
+
+Acceptance additions:
+
+- Exact normal and elite gates, costs, roles, region restrictions, and
+  one-copy limits pass deterministic contracts.
+- At `75` threat every elite is filtered; above `75`, only enabled, level-safe,
+  affordable elites from the current map enter the pool.
+- Each new native profile places, acquires the Hero, resolves, and cleans up in
+  its mapped exterior without a budget leak or transition failure.
+- The consolidated [TEST-MATRIX.md](TEST-MATRIX.md) passes against the staged
+  `0.9.0` build before the release is considered complete.
+
+## Explicitly deferred beyond 0.9.0
 
 - Custom save persistence for threat or active encounters.
 - Indoor hunts.
@@ -488,7 +529,7 @@ Use [TEST-MATRIX.md](TEST-MATRIX.md) as the candidate checklist and record.
 
 ## Goal execution rule
 
-When this roadmap is used as the 0.8.3 development goal, execute one
+When this roadmap is used as the 0.9.0 development goal, execute one
 implementation milestone at a time with automated contracts and clean builds,
 then run the consolidated in-game pass after the `0.8.3` implementation is
 complete. Do not mark the goal complete until every `0.8.3` acceptance criterion

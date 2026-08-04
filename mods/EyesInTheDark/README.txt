@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Encounters
 =======================================
 
-Version: 0.8.6
+Version: 0.9.1
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
 Tainted Grail: The Fall of Avalon. Inspired by Wyrd Hunt, it combines
@@ -23,7 +23,9 @@ Current Features
   meaningful combat, confirmed melee impacts against scenery or non-damageable
   objects, eligible Wyrd kills, direct world pickups, and items taken from
   containers or corpses. Empty swings add nothing, and each attack can add at
-  most one environment-impact contribution.
+  most one environment-impact contribution. A confirmed object impact adds
+  half the configured combat-window cap and is committed after the configurable
+  combat response delay.
 - Moderate protected-area decay and slower active-real-time interior decay.
 - Dawn reset, modest load reconstruction, and grace after loading or leaving
   an interior.
@@ -34,11 +36,11 @@ Current Features
 - The meter artwork is mirrored horizontally and vertically. When Glorious
   UI requests its versioned layout contract, Eyes remains the meter owner and
   moves the meter below the resource bars.
-- Configurable native Wyrd boundary color, HDR intensity, visual radius, and
-  thickness. The purple defaults retain the shipped edge's radius, thickness,
-  and peak HDR brightness. Optional subtle threat reactivity changes only
-  brightness and thickness; it never changes protection, mask intensity, or
-  gameplay radius.
+- Configurable three-ring Wyrd boundary with near, middle, and outer visual
+  distances, independent brightness and thickness, and a native-style single
+  ring fallback. Smooth bounded pulses and subtle Wyrd Threat response change
+  only brightness and thickness; protection, native mask intensity, gameplay
+  detection, and configured radii are never changed dynamically.
 - Optional Grail Floating Text notifications with Minimal, Atmospheric, and
   Detailed presets, randomized text pools, immediate-repeat prevention, and
   pause-aware per-lane cooldowns.
@@ -49,13 +51,13 @@ Current Features
   eligibility, and remaining danger budget. A randomized target creates
   uncertainty without frequent independent random rolls or fixed spawn
   thresholds.
-- A curated level- and region-aware director. Wyrdspirit is the reviewed
-  universal fallback. Horns of the South retains its Redcap, Corpse Eater,
-  Sharg, and Ogre roster; Cuanacht adds native Corpse Eater, Mistling, Sharg,
-  and Ogre profiles; Forlorn adds native Redcap, Mistling, and Corpse Eater
-  profiles; Sarras adds native Wyrdspawn and Wyrdheir profiles. Unknown scenes
-  and empty regional pools fail closed.
-- Threat-weighted primary selection without hard threat thresholds, immediate
+- A 50-profile level- and region-aware director: one universal Wyrdspirit
+  fallback plus 49 map-specific shipped enemies cross-checked against native
+  location specs, open-world scene references, and NPC-template data. Horns,
+  Cuanacht, Forlorn, and Sarras each receive a varied native roster; unknown
+  scenes and empty regional pools fail closed.
+- Threat-weighted normal-enemy selection without spawn thresholds, plus an
+  explicit greater-than-75 eligibility gate for enabled elites, immediate
   profile and family repeat penalties, and session rejection after three
   failures from the same template.
 - Solo and mixed encounters with weaker-sidecar preference, level and budget
@@ -68,6 +70,8 @@ Current Features
 - One-shot Uneasy Night, Watchful Night, and Cursed Night gameplay templates.
   Applying one writes only threat and encounter tuning, then returns the
   selector to Custom without touching HUD, GFT, boundary, or diagnostics.
+  Uneasy and Watchful disable elite enemies; Cursed enables reviewed elites,
+  which still require Wyrd Threat greater than 75 percent.
 - Protected areas, native pacifist safe zones, unrelated combat, swimming,
   travel, loading, and invalid placement prevent a hunt from spawning.
 - Every spawned member must enter combat and acquire the exact Hero before the
@@ -114,6 +118,7 @@ Defaults:
 - Passive threat per complete exposed night: 20
 - Sustained sprint or fast-swim threat per minute: 4
 - Maximum combat threat per short window: 2
+- Combat response delay: 1.5 active real-time seconds
 - Eligible Wyrd kill threat: 5
 - Unique acquisition threat per item: 0.75
 - Protected decay per active real-time minute: 4
@@ -129,29 +134,30 @@ Defaults:
 - Base/threat/night-progress hazard per minute: 0.01, 0.42, 0.08
 - Randomized accumulated-hazard target: 0.85 to 1.15
 - Warning duration: 6 active real-time seconds
-- Curated Horns danger costs: Wyrdspirit 8, Redcap 10, Corpse Eater 12,
-  Sharg 16, Ogre 24
-- Curated Cuanacht danger costs: Corpse Eater 16, Mistling 18, Sharg 22,
-  Ogre 28
-- Curated Forlorn danger costs: Redcap 18, Mistling 24, Corpse Eater 28
-- Curated Sarras danger costs: tier-5 Wyrdspawn 26, tier-6 Wyrdspawn 32,
-  Wyrdheir 34
+- Curated danger costs: 8 to 44 according to native level, durability,
+  combat role, elite classification, and pack safety
 - Danger cost multiplier: 1.0
 - Maximum encounter size: 2, further capped by player level and profile safety
 - Sidecar chance: 0.55 maximum, rising smoothly with threat
+- Allow elite enemies: false; when enabled, reviewed elites require threat
+  greater than 75 percent and can never be sidecars
 - Hunter requested spawn distance: 35 meters
 - Outdoor escape: 80 meters sustained for 10 active real-time seconds
 - Official hunter kill/escape threat relief: 35, 15
 - Kill/escape recovery: 90, 180 active real-time seconds
 - Failed-placement retry recovery: 30 active real-time seconds
 - Boundary customization: enabled
+- Boundary style: Three Rings
 - Boundary color: #B878FF
 - Boundary HDR intensity: 271.529 (vanilla-equivalent peak brightness)
-- Boundary visual radius: 32 (vanilla)
-- Boundary thickness: 0.25 (vanilla)
-- Boundary threat reactivity: Disabled
+- Near ring radius / brightness / thickness: 12 / 0.35 / 0.08
+- Middle ring radius / brightness / thickness: 22 / 0.60 / 0.14
+- Outer ring radius / brightness / thickness: 32 / 1.0 / 0.25
+- Boundary threat reactivity: Subtle
 - Minimum/maximum threat intensity multipliers: 1.0, 1.2
 - Maximum threat thickness multiplier: 1.15
+- Organic boundary pulse: enabled; amount 0.12 (configurable to 1.0);
+  independent per-ring duration of 2.5 to 6 seconds before speed scaling
 - GFT notifications: enabled
 - GFT notification preset: Atmospheric
 - Detailed exact threat: false
@@ -198,8 +204,9 @@ Compatibility
 Known Beta Limits
 -----------------
 
-- The native roster is intentionally curated. It excludes elites, friendlies,
-  summons, bosses, challenge, trial, story, and custom variants.
+- The native roster is intentionally curated. Only explicitly reviewed elites
+  can be enabled; friendlies, summons, bosses, minibosses, challenge, trial,
+  story, custom, arena, and hero-summon variants remain excluded.
 - Wyrd Threat and active encounters do not add custom save persistence. Loading
   reconstructs only modest dawn-progress threat, and volatile spawned hunters
   are excluded from saves.

@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `0.8.6` is the
+This is the living design document for `EyesInTheDark`. Version `0.9.1` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -353,34 +353,93 @@ actor's hunt lifecycle.
 
 ### Curated regional roster
 
-| Profile | Native identity | Region | Minimum level | Tier | Cost | Role |
-| --- | --- | --- | ---: | ---: | ---: | --- |
-| Wyrdspirit | `Spec_EnemyMonster_T1_Wyrdspirit` | reviewed universal | 1 | 1 | 8 | primary, sidecar, cluster |
-| Redcap | `Spec_EnemyMonster_T1_Redcap` | Horns of the South | 4 | 1 | 10 | primary, sidecar |
-| Corpse Eater | `Spec_EnemyMonster_T1_CorpseEater` | Horns of the South | 7 | 1 | 12 | primary, sidecar |
-| Sharg | `Spec_EnemyMonster_T2_ShargHoS` | Horns of the South | 12 | 2 | 16 | primary, rare sidecar |
-| Ogre | `Spec_EnemyMonster_T3_Ogre` | Horns of the South | 20 | 3 | 24 | solo primary |
-| Corpse Eater | `Spec_EnemyMonster_T3_CorpseEater_Cuanacht` | Cuanacht | 15 | 3 | 16 | primary, sidecar |
-| Mistling | `Spec_EnemyMonster_T3_Mistling_Cuanacht` | Cuanacht | 18 | 3 | 18 | primary, sidecar |
-| Sharg | `Spec_EnemyMonster_T4_ShargCuanacht` | Cuanacht | 22 | 4 | 22 | primary |
-| Ogre | `Spec_EnemyMonster_T4_Ogre_Cuanacht` | Cuanacht | 26 | 4 | 28 | solo primary |
-| Redcap | `Spec_EnemyMonster_T4_Redcap_Forlorn` | Forlorn | 22 | 4 | 18 | primary, sidecar |
-| Mistling | `Spec_EnemyMonster_T4_Mistling_Forlorn` | Forlorn | 26 | 4 | 24 | primary |
-| Corpse Eater | `Spec_EnemyMonster_T5_CorpseEater_Forlorn` | Forlorn | 30 | 5 | 28 | primary |
-| Wyrdspawn | `Spec_EnemyMonster_T5_Wyrdspawn` | Sarras | 28 | 5 | 26 | primary |
-| Greater Wyrdspawn | `Spec_EnemyMonster_T6_Wyrdspawn` | Sarras | 34 | 6 | 32 | primary |
-| Wyrdheir | `Spec_EnemyMonster_T6_Wyrdheir` | Sarras | 36 | 6 | 34 | solo primary |
+The catalog contains `50` reviewed profiles: one universal fallback and `49`
+map-specific entries. It was cross-checked offline against the shipped
+Addressables catalog, location-spec bundle, open-world scene references, and
+the Steel and Bone NPC-template extraction. The extraction is research input;
+Eyes retains no runtime dependency on it and never discovers templates
+automatically.
+
+| Horns of the South | Native identity | Level | Cost | Role |
+| --- | --- | ---: | ---: | --- |
+| Flamegobbler | `Spec_EnemyMonster_T1_Flamegobbler` | 4 | 9 | primary, sidecar |
+| Grindylow | `Spec_EnemyMonster_T1_Grindylow` | 5 | 10 | primary, sidecar |
+| Redcap | `Spec_EnemyMonster_T1_Redcap` | 4 | 10 | primary, sidecar |
+| Corpse Eater | `Spec_EnemyMonster_T1_CorpseEater` | 7 | 12 | primary, sidecar |
+| Wandering Dead | `Spec_EnemyZombie_T1_Classic` | 6 | 10 | primary, sidecar |
+| Drowner | `Spec_EnemyZombie_T1_Drowner` | 7 | 11 | primary, sidecar |
+| Restless Skeleton | `Spec_EnemySkeleton_Melee1H` | 8 | 13 | primary, sidecar |
+| Mistling | `Spec_EnemyMonster_T2_Mistling_Hos` | 10 | 14 | primary, sidecar |
+| Wyrd Bee Swarm | `Spec_EnemyMonster_T2_Swarm_Bees` | 10 | 12 | primary, sidecar |
+| Sharg | `Spec_EnemyMonster_T2_ShargHoS` | 15 | 18 | elite primary |
+| Ogre | `Spec_EnemyMonster_T3_Ogre` | 20 | 24 | solo primary |
+
+| Cuanacht | Native identity | Level | Cost | Role |
+| --- | --- | ---: | ---: | --- |
+| Corpse Eater | `Spec_EnemyMonster_T3_CorpseEater_Cuanacht` | 15 | 16 | primary, sidecar |
+| Flamegobbler | `Spec_EnemyMonster_T3_FlamegobblerCuanacht` | 15 | 16 | primary, sidecar |
+| Grindylow | `Spec_EnemyMonster_T3_Grindylow_Cuanacht` | 15 | 18 | primary, sidecar |
+| Redcap | `Spec_EnemyMonster_T3_Redcap_Cuanacht` | 15 | 17 | primary, sidecar |
+| Cuanacht Dead | `Spec_EnemyZombie_T3_ZombieCuanacht` | 16 | 16 | primary, sidecar |
+| Mistling | `Spec_EnemyMonster_T3_Mistling_Cuanacht` | 20 | 18 | primary, sidecar |
+| Greatsword Skeleton | `Spec_EnemyMonster_T3_Skeleton2H_Cuanacht` | 20 | 20 | primary, sidecar |
+| Drowner | `Spec_EnemyZombie_T3_DrownerCuanacht` | 20 | 20 | primary, sidecar |
+| Lost Knight | `Spec_EnemyMonster_T3_LostKnight` | 20 | 22 | primary |
+| Slugholder Mage | `Spec_EnemyMonster_T3_SlugholderMage` | 20 | 22 | primary |
+| Ogre | `Spec_EnemyMonster_T4_Ogre_Cuanacht` | 26 | 28 | solo primary |
+| Sharg | `Spec_EnemyMonster_T4_ShargCuanacht` | 30 | 30 | primary |
+| Barnaclator | `Spec_EnemyMonster_T4_Barnaclator` | 30 | 28 | primary |
+| Nuckelavee | `Spec_EnemyMonster_T4_Nuckelavee` | 30 | 30 | primary |
+
+| Forlorn | Native identity | Level | Cost | Role |
+| --- | --- | ---: | ---: | --- |
+| Redcap | `Spec_EnemyMonster_T4_Redcap_Forlorn` | 25 | 20 | primary, sidecar |
+| Mistling | `Spec_EnemyMonster_T4_Mistling_Forlorn` | 30 | 24 | primary |
+| Bonemask Mage | `Spec_EnemyMonster_T4_Bonemask_Mage` | 30 | 24 | primary |
+| Bonemask Warrior | `Spec_EnemyMonster_T4_Bonemask_Melee` | 30 | 25 | primary |
+| Forlorn Dead | `Spec_EnemyZombie_T5_ZombieForlorn` | 30 | 28 | primary |
+| Corpse Eater | `Spec_EnemyMonster_T5_CorpseEater_Forlorn` | 40 | 28 | primary |
+| Frostbitten Warrior | `Spec_EnemyMonster_T5_FrostbittenWarrior_Male` | 40 | 32 | primary |
+| Smaller Sharg | `Spec_EnemyMonster_T5_ShargSmallerForlorn` | 40 | 32 | primary |
+| Skeleton Archer | `Spec_EnemyMonster_T5_SkeletonArcher` | 40 | 30 | primary |
+| Swarm | `Spec_EnemyMonster_T5_Swarm` | 40 | 28 | primary |
+| Elite Skeleton | `Spec_EnemyMonster_T6_SkeletonElite` | 50 | 38 | elite primary |
+| Alpha Sharg | `Spec_EnemyMonster_T5_ShargForlorn` | 60 | 44 | elite solo primary |
+
+| Sarras | Native identity | Level | Cost | Role |
+| --- | --- | ---: | ---: | --- |
+| Drowner | `Spec_SoS_EnemyZombie_T3_Drowner` | 25 | 18 | primary, sidecar |
+| Drowner Brute | `Spec_SoS_EnemyZombie_T4_Drowner_2H` | 27 | 20 | primary, sidecar |
+| Drowned Deckhand | `Spec_SoS_EnemyMonster_T4_DrownedDeckhand` | 28 | 20 | primary, sidecar |
+| Drowned Mariner | `Spec_SoS_EnemyMonster_T4_DrownedMariner` | 28 | 22 | primary |
+| Finbled Stalker | `Spec_SoS_EnemyMonster_T4_Finbled_Light` | 30 | 24 | primary, sidecar |
+| Finbled Javelin Hunter | `Spec_SoS_EnemyMonster_T4_Finbled_JavelinThrower` | 30 | 26 | primary |
+| Finbled Heavy | `Spec_SoS_EnemyMonster_T4_Finbled_Heavy` | 30 | 28 | primary |
+| Tadpole | `Spec_SoS_EnemyMonster_T4_Tadpole` | 30 | 24 | primary, sidecar |
+| Wailcap | `Spec_SoS_EnemyMonster_T4_Wailcap` | 30 | 26 | primary |
+| Tidewraith | `Spec_SoS_EnemyMonster_T5_Tidewraith` | 30 | 28 | primary |
+| Drowned Knight | `Spec_SoS_EnemyMonster_T6_DrownedKnight` | 35 | 36 | elite primary |
+| Drowned Knight Huntress | `Spec_SoS_EnemyMonster_T6_DrownedKnight_Female` | 35 | 36 | elite primary |
+
+Wyrdspirit (`Spec_EnemyMonster_T1_Wyrdspirit`) remains the universal level-1,
+cost-8 primary/sidecar/cluster fallback.
 
 The exact supported open-world scene names are `CampaignMap_HOS`,
 `CampaignMap_Cuanacht`, `CampaignMap_Forlorn`, and `CampaignMap_Sarras`.
 Unknown names and empty regional pools fail closed. Every regional entry uses a
-standard shipped location template; elite, friendly, summon, boss, challenge,
-trial, story, and custom variants remain excluded. Wyrdspirit is the only
-profile allowed to cluster, and every regional profile has a one-copy limit.
+standard shipped location template. Reviewed elites require the explicit
+`AllowEliteEnemies` setting and threat strictly greater than `75`; they are
+never sidecars. Uneasy and Watchful set this option off, while Cursed sets it
+on. Friendly, summon, boss, miniboss, challenge, trial, story, custom, arena,
+and hero-summon variants remain excluded regardless of configuration.
+Wyrdspirit is the only profile allowed to cluster, and every regional profile
+has a one-copy limit.
 
-Threat changes weights smoothly; it never unlocks a profile by itself. Level,
-region, session-failure state, safety flags, and budget are hard
-filters. Player levels below `8` are capped at one member, levels `8` through
+Threat changes normal-profile weights smoothly. Elite profiles are the one
+explicit exception: both the elite setting and threat greater than `75` are
+hard eligibility requirements. Level, region, session-failure state, safety
+flags, elite policy, and budget are hard filters. Player levels below `8` are
+capped at one member, levels `8` through
 `14` at two, and levels `15` or higher at three, after which the configured
 preset cap, profile cap, and budget can reduce the result further. Three failed
 placements from the same template reject it for the rest of the session.
@@ -415,6 +474,7 @@ The 0.6.0 one-shot values are:
 | Hazard target | 1.05-1.35 | 0.85-1.15 | 0.70-0.95 |
 | Warning seconds | 8 | 6 | 4 |
 | Maximum pack / sidecar chance | 1 / 0 | 2 / 0.55 | 3 / 0.8 |
+| Elite enemies above 75 threat | off | off | on |
 | Kill / escape / failed recovery | 120 / 240 / 45 | 90 / 180 / 30 | 60 / 120 / 20 |
 
 ## Threat meter
@@ -440,30 +500,35 @@ UI when this integration replaces it.
 
 ## Wyrd boundary presentation
 
-The mod incorporates the standalone Purple Wyrdness presentation directly,
-using a purple hue while retaining vanilla-adjacent presentation defaults:
+The mod incorporates the standalone Purple Wyrdness presentation directly.
+Its default layered presentation draws three visual-only rings:
 
 - color `#B878FF`;
 - HDR intensity `271.529`, matching the brightest channel of the shipped edge;
-- visual radius `32`, matching vanilla;
-- thickness `0.25`, matching vanilla;
-- threat reactivity `Disabled`, matching vanilla's static presentation.
+- near radius/intensity/thickness `12 / 0.35 / 0.08`;
+- middle radius/intensity/thickness `22 / 0.60 / 0.14`;
+- outer radius/intensity/thickness `32 / 1.0 / 0.25`, matching the native edge;
+- subtle threat reactivity and independent smooth bounded pulses.
 
-Planned settings:
+Settings include:
 
 - enable boundary customization;
+- layered or native-style single rendering;
 - boundary color;
 - HDR intensity;
-- visual radius;
-- thickness;
+- per-ring visual radius, brightness, and thickness;
 - threat reactivity mode;
 - minimum and maximum threat intensity multipliers;
-- maximum threat thickness multiplier.
+- maximum threat thickness multiplier;
+- pulse enable, amount from `0` to `1`, and minimum/maximum transition duration.
 
-Threat reactivity may subtly brighten and thicken the boundary. It must not
-change the radius dynamically because radius is visual-only and could imply a
-different protected gameplay area. Boundary settings never change protection,
-mask intensity, or other gameplay rules.
+EITD inserts its owned custom pass beside the native edge only after all three
+materials are ready, then disables rather than destroys the native pass. Any
+failure or feature shutdown removes the owned pass, releases its materials,
+and restores the original native values and enabled state. Threat and pulse
+animation may subtly brighten and thicken each ring, but never change a radius
+dynamically. Boundary settings never change protection, native mask intensity,
+or other gameplay rules.
 
 ## Grail Floating Text
 
@@ -566,20 +631,16 @@ produce catch-up threat, instant encounters, or spent danger budget.
 
 ## Configuration organization
 
-When gameplay config is introduced, keep it grouped and comprehensible:
+FoA Mod Manager uses display-only metadata to present focused groups while the
+stable BepInEx section and key names remain unchanged:
 
-1. Core
-2. World Timescale
-2. Gameplay Preset (stable existing section name)
-3. Wyrd Threat
-4. Encounters
-5. Enemy Eligibility
-6. Mixed Encounters
-7. Threat Meter
-8. Wyrd Boundary
-9. Grail Floating Text
-10. Diagnostics
-11. Import Previous Settings
+1. General and World Clock
+2. Threat - Generation and Threat - Decay and Loading
+3. Hunts - Pacing, Hunts - Composition, and Hunts - Resolution
+4. HUD - Threat Meter
+5. Boundary - Appearance, Boundary - Rings, and Boundary - Motion
+6. Notifications and Diagnostics
+7. Import Previous Settings
 
 Follow the repository config schema and previous-settings recovery contract as
 soon as the first config entry is bound. Keep preset triggers and derived
@@ -587,7 +648,7 @@ status entries permanently excluded from recovery.
 
 ## Implementation roadmap
 
-The milestone plan from the 0.1.0 scaffold through the hardened 0.8.3
+The milestone plan from the 0.1.0 scaffold through the native-roster 0.9.0
 beta is maintained in [ROADMAP.md](ROADMAP.md).
 
 Do not begin with rewards, broad AI control, generalized extension frameworks,

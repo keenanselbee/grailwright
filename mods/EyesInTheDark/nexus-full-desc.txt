@@ -6,7 +6,7 @@
 
 [b]Eyes in the Dark - Wyrdnight Encounters[/b] rebuilds outdoor Wyrdnights around suspense, player behavior, and restrained encounter pacing. The project is inspired by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url]; it owns separate day and night world-clock rates and adds curated native hunter encounters through its own Wyrd Threat director.
 
-Wyrd Threat rises from exposed night progress and meaningful actions such as sustained fast movement, combat, confirmed melee impacts against the environment, eligible Wyrd kills, and acquisitions. Environment impacts require real weapon contact, count at most once per attack, and share the capped combat aggregation window, so empty swings add nothing. Higher threat makes hunts arrive sooner, shifts the eligible roster toward stronger hunters, and increases the chance of larger encounters. It never acts as a hard spawn threshold and cannot bypass level, region, safety, or danger-budget limits.
+Wyrd Threat rises from exposed night progress and meaningful actions such as sustained fast movement, combat, confirmed melee impacts against the environment, eligible Wyrd kills, and acquisitions. Environment impacts require real weapon contact, count at most once per attack, and share the capped combat aggregation window, so empty swings add nothing. Higher threat makes hunts arrive sooner, shifts the eligible roster toward stronger hunters, and increases the chance of larger encounters. It never directly triggers a spawn or bypasses level, region, safety, or danger-budget limits; the only explicit roster threshold is the documented greater-than-75 elite gate.
 
 [line]
 
@@ -27,29 +27,21 @@ Long nights use the actual world-clock duration. Their nightly danger budget gro
 [line]
 
 [heading][color=#C94A4A][size=5]Curated Hunters[/size][/color][/heading]
-The initial beta roster uses reviewed non-unique native templates and fails closed on unknown scenes.
+The 50-profile catalog uses one reviewed universal Wyrdspirit fallback and 49 map-specific shipped enemies. It was cross-checked against native location specs, open-world scene references, and NPC-template data; Eyes never performs automatic runtime discovery and fails closed on unknown scenes.
 
 [code]
-| Hunter       | Region             | Min level | Tier | Cost | Role                      |
-|--------------|--------------------|-----------|------|------|---------------------------|
-| Wyrdspirit   | Reviewed universal | 1         | 1    | 8    | primary, sidecar, cluster |
-| Redcap       | Horns of the South | 4         | 1    | 10   | primary, sidecar          |
-| Corpse Eater | Horns of the South | 7         | 1    | 12   | primary, sidecar          |
-| Sharg        | Horns of the South | 12        | 2    | 16   | primary, rare sidecar     |
-| Ogre         | Horns of the South | 20        | 3    | 24   | solo primary              |
-| Corpse Eater | Cuanacht           | 15        | 3    | 16   | primary, sidecar          |
-| Mistling     | Cuanacht           | 18        | 3    | 18   | primary, sidecar          |
-| Sharg        | Cuanacht           | 22        | 4    | 22   | primary                   |
-| Ogre         | Cuanacht           | 26        | 4    | 28   | solo primary              |
-| Redcap       | Forlorn            | 22        | 4    | 18   | primary, sidecar          |
-| Mistling     | Forlorn            | 26        | 4    | 24   | primary                   |
-| Corpse Eater | Forlorn            | 30        | 5    | 28   | primary                   |
-| Wyrdspawn    | Sarras             | 28        | 5    | 26   | primary                   |
-| Wyrdspawn T6 | Sarras             | 34        | 6    | 32   | primary                   |
-| Wyrdheir     | Sarras             | 36        | 6    | 34   | solo primary              |
+| Region             | Reviewed roster |
+|--------------------|-----------------|
+| Universal          | Wyrdspirit |
+| Horns of the South | Flamegobbler, Grindylow, Redcap, Corpse Eater, Wandering Dead, Drowner, Skeleton, Mistling, Bee Swarm, Sharg, Ogre |
+| Cuanacht           | Corpse Eater, Flamegobbler, Grindylow, Redcap, Dead, Mistling, Skeleton, Drowner, Lost Knight, Slugholder Mage, Ogre, Sharg, Barnaclator, Nuckelavee |
+| Forlorn            | Redcap, Mistling, two Bonemasks, Dead, Corpse Eater, Frostbitten Warrior, smaller Sharg, Skeleton Archer, Swarm, Elite Skeleton, Alpha Sharg |
+| Sarras             | two Drowners, Deckhand, Mariner, three Finbled roles, Tadpole, Wailcap, Tidewraith, two Drowned Knights |
 [/code]
 
-Every regional profile uses one standard shipped non-trial, non-challenge location template and has a one-copy limit. Wyrdspirit remains the universal level-1 fallback and the only profile with cluster behavior. Elite, friendly, summon, boss, challenge, trial, story, and custom variants are excluded.
+Every regional profile has an exact player-level gate, reviewed danger cost, family classification, role, and one-copy limit. Wyrdspirit remains the universal level-1 fallback and the only profile with cluster behavior.
+
+[b]Elite policy:[/b] Allow Elite Enemies is off by default. When enabled, only reviewed elite profiles can enter the pool, only while Wyrd Threat is strictly greater than 75 percent, and never as sidecars. Uneasy Night and Watchful Night set elites off; Cursed Night sets them on. Bosses, minibosses, friendlies, summons, challenge, trial, story, custom, arena, and hero-summon variants remain excluded in every configuration.
 
 Mixed encounters prefer weaker sidecars, penalize same-tier and same-family repetition, respect player-level and danger-budget caps, and support curated Wyrdspirit clusters. Killing the exact primary resolves the official hunt; surviving sidecars become ordinary enemies and release the director lock.
 
@@ -61,9 +53,9 @@ Select a one-shot template in FoA Mod Manager. It writes gameplay tuning and imm
 [code]
 | Preset         | Character                                       |
 |----------------|-------------------------------------------------|
-| Uneasy Night   | Restrained threat, low budget, solo encounters  |
-| Watchful Night | Recommended balanced tension and mixed hunts    |
-| Cursed Night   | Faster escalation, larger budget, larger packs  |
+| Uneasy Night   | Restrained threat, solo encounters, elites off  |
+| Watchful Night | Balanced tension and mixed hunts, elites off     |
+| Cursed Night   | Faster escalation, larger packs, elites enabled |
 [/code]
 
 Presets never overwrite HUD, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url], boundary, diagnostics, or accessibility preferences.
@@ -80,7 +72,7 @@ The artwork is mirrored horizontally and vertically. Its RGB color, exact value 
 [line]
 
 [heading][color=#C94A4A][size=5]Boundary And Atmosphere[/size][/color][/heading]
-The native Wyrd boundary uses a configurable purple hue with vanilla radius, thickness, peak HDR brightness, and static behavior by default. Optional subtle threat reactivity changes brightness and thickness only; protection, mask intensity, and gameplay radius are never altered.
+The Wyrd boundary now uses three independently configurable visual rings: a faint near edge, a middle edge, and an outer edge at the native radius. Each ring smoothly ebbs and swells, while subtle Wyrd Threat response increases brightness and thickness. A native-style single-ring mode remains available. Protection, native mask intensity, gameplay detection, and ring radii are never altered dynamically.
 
 Optional Grail Floating Text integration provides randomized atmospheric text with immediate-repeat prevention:
 
@@ -116,18 +108,24 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b].
 | PassiveThreatPerNight           | 20                               |
 | SprintThreatPerMinute           | 4                                |
 | CombatThreatPerWindow           | 2                                |
+| CombatResponseSeconds           | 1.5                              |
 | WyrdKillThreat                  | 5                                |
 | AcquisitionThreatPerItem        | 0.75                             |
 | Protected / interior decay      | 4 / 1 per active minute          |
 | BaseNightlyDangerBudget         | 30                               |
 | MaximumEncounterSize            | 2                                |
 | SidecarChance                   | 0.55                             |
+| AllowEliteEnemies               | false; also requires threat > 75 |
 | HunterSpawnDistanceMeters       | 35                               |
 | ThreatMeterColor                | #B878FF                          |
 | ShowExactThreatValue            | false                            |
 | BoundaryColor                   | #B878FF                          |
-| Boundary radius / thickness     | 32 / 0.25                        |
-| ThreatReactivity                | Disabled                         |
+| BoundaryRenderMode              | Layered (three rings)            |
+| Near ring                       | 12 / 0.35 / 0.08                 |
+| Middle ring                     | 22 / 0.60 / 0.14                 |
+| Outer ring                      | 32 / 1.0 / 0.25                  |
+| ThreatReactivity                | Subtle                           |
+| Boundary pulse                  | Enabled; 0.12 (range 0-1)        |
 | EnableNotifications             | true                             |
 | NotificationPreset              | Atmospheric                      |
 | Diagnostics                     | false                            |

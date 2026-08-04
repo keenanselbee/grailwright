@@ -143,8 +143,8 @@ namespace EyesInTheDark
             Ensure(limiter.RecordCombat(1f, "dealt:npc", 10d), "first combat event");
             Ensure(!limiter.RecordCombat(1f, "dealt:npc", 10.05d), "immediate duplicate combat event");
             Ensure(limiter.RecordCombat(1f, "dealt:other", 10.1d), "different combat event");
-            Ensure(limiter.FlushCombat(12.9d, 2f) == 0f, "combat should wait for its window");
-            EnsureNear(limiter.FlushCombat(13d, 2f), 2f, 0.001f, "combat window cap");
+            Ensure(limiter.FlushCombat(11.49d, 2f, 1.5f) == 0f, "combat should wait for its configured response window");
+            EnsureNear(limiter.FlushCombat(11.5d, 2f, 1.5f), 2f, 0.001f, "combat window cap");
 
             Ensure(limiter.RecordAcquisition(0.75f, "item-a", 20d), "first acquisition");
             Ensure(!limiter.RecordAcquisition(0.75f, "item-a", 21d), "same item cannot farm acquisition threat");
@@ -234,7 +234,8 @@ foreach ($required in @(
     'ICharacter.Events.OnAttackStart',
     'ICharacter.Events.HitEnvironment',
     '_environmentImpactSeenThisAttack',
-    'maximum * 0.25f',
+    'maximum * 0.5f',
+    'CombatResponseSeconds',
     '"environment:" + ModelId(data.Item)')) {
     if (!$pluginSource.Contains($required)) {
         throw "Confirmed environment-impact threat is missing: $required"

@@ -1,13 +1,13 @@
-# Eyes in the Dark 0.8.3 consolidated in-game matrix
+# Eyes in the Dark 0.8.6 consolidated in-game matrix
 
 Candidate:
 
-- Eyes in the Dark `0.8.3`
+- Eyes in the Dark `0.8.6`
 - Glorious UI `1.7.0` when the integration case calls for it
 - Grail Floating Text `1.9.8` when the notification case calls for it
 - Tainted Grail Mono patch `1.25`
 
-Run this matrix only against the staged `0.8.3` candidate. Keep Wyrd Hunt,
+Run this matrix only against the staged `0.8.6` candidate. Keep Wyrd Hunt,
 Custom Timescale, and KS Wyrd Hunt Addon absent except for isolated
 incompatibility-notice cases.
 For each failure, save the relevant BepInEx log, fix the candidate, rebuild, and
@@ -31,11 +31,11 @@ output; the BepInEx log remains the authoritative detailed record.
 | ID | Setup and action | Expected result | Status |
 | --- | --- | --- | --- |
 | B1 | Daylight exterior | Threat meter hidden; no boundary override attachment | Pending |
-| B2 | Valid exterior Wyrd Night without Glorious | Meter visible above health, mirrored horizontally and vertically | Pending |
+| B2 | Valid exterior Wyrdnight without Glorious | Meter visible above health, mirrored horizontally and vertically | Pending |
 | B3 | Same state with Glorious enabled | Same Eyes-owned meter appears below resource bars; no duplicate | Pending |
 | B4 | Disable and re-enable Glorious layout control | Meter falls back above health, then returns below bars without duplication | Pending |
-| B5 | Enter a protected outdoor area during Wyrd Night | Meter remains visible; threat decays at the protected rate; no hunt advances | Pending |
-| B6 | Enter an interior during Wyrd Night | Meter hides; threat decays slowly instead of resetting | Pending |
+| B5 | Enter a protected outdoor area during Wyrdnight | Meter remains visible; threat decays at the protected rate; no hunt advances | Pending |
+| B6 | Enter an interior during Wyrdnight | Meter hides; threat decays slowly instead of resetting | Pending |
 | B7 | Exit the interior | Meter returns with retained threat; activity grace prevents an immediate surge or hunt | Pending |
 | B8 | Fast travel, portal, and loading-screen transitions | Meter fails hidden during transitions and returns once the exterior state is valid | Pending |
 | B9 | HUD rebuild, resolution change, and non-default UI scale | One correctly positioned meter remains readable and attached | Pending |
@@ -48,6 +48,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | C1 | Remain exposed through measurable world-night progress | Passive threat follows normalized night progress, not elapsed Unity time | Pending |
 | C2 | Walk, then sustain sprinting or fast swimming | Walking adds no movement threat; sustained fast movement adds throttled threat | Pending |
 | C3 | Deal and receive meaningful combat damage | Damage aggregates within the short window and respects its cap | Pending |
+| C3a | Swing into empty space, then strike scenery or a non-damageable object several times | Empty swings add nothing; confirmed impacts add at most one contribution per attack and respect the combat-window cap | Pending |
 | C4 | Kill an eligible Wyrd-converted or Wyrd-bound ordinary NPC | One Wyrd-kill threat input is accepted | Pending |
 | C5 | Take direct pickups and loot several container/corpse items | Unique acquisitions add capped queued threat; repeated low-value input cannot farm it | Pending |
 | C6 | Pause during active cooldowns | Threat windows, GFT cooldowns, warning, recovery, and interior decay do not advance while paused | Pending |
@@ -121,7 +122,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | --- | --- | --- | --- |
 | G1 | Complete a long `0.1`-timescale night with Diagnostics off | No repeated exceptions, per-poll log spam, duplicate meter, or uninterrupted chain of hunts | Pending |
 | G2 | Review the full session log | No startup, placement, transition, HUD, boundary, or GFT exception loop; every spent cost has a confirmed composition | Pending |
-| G3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `0.8.3.0` | Pending |
+| G3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `0.8.6.0` | Pending |
 | G4 | Complete a long diagnostics-on default-cycle soak | No per-frame warnings, passive-threat log flood, repeated clock setters, or stale GFT diagnostics | Pending |
 
 The goal is complete only after every row is Passed or the user explicitly

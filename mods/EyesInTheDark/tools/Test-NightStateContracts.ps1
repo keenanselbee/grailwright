@@ -10,11 +10,11 @@ namespace EyesInTheDark
         public static void Run()
         {
             NightObservation valid = ValidObservation();
-            Expect(valid, DirectorState.Roaming, InactiveReason.None, "valid outdoor Wyrd Night");
+            Expect(valid, DirectorState.Roaming, InactiveReason.None, "valid outdoor Wyrdnight");
             Ensure(
                 NightStateEvaluator.ShouldShowThreatMeter(
                     NightStateEvaluator.Evaluate(valid)),
-                "valid outdoor Wyrd Night should show the threat meter, including while protected");
+                "valid outdoor Wyrdnight should show the threat meter, including while protected");
 
             valid.GameSaysNight = false;
             valid.HeroSaysNight = false;
@@ -95,7 +95,7 @@ namespace EyesInTheDark
 
             valid = ValidObservation();
             valid.AllowsWyrdNight = false;
-            Expect(valid, DirectorState.Inactive, InactiveReason.WyrdNightNotAllowed, "scene disallows Wyrd Night");
+            Expect(valid, DirectorState.Inactive, InactiveReason.WyrdNightNotAllowed, "scene disallows Wyrdnight");
 
             valid = ValidObservation();
             valid.IsPrologue = true;

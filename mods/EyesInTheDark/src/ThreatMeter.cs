@@ -15,8 +15,7 @@ namespace EyesInTheDark
 {
     internal sealed class ThreatMeterController
     {
-        private static readonly Color ThreatColor =
-            new Color(0.72f, 0.47f, 1.0f, 0.96f);
+        public const string DefaultColorText = "#B878FF";
 
         private readonly ManualLogSource _log;
         private readonly FieldInfo _barField = AccessTools.Field(
@@ -29,7 +28,11 @@ namespace EyesInTheDark
         private VCHeroStaminaBar _sourceStamina;
         private GameObject _root;
         private Bar _bar;
+        private Bar[] _bars;
         private TextMeshProUGUI _exactValue;
+        private string _appliedColorText;
+        private string _lastInvalidColorText;
+        private Color _appliedColor;
         private float _lastThreat = -1f;
         private int _lastExactThreatValue = int.MinValue;
         private bool _visible;
@@ -92,24 +95,19 @@ namespace EyesInTheDark
                         "the cloned mana controller did not expose its bar");
                 }
 
-                Bar[] bars = _root.GetComponentsInChildren<Bar>(true);
-                for (int index = 0; index < bars.Length; index++)
+                _bars = _root.GetComponentsInChildren<Bar>(true);
+                for (int index = 0; index < _bars.Length; index++)
                 {
-                    Bar bar = bars[index];
+                    Bar bar = _bars[index];
                     if (bar == null)
                     {
                         continue;
                     }
 
-                    Color color = bar.Color;
-                    bar.Color = new Color(
-                        ThreatColor.r,
-                        ThreatColor.g,
-                        ThreatColor.b,
-                        color.a);
                     bar.SetPrediction(0f);
                     bar.SetPercentInstant(0f);
                 }
+                ApplyColor(DefaultColorText);
 
                 DisableBehaviour(clonedMana);
                 DisableBehaviour(FindComponentByTypeName(
@@ -158,6 +156,7 @@ namespace EyesInTheDark
         public void Update(
             float threat,
             bool visible,
+            string colorText,
             bool showExactValue,
             float offsetX,
             float offsetY,
@@ -168,6 +167,7 @@ namespace EyesInTheDark
                 return;
             }
 
+            ApplyColor(colorText);
             Position(
                 offsetX,
                 offsetY,
@@ -222,10 +222,81 @@ namespace EyesInTheDark
             _sourceStamina = null;
             _root = null;
             _bar = null;
+            _bars = null;
             _exactValue = null;
+            _appliedColorText = null;
+            _lastInvalidColorText = null;
             _lastThreat = -1f;
             _lastExactThreatValue = int.MinValue;
             _visible = false;
+        }
+
+        private void ApplyColor(string colorText)
+        {
+            string configuredColor = colorText ?? string.Empty;
+            if (string.Equals(
+                configuredColor,
+                _appliedColorText,
+                StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            Color color;
+            if (!ColorUtility.TryParseHtmlString(
+                configuredColor,
+                out color))
+            {
+                ColorUtility.TryParseHtmlString(
+                    DefaultColorText,
+                    out color);
+                if (!string.Equals(
+                    configuredColor,
+                    _lastInvalidColorText,
+                    StringComparison.Ordinal))
+                {
+                    _lastInvalidColorText = configuredColor;
+                    _log.LogWarning(
+                        "ThreatMeterColor is invalid; using "
+                        + DefaultColorText
+                        + ".");
+                }
+            }
+            else
+            {
+                _lastInvalidColorText = null;
+            }
+
+            if (_bars != null)
+            {
+                for (int index = 0; index < _bars.Length; index++)
+                {
+                    Bar bar = _bars[index];
+                    if (bar == null)
+                    {
+                        continue;
+                    }
+
+                    Color existing = bar.Color;
+                    bar.Color = new Color(
+                        color.r,
+                        color.g,
+                        color.b,
+                        existing.a);
+                }
+            }
+
+            _appliedColor = new Color(
+                color.r,
+                color.g,
+                color.b,
+                0.96f);
+            if (_exactValue != null)
+            {
+                _exactValue.color = _appliedColor;
+            }
+
+            _appliedColorText = configuredColor;
         }
 
         private void Position(
@@ -654,7 +725,7 @@ namespace EyesInTheDark
             _exactValue.raycastTarget = false;
             _exactValue.fontSize = 18f;
             _exactValue.alignment = TextAlignmentOptions.MidlineLeft;
-            _exactValue.color = ThreatColor;
+            _exactValue.color = _appliedColor;
 
             TMP_Text sourceText = _heroHud == null
                 ? null

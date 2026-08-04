@@ -1,3 +1,16 @@
+Version 0.8.6
+Added Wyrd Threat from confirmed melee impacts against scenery and non-damageable objects, limited to one contribution per attack and routed through the existing short combat aggregation cap; empty swings add nothing.
+Added the live ThreatMeterColor setting with a #B878FF default and safe fallback for invalid HTML RGB values.
+
+Version 0.8.5
+Added an internal +9 horizontal and -9 vertical baseline to standalone vanilla-HUD threat-meter placement while keeping both user-facing offset defaults at zero.
+Kept Glorious UI placement free of the standalone baseline so its below-resource-bars contract remains unchanged.
+Advanced ConfigSchemaVersion to 5 because MeterOffsetX and MeterOffsetY now adjust from an internal baseline; old direct-offset values would otherwise be applied twice. The reset keeps the new zero adjustment defaults for both settings while preserving other compatible customized values.
+
+Version 0.8.4
+Renamed the full mod and export title to Eyes in the Dark - Wyrdnight Encounters so generated release ZIPs use the new name.
+Standardized Wyrdnight as one word throughout player-facing text, configuration descriptions, diagnostics, tests, and documentation.
+
 Version 0.8.3
 Added first-class dynamic world-clock control with separate configurable day and night weather multipliers, defaulting to approximately 60 minutes of daylight and 15 minutes of night without touching gameplay Time.timeScale.
 Expanded the curated native roster across Cuanacht, Forlorn, and Sarras with exact player-level gates, danger costs, one-copy limits, family repetition control, sidecar roles, and solo-primary restrictions; unknown scenes and empty pools still fail closed.
@@ -90,8 +103,8 @@ Version 0.2.1
 Added pause and unpause transition diagnostics so stopped active-real-time behavior can be verified in the game log.
 
 Version 0.2.0
-Added fail-closed detection for playable hero, outdoor scenes, Wyrd Night, protection, loading, transitions, travel, rest, and death.
-Added normalized Wyrd Night progress from the game's world clock.
+Added fail-closed detection for playable hero, outdoor scenes, Wyrdnight, protection, loading, transitions, travel, rest, and death.
+Added normalized Wyrdnight progress from the game's world clock.
 Added an active-real-time clock that stops during pauses and suppressed gameplay states and rejects long catch-up frames.
 Added low-noise diagnostics that log only meaningful state, scene, or exposure changes.
 

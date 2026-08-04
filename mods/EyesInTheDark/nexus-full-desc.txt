@@ -6,7 +6,7 @@
 
 [b]Eyes in the Dark - Wyrdnight Encounters[/b] rebuilds outdoor Wyrdnights around suspense, player behavior, and restrained encounter pacing. The project is inspired by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url]; it owns separate day and night world-clock rates and adds curated native hunter encounters through its own Wyrd Threat director.
 
-Wyrd Threat rises from exposed night progress and meaningful actions such as sustained fast movement, combat, eligible Wyrd kills, and acquisitions. Higher threat makes hunts arrive sooner, shifts the eligible roster toward stronger hunters, and increases the chance of larger encounters. It never acts as a hard spawn threshold and cannot bypass level, region, safety, or danger-budget limits.
+Wyrd Threat rises from exposed night progress and meaningful actions such as sustained fast movement, combat, confirmed melee impacts against the environment, eligible Wyrd kills, and acquisitions. Environment impacts require real weapon contact, count at most once per attack, and share the capped combat aggregation window, so empty swings add nothing. Higher threat makes hunts arrive sooner, shifts the eligible roster toward stronger hunters, and increases the chance of larger encounters. It never acts as a hard spawn threshold and cannot bypass level, region, safety, or danger-budget limits.
 
 [line]
 
@@ -75,7 +75,7 @@ Eyes in the Dark owns the meter. It is visible outdoors throughout a valid Wyrdn
 
 Standalone placement is above the health bar. When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] is installed and enabled, Glorious UI requests below-resource-bars placement while Eyes retains creation, updates, visibility, and cleanup. No duplicate meter is created.
 
-The artwork is mirrored horizontally and vertically. Exact value display and layout offsets are configurable.
+The artwork is mirrored horizontally and vertically. Its RGB color, exact value display, and layout offsets are configurable. Standalone vanilla-HUD placement uses an internal +9, -9 baseline while both visible offset adjustments default to 0; Glorious UI placement does not use that standalone baseline.
 
 [line]
 
@@ -123,6 +123,7 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b].
 | MaximumEncounterSize            | 2                                |
 | SidecarChance                   | 0.55                             |
 | HunterSpawnDistanceMeters       | 35                               |
+| ThreatMeterColor                | #B878FF                          |
 | ShowExactThreatValue            | false                            |
 | BoundaryColor                   | #B878FF                          |
 | Boundary radius / thickness     | 32 / 0.25                        |

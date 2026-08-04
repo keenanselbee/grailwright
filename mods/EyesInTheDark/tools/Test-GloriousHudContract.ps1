@@ -21,6 +21,23 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
+    "private const float StandaloneMeterBaselineOffsetX = 9.0f;",
+    "private const float StandaloneMeterBaselineOffsetY = -9.0f;",
+    "if (!_placeMeterBelowResourceBars)",
+    "meterOffsetX += StandaloneMeterBaselineOffsetX;",
+    "meterOffsetY += StandaloneMeterBaselineOffsetY;")) {
+    if (!$eyesSource.Contains($required)) {
+        throw "Eyes in the Dark is missing standalone meter-baseline token: $required"
+    }
+}
+
+foreach ($setting in @("MeterOffsetX", "MeterOffsetY")) {
+    if ($eyesSource -notmatch ('"' + $setting + '",\s*0f,')) {
+        throw "Eyes in the Dark meter adjustment no longer defaults to zero: $setting"
+    }
+}
+
+foreach ($required in @(
     '[BepInDependency("ks.tgfoa.eyes-in-the-dark"',
     '"EyesInTheDark.EyesInTheDarkHudApi"',
     '"RequestBelowVanillaBars"',

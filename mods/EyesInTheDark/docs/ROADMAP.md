@@ -3,7 +3,7 @@
 ## Objective
 
 Reach a hardened, user-testable `0.8.3` beta of **Eyes in the Dark -
-Wyrd Night Overhaul** without expanding beyond the product rules in
+Wyrdnight Encounters** without expanding beyond the product rules in
 [DESIGN.md](DESIGN.md).
 
 The roadmap advances through narrow vertical slices. Each milestone must compile
@@ -77,10 +77,10 @@ Implement:
 
 - Current playable-hero availability.
 - Outdoor versus indoor state.
-- Valid Wyrd Night versus daylight.
+- Valid Wyrdnight versus daylight.
 - Protected versus exposed outdoor state.
 - Loading, portal, fast-travel, title, death, and scene-transition suppression.
-- World-time sampling and normalized Wyrd Night progress.
+- World-time sampling and normalized Wyrdnight progress.
 - Active-real-time clock that stops when gameplay is paused.
 - Direct runtime states: `Inactive`, `Roaming`, `Warning`, `ActiveHunt`, and
   `Recovery`, with only `Inactive` and `Roaming` used initially.
@@ -96,7 +96,7 @@ Do not implement:
 
 Exit criteria:
 
-- Outdoor Wyrd Night enters `Roaming` only with a playable hero.
+- Outdoor Wyrdnight enters `Roaming` only with a playable hero.
 - Daylight, interiors, title/loading scenes, and unknown state remain inactive.
 - Pausing does not advance active real time.
 - Portal, rest, fast travel, load, and scene changes produce no catch-up work.
@@ -106,7 +106,7 @@ Exit criteria:
 Verification:
 
 - Build and package validation.
-- Main menu, new/load game, outdoor day, outdoor Wyrd Night, protected outdoor,
+- Main menu, new/load game, outdoor day, outdoor Wyrdnight, protected outdoor,
   interior, pause, portal, fast travel, death, and reload checks.
 - Diagnostic review for repeated logs or per-frame allocations.
 
@@ -122,10 +122,10 @@ enemy spawning.
 Implement:
 
 - Wyrd Threat state from 0 to 100.
-- Passive threat based on normalized Wyrd Night progress.
+- Passive threat based on normalized Wyrdnight progress.
 - Proven activity sources, added one at a time: sustained sprint/fast swim,
-  meaningful combat events, eligible Wyrd kills, and eligible acquisition
-  events.
+  meaningful combat events, confirmed melee environment impacts, eligible Wyrd
+  kills, and eligible acquisition events.
 - Per-source throttling, aggregation, and immediate-repeat protection.
 - Moderate decay while protected outdoors.
 - Slow active-real-time decay indoors while encounter generation remains off.
@@ -134,7 +134,7 @@ Implement:
   a load grace period.
 - Threat stages: Unnoticed, Watched, Hunted, and Marked.
 - Eyes in the Dark-owned Wyrd Threat meter above the vanilla Hero HUD.
-- Meter always visible outdoors during a valid Wyrd Night, including while
+- Meter always visible outdoors during a valid Wyrdnight, including while
   protected, and hidden during daylight, indoors, loading, and missing-hero
   state.
 - Optional exact value display and basic offsets.
@@ -149,7 +149,7 @@ Do not implement:
 
 Exit criteria:
 
-- The same passive baseline is reached across equivalent full Wyrd Nights at
+- The same passive baseline is reached across equivalent full Wyrdnights at
   vanilla and slower world timescales.
 - Activity adds threat only through proven events and cannot be trivially
   spammed.
@@ -216,7 +216,7 @@ Exit criteria:
   useful state changes and decisions without reporting every poll, threat point,
   filtered candidate, or repeated identical reason.
 - Boundary radius remains visual-only and never changes dynamically with threat.
-- A ten-times-longer Wyrd Night receives only the documented capped budget bonus.
+- A ten-times-longer Wyrdnight receives only the documented capped budget bonus.
 
 Verification:
 
@@ -419,7 +419,7 @@ Gameplay:
 - Wyrd Threat responds to meaningful player behavior and cannot be trivially
   farmed by repeated low-value input.
 - Threat always uses that name in UI, config, GFT, logs, and public surfaces.
-- Outdoor Wyrd Nights contain suspense and recovery rather than uninterrupted
+- Outdoor Wyrdnights contain suspense and recovery rather than uninterrupted
   sequential spawns.
 - At the `0.23/0.413` reference cycle, Watchful pacing completes coherently;
   at `0.1`, total pressure increases only within the preset's
@@ -439,7 +439,7 @@ Safety and selection:
 
 Presentation:
 
-- The threat meter is always visible outdoors during Wyrd Night and hidden
+- The threat meter is always visible outdoors during Wyrdnight and hidden
   during daylight, indoors, loading, and missing-hero state.
 - Indoor threat decays slowly and reappears correctly when returning outdoors.
 - Glorious repositions the Eyes-owned meter without duplicating it.

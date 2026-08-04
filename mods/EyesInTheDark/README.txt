@@ -1,9 +1,9 @@
-Eyes in the Dark - Wyrd Night Overhaul
+Eyes in the Dark - Wyrdnight Encounters
 =======================================
 
-Version: 0.8.3
+Version: 0.8.6
 
-Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrd Nights in
+Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
 Tainted Grail: The Fall of Avalon. Inspired by Wyrd Hunt, it combines
 probabilistic threat, level- and region-appropriate hunters, mixed encounters,
 atmospheric feedback, and extended-night pacing.
@@ -17,17 +17,20 @@ Current Features
   multipliers. Defaults produce approximately 60 real minutes of day and 15
   real minutes of night without changing gameplay Time.timeScale, combat,
   animations, effects, or pause behavior.
-- Passive exposed-night threat based on normalized Wyrd Night progress, so
+- Passive exposed-night threat based on normalized Wyrdnight progress, so
   changing the world timescale does not multiply the passive baseline.
 - Throttled activity threat from sustained sprinting or fast swimming,
-  meaningful combat, eligible Wyrd kills, direct world pickups, and items
-  taken from containers or corpses.
+  meaningful combat, confirmed melee impacts against scenery or non-damageable
+  objects, eligible Wyrd kills, direct world pickups, and items taken from
+  containers or corpses. Empty swings add nothing, and each attack can add at
+  most one environment-impact contribution.
 - Moderate protected-area decay and slower active-real-time interior decay.
 - Dawn reset, modest load reconstruction, and grace after loading or leaving
   an interior.
-- An Eyes-owned purple Wyrd Threat meter above the vanilla Hero HUD. It remains
-  visible outdoors throughout a valid Wyrd Night, including protected areas,
-  and hides during daylight, interiors, loading, and missing-Hero states.
+- An Eyes-owned, color-configurable Wyrd Threat meter above the vanilla Hero
+  HUD. It remains visible outdoors throughout a valid Wyrdnight, including
+  protected areas, and hides during daylight, interiors, loading, and
+  missing-Hero states.
 - The meter artwork is mirrored horizontally and vertically. When Glorious
   UI requests its versioned layout contract, Eyes remains the meter owner and
   moves the meter below the resource bars.
@@ -98,7 +101,7 @@ Config path:
 BepInEx/config/ks.tgfoa.eyes-in-the-dark.cfg
 
 The FoA Mod Manager config title is simply "Eyes in the Dark"; the installed
-package retains the full Wyrd Night Overhaul name.
+package retains the full Wyrdnight Encounters name.
 
 Defaults:
 
@@ -118,7 +121,8 @@ Defaults:
 - Maximum load reconstruction by dawn: 8
 - Load and interior-exit grace: 15 active real-time seconds
 - Show exact threat value: false
-- Meter offsets: 0, 0
+- Threat meter color: #B878FF
+- Meter offset adjustments: 0, 0 (standalone vanilla-HUD baseline: +9, -9)
 - Base nightly danger budget: 30
 - Long-night bonus scale: 0.35
 - Maximum long-night bonus: 0.75, for a maximum total budget of 52.5
@@ -206,7 +210,7 @@ Troubleshooting
 ---------------
 
 - If the meter is missing, confirm that the player is outdoors during a valid
-  Wyrd Night and not in a loading or transition state. Indoors it is hidden by
+  Wyrdnight and not in a loading or transition state. Indoors it is hidden by
   design while threat decays slowly.
 - If no hunt occurs, check protection, unrelated combat, swimming, travel,
   player level, exact map, remaining danger budget, and the BepInEx log.

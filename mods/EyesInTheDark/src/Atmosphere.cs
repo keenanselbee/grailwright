@@ -55,7 +55,7 @@ namespace EyesInTheDark
     {
         private static readonly string[] NightBeginTexts =
         {
-            "The Wyrd Night opens its eyes.",
+            "The Wyrdnight opens its eyes.",
             "Darkness gathers beyond the firelight.",
             "Something stirs beneath the Wyrd."
         };

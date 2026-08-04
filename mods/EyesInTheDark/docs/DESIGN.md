@@ -1,13 +1,13 @@
-# Eyes in the Dark - Wyrd Night Overhaul
+# Eyes in the Dark - Wyrdnight Encounters
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `0.8.3` is the
+This is the living design document for `EyesInTheDark`. Version `0.8.6` is the
 current implementation and acceptance target.
 
 ## Product identity
 
-- Display name: **Eyes in the Dark - Wyrd Night Overhaul**
+- Display name: **Eyes in the Dark - Wyrdnight Encounters**
 - Package and folder: `EyesInTheDark`
 - DLL: `EyesInTheDark.dll`
 - Plugin GUID: `ks.tgfoa.eyes-in-the-dark`
@@ -22,7 +22,7 @@ threshold-triggered spawns.
 
 ## Design goals
 
-1. Make outdoor Wyrd Nights tense without sending one enemy after another
+1. Make outdoor Wyrdnights tense without sending one enemy after another
    until dawn.
 2. Own a configurable dynamic world clock balanced around a 60-minute day and
    15-minute night, while retaining safe behavior from `1.0` through `0.1`.
@@ -56,7 +56,7 @@ threshold-triggered spawns.
 The intended loop is:
 
 ```text
-Outdoor Wyrd Night begins
+Outdoor Wyrdnight begins
         |
 Player explores and acts
         |
@@ -87,7 +87,7 @@ Inactive -> Roaming -> Warning -> Active Hunt -> Recovery -> Roaming
 
 - **Inactive:** daylight, loading, no playable hero, or an interior. The meter
   is hidden. Indoor Wyrd Threat decay may continue when appropriate.
-- **Roaming:** outdoor Wyrd Night gameplay. Threat and encounter pressure can
+- **Roaming:** outdoor Wyrdnight gameplay. Threat and encounter pressure can
   accumulate.
 - **Warning:** the director has committed an encounter but has not started it.
   Atmospheric feedback can play and placement must still succeed.
@@ -103,14 +103,14 @@ transitions are sufficient.
 
 Do not use one clock for every system. Assign time intentionally:
 
-- **World/Wyrd Night progress:** passive threat growth, nightly pacing, and the
+- **World/Wyrdnight progress:** passive threat growth, nightly pacing, and the
   base danger budget.
 - **Gameplay time:** AI scans, combat behavior, placement timeout, pursuit, and
   active-encounter lifecycle.
 - **Active real time:** HUD animation, GFT cooldowns, indoor decay, and minimum
   anti-spam recovery. This clock must not advance while gameplay is paused.
 
-Read actual game world time and Wyrd Night progress. Do not infer night length
+Read actual game world time and Wyrdnight progress. Do not infer night length
 from Unity `Time.timeScale` and do not inspect another mod's config.
 
 Eyes owns the `GameRealTime` world-weather rate when both its master switch and
@@ -133,7 +133,7 @@ still equals the last value Eyes applied; a later external change is preserved.
 
 ### Extended-night scaling
 
-- Passive threat is normalized by the percentage of the current Wyrd Night
+- Passive threat is normalized by the percentage of the current Wyrdnight
   that elapses.
 - Meaningful player actions add fixed, independently throttled threat.
 - Every preset has a base nightly danger budget.
@@ -179,6 +179,8 @@ most additional pressure. Candidate sources for the first implementation are:
 
 - sustained sprinting or fast swimming while exposed;
 - meaningful combat actions observed through proven game events;
+- confirmed melee impacts against scenery or non-damageable objects, limited
+  to one contribution per attack;
 - killing Wyrd creatures;
 - looting corpses or containers while exposed;
 - direct world pickup or stealing while exposed;
@@ -343,7 +345,7 @@ in the consolidated 0.8.3 in-game pass.
 The reviewed universal profile is the tier-one native Wyrdspirit
 `Spec_EnemyMonster_T1_Wyrdspirit`
 (`[843643575fa01ba4292e60afb9291fea]`). It is treated as a reviewed universal
-Wyrd creature for supported outdoor Wyrd Night maps and is safe for the initial
+Wyrd creature for supported outdoor Wyrdnight maps and is safe for the initial
 level floor. Eyes directly places encounter members through
 `BaseLocationSpawner.VerifyPosition` and `LocationTemplate.SpawnLocation`,
 marks every volatile runtime Location not saved, and owns only the exact primary
@@ -420,12 +422,14 @@ The 0.6.0 one-shot values are:
 Eyes in the Dark owns creation, updates, visibility, and cleanup of the Wyrd
 Threat meter.
 
-- Always visible during an outdoor Wyrd Night, including while protected.
+- Always visible during an outdoor Wyrdnight, including while protected.
 - Hidden during daylight, indoors, loading, title screens, and when no playable
   hero exists.
 - Default placement is above the vanilla Hero HUD.
-- Default presentation is a bar without an exact number.
-- Exact value display and layout offsets are configurable.
+- Default presentation is a `#B878FF` bar without an exact number.
+- RGB color, exact value display, and layout offsets are configurable. Standalone vanilla-HUD
+  placement adds an internal +9, -9 baseline while the exposed adjustments
+  remain 0, 0; Glorious UI placement does not use the standalone baseline.
 - Glorious UI may request placement below its bars through a small versioned
   Eyes in the Dark HUD API. Eyes in the Dark remains the sole meter owner.
 - If the Glorious layout request disappears or fails, the meter returns to its

@@ -314,7 +314,7 @@ namespace EyesInTheDark
         {
             if (!frame.IsValidWyrdNight)
             {
-                return "invalid Wyrd Night state";
+                return "invalid Wyrdnight state";
             }
             if (frame.IsProtected)
             {

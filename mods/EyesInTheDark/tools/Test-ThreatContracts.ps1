@@ -230,5 +230,30 @@ if (!$pluginSource.Contains("public static class EyesInTheDarkHudApi") -or
 if (!$pluginSource.Contains('PluginName = "Eyes in the Dark";')) {
     throw "The BepInEx and config title must be Eyes in the Dark."
 }
+foreach ($required in @(
+    'ICharacter.Events.OnAttackStart',
+    'ICharacter.Events.HitEnvironment',
+    '_environmentImpactSeenThisAttack',
+    'maximum * 0.25f',
+    '"environment:" + ModelId(data.Item)')) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Confirmed environment-impact threat is missing: $required"
+    }
+}
+foreach ($required in @(
+    'ThreatMeterColor',
+    'ThreatMeterController.DefaultColorText')) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Configurable threat-meter color is missing: $required"
+    }
+}
+foreach ($required in @(
+    'public const string DefaultColorText = "#B878FF";',
+    'ColorUtility.TryParseHtmlString(',
+    'ApplyColor(colorText);')) {
+    if (!$meterSource.Contains($required)) {
+        throw "Threat-meter color application is missing: $required"
+    }
+}
 
 Write-Host "Eyes in the Dark threat, source, timescale, and meter-placement contracts passed."

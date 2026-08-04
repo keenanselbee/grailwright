@@ -31,13 +31,13 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
-[assembly: AssemblyTitle("Eyes in the Dark - Wyrd Night Overhaul")]
-[assembly: AssemblyDescription("A timescale-aware Wyrd Night threat and encounter overhaul")]
+[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Encounters")]
+[assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
-[assembly: AssemblyProduct("Eyes in the Dark - Wyrd Night Overhaul")]
-[assembly: AssemblyVersion("0.8.3.0")]
-[assembly: AssemblyFileVersion("0.8.3.0")]
-[assembly: AssemblyInformationalVersion("0.8.3")]
+[assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Encounters")]
+[assembly: AssemblyVersion("0.8.6.0")]
+[assembly: AssemblyFileVersion("0.8.6.0")]
+[assembly: AssemblyInformationalVersion("0.8.6")]
 
 namespace EyesInTheDark
 {
@@ -69,15 +69,27 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "0.8.3";
+        public const string PluginVersion = "0.8.6";
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 4;
+        private const int ConfigSchemaVersion = 5;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
-                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+                new[]
+                {
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        5,
+                        "7. Threat Meter",
+                        "MeterOffsetX",
+                        "Standalone placement now provides the former horizontal calibration as an internal baseline."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        5,
+                        "7. Threat Meter",
+                        "MeterOffsetY",
+                        "Standalone placement now provides the former vertical calibration as an internal baseline.")
+                };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
                 new[]
@@ -127,6 +139,8 @@ namespace EyesInTheDark
         private const float DefaultKillRecoverySeconds = 90.0f;
         private const float DefaultEscapeRecoverySeconds = 180.0f;
         private const float DefaultFailedPlacementRecoverySeconds = 30.0f;
+        private const float StandaloneMeterBaselineOffsetX = 9.0f;
+        private const float StandaloneMeterBaselineOffsetY = -9.0f;
         private const string DefaultBoundaryColor = "#B878FF";
         private const float DefaultBoundaryHdrIntensity = 271.529f;
         private const float DefaultBoundaryVisualRadius = 32.0f;
@@ -172,6 +186,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _interiorDecayPerMinute;
         private ConfigEntry<float> _loadReconstructionAtDawn;
         private ConfigEntry<float> _graceSeconds;
+        private ConfigEntry<string> _threatMeterColor;
         private ConfigEntry<bool> _showExactThreat;
         private ConfigEntry<float> _meterOffsetX;
         private ConfigEntry<float> _meterOffsetY;
@@ -220,6 +235,8 @@ namespace EyesInTheDark
         private FirstHunterRuntime _hunterRuntime;
         private WorldTimescaleController _worldTimescale;
         private Hero _trackedHero;
+        private IEventListener _attackStartListener;
+        private IEventListener _environmentHitListener;
         private IEventListener _damageTakenListener;
         private IEventListener _damageDealtListener;
         private IEventListener _killListener;
@@ -235,6 +252,7 @@ namespace EyesInTheDark
         private float _pollElapsed = StatePollIntervalSeconds;
         private double _lastThreatClockSeconds;
         private bool _hasContext;
+        private bool _environmentImpactSeenThisAttack;
         private bool _placeMeterBelowResourceBars;
         private bool _wasFeatureEnabled;
         private bool _hasKnownProtectionState;
@@ -520,7 +538,7 @@ namespace EyesInTheDark
                 {
                     ResolveHunt(
                         HuntResolution.Dawn,
-                        "Wyrd Night ended at dawn",
+                        "Wyrdnight ended at dawn",
                         false,
                         true);
                     _pacing.Reset();
@@ -770,6 +788,40 @@ namespace EyesInTheDark
             QueueCombatThreat(outcome, "taken");
         }
 
+        private void OnAttackStarted(AttackParameters _)
+        {
+            _environmentImpactSeenThisAttack = false;
+        }
+
+        private void OnEnvironmentHit(EnvironmentHitData data)
+        {
+            if (_environmentImpactSeenThisAttack)
+            {
+                return;
+            }
+
+            _environmentImpactSeenThisAttack = true;
+            if (!_threat.CanAcceptActivity || data.Item == null)
+            {
+                return;
+            }
+
+            float maximum = ValueOrDefault(
+                _combatThreatPerWindow,
+                DefaultCombatThreatPerWindow);
+            bool accepted = _activity.RecordCombat(
+                maximum * 0.25f,
+                "environment:" + ModelId(data.Item),
+                _activeRealTimeClock.Seconds);
+            if (accepted)
+            {
+                LogDiagnostic(
+                    "Queued confirmed environment-impact threat for item "
+                    + ModelId(data.Item)
+                    + ".");
+            }
+        }
+
         private void OnDamageDealt(DamageOutcome outcome)
         {
             QueueCombatThreat(outcome, "dealt");
@@ -902,6 +954,8 @@ namespace EyesInTheDark
                 _heroListenerEventSystem);
             if (eventSystemChanged)
             {
+                _attackStartListener = null;
+                _environmentHitListener = null;
                 _damageTakenListener = null;
                 _damageDealtListener = null;
                 _killListener = null;
@@ -913,7 +967,9 @@ namespace EyesInTheDark
             bool sameHero = ReferenceEquals(hero, _trackedHero);
             if (sameHero
                 && (hero == null
-                    || (_damageTakenListener != null
+                    || (_attackStartListener != null
+                        && _environmentHitListener != null
+                        && _damageTakenListener != null
                         && _damageDealtListener != null
                         && _killListener != null)))
             {
@@ -926,6 +982,7 @@ namespace EyesInTheDark
                     && hero != null;
                 DisposeHeroListeners();
                 _trackedHero = hero;
+                _environmentImpactSeenThisAttack = false;
                 _nextHeroListenerRetryUnscaled = 0f;
                 _heroListenerFailureLogged = false;
                 if (replacedPlayableHero)
@@ -952,6 +1009,16 @@ namespace EyesInTheDark
 
             try
             {
+                _attackStartListener = ModelExtensions.ListenTo(
+                    hero,
+                    ICharacter.Events.OnAttackStart,
+                    OnAttackStarted,
+                    this);
+                _environmentHitListener = ModelExtensions.ListenTo(
+                    hero,
+                    ICharacter.Events.HitEnvironment,
+                    OnEnvironmentHit,
+                    this);
                 _damageTakenListener = ModelExtensions.ListenTo(
                     hero.HealthElement,
                     HealthElement.Events.OnDamageTaken,
@@ -1079,6 +1146,10 @@ namespace EyesInTheDark
             if (World.EventSystem != null)
             {
                 World.EventSystem.TryDisposeListener(
+                    ref _attackStartListener);
+                World.EventSystem.TryDisposeListener(
+                    ref _environmentHitListener);
+                World.EventSystem.TryDisposeListener(
                     ref _damageTakenListener);
                 World.EventSystem.TryDisposeListener(
                     ref _damageDealtListener);
@@ -1086,6 +1157,8 @@ namespace EyesInTheDark
             }
             else
             {
+                _attackStartListener = null;
+                _environmentHitListener = null;
                 _damageTakenListener = null;
                 _damageDealtListener = null;
                 _killListener = null;
@@ -1106,13 +1179,24 @@ namespace EyesInTheDark
                     context.Decision);
             try
             {
+                float meterOffsetX = ValueOrDefault(_meterOffsetX, 0f);
+                float meterOffsetY = ValueOrDefault(_meterOffsetY, 0f);
+                if (!_placeMeterBelowResourceBars)
+                {
+                    meterOffsetX += StandaloneMeterBaselineOffsetX;
+                    meterOffsetY += StandaloneMeterBaselineOffsetY;
+                }
+
                 _meter.Update(
                     _threat.Value,
                     visible,
+                    _threatMeterColor == null
+                        ? ThreatMeterController.DefaultColorText
+                        : _threatMeterColor.Value,
                     _showExactThreat != null
                         && _showExactThreat.Value,
-                    ValueOrDefault(_meterOffsetX, 0f),
-                    ValueOrDefault(_meterOffsetY, 0f),
+                    meterOffsetX,
+                    meterOffsetY,
                     _placeMeterBelowResourceBars);
             }
             catch (Exception exception)
@@ -2721,7 +2805,7 @@ namespace EyesInTheDark
                 DefaultPassiveThreatPerNight,
                 0f,
                 100f,
-                "Threat gained across one complete exposed outdoor Wyrd Night. Progress-based calculation keeps this baseline independent of world timescale.");
+                "Threat gained across one complete exposed outdoor Wyrdnight. Progress-based calculation keeps this baseline independent of world timescale.");
             _sprintThreatPerMinute = BindThreatValue(
                 "SprintThreatPerMinute",
                 DefaultSprintThreatPerMinute,
@@ -2757,26 +2841,26 @@ namespace EyesInTheDark
                 DefaultInteriorDecayPerMinute,
                 0f,
                 30f,
-                "Threat removed per active real-time minute indoors during a valid Wyrd Night.");
+                "Threat removed per active real-time minute indoors during a valid Wyrdnight.");
             _loadReconstructionAtDawn = BindThreatValue(
                 "LoadReconstructionAtDawn",
                 DefaultLoadReconstructionAtDawn,
                 0f,
                 40f,
-                "Maximum modest threat reconstructed by dawn progress after loading during a Wyrd Night.");
+                "Maximum modest threat reconstructed by dawn progress after loading during a Wyrdnight.");
             _graceSeconds = BindThreatValue(
                 "LoadAndInteriorExitGraceSeconds",
                 DefaultGraceSeconds,
                 0f,
                 60f,
-                "Active real-time seconds during which activity threat is suppressed after a Wyrd Night load or interior exit.");
+                "Active real-time seconds during which activity threat is suppressed after a Wyrdnight load or interior exit.");
 
             _baseDangerBudget = Config.Bind(
                 "4. Encounters",
                 "BaseNightlyDangerBudget",
                 DefaultBaseDangerBudget,
                 new ConfigDescription(
-                    "Base danger budget calculated once per Wyrd Night and spent only after complete curated encounter placement is confirmed.",
+                    "Base danger budget calculated once per Wyrdnight and spent only after complete curated encounter placement is confirmed.",
                     new AcceptableValueRange<float>(0f, 200f)));
             _longNightBonusScale = Config.Bind(
                 "4. Encounters",
@@ -2811,7 +2895,7 @@ namespace EyesInTheDark
                 "NightProgressHazardPerMinute",
                 DefaultNightProgressHazardPerMinute,
                 new ConfigDescription(
-                    "Maximum additional accumulated hazard per exposed minute as the Wyrd Night advances.",
+                    "Maximum additional accumulated hazard per exposed minute as the Wyrdnight advances.",
                     new AcceptableValueRange<float>(0f, 5f)));
             _minimumHazardTarget = Config.Bind(
                 "4. Encounters",
@@ -2912,6 +2996,11 @@ namespace EyesInTheDark
                     "Short active real-time retry protection after an invalid or failed placement. No danger budget is spent.",
                     new AcceptableValueRange<float>(5f, 180f)));
 
+            _threatMeterColor = Config.Bind(
+                "7. Threat Meter",
+                "ThreatMeterColor",
+                ThreatMeterController.DefaultColorText,
+                "HTML RGB color for the Wyrd Threat meter, such as #B878FF.");
             _showExactThreat = Config.Bind(
                 "7. Threat Meter",
                 "ShowExactThreatValue",
@@ -2922,14 +3011,14 @@ namespace EyesInTheDark
                 "MeterOffsetX",
                 0f,
                 new ConfigDescription(
-                    "Horizontal meter offset in local Hero HUD pixels.",
+                    "Horizontal adjustment from the automatic placement baseline in local Hero HUD pixels.",
                     new AcceptableValueRange<float>(-500f, 500f)));
             _meterOffsetY = Config.Bind(
                 "7. Threat Meter",
                 "MeterOffsetY",
                 0f,
                 new ConfigDescription(
-                    "Vertical meter offset in local Hero HUD pixels. Positive values move it upward.",
+                    "Vertical adjustment from the automatic placement baseline in local Hero HUD pixels. Positive values move it upward.",
                     new AcceptableValueRange<float>(-500f, 500f)));
 
             _boundaryEnabled = Config.Bind(
@@ -2994,7 +3083,7 @@ namespace EyesInTheDark
                 "9. Grail Floating Text",
                 "EnableNotifications",
                 true,
-                "Use optional Grail Floating Text for meaningful Wyrd Night transitions. Gameplay remains independent when GFT is absent.");
+                "Use optional Grail Floating Text for meaningful Wyrdnight transitions. Gameplay remains independent when GFT is absent.");
             _gftPreset = Config.Bind(
                 "9. Grail Floating Text",
                 "NotificationPreset",
@@ -3208,6 +3297,7 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "4. Encounters", "KillRecoverySeconds");
             CapturePreservedValue<float>(profile, "4. Encounters", "EscapeRecoverySeconds");
             CapturePreservedValue<float>(profile, "4. Encounters", "FailedPlacementRecoverySeconds");
+            CapturePreservedValue<string>(profile, "7. Threat Meter", "ThreatMeterColor");
             CapturePreservedValue<bool>(profile, "7. Threat Meter", "ShowExactThreatValue");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetX");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetY");
@@ -3287,6 +3377,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_killRecoverySeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_escapeRecoverySeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_failedPlacementRecoverySeconds, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_threatMeterColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_showExactThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetX, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetY, ref restored, ref clamped, ref invalid);

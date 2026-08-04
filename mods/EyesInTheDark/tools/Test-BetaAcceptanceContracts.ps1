@@ -60,13 +60,17 @@ $gftModJson = Get-Content -LiteralPath (
 $repoReadme = Get-Content -LiteralPath (
     Join-Path $repoRoot "README.md") -Raw
 
-Assert-Contract ($modJson.version -eq "0.8.3") "mod.json version is not 0.8.3."
+Assert-Contract ($modJson.version -eq "0.8.6") "mod.json version is not 0.8.6."
+Assert-Contract ($modJson.displayName -eq "Eyes in the Dark - Wyrdnight Encounters") "mod.json display name is stale."
 Assert-Contract ($pluginSource.Contains('public const string PluginName = "Eyes in the Dark";')) "config/plugin title is not Eyes in the Dark."
-Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "0.8.3";')) "plugin version is not 0.8.3."
-Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("0.8.3.0")]')) "assembly version is not 0.8.3.0."
-Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 4;')) "config schema is not 4."
-Assert-Contract ($readme.Contains('Version: 0.8.3')) "installed README version is stale."
-Assert-Contract ($changelog.StartsWith('Version 0.8.3')) "changelog does not start with 0.8.3."
+Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "0.8.6";')) "plugin version is not 0.8.6."
+Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("0.8.6.0")]')) "assembly version is not 0.8.6.0."
+Assert-Contract ($pluginSource.Contains('[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Encounters")]')) "assembly title is stale."
+Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 5;')) "config schema is not 5."
+Assert-Contract ($readme.Contains('Version: 0.8.6')) "installed README version is stale."
+Assert-Contract ($readme.StartsWith('Eyes in the Dark - Wyrdnight Encounters')) "installed README title is stale."
+Assert-Contract ($changelog.StartsWith('Version 0.8.6')) "changelog does not start with 0.8.6."
+Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Encounters](mods/EyesInTheDark) | 0.8.6 |')) "top-level README row is stale."
 Assert-Contract ($gftModJson.version -eq "1.9.8") "GFT mod.json version is not 1.9.8."
 Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 24;')) "GFT config schema is not 24."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleWyrdness'))) "retired Purple Wyrdness package remains in the repository."
@@ -168,6 +172,19 @@ foreach ($required in @(
 }
 Assert-Contract ($meterSource.Contains('TryMirrorVisuals(')) "meter mirroring is missing."
 Assert-Contract ($meterSource -match '_root,\s*true,\s*true\)') "horizontal and vertical meter mirroring are not both enabled."
+foreach ($required in @(
+    'ICharacter.Events.OnAttackStart',
+    'ICharacter.Events.HitEnvironment',
+    '_environmentImpactSeenThisAttack',
+    '"ThreatMeterColor"')) {
+    Assert-Contract ($pluginSource.Contains($required)) "environment-impact threat or meter color config is missing $required."
+}
+foreach ($required in @(
+    'public const string DefaultColorText = "#B878FF";',
+    'ColorUtility.TryParseHtmlString(',
+    'ApplyColor(colorText);')) {
+    Assert-Contract ($meterSource.Contains($required)) "configurable meter color is missing $required."
+}
 Assert-Contract (!$boundarySource.Contains('maskIntensity')) "boundary controller touches gameplay mask intensity."
 foreach ($required in @(
     'private const string DefaultBoundaryColor = "#B878FF";',
@@ -255,4 +272,4 @@ if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     }
 }
 
-Write-Host "Eyes in the Dark 0.8.3 beta acceptance contracts passed."
+Write-Host "Eyes in the Dark 0.8.6 beta acceptance contracts passed."

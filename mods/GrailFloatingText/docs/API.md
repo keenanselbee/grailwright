@@ -12,7 +12,9 @@ Resolve the API by reflection so your mod still loads when the provider is not i
 private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
 private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
 
+private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
 private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
+private MethodInfo _grailFloatingTextTryShowDeferredEventMethod;
 private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
 private MethodInfo _grailFloatingTextTryShowWithIconMethod;
 private MethodInfo _grailFloatingTextTryShowMethod;
@@ -33,6 +35,25 @@ private bool TryResolveGrailFloatingText()
         return false;
     }
 
+    _grailFloatingTextTryClaimConsolidatedXpGainMethod = AccessTools.Method(
+        apiType,
+        "TryClaimConsolidatedXpGain",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(float),
+            typeof(float),
+            typeof(float)
+        });
+
     _grailFloatingTextTryClaimXpGainMethod = AccessTools.Method(
         apiType,
         "TryClaimXpGain",
@@ -47,6 +68,25 @@ private bool TryResolveGrailFloatingText()
             typeof(string),
             typeof(string),
             typeof(float),
+            typeof(float),
+            typeof(float)
+        });
+
+    _grailFloatingTextTryShowDeferredEventMethod = AccessTools.Method(
+        apiType,
+        "TryShowEvent",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
             typeof(float),
             typeof(float)
         });
@@ -102,20 +142,44 @@ private bool TryResolveGrailFloatingText()
             typeof(float)
         });
 
-    return _grailFloatingTextTryClaimXpGainMethod != null ||
+    return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
+        _grailFloatingTextTryClaimXpGainMethod != null ||
+        _grailFloatingTextTryShowDeferredEventMethod != null ||
         _grailFloatingTextTryShowEventWithIconMethod != null ||
         _grailFloatingTextTryShowWithIconMethod != null ||
         _grailFloatingTextTryShowMethod != null;
 }
 ```
 
-API v6 XP claim call shape:
+API v7 deferred event call shape:
+
+```csharp
+TryShowEvent(sourceId, eventId, text, style, category, priority, collapseKey, iconId, durationBucket, deliveryPoint, fadeSeconds, opacity)
+```
+
+Delivery points:
+
+- `Immediate`: queue the message now.
+- `OnMainMenu`: wait until the interactive title view is active, loading and camera transitions have ended, and the game window is focused.
+- `OnLoad`: wait until the hero and world are initialized, loading and camera transitions have ended, no fullscreen video or cutscene covers the view, and the game window is focused.
+
+Deferred messages persist until shown. Their duration starts on the first eligible IMGUI repaint, not when the API call is made.
+
+API v8 consolidated XP claim call shape:
+
+```csharp
+TryClaimConsolidatedXpGain(sourceId, eventId, consolidationKey, textFormat, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity)
+```
+
+Call it immediately before changing the hero XP stat. GFT batches only claims with the same `sourceId`, `consolidationKey`, and presentation, then replaces `{xp}` or `{amount}` in `textFormat` with the summed amount. Use distinct keys for meanings that must remain separate. If API v8 is unavailable, fall back to the API v6 one-shot claim.
+
+API v6 one-shot XP claim call shape:
 
 ```csharp
 TryClaimXpGain(sourceId, eventId, text, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity)
 ```
 
-Use XP claims immediately before your mod changes the hero XP stat. The next matching XP gain uses the claimed text/event/style/icon instead of the generic XP event, and the claim is consumed without merging multiple XP gains.
+The next matching XP gain uses the claimed text/event/style/icon instead of the generic XP event. API v6 claims remain separate.
 
 API v4 event-aware call shape:
 
@@ -139,29 +203,40 @@ Recommended values:
 
 - `sourceId`: your plugin GUID.
 - `eventId`: stable event token, such as `killing-blow` or `wyrd-hunt-status`, used for configurable color-group routing.
-- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, or a hex color.
+- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, a configured color-group name, or a hex color. Configured group names take priority over HTML named colors, so values such as `Purple`, `Red`, and `Blue` use their matching settings.
 - `category`: `General`, `Combat`, `Reward`, `Status`, `System`, or `Debug`.
 - `priority`: `Low`, `Normal`, `High`, or `Critical`.
 - `collapseKey`: leave blank for stacking event messages; set a stable key for status messages that should update in place.
-- `iconId`: blank or `Auto` uses the default icon for the style/category. Use `None` or `Off` to suppress the icon for one message.
-- `durationBucket`: `VeryShort`, `Short`, `Medium`, `Long`, or `VeryLong`; blank or unknown values use `Medium`.
+- `iconId`: blank or `Auto` uses the default icon for the style/category. Use `None` or `Off` to suppress the icon for one message. Blank per-group icon-color overrides inherit the resolved text color; a configured override tints only the foreground icon.
+- `durationBucket`: `VeryShort`, `Short`, `Medium`, `Long`, `VeryLong`, or `System`; their defaults are 3, 3.5, 4, 4.5, 5, and 10 seconds respectively. Blank or unknown values use `Medium`. `System` is intended for startup, config-reset, and load-time error messages.
+- `deliveryPoint`: `Immediate`, `OnMainMenu`, or `OnLoad`.
+- `fadeSeconds`: fixed fade-in duration and the Medium-duration fade-out baseline. Fade-out scales with total display duration from 60% to 200% of this value and never exceeds half the message lifetime. With the recommended `0.25`, Medium fades out over 0.25 seconds and System over 0.5 seconds.
 - `text`: the exact XP text to show, such as `+42 XP (Worthy)`.
+- `consolidationKey`: a stable key scoped to `sourceId`; only matching keys from the same source can merge.
+- `textFormat`: consolidated XP text containing `{xp}` or `{amount}`, such as `+{xp} XP (Worthy)`.
 - `expectedAmount`: the XP amount your mod is about to add. Grail Floating Text matches exact amounts first, then very recent claims so game XP multipliers can still display the final adjusted amount.
 
 Built-in icon IDs:
 
 - Core: `general`, `system`, `status`, `wyrd`, `reward`, `combat`, `warning`, `critical`, `debug`.
-- Game events: `rest`, `location`, `crime`, `pickpocket`, `weight`, `experience`, `corpse`.
+- Game events: `rest`, `location`, `parry`, `crime`, `pickpocket`, `weight`, `experience`, `corpse`.
 - Skills: `one_handed`, `two_handed`, `archery`, `shield`, `unarmed`, `magic`.
 
 Feature probes:
 
+- `ApiVersion8`: provider supports source-isolated XP consolidation through `TryClaimConsolidatedXpGain`.
+- `XpConsolidation`: provider can queue XP and consolidate compatible generic or opted-in claimed gains.
+- `ApiVersion7`: provider supports deferred delivery through the API v7 `TryShowEvent` overload.
+- `DeferredDelivery`: provider accepts deferred delivery points.
+- `OnMainMenuDelivery`: provider can wait for the usable main menu.
+- `OnLoadDelivery`: provider can wait for fully visible loaded gameplay.
 - `ApiVersion6`: provider supports text-aware XP gain claims through `TryClaimXpGain`.
 - `ApiVersion4`: provider supports event IDs and duration buckets through `TryShowEvent`.
 - `XpGainClaims`: provider can claim, style, and name the next XP gain.
 - `XpNotifications`: provider can take over vanilla XP gain display.
 - `EventIds`: provider accepts stable event IDs for configurable color-group routing.
 - `DurationBuckets`: provider accepts named duration buckets.
+- `SystemDuration`: provider accepts the configurable `System` duration bucket.
 - `ColorGroups`: provider supports configurable event color groups.
 - `DefaultGameEvents`: provider includes built-in game-event notifications.
 - `RestEvents`: provider can show built-in rest-duration notifications.
@@ -181,6 +256,12 @@ string[] ids = NotificationApi.GetBuiltInIconIds();
 Examples:
 
 ```csharp
+// Show a startup message only after loaded gameplay is fully visible.
+InvokeTryShowDeferredEvent(PluginGuid, "startup-ready", text, "System", "System", "High", "", "system", "System", "OnLoad", 0.25f, 0.9f);
+
+// Show a critical compatibility warning once the main menu can be used.
+InvokeTryShowDeferredEvent(PluginGuid, "compatibility-warning", text, "Warning", "System", "Critical", "", "warning", "System", "OnMainMenu", 0.25f, 1.0f);
+
 // Stack killing-blow reward messages with a skill icon. The default RedEvents config colors this event red.
 InvokeTryShowEvent(PluginGuid, "killing-blow", text, "Reward", "Reward", "Normal", "", "archery", "Medium", 0.25f, 0.9f);
 

@@ -1,1 +1,1 @@
-A state-fix companion for TG All Lights Cast Shadows that applies a more performance-friendly balanced shadow configuration.
+Restores Unity shadow state after the parent toggle and protects bonfire and campfire illumination from self-shadowing.

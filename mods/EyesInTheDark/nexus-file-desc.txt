@@ -1,0 +1,1 @@
+Timescale-aware Wyrd Threat, curated native hunts, gameplay presets, HUD meter, boundary visuals, and optional diagnostics.

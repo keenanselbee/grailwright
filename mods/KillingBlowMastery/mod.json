@@ -2,12 +2,13 @@
   "id": "KillingBlowMastery",
   "displayName": "Killing Blow Mastery",
   "packageName": "KillingBlowMastery",
-  "version": "1.4.6",
+  "version": "1.5.6",
   "pluginGuid": "ks.tgfoa.killing-blow-mastery",
   "dll": "KillingBlowMastery.dll",
   "sourceFiles": [
     "src/KillingBlowMastery.cs",
-    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

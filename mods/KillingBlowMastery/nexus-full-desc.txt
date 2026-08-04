@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Killing Blow Mastery[/size][/color]
 [i]Finisher sounds and modest proficiency XP for the skill that lands the kill.[/i][/center]
 
@@ -13,7 +14,7 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Killing blow proficiency XP for One Handed, Two Handed, Unarmed, Archery, Shield, and Magic.[/*]
+[*]Killing blow proficiency XP for One-Handed, Two-Handed, Unarmed, Archery, Shield, and Magic.[/*]
 [*]Small default reward based on enemy XP, with a minimum and cap to keep it controlled.[/*]
 [*]Damage-over-time attribution for recent supported hero damage sources.[/*]
 [*]Shared Grail Floating Text reward text showing the exact skill and XP gained, with skill-level icons when Grail Floating Text 1.2.0 or newer is installed.[/*]
@@ -33,7 +34,7 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 [*][b]Minimum:[/b] 1 proficiency XP.[/*]
 [*][b]Maximum:[/b] 100 proficiency XP.[/*]
 [*][b]Damage-over-time kills:[/b] supported when the kill can be traced to a recent hero damage source.[/*]
-[*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Two Handed[/b].[/*]
+[*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Two-Handed[/b].[/*]
 [*][b]Sounds:[/b] weapon-specific FMOD finisher sounds by default, with non-corporeal enemy sounds and bloodless variants enabled when matching files exist.[/*]
 [*][b]Statistics:[/b] on by default, grouped by character, save-backed, and exported as a readable report when the game saves.[/*]
 [/list]
@@ -55,8 +56,8 @@ This mod awards [b]combat proficiency XP[/b]. It does not multiply weapon damage
 
 [heading][color=#C94A4A][size=5]Eligible Skills[/size][/color][/heading]
 [code]
-One Handed
-Two Handed
+One-Handed
+Two-Handed
 Unarmed
 Archery
 Shield
@@ -112,16 +113,16 @@ The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matchin
 | Off            | silent            |
 [/code]
 
-[b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. Set it to 1 for the full 0m = 100%, 100m+ = 10% curve. The default 0.5 uses a half-strength fade:
+[b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. The default 1 uses the full 0m = 100%, 50m+ = 10% curve:
 
 [code]
 | Distance | Volume |
 |----------|--------|
 | 0m       | 100%   |
-| 25m      | 89%    |
-| 50m      | 78%    |
-| 75m      | 66%    |
-| 100m+    | 55%    |
+| 12.5m    | 78%    |
+| 25m      | 55%    |
+| 37.5m    | 33%    |
+| 50m+     | 10%    |
 [/code]
 
 If FMOD playback fails, the mod falls back to the older Unity AudioSource path and logs the failure when Diagnostics is enabled.
@@ -139,14 +140,14 @@ Classified kills use their specific pool by default. That keeps, for example, a 
 | Group      | Kill type             | Sound pool        |
 |------------|-----------------------|-------------------|
 | Target     | matched non-corporeal | non_corporeal     |
-| One Handed | blunt                 | one_handed_blunt  |
-| One Handed | axe                   | one_handed_axe    |
-| One Handed | blade/dagger/sickle   | one_handed_blade  |
-| One Handed | unknown subtype       | one_handed_blade  |
-| Two Handed | blunt                 | two_handed_blunt  |
-| Two Handed | axe                   | two_handed_axe    |
-| Two Handed | blade/polearm         | two_handed_blade  |
-| Two Handed | unknown subtype       | two_handed_blade  |
+| One-Handed | blunt                 | one_handed_blunt  |
+| One-Handed | axe                   | one_handed_axe    |
+| One-Handed | blade/dagger/sickle   | one_handed_blade  |
+| One-Handed | unknown subtype       | one_handed_blade  |
+| Two-Handed | blunt                 | two_handed_blunt  |
+| Two-Handed | axe                   | two_handed_axe    |
+| Two-Handed | blade/polearm         | two_handed_blade  |
+| Two-Handed | unknown subtype       | two_handed_blade  |
 | Archery    | short bow             | archery_short     |
 | Archery    | medium/unknown bow    | archery_medium    |
 | Archery    | heavy bow             | archery_heavy     |
@@ -234,10 +235,10 @@ Notifications are on by default and show the exact bonus and skill.
 
 [code]
 Default text: Killing blow: +{xp} {skill}
-Example:      Killing blow: +8 Two Handed
+Example:      Killing blow: +8 Two-Handed
 [/code]
 
-[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
+[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One-Handed, Two-Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
 
 [b]NotificationTextFormat[/b] supports:
 
@@ -251,14 +252,26 @@ Example:      Killing blow: +8 Two Handed
 
 [line]
 
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]BepInEx/plugins/KillingBlowMastery/KillingBlowMastery.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 Configuration is created at:
 
 [code]
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [/code]
-
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 [line]
 
@@ -268,5 +281,4 @@ BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [*]Steam beta branch: mono[/*]
 [*]BepInEx 5 Mono[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is optional, but required for the default shared reward text route.[/*]
-[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]

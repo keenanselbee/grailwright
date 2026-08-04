@@ -1,0 +1,1 @@
+A centered HUD suite with a six-loadout quick-use wheel, Eyes in the Dark placement support, expanded Equipment panels, one-menu dual-hand equipping, aligned upward-wrapping status icons, smart consumables, Hero HUD fading, Wyrd controls, compass hotkeys, and immersive visibility.

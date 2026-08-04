@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Text;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Events;
+using Awaken.TG.Graphics.Cutscenes;
+using Awaken.TG.Graphics.Transitions;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
@@ -19,28 +21,36 @@ using Awaken.TG.Main.Heroes.Items;
 using Awaken.TG.Main.Heroes.Resting;
 using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Locations;
+using Awaken.TG.Main.Scenes;
+using Awaken.TG.Main.Scenes.SceneConstructors;
 using Awaken.TG.Main.Settings.Accessibility;
+using Awaken.TG.Main.UI.TitleScreen;
+using Awaken.TG.Main.UI.TitleScreen.Loading;
+using Awaken.TG.Main.Utility.Video;
+using Awaken.Utility;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
+using UnityEngine.UI;
 
 [assembly: AssemblyTitle("Grail Floating Text")]
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("1.5.5.0")]
-[assembly: AssemblyFileVersion("1.5.5.0")]
-[assembly: AssemblyInformationalVersion("1.5.5")]
+[assembly: AssemblyVersion("1.9.8.0")]
+[assembly: AssemblyFileVersion("1.9.8.0")]
+[assembly: AssemblyInformationalVersion("1.9.8")]
 
 namespace GrailFloatingText
 {
     public static class NotificationApi
     {
-        public const int ApiVersion = 6;
+        public const int ApiVersion = 8;
 
         public static bool SupportsFeature(string feature)
         {
@@ -120,6 +130,36 @@ namespace GrailFloatingText
             return plugin != null && plugin.TryShowEvent(sourceId, eventId, text, style, category, priority, collapseKey, iconId, durationBucket, fadeSeconds, opacity);
         }
 
+        public static bool TryShowEvent(
+            string sourceId,
+            string eventId,
+            string text,
+            string style,
+            string category,
+            string priority,
+            string collapseKey,
+            string iconId,
+            string durationBucket,
+            string deliveryPoint,
+            float fadeSeconds,
+            float opacity)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null && plugin.TryShowEvent(
+                sourceId,
+                eventId,
+                text,
+                style,
+                category,
+                priority,
+                collapseKey,
+                iconId,
+                durationBucket,
+                deliveryPoint,
+                fadeSeconds,
+                opacity);
+        }
+
         public static bool TryClaimXpGain(
             string sourceId,
             string eventId,
@@ -137,6 +177,36 @@ namespace GrailFloatingText
             return plugin != null && plugin.TryClaimXpGain(sourceId, eventId, text, style, category, priority, iconId, durationBucket, expectedAmount, fadeSeconds, opacity);
         }
 
+        public static bool TryClaimConsolidatedXpGain(
+            string sourceId,
+            string eventId,
+            string consolidationKey,
+            string textFormat,
+            string style,
+            string category,
+            string priority,
+            string iconId,
+            string durationBucket,
+            float expectedAmount,
+            float fadeSeconds,
+            float opacity)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null && plugin.TryClaimConsolidatedXpGain(
+                sourceId,
+                eventId,
+                consolidationKey,
+                textFormat,
+                style,
+                category,
+                priority,
+                iconId,
+                durationBucket,
+                expectedAmount,
+                fadeSeconds,
+                opacity);
+        }
+
         public static string[] GetBuiltInIconIds()
         {
             return GrailFloatingTextPlugin.GetBuiltInIconIds();
@@ -148,22 +218,57 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "1.5.5";
+        public const string PluginVersion = "1.9.8";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
-        private const int ConfigSchemaVersion = 12;
+        private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
+        private const string GloriousUiAssemblyName = "GloriousUI";
+        private const string EyesInTheDarkPluginGuid =
+            "ks.tgfoa.eyes-in-the-dark";
+        private const string EyesInTheDarkAssemblyName =
+            "EyesInTheDark";
+        private const string WyrdHuntPluginGuid =
+            "kane.tgfoa.wyrd-hunt";
+        private const string WyrdHuntAssemblyName = "WyrdHunt";
+        private const string CustomTimescalePluginGuid =
+            "DeathWrench.TimeMod";
+        private const string CustomTimescaleAssemblyName = "TimeMod";
+        private const string BetterUiPluginGuid = "Better_UI";
+        private const string ImmersiveHudPluginGuid = "kane.tgfoa.always-show-hud";
+        private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
+        private const string SteelAndBoneAssemblyName = "SteelAndBone";
+        private const string DynamicCrosshairPluginGuid =
+            "ks.tgfoa.dishonored-dynamic-crosshair";
+        private const string DynamicCrosshairAssemblyName =
+            "DishonoredDynamicCrosshair";
+        private const int ConfigSchemaVersion = 24;
+        private const int ConfigRecoveryBaselineSchema = 15;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const float DefaultMinimumDurationSeconds = 0.05f;
-        private const float DefaultVeryShortDurationSeconds = 1.0f;
-        private const float DefaultShortDurationSeconds = 1.5f;
-        private const float DefaultMediumDurationSeconds = 2.0f;
-        private const float DefaultLongDurationSeconds = 2.5f;
-        private const float DefaultVeryLongDurationSeconds = 3.0f;
+        private const float DefaultVeryShortDurationSeconds = 3.0f;
+        private const float DefaultShortDurationSeconds = 3.5f;
+        private const float DefaultMediumDurationSeconds = 4.0f;
+        private const float DefaultLongDurationSeconds = 4.5f;
+        private const float DefaultVeryLongDurationSeconds = 5.0f;
+        private const float DefaultSystemDurationSeconds = 10.0f;
         private const float XpClaimLifetimeSeconds = 2.0f;
         private const float XpClaimImmediateFallbackSeconds = 0.25f;
         private const float XpClaimAmountTolerance = 0.01f;
         private const float DirectXpDuplicateSuppressSeconds = 0.05f;
+        private const int MaximumDeferredNotifications = 64;
+        private const int MaximumNotificationLayoutCount = 24;
+        private const int DeferredNotificationStoreVersion = 1;
+        private const int DeferredNotificationMaximumAgeDays = 30;
         private const string DefaultXpGainEventId = "default-xp-gain";
         private const string KillingBlowEventId = "killing-blow";
+        private const string ConfigResetEventId = "config-reset";
+        private const string LoadTimeErrorEventId = "load-time-error";
+        private const string ModCompatibilityEventIdPrefix =
+            "mod-compatibility-";
         private const int PriorityLow = 0;
         private const int PriorityNormal = 100;
         private const int PriorityHigh = 200;
@@ -185,6 +290,7 @@ namespace GrailFloatingText
             "two_handed",
             "archery",
             "shield",
+            "parry",
             "unarmed",
             "magic",
             "crime",
@@ -192,6 +298,18 @@ namespace GrailFloatingText
             "weight",
             "experience",
             "corpse"
+        };
+
+        private static readonly string[] GloriousUiIncompatibleAssemblyNames =
+        {
+            "owrocc.ModifyHeroHUD",
+            "owrocc.ModifyQuickSlotsHud",
+            "owrocc.HideLevelUp",
+            "owrocc.MoreWeaponSlots",
+            "owrocc.OneMenuEquip",
+            "owrocc.RebindQuickWheel",
+            "owrocc.BagHotkeys",
+            "BetterQuickSlots"
         };
 
         private static readonly HashSet<string> BuiltInIconIdSet =
@@ -205,7 +323,8 @@ namespace GrailFloatingText
             Short,
             Medium,
             Long,
-            VeryLong
+            VeryLong,
+            System
         }
 
         private enum FontMode
@@ -216,11 +335,21 @@ namespace GrailFloatingText
             ImguiDefault
         }
 
+        private enum DeliveryPoint
+        {
+            Immediate,
+            OnMainMenu,
+            OnLoad
+        }
+
         internal static GrailFloatingTextPlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
 
         private readonly List<NotificationEntry> _notifications = new List<NotificationEntry>();
+        private readonly List<DeferredNotificationEntry> _deferredNotifications =
+            new List<DeferredNotificationEntry>();
         private readonly List<XpDisplayClaim> _xpDisplayClaims = new List<XpDisplayClaim>();
+        private readonly List<XpNotificationBatch> _pendingXpBatches = new List<XpNotificationBatch>();
 
         private Harmony _harmony;
         private ConfigEntry<bool> _enabled;
@@ -238,6 +367,7 @@ namespace GrailFloatingText
         private ConfigEntry<float> _mediumDurationSeconds;
         private ConfigEntry<float> _longDurationSeconds;
         private ConfigEntry<float> _veryLongDurationSeconds;
+        private ConfigEntry<float> _systemDurationSeconds;
         private ConfigEntry<float> _globalOpacity;
         private ConfigEntry<bool> _spawnAnimationEnabled;
         private ConfigEntry<float> _spawnStartScale;
@@ -250,9 +380,12 @@ namespace GrailFloatingText
         private ConfigEntry<float> _iconSize;
         private ConfigEntry<float> _iconGap;
         private ConfigEntry<float> _iconOpacity;
+        private ConfigEntry<bool> _iconShadowEnabled;
+        private ConfigEntry<float> _iconShadowOpacity;
         private ConfigEntry<bool> _perSourceControlsEnabled;
         private ConfigEntry<float> _defaultSourceThrottleSeconds;
         private ConfigEntry<float> _defaultSourceDurationMultiplier;
+        private ConfigEntry<bool> _notifyModCompatibility;
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _notifyRestDuration;
         private ConfigEntry<bool> _notifyInterruptedRestDuration;
@@ -286,6 +419,9 @@ namespace GrailFloatingText
         private ConfigEntry<bool> _suppressVanillaXpNotifications;
         private ConfigEntry<string> _xpTextFormat;
         private ConfigEntry<string> _xpDurationBucket;
+        private ConfigEntry<bool> _consolidateXpGains;
+        private bool _showConfigResetNotification;
+        private int _previousConfigSchemaVersion;
 
         private readonly Dictionary<string, ConfigEntry<bool>> _categoryEnabledByName =
             new Dictionary<string, ConfigEntry<bool>>(StringComparer.OrdinalIgnoreCase);
@@ -298,17 +434,29 @@ namespace GrailFloatingText
         private readonly Dictionary<string, ColorGroupSettings> _colorGroupByName =
             new Dictionary<string, ColorGroupSettings>(StringComparer.OrdinalIgnoreCase);
 
+        private readonly HashSet<string> _invalidIconColorWarnings =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        private readonly Dictionary<string, object> _pendingPreservedPresentation =
+            new Dictionary<string, object>(StringComparer.Ordinal);
+        private readonly HashSet<string> _pendingPreservedSourceSections =
+            new HashSet<string>(StringComparer.Ordinal);
+        private int _pendingPreservedInvalidValueCount;
+
         private readonly Dictionary<string, float> _lastNotificationTimeBySource =
             new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 
         private readonly Dictionary<string, Texture2D> _iconTexturesById =
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        private readonly NotificationLayout[] _notificationLayouts =
+            new NotificationLayout[MaximumNotificationLayoutCount];
+        private readonly float[] _notificationTargetCenterYs =
+            new float[MaximumNotificationLayoutCount];
 
-        private GUIStyle _textStyle;
-        private GUIStyle _shadowStyle;
-        private GUIStyle _textLeftStyle;
-        private GUIStyle _shadowLeftStyle;
-        private Font _styleFont;
+        private readonly NotificationView[] _notificationViews =
+            new NotificationView[MaximumNotificationLayoutCount];
+        private RectTransform _overlayRoot;
+        private FontAsset _imguiDefaultFontAsset;
         private string _lastFontDiagnosticKey = string.Empty;
         private Coroutine _defaultGameEventBindingCoroutine;
         private IEventListener _restingInitiatedListener;
@@ -339,15 +487,16 @@ namespace GrailFloatingText
         private bool _lastObservedWyrdNight;
         private bool _hasObservedWyrdSafety;
         private bool _lastObservedWyrdSafety;
-        private int _styleFontSize = -1;
         private long _nextSequence;
         private long _nextXpClaimSequence;
         private long _nextXpEntrySequence;
+        private NotificationEntry _activeXpNotification;
         private bool _passThroughNextXpFloatAnnounce;
         private float _passThroughNextXpFloatAmount;
         private float _passThroughNextXpFloatTime = -9999.0f;
         private float _lastHandledXpAmount;
         private float _lastHandledXpTime = -9999.0f;
+        private bool _modCompatibilityScanCompleted;
 
         public bool CanReceiveEvents
         {
@@ -363,7 +512,18 @@ namespace GrailFloatingText
             {
                 ResetConfigIfSchemaChanged();
                 BindConfig();
+                RestorePreservedPresentation();
+                Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                    Config,
+                    Logger,
+                    PluginName,
+                    ConfigSchemaVersion,
+                    ConfigRecoveryBaselineSchema,
+                    ConfigRecoveryKeepCurrentDefaultRules,
+                    ConfigRecoveryPermanentExclusions);
+                LoadDeferredNotifications();
                 LoadIconTextures();
+                ShowPendingConfigResetNotification();
                 PatchXpNotifications();
                 StartDefaultGameEventBinding();
                 Config.Save();
@@ -379,6 +539,20 @@ namespace GrailFloatingText
 
         private void OnDestroy()
         {
+            for (int i = 0; i < _colorGroups.Count; i++)
+            {
+                ColorGroupSettings group = _colorGroups[i];
+                if (group != null && group.Color != null)
+                {
+                    group.Color.SettingChanged -= OnColorSettingChanged;
+                }
+
+                if (group != null && group.IconColor != null)
+                {
+                    group.IconColor.SettingChanged -= OnIconColorSettingChanged;
+                }
+            }
+
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -387,6 +561,13 @@ namespace GrailFloatingText
 
             StopDefaultGameEventBinding();
             ReleaseIconTextures();
+            ReleaseNotificationViews();
+
+            if (_imguiDefaultFontAsset != null)
+            {
+                Destroy(_imguiDefaultFontAsset);
+                _imguiDefaultFontAsset = null;
+            }
 
             if (ReferenceEquals(Instance, this))
             {
@@ -405,13 +586,20 @@ namespace GrailFloatingText
                 string.Equals(feature, "ApiVersion3", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion4", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion6", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion7", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion8", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Categories", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Priority", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "CollapseKey", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "EventIds", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "DurationBuckets", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "SystemDuration", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "DeferredDelivery", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "OnMainMenuDelivery", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "OnLoadDelivery", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ColorGroups", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "XpGainClaims", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "XpConsolidation", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "XpNotifications", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Icons", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "BuiltInIcons", StringComparison.OrdinalIgnoreCase) ||
@@ -444,13 +632,17 @@ namespace GrailFloatingText
                     typeof(HeroDevelopment),
                     "AnnounceXPChanged",
                     new[] { typeof(HookResult<IWithStats, Stat.StatChange>) });
-                MethodInfo hookPrefix = AccessTools.Method(typeof(HeroDevelopmentXpHookPatch), "Prefix");
+                MethodInfo hookPrefix = AccessTools.Method(
+                    typeof(HeroDevelopmentXpHookPatch),
+                    nameof(HeroDevelopmentXpHookPatch.Prefix));
 
                 MethodInfo floatOriginal = AccessTools.Method(
                     typeof(HeroDevelopment),
                     "AnnounceXPChanged",
                     new[] { typeof(float) });
-                MethodInfo floatPrefix = AccessTools.Method(typeof(HeroDevelopmentXpFloatPatch), "Prefix");
+                MethodInfo floatPrefix = AccessTools.Method(
+                    typeof(HeroDevelopmentXpFloatPatch),
+                    nameof(HeroDevelopmentXpFloatPatch.Prefix));
 
                 if (hookOriginal == null || hookPrefix == null || floatOriginal == null || floatPrefix == null)
                 {
@@ -939,7 +1131,7 @@ namespace GrailFloatingText
                 "Combat",
                 "Normal",
                 "default-combat-parried",
-                "combat",
+                "parry",
                 DurationBucket.Short,
                 0.85f,
                 "default-combat-parried",
@@ -1156,7 +1348,7 @@ namespace GrailFloatingText
 
             ShowVanillaWyrdNotification(
                 "vanilla-wyrd-night",
-                isNight ? "Wyrd Night falls" : "Wyrd Night fades",
+                isNight ? "Wyrdnight falls" : "Wyrdnight fades",
                 "Status",
                 "High",
                 "vanilla-wyrd-night",
@@ -1324,8 +1516,9 @@ namespace GrailFloatingText
             string collapseKey,
             string throttleKey)
         {
-            if (string.IsNullOrWhiteSpace(text) ||
-                ShouldThrottleDefaultGameEvent(throttleKey, GetConfigCooldown(_vanillaWyrdEventCooldownSeconds)))
+            if (!IsGameLoadedReadyForNotifications()
+                || string.IsNullOrWhiteSpace(text)
+                || ShouldThrottleDefaultGameEvent(throttleKey, GetConfigCooldown(_vanillaWyrdEventCooldownSeconds)))
             {
                 return;
             }
@@ -1334,7 +1527,7 @@ namespace GrailFloatingText
                 PluginGuid,
                 eventId,
                 text,
-                "Wyrd",
+                "Purple",
                 category,
                 priority,
                 collapseKey,
@@ -1682,6 +1875,9 @@ namespace GrailFloatingText
                 return;
             }
 
+            int loadedIconCount = 0;
+            int minimumMipCount = int.MaxValue;
+            int maximumMipCount = 0;
             for (int i = 0; i < BuiltInIconIds.Length; i++)
             {
                 string iconId = BuiltInIconIds[i];
@@ -1692,27 +1888,130 @@ namespace GrailFloatingText
                     continue;
                 }
 
+                Texture2D texture = null;
                 try
                 {
-                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                    texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
                     object loadResult = loadImageMethod.Invoke(null, new object[] { texture, File.ReadAllBytes(path), false });
                     if (!(loadResult is bool) || !((bool)loadResult))
                     {
                         UnityEngine.Object.Destroy(texture);
+                        texture = null;
                         Logger.LogWarning(PluginName + " could not load icon: " + path);
                         continue;
                     }
 
                     texture.name = "GrailFloatingTextIcon_" + iconId;
-                    texture.filterMode = FilterMode.Bilinear;
+                    texture.hideFlags = HideFlags.DontSave;
                     texture.wrapMode = TextureWrapMode.Clamp;
+                    DilateTransparentPixelColors(texture);
+                    texture.Apply(true, true);
+                    texture.filterMode = FilterMode.Trilinear;
                     _iconTexturesById[iconId] = texture;
+                    loadedIconCount++;
+                    minimumMipCount = Math.Min(minimumMipCount, texture.mipmapCount);
+                    maximumMipCount = Math.Max(maximumMipCount, texture.mipmapCount);
                 }
                 catch (Exception exception)
                 {
+                    if (texture != null)
+                    {
+                        UnityEngine.Object.Destroy(texture);
+                    }
+
                     Logger.LogWarning(PluginName + " could not load icon " + path + ": " + exception.GetBaseException().Message);
                 }
             }
+
+            if (loadedIconCount > 0)
+            {
+                string mipCount = minimumMipCount == maximumMipCount
+                    ? minimumMipCount.ToString(CultureInfo.InvariantCulture)
+                    : minimumMipCount.ToString(CultureInfo.InvariantCulture)
+                        + "-"
+                        + maximumMipCount.ToString(CultureInfo.InvariantCulture);
+                Logger.LogInfo(
+                    PluginName
+                    + " loaded "
+                    + loadedIconCount.ToString(CultureInfo.InvariantCulture)
+                    + " built-in icon textures with trilinear filtering and runtime mipmaps (mipLevels="
+                    + mipCount
+                    + ").");
+            }
+        }
+
+        private static void DilateTransparentPixelColors(Texture2D texture)
+        {
+            int width = texture.width;
+            int height = texture.height;
+            Color32[] pixels = texture.GetPixels32();
+            int pixelCount = pixels.Length;
+            if (width <= 0 || height <= 0 || pixelCount != width * height)
+            {
+                return;
+            }
+
+            bool[] resolved = new bool[pixelCount];
+            int[] queue = new int[pixelCount];
+            int queueHead = 0;
+            int queueTail = 0;
+            for (int i = 0; i < pixelCount; i++)
+            {
+                if (pixels[i].a == 0)
+                {
+                    continue;
+                }
+
+                resolved[i] = true;
+                queue[queueTail++] = i;
+            }
+
+            while (queueHead < queueTail)
+            {
+                int sourceIndex = queue[queueHead++];
+                int x = sourceIndex % width;
+                int y = sourceIndex / width;
+                if (x > 0)
+                {
+                    DilateTransparentNeighbor(pixels, resolved, queue, ref queueTail, sourceIndex, sourceIndex - 1);
+                }
+
+                if (x + 1 < width)
+                {
+                    DilateTransparentNeighbor(pixels, resolved, queue, ref queueTail, sourceIndex, sourceIndex + 1);
+                }
+
+                if (y > 0)
+                {
+                    DilateTransparentNeighbor(pixels, resolved, queue, ref queueTail, sourceIndex, sourceIndex - width);
+                }
+
+                if (y + 1 < height)
+                {
+                    DilateTransparentNeighbor(pixels, resolved, queue, ref queueTail, sourceIndex, sourceIndex + width);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+        }
+
+        private static void DilateTransparentNeighbor(
+            Color32[] pixels,
+            bool[] resolved,
+            int[] queue,
+            ref int queueTail,
+            int sourceIndex,
+            int neighborIndex)
+        {
+            if (resolved[neighborIndex])
+            {
+                return;
+            }
+
+            Color32 source = pixels[sourceIndex];
+            pixels[neighborIndex] = new Color32(source.r, source.g, source.b, 0);
+            resolved[neighborIndex] = true;
+            queue[queueTail++] = neighborIndex;
         }
 
         private void ReleaseIconTextures()
@@ -1781,7 +2080,7 @@ namespace GrailFloatingText
             float fadeSeconds,
             float opacity)
         {
-            return TryShowCore(
+            return TryShowEventCore(
                 sourceId,
                 eventId,
                 text,
@@ -1791,6 +2090,42 @@ namespace GrailFloatingText
                 collapseKey,
                 iconId,
                 GetDurationBucketSeconds(ParseDurationBucket(durationBucket)),
+                ResolveDefaultDeliveryPoint(eventId),
+                fadeSeconds,
+                opacity);
+        }
+
+        internal bool TryShowEvent(
+            string sourceId,
+            string eventId,
+            string text,
+            string style,
+            string category,
+            string priority,
+            string collapseKey,
+            string iconId,
+            string durationBucket,
+            string deliveryPoint,
+            float fadeSeconds,
+            float opacity)
+        {
+            DeliveryPoint parsedDeliveryPoint;
+            if (!TryParseDeliveryPoint(deliveryPoint, out parsedDeliveryPoint))
+            {
+                return false;
+            }
+
+            return TryShowEventCore(
+                sourceId,
+                eventId,
+                text,
+                style,
+                category,
+                priority,
+                collapseKey,
+                iconId,
+                GetDurationBucketSeconds(ParseDurationBucket(durationBucket)),
+                parsedDeliveryPoint,
                 fadeSeconds,
                 opacity);
         }
@@ -1799,6 +2134,72 @@ namespace GrailFloatingText
             string sourceId,
             string eventId,
             string text,
+            string style,
+            string category,
+            string priority,
+            string iconId,
+            string durationBucket,
+            float expectedAmount,
+            float fadeSeconds,
+            float opacity)
+        {
+            return TryClaimXpGainCore(
+                sourceId,
+                eventId,
+                text,
+                string.Empty,
+                string.Empty,
+                style,
+                category,
+                priority,
+                iconId,
+                durationBucket,
+                expectedAmount,
+                fadeSeconds,
+                opacity);
+        }
+
+        internal bool TryClaimConsolidatedXpGain(
+            string sourceId,
+            string eventId,
+            string consolidationKey,
+            string textFormat,
+            string style,
+            string category,
+            string priority,
+            string iconId,
+            string durationBucket,
+            float expectedAmount,
+            float fadeSeconds,
+            float opacity)
+        {
+            if (string.IsNullOrWhiteSpace(consolidationKey) || string.IsNullOrWhiteSpace(textFormat))
+            {
+                return false;
+            }
+
+            return TryClaimXpGainCore(
+                sourceId,
+                eventId,
+                string.Empty,
+                consolidationKey,
+                textFormat,
+                style,
+                category,
+                priority,
+                iconId,
+                durationBucket,
+                expectedAmount,
+                fadeSeconds,
+                opacity);
+        }
+
+        private bool TryClaimXpGainCore(
+            string sourceId,
+            string eventId,
+            string text,
+            string consolidationKey,
+            string textFormat,
             string style,
             string category,
             string priority,
@@ -1821,6 +2222,8 @@ namespace GrailFloatingText
                 SourceId = NormalizeSourceId(sourceId),
                 EventId = NormalizeEventId(eventId),
                 Text = string.IsNullOrWhiteSpace(text) ? string.Empty : text.Trim(),
+                ConsolidationKey = string.IsNullOrWhiteSpace(consolidationKey) ? string.Empty : consolidationKey.Trim(),
+                TextFormat = string.IsNullOrWhiteSpace(textFormat) ? string.Empty : textFormat.Trim(),
                 Style = string.IsNullOrWhiteSpace(style) ? "White" : style,
                 Category = string.IsNullOrWhiteSpace(category) ? "Reward" : category,
                 Priority = string.IsNullOrWhiteSpace(priority) ? "High" : priority,
@@ -1887,52 +2290,67 @@ namespace GrailFloatingText
 
         private bool ShowXpNotification(float gainedXp, XpDisplayClaim claim)
         {
-            string eventId = claim == null || string.IsNullOrWhiteSpace(claim.EventId)
-                ? DefaultXpGainEventId
-                : claim.EventId;
-            string sourceId = claim == null || string.IsNullOrWhiteSpace(claim.SourceId)
-                ? PluginGuid
-                : claim.SourceId;
-            string style = claim == null || string.IsNullOrWhiteSpace(claim.Style)
-                ? "White"
-                : claim.Style;
-            string category = claim == null || string.IsNullOrWhiteSpace(claim.Category)
-                ? "Reward"
-                : claim.Category;
-            string priority = claim == null || string.IsNullOrWhiteSpace(claim.Priority)
-                ? "High"
-                : claim.Priority;
-            string iconId = claim == null || string.IsNullOrWhiteSpace(claim.IconId)
-                ? "experience"
-                : claim.IconId;
-            DurationBucket bucket = claim == null
-                ? ParseDurationBucket(_xpDurationBucket == null ? "Short" : _xpDurationBucket.Value)
-                : claim.DurationBucket;
-            float fadeSeconds = claim == null ? -1.0f : claim.FadeSeconds;
-            float opacity = claim == null ? 0.9f : claim.Opacity;
-            string text = claim == null || string.IsNullOrWhiteSpace(claim.Text)
-                ? FormatXpText(gainedXp)
-                : claim.Text;
-            string collapseKey = eventId + "-entry-" + (++_nextXpEntrySequence).ToString(CultureInfo.InvariantCulture);
+            XpNotificationBatch batch = new XpNotificationBatch
+            {
+                SourceId = claim == null || string.IsNullOrWhiteSpace(claim.SourceId)
+                    ? PluginGuid
+                    : claim.SourceId,
+                EventId = claim == null || string.IsNullOrWhiteSpace(claim.EventId)
+                    ? DefaultXpGainEventId
+                    : claim.EventId,
+                ConsolidationKey = claim == null
+                    ? DefaultXpGainEventId
+                    : claim.ConsolidationKey,
+                Text = claim == null ? string.Empty : claim.Text,
+                TextFormat = claim == null ? GetConfiguredXpTextFormat() : claim.TextFormat,
+                Style = claim == null || string.IsNullOrWhiteSpace(claim.Style) ? "White" : claim.Style,
+                Category = claim == null || string.IsNullOrWhiteSpace(claim.Category) ? "Reward" : claim.Category,
+                Priority = claim == null || string.IsNullOrWhiteSpace(claim.Priority) ? "High" : claim.Priority,
+                IconId = claim == null || string.IsNullOrWhiteSpace(claim.IconId) ? "experience" : claim.IconId,
+                DurationBucket = claim == null
+                    ? ParseDurationBucket(_xpDurationBucket == null ? "Short" : _xpDurationBucket.Value)
+                    : claim.DurationBucket,
+                Amount = gainedXp,
+                FadeSeconds = claim == null ? -1.0f : claim.FadeSeconds,
+                Opacity = claim == null ? 0.9f : claim.Opacity
+            };
 
-            return TryShowCore(
-                sourceId,
-                eventId,
-                text,
-                style,
-                category,
-                priority,
-                collapseKey,
-                iconId,
-                GetDurationBucketSeconds(bucket),
-                fadeSeconds,
-                opacity);
+            if (!IsXpConsolidationEnabled())
+            {
+                return TryShowXpBatch(batch, false);
+            }
+
+            float now = Time.unscaledTime;
+            PruneExpired(now);
+            AdvanceXpQueue();
+            if (_activeXpNotification == null)
+            {
+                return TryShowXpBatch(batch, true);
+            }
+
+            if (!CanAcceptXpBatch(batch))
+            {
+                return false;
+            }
+
+            QueueXpBatch(batch);
+            return true;
         }
 
-        private string FormatXpText(float gainedXp)
+        private string GetConfiguredXpTextFormat()
+        {
+            string format = _xpTextFormat == null ? string.Empty : _xpTextFormat.Value;
+            if (string.IsNullOrWhiteSpace(format))
+            {
+                format = "+{xp} XP";
+            }
+
+            return format;
+        }
+
+        private static string FormatXpText(float gainedXp, string format)
         {
             string amount = gainedXp.ToString("F0", CultureInfo.InvariantCulture);
-            string format = _xpTextFormat == null ? string.Empty : _xpTextFormat.Value;
             if (string.IsNullOrWhiteSpace(format))
             {
                 format = "+{xp} XP";
@@ -1941,6 +2359,129 @@ namespace GrailFloatingText
             return format
                 .Replace("{xp}", amount)
                 .Replace("{amount}", amount);
+        }
+
+        private bool IsXpConsolidationEnabled()
+        {
+            return _consolidateXpGains != null && _consolidateXpGains.Value;
+        }
+
+        private bool CanAcceptXpBatch(XpNotificationBatch batch)
+        {
+            if (batch == null || !IsCategoryEnabled(NormalizeCategory(batch.Category)))
+            {
+                return false;
+            }
+
+            SourceSettings sourceSettings = GetSourceSettings(NormalizeSourceId(batch.SourceId));
+            return IsSourceEnabled(sourceSettings);
+        }
+
+        private void QueueXpBatch(XpNotificationBatch incoming)
+        {
+            if (!string.IsNullOrWhiteSpace(incoming.ConsolidationKey))
+            {
+                for (int i = 0; i < _pendingXpBatches.Count; i++)
+                {
+                    XpNotificationBatch existing = _pendingXpBatches[i];
+                    if (CanConsolidateXpBatches(existing, incoming))
+                    {
+                        existing.Amount += incoming.Amount;
+                        return;
+                    }
+                }
+            }
+
+            _pendingXpBatches.Add(incoming);
+        }
+
+        private static bool CanConsolidateXpBatches(XpNotificationBatch existing, XpNotificationBatch incoming)
+        {
+            return existing != null &&
+                incoming != null &&
+                !string.IsNullOrWhiteSpace(existing.ConsolidationKey) &&
+                string.Equals(existing.SourceId, incoming.SourceId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.ConsolidationKey, incoming.ConsolidationKey, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.EventId, incoming.EventId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.TextFormat, incoming.TextFormat, StringComparison.Ordinal) &&
+                string.Equals(existing.Style, incoming.Style, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Category, incoming.Category, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Priority, incoming.Priority, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.IconId, incoming.IconId, StringComparison.OrdinalIgnoreCase) &&
+                existing.DurationBucket == incoming.DurationBucket &&
+                Math.Abs(existing.FadeSeconds - incoming.FadeSeconds) <= 0.001f &&
+                Math.Abs(existing.Opacity - incoming.Opacity) <= 0.001f;
+        }
+
+        private bool TryShowXpBatch(XpNotificationBatch batch, bool trackAsActive)
+        {
+            if (batch == null)
+            {
+                return false;
+            }
+
+            string text = string.IsNullOrWhiteSpace(batch.TextFormat)
+                ? batch.Text
+                : FormatXpText(batch.Amount, batch.TextFormat);
+            string collapseKey = batch.EventId
+                + "-entry-"
+                + (++_nextXpEntrySequence).ToString(CultureInfo.InvariantCulture);
+            bool shown = TryShowCore(
+                batch.SourceId,
+                batch.EventId,
+                text,
+                batch.Style,
+                batch.Category,
+                batch.Priority,
+                collapseKey,
+                batch.IconId,
+                GetDurationBucketSeconds(batch.DurationBucket),
+                batch.FadeSeconds,
+                batch.Opacity);
+            if (!shown || !trackAsActive)
+            {
+                return shown;
+            }
+
+            _activeXpNotification = FindCollapsibleEntry(NormalizeSourceId(batch.SourceId), collapseKey);
+            return _activeXpNotification != null;
+        }
+
+        private void AdvanceXpQueue()
+        {
+            if (!IsXpConsolidationEnabled())
+            {
+                _activeXpNotification = null;
+                if (_pendingXpBatches.Count == 0)
+                {
+                    return;
+                }
+
+                XpNotificationBatch[] pending = _pendingXpBatches.ToArray();
+                _pendingXpBatches.Clear();
+                for (int i = 0; i < pending.Length; i++)
+                {
+                    TryShowXpBatch(pending[i], false);
+                }
+
+                return;
+            }
+
+            if (_activeXpNotification != null && _notifications.Contains(_activeXpNotification))
+            {
+                return;
+            }
+
+            _activeXpNotification = null;
+            while (_pendingXpBatches.Count > 0)
+            {
+                XpNotificationBatch next = _pendingXpBatches[0];
+                _pendingXpBatches.RemoveAt(0);
+                if (TryShowXpBatch(next, true))
+                {
+                    return;
+                }
+            }
         }
 
         private bool IsXpNotificationEnabled()
@@ -2026,6 +2567,294 @@ namespace GrailFloatingText
         {
             return now - _lastHandledXpTime <= DirectXpDuplicateSuppressSeconds &&
                 Math.Abs(_lastHandledXpAmount - gainedXp) <= XpClaimAmountTolerance;
+        }
+
+        private bool TryShowEventCore(
+            string sourceId,
+            string eventId,
+            string text,
+            string style,
+            string category,
+            string priority,
+            string collapseKey,
+            string iconId,
+            float durationSeconds,
+            DeliveryPoint deliveryPoint,
+            float fadeSeconds,
+            float opacity)
+        {
+            if (deliveryPoint == DeliveryPoint.Immediate)
+            {
+                return TryShowCore(
+                    sourceId,
+                    eventId,
+                    text,
+                    style,
+                    category,
+                    priority,
+                    collapseKey,
+                    iconId,
+                    durationSeconds,
+                    fadeSeconds,
+                    opacity);
+            }
+
+            return QueueDeferredNotification(
+                sourceId,
+                eventId,
+                text,
+                style,
+                category,
+                priority,
+                collapseKey,
+                iconId,
+                durationSeconds,
+                deliveryPoint,
+                fadeSeconds,
+                opacity);
+        }
+
+        private bool QueueDeferredNotification(
+            string sourceId,
+            string eventId,
+            string text,
+            string style,
+            string category,
+            string priority,
+            string collapseKey,
+            string iconId,
+            float durationSeconds,
+            DeliveryPoint deliveryPoint,
+            float fadeSeconds,
+            float opacity)
+        {
+            if (_enabled == null || !_enabled.Value || string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            string normalizedSourceId = NormalizeSourceId(sourceId);
+            string normalizedCategory = NormalizeCategory(category);
+            if (!IsCategoryEnabled(normalizedCategory))
+            {
+                return false;
+            }
+
+            SourceSettings sourceSettings = GetSourceSettings(normalizedSourceId);
+            if (!IsSourceEnabled(sourceSettings))
+            {
+                return false;
+            }
+
+            int priorityValue = ResolvePriorityValue(priority);
+            string normalizedCollapseKey = string.IsNullOrWhiteSpace(collapseKey)
+                ? string.Empty
+                : collapseKey.Trim();
+            string normalizedEventId = NormalizeEventId(eventId);
+            if (string.IsNullOrEmpty(normalizedEventId) && !string.IsNullOrEmpty(normalizedCollapseKey))
+            {
+                normalizedEventId = NormalizeEventId(normalizedCollapseKey);
+            }
+
+            string normalizedStyle = ResolveEventStyle(
+                normalizedEventId,
+                NormalizeStyle(style, normalizedCategory, priorityValue));
+            string normalizedIconId = NormalizeIconId(
+                iconId,
+                normalizedStyle,
+                normalizedCategory,
+                priorityValue);
+
+            DeferredNotificationEntry entry = new DeferredNotificationEntry
+            {
+                SourceId = normalizedSourceId,
+                EventId = normalizedEventId,
+                Text = text,
+                Style = normalizedStyle,
+                Category = normalizedCategory,
+                Priority = NormalizePriority(priority),
+                CollapseKey = normalizedCollapseKey,
+                IconId = normalizedIconId,
+                DurationSeconds = durationSeconds,
+                DeliveryPoint = deliveryPoint,
+                FadeSeconds = fadeSeconds,
+                Opacity = opacity,
+                CreatedUtcTicks = DateTime.UtcNow.Ticks
+            };
+
+            AddOrReplaceDeferredNotification(entry);
+            SaveDeferredNotifications();
+
+            if ((_diagnostics != null && _diagnostics.Value) || IsSourceDiagnosticsEnabled(sourceSettings))
+            {
+                Logger.LogInfo(
+                    "Deferred notification from "
+                    + normalizedSourceId
+                    + " until "
+                    + deliveryPoint
+                    + ": "
+                    + text);
+            }
+
+            return true;
+        }
+
+        private void AddOrReplaceDeferredNotification(DeferredNotificationEntry incoming)
+        {
+            for (int i = 0; i < _deferredNotifications.Count; i++)
+            {
+                DeferredNotificationEntry existing = _deferredNotifications[i];
+                bool sameCollapseKey = !string.IsNullOrEmpty(incoming.CollapseKey)
+                    && string.Equals(existing.CollapseKey, incoming.CollapseKey, StringComparison.OrdinalIgnoreCase);
+                bool exactDuplicate = string.Equals(existing.EventId, incoming.EventId, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.Text, incoming.Text, StringComparison.Ordinal)
+                    && string.Equals(existing.Style, incoming.Style, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.Category, incoming.Category, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existing.IconId, incoming.IconId, StringComparison.OrdinalIgnoreCase);
+
+                if (existing.DeliveryPoint == incoming.DeliveryPoint
+                    && string.Equals(existing.SourceId, incoming.SourceId, StringComparison.OrdinalIgnoreCase)
+                    && (sameCollapseKey || exactDuplicate))
+                {
+                    _deferredNotifications[i] = incoming;
+                    return;
+                }
+            }
+
+            _deferredNotifications.Add(incoming);
+            while (_deferredNotifications.Count > MaximumDeferredNotifications)
+            {
+                _deferredNotifications.RemoveAt(0);
+            }
+        }
+
+        private void ReleaseReadyDeferredNotifications()
+        {
+            if (_deferredNotifications.Count == 0)
+            {
+                return;
+            }
+
+            bool mainMenuReady = IsMainMenuReadyForNotifications();
+            bool gameLoadedReady = IsGameLoadedReadyForNotifications();
+            if (!mainMenuReady && !gameLoadedReady)
+            {
+                return;
+            }
+
+            bool changed = false;
+            for (int i = _deferredNotifications.Count - 1; i >= 0; i--)
+            {
+                DeferredNotificationEntry entry = _deferredNotifications[i];
+                if ((entry.DeliveryPoint == DeliveryPoint.OnMainMenu && !mainMenuReady)
+                    || (entry.DeliveryPoint == DeliveryPoint.OnLoad && !gameLoadedReady))
+                {
+                    continue;
+                }
+
+                _deferredNotifications.RemoveAt(i);
+                changed = true;
+                bool shown = TryShowCore(
+                    entry.SourceId,
+                    entry.EventId,
+                    entry.Text,
+                    entry.Style,
+                    entry.Category,
+                    entry.Priority,
+                    entry.CollapseKey,
+                    entry.IconId,
+                    entry.DurationSeconds,
+                    entry.FadeSeconds,
+                    entry.Opacity);
+
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        (shown ? "Released" : "Discarded")
+                        + " deferred "
+                        + entry.DeliveryPoint
+                        + " notification from "
+                        + entry.SourceId
+                        + ": "
+                        + entry.Text);
+                }
+            }
+
+            if (changed)
+            {
+                SaveDeferredNotifications();
+            }
+        }
+
+        private static bool IsMainMenuReadyForNotifications()
+        {
+            if (!IsScreenVisibleForNotifications())
+            {
+                return false;
+            }
+
+            try
+            {
+                VTitleScreenUI titleScreen = UnityEngine.Object.FindFirstObjectByType<VTitleScreenUI>();
+                return titleScreen != null
+                    && titleScreen.isActiveAndEnabled
+                    && titleScreen.gameObject.activeInHierarchy;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsGameLoadedReadyForNotifications()
+        {
+            if (!IsScreenVisibleForNotifications() || LoadingStates.IsLoadingWorld)
+            {
+                return false;
+            }
+
+            try
+            {
+                Hero hero = Hero.Current;
+                if (hero == null || hero.HasBeenDiscarded || !SceneLifetimeEvents.Get.EverythingInitialized)
+                {
+                    return false;
+                }
+
+                Video video = World.Any<Video>();
+                return (video == null || !video.IsFullScreen)
+                    && !World.HasAny<Cutscene>();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsScreenVisibleForNotifications()
+        {
+            if (!Application.isFocused
+                || Screen.width <= 0
+                || Screen.height <= 0
+                || LoadingScreenUI.IsLoading)
+            {
+                return false;
+            }
+
+            try
+            {
+                if (World.HasAny<LoadingScreenUI>())
+                {
+                    return false;
+                }
+
+                TransitionService transition = World.Services.TryGet<TransitionService>();
+                return transition == null || !transition.InTransition;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private bool TryShowCore(
@@ -2127,6 +2956,18 @@ namespace GrailFloatingText
 
             if ((_diagnostics != null && _diagnostics.Value) || IsSourceDiagnosticsEnabled(sourceSettings))
             {
+                ColorGroupSettings diagnosticGroup = ResolveStyleColorGroup(entry.Style);
+                string configuredColor = diagnosticGroup != null
+                    && diagnosticGroup.Color != null
+                    ? diagnosticGroup.Color.Value
+                    : "(not a color group)";
+                string configuredIconColor = diagnosticGroup != null
+                    && diagnosticGroup.IconColor != null
+                    && !string.IsNullOrWhiteSpace(diagnosticGroup.IconColor.Value)
+                    ? diagnosticGroup.IconColor.Value
+                    : diagnosticGroup == null ? "(not a color group)" : "(inherit)";
+                Color resolvedColor = ResolveStyleColor(entry.Style, 1.0f);
+                Color resolvedIconColor = ResolveIconColor(entry.Style, resolvedColor, 1.0f);
                 Logger.LogInfo(
                     "Queued notification from "
                     + normalizedSourceId
@@ -2134,31 +2975,65 @@ namespace GrailFloatingText
                     + normalizedCategory
                     + "/"
                     + entry.Priority
-                    + "]"
-                    + ": "
+                    + "] event="
+                    + entry.EventId
+                    + "; style="
+                    + entry.Style
+                    + "; configuredColor="
+                    + configuredColor
+                    + "; resolvedColor=#"
+                    + ColorUtility.ToHtmlStringRGBA(resolvedColor)
+                    + "; configuredIconColor="
+                    + configuredIconColor
+                    + "; resolvedIconColor=#"
+                    + ColorUtility.ToHtmlStringRGBA(resolvedIconColor)
+                    + "; entryOpacity="
+                    + entry.Opacity.ToString("0.###", CultureInfo.InvariantCulture)
+                    + "; globalOpacity="
+                    + _globalOpacity.Value.ToString("0.###", CultureInfo.InvariantCulture)
+                    + "; text="
                     + text);
             }
 
             return true;
         }
 
-        private void OnGUI()
+        private void LateUpdate()
         {
-            if (_enabled == null || !_enabled.Value || _notifications.Count == 0)
+            if (_enabled == null || !_enabled.Value)
             {
+                SetNotificationViewsActive(0);
                 return;
             }
 
+            ScanLoadedModCompatibility();
+            ReleaseReadyDeferredNotifications();
+
             float now = Time.unscaledTime;
             PruneExpired(now);
+            AdvanceXpQueue();
             if (_notifications.Count == 0)
             {
+                SetNotificationViewsActive(0);
                 return;
             }
 
             float scale = Math.Max(0.05f, _scale.Value);
-            int fontSize = Math.Max(1, (int)Math.Round(Math.Max(1, _fontSize.Value) * scale));
-            EnsureStyles(fontSize);
+            float fontSize = Math.Max(1.0f, Math.Max(1, _fontSize.Value) * scale);
+            FontAsset fontAsset;
+            try
+            {
+                fontAsset = ResolveConfiguredFontAsset();
+            }
+            catch (Exception ex)
+            {
+                LogFontDiagnosticOnce(
+                    "ResolveConfiguredFontAssetOuter:"
+                        + ex.GetType().FullName,
+                    "Could not resolve the configured font for the TextMesh Pro overlay; using the safe fallback font. "
+                        + ex.GetBaseException().Message);
+                fontAsset = ResolveFallbackFontAsset();
+            }
 
             float width = Math.Max(20.0f, _width.Value * scale);
             float height = Math.Max(fontSize + 10.0f, 32.0f * scale);
@@ -2168,105 +3043,388 @@ namespace GrailFloatingText
             float centerX = Screen.width * Clamp01(_centerX.Value);
             float baseCenterY = Screen.height * Clamp01(_baseCenterY.Value);
             float shadowOffset = Math.Max(1.0f, 2.0f * scale);
+            float safeMargin = Math.Max(8.0f, 16.0f * scale);
+            float maximumGroupWidth = Math.Min(
+                width,
+                Math.Max(20.0f, Screen.width - safeMargin * 2.0f));
+            int layoutCount = Math.Min(
+                _notifications.Count,
+                MaximumNotificationLayoutCount);
+            float rowGap = Math.Max(0.0f, spacing - height);
 
-            Color previousColor = GUI.color;
-            int previousDepth = GUI.depth;
-            Color previousTextColor = _textStyle.normal.textColor;
-            Color previousShadowColor = _shadowStyle.normal.textColor;
-            Color previousLeftTextColor = _textLeftStyle.normal.textColor;
-            Color previousLeftShadowColor = _shadowLeftStyle.normal.textColor;
+            for (int i = 0; i < layoutCount; i++)
+            {
+                NotificationView view = GetOrCreateNotificationView(i);
+                _notificationLayouts[i] = MeasureNotificationLayout(
+                    _notifications[i],
+                    view,
+                    fontAsset,
+                    fontSize,
+                    maximumGroupWidth,
+                    height,
+                    iconSize,
+                    iconGap);
+                if (i == 0)
+                {
+                    _notificationTargetCenterYs[i] = baseCenterY;
+                }
+                else
+                {
+                    _notificationTargetCenterYs[i] =
+                        _notificationTargetCenterYs[i - 1]
+                        - _notificationLayouts[i - 1].Height * 0.5f
+                        - rowGap
+                        - _notificationLayouts[i].Height * 0.5f;
+                }
+            }
 
-            GUI.depth = -1000;
-            GUI.color = Color.white;
-
-            for (int i = _notifications.Count - 1; i >= 0; i--)
+            for (int i = layoutCount - 1; i >= 0; i--)
             {
                 NotificationEntry entry = _notifications[i];
+                NotificationLayout layout = _notificationLayouts[i];
+                NotificationView view = _notificationViews[i];
                 float elapsed = now - entry.StartTime;
                 float alpha = GetNotificationAlpha(entry, elapsed)
                     * Clamp01(entry.Opacity)
                     * Clamp01(_globalOpacity.Value);
                 if (alpha <= 0.001f)
                 {
+                    view.Root.gameObject.SetActive(false);
                     continue;
                 }
 
-                float centerY = baseCenterY - (spacing * i);
-                centerY = GetAnimatedCenterY(entry, centerY, now, spacing);
-                Rect rect = new Rect(centerX - width * 0.5f, centerY - height * 0.5f, width, height);
-                Rect shadowRect = new Rect(rect.x + shadowOffset, rect.y + shadowOffset, rect.width, rect.height);
+                view.Root.gameObject.SetActive(true);
+
+                float minimumCenterX = safeMargin + layout.GroupWidth * 0.5f;
+                float maximumCenterX = Screen.width
+                    - safeMargin
+                    - layout.GroupWidth * 0.5f;
+                float visibleCenterX = maximumCenterX >= minimumCenterX
+                    ? Clamp(centerX, minimumCenterX, maximumCenterX)
+                    : Screen.width * 0.5f;
+                float centerY = GetAnimatedCenterY(
+                    entry,
+                    _notificationTargetCenterYs[i],
+                    now,
+                    Math.Max(spacing, layout.Height));
                 float animationScale = GetSpawnAnimationScale(elapsed);
 
                 Color textColor = ResolveStyleColor(entry.Style, alpha);
                 Color shadowColor = new Color(0.0f, 0.0f, 0.0f, alpha * 0.75f);
-                _textStyle.normal.textColor = textColor;
-                _shadowStyle.normal.textColor = shadowColor;
-                _textLeftStyle.normal.textColor = textColor;
-                _shadowLeftStyle.normal.textColor = shadowColor;
-
-                Matrix4x4 previousMatrix = GUI.matrix;
-                if (Math.Abs(animationScale - 1.0f) > 0.001f)
-                {
-                    GUIUtility.ScaleAroundPivot(
-                        new Vector2(animationScale, animationScale),
-                        new Vector2(rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f));
-                }
-
-                Texture2D iconTexture = GetIconTexture(entry.IconId);
-                if (iconTexture != null)
-                {
-                    DrawNotificationWithIcon(entry, iconTexture, rect, iconSize, iconGap, shadowOffset, textColor, shadowColor);
-                }
-                else
-                {
-                    GUI.Label(shadowRect, entry.Text, _shadowStyle);
-                    GUI.Label(rect, entry.Text, _textStyle);
-                }
-
-                GUI.matrix = previousMatrix;
+                UpdateNotificationView(
+                    view,
+                    entry,
+                    layout,
+                    fontAsset,
+                    fontSize,
+                    iconSize,
+                    iconGap,
+                    shadowOffset,
+                    textColor,
+                    shadowColor,
+                    alpha);
+                view.Root.anchoredPosition = new Vector2(
+                    visibleCenterX,
+                    Screen.height - centerY);
+                view.Root.localScale = new Vector3(
+                    animationScale,
+                    animationScale,
+                    1.0f);
+                view.Root.SetAsLastSibling();
             }
 
-            _textStyle.normal.textColor = previousTextColor;
-            _shadowStyle.normal.textColor = previousShadowColor;
-            _textLeftStyle.normal.textColor = previousLeftTextColor;
-            _shadowLeftStyle.normal.textColor = previousLeftShadowColor;
-            GUI.depth = previousDepth;
-            GUI.color = previousColor;
+            SetNotificationViewsActive(layoutCount);
         }
 
-        private void DrawNotificationWithIcon(
+        private NotificationLayout MeasureNotificationLayout(
             NotificationEntry entry,
-            Texture2D iconTexture,
-            Rect rect,
+            NotificationView view,
+            FontAsset fontAsset,
+            float fontSize,
+            float maximumGroupWidth,
+            float baseHeight,
+            float iconSize,
+            float iconGap)
+        {
+            Texture2D iconTexture = GetIconTexture(entry.IconId);
+            float iconWidth = iconTexture == null
+                ? 0.0f
+                : iconSize + iconGap;
+            float maximumTextWidth = Math.Max(
+                20.0f,
+                maximumGroupWidth - iconWidth);
+
+            ConfigureNotificationText(
+                view.Text,
+                entry.Text,
+                fontAsset,
+                fontSize,
+                false);
+            Vector2 preferred = view.Text.GetPreferredValues(
+                entry.Text,
+                Mathf.Infinity,
+                Mathf.Infinity);
+            float naturalTextWidth = Math.Max(
+                1.0f,
+                preferred.x + 2.0f);
+            bool wrapped = naturalTextWidth > maximumTextWidth;
+            float textWidth = wrapped
+                ? maximumTextWidth
+                : naturalTextWidth;
+            ConfigureNotificationText(
+                view.Text,
+                entry.Text,
+                fontAsset,
+                fontSize,
+                wrapped);
+            float textHeight = baseHeight;
+            if (wrapped)
+            {
+                Vector2 wrappedPreferred = view.Text.GetPreferredValues(
+                    entry.Text,
+                    textWidth,
+                    Mathf.Infinity);
+                textHeight = Math.Max(baseHeight, wrappedPreferred.y + 2.0f);
+            }
+
+            return new NotificationLayout
+            {
+                IconTexture = iconTexture,
+                GroupWidth = iconWidth + textWidth,
+                TextWidth = textWidth,
+                Height = Math.Max(textHeight, iconSize),
+                Wrapped = wrapped
+            };
+        }
+
+        private void UpdateNotificationView(
+            NotificationView view,
+            NotificationEntry entry,
+            NotificationLayout layout,
+            FontAsset fontAsset,
+            float fontSize,
             float iconSize,
             float iconGap,
             float shadowOffset,
             Color textColor,
-            Color shadowColor)
+            Color shadowColor,
+            float notificationAlpha)
         {
-            GUIContent content = new GUIContent(entry.Text);
-            float availableTextWidth = Math.Max(20.0f, rect.width - iconSize - iconGap);
-            float textWidth = Math.Min(availableTextWidth, _textLeftStyle.CalcSize(content).x + 2.0f);
-            float groupWidth = iconSize + iconGap + textWidth;
-            float groupX = rect.x + rect.width * 0.5f - groupWidth * 0.5f;
+            view.Root.sizeDelta = new Vector2(layout.GroupWidth, layout.Height);
+            ConfigureNotificationText(
+                view.Text,
+                entry.Text,
+                fontAsset,
+                fontSize,
+                layout.Wrapped);
+            ConfigureNotificationText(
+                view.ShadowText,
+                entry.Text,
+                fontAsset,
+                fontSize,
+                layout.Wrapped);
+            view.Text.color = textColor;
+            view.ShadowText.color = shadowColor;
 
-            Rect iconRect = new Rect(groupX, rect.y + rect.height * 0.5f - iconSize * 0.5f, iconSize, iconSize);
-            Rect shadowIconRect = new Rect(iconRect.x + shadowOffset, iconRect.y + shadowOffset, iconRect.width, iconRect.height);
-            Rect textRect = new Rect(groupX + iconSize + iconGap, rect.y, textWidth, rect.height);
-            Rect shadowTextRect = new Rect(textRect.x + shadowOffset, textRect.y + shadowOffset, textRect.width, textRect.height);
+            float textCenterX = 0.0f;
+            if (layout.IconTexture != null)
+            {
+                float left = -layout.GroupWidth * 0.5f;
+                float iconCenterX = left + iconSize * 0.5f;
+                textCenterX = left + iconSize + iconGap + layout.TextWidth * 0.5f;
+                view.Icon.gameObject.SetActive(true);
+                view.Icon.texture = layout.IconTexture;
+                view.Icon.rectTransform.sizeDelta = new Vector2(iconSize, iconSize);
+                view.Icon.rectTransform.anchoredPosition = new Vector2(iconCenterX, 0.0f);
 
-            Color previousColor = GUI.color;
+                float iconOpacity = _iconOpacity == null ? 1.0f : Clamp01(_iconOpacity.Value);
+                Color iconColor = ResolveIconColor(entry.Style, textColor, notificationAlpha);
+                view.Icon.color = new Color(
+                    iconColor.r,
+                    iconColor.g,
+                    iconColor.b,
+                    iconColor.a * iconOpacity);
 
-            GUI.color = shadowColor;
-            GUI.DrawTexture(shadowIconRect, iconTexture, ScaleMode.ScaleToFit, true);
-            GUI.color = previousColor;
-            GUI.Label(shadowTextRect, entry.Text, _shadowLeftStyle);
+                bool showIconShadow = _iconShadowEnabled == null || _iconShadowEnabled.Value;
+                view.IconShadow.gameObject.SetActive(showIconShadow);
+                if (showIconShadow)
+                {
+                    float iconShadowOpacity = _iconShadowOpacity == null
+                        ? 0.75f
+                        : Clamp01(_iconShadowOpacity.Value);
+                    view.IconShadow.texture = layout.IconTexture;
+                    view.IconShadow.rectTransform.sizeDelta = new Vector2(iconSize, iconSize);
+                    view.IconShadow.rectTransform.anchoredPosition = new Vector2(
+                        iconCenterX + shadowOffset,
+                        -shadowOffset);
+                    view.IconShadow.color = new Color(
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        notificationAlpha * iconShadowOpacity);
+                }
+            }
+            else
+            {
+                view.Icon.gameObject.SetActive(false);
+                view.IconShadow.gameObject.SetActive(false);
+            }
 
-            float iconOpacity = _iconOpacity == null ? 1.0f : Clamp01(_iconOpacity.Value);
-            GUI.color = new Color(textColor.r, textColor.g, textColor.b, textColor.a * iconOpacity);
-            GUI.DrawTexture(iconRect, iconTexture, ScaleMode.ScaleToFit, true);
-            GUI.color = previousColor;
-            GUI.Label(textRect, entry.Text, _textLeftStyle);
+            view.Text.rectTransform.sizeDelta = new Vector2(
+                layout.TextWidth,
+                layout.Height);
+            view.Text.rectTransform.anchoredPosition = new Vector2(
+                textCenterX,
+                0.0f);
+            view.ShadowText.rectTransform.sizeDelta = new Vector2(
+                layout.TextWidth,
+                layout.Height);
+            view.ShadowText.rectTransform.anchoredPosition = new Vector2(
+                textCenterX + shadowOffset,
+                -shadowOffset);
+        }
+
+        private static void ConfigureNotificationText(
+            TextMeshProUGUI text,
+            string value,
+            FontAsset fontAsset,
+            float fontSize,
+            bool wrapped)
+        {
+            if (fontAsset != null && !ReferenceEquals(text.font, fontAsset))
+            {
+                text.font = fontAsset;
+            }
+
+            text.text = value ?? string.Empty;
+            text.fontSize = fontSize;
+            text.fontStyle = TMPro.FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
+            text.textWrappingMode = wrapped
+                ? TextWrappingModes.Normal
+                : TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
+            text.richText = false;
+            text.raycastTarget = false;
+        }
+
+        private NotificationView GetOrCreateNotificationView(int index)
+        {
+            EnsureNotificationCanvas();
+            NotificationView view = _notificationViews[index];
+            if (view != null)
+            {
+                return view;
+            }
+
+            GameObject rootObject = new GameObject(
+                "Notification" + index.ToString(CultureInfo.InvariantCulture),
+                typeof(RectTransform));
+            rootObject.hideFlags = HideFlags.HideAndDontSave;
+            RectTransform root = rootObject.GetComponent<RectTransform>();
+            root.SetParent(_overlayRoot, false);
+            root.anchorMin = Vector2.zero;
+            root.anchorMax = Vector2.zero;
+            root.pivot = new Vector2(0.5f, 0.5f);
+
+            RawImage iconShadow = CreateNotificationIcon(root, "IconShadow");
+            RawImage icon = CreateNotificationIcon(root, "Icon");
+            TextMeshProUGUI shadowText = CreateNotificationText(root, "ShadowText");
+            TextMeshProUGUI text = CreateNotificationText(root, "Text");
+            view = new NotificationView
+            {
+                Root = root,
+                IconShadow = iconShadow,
+                Icon = icon,
+                ShadowText = shadowText,
+                Text = text
+            };
+            _notificationViews[index] = view;
+            return view;
+        }
+
+        private void EnsureNotificationCanvas()
+        {
+            if (_overlayRoot != null)
+            {
+                return;
+            }
+
+            GameObject canvasObject = new GameObject(
+                "GrailFloatingTextCanvas",
+                typeof(RectTransform),
+                typeof(Canvas));
+            canvasObject.hideFlags = HideFlags.HideAndDontSave;
+            canvasObject.transform.SetParent(transform, false);
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 30001;
+            _overlayRoot = canvasObject.GetComponent<RectTransform>();
+        }
+
+        private static RawImage CreateNotificationIcon(RectTransform parent, string name)
+        {
+            GameObject iconObject = new GameObject(
+                name,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(RawImage));
+            iconObject.hideFlags = HideFlags.HideAndDontSave;
+            RectTransform rect = iconObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            RawImage image = iconObject.GetComponent<RawImage>();
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static TextMeshProUGUI CreateNotificationText(
+            RectTransform parent,
+            string name)
+        {
+            GameObject textObject = new GameObject(
+                name,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(TextMeshProUGUI));
+            textObject.hideFlags = HideFlags.HideAndDontSave;
+            RectTransform rect = textObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+            text.raycastTarget = false;
+            return text;
+        }
+
+        private void SetNotificationViewsActive(int activeCount)
+        {
+            for (int i = Math.Max(0, activeCount); i < _notificationViews.Length; i++)
+            {
+                NotificationView view = _notificationViews[i];
+                if (view != null && view.Root != null)
+                {
+                    view.Root.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private void ReleaseNotificationViews()
+        {
+            if (_overlayRoot != null)
+            {
+                Destroy(_overlayRoot.gameObject);
+                _overlayRoot = null;
+            }
+
+            for (int i = 0; i < _notificationViews.Length; i++)
+            {
+                _notificationViews[i] = null;
+            }
         }
 
         private Texture2D GetIconTexture(string iconId)
@@ -2377,9 +3535,367 @@ namespace GrailFloatingText
                     return GetConfiguredDuration(_longDurationSeconds, DefaultLongDurationSeconds);
                 case DurationBucket.VeryLong:
                     return GetConfiguredDuration(_veryLongDurationSeconds, DefaultVeryLongDurationSeconds);
+                case DurationBucket.System:
+                    return GetConfiguredDuration(_systemDurationSeconds, DefaultSystemDurationSeconds);
                 default:
                     return GetConfiguredDuration(_mediumDurationSeconds, DefaultMediumDurationSeconds);
             }
+        }
+
+        private void ScanLoadedModCompatibility()
+        {
+            if (_modCompatibilityScanCompleted)
+            {
+                return;
+            }
+
+            _modCompatibilityScanCompleted = true;
+            if (_notifyModCompatibility == null
+                || !_notifyModCompatibility.Value)
+            {
+                return;
+            }
+
+            ScanGloriousUiCompatibility();
+            ScanEyesInTheDarkCompatibility();
+            ScanDamageNumberCompatibility();
+            ScanDynamicCrosshairCompatibility();
+        }
+
+        private void ScanEyesInTheDarkCompatibility()
+        {
+            bool eyesLoaded = IsPluginOrAssemblyLoaded(
+                    EyesInTheDarkPluginGuid,
+                    EyesInTheDarkAssemblyName);
+            if (!eyesLoaded)
+            {
+                return;
+            }
+
+            if (IsPluginOrAssemblyLoaded(
+                    WyrdHuntPluginGuid,
+                    WyrdHuntAssemblyName))
+            {
+                ShowCompatibilityNotice(
+                    "eyes-in-the-dark-wyrd-hunt",
+                    "Wyrd Hunt is flagged as incompatible with Eyes in the Dark.");
+            }
+            if (IsPluginOrAssemblyLoaded(
+                    CustomTimescalePluginGuid,
+                    CustomTimescaleAssemblyName))
+            {
+                ShowCompatibilityNotice(
+                    "eyes-in-the-dark-custom-timescale",
+                    "Custom Timescale is flagged as incompatible with Eyes in the Dark.");
+            }
+        }
+
+        private void ScanGloriousUiCompatibility()
+        {
+            if (!IsPluginOrAssemblyLoaded(
+                GloriousUiPluginGuid,
+                GloriousUiAssemblyName))
+            {
+                return;
+            }
+
+            for (int i = 0;
+                i < GloriousUiIncompatibleAssemblyNames.Length;
+                i++)
+            {
+                string assemblyName =
+                    GloriousUiIncompatibleAssemblyNames[i];
+                if (!IsPluginOrAssemblyLoaded(
+                    assemblyName,
+                    assemblyName))
+                {
+                    continue;
+                }
+
+                string dllName = assemblyName + ".dll";
+                string text = dllName
+                    + " is flagged as incompatible with Glorious UI.";
+                ShowCompatibilityNotice(
+                    "glorious-ui-" + assemblyName,
+                    text);
+            }
+
+            bool gloriousEnabled;
+            bool controlsEquipmentLoadouts;
+            bool controlsQuickWheel;
+            if (TryGetLoadedBoolean(
+                    GloriousUiPluginGuid,
+                    "1. Core",
+                    "Enabled",
+                    out gloriousEnabled)
+                && gloriousEnabled
+                && TryGetLoadedBoolean(
+                    GloriousUiPluginGuid,
+                    "5. Equipment Panel",
+                    "ControlEquipmentWeaponLoadouts",
+                    out controlsEquipmentLoadouts)
+                && controlsEquipmentLoadouts
+                && TryGetLoadedBoolean(
+                    GloriousUiPluginGuid,
+                    "5. Equipment Panel",
+                    "ControlQuickUseWheelLoadouts",
+                    out controlsQuickWheel)
+                && controlsQuickWheel
+                && IsPluginOrAssemblyLoaded(BetterUiPluginGuid, BetterUiPluginGuid))
+            {
+                List<string> enabledSettings = new List<string>();
+                AddEnabledSetting(
+                    BetterUiPluginGuid,
+                    "8. Quick Wheel",
+                    "QuickSlotEffectEnabled",
+                    enabledSettings);
+                AddEnabledSetting(
+                    BetterUiPluginGuid,
+                    "8. Quick Wheel",
+                    "AmmoCounterEnabled",
+                    enabledSettings);
+                AddEnabledSetting(
+                    BetterUiPluginGuid,
+                    "8. Quick Wheel",
+                    "ArrowCycleEnabled",
+                    enabledSettings);
+                if (enabledSettings.Count > 0)
+                {
+                    ShowCompatibilityNotice(
+                        "glorious-ui-better-ui-quick-wheel",
+                        "Certain enabled Better UI settings are flagged as "
+                            + "incompatible with Glorious UI. See description.",
+                        "Enabled Better UI settings: "
+                            + string.Join(", ", enabledSettings.ToArray())
+                            + ".");
+                }
+            }
+
+            bool controlsHeroHud;
+            bool immersiveHudEnabled;
+            if (gloriousEnabled
+                && TryGetLoadedBoolean(
+                    GloriousUiPluginGuid,
+                    "2. HUD",
+                    "ControlHeroHud",
+                    out controlsHeroHud)
+                && controlsHeroHud
+                && TryGetLoadedBoolean(
+                    ImmersiveHudPluginGuid,
+                    "General",
+                    "Enabled",
+                    out immersiveHudEnabled)
+                && immersiveHudEnabled)
+            {
+                bool forceVanillaHeroHud;
+                bool forceVanillaHeroHudKnown = TryGetLoadedBoolean(
+                        ImmersiveHudPluginGuid,
+                        "HUD Elements",
+                        "ForceVanillaHeroHud",
+                        out forceVanillaHeroHud);
+                ShowCompatibilityNotice(
+                    "glorious-ui-immersive-hud",
+                    "Certain enabled Immersive HUD settings are flagged as "
+                        + "incompatible with Glorious UI. See description.",
+                    "Immersive HUD Enabled=true"
+                        + (forceVanillaHeroHudKnown
+                            ? "; ForceVanillaHeroHud="
+                                + forceVanillaHeroHud.ToString()
+                            : string.Empty)
+                        + ".");
+            }
+        }
+
+        private void ScanDamageNumberCompatibility()
+        {
+            if (!IsPluginOrAssemblyLoaded(
+                    SteelAndBonePluginGuid,
+                    SteelAndBoneAssemblyName))
+            {
+                return;
+            }
+
+            bool steelAndBoneEnabled;
+            bool damageNumbersEnabled;
+            if (!TryGetLoadedBoolean(
+                    SteelAndBonePluginGuid,
+                    "1. Core",
+                    "Enabled",
+                    out steelAndBoneEnabled)
+                || !steelAndBoneEnabled
+                || !TryGetLoadedBoolean(
+                    SteelAndBonePluginGuid,
+                    "3. Feedback",
+                    "DamageNumbersEnabled",
+                    out damageNumbersEnabled)
+                || !damageNumbersEnabled)
+            {
+                return;
+            }
+
+            if (IsPluginOrAssemblyLoaded("DamageNumbers", "DamageNumbers"))
+            {
+                ShowCompatibilityNotice(
+                    "steel-and-bone-damage-numbers",
+                    "DamageNumbers.dll is flagged as incompatible with Steel "
+                        + "and Bone damage numbers.",
+                    "Steel and Bone DamageNumbersEnabled=true.");
+            }
+
+            bool immersiveHudEnabled;
+            bool immersiveDamageNumbersEnabled;
+            if (TryGetLoadedBoolean(
+                    ImmersiveHudPluginGuid,
+                    "General",
+                    "Enabled",
+                    out immersiveHudEnabled)
+                && immersiveHudEnabled
+                && TryGetLoadedBoolean(
+                    ImmersiveHudPluginGuid,
+                    "HUD Elements",
+                    "ShowDamageNumbers",
+                    out immersiveDamageNumbersEnabled)
+                && immersiveDamageNumbersEnabled)
+            {
+                ShowCompatibilityNotice(
+                    "steel-and-bone-immersive-hud-damage-numbers",
+                    "Immersive HUD damage numbers are flagged as incompatible "
+                        + "with Steel and Bone. See description.",
+                    "Steel and Bone DamageNumbersEnabled=true; Immersive HUD "
+                        + "ShowDamageNumbers=true.");
+            }
+        }
+
+        private void ScanDynamicCrosshairCompatibility()
+        {
+            if (IsPluginOrAssemblyLoaded(
+                    DynamicCrosshairPluginGuid,
+                    DynamicCrosshairAssemblyName)
+                && IsPluginOrAssemblyLoaded(
+                    "owrocc.ModifyCrosshair",
+                    "owrocc.ModifyCrosshair"))
+            {
+                ShowCompatibilityNotice(
+                    "dishonored-dynamic-crosshair-modify-crosshair",
+                    "owrocc.ModifyCrosshair.dll is flagged as incompatible with "
+                        + "Dishonored Dynamic Crosshair.");
+            }
+        }
+
+        private static void AddEnabledSetting(
+            string pluginGuid,
+            string section,
+            string settingName,
+            List<string> enabledSettings)
+        {
+            bool enabled;
+            if (TryGetLoadedBoolean(
+                    pluginGuid,
+                    section,
+                    settingName,
+                    out enabled)
+                && enabled)
+            {
+                enabledSettings.Add(settingName);
+            }
+        }
+
+        private static bool TryGetLoadedBoolean(
+            string pluginGuid,
+            string section,
+            string settingName,
+            out bool value)
+        {
+            value = false;
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    pluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            ConfigEntry<bool> entry;
+            if (!pluginInfo.Instance.Config.TryGetEntry<bool>(
+                    section,
+                    settingName,
+                    out entry)
+                || entry == null)
+            {
+                return false;
+            }
+
+            value = entry.Value;
+            return true;
+        }
+
+        private void ShowCompatibilityNotice(
+            string ruleId,
+            string text,
+            string diagnosticDetails = null)
+        {
+            string eventId = ModCompatibilityEventIdPrefix
+                + NormalizeEventId(ruleId);
+            NotificationApi.TryShowEvent(
+                PluginGuid,
+                eventId,
+                text,
+                "System",
+                "System",
+                "High",
+                eventId,
+                "system",
+                "System",
+                "OnMainMenu",
+                -1.0f,
+                1.0f);
+            Logger.LogWarning(
+                string.IsNullOrWhiteSpace(diagnosticDetails)
+                    ? text
+                    : text + " " + diagnosticDetails);
+        }
+
+        private static bool IsPluginOrAssemblyLoaded(
+            string pluginGuid,
+            string assemblyName)
+        {
+            foreach (KeyValuePair<string, PluginInfo> plugin in
+                Chainloader.PluginInfos)
+            {
+                if ((!string.IsNullOrWhiteSpace(pluginGuid)
+                        && string.Equals(
+                            plugin.Key,
+                            pluginGuid,
+                            StringComparison.OrdinalIgnoreCase))
+                    || (plugin.Value != null
+                        && string.Equals(
+                            Path.GetFileNameWithoutExtension(
+                                plugin.Value.Location),
+                            assemblyName,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            Assembly[] assemblies =
+                AppDomain.CurrentDomain.GetAssemblies();
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                AssemblyName loadedName = assemblies[i].GetName();
+                if (loadedName != null
+                    && string.Equals(
+                        loadedName.Name,
+                        assemblyName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static float GetConfiguredDuration(ConfigEntry<float> entry, float fallback)
@@ -2410,7 +3926,52 @@ namespace GrailFloatingText
                 return DurationBucket.VeryLong;
             }
 
+            if (normalized == "system" || normalized == "sys")
+            {
+                return DurationBucket.System;
+            }
+
             return DurationBucket.Medium;
+        }
+
+        private static DeliveryPoint ResolveDefaultDeliveryPoint(string eventId)
+        {
+            string normalizedEventId = NormalizeEventId(eventId);
+            if (EventIdEquals(normalizedEventId, ConfigResetEventId))
+            {
+                return DeliveryPoint.OnLoad;
+            }
+
+            if (EventIdEquals(normalizedEventId, LoadTimeErrorEventId))
+            {
+                return DeliveryPoint.OnMainMenu;
+            }
+
+            return DeliveryPoint.Immediate;
+        }
+
+        private static bool TryParseDeliveryPoint(string value, out DeliveryPoint deliveryPoint)
+        {
+            deliveryPoint = DeliveryPoint.Immediate;
+            if (string.IsNullOrWhiteSpace(value)
+                || string.Equals(value.Trim(), "Immediate", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(value.Trim(), "OnMainMenu", StringComparison.OrdinalIgnoreCase))
+            {
+                deliveryPoint = DeliveryPoint.OnMainMenu;
+                return true;
+            }
+
+            if (string.Equals(value.Trim(), "OnLoad", StringComparison.OrdinalIgnoreCase))
+            {
+                deliveryPoint = DeliveryPoint.OnLoad;
+                return true;
+            }
+
+            return false;
         }
 
         private bool IsSourceDiagnosticsEnabled(SourceSettings settings)
@@ -2692,6 +4253,10 @@ namespace GrailFloatingText
             {
                 normalized = "shield";
             }
+            else if (normalized == "parried")
+            {
+                normalized = "parry";
+            }
             else if (normalized == "fist" || normalized == "fists")
             {
                 normalized = "unarmed";
@@ -2909,24 +4474,37 @@ namespace GrailFloatingText
         private void BindConfig()
         {
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch for the shared Grail Floating Text overlay.");
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. Older layouts are backed up and regenerated.");
+            _notifyModCompatibility = Config.Bind(
+                "1. Core",
+                "NotifyModCompatibility",
+                true,
+                "Show soft system notices when a loaded Grailwright mod has documented incompatible DLLs loaded alongside it. Detection treats the Grailwright mod as the preferred implementation but never disables another plugin automatically.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version. Older layouts are backed up and regenerated.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
 
             _scale = Config.Bind("2. Layout", "Scale", 1.2f, new ConfigDescription("Scale multiplier for all floating text.", new AcceptableValueRange<float>(0.1f, 3.0f)));
             _fontSize = Config.Bind("2. Layout", "FontSize", 20, new ConfigDescription("Base font size before scale is applied.", new AcceptableValueRange<int>(8, 72)));
             _fontMode = Config.Bind("2. Layout", "FontMode", FontMode.GameDefault, "Font used by the overlay. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
             _centerX = Config.Bind("2. Layout", "CenterX", 0.5f, new ConfigDescription("Horizontal center as a fraction of screen width.", new AcceptableValueRange<float>(0.0f, 1.0f)));
             _baseCenterY = Config.Bind("2. Layout", "BaseCenterY", 0.25f, new ConfigDescription("Vertical center for the newest notification as a fraction of screen height.", new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _width = Config.Bind("2. Layout", "Width", 520.0f, new ConfigDescription("Text width before scale is applied.", new AcceptableValueRange<float>(100.0f, 1600.0f)));
+            _width = Config.Bind("2. Layout", "Width", 1040.0f, new ConfigDescription("Maximum centered icon-and-text group width before wrapping, prior to scale and screen-safe limits.", new AcceptableValueRange<float>(100.0f, 1600.0f)));
             _stackSpacing = Config.Bind("2. Layout", "StackSpacing", 34.0f, new ConfigDescription("Vertical distance between stacked active notifications before scale is applied.", new AcceptableValueRange<float>(16.0f, 160.0f)));
             _maximumVisibleNotifications = Config.Bind("2. Layout", "MaximumVisibleNotifications", 16, new ConfigDescription("Maximum active notifications kept on screen at once. Oldest entries are dropped first.", new AcceptableValueRange<int>(1, 24)));
 
             _defaultDurationSeconds = Config.Bind("3. Timing", "DefaultDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Default display duration used when a caller does not request one.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _defaultFadeSeconds = Config.Bind("3. Timing", "DefaultFadeSeconds", 0.25f, new ConfigDescription("Default fade-in and fade-out duration used when a caller does not request one.", new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _defaultFadeSeconds = Config.Bind("3. Timing", "DefaultFadeSeconds", 0.25f, new ConfigDescription("Default fade-in duration and medium-duration fade-out baseline used when a caller does not request one. Fade-out scales with total display duration, up to twice this value.", new AcceptableValueRange<float>(0.0f, 5.0f)));
             _veryShortDurationSeconds = Config.Bind("3. Timing", "VeryShortDurationSeconds", DefaultVeryShortDurationSeconds, new ConfigDescription("Display duration for very short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _shortDurationSeconds = Config.Bind("3. Timing", "ShortDurationSeconds", DefaultShortDurationSeconds, new ConfigDescription("Display duration for short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _mediumDurationSeconds = Config.Bind("3. Timing", "MediumDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Display duration for medium event-bucket messages. Event callbacks default to this bucket.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _longDurationSeconds = Config.Bind("3. Timing", "LongDurationSeconds", DefaultLongDurationSeconds, new ConfigDescription("Display duration for long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _veryLongDurationSeconds = Config.Bind("3. Timing", "VeryLongDurationSeconds", DefaultVeryLongDurationSeconds, new ConfigDescription("Display duration for very long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _systemDurationSeconds = Config.Bind("3. Timing", "SystemDurationSeconds", DefaultSystemDurationSeconds, new ConfigDescription("Display duration for startup, config reset, and load-time system messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
             _globalOpacity = Config.Bind("3. Timing", "GlobalOpacity", 0.9f, new ConfigDescription("Opacity multiplier applied to every floating text entry.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _spawnAnimationEnabled = Config.Bind("4. Animation", "SpawnAnimationEnabled", true, "Play a short pop-in scale animation when notifications appear.");
@@ -2952,13 +4530,15 @@ namespace GrailFloatingText
             _iconSize = Config.Bind("8. Icons", "IconSize", 32.0f, new ConfigDescription("Icon size before scale is applied.", new AcceptableValueRange<float>(8.0f, 96.0f)));
             _iconGap = Config.Bind("8. Icons", "IconGap", 10.0f, new ConfigDescription("Horizontal gap between icon and text before scale is applied.", new AcceptableValueRange<float>(0.0f, 64.0f)));
             _iconOpacity = Config.Bind("8. Icons", "IconOpacity", 0.95f, new ConfigDescription("Opacity multiplier applied to icon masks.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _iconShadowEnabled = Config.Bind("8. Icons", "IconShadowEnabled", true, "Draw a black offset shadow behind icons. Text shadows are controlled separately and remain enabled.");
+            _iconShadowOpacity = Config.Bind("8. Icons", "IconShadowOpacity", 0.75f, new ConfigDescription("Opacity multiplier applied to icon shadows.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _notifyRestDuration = Config.Bind("9. Default Game Events", "NotifyRestDuration", true, "Show how long the hero actually rested after sleep is started.");
             _notifyInterruptedRestDuration = Config.Bind("9. Default Game Events", "NotifyInterruptedRestDuration", true, "Use interrupted wording when rest ends early due to a Wyrd interruption.");
             _restDurationTextFormat = Config.Bind("9. Default Game Events", "RestDurationTextFormat", "Rested {duration}", "Floating text for completed rest. Tokens: {duration}.");
             _restInterruptedTextFormat = Config.Bind("9. Default Game Events", "RestInterruptedTextFormat", "Rest interrupted: {duration} slept", "Floating text for interrupted rest. Tokens: {duration}.");
             _restNotificationMinimumMinutes = Config.Bind("9. Default Game Events", "RestNotificationMinimumMinutes", 1, new ConfigDescription("Minimum actual rest duration in minutes required before showing rest text.", new AcceptableValueRange<int>(0, 1440)));
-            _notifyBlockedDamage = Config.Bind("9. Default Game Events", "NotifyBlockedDamage", true, "Show optional throttled combat text when the hero blocks damage.");
+            _notifyBlockedDamage = Config.Bind("9. Default Game Events", "NotifyBlockedDamage", false, "Show optional throttled combat text when the hero blocks damage.");
             _notifyParriedDamage = Config.Bind("9. Default Game Events", "NotifyParriedDamage", true, "Show optional throttled combat text when the hero parries damage.");
             _combatDefenseMinimumDamage = Config.Bind("9. Default Game Events", "CombatDefenseMinimumDamage", 1.0f, new ConfigDescription("Minimum blocked/parried damage required before showing combat defense text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
             _combatDefenseCooldownSeconds = Config.Bind("9. Default Game Events", "CombatDefenseCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated block or parry messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
@@ -2976,10 +4556,11 @@ namespace GrailFloatingText
             _combatHitCooldownSeconds = Config.Bind("9. Default Game Events", "CombatHitCooldownSeconds", 1.0f, new ConfigDescription("Minimum seconds between repeated weak spot or sneak attack messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
             _notifyXpGained = Config.Bind("9. Default Game Events", "NotifyXpGained", true, "Show XP gains through Grail Floating Text.");
             _suppressVanillaXpNotifications = Config.Bind("9. Default Game Events", "SuppressVanillaXpNotifications", true, "Hide vanilla XP notifications when Grail Floating Text successfully shows an XP gain.");
+            _consolidateXpGains = Config.Bind("9. Default Game Events", "ConsolidateXpGains", true, "Show one XP entry at a time and combine queued compatible gains. Generic XP combines only with generic XP; mod claims require the same source-specific consolidation key.");
             _xpTextFormat = Config.Bind("9. Default Game Events", "XpTextFormat", "+{xp} XP", "Floating text for XP gains. Tokens: {xp}, {amount}.");
             _xpDurationBucket = Config.Bind("9. Default Game Events", "XpDurationBucket", "Short", "Named duration bucket used for XP gain floating text.");
             _vanillaWyrdEventsEnabled = Config.Bind("9. Default Game Events", "VanillaWyrdEventsEnabled", true, "Show built-in Grail Floating Text messages for vanilla Wyrd game events.");
-            _notifyWyrdNightChange = Config.Bind("9. Default Game Events", "NotifyWyrdNightChange", true, "Show Wyrd Night falls/fades messages when the vanilla Wyrd Night state changes.");
+            _notifyWyrdNightChange = Config.Bind("9. Default Game Events", "NotifyWyrdNightChange", true, "Show Wyrdnight falls/fades messages when the vanilla Wyrdnight state changes.");
             _notifyWyrdSafetyChange = Config.Bind("9. Default Game Events", "NotifyWyrdSafetyChange", true, "Show Safe from Wyrdness and Exposed to Wyrdness messages for vanilla Wyrd safety changes.");
             _suppressWyrdSafetyWhenWyrdHuntAddonLoaded = Config.Bind("9. Default Game Events", "SuppressWyrdSafetyWhenWyrdHuntAddonLoaded", true, "Suppress vanilla Wyrd safety messages while Wyrd Hunt Addon is loaded so the addon's Wyrd Scent status remains authoritative.");
             _notifyWyrdSoulFragmentCollected = Config.Bind("9. Default Game Events", "NotifyWyrdSoulFragmentCollected", true, "Show a Wyrd power unlocked message when a Wyrd soul fragment is collected.");
@@ -3045,16 +4626,73 @@ namespace GrailFloatingText
 
         private void BindColorGroup(string name, string defaultColor, string defaultEvents, string description)
         {
-            const string section = "11. Color Groups";
+            const string colorSection = "11. Color Groups";
+            const string iconColorSection = "12. Icon Color Overrides";
             ColorGroupSettings settings = new ColorGroupSettings
             {
                 Name = name,
-                Color = Config.Bind(section, name + "Color", defaultColor, description + " Use HTML hex color such as #FF3D2E."),
-                Events = Config.Bind(section, name + "Events", defaultEvents, "Semicolon, comma, pipe, or newline separated event IDs assigned to this color group. First matching group wins.")
+                Color = Config.Bind(
+                    colorSection,
+                    name + "Color",
+                    defaultColor,
+                    description + " Default: " + defaultColor + ". Enter an HTML hex color such as #RRGGBB or #RRGGBBAA."),
+                Events = Config.Bind(colorSection, name + "Events", defaultEvents, "Semicolon, comma, pipe, or newline separated event IDs assigned to this color group. First matching group wins."),
+                IconColor = Config.Bind(
+                    iconColorSection,
+                    name + "IconColor",
+                    string.Empty,
+                    "Optional foreground tint for icons on " + name + "-group notifications. Default: blank, which inherits " + name + "Color. Enter an HTML hex color such as #RRGGBB or #RRGGBBAA.")
             };
 
             _colorGroups.Add(settings);
             _colorGroupByName[name] = settings;
+            settings.Color.SettingChanged += OnColorSettingChanged;
+            settings.IconColor.SettingChanged += OnIconColorSettingChanged;
+        }
+
+        private void OnColorSettingChanged(object sender, EventArgs eventArgs)
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            ConfigEntry<string> entry = sender as ConfigEntry<string>;
+            Color resolvedColor = default(Color);
+            bool valid = entry != null
+                && !string.IsNullOrWhiteSpace(entry.Value)
+                && ColorUtility.TryParseHtmlString(entry.Value.Trim(), out resolvedColor);
+            Logger.LogInfo(
+                "Live color setting changed: "
+                + (entry == null ? "unknown" : entry.Definition.Key)
+                + "="
+                + (entry == null ? "(missing)" : entry.Value)
+                + "; resolvedColor="
+                + (valid ? "#" + ColorUtility.ToHtmlStringRGBA(resolvedColor) : "invalid"));
+        }
+
+        private void OnIconColorSettingChanged(object sender, EventArgs eventArgs)
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            ConfigEntry<string> entry = sender as ConfigEntry<string>;
+            string value = entry == null ? string.Empty : entry.Value;
+            Color resolvedColor = default(Color);
+            bool inherits = string.IsNullOrWhiteSpace(value);
+            bool valid = !inherits
+                && ColorUtility.TryParseHtmlString(value.Trim(), out resolvedColor);
+            Logger.LogInfo(
+                "Live icon color setting changed: "
+                + (entry == null ? "unknown" : entry.Definition.Key)
+                + "="
+                + (entry == null ? "(missing)" : value)
+                + "; resolvedColor="
+                + (inherits
+                    ? "inherit"
+                    : valid ? "#" + ColorUtility.ToHtmlStringRGBA(resolvedColor) : "invalid"));
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -3095,6 +4733,8 @@ namespace GrailFloatingText
                 return;
             }
 
+            CapturePreservedPresentation(configPath, storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -3116,9 +4756,13 @@ namespace GrailFloatingText
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                _previousConfigSchemaVersion = storedSchemaVersion;
+                _showConfigResetNotification = true;
             }
             catch (Exception exception)
             {
+                ClearPendingPreservedPresentation();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -3139,6 +4783,834 @@ namespace GrailFloatingText
             }
         }
 
+        private void CapturePreservedPresentation(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedPresentation();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                string settingId = currentSection + "\n" + settingName;
+                object preservedValue;
+                if (!TryGetPreservedPresentationValue(
+                    profile,
+                    currentSection,
+                    settingName,
+                    settingId,
+                    out preservedValue))
+                {
+                    continue;
+                }
+
+                if (IsLegacyDefaultDurationValue(
+                    settingId,
+                    preservedValue,
+                    storedSchemaVersion))
+                {
+                    continue;
+                }
+
+                _pendingPreservedPresentation[settingId] = preservedValue;
+                if (currentSection.StartsWith("9. Sources.", StringComparison.Ordinal))
+                {
+                    _pendingPreservedSourceSections.Add(currentSection);
+                }
+            }
+        }
+
+        private static bool IsLegacyDefaultDurationValue(
+            string settingId,
+            object settingValue,
+            int storedSchemaVersion)
+        {
+            if (storedSchemaVersion >= 15)
+            {
+                return false;
+            }
+
+            float legacyDefault;
+            switch (settingId)
+            {
+                case "3. Timing\nDefaultDurationSeconds":
+                case "3. Timing\nMediumDurationSeconds":
+                    legacyDefault = 2.0f;
+                    break;
+                case "3. Timing\nVeryShortDurationSeconds":
+                    legacyDefault = 1.0f;
+                    break;
+                case "3. Timing\nShortDurationSeconds":
+                    legacyDefault = 1.5f;
+                    break;
+                case "3. Timing\nLongDurationSeconds":
+                    legacyDefault = 2.5f;
+                    break;
+                case "3. Timing\nVeryLongDurationSeconds":
+                    legacyDefault = 3.0f;
+                    break;
+                default:
+                    return false;
+            }
+
+            return settingValue is float
+                && Math.Abs((float)settingValue - legacyDefault) < 0.0001f;
+        }
+
+        private static bool TryGetPreservedPresentationValue(
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            string section,
+            string settingName,
+            string settingId,
+            out object preservedValue)
+        {
+            preservedValue = null;
+            if (IsPreservedFloatSetting(settingId))
+            {
+                float value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+                return false;
+            }
+
+            if (IsPreservedIntSetting(settingId))
+            {
+                int value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+                return false;
+            }
+
+            if (string.Equals(
+                settingId,
+                "2. Layout\nFontMode",
+                StringComparison.Ordinal))
+            {
+                FontMode value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+                return false;
+            }
+
+            if (string.Equals(
+                    settingId,
+                    "4. Animation\nSpawnAnimationEnabled",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    settingId,
+                    "8. Icons\nIconShadowEnabled",
+                    StringComparison.Ordinal))
+            {
+                bool value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+                return false;
+            }
+
+            if (section.StartsWith("9. Sources.", StringComparison.Ordinal))
+            {
+                if (string.Equals(settingName, "Enabled", StringComparison.Ordinal))
+                {
+                    bool value;
+                    if (profile.TryGetCustomizedValue(
+                        section,
+                        settingName,
+                        out value))
+                    {
+                        preservedValue = value;
+                        return true;
+                    }
+                    return false;
+                }
+
+                if (string.Equals(
+                            settingName,
+                            "ThrottleSeconds",
+                            StringComparison.Ordinal)
+                    || string.Equals(
+                            settingName,
+                            "DurationMultiplier",
+                            StringComparison.Ordinal))
+                {
+                    float value;
+                    if (profile.TryGetCustomizedValue(
+                        section,
+                        settingName,
+                        out value))
+                    {
+                        preservedValue = value;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            if (string.Equals(section, "11. Color Groups", StringComparison.Ordinal)
+                && settingName.EndsWith("Color", StringComparison.Ordinal))
+            {
+                string value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+            }
+
+            if (string.Equals(section, "12. Icon Color Overrides", StringComparison.Ordinal)
+                && settingName.EndsWith("IconColor", StringComparison.Ordinal))
+            {
+                string value;
+                if (profile.TryGetCustomizedValue(
+                    section,
+                    settingName,
+                    out value))
+                {
+                    preservedValue = value;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsPreservedFloatSetting(string settingId)
+        {
+            switch (settingId)
+            {
+                case "2. Layout\nScale":
+                    return true;
+                case "2. Layout\nCenterX":
+                case "2. Layout\nBaseCenterY":
+                case "3. Timing\nGlobalOpacity":
+                case "8. Icons\nIconOpacity":
+                case "8. Icons\nIconShadowOpacity":
+                    return true;
+                case "2. Layout\nWidth":
+                    return true;
+                case "2. Layout\nStackSpacing":
+                    return true;
+                case "3. Timing\nDefaultDurationSeconds":
+                case "3. Timing\nVeryShortDurationSeconds":
+                case "3. Timing\nShortDurationSeconds":
+                case "3. Timing\nMediumDurationSeconds":
+                case "3. Timing\nLongDurationSeconds":
+                case "3. Timing\nVeryLongDurationSeconds":
+                case "3. Timing\nSystemDurationSeconds":
+                    return true;
+                case "3. Timing\nDefaultFadeSeconds":
+                    return true;
+                case "4. Animation\nSpawnStartScale":
+                case "4. Animation\nSpawnOvershootScale":
+                    return true;
+                case "4. Animation\nSpawnAnimationSeconds":
+                case "4. Animation\nStackMoveAnimationSeconds":
+                    return true;
+                case "7. Source Defaults\nDefaultThrottleSeconds":
+                    return true;
+                case "7. Source Defaults\nDefaultDurationMultiplier":
+                    return true;
+                case "8. Icons\nIconSize":
+                    return true;
+                case "8. Icons\nIconGap":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsPreservedIntSetting(string settingId)
+        {
+            switch (settingId)
+            {
+                case "2. Layout\nFontSize":
+                    return true;
+                case "2. Layout\nMaximumVisibleNotifications":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void RestorePreservedPresentation()
+        {
+            if (_pendingPreservedPresentation.Count == 0
+                && _pendingPreservedInvalidValueCount == 0)
+            {
+                return;
+            }
+
+            BindPreservedSourceSections();
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            foreach (KeyValuePair<string, object> pair in _pendingPreservedPresentation)
+            {
+                int separatorIndex = pair.Key.IndexOf('\n');
+                if (separatorIndex <= 0)
+                {
+                    _pendingPreservedInvalidValueCount++;
+                    continue;
+                }
+
+                string section = pair.Key.Substring(0, separatorIndex);
+                string settingName = pair.Key.Substring(separatorIndex + 1);
+                if (IsPreservedFloatSetting(pair.Key))
+                {
+                    RestorePreservedFloat(
+                        section,
+                        settingName,
+                        (float)pair.Value,
+                        ref restoredCount,
+                        ref clampedCount);
+                    continue;
+                }
+
+                if (IsPreservedIntSetting(pair.Key))
+                {
+                    RestorePreservedInt(
+                        section,
+                        settingName,
+                        (int)pair.Value,
+                        ref restoredCount,
+                        ref clampedCount);
+                    continue;
+                }
+
+                if (section.StartsWith("9. Sources.", StringComparison.Ordinal))
+                {
+                    if (string.Equals(settingName, "Enabled", StringComparison.Ordinal))
+                    {
+                        RestorePreservedBool(
+                            section,
+                            settingName,
+                            (bool)pair.Value,
+                            ref restoredCount);
+                    }
+                    else if (string.Equals(settingName, "ThrottleSeconds", StringComparison.Ordinal))
+                    {
+                        RestorePreservedFloat(
+                            section,
+                            settingName,
+                            (float)pair.Value,
+                            ref restoredCount,
+                            ref clampedCount);
+                    }
+                    else if (string.Equals(settingName, "DurationMultiplier", StringComparison.Ordinal))
+                    {
+                        RestorePreservedFloat(
+                            section,
+                            settingName,
+                            (float)pair.Value,
+                            ref restoredCount,
+                            ref clampedCount);
+                    }
+
+                    continue;
+                }
+
+                if (string.Equals(pair.Key, "2. Layout\nFontMode", StringComparison.Ordinal))
+                {
+                    if (pair.Value is FontMode
+                        && Enum.IsDefined(typeof(FontMode), pair.Value))
+                    {
+                        bool clamped;
+                        if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                            _fontMode,
+                            (FontMode)pair.Value,
+                            out clamped))
+                        {
+                            restoredCount++;
+                        }
+                    }
+                    else
+                    {
+                        _pendingPreservedInvalidValueCount++;
+                    }
+
+                    continue;
+                }
+
+                if (string.Equals(
+                        pair.Key,
+                        "4. Animation\nSpawnAnimationEnabled",
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        pair.Key,
+                        "8. Icons\nIconShadowEnabled",
+                        StringComparison.Ordinal))
+                {
+                    RestorePreservedBool(
+                        section,
+                        settingName,
+                        (bool)pair.Value,
+                        ref restoredCount);
+                    continue;
+                }
+
+                if (string.Equals(section, "11. Color Groups", StringComparison.Ordinal)
+                    && settingName.EndsWith("Color", StringComparison.Ordinal))
+                {
+                    RestorePreservedString(
+                        section,
+                        settingName,
+                        (string)pair.Value,
+                        ref restoredCount);
+                    continue;
+                }
+
+                if (string.Equals(section, "12. Icon Color Overrides", StringComparison.Ordinal)
+                    && settingName.EndsWith("IconColor", StringComparison.Ordinal))
+                {
+                    RestorePreservedString(
+                        section,
+                        settingName,
+                        (string)pair.Value,
+                        ref restoredCount);
+                }
+            }
+
+            Logger.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " presentation and source value(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + "; skippedInvalid="
+                + _pendingPreservedInvalidValueCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            ClearPendingPreservedPresentation();
+        }
+
+        private void BindPreservedSourceSections()
+        {
+            foreach (string section in _pendingPreservedSourceSections)
+            {
+                Config.Bind(section, "Enabled", true, "Allow this source to show Grail Floating Text messages.");
+                Config.Bind(
+                    section,
+                    "ThrottleSeconds",
+                    GetDefaultSourceThrottleSeconds(),
+                    new ConfigDescription(
+                        "Minimum seconds between non-high-priority messages from this source.",
+                        new AcceptableValueRange<float>(0.0f, 10.0f)));
+                Config.Bind(
+                    section,
+                    "DurationMultiplier",
+                    GetDefaultSourceDurationMultiplier(),
+                    new ConfigDescription(
+                        "Multiplier applied to this source's requested display duration.",
+                        new AcceptableValueRange<float>(0.1f, 5.0f)));
+            }
+        }
+
+        private void RestorePreservedFloat(
+            string section,
+            string settingName,
+            float settingValue,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            ConfigEntry<float> entry;
+            if (!Config.TryGetEntry<float>(section, settingName, out entry))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                settingValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedInt(
+            string section,
+            string settingName,
+            int settingValue,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            ConfigEntry<int> entry;
+            if (!Config.TryGetEntry<int>(section, settingName, out entry))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                settingValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedBool(
+            string section,
+            string settingName,
+            bool settingValue,
+            ref int restoredCount)
+        {
+            ConfigEntry<bool> entry;
+            if (!Config.TryGetEntry<bool>(section, settingName, out entry))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                settingValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void RestorePreservedString(
+            string section,
+            string settingName,
+            string settingValue,
+            ref int restoredCount)
+        {
+            ConfigEntry<string> entry;
+            if (!Config.TryGetEntry<string>(section, settingName, out entry))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                settingValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void ClearPendingPreservedPresentation()
+        {
+            _pendingPreservedPresentation.Clear();
+            _pendingPreservedSourceSections.Clear();
+            _pendingPreservedInvalidValueCount = 0;
+        }
+
+        private void ShowPendingConfigResetNotification()
+        {
+            if (!_showConfigResetNotification)
+            {
+                return;
+            }
+
+            _showConfigResetNotification = false;
+            NotificationApi.TryShowEvent(
+                PluginGuid,
+                "config-reset",
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.BuildConfigResetMessage(
+                    PluginName,
+                    _previousConfigSchemaVersion,
+                    ConfigSchemaVersion),
+                "System",
+                "System",
+                "High",
+                "config-reset",
+                "system",
+                "System",
+                -1.0f,
+                1.0f);
+        }
+
+        private void LoadDeferredNotifications()
+        {
+            string path = GetDeferredNotificationStorePath();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                return;
+            }
+
+            bool sanitized = false;
+            try
+            {
+                string[] lines = File.ReadAllLines(path);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    DeferredNotificationEntry entry;
+                    if (!TryParseDeferredNotification(lines[i], out entry))
+                    {
+                        sanitized = true;
+                        continue;
+                    }
+
+                    int countBefore = _deferredNotifications.Count;
+                    AddOrReplaceDeferredNotification(entry);
+                    if (_deferredNotifications.Count == countBefore)
+                    {
+                        sanitized = true;
+                    }
+                }
+
+                if (lines.Length > MaximumDeferredNotifications)
+                {
+                    sanitized = true;
+                }
+
+                if (sanitized)
+                {
+                    SaveDeferredNotifications();
+                }
+
+                if (_deferredNotifications.Count > 0 && _diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        "Restored "
+                        + _deferredNotifications.Count.ToString(CultureInfo.InvariantCulture)
+                        + " deferred notification(s).");
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not restore deferred notifications: "
+                    + exception.GetBaseException().Message);
+            }
+        }
+
+        private void SaveDeferredNotifications()
+        {
+            string path = GetDeferredNotificationStorePath();
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                if (_deferredNotifications.Count == 0)
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+
+                    return;
+                }
+
+                string directory = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                string[] lines = new string[_deferredNotifications.Count];
+                for (int i = 0; i < _deferredNotifications.Count; i++)
+                {
+                    lines[i] = SerializeDeferredNotification(_deferredNotifications[i]);
+                }
+
+                string temporaryPath = path + ".tmp";
+                File.WriteAllLines(temporaryPath, lines, Encoding.UTF8);
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
+                File.Move(temporaryPath, path);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not save deferred notifications: "
+                    + exception.GetBaseException().Message);
+            }
+        }
+
+        private string GetDeferredNotificationStorePath()
+        {
+            string configPath = Config == null ? null : Config.ConfigFilePath;
+            return string.IsNullOrEmpty(configPath) ? null : configPath + ".pending";
+        }
+
+        private static string SerializeDeferredNotification(DeferredNotificationEntry entry)
+        {
+            return string.Join(
+                "\t",
+                DeferredNotificationStoreVersion.ToString(CultureInfo.InvariantCulture),
+                ((int)entry.DeliveryPoint).ToString(CultureInfo.InvariantCulture),
+                entry.CreatedUtcTicks.ToString(CultureInfo.InvariantCulture),
+                EncodeDeferredValue(entry.SourceId),
+                EncodeDeferredValue(entry.EventId),
+                EncodeDeferredValue(entry.Text),
+                EncodeDeferredValue(entry.Style),
+                EncodeDeferredValue(entry.Category),
+                EncodeDeferredValue(entry.Priority),
+                EncodeDeferredValue(entry.CollapseKey),
+                EncodeDeferredValue(entry.IconId),
+                entry.DurationSeconds.ToString("R", CultureInfo.InvariantCulture),
+                entry.FadeSeconds.ToString("R", CultureInfo.InvariantCulture),
+                entry.Opacity.ToString("R", CultureInfo.InvariantCulture));
+        }
+
+        private static bool TryParseDeferredNotification(
+            string line,
+            out DeferredNotificationEntry entry)
+        {
+            entry = null;
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return false;
+            }
+
+            try
+            {
+                string[] parts = line.Split('\t');
+                int storeVersion;
+                int deliveryValue;
+                long createdUtcTicks;
+                float durationSeconds;
+                float fadeSeconds;
+                float opacity;
+                if (parts.Length != 14
+                    || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out storeVersion)
+                    || storeVersion != DeferredNotificationStoreVersion
+                    || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out deliveryValue)
+                    || (deliveryValue != (int)DeliveryPoint.OnMainMenu
+                        && deliveryValue != (int)DeliveryPoint.OnLoad)
+                    || !long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out createdUtcTicks)
+                    || !float.TryParse(parts[11], NumberStyles.Float, CultureInfo.InvariantCulture, out durationSeconds)
+                    || !float.TryParse(parts[12], NumberStyles.Float, CultureInfo.InvariantCulture, out fadeSeconds)
+                    || !float.TryParse(parts[13], NumberStyles.Float, CultureInfo.InvariantCulture, out opacity))
+                {
+                    return false;
+                }
+
+                long ageTicks = DateTime.UtcNow.Ticks - createdUtcTicks;
+                if (createdUtcTicks <= 0
+                    || ageTicks > TimeSpan.FromDays(DeferredNotificationMaximumAgeDays).Ticks
+                    || ageTicks < -TimeSpan.FromDays(1).Ticks
+                    || durationSeconds <= 0.0f)
+                {
+                    return false;
+                }
+
+                entry = new DeferredNotificationEntry
+                {
+                    DeliveryPoint = (DeliveryPoint)deliveryValue,
+                    CreatedUtcTicks = createdUtcTicks,
+                    SourceId = DecodeDeferredValue(parts[3]),
+                    EventId = DecodeDeferredValue(parts[4]),
+                    Text = DecodeDeferredValue(parts[5]),
+                    Style = DecodeDeferredValue(parts[6]),
+                    Category = DecodeDeferredValue(parts[7]),
+                    Priority = DecodeDeferredValue(parts[8]),
+                    CollapseKey = DecodeDeferredValue(parts[9]),
+                    IconId = DecodeDeferredValue(parts[10]),
+                    DurationSeconds = durationSeconds,
+                    FadeSeconds = fadeSeconds,
+                    Opacity = opacity
+                };
+                return !string.IsNullOrWhiteSpace(entry.SourceId)
+                    && !string.IsNullOrWhiteSpace(entry.Text);
+            }
+            catch
+            {
+                entry = null;
+                return false;
+            }
+        }
+
+        private static string EncodeDeferredValue(string value)
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(value ?? string.Empty));
+        }
+
+        private static string DecodeDeferredValue(string value)
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(value));
+        }
+
         private void PruneExpired(float now)
         {
             for (int i = _notifications.Count - 1; i >= 0; i--)
@@ -3147,6 +5619,10 @@ namespace GrailFloatingText
                 if (now - entry.StartTime > Math.Max(DefaultMinimumDurationSeconds, entry.DurationSeconds))
                 {
                     _notifications.RemoveAt(i);
+                    if (ReferenceEquals(entry, _activeXpNotification))
+                    {
+                        _activeXpNotification = null;
+                    }
                 }
             }
         }
@@ -3156,31 +5632,46 @@ namespace GrailFloatingText
             int maximum = _maximumVisibleNotifications == null ? 6 : Math.Max(1, _maximumVisibleNotifications.Value);
             while (_notifications.Count > maximum)
             {
+                NotificationEntry removed = _notifications[_notifications.Count - 1];
                 _notifications.RemoveAt(_notifications.Count - 1);
+                if (ReferenceEquals(removed, _activeXpNotification))
+                {
+                    _activeXpNotification = null;
+                }
             }
         }
 
         private float GetNotificationAlpha(NotificationEntry entry, float elapsed)
         {
-            float fade = Math.Max(0.0f, entry.FadeSeconds);
-            if (fade <= 0.001f)
+            float fadeIn = Math.Max(0.0f, entry.FadeSeconds);
+            if (fadeIn <= 0.001f)
             {
                 return 1.0f;
             }
 
             float alpha = 1.0f;
-            if (elapsed < fade)
+            if (elapsed < fadeIn)
             {
-                alpha = Math.Min(alpha, elapsed / fade);
+                alpha = Math.Min(alpha, elapsed / fadeIn);
             }
 
+            float fadeOut = GetNotificationFadeOutSeconds(entry.DurationSeconds, fadeIn);
             float remaining = entry.DurationSeconds - elapsed;
-            if (remaining < fade)
+            if (remaining < fadeOut)
             {
-                alpha = Math.Min(alpha, Math.Max(0.0f, remaining / fade));
+                alpha = Math.Min(alpha, Math.Max(0.0f, remaining / fadeOut));
             }
 
             return Clamp01(alpha);
+        }
+
+        private static float GetNotificationFadeOutSeconds(float durationSeconds, float fadeInSeconds)
+        {
+            float anchorRange = DefaultSystemDurationSeconds - DefaultMediumDurationSeconds;
+            float scale = 1.0f + ((durationSeconds - DefaultMediumDurationSeconds) / anchorRange);
+            scale = Clamp(scale, 0.6f, 2.0f);
+
+            return Math.Min(fadeInSeconds * scale, Math.Max(0.0f, durationSeconds) * 0.5f);
         }
 
         private float GetAnimatedCenterY(NotificationEntry entry, float targetCenterY, float now, float spacing)
@@ -3257,84 +5748,72 @@ namespace GrailFloatingText
             return start + (end - start) * Clamp01(amount);
         }
 
-        private void EnsureStyles(int fontSize)
-        {
-            Font styleFont = ResolveConfiguredFont();
-            if (_textStyle != null && _styleFontSize == fontSize && ReferenceEquals(_styleFont, styleFont))
-            {
-                return;
-            }
-
-            _styleFontSize = fontSize;
-            _styleFont = styleFont;
-            _textStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = fontSize,
-                fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Overflow,
-                wordWrap = false
-            };
-            if (styleFont != null)
-            {
-                _textStyle.font = styleFont;
-            }
-
-            _shadowStyle = new GUIStyle(_textStyle);
-            _textLeftStyle = new GUIStyle(_textStyle)
-            {
-                alignment = TextAnchor.MiddleLeft
-            };
-            _shadowLeftStyle = new GUIStyle(_textLeftStyle);
-        }
-
-        private Font ResolveConfiguredFont()
+        private FontAsset ResolveConfiguredFontAsset()
         {
             FontMode mode = _fontMode == null ? FontMode.GameDefault : _fontMode.Value;
             if (mode == FontMode.ImguiDefault)
             {
-                return null;
+                return ResolveImguiDefaultFontAsset();
             }
 
             try
             {
                 if (mode == FontMode.Sans)
                 {
-                    return ResolveFontFamily(FontFamily.Sans, "Sans");
+                    return ResolveCommonFontAsset(false, "Sans");
                 }
 
                 if (mode == FontMode.Serif)
                 {
-                    return ResolveFontFamily(FontFamily.Serif, "Serif");
+                    return ResolveCommonFontAsset(true, "Serif");
                 }
 
                 FontChooseSetting setting = World.Any<FontChooseSetting>();
                 if (setting == null)
                 {
-                    return null;
+                    return ResolveFallbackFontAsset();
                 }
 
                 FontFamily activeFont = setting.ActiveFont;
-                return ResolveFontFamily(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
+                return ResolveFontFamilyAsset(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
             }
             catch (Exception ex)
             {
                 LogFontDiagnosticOnce(
-                    "ResolveConfiguredFont:" + mode.ToString() + ":" + ex.GetType().FullName,
-                    "Could not resolve " + mode + " font for IMGUI overlay; using Unity IMGUI fallback font. "
-                    + ex.GetBaseException().Message);
-                return null;
+                    "ResolveConfiguredFontAsset:" + mode.ToString() + ":" + ex.GetType().FullName,
+                    "Could not resolve " + mode + " font for the TextMesh Pro overlay; using the safe fallback font. "
+                        + ex.GetBaseException().Message);
+                return ResolveFallbackFontAsset();
             }
         }
 
-        private Font ResolveFontFamily(FontFamily fontFamily, string label)
+        private FontAsset ResolveCommonFontAsset(bool serif, string label)
+        {
+            CommonReferences references = CommonReferences.Get;
+            FontAsset fontAsset = references == null
+                ? null
+                : serif
+                    ? references.SerifFontAsset
+                    : references.SansFontAsset;
+            if (fontAsset == null)
+            {
+                LogFontDiagnosticOnce(
+                    "CommonFontAssetMissing:" + label,
+                    "The " + label + " game FontAsset is not ready for the TextMesh Pro overlay; using the safe fallback font.");
+                return ResolveFallbackFontAsset();
+            }
+
+            return fontAsset;
+        }
+
+        private FontAsset ResolveFontFamilyAsset(FontFamily fontFamily, string label)
         {
             if (fontFamily == null)
             {
                 LogFontDiagnosticOnce(
                     "FontFamilyMissing:" + label,
-                    "Could not resolve " + label + " font family for IMGUI overlay; using Unity IMGUI fallback font.");
-                return null;
+                    "Could not resolve " + label + " font family for the TextMesh Pro overlay; using the safe fallback font.");
+                return ResolveFallbackFontAsset();
             }
 
             FontAsset fontAsset = fontFamily.FontAsset;
@@ -3342,21 +5821,40 @@ namespace GrailFloatingText
             {
                 LogFontDiagnosticOnce(
                     "FontAssetMissing:" + fontFamily.EnumName,
-                    "Could not resolve " + label + " FontAsset for IMGUI overlay; using Unity IMGUI fallback font.");
-                return null;
+                    "Could not resolve " + label + " FontAsset for the TextMesh Pro overlay; using the safe fallback font.");
+                return ResolveFallbackFontAsset();
             }
 
-            Font sourceFont = fontAsset.sourceFontFile;
+            return fontAsset;
+        }
+
+        private FontAsset ResolveFallbackFontAsset()
+        {
+            FontAsset fontAsset = TMP_Settings.defaultFontAsset;
+            return fontAsset ?? ResolveImguiDefaultFontAsset();
+        }
+
+        private FontAsset ResolveImguiDefaultFontAsset()
+        {
+            if (_imguiDefaultFontAsset != null)
+            {
+                return _imguiDefaultFontAsset;
+            }
+
+            Font sourceFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
             if (sourceFont == null)
             {
-                LogFontDiagnosticOnce(
-                    "SourceFontMissing:" + fontFamily.EnumName + ":" + fontAsset.name,
-                    "The " + label + " FontAsset '" + fontAsset.name
-                    + "' does not expose a UnityEngine.Font source file for IMGUI; using Unity IMGUI fallback font.");
-                return null;
+                return TMP_Settings.defaultFontAsset;
             }
 
-            return sourceFont;
+            _imguiDefaultFontAsset = FontAsset.CreateFontAsset(sourceFont);
+            if (_imguiDefaultFontAsset != null)
+            {
+                _imguiDefaultFontAsset.name = "GrailFloatingText-ImguiDefault";
+                _imguiDefaultFontAsset.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            return _imguiDefaultFontAsset ?? TMP_Settings.defaultFontAsset;
         }
 
         private void LogFontDiagnosticOnce(string key, string message)
@@ -3370,19 +5868,114 @@ namespace GrailFloatingText
             Logger.LogWarning(message);
         }
 
+        private ColorGroupSettings ResolveStyleColorGroup(string style)
+        {
+            ColorGroupSettings group;
+            if (!string.IsNullOrWhiteSpace(style)
+                && _colorGroupByName.TryGetValue(style, out group))
+            {
+                return group;
+            }
+
+            Color parsed;
+            if (!string.IsNullOrWhiteSpace(style)
+                && ColorUtility.TryParseHtmlString(style, out parsed))
+            {
+                return null;
+            }
+
+            string groupName;
+            if (StyleEquals(style, "Reward"))
+            {
+                groupName = "Gold";
+            }
+            else if (StyleEquals(style, "Status"))
+            {
+                groupName = "Blue";
+            }
+            else if (StyleEquals(style, "Wyrd"))
+            {
+                groupName = "Purple";
+            }
+            else if (StyleEquals(style, "Combat")
+                || StyleEquals(style, "Resistance")
+                || StyleEquals(style, "Warning"))
+            {
+                groupName = "Orange";
+            }
+            else if (StyleEquals(style, "Immunity")
+                || StyleEquals(style, "Error")
+                || StyleEquals(style, "Critical"))
+            {
+                groupName = "Red";
+            }
+            else if (StyleEquals(style, "System"))
+            {
+                groupName = "Pale";
+            }
+            else if (StyleEquals(style, "Debug"))
+            {
+                groupName = "Gray";
+            }
+            else if (StyleEquals(style, "Discovery")
+                || StyleEquals(style, "Weakness"))
+            {
+                return null;
+            }
+            else
+            {
+                groupName = "Default";
+            }
+
+            return _colorGroupByName.TryGetValue(groupName, out group)
+                ? group
+                : null;
+        }
+
+        private Color ResolveIconColor(string style, Color inheritedColor, float alpha)
+        {
+            ColorGroupSettings group = ResolveStyleColorGroup(style);
+            if (group == null
+                || group.IconColor == null
+                || string.IsNullOrWhiteSpace(group.IconColor.Value))
+            {
+                return inheritedColor;
+            }
+
+            string value = group.IconColor.Value.Trim();
+            Color parsed;
+            if (!ColorUtility.TryParseHtmlString(value, out parsed))
+            {
+                string warningKey = group.Name + "\n" + value;
+                if (_invalidIconColorWarnings.Add(warningKey))
+                {
+                    Logger.LogWarning(
+                        group.IconColor.Definition.Key
+                        + " has an invalid HTML color value: "
+                        + value
+                        + ". The icon will inherit the resolved text color.");
+                }
+
+                return inheritedColor;
+            }
+
+            parsed.a *= alpha;
+            return parsed;
+        }
+
         private Color ResolveStyleColor(string style, float alpha)
         {
+            ColorGroupSettings group;
+            if (!string.IsNullOrWhiteSpace(style) && _colorGroupByName.TryGetValue(style, out group))
+            {
+                return ResolveConfiguredColor(group.Color, GetFallbackGroupColor(group.Name), alpha);
+            }
+
             Color parsed;
             if (!string.IsNullOrWhiteSpace(style) && ColorUtility.TryParseHtmlString(style, out parsed))
             {
                 parsed.a *= alpha;
                 return parsed;
-            }
-
-            ColorGroupSettings group;
-            if (!string.IsNullOrWhiteSpace(style) && _colorGroupByName.TryGetValue(style, out group))
-            {
-                return ResolveConfiguredColor(group.Color, GetFallbackGroupColor(group.Name), alpha);
             }
 
             if (StyleEquals(style, "Reward"))
@@ -3397,7 +5990,14 @@ namespace GrailFloatingText
 
             if (StyleEquals(style, "Wyrd"))
             {
-                return ResolveNamedGroupOrFallback("Purple", new Color(0.76f, 0.58f, 1.0f, alpha), alpha);
+                return ResolveNamedGroupOrFallback(
+                    "Purple",
+                    new Color(
+                        152.0f / 255.0f,
+                        112.0f / 255.0f,
+                        1.0f,
+                        alpha),
+                    alpha);
             }
 
             if (StyleEquals(style, "Discovery"))
@@ -3494,7 +6094,11 @@ namespace GrailFloatingText
 
             if (StyleEquals(groupName, "Purple"))
             {
-                return new Color(0.76f, 0.58f, 1.0f, 1.0f);
+                return new Color(
+                    152.0f / 255.0f,
+                    112.0f / 255.0f,
+                    1.0f,
+                    1.0f);
             }
 
             if (StyleEquals(groupName, "Orange"))
@@ -3542,7 +6146,7 @@ namespace GrailFloatingText
 
         private sealed class HeroDevelopmentXpHookPatch
         {
-            private static bool Prefix(HookResult<IWithStats, Stat.StatChange> hookResult)
+            internal static bool Prefix(HookResult<IWithStats, Stat.StatChange> hookResult)
             {
                 GrailFloatingTextPlugin plugin = Instance;
                 return plugin == null || plugin.HandleXpChangedFromStatHook(hookResult);
@@ -3551,7 +6155,7 @@ namespace GrailFloatingText
 
         private sealed class HeroDevelopmentXpFloatPatch
         {
-            private static bool Prefix(float gainedXP)
+            internal static bool Prefix(float gainedXP)
             {
                 GrailFloatingTextPlugin plugin = Instance;
                 return plugin == null || plugin.HandleXpChangedFromDirectFloat(gainedXP);
@@ -3563,6 +6167,8 @@ namespace GrailFloatingText
             internal string SourceId;
             internal string EventId;
             internal string Text;
+            internal string ConsolidationKey;
+            internal string TextFormat;
             internal string Style;
             internal string Category;
             internal string Priority;
@@ -3573,6 +6179,41 @@ namespace GrailFloatingText
             internal float Opacity;
             internal float CreatedAt;
             internal long Sequence;
+        }
+
+        private sealed class XpNotificationBatch
+        {
+            internal string SourceId;
+            internal string EventId;
+            internal string ConsolidationKey;
+            internal string Text;
+            internal string TextFormat;
+            internal string Style;
+            internal string Category;
+            internal string Priority;
+            internal string IconId;
+            internal DurationBucket DurationBucket;
+            internal float Amount;
+            internal float FadeSeconds;
+            internal float Opacity;
+        }
+
+        private struct NotificationLayout
+        {
+            internal Texture2D IconTexture;
+            internal float GroupWidth;
+            internal float TextWidth;
+            internal float Height;
+            internal bool Wrapped;
+        }
+
+        private sealed class NotificationView
+        {
+            internal RectTransform Root;
+            internal RawImage IconShadow;
+            internal RawImage Icon;
+            internal TextMeshProUGUI ShadowText;
+            internal TextMeshProUGUI Text;
         }
 
         private sealed class NotificationEntry
@@ -3598,6 +6239,23 @@ namespace GrailFloatingText
             internal float MoveStartTime;
         }
 
+        private sealed class DeferredNotificationEntry
+        {
+            internal string SourceId;
+            internal string CollapseKey;
+            internal string EventId;
+            internal string Text;
+            internal string Style;
+            internal string Category;
+            internal string Priority;
+            internal string IconId;
+            internal float DurationSeconds;
+            internal DeliveryPoint DeliveryPoint;
+            internal float FadeSeconds;
+            internal float Opacity;
+            internal long CreatedUtcTicks;
+        }
+
         private sealed class SourceSettings
         {
             internal ConfigEntry<bool> Enabled;
@@ -3611,6 +6269,7 @@ namespace GrailFloatingText
             internal string Name;
             internal ConfigEntry<string> Color;
             internal ConfigEntry<string> Events;
+            internal ConfigEntry<string> IconColor;
         }
     }
 }

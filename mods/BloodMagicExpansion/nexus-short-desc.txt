@@ -1,1 +1,1 @@
-Turns Blood Transfusion, Life Transfusion, and Abhartach's Calling into a fuller blood-magic progression loop with corpse draining, XP rewards, corpse quality scaling, audio feedback, a red inner spell light, and optional Dynamic Crosshair integration.
+Turns Blood Transfusion, Life Transfusion, and Abhartach's Calling into a fuller progression loop with corpse draining, XP rewards, corpse quality, audio, a red inner spell light, optional Bleed hitch mitigation, and Dynamic Crosshair integration.

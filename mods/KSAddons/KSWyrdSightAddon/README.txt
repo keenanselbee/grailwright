@@ -1,5 +1,5 @@
 Wyrd Sight Addon
-Version 1.0.4
+Version 1.0.9
 
 Companion addon for Wyrd Sight 1.1.1.
 
@@ -39,9 +39,16 @@ PulseDurationSeconds for a shorter flash, or raise it for a longer scan. The
 state-check and off-retry timing defaults are conservative; change them only if
 the parent mod needs slower or faster pulse ownership handling.
 
-Version 1.0.4 appears as Wyrd Sight Addon in BepInEx and Configuration
+Version 1.0.9 appears as Wyrd Sight Addon in BepInEx and Configuration
 Manager while keeping the existing ks.tgfoa.wyrd-sight-addon.cfg config path.
 It still uses ConfigSchemaVersion 2. Older configs are backed up and a fresh
 default config is regenerated when the schema changes.
 
 Requires BepInEx 5 Mono and Wyrd Sight 1.1.1.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

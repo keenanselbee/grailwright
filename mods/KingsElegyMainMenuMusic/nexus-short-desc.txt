@@ -1,1 +1,1 @@
-Replaces the title-screen music with a darker, deep-voiced Arthur main menu track while supporting custom WAVs, FMOD playback, loop trimming, and soft crossfade looping.
+Replaces the title-screen music with a dark synchronized mix of treated base music, fire, and wind while supporting custom WAVs, FMOD playback, loop trimming, and soft crossfade looping.

@@ -1,0 +1,1 @@
+Tune the player's nonverbal voice grunts with pitch, random pitch variation, and volume controls. Covers attack, hurt, death, status pain, and player hit-feedback sounds, with optional stamina breathing support.

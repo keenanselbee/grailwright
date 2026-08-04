@@ -1,3 +1,27 @@
+Version 1.1.1
+Work in progress; not yet released.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 1.1.0
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.0.9
+Added a conservative Import Previous Settings action for supported pre-schema backups.
+Added five-second Grail Floating Text notices for config resets and load errors, hid the internal schema setting in FoA Mod Manager, and strengthened input-hook registration.
+
+Version 1.0.8
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 1.0.7
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 1.0.6
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 1.0.5
+Replaced the owned input Harmony callback name string with a compiler-checked reference.
+
 Version 1.0.4
 Added optional Grail Floating Text load-time error notices with the debug icon for startup and parent-plugin resolution failures.
 Disabled the addon cleanly after startup failure so partial initialization does not keep running.

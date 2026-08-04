@@ -1,0 +1,188 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][color=#C94A4A][size=6]Eyes in the Dark - Wyrdnight Encounters[/size][/color]
+[i]A Wyrdnight threat and encounter overhaul.[/i][/center]
+
+[line]
+
+[b]Eyes in the Dark - Wyrdnight Encounters[/b] rebuilds outdoor Wyrdnights around suspense, player behavior, and restrained encounter pacing. The project is inspired by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url]; it owns separate day and night world-clock rates and adds curated native hunter encounters through its own Wyrd Threat director.
+
+Wyrd Threat rises from exposed night progress and meaningful actions such as sustained fast movement, combat, eligible Wyrd kills, and acquisitions. Higher threat makes hunts arrive sooner, shifts the eligible roster toward stronger hunters, and increases the chance of larger encounters. It never acts as a hard spawn threshold and cannot bypass level, region, safety, or danger-budget limits.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Threat and Hunt Cycle[/size][/color][/heading]
+[list]
+[*]Wyrd Threat runs from 0 to 100 through Unnoticed, Watched, Hunted, and Marked presentation stages.[/*]
+[*]The director accumulates hazard over exposed active play, commits a warning, places one atomic native encounter, then enters recovery.[/*]
+[*]Protection suspends hunt pressure and decays threat. Interiors hide the meter and decay threat more slowly.[/*]
+[*]Killing the exact official primary hunter grants the greatest threat relief.[/*]
+[*]Sustained outdoor escape or entering an interior grants less relief and a longer Recently Pursued recovery.[/*]
+[*]Invalid or failed placement spends no danger budget.[/*]
+[/list]
+
+Eyes dynamically controls only the GameRealTime world-weather rate. Its default [b]DayTimescale 0.23[/b] produces approximately 60 real minutes of daylight, [b]NightTimescale 0.413[/b] produces approximately 15 real minutes of night, and the complete reference cycle lasts about 75 minutes. Combat, animations, effects, and pause behavior are untouched because Eyes never changes gameplay Time.timeScale. Both rates are configurable from 0.01 through 5.0 and remain independent of the three gameplay presets.
+
+Long nights use the actual world-clock duration. Their nightly danger budget grows through a capped square-root bonus, so a ten-times-longer night does not create ten times as many encounters. At the default 0.413 night rate, Watchful receives roughly a 19 percent budget bonus.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Curated Hunters[/size][/color][/heading]
+The initial beta roster uses reviewed non-unique native templates and fails closed on unknown scenes.
+
+[code]
+| Hunter       | Region             | Min level | Tier | Cost | Role                      |
+|--------------|--------------------|-----------|------|------|---------------------------|
+| Wyrdspirit   | Reviewed universal | 1         | 1    | 8    | primary, sidecar, cluster |
+| Redcap       | Horns of the South | 4         | 1    | 10   | primary, sidecar          |
+| Corpse Eater | Horns of the South | 7         | 1    | 12   | primary, sidecar          |
+| Sharg        | Horns of the South | 12        | 2    | 16   | primary, rare sidecar     |
+| Ogre         | Horns of the South | 20        | 3    | 24   | solo primary              |
+| Corpse Eater | Cuanacht           | 15        | 3    | 16   | primary, sidecar          |
+| Mistling     | Cuanacht           | 18        | 3    | 18   | primary, sidecar          |
+| Sharg        | Cuanacht           | 22        | 4    | 22   | primary                   |
+| Ogre         | Cuanacht           | 26        | 4    | 28   | solo primary              |
+| Redcap       | Forlorn            | 22        | 4    | 18   | primary, sidecar          |
+| Mistling     | Forlorn            | 26        | 4    | 24   | primary                   |
+| Corpse Eater | Forlorn            | 30        | 5    | 28   | primary                   |
+| Wyrdspawn    | Sarras             | 28        | 5    | 26   | primary                   |
+| Wyrdspawn T6 | Sarras             | 34        | 6    | 32   | primary                   |
+| Wyrdheir     | Sarras             | 36        | 6    | 34   | solo primary              |
+[/code]
+
+Every regional profile uses one standard shipped non-trial, non-challenge location template and has a one-copy limit. Wyrdspirit remains the universal level-1 fallback and the only profile with cluster behavior. Elite, friendly, summon, boss, challenge, trial, story, and custom variants are excluded.
+
+Mixed encounters prefer weaker sidecars, penalize same-tier and same-family repetition, respect player-level and danger-budget caps, and support curated Wyrdspirit clusters. Killing the exact primary resolves the official hunt; surviving sidecars become ordinary enemies and release the director lock.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Gameplay Presets[/size][/color][/heading]
+Select a one-shot template in FoA Mod Manager. It writes gameplay tuning and immediately returns to Custom, leaving later manual edits active.
+
+[code]
+| Preset         | Character                                       |
+|----------------|-------------------------------------------------|
+| Uneasy Night   | Restrained threat, low budget, solo encounters  |
+| Watchful Night | Recommended balanced tension and mixed hunts    |
+| Cursed Night   | Faster escalation, larger budget, larger packs  |
+[/code]
+
+Presets never overwrite HUD, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url], boundary, diagnostics, or accessibility preferences.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Wyrd Threat Meter[/size][/color][/heading]
+Eyes in the Dark owns the meter. It is visible outdoors throughout a valid Wyrdnight, including inside protected areas, and hides during daylight, interiors, loading, and missing-Hero states.
+
+Standalone placement is above the health bar. When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] is installed and enabled, Glorious UI requests below-resource-bars placement while Eyes retains creation, updates, visibility, and cleanup. No duplicate meter is created.
+
+The artwork is mirrored horizontally and vertically. Exact value display and layout offsets are configurable.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Boundary And Atmosphere[/size][/color][/heading]
+The native Wyrd boundary uses a configurable purple hue with vanilla radius, thickness, peak HDR brightness, and static behavior by default. Optional subtle threat reactivity changes brightness and thickness only; protection, mask intensity, and gameplay radius are never altered.
+
+Optional Grail Floating Text integration provides randomized atmospheric text with immediate-repeat prevention:
+
+[code]
+| Notification preset | Messages                                               |
+|---------------------|--------------------------------------------------------|
+| Minimal             | Committed hunts and outcomes                           |
+| Atmospheric         | Minimal plus night and upward-stage transitions        |
+| Detailed            | All above plus downward stages, protection, and surges |
+[/code]
+
+When Diagnostics is enabled, separate concise low-priority System notifications report useful behind-the-scenes state, threat, hazard, filters, final weights, composition, cost, budget, placement, and outcomes. They use immediate delivery and one collapse lane; Grail Floating Text absence or failure cannot affect gameplay.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.eyes-in-the-dark.cfg
+[/code]
+
+FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b].
+
+[code]
+| Setting                         | Default                          |
+|---------------------------------|----------------------------------|
+| Enabled                         | true                             |
+| EnableDynamicTimescale          | true                             |
+| DayTimescale                    | 0.23 (~60-minute day)            |
+| NightTimescale                  | 0.413 (~15-minute night)         |
+| ApplyPreset                     | Custom; Watchful Night tuning    |
+| PassiveThreatPerNight           | 20                               |
+| SprintThreatPerMinute           | 4                                |
+| CombatThreatPerWindow           | 2                                |
+| WyrdKillThreat                  | 5                                |
+| AcquisitionThreatPerItem        | 0.75                             |
+| Protected / interior decay      | 4 / 1 per active minute          |
+| BaseNightlyDangerBudget         | 30                               |
+| MaximumEncounterSize            | 2                                |
+| SidecarChance                   | 0.55                             |
+| HunterSpawnDistanceMeters       | 35                               |
+| ShowExactThreatValue            | false                            |
+| BoundaryColor                   | #B878FF                          |
+| Boundary radius / thickness     | 32 / 0.25                        |
+| ThreatReactivity                | Disabled                         |
+| EnableNotifications             | true                             |
+| NotificationPreset              | Atmospheric                      |
+| Diagnostics                     | false                            |
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/EyesInTheDark/EyesInTheDark.dll
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+Automatically preserved: Enabled; dynamic world-timescale settings; all Wyrd Threat and encounter tuning; threat-meter display and offsets; boundary appearance and reactivity; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action is permanently excluded.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] is incompatible with Eyes in the Dark.[/b] Do not run both night directors together.[/*]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/76]Custom Timescale[/url] is incompatible with Eyes in the Dark.[/b] Both plugins control the GameRealTime weather rate. GFT shows one compatibility notice when both are loaded but does not disable or reconfigure either plugin.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] provides optional atmospheric messages and concise diagnostic summaries. It is not required for threat calculation or encounter behavior.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] provides optional below-resource-bars placement for the Eyes-owned Wyrd Threat meter. It is not required for threat calculation or encounter behavior.[/*]
+[*]Other mods that replace outdoor Wyrdnight encounter direction or spawn the same kinds of hunters may conflict.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Known Beta Limits[/size][/color][/heading]
+[list]
+[*]The regional roster is deliberately curated and excludes special variants.[/*]
+[*]Wyrd Threat and active encounters add no custom save persistence. Spawned encounter locations are volatile and excluded from saves.[/*]
+[*]No indoor hunts, custom enemies, rewards, bosses, unique actors, summons, or third-party encounter-profile framework are included.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
+If the meter is missing, confirm that the player is outdoors during a valid Wyrdnight and not in a loading or transition state. Indoors it is hidden by design while threat decays slowly.
+
+If no hunt occurs, check protection, unrelated combat, swimming, travel, player level, exact map, remaining danger budget, and [b]BepInEx/LogOutput.log[/b]. Invalid selection or placement safely costs zero.
+
+Enable [b]Diagnostics[/b] for concise Grail Floating Text System summaries and full log details.

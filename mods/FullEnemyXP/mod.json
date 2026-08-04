@@ -2,12 +2,13 @@
   "id": "FullEnemyXP",
   "displayName": "Full Enemy XP",
   "packageName": "FullEnemyXP",
-  "version": "1.0.1",
+  "version": "1.0.7",
   "pluginGuid": "ks.tgfoa.full-enemy-xp",
   "dll": "FullEnemyXP.dll",
   "sourceFiles": [
     "src/FullEnemyXP.cs",
-    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

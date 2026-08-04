@@ -16,8 +16,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Ultrawide presentation fixes for Tainted Grail title and loading screens")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Ultrawide Fixes")]
-[assembly: AssemblyVersion("1.0.2.0")]
-[assembly: AssemblyFileVersion("1.0.2.0")]
+[assembly: AssemblyVersion("1.0.8.0")]
+[assembly: AssemblyFileVersion("1.0.8.0")]
 
 namespace UltrawideFixes
 {
@@ -27,11 +27,17 @@ namespace UltrawideFixes
     {
         public const string PluginGuid = "ks.tgfoa.ultrawide-fixes";
         public const string PluginName = "Ultrawide Fixes";
-        public const string PluginVersion = "1.0.2";
+        public const string PluginVersion = "1.0.8";
 
         private const float SourceVideoAspect = 16.0f / 9.0f;
         private const float DefaultTargetAspect = 21.0f / 9.0f;
         private const int ConfigSchemaVersion = 1;
+        private const int ConfigRecoveryBaselineSchema = 1;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         internal const string LoadingScreenViewTypeName = "Awaken.TG.Main.UI.TitleScreen.Loading.VLoadingScreenUI";
         internal const string ImageSpriteLoaderTypeName = "Awaken.TG.Assets.SpriteReference+ImageSpriteLoader";
 
@@ -61,6 +67,11 @@ namespace UltrawideFixes
         private readonly HashSet<int> _patchedRawImages = new HashSet<int>();
         private readonly HashSet<int> _patchedLoadingImages = new HashSet<int>();
         private readonly HashSet<int> _hiddenBars = new HashSet<int>();
+        private readonly Dictionary<string, float> _pendingPreservedDisplayFloats =
+            new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, bool> _pendingPreservedDisplayBools =
+            new Dictionary<string, bool>(StringComparer.Ordinal);
+        private int _pendingPreservedInvalidValueCount;
         private Coroutine _scanRoutine;
         private Harmony _harmony;
         private int _lastScreenWidth;
@@ -117,7 +128,10 @@ namespace UltrawideFixes
                 "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
-                "Configuration layout version. Older layouts are backed up and regenerated.");
+                new ConfigDescription(
+                    "Configuration layout version. Older layouts are backed up and regenerated.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _patchTitleVideo = Config.Bind(
                 "Title Screen",
                 "PatchTitleVideo",
@@ -205,6 +219,9 @@ namespace UltrawideFixes
                 new ConfigDescription(
                     "Shifts the loading background crop. 0 is centered, positive values focus upward, negative values focus downward.",
                     new AcceptableValueRange<float>(-1.0f, 1.0f)));
+
+            RestorePreservedDisplayCalibration();
+
             _scanDurationSeconds = Config.Bind(
                 "Timing",
                 "ScanDurationSeconds",
@@ -242,6 +259,14 @@ namespace UltrawideFixes
             _loadingStretchBlend.SettingChanged += OnConfigChanged;
             _loadingVerticalCropFocus.SettingChanged += OnConfigChanged;
 
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -306,6 +331,10 @@ namespace UltrawideFixes
                 return;
             }
 
+            CapturePreservedDisplayCalibration(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -327,9 +356,13 @@ namespace UltrawideFixes
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception exception)
             {
+                ClearPendingPreservedDisplayCalibration();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -350,6 +383,234 @@ namespace UltrawideFixes
                     "Failed to reset Ultrawide Fixes config schema. Original config was left in place when possible.",
                     exception);
             }
+        }
+
+        private void CapturePreservedDisplayCalibration(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedDisplayCalibration();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                string settingId = currentSection + "\n" + settingName;
+
+                if (IsPreservedDisplayFloat(settingId))
+                {
+                    float parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedDisplayFloats[settingId] = parsedValue;
+                    }
+
+                    continue;
+                }
+
+                if (IsPreservedDisplayBool(settingId))
+                {
+                    bool parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedDisplayBools[settingId] = parsedValue;
+                    }
+                }
+            }
+        }
+
+        private static bool IsPreservedDisplayFloat(string settingId)
+        {
+            switch (settingId)
+            {
+                case "Aspect\nTargetAspect":
+                case "Aspect\nMinimumScreenAspect":
+                case "Title Rendering\nStretchBlend":
+                case "Title Rendering\nVerticalCropFocus":
+                case "Loading Rendering\nLoadingStretchBlend":
+                case "Loading Rendering\nLoadingVerticalCropFocus":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsPreservedDisplayBool(string settingId)
+        {
+            switch (settingId)
+            {
+                case "Aspect\nFillCurrentScreen":
+                case "Title Rendering\nCropVideoUv":
+                case "Title Rendering\nResizeRawImageRect":
+                case "Title Rendering\nResizeVideoParents":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void RestorePreservedDisplayCalibration()
+        {
+            if (_pendingPreservedDisplayFloats.Count == 0
+                && _pendingPreservedDisplayBools.Count == 0
+                && _pendingPreservedInvalidValueCount == 0)
+            {
+                return;
+            }
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreservedBool(
+                "Aspect\nFillCurrentScreen",
+                _fillCurrentScreen,
+                ref restoredCount);
+            RestorePreservedFloat(
+                "Aspect\nTargetAspect",
+                _targetAspect,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                "Aspect\nMinimumScreenAspect",
+                _minimumScreenAspect,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedBool(
+                "Title Rendering\nCropVideoUv",
+                _cropVideoUv,
+                ref restoredCount);
+            RestorePreservedFloat(
+                "Title Rendering\nStretchBlend",
+                _stretchBlend,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                "Title Rendering\nVerticalCropFocus",
+                _verticalCropFocus,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedBool(
+                "Title Rendering\nResizeRawImageRect",
+                _resizeRawImageRect,
+                ref restoredCount);
+            RestorePreservedBool(
+                "Title Rendering\nResizeVideoParents",
+                _resizeVideoParents,
+                ref restoredCount);
+            RestorePreservedFloat(
+                "Loading Rendering\nLoadingStretchBlend",
+                _loadingStretchBlend,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                "Loading Rendering\nLoadingVerticalCropFocus",
+                _loadingVerticalCropFocus,
+                ref restoredCount,
+                ref clampedCount);
+
+            Logger.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " display calibration value(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + "; skippedInvalid="
+                + _pendingPreservedInvalidValueCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            ClearPendingPreservedDisplayCalibration();
+        }
+
+        private void RestorePreservedFloat(
+            string settingId,
+            ConfigEntry<float> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            float preservedValue;
+            if (entry == null
+                || !_pendingPreservedDisplayFloats.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedBool(
+            string settingId,
+            ConfigEntry<bool> entry,
+            ref int restoredCount)
+        {
+            bool preservedValue;
+            if (entry == null
+                || !_pendingPreservedDisplayBools.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void ClearPendingPreservedDisplayCalibration()
+        {
+            _pendingPreservedDisplayFloats.Clear();
+            _pendingPreservedDisplayBools.Clear();
+            _pendingPreservedInvalidValueCount = 0;
         }
 
         private void OnConfigChanged(object sender, EventArgs args)

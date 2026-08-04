@@ -1,0 +1,99 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][color=#C94A4A][size=6]Player Voice Tuner[/size][/color]
+[i]Lower, raise, and vary the player's nonverbal voice without replacing audio files.[/i][/center]
+
+[line]
+
+Player Voice Tuner is a focused BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It changes the pitch and volume of supported player grunts as they play, with separate toggles for attack, hurt, death, status-pain, hit-feedback, and stamina sounds.
+
+The default setup lowers supported sounds by three semitones, adds a small amount of natural pitch variation, and keeps their original volume. Both supported male and female player voice events are handled.
+
+[line]
+
+[heading][color=#C94A4A][size=5]What It Tunes[/size][/color][/heading]
+[list]
+[*]Attack and exertion grunts.[/*]
+[*]Hurt grunts.[/*]
+[*]Death grunts.[/*]
+[*]Burn, bleed, poison, and drowning grunts.[/*]
+[*][b]SFX_Player_Hit[/b], the feedback sound heard when the player lands a hit.[/*]
+[*]Stamina-depleted breathing, available as an optional off-by-default category.[/*]
+[/list]
+
+Each category can be enabled or disabled independently. Stamina-depleted breathing is off by default because it uses a longer, looping sound.
+
+[line]
+
+[heading][color=#C94A4A][size=5]How Tuning Works[/size][/color][/heading]
+[list]
+[*][b]Pitch[/b] shifts every enabled sound by a fixed number of semitones. Negative values make the voice deeper; positive values make it higher.[/*]
+[*][b]Random pitch[/b] adds a new variation within the configured range each time a supported sound plays. Set it to 0 for a fixed result.[/*]
+[*][b]Volume[/b] scales supported sounds from silent to twice their original level.[/*]
+[*]Only exact supported player event IDs are changed. The plugin does not scan for or broadly alter unrelated audio.[/*]
+[/list]
+
+Player Voice Tuner does not replace audio files or change dialogue, NPC voices, weapon sounds, footsteps, dashes, music, or ambient audio.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.player-voice-tuner.cfg[/code]
+
+[code]
+| Setting                         | Default | Range     | Purpose                                      |
+|---------------------------------|---------|-----------|----------------------------------------------|
+| Enabled                         | true    | on/off    | Master toggle                                |
+| PitchSemitones                  | -3.0    | -12 to 12 | Fixed pitch shift                            |
+| RandomPitchSemitones            | 0.25    | 0 to 3    | Per-sound random pitch variation             |
+| VolumeMultiplier                | 1.0     | 0 to 2    | Volume scale for supported sounds            |
+| IncludeAttackGrunts             | true    | on/off    | Attack and exertion grunts                   |
+| IncludeHurtGrunts               | true    | on/off    | Hurt grunts                                  |
+| IncludeDeathGrunts              | true    | on/off    | Death grunts                                 |
+| IncludeStatusPainGrunts         | true    | on/off    | Burn, bleed, poison, and drowning grunts     |
+| IncludePlayerHitFeedback        | true    | on/off    | SFX_Player_Hit when the player lands a hit   |
+| IncludeStaminaDepletedBreathing | false   | on/off    | Longer, looping stamina breathing            |
+| PlayRandomTestSound             | false   | action    | Play one enabled one-shot sample             |
+| Diagnostics                     | false   | on/off    | Write detailed FMOD results to the game log  |
+[/code]
+
+[b]PlayRandomTestSound[/b] acts like a button in FoA Mod Manager and compatible config panels. Toggle it on to hear one randomly selected sound from the enabled one-shot categories; it returns to false after the attempt.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/PlayerVoiceTuner/PlayerVoiceTuner.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Turn on the one-shot import action to restore compatible customized settings; it automatically turns back off when finished. Restart the game after importing.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*]Compatible with mods that do not retune the same player FMOD events when their instances are created.[/*]
+[*]Audio replacers for the same events may work, but their results will still be pitch- and volume-adjusted by Player Voice Tuner.[/*]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
+If a supported sound does not seem to change, use [b]PlayRandomTestSound[/b] to confirm the current pitch and volume settings, then enable [b]Diagnostics[/b] and check [b]BepInEx/LogOutput.log[/b]. Confirm that the sound's category and the master [b]Enabled[/b] toggle are both on.

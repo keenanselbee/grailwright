@@ -1,3 +1,32 @@
+Version 2.9.2
+Work in progress; not yet released.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 2.9.1
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 2.9.0
+Preserves reticle assets and visual tuning, Blood Magic quality scaling, and crouch-indicator appearance across config schema resets while keeping behavioral settings on current defaults.
+Added a conservative Import Previous Settings action for supported backups.
+Added five-second Grail Floating Text notices for config resets and load errors, hid the internal schema setting in FoA Mod Manager, and strengthened Harmony callback registration.
+
+Version 2.8.9
+Preserves reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic quality scaling, and crouch-indicator visual tuning across config schema resets.
+Keeps visibility presets, detection behavior, compatibility controls, and diagnostics on fresh schema defaults.
+
+Version 2.8.8
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 2.8.7
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 2.8.6
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 2.8.5
+Replaced owned Harmony callback name strings with compiler-checked references so callback renames cannot silently break patch registration.
+
 Version 2.8.4
 Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
 Disabled the plugin cleanly after startup failure so partial initialization does not keep running.

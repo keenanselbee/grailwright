@@ -19,8 +19,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.2.5.0")]
-[assembly: AssemblyFileVersion("2.2.5.0")]
+[assembly: AssemblyVersion("2.3.9.0")]
+[assembly: AssemblyFileVersion("2.3.9.0")]
 
 namespace BloodMagicExpansion
 {
@@ -39,14 +39,21 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.2.5";
-        private const int ConfigSchemaVersion = 9;
+        public const string PluginVersion = "2.3.9";
+        private const int ConfigSchemaVersion = 10;
+        private const int ConfigRecoveryBaselineSchema = 10;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const float CacheCleanupIntervalSeconds = 30f;
         private const float CompletedCorpseRetentionSeconds = 120f;
         private const float ExpiredStrongCastRetentionSeconds = 5f;
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
         private const string GrailFloatingTextCorpseXpEventId = "blood-magic-corpse-xp";
+        private const string GrailFloatingTextLiveDrainXpEventId = "blood-magic-live-drain-xp";
         private const string GrailFloatingTextShortDurationBucket = "Short";
         private const string BloodSpellInnerLightObjectName = "BloodMagicExpansionInnerLight";
         private const float BloodSpellInnerLightCameraRetryIntervalSeconds = 0.5f;
@@ -59,7 +66,6 @@ namespace BloodMagicExpansion
         private const float BloodSpellInnerLightCastBoostRampDownSeconds = 0.25f;
         private const float BloodSpellInnerLightCastBoostFinishLeadSeconds = 0.5f;
         private const float BloodSpellInnerLightReadyGraceSeconds = 0.75f;
-        private const float BloodSpellInnerLightHideGraceSeconds = 0.30f;
         private const int CorpseLeechTierSoundSlots = 5;
         private const string CorpseLeechLowTier = "low";
         private const string CorpseLeechMediumTier = "medium";
@@ -96,10 +102,13 @@ namespace BloodMagicExpansion
         internal static ManualLogSource Log { get; private set; }
 
         private Harmony _harmony;
+        private BleedSkillGraphPreloader _bleedSkillGraphPreloader;
         private ConfigFile _resolvedConfig;
         private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
+        private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
 
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<bool> _preloadBleedSkillGraphs;
         private ConfigEntry<Preset> _preset;
         private ConfigEntry<float> _customPayoutPercentOfKillXp;
         private ConfigEntry<float> _secondsRequired;
@@ -215,9 +224,15 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _logBloodSpellInnerLight;
         private ConfigEntry<float> _corpseQualityLogIntervalSeconds;
         private ConfigEntry<bool> _claimGrailFloatingTextCorpseXp;
+        private ConfigEntry<bool> _claimGrailFloatingTextLiveDrainXp;
+        private readonly Dictionary<string, float> _pendingPreservedCalibrationFloats =
+            new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private int _pendingPreservedInvalidValueCount;
 
         private static readonly Color BloodSpellInnerLightColor = new Color(1.0f, 0.02f, 0.0f, 1.0f);
-        private static readonly Vector3 BloodSpellInnerLightLocalPosition = new Vector3(0.0f, -0.35f, 0.75f);
+        private static readonly Vector3 BloodSpellInnerLightLocalPosition = new Vector3(0.0f, -0.35f, 0.0f);
 
         private readonly Dictionary<object, CorpseState> _corpseStates =
             new Dictionary<object, CorpseState>(ReferenceEqualityComparer.Instance);
@@ -245,9 +260,15 @@ namespace BloodMagicExpansion
             new ConditionalWeakTable<object, ProjectileTuningState>();
         private readonly HashSet<object> _loggedUnresolvedRaycastHits =
             new HashSet<object>(ReferenceEqualityComparer.Instance);
-        private readonly Dictionary<string, MethodInfo> _getterCache = new Dictionary<string, MethodInfo>();
-        private readonly Dictionary<string, MethodInfo> _methodCache = new Dictionary<string, MethodInfo>();
-        private readonly Dictionary<string, FieldInfo> _fieldCache = new Dictionary<string, FieldInfo>();
+        private readonly Dictionary<(Type Type, string Name), MethodInfo> _getterCache =
+            new Dictionary<(Type Type, string Name), MethodInfo>();
+        private readonly Dictionary<(Type Type, string Name), MethodInfo> _setterCache =
+            new Dictionary<(Type Type, string Name), MethodInfo>();
+        private readonly Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo> _methodCache =
+            new Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo>();
+        private readonly Dictionary<string, MethodInfo> _exactMethodCache = new Dictionary<string, MethodInfo>();
+        private readonly Dictionary<(Type Type, string Name), FieldInfo> _fieldCache =
+            new Dictionary<(Type Type, string Name), FieldInfo>();
 
         private string _cachedMatchTermsRaw;
         private string _cachedTemplateGuidRaw;
@@ -361,6 +382,14 @@ namespace BloodMagicExpansion
             try
             {
                 PatchGame();
+                _bleedSkillGraphPreloader =
+                    new BleedSkillGraphPreloader(
+                        this,
+                        Logger,
+                        _preloadBleedSkillGraphs,
+                        () => _enabled != null
+                            && _enabled.Value);
+                _bleedSkillGraphPreloader.Start();
             }
             catch (Exception ex)
             {
@@ -378,6 +407,12 @@ namespace BloodMagicExpansion
 
         private void OnDestroy()
         {
+            if (_bleedSkillGraphPreloader != null)
+            {
+                _bleedSkillGraphPreloader.Dispose();
+                _bleedSkillGraphPreloader = null;
+            }
+
             DestroyBloodSpellInnerLight();
             ReleaseCorpseLeechFmodSounds();
 
@@ -422,8 +457,20 @@ namespace BloodMagicExpansion
             ResetConfigIfSchemaChanged(config);
 
             _enabled = config.Bind("1. Core", "Enabled", true, "Master switch.");
-            config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version for this clean Blood Magic Expansion config.");
+            config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version for this clean Blood Magic Expansion config.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _preset = config.Bind("1. Core", "Preset", Preset.Desecration, "Main profile. BloodRite is quick and restrained, Desecration is the balanced default, SoulFeast is slower and more rewarding, and Custom uses the advanced custom values.");
+            _preloadBleedSkillGraphs = config.Bind(
+                "1. Core",
+                "PreloadBleedSkillGraphs",
+                true,
+                "Preload and retain the vanilla Bleed status skill graph during gameplay loading instead of its first combat application. This isolated compatibility option can be disabled if a future game update removes the cold-load hitch.");
 
             _handRequirement = config.Bind("2. Main Loop", "HandRequirement", HandRequirement.AnyHand, "Minimum required Blood/Life Transfusion hold state. AnyHand allows single-hand half payout and dual-hand full payout.");
             _singleHandPayoutMultiplier = config.Bind("2. Main Loop", "SingleHandPayoutMultiplier", 0.5f, "Payout multiplier when only one Blood/Life Transfusion hand is held. Dual-held casts always use the full amount.");
@@ -434,7 +481,7 @@ namespace BloodMagicExpansion
             _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Spirituality.");
 
             _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow inner player light while Blood Transfusion, Life Transfusion, or Abhartach's Calling is equipped and the magic hands are raised.");
-            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.75f, new ConfigDescription("Brightness of the red inner player light while a blood spell is readied. Actual casting temporarily triples this value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 1.0f, new ConfigDescription("Brightness of the red inner player light while a blood spell is readied. Actual casting temporarily triples this value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
             _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 5.0f, new ConfigDescription("Range in meters for the red inner player light. Smaller ranges are cheaper and subtler.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightFadeSeconds = config.Bind("2. Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -543,6 +590,7 @@ namespace BloodMagicExpansion
             _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", true, "Log limited diagnostics for blood spell inner light readiness, cast boost, camera resolution, and visibility transitions.");
             _corpseQualityLogIntervalSeconds = config.Bind("13. Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
             _claimGrailFloatingTextCorpseXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
+            _claimGrailFloatingTextLiveDrainXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
 
             if (ShouldLogStartup())
             {
@@ -560,6 +608,15 @@ namespace BloodMagicExpansion
                     + ".");
             }
 
+            RestorePreservedConfigValues();
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             config.Save();
         }
 
@@ -1031,18 +1088,19 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            bool held = GetBoolProperty(magicFsm, "SpellAttackHeld", false);
-            string layerSummary;
-            bool layerReadied = IsBloodSpellInnerLightMagicLayerReadied(
-                magicFsm,
-                out layerSummary);
-            if (held || layerReadied)
+            string currentState = GetStringProperty(magicFsm, "CurrentStateType");
+            string stateToEnter = GetStringProperty(magicFsm, "CurrentStateToEnterType");
+            bool sheathed =
+                string.Equals(currentState, "UnEquipWeapon", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(currentState, "UnEquipWeaponAlternate", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(stateToEnter, "UnEquipWeapon", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(stateToEnter, "UnEquipWeaponAlternate", StringComparison.OrdinalIgnoreCase);
+            if (sheathed)
             {
-                state.Until = Math.Max(state.Until, Now + BloodSpellInnerLightReadyGraceSeconds);
-            }
-            else
-            {
-                state.Until = Math.Min(state.Until, Now + BloodSpellInnerLightHideGraceSeconds);
+                ClearBloodSpellInnerLightReadyState(
+                    magicFsm,
+                    "blood spell weapons entered the sheathed state",
+                    false);
             }
 
             LogBloodSpellInnerLightDiagnosticThrottled(
@@ -1052,12 +1110,12 @@ namespace BloodMagicExpansion
                 + instant
                 + ", hand="
                 + state.Hand
-                + ", held="
-                + held
-                + ", layerReadied="
-                + layerReadied
-                + ", "
-                + layerSummary
+                + ", sheathed="
+                + sheathed
+                + ", state="
+                + FormatStateName(currentState)
+                + ", enter="
+                + FormatStateName(stateToEnter)
                 + ".");
         }
 
@@ -1518,6 +1576,10 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            CapturePreservedConfigValues(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -1539,9 +1601,13 @@ namespace BloodMagicExpansion
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception ex)
             {
+                ClearPendingPreservedConfigValues();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -1564,6 +1630,180 @@ namespace BloodMagicExpansion
             }
         }
 
+        private void CapturePreservedConfigValues(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedConfigValues();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                string settingId = currentSection + "\n" + settingName;
+
+                if (IsPreservedCalibrationFloat(settingId))
+                {
+                    float parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedCalibrationFloats[settingId] = parsedValue;
+                    }
+                }
+                else if (IsPreservedManualOverride(settingId))
+                {
+                    string preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedManualOverrides[settingId] =
+                            preservedValue;
+                    }
+                }
+            }
+        }
+
+        private static bool IsPreservedCalibrationFloat(string settingId)
+        {
+            return string.Equals(settingId, "2. Blood Spell Inner Light\nIntensity", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nRange", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nFadeSeconds", StringComparison.Ordinal)
+                || string.Equals(settingId, "12. Audio\nCorpseLeechSoundVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "12. Audio\nCorpseLeechRandomPitchSemitones", StringComparison.Ordinal);
+        }
+
+        private static bool IsPreservedManualOverride(string settingId)
+        {
+            return string.Equals(settingId, "4. Bloodless Filter\nBloodWhitelistTerms", StringComparison.Ordinal)
+                || string.Equals(settingId, "10. Advanced - Matching\nBloodSpellTemplateGuid", StringComparison.Ordinal)
+                || string.Equals(settingId, "10. Advanced - Matching\nAbhartachTemplateGuid", StringComparison.Ordinal);
+        }
+
+        private void RestorePreservedConfigValues()
+        {
+            if (_pendingPreservedCalibrationFloats.Count == 0
+                && _pendingPreservedManualOverrides.Count == 0
+                && _pendingPreservedInvalidValueCount == 0)
+            {
+                return;
+            }
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreservedFloat("2. Blood Spell Inner Light\nIntensity", _bloodSpellInnerLightIntensity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nRange", _bloodSpellInnerLightRange, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nFadeSeconds", _bloodSpellInnerLightFadeSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("12. Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("12. Audio\nCorpseLeechRandomPitchSemitones", _corpseLeechRandomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedString("4. Bloodless Filter\nBloodWhitelistTerms", _bloodWhitelistTerms, ref restoredCount);
+            RestorePreservedString("10. Advanced - Matching\nBloodSpellTemplateGuid", _bloodTransfusionTemplateGuid, ref restoredCount);
+            RestorePreservedString("10. Advanced - Matching\nAbhartachTemplateGuid", _abhartachTemplateGuid, ref restoredCount);
+
+            Log.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " calibration/manual override value(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + "; skippedInvalid="
+                + _pendingPreservedInvalidValueCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            ClearPendingPreservedConfigValues();
+        }
+
+        private void RestorePreservedFloat(
+            string settingId,
+            ConfigEntry<float> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            float preservedValue;
+            if (entry == null
+                || !_pendingPreservedCalibrationFloats.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedString(
+            string settingId,
+            ConfigEntry<string> entry,
+            ref int restoredCount)
+        {
+            string preservedValue;
+            if (entry == null
+                || !_pendingPreservedManualOverrides.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void ClearPendingPreservedConfigValues()
+        {
+            _pendingPreservedCalibrationFloats.Clear();
+            _pendingPreservedManualOverrides.Clear();
+            _pendingPreservedInvalidValueCount = 0;
+        }
+
         private void PatchGame()
         {
             _harmony = new Harmony(PluginGuid);
@@ -1577,8 +1817,18 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethod(healthElementType, "OnDeathEvents", typeof(DeathEventsPatch), "Postfix", false);
-                    PatchMethod(healthElementType, "BeforeHealthDecreaseEvents", typeof(HealthElementBeforeHealthDecreasePatch), "Postfix", false);
+                    PatchMethod(
+                        healthElementType,
+                        "OnDeathEvents",
+                        typeof(DeathEventsPatch),
+                        nameof(DeathEventsPatch.Postfix),
+                        false);
+                    PatchMethod(
+                        healthElementType,
+                        "BeforeHealthDecreaseEvents",
+                        typeof(HealthElementBeforeHealthDecreasePatch),
+                        nameof(HealthElementBeforeHealthDecreasePatch.Postfix),
+                        false);
                 }
             });
 
@@ -1598,16 +1848,56 @@ namespace BloodMagicExpansion
                     }
                     else
                     {
-                        PatchMethod(heroAnimatorSubstateMachineType, "OnShowWeapons", typeof(MagicFsmShowWeaponsPatch), "Postfix", false);
+                        PatchMethod(
+                            heroAnimatorSubstateMachineType,
+                            "OnShowWeapons",
+                            typeof(MagicFsmShowWeaponsPatch),
+                            nameof(MagicFsmShowWeaponsPatch.Postfix),
+                            false);
                     }
 
-                    PatchMethod(magicFsmType, "OnHideWeapons", typeof(MagicFsmHideWeaponsPatch), "Prefix", false);
-                    PatchMethod(magicFsmType, "TryEnterMagicCastState", typeof(TryEnterMagicCastStatePatch), "Postfix", false);
-                    PatchMethod(magicFsmType, "OnUpdate", typeof(MagicFsmUpdatePatch), "Prefix", false);
-                    PatchMethod(magicFsmType, "OnUpdate", typeof(MagicFsmUpdatePatch), "Postfix", false);
-                    PatchMethod(magicFsmType, "EndCasting", typeof(MagicFsmEndCastingPatch), "Prefix", false);
-                    PatchMethod(magicFsmType, "CancelCasting", typeof(MagicFsmCancelCastingPatch), "Prefix", false);
-                    PatchMethod(magicFsmType, "OnPerformCast", typeof(MagicFsmPerformCastPatch), "Prefix", false);
+                    PatchMethod(
+                        magicFsmType,
+                        "OnHideWeapons",
+                        typeof(MagicFsmHideWeaponsPatch),
+                        nameof(MagicFsmHideWeaponsPatch.Postfix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "TryEnterMagicCastState",
+                        typeof(TryEnterMagicCastStatePatch),
+                        nameof(TryEnterMagicCastStatePatch.Postfix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "OnUpdate",
+                        typeof(MagicFsmUpdatePatch),
+                        nameof(MagicFsmUpdatePatch.Prefix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "OnUpdate",
+                        typeof(MagicFsmUpdatePatch),
+                        nameof(MagicFsmUpdatePatch.Postfix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "EndCasting",
+                        typeof(MagicFsmEndCastingPatch),
+                        nameof(MagicFsmEndCastingPatch.Prefix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "CancelCasting",
+                        typeof(MagicFsmCancelCastingPatch),
+                        nameof(MagicFsmCancelCastingPatch.Prefix),
+                        false);
+                    PatchMethod(
+                        magicFsmType,
+                        "OnPerformCast",
+                        typeof(MagicFsmPerformCastPatch),
+                        nameof(MagicFsmPerformCastPatch.Prefix),
+                        false);
                 }
             });
 
@@ -1620,7 +1910,12 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethod(characterStatusesType, "BuildupStatus", typeof(CharacterStatusesBuildupStatusPatch), "Prefix", false);
+                    PatchMethod(
+                        characterStatusesType,
+                        "BuildupStatus",
+                        typeof(CharacterStatusesBuildupStatusPatch),
+                        nameof(CharacterStatusesBuildupStatusPatch.Prefix),
+                        false);
                 }
             });
 
@@ -1633,7 +1928,12 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethodTranspiler(findAlivesType, "Collection", typeof(FindAlivesCollectionRangePatch), false);
+                    PatchMethodTranspiler(
+                        findAlivesType,
+                        "Collection",
+                        typeof(FindAlivesCollectionRangePatch),
+                        nameof(FindAlivesCollectionRangePatch.Transpiler),
+                        false);
                 }
             });
 
@@ -1646,7 +1946,12 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethodTranspiler(findDeadBodiesType, "Collection", typeof(FindDeadBodiesCollectionRangePatch), false);
+                    PatchMethodTranspiler(
+                        findDeadBodiesType,
+                        "Collection",
+                        typeof(FindDeadBodiesCollectionRangePatch),
+                        nameof(FindDeadBodiesCollectionRangePatch.Transpiler),
+                        false);
                 }
             });
 
@@ -1659,7 +1964,11 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchConstructorsPrefix(healFromDeadBodiesType, typeof(HealFromDeadBodiesRangePatch), false);
+                    PatchConstructorsPrefix(
+                        healFromDeadBodiesType,
+                        typeof(HealFromDeadBodiesRangePatch),
+                        nameof(HealFromDeadBodiesRangePatch.Prefix),
+                        false);
                 }
             });
 
@@ -1672,7 +1981,12 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethod(healingUtilsType, "TakeHealing", typeof(HealingUtilsTakeHealingPatch), "Prefix", false);
+                    PatchMethod(
+                        healingUtilsType,
+                        "TakeHealing",
+                        typeof(HealingUtilsTakeHealingPatch),
+                        nameof(HealingUtilsTakeHealingPatch.Prefix),
+                        false);
                 }
             });
 
@@ -1685,14 +1999,62 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethodsByName(damageUtilsType, "DealDamageInSphereInstantaneous", typeof(SphereDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInSphereWithAdditionalCheckInstantaneous", typeof(SphereDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInSphereOverTime", typeof(SphereDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInSphereWithAdditionalCheckOverTime", typeof(SphereDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInConeInstantaneous", typeof(ConeDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInConeWithAdditionalCheckInstantaneous", typeof(ConeDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInConeOverTime", typeof(ConeDamageRangePatch), false);
-                    PatchMethodsByName(damageUtilsType, "DealDamageInConeWithAdditionalCheckOverTime", typeof(ConeDamageRangePatch), false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInSphereInstantaneous",
+                        typeof(SphereDamageRangePatch),
+                        nameof(SphereDamageRangePatch.Prefix),
+                        nameof(SphereDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInSphereWithAdditionalCheckInstantaneous",
+                        typeof(SphereDamageRangePatch),
+                        nameof(SphereDamageRangePatch.Prefix),
+                        nameof(SphereDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInSphereOverTime",
+                        typeof(SphereDamageRangePatch),
+                        nameof(SphereDamageRangePatch.Prefix),
+                        nameof(SphereDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInSphereWithAdditionalCheckOverTime",
+                        typeof(SphereDamageRangePatch),
+                        nameof(SphereDamageRangePatch.Prefix),
+                        nameof(SphereDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInConeInstantaneous",
+                        typeof(ConeDamageRangePatch),
+                        nameof(ConeDamageRangePatch.Prefix),
+                        nameof(ConeDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInConeWithAdditionalCheckInstantaneous",
+                        typeof(ConeDamageRangePatch),
+                        nameof(ConeDamageRangePatch.Prefix),
+                        nameof(ConeDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInConeOverTime",
+                        typeof(ConeDamageRangePatch),
+                        nameof(ConeDamageRangePatch.Prefix),
+                        nameof(ConeDamageRangePatch.Postfix),
+                        false);
+                    PatchMethodsByName(
+                        damageUtilsType,
+                        "DealDamageInConeWithAdditionalCheckOverTime",
+                        typeof(ConeDamageRangePatch),
+                        nameof(ConeDamageRangePatch.Prefix),
+                        nameof(ConeDamageRangePatch.Postfix),
+                        false);
                 }
             });
 
@@ -1705,11 +2067,16 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchMethod(projectileType, "SetBaseDamageParams", typeof(DamageDealingProjectilePatch), "Postfix", false);
+                    PatchMethod(
+                        projectileType,
+                        "SetBaseDamageParams",
+                        typeof(DamageDealingProjectilePatch),
+                        nameof(DamageDealingProjectilePatch.Postfix),
+                        false);
                 }
             });
 
-            PatchStep("Corpse construction tracking", delegate
+            PatchStep("Corpse construction and restore tracking", delegate
             {
                 Type corpseType = AccessTools.TypeByName(CorpseTypeName);
                 if (corpseType == null)
@@ -1718,7 +2085,17 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
-                    PatchConstructors(corpseType, typeof(CorpseConstructedPatch), "Postfix", false);
+                    PatchConstructors(
+                        corpseType,
+                        typeof(CorpseConstructedPatch),
+                        nameof(CorpseConstructedPatch.Postfix),
+                        false);
+                    PatchMethod(
+                        corpseType,
+                        "OnRestore",
+                        typeof(CorpseRestoredPatch),
+                        nameof(CorpseRestoredPatch.Postfix),
+                        false);
                 }
             });
         }
@@ -1766,7 +2143,7 @@ namespace BloodMagicExpansion
 
             try
             {
-                if (patchMethodName == "Prefix")
+                if (patchMethodName == nameof(MagicFsmUpdatePatch.Prefix))
                 {
                     _harmony.Patch(original, new HarmonyMethod(patch), null);
                 }
@@ -1795,10 +2172,15 @@ namespace BloodMagicExpansion
             }
         }
 
-        private void PatchMethodTranspiler(Type declaringType, string methodName, Type patchType, bool required)
+        private void PatchMethodTranspiler(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required)
         {
             MethodInfo original = AccessTools.Method(declaringType, methodName);
-            MethodInfo transpiler = AccessTools.Method(patchType, "Transpiler");
+            MethodInfo transpiler = AccessTools.Method(patchType, patchMethodName);
 
             if (original == null || transpiler == null)
             {
@@ -1838,10 +2220,16 @@ namespace BloodMagicExpansion
             }
         }
 
-        private void PatchMethodsByName(Type declaringType, string methodName, Type patchType, bool required)
+        private void PatchMethodsByName(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string prefixMethodName,
+            string postfixMethodName,
+            bool required)
         {
-            MethodInfo prefix = AccessTools.Method(patchType, "Prefix");
-            MethodInfo postfix = AccessTools.Method(patchType, "Postfix");
+            MethodInfo prefix = AccessTools.Method(patchType, prefixMethodName);
+            MethodInfo postfix = AccessTools.Method(patchType, postfixMethodName);
             if (declaringType == null || prefix == null || postfix == null)
             {
                 string message = "Could not patch " + (declaringType == null ? "unknown type" : declaringType.FullName) + "." + methodName + ".";
@@ -1897,9 +2285,13 @@ namespace BloodMagicExpansion
             }
         }
 
-        private void PatchConstructorsPrefix(Type declaringType, Type patchType, bool required)
+        private void PatchConstructorsPrefix(
+            Type declaringType,
+            Type patchType,
+            string patchMethodName,
+            bool required)
         {
-            MethodInfo patch = AccessTools.Method(patchType, "Prefix");
+            MethodInfo patch = AccessTools.Method(patchType, patchMethodName);
             if (declaringType == null || patch == null)
             {
                 string message = "Could not patch " + (declaringType == null ? "unknown" : declaringType.FullName) + " constructors.";
@@ -2119,6 +2511,40 @@ namespace BloodMagicExpansion
             }
         }
 
+        internal void HandleCorpseRestored(object corpse)
+        {
+            if (!_enabled.Value || corpse == null)
+            {
+                return;
+            }
+
+            CorpseState state;
+            if (!TryGetCorpseState(corpse, out state))
+            {
+                state = CreateCorpseState();
+            }
+
+            state.Corpse = corpse;
+            object parentModel = GetOptionalPropertyValue(corpse, "ParentModel")
+                ?? GetOptionalPropertyValue(corpse, "GenericParentModel");
+            if (parentModel != null)
+            {
+                if (state.TargetObject == null || ReferenceEquals(state.TargetObject, corpse))
+                {
+                    state.TargetObject = parentModel;
+                }
+
+                UpdateCorpseStateFromSource(state, parentModel, null);
+                RegisterCorpseAliases(parentModel, state);
+            }
+
+            UpdateCorpseStateFromSource(state, corpse, null);
+            state.RestoredFromSave = true;
+            state.Disabled = true;
+            state.LastRejectReason = "corpse was restored from save data";
+            RegisterCorpseAliases(corpse, state);
+        }
+
         private bool CanReuseStateForCorpse(CorpseState state, object corpse)
         {
             if (state == null)
@@ -2320,21 +2746,27 @@ namespace BloodMagicExpansion
                 return (int)BloodMagicFocusedCorpseState.None;
             }
 
-            CorpseState state;
-            if (!TryGetLookedAtCorpseState(out state, true))
-            {
-                return (int)BloodMagicFocusedCorpseState.None;
-            }
-
-            if (state == null)
-            {
-                return (int)BloodMagicFocusedCorpseState.None;
-            }
-
             bool bloodTransfusionEquipped = IsBloodTransfusionEquippedForInterop();
             bool abhartachEquipped = IsAbhartachEquippedForInterop();
             bool abhartachHeld = IsAbhartachHeldActiveForInterop();
             if (requireRelevantSpell && !bloodTransfusionEquipped && !abhartachEquipped && !abhartachHeld)
+            {
+                return (int)BloodMagicFocusedCorpseState.None;
+            }
+
+            CorpseState state;
+            bool unregisteredCorpseCandidate;
+            if (!TryGetLookedAtCorpseState(
+                out state,
+                out unregisteredCorpseCandidate,
+                true))
+            {
+                return unregisteredCorpseCandidate
+                    ? (int)BloodMagicFocusedCorpseState.Blocked
+                    : (int)BloodMagicFocusedCorpseState.None;
+            }
+
+            if (state == null)
             {
                 return (int)BloodMagicFocusedCorpseState.None;
             }
@@ -3103,6 +3535,7 @@ namespace BloodMagicExpansion
             }
 
             float rawXp = computedXp * Math.Max(0f, _rawCharacterXpPerCorpseXp.Value) * Math.Max(0f, _liveDrainRawCharacterXpMultiplier.Value);
+            TryClaimGrailFloatingTextLiveDrainXp(rawXp);
             if (AwardRawCharacterXp(rawXp))
             {
                 state.LiveXpAwarded += computedXp;
@@ -3293,6 +3726,11 @@ namespace BloodMagicExpansion
             }
 
             if (ReferenceEquals(_focusedCorpse, state))
+            {
+                return false;
+            }
+
+            if (state.RestoredFromSave)
             {
                 return false;
             }
@@ -5124,6 +5562,42 @@ namespace BloodMagicExpansion
                 return false;
             }
 
+            string qualityLabel = GetCorpseQualityLabel(GetCorpseQuality01(state));
+            return TryClaimGrailFloatingTextXp(
+                amount,
+                GrailFloatingTextCorpseXpEventId,
+                "corpse-xp-" + qualityLabel.ToLowerInvariant(),
+                "+" + amount.ToString("F0", CultureInfo.InvariantCulture) + " XP (" + qualityLabel + ")",
+                "+{xp} XP (" + qualityLabel + ")",
+                "corpse");
+        }
+
+        private bool TryClaimGrailFloatingTextLiveDrainXp(float amount)
+        {
+            if (amount <= 0f ||
+                _claimGrailFloatingTextLiveDrainXp == null ||
+                !_claimGrailFloatingTextLiveDrainXp.Value)
+            {
+                return false;
+            }
+
+            return TryClaimGrailFloatingTextXp(
+                amount,
+                GrailFloatingTextLiveDrainXpEventId,
+                "live-drain-xp",
+                "+" + amount.ToString("F0", CultureInfo.InvariantCulture) + " XP (Live Drain)",
+                "+{xp} XP (Live Drain)",
+                "magic");
+        }
+
+        private bool TryClaimGrailFloatingTextXp(
+            float amount,
+            string eventId,
+            string consolidationKey,
+            string text,
+            string textFormat,
+            string iconId)
+        {
             if (!TryResolveGrailFloatingTextBridge())
             {
                 return false;
@@ -5131,36 +5605,59 @@ namespace BloodMagicExpansion
 
             try
             {
+                if (_grailFloatingTextTryClaimConsolidatedXpGainMethod != null)
+                {
+                    object consolidatedResult = _grailFloatingTextTryClaimConsolidatedXpGainMethod.Invoke(
+                        null,
+                        new object[]
+                        {
+                            PluginGuid,
+                            eventId,
+                            consolidationKey,
+                            textFormat,
+                            "Red",
+                            "Reward",
+                            "High",
+                            iconId,
+                            GrailFloatingTextShortDurationBucket,
+                            amount,
+                            0.25f,
+                            0.9f
+                        });
+                    if (consolidatedResult is bool && (bool)consolidatedResult)
+                    {
+                        return true;
+                    }
+                }
+
+                if (_grailFloatingTextTryClaimXpGainMethod == null)
+                {
+                    return false;
+                }
+
                 object result = _grailFloatingTextTryClaimXpGainMethod.Invoke(
                     null,
                     new object[]
                     {
                         PluginGuid,
-                        GrailFloatingTextCorpseXpEventId,
-                        BuildCorpseXpFloatingText(amount, state),
+                        eventId,
+                        text,
                         "Red",
                         "Reward",
                         "High",
-                        "corpse",
+                        iconId,
                         GrailFloatingTextShortDurationBucket,
                         amount,
                         0.25f,
                         0.9f
                     });
-
                 return result is bool && (bool)result;
             }
             catch (Exception exception)
             {
-                LogGrailFloatingTextUnavailableOnce("Grail Floating Text failed to claim corpse-leech XP text: " + exception.GetBaseException().Message);
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text failed to claim Blood Magic XP text: " + exception.GetBaseException().Message);
                 return false;
             }
-        }
-
-        private string BuildCorpseXpFloatingText(float amount, CorpseState state)
-        {
-            string amountText = amount.ToString("F0", CultureInfo.InvariantCulture);
-            return "+" + amountText + " XP (" + GetCorpseQualityLabel(GetCorpseQuality01(state)) + ")";
         }
 
         private string GetCorpseQualityLabel(float quality)
@@ -5185,7 +5682,8 @@ namespace BloodMagicExpansion
         {
             if (_grailFloatingTextBridgeResolved)
             {
-                return _grailFloatingTextTryClaimXpGainMethod != null;
+                return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
+                    _grailFloatingTextTryClaimXpGainMethod != null;
             }
 
             _grailFloatingTextBridgeResolved = true;
@@ -5205,6 +5703,25 @@ namespace BloodMagicExpansion
                 return false;
             }
 
+            _grailFloatingTextTryClaimConsolidatedXpGainMethod = AccessTools.Method(
+                apiType,
+                "TryClaimConsolidatedXpGain",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float),
+                    typeof(float)
+                });
+
             _grailFloatingTextTryClaimXpGainMethod = AccessTools.Method(
                 apiType,
                 "TryClaimXpGain",
@@ -5223,12 +5740,14 @@ namespace BloodMagicExpansion
                     typeof(float)
                 });
 
-            if (_grailFloatingTextTryClaimXpGainMethod == null)
+            if (_grailFloatingTextTryClaimConsolidatedXpGainMethod == null &&
+                _grailFloatingTextTryClaimXpGainMethod == null)
             {
                 LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but it does not support XP gain text claims.");
             }
 
-            return _grailFloatingTextTryClaimXpGainMethod != null;
+            return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
+                _grailFloatingTextTryClaimXpGainMethod != null;
         }
 
         private void LogGrailFloatingTextUnavailableOnce(string message)
@@ -5275,7 +5794,20 @@ namespace BloodMagicExpansion
 
         private bool TryGetLookedAtCorpseState(out CorpseState state, bool includeInactive = false)
         {
+            bool ignoredUnregisteredCorpseCandidate;
+            return TryGetLookedAtCorpseState(
+                out state,
+                out ignoredUnregisteredCorpseCandidate,
+                includeInactive);
+        }
+
+        private bool TryGetLookedAtCorpseState(
+            out CorpseState state,
+            out bool unregisteredCorpseCandidate,
+            bool includeInactive = false)
+        {
             state = null;
+            unregisteredCorpseCandidate = false;
             Camera camera = Camera.main;
             if (camera == null)
             {
@@ -5321,6 +5853,7 @@ namespace BloodMagicExpansion
             }
 
             LogUnresolvedRaycastHit(hit.collider);
+            unregisteredCorpseCandidate = true;
             return false;
         }
 
@@ -8233,7 +8766,7 @@ namespace BloodMagicExpansion
                 return null;
             }
 
-            string key = type.FullName + ".get_" + propertyName;
+            (Type Type, string Name) key = (type, propertyName);
             MethodInfo getter;
             if (_getterCache.TryGetValue(key, out getter))
             {
@@ -8265,9 +8798,9 @@ namespace BloodMagicExpansion
                 return null;
             }
 
-            string key = type.FullName + ".set_" + propertyName;
+            (Type Type, string Name) key = (type, propertyName);
             MethodInfo setter;
-            if (_methodCache.TryGetValue(key, out setter))
+            if (_setterCache.TryGetValue(key, out setter))
             {
                 return setter;
             }
@@ -8286,7 +8819,7 @@ namespace BloodMagicExpansion
                 current = current.BaseType;
             }
 
-            _methodCache[key] = setter;
+            _setterCache[key] = setter;
             return setter;
         }
 
@@ -8297,7 +8830,7 @@ namespace BloodMagicExpansion
                 return null;
             }
 
-            string key = type.FullName + "." + fieldName;
+            (Type Type, string Name) key = (type, fieldName);
             FieldInfo field;
             if (_fieldCache.TryGetValue(key, out field))
             {
@@ -8328,7 +8861,7 @@ namespace BloodMagicExpansion
                 return null;
             }
 
-            string key = type.FullName + "." + methodName + "/" + parameterCount.ToString(CultureInfo.InvariantCulture);
+            (Type Type, string Name, int ParameterCount) key = (type, methodName, parameterCount);
             MethodInfo cached;
             if (_methodCache.TryGetValue(key, out cached))
             {
@@ -8378,7 +8911,7 @@ namespace BloodMagicExpansion
 
             string key = keyBuilder.ToString();
             MethodInfo cached;
-            if (_methodCache.TryGetValue(key, out cached))
+            if (_exactMethodCache.TryGetValue(key, out cached))
             {
                 return cached;
             }
@@ -8410,12 +8943,12 @@ namespace BloodMagicExpansion
 
                 if (matches)
                 {
-                    _methodCache[key] = method;
+                    _exactMethodCache[key] = method;
                     return method;
                 }
             }
 
-            _methodCache[key] = null;
+            _exactMethodCache[key] = null;
             return null;
         }
 
@@ -8684,6 +9217,7 @@ namespace BloodMagicExpansion
             public float LastTouchedTime;
             public string LastRejectReason;
             public bool HasPosition;
+            public bool RestoredFromSave;
             public bool Disabled;
             public bool Exhausted;
             public bool XpAwarded;
@@ -8861,11 +9395,25 @@ namespace BloodMagicExpansion
             }
         }
 
+        private static class CorpseRestoredPatch
+        {
+            public static void Postfix(object __instance)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.HandleCorpseRestored(__instance);
+                }
+            }
+        }
+
         private static class FindAlivesCollectionRangePatch
         {
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
-                MethodInfo adjustMethod = AccessTools.Method(typeof(BloodMagicExpansionPlugin), "AdjustFindAlivesRangeStatic");
+                MethodInfo adjustMethod = AccessTools.Method(
+                    typeof(BloodMagicExpansionPlugin),
+                    nameof(AdjustFindAlivesRangeStatic));
                 if (adjustMethod == null)
                 {
                     return instructions;
@@ -8882,7 +9430,9 @@ namespace BloodMagicExpansion
         {
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
-                MethodInfo adjustMethod = AccessTools.Method(typeof(BloodMagicExpansionPlugin), "AdjustFindDeadBodiesRangeStatic");
+                MethodInfo adjustMethod = AccessTools.Method(
+                    typeof(BloodMagicExpansionPlugin),
+                    nameof(AdjustFindDeadBodiesRangeStatic));
                 if (adjustMethod == null)
                 {
                     return instructions;
@@ -8921,7 +9471,7 @@ namespace BloodMagicExpansion
 
         private static class MagicFsmHideWeaponsPatch
         {
-            public static void Prefix(object __instance, bool instant)
+            public static void Postfix(object __instance, bool instant)
             {
                 BloodMagicExpansionPlugin plugin = Instance;
                 if (plugin != null)

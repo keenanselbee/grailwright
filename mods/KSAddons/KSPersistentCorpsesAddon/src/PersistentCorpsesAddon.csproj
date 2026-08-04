@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{B701B515-20C9-4E90-82B8-29522836F59A}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Keenan.TGFoA.PersistentCorpsesAddon</RootNamespace>
+    <AssemblyName>PersistentCorpsesAddon</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <LangVersion>7.3</LangVersion>
+    <Deterministic>true</Deterministic>
+    <GameDir Condition=" '$(GameDir)' == '' ">G:\Steam\steamapps\common\Tainted Grail FoA</GameDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <OutputPath>..\</OutputPath>
+    <IntermediateOutputPath>$(TEMP)\PersistentCorpsesAddon\obj\Release\</IntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="BepInEx">
+      <HintPath>$(GameDir)\BepInEx\core\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Awaken.Kandra">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\Awaken.Kandra.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Awaken.Utility">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\Awaken.Utility.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="TG.Main">
+      <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\TG.Main.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="PersistentCorpsesAddon.cs" />
+    <Compile Include="..\..\..\..\tools\shared\GrailFloatingTextLoadErrorNotifier.cs">
+      <Link>GrailFloatingTextLoadErrorNotifier.cs</Link>
+    </Compile>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

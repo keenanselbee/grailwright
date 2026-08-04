@@ -272,6 +272,59 @@ function Resolve-Reference {
     return $path
 }
 
+function Resolve-RoslynCompiler {
+    $dotnetHosts = New-Object "System.Collections.Generic.List[string]"
+    $programFiles = [Environment]::GetFolderPath("ProgramFiles")
+    if (-not [string]::IsNullOrWhiteSpace($programFiles)) {
+        $dotnetHosts.Add((Join-Path $programFiles "dotnet\dotnet.exe"))
+    }
+
+    $pathDotNet = Get-Command "dotnet.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $pathDotNet) {
+        $dotnetHosts.Add($pathDotNet.Source)
+    }
+
+    foreach ($dotnetHost in @($dotnetHosts | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $dotnetHost -PathType Leaf)) {
+            continue
+        }
+
+        $installedSdks = @(& $dotnetHost --list-sdks 2>$null)
+        if ($LASTEXITCODE -ne 0) {
+            continue
+        }
+
+        for ($index = $installedSdks.Count - 1; $index -ge 0; $index--) {
+            if ($installedSdks[$index] -notmatch '^(\S+)\s+\[(.+)\]$') {
+                continue
+            }
+
+            $sdkVersion = $matches[1]
+            $sdkRoot = $matches[2]
+            $compiler = Join-Path $sdkRoot "$sdkVersion\Roslyn\bincore\csc.dll"
+            if (Test-Path -LiteralPath $compiler -PathType Leaf) {
+                return [pscustomobject]@{
+                    Host = $dotnetHost
+                    Compiler = $compiler
+                    SdkVersion = $sdkVersion
+                    LanguageVersion = "7.3"
+                }
+            }
+        }
+    }
+
+    return $null
+}
+
+function Resolve-CSharpCompiler {
+    $roslyn = Resolve-RoslynCompiler
+    if ($null -ne $roslyn) {
+        return $roslyn
+    }
+
+    throw "No .NET SDK Roslyn compiler was found. Install a .NET SDK with Roslyn\bincore\csc.dll. Searched the Program Files dotnet host and dotnet.exe on PATH."
+}
+
 function Get-DesktopDirectory {
     $desktop = [Environment]::GetFolderPath("DesktopDirectory")
     if ([string]::IsNullOrWhiteSpace($desktop)) {
@@ -304,10 +357,7 @@ if ([string]::IsNullOrWhiteSpace($DestinationDirectory)) {
 }
 
 if (-not $SkipCompile) {
-    $compiler = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-    if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
-        throw "C# compiler not found: $compiler"
-    }
+    $compiler = Resolve-CSharpCompiler
 
     $sourceFiles = @($Manifest.sourceFiles)
     if ($sourceFiles.Count -eq 0) {
@@ -324,20 +374,47 @@ if (-not $SkipCompile) {
         $resolvedSources += $path
     }
 
+    $managedRoot = Join-Path $ResolvedGameRoot "Fall of Avalon_Data\Managed"
+    $coreReferenceNames = @(
+        "mscorlib.dll",
+        "System.dll",
+        "System.Core.dll"
+    )
+
     $references = @()
+    foreach ($coreReferenceName in $coreReferenceNames) {
+        $coreReference = Join-Path $managedRoot $coreReferenceName
+        if (-not (Test-Path -LiteralPath $coreReference -PathType Leaf)) {
+            throw "Game framework reference not found: $coreReference"
+        }
+
+        $references += $coreReference
+    }
+
     foreach ($reference in @($Manifest.references)) {
         $resolvedReference = Resolve-Reference -Reference $reference -ResolvedModRoot $ResolvedModRoot -ResolvedGameRoot $ResolvedGameRoot -ResolvedBepInExRoot $ResolvedBepInExRoot -ResolvedVortexModsRoot $ResolvedVortexModsRoot
-        if (-not [string]::IsNullOrWhiteSpace($resolvedReference)) {
+        if (
+            -not [string]::IsNullOrWhiteSpace($resolvedReference) -and
+            $coreReferenceNames -inotcontains (Split-Path -Leaf $resolvedReference) -and
+            $references -inotcontains $resolvedReference
+        ) {
             $references += $resolvedReference
         }
     }
 
     $output = Join-Path $ResolvedModRoot ([string]$Manifest.dll)
     $compilerArgs = @(
+        "/nologo",
+        "/noconfig",
+        "/nostdlib+",
         "/target:library",
         "/optimize+",
         "/out:$output"
     )
+
+    $compilerArgs += "/langversion:$($compiler.LanguageVersion)"
+    Write-Host "Compiler: .NET SDK $($compiler.SdkVersion) Roslyn (C# $($compiler.LanguageVersion))"
+    Write-Host "Compiler path: $($compiler.Compiler)"
 
     foreach ($reference in $references) {
         $compilerArgs += "/reference:$reference"
@@ -347,7 +424,8 @@ if (-not $SkipCompile) {
         $compilerArgs += $source
     }
 
-    & $compiler @compilerArgs
+    & $compiler.Host $compiler.Compiler @compilerArgs
+
     if ($LASTEXITCODE -ne 0) {
         throw "Compiler failed for $($Manifest.id) with exit code $LASTEXITCODE"
     }

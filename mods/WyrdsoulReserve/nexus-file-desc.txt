@@ -1,0 +1,1 @@
+Three saved overflow reserves that refill the inactive Wyrd Power bar.

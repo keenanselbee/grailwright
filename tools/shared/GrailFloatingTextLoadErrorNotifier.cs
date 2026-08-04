@@ -8,13 +8,45 @@ namespace Grailwright.Shared
     {
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
-        private const float LoadErrorDurationSeconds = 10.0f;
         private const float LoadErrorFadeSeconds = 0.25f;
         private const float LoadErrorOpacity = 1.0f;
 
         private static bool _resolved;
-        private static MethodInfo _tryShowWithIconMethod;
-        private static MethodInfo _tryShowMethod;
+        private static MethodInfo _tryShowEventWithIconMethod;
+
+        internal static bool TryShowConfigReset(
+            string sourceId,
+            string sourceName,
+            int previousSchemaVersion,
+            int currentSchemaVersion)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                sourceId = "grailwright";
+            }
+
+            return TryShowConfigReset(
+                sourceId,
+                BuildConfigResetMessage(sourceName, previousSchemaVersion, currentSchemaVersion));
+        }
+
+        internal static string BuildConfigResetMessage(
+            string sourceName,
+            int previousSchemaVersion,
+            int currentSchemaVersion)
+        {
+            if (string.IsNullOrWhiteSpace(sourceName))
+            {
+                sourceName = "Grailwright mod";
+            }
+
+            return sourceName.Trim()
+                + " config reset: schema "
+                + previousSchemaVersion
+                + " to "
+                + currentSchemaVersion
+                + ".";
+        }
 
         internal static bool TryShowLoadTimeError(string sourceId, string sourceName, Exception exception)
         {
@@ -41,6 +73,40 @@ namespace Grailwright.Shared
             return TryShow(sourceId, sourceName.Trim() + " " + message.Trim());
         }
 
+        private static bool TryShowConfigReset(string sourceId, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || !TryResolve())
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _tryShowEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        "config-reset",
+                        text,
+                        "System",
+                        "System",
+                        "High",
+                        "config-reset",
+                        "system",
+                        "System",
+                        -1.0f,
+                        1.0f
+                    });
+
+                return result is bool && (bool)result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool TryShow(string sourceId, string text)
         {
             if (string.IsNullOrWhiteSpace(text) || !TryResolve())
@@ -50,42 +116,22 @@ namespace Grailwright.Shared
 
             try
             {
-                object result;
-                if (_tryShowWithIconMethod != null)
-                {
-                    result = _tryShowWithIconMethod.Invoke(
-                        null,
-                        new object[]
-                        {
-                            sourceId,
-                            text,
-                            "Error",
-                            "System",
-                            "Critical",
-                            "load-time-error",
-                            "debug",
-                            LoadErrorDurationSeconds,
-                            LoadErrorFadeSeconds,
-                            LoadErrorOpacity
-                        });
-                }
-                else
-                {
-                    result = _tryShowMethod.Invoke(
-                        null,
-                        new object[]
-                        {
-                            sourceId,
-                            text,
-                            "Error",
-                            "System",
-                            "Critical",
-                            "load-time-error",
-                            LoadErrorDurationSeconds,
-                            LoadErrorFadeSeconds,
-                            LoadErrorOpacity
-                        });
-                }
+                object result = _tryShowEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        "load-time-error",
+                        text,
+                        "Error",
+                        "System",
+                        "Critical",
+                        "load-time-error",
+                        "debug",
+                        "System",
+                        LoadErrorFadeSeconds,
+                        LoadErrorOpacity
+                    });
 
                 return result is bool && (bool)result;
             }
@@ -99,7 +145,7 @@ namespace Grailwright.Shared
         {
             if (_resolved)
             {
-                return _tryShowWithIconMethod != null || _tryShowMethod != null;
+                return _tryShowEventWithIconMethod != null;
             }
 
             BepInEx.PluginInfo pluginInfo;
@@ -116,8 +162,8 @@ namespace Grailwright.Shared
                 return false;
             }
 
-            _tryShowWithIconMethod = apiType.GetMethod(
-                "TryShow",
+            _tryShowEventWithIconMethod = apiType.GetMethod(
+                "TryShowEvent",
                 BindingFlags.Public | BindingFlags.Static,
                 null,
                 new[]
@@ -129,31 +175,14 @@ namespace Grailwright.Shared
                     typeof(string),
                     typeof(string),
                     typeof(string),
-                    typeof(float),
+                    typeof(string),
+                    typeof(string),
                     typeof(float),
                     typeof(float)
                 },
                 null);
 
-            _tryShowMethod = apiType.GetMethod(
-                "TryShow",
-                BindingFlags.Public | BindingFlags.Static,
-                null,
-                new[]
-                {
-                    typeof(string),
-                    typeof(string),
-                    typeof(string),
-                    typeof(string),
-                    typeof(string),
-                    typeof(string),
-                    typeof(float),
-                    typeof(float),
-                    typeof(float)
-                },
-                null);
-
-            _resolved = _tryShowWithIconMethod != null || _tryShowMethod != null;
+            _resolved = _tryShowEventWithIconMethod != null;
             return _resolved;
         }
     }

@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][size=6]Full Enemy XP - No Overlevel Penalty[/size]
 [i]Keep enemy kill XP steady when you outlevel the fight.[/i][/center]
 
@@ -19,12 +20,20 @@ By default, enemies below your level keep giving their normal enemy kill XP inst
 [*]Quest, objective, exploration, crafting, and proficiency XP are not changed.[/*]
 [/list]
 
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]BepInEx/plugins/FullEnemyXP/FullEnemyXP.dll[/code]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
 [b]Configuration[/b]
 
 Config file:
 [code]BepInEx/config/ks.tgfoa.full-enemy-xp.cfg[/code]
-
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Main settings:
 [code]

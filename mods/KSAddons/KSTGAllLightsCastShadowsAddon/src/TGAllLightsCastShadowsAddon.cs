@@ -13,8 +13,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Companion addon for TG All Lights Cast Shadows shadow state and excluded bonfire lights")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("TG All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.1.2.0")]
-[assembly: AssemblyFileVersion("1.1.2.0")]
+[assembly: AssemblyVersion("1.1.9.0")]
+[assembly: AssemblyFileVersion("1.1.9.0")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -28,10 +28,18 @@ namespace TGAllLightsCastShadowsAddon
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "TG All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.1.2";
+        public const string PluginVersion = "1.1.9";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
+        private const int ConfigRecoveryBaselineSchema = 2;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
+        private const string BuiltInExcludedLightPathFragments =
+            "WyrdNight_Repeller_Bonfire,Repeller_Bonfire,Bonfire,Campfire";
 
         internal static Plugin Instance { get; private set; }
 
@@ -48,9 +56,11 @@ namespace TGAllLightsCastShadowsAddon
         private MemberInfo _hdShadowDimmerMember;
         private MemberInfo _hdVolumetricShadowDimmerMember;
         private ConfigEntry<bool> _protectBonfireLights;
-        private ConfigEntry<string> _excludedLightPathFragments;
+        private ConfigEntry<string> _additionalExcludedLightPathFragments;
         private ConfigEntry<bool> _verboseExclusionLogging;
         private string[] _excludedFragments = new string[0];
+        private string _pendingPreservedAdditionalExcludedLightPathFragments;
+        private bool _hasPendingPreservedAdditionalExcludedLightPathFragments;
         private readonly Dictionary<int, ProtectedLightState> _protectedLights =
             new Dictionary<int, ProtectedLightState>();
         private readonly HashSet<int> _loggedExcludedLights =
@@ -93,15 +103,15 @@ namespace TGAllLightsCastShadowsAddon
                     applyAllLightsMethod,
                     prefix: new HarmonyMethod(
                         typeof(Patches),
-                        "BeforeApplyAllLights"),
+                        nameof(Patches.BeforeApplyAllLights)),
                     postfix: new HarmonyMethod(
                         typeof(Patches),
-                        "AfterApplyAllLights"));
+                        nameof(Patches.AfterApplyAllLights)));
                 _harmony.Patch(
                     restoreAllLightsMethod,
                     postfix: new HarmonyMethod(
                         typeof(Patches),
-                        "AfterRestoreAllLights"));
+                        nameof(Patches.AfterRestoreAllLights)));
 
                 Logger.LogInfo(
                     PluginName
@@ -165,26 +175,38 @@ namespace TGAllLightsCastShadowsAddon
                 "1. Core",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
-                "Configuration layout version. Older layouts are backed up and regenerated.");
+                new ConfigDescription(
+                    "Configuration layout version. Older layouts are backed up and regenerated.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _protectBonfireLights = Config.Bind(
                 "Excluded Lights",
                 "ProtectBonfireLights",
                 true,
                 "Prevents selected bonfire/campfire style lights from being upgraded to cast shadows.");
-            _excludedLightPathFragments = Config.Bind(
+            _additionalExcludedLightPathFragments = Config.Bind(
                 "Excluded Lights",
-                "ExcludedLightPathFragments",
-                "WyrdNight_Repeller_Bonfire,Repeller_Bonfire,Bonfire,Campfire",
-                "Comma-separated transform name fragments to exclude from the parent mod's shadow upgrades.");
+                "AdditionalExcludedLightPathFragments",
+                "",
+                "Optional comma-separated transform name fragments to exclude in addition to the addon's built-in bonfire and campfire names.");
             _verboseExclusionLogging = Config.Bind(
                 "Excluded Lights",
                 "VerboseExclusionLogging",
                 false,
                 "Logs each excluded light path once per scene. Useful for finding exact runtime names.");
 
+            RestorePreservedAdditionalExcludedLightPathFragments();
             RefreshExcludedFragments();
-            _excludedLightPathFragments.SettingChanged +=
-                OnExcludedLightPathFragmentsChanged;
+            _additionalExcludedLightPathFragments.SettingChanged +=
+                OnAdditionalExcludedLightPathFragmentsChanged;
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -219,6 +241,10 @@ namespace TGAllLightsCastShadowsAddon
                 return;
             }
 
+            CapturePreservedAdditionalExcludedLightPathFragments(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -240,9 +266,13 @@ namespace TGAllLightsCastShadowsAddon
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception exception)
             {
+                ClearPendingPreservedAdditionalExcludedLightPathFragments();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -263,6 +293,97 @@ namespace TGAllLightsCastShadowsAddon
                     "Failed to reset TG All Lights Cast Shadows Addon config schema. Original config was left in place when possible.",
                     exception);
             }
+        }
+
+        private void CapturePreservedAdditionalExcludedLightPathFragments(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedAdditionalExcludedLightPathFragments();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                if (!string.Equals(currentSection, "Excluded Lights", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                if (!string.Equals(
+                        settingName,
+                        "AdditionalExcludedLightPathFragments",
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string preservedValue;
+                if (profile.TryGetCustomizedValue(
+                    currentSection,
+                    settingName,
+                    out preservedValue))
+                {
+                    _pendingPreservedAdditionalExcludedLightPathFragments =
+                        preservedValue;
+                    _hasPendingPreservedAdditionalExcludedLightPathFragments =
+                        true;
+                }
+            }
+        }
+
+        private void RestorePreservedAdditionalExcludedLightPathFragments()
+        {
+            if (!_hasPendingPreservedAdditionalExcludedLightPathFragments
+                || _additionalExcludedLightPathFragments == null)
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                _additionalExcludedLightPathFragments,
+                _pendingPreservedAdditionalExcludedLightPathFragments,
+                out clamped))
+            {
+                ClearPendingPreservedAdditionalExcludedLightPathFragments();
+                return;
+            }
+            Logger.LogInfo(
+                "Preserved the additional excluded-light path fragments across the config schema reset.");
+            ClearPendingPreservedAdditionalExcludedLightPathFragments();
+        }
+
+        private void ClearPendingPreservedAdditionalExcludedLightPathFragments()
+        {
+            _pendingPreservedAdditionalExcludedLightPathFragments = null;
+            _hasPendingPreservedAdditionalExcludedLightPathFragments = false;
         }
 
         private void InitializeParentReflection(Type shadowManagerType)
@@ -299,25 +420,39 @@ namespace TGAllLightsCastShadowsAddon
 
         private void RefreshExcludedFragments()
         {
-            string raw = _excludedLightPathFragments != null
-                ? _excludedLightPathFragments.Value
-                : string.Empty;
-            string[] parts = raw.Split(new[] { ',' },
-                StringSplitOptions.RemoveEmptyEntries);
             List<string> fragments = new List<string>();
+            AddExcludedFragments(BuiltInExcludedLightPathFragments, fragments);
+            AddExcludedFragments(
+                _additionalExcludedLightPathFragments != null
+                    ? _additionalExcludedLightPathFragments.Value
+                    : string.Empty,
+                fragments);
+            _excludedFragments = fragments.ToArray();
+        }
+
+        private static void AddExcludedFragments(
+            string raw,
+            List<string> fragments)
+        {
+            string[] parts = raw.Split(
+                new[] { ',' },
+                StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < parts.Length; i++)
             {
                 string fragment = parts[i].Trim();
-                if (fragment.Length > 0)
+                if (fragment.Length > 0
+                    && !fragments.Exists(
+                        item => string.Equals(
+                            item,
+                            fragment,
+                            StringComparison.OrdinalIgnoreCase)))
                 {
                     fragments.Add(fragment);
                 }
             }
-
-            _excludedFragments = fragments.ToArray();
         }
 
-        private void OnExcludedLightPathFragmentsChanged(
+        private void OnAdditionalExcludedLightPathFragmentsChanged(
             object sender,
             EventArgs args)
         {
@@ -734,10 +869,10 @@ namespace TGAllLightsCastShadowsAddon
 
         private void OnDestroy()
         {
-            if (_excludedLightPathFragments != null)
+            if (_additionalExcludedLightPathFragments != null)
             {
-                _excludedLightPathFragments.SettingChanged -=
-                    OnExcludedLightPathFragmentsChanged;
+                _additionalExcludedLightPathFragments.SettingChanged -=
+                    OnAdditionalExcludedLightPathFragmentsChanged;
             }
 
             RestoreProtectedLightsAfterParentScan();

@@ -1,7 +1,7 @@
 Main Menu Music
 ===============
 
-Version 2.1.2
+Version 2.1.9
 
 Standalone BepInEx 5 Mono plugin for Tainted Grail: The Fall of Avalon.
 
@@ -103,7 +103,7 @@ The config is generated after first launch:
 
   BepInEx\config\ks.tgfoa.main-menu-music.cfg
 
-Version 2.1.2 uses ConfigSchemaVersion 16. Older configs are backed up and a
+Version 2.1.9 uses ConfigSchemaVersion 16. Older configs are backed up and a
 fresh config is generated once so the updated defaults apply cleanly.
 
 Install shape
@@ -137,3 +137,10 @@ Notes
 - Use the repository-level tools/Build-Mod.ps1 script to rebuild and export the
   package.
 - Release zips contain only the runtime payload, README, and changelog.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

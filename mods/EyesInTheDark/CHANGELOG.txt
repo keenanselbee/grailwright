@@ -1,0 +1,101 @@
+Version 0.8.3
+Added first-class dynamic world-clock control with separate configurable day and night weather multipliers, defaulting to approximately 60 minutes of daylight and 15 minutes of night without touching gameplay Time.timeScale.
+Expanded the curated native roster across Cuanacht, Forlorn, and Sarras with exact player-level gates, danger costs, one-copy limits, family repetition control, sidecar roles, and solo-primary restrictions; unknown scenes and empty pools still fail closed.
+Required every placed encounter member to confirm native combat with the exact Hero before budget is spent, and added bounded same-scene outdoor reacquisition every two active seconds with a three-attempt per-member cap.
+Added 30-second unscaled listener retry backoff with one warning per failure episode, and aggregated passive-exposure and decay diagnostics into ten-active-second summaries.
+Removed the unused regional progression-tier abstraction; player level, region, template safety, session failures, and danger budget now form the complete hard eligibility model.
+Added GFT-owned incompatibility reporting for Custom Timescale because both mods control GameRealTime weather rates; Eyes does not disable or reconfigure either plugin.
+Kept ConfigSchemaVersion at 4 because the three world-timescale settings are additive and previous configs can accept their current defaults safely.
+
+Version 0.8.2
+Folded the standalone Purple Wyrdness presentation into Eyes in the Dark and removed the retired standalone repository package.
+Changed the default boundary to the purple #B878FF hue at the shipped edge's peak HDR brightness while restoring the vanilla radius of 32, thickness of 0.25, and static reactivity behavior; every retained visual remains configurable in FoA Mod Manager.
+Incremented ConfigSchemaVersion to 4 because boundary HDR intensity, radius, thickness, and threat-reactivity defaults changed materially; the old config is backed up and regenerated before compatible customized settings are restored.
+
+Version 0.8.1
+Authorized Glorious UI's new plugin GUID for the Eyes-owned Wyrd Threat placement contract and refreshed the integration test identity.
+
+Version 0.8.0
+Finalized the initial beta roster from shipped scene evidence: Wyrdspirit remains the only reviewed universal candidate, while Redcap, Corpse Eater, Sharg, and Ogre stay restricted to Horns of the South.
+Finalized initial level gates, danger costs, pack ceilings, hazard curves, threat tuning, relief, warning, recovery, and the Uneasy Night, Watchful Night, and Cursed Night templates for consolidated in-game validation.
+Finalized randomized Minimal, Atmospheric, and Detailed GFT routing plus concise diagnostics-only System summaries for state, threat, pacing, selection filters and weights, composition, cost, placement, and resolution.
+Hardened missing-hero, unknown-region, invalid-template, failed-member, lost-primary, loading, travel, portal, death, dawn, and gameplay-load handling around one atomic official encounter.
+Added installed-user compatibility, beta-limit, and troubleshooting documentation plus complete Nexus page metadata for the feature-complete candidate.
+Marked KS Wyrd Hunt Addon as retired in repository and Nexus documentation; Eyes in the Dark contains no runtime migration or compatibility layer for it.
+
+Version 0.7.0
+Finished the versioned Eyes-owned HUD placement contract: Glorious UI only requests below-bars placement, and a missing, disabled, or failed bridge leaves the meter in its standalone row above health.
+Verified that Glorious UI contains no active duplicate Wyrd meter implementation or Wyrd Hunt meter dependency.
+Isolated threat-meter and native-boundary presentation failures so they disable only the failed optional presentation path, log once, and leave threat and encounters active; GFT already follows the same isolation rule.
+Reduced periodic presentation work by caching parsed boundary colors and updating exact threat text only when its rounded value changes.
+Finalized config descriptions, ranges, schema-reset reason, recovery wiring, and the one-shot preset permanent exclusion for the 0.8.0 candidate cycle.
+
+Version 0.6.0
+Added a curated regional director with exact Horns of the South, Cuanacht, Forlorn, and Sarras scene handling; unknown scenes fail closed, the shipped scene data keeps Redcap, Corpse Eater, Sharg, and Ogre profiles in Horns of the South, and only the reviewed Wyrdspirit profile is universal.
+Added player-level and regional-progression gates, per-profile danger costs, threat-driven weighted primary selection without hard threat thresholds, recent profile/family penalties, and session rejection after three failures from one template.
+Added atomic mixed encounters with weaker-sidecar preference, same-tier and same-family penalties, level/preset/budget pack caps, and curated Wyrdspirit clusters up to three members.
+Made the exact primary actor resolve the official hunt while surviving sidecars become ordinary enemies and release the director lock.
+Added one-shot Uneasy Night, Watchful Night, and Cursed Night gameplay presets that return to Custom and preserve HUD, GFT, boundary, and diagnostic preferences.
+Expanded diagnostics and optional GFT System summaries with concise eligibility filters, final weights, composition, danger cost, budget, placement, and outcome information.
+Incremented ConfigSchemaVersion to 3 because FirstHunterDangerCost was replaced by per-profile costs plus DangerCostMultiplier and FirstHunterSpawnDistanceMeters was renamed to HunterSpawnDistanceMeters; the old config is backed up and regenerated before approved durable settings are restored.
+
+Version 0.5.0
+Added accumulated encounter hazard with randomized targets, threat and night-progress weighting, remaining-budget gating, warning commitment, and recovery without fixed Wyrd Threat spawn thresholds.
+Added one reviewed solo Wyrdspirit official hunter using native navigation placement, exact volatile Location/Npc ownership, hostile and combat-capable validation, native combat entry, and non-persistent runtime state.
+Added protected-area, pacifist-safe-zone, unrelated-combat, swimming, travel, loading, scene, and placement gates. Invalid or failed placement spends no danger budget.
+Added exact official-hunter death, sustained outdoor escape, interior escape, dawn, death, gameplay-load, and lost-target resolution. Kills grant greater threat relief and shorter recovery than escapes.
+Added randomized GFT hunt commitment, hunter-killed, and escape pools on the hunt collapse lane, with Warning presentation for commitment and concise diagnostics-only System summaries for placement, budget, and resolution decisions.
+Added the GFT-owned soft main-menu System notice when Wyrd Hunt and Eyes in the Dark are loaded together; Eyes itself contains no compatibility scanner or automatic handling.
+
+Version 0.4.0
+Added configurable native Wyrd boundary color, HDR intensity, visual radius, thickness, and optional subtle threat reactivity without changing protection, mask intensity, or gameplay radius.
+Added optional Grail Floating Text notifications with Minimal, Atmospheric, and Detailed routing, randomized atmospheric text pools, immediate-repeat prevention, shared Wyrd icon use, and pause-aware lane cooldowns.
+Added concise diagnostics-only GFT System summaries for meaningful state, threat-source, pacing, and optional-integration events, with immediate delivery, repeat suppression, and failure isolation.
+Added a world-clock-aware nightly danger-budget calculation with a capped square-root long-night bonus. This milestone reports the budget but does not spend it or spawn enemies.
+
+Version 0.3.3
+Shortened the BepInEx and FoA Mod Manager config title to Eyes in the Dark while retaining the full package name.
+Mirrored the Eyes-owned Wyrd Threat meter artwork horizontally and vertically using the proven fill-origin, glow-indicator, and anchor handling previously used by Glorious UI.
+Added the versioned Eyes HUD placement contract so Glorious UI can request a below-bars layout without creating, updating, hiding, or destroying the meter.
+
+Version 0.3.2
+Moved the standalone Wyrd Threat meter from the overlapping health-bar slot to its own row above the vanilla health bar.
+Reduced the default protected decay from 10 to 4 threat per active real-time minute and interior decay from 3 to 1 so extended-timescale nights retain readable pressure. Config schema 2 resets these materially changed untouched defaults while preserving compatible customized settings.
+
+Version 0.3.1
+Preserved current-night threat through ordinary scene loading and interior transitions by limiting reconstruction resets to the game's native gameplay-load entry points.
+Prevented portal, fast-travel, loading, and scene-transition progress jumps from adding catch-up passive threat.
+
+Version 0.3.0
+Added continuous 0-100 Wyrd Threat with Unnoticed, Watched, Hunted, and Marked presentation stages.
+Added normalized-night-progress passive threat that reaches the same baseline at vanilla and slower world timescales.
+Added throttled threat from sustained sprinting or fast swimming, meaningful combat, eligible Wyrd kills, direct pickups, and container or corpse looting.
+Added moderate protected-area decay, slower active-real-time interior decay, dawn reset, modest load reconstruction, and load or interior-exit grace.
+Added an Eyes-owned purple Wyrd Threat meter above the vanilla Hero HUD, including protected-night visibility, automatic hiding, optional exact values, and offsets.
+Added the first config schema and shared previous-settings recovery infrastructure.
+
+Version 0.2.4
+Removed the temporary high-volume transition checkpoint tracing after it confirmed every sampled Eyes state read completed safely.
+Travel now takes diagnostic priority over the overlapping generic transition state so portal and fast-travel suppression can be verified directly.
+
+Version 0.2.3
+Added short-lived numbered diagnostics around every Eyes world-state read during loading and scene transitions.
+Each diagnostic sample now records a final completion checkpoint so a hard crash can be separated from an interrupted Eyes state read.
+
+Version 0.2.2
+Fixed an early title-screen state sample that could initialize the game's scene-lifetime event service before its world event system existed and prevent startup.
+The sampler now waits for the game-owned Wyrdness service, playable hero, and active scene before reading scene-lifetime state.
+
+Version 0.2.1
+Added pause and unpause transition diagnostics so stopped active-real-time behavior can be verified in the game log.
+
+Version 0.2.0
+Added fail-closed detection for playable hero, outdoor scenes, Wyrd Night, protection, loading, transitions, travel, rest, and death.
+Added normalized Wyrd Night progress from the game's world clock.
+Added an active-real-time clock that stops during pauses and suppressed gameplay states and rejects long catch-up frames.
+Added low-noise diagnostics that log only meaningful state, scene, or exposure changes.
+
+Version 0.1.0
+Added the initial Eyes in the Dark BepInEx plugin and package structure.
+Added the living design document for threat, pacing, encounters, HUD, Wyrd boundary visuals, integrations, and compatibility boundaries.
+Kept the development scaffold gameplay-inert while the design is established.

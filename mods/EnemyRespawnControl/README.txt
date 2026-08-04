@@ -1,6 +1,6 @@
 Enemy Respawn Control
 
-Version 2.0.2
+Version 2.0.8
 
 Enemy Respawn Control is a standalone BepInEx plugin for Tainted Grail: The Fall of Avalon. It remembers regular world mob spawners after their spawned NPCs or creatures are killed and blocks respawn checks until the configured delay has elapsed.
 
@@ -32,9 +32,13 @@ VerySlow168Hours = 168 in-game/weather hours
 Custom = CustomRespawnHours in in-game/weather hours
 Disabled = block cleared controlled mob spawners indefinitely
 
-Version 2.0.2 keeps the 2.0 classification model and tightens its runtime path. Hostility=true is still controlled immediately, but a false hostility read no longer excludes regular NPC-template mob spawners that have killed-state. Built-in terms cover enemy families seen in game templates and diagnostics, including Wyrdspirits, Dal Riata and Galahad guards, bandits, druids, undead, beasts, and constructs.
+Version 2.0.8 keeps the 2.0 classification model and tightens its runtime path. Hostility=true is still controlled immediately, but a false hostility read no longer excludes regular NPC-template mob spawners that have killed-state. Built-in terms cover enemy families seen in game templates and diagnostics, including Wyrdspirits, Dal Riata and Galahad guards, bandits, druids, undead, beasts, and constructs.
 
 ControlFactionNeutralNpcSpawners catches regular mob spawners whose faction hostility is conditional, not restored yet, or otherwise unreadable at the moment ERC evaluates them. Set it to false for conservative behavior. AdditionalControlledSpawnerTerms and IgnoredSpawnerTerms accept semicolon-separated spawner/template text if a specific family needs to be forced in or out.
+
+Those two manual spawner override lists are preserved by exact current setting
+name across future config schema resets. Other gameplay, timing, and diagnostic
+settings still regenerate from fresh defaults.
 
 Resource, pickable, and passive non-enemy location spawners are ignored. ERC leaves the outer rest-ambush gate alone, but ordinary locked mob spawners remain controlled when the game considers them as ambush candidates. Ambush-only spawners, active Wyrd-night spawner state, and manual/story-triggered spawns are ignored so flagged special events can still happen.
 
@@ -49,3 +53,10 @@ Turn Diagnostics on if enemies still respawn too quickly. The log will show spaw
 Build:
 
 Use the repository-level tools/Build-Mod.ps1 script to compile and export the package. Release zips contain only the runtime payload, README, and changelog.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

@@ -1,3 +1,181 @@
+Version 1.9.8
+Added GUID and assembly-fallback compatibility detection for Custom Timescale when Eyes in the Dark is also loaded.
+Shows one existing-convention main-menu System notice stating that Custom Timescale is flagged as incompatible with Eyes in the Dark without disabling or modifying either plugin.
+Kept ConfigSchemaVersion at 24 because no GFT setting changed.
+
+Version 1.9.7
+Prevented title-screen notifications from initializing the game's font families before localization is ready.
+Added a safe temporary font fallback so startup notifications cannot break the overlay while game font services initialize.
+
+Version 1.9.6
+Standardized Wyrdnight as one word in notifications, config descriptions, and documentation.
+
+Version 1.9.5
+Updated compatibility detection and notices for Glorious UI's new plugin GUID, assembly, and public identity.
+
+Version 1.9.4
+Replaced legacy IMGUI notification text with TextMesh Pro so GameDefault uses the active Accessibility FontAsset and forced Sans or Serif use the matching game FontAsset directly.
+Preserved notification wrapping, icons, shadows, positioning, opacity, and stack and spawn animations on the native font renderer.
+
+Version 1.9.3
+Moved native quest and objective notification duration control to Glorious UI, where HUD timing and future quest-layout controls belong.
+Raised ConfigSchemaVersion to 24 because QuestNotificationDurationSeconds was removed from Grail Floating Text.
+
+Version 1.9.2
+Added vanilla-style XP queuing: the visible XP entry keeps its original lifetime while compatible gains wait and consolidate into a fresh follow-up entry.
+Added API v8 source-isolated XP claims so opted-in mod XP can consolidate only with the same source, key, and presentation; existing one-shot claims remain compatible and separate.
+Enabled XP consolidation by default through ConsolidateXpGains while keeping generic XP isolated from every mod source.
+Changed the Purple color-group default to #C294FF and raised ConfigSchemaVersion to 23 so untouched old defaults receive it while valid customized colors remain preserved.
+Shortened compatibility-detection documentation and moved the author setup guidance into the For Mod Authors section.
+Also includes the quest-duration control, icon mipmapping, icon-color and shadow controls, quieter block default, parry icon, and compatibility notices added since the previous Nexus release.
+
+Version 1.9.1
+Added QuestNotificationDurationSeconds for the game's native new, completed, and failed quest notices plus objective update notices, with a 10-second default and 0 preserving the game duration.
+Kept the native quest presentation and track/open prompts intact; GFT changes only how long those notices remain fully visible.
+
+Version 1.9.0
+Added vanilla-style XP queuing: the visible XP entry keeps its original lifetime while compatible gains wait and consolidate into a fresh follow-up entry.
+Added API v8 source-isolated XP claims so opted-in mod XP can consolidate only with the same source, key, and presentation; existing one-shot claims remain compatible and separate.
+Enabled XP consolidation by default through ConsolidateXpGains while keeping generic XP isolated from every mod source.
+Changed the Purple color-group default to #C294FF.
+Raised ConfigSchemaVersion to 23 because the PurpleColor default changed; untouched old defaults receive #C294FF while valid customized colors remain preserved.
+Shortened compatibility-detection documentation and moved the author setup guidance into the For Mod Authors section.
+
+Version 1.8.9
+Added the documented soft main-menu System notice when Wyrd Hunt and Eyes in the Dark are both loaded. GFT reports the incompatible pair without disabling or altering either plugin.
+
+Version 1.8.8
+Added the new built-in parry icon and routed default Parried damage notifications to it instead of the generic combat icon.
+Added parry to the public built-in icon ID list, with parried accepted as an alias.
+
+Version 1.8.7
+Disabled NotifyBlockedDamage by default to reduce routine combat-message noise while leaving parry feedback enabled.
+Raised ConfigSchemaVersion to 22 because the NotifyBlockedDamage default changed; older configs are backed up and regenerated with block notifications off.
+
+Version 1.8.6
+Added blank per-group icon color overrides so foreground icons can use a different tint from their notification text while inheriting the text color by default.
+Added IconShadowEnabled and IconShadowOpacity settings while keeping the existing black icon shadow enabled at 0.75 opacity by default.
+Applied overrides to direct color groups and matching style aliases, with safe text-color fallback and one warning for each invalid configured value.
+
+Version 1.8.5
+Added runtime mipmap generation and trilinear filtering for cleaner built-in icons during downscaling and pop animation.
+Dilated visible edge colors into fully transparent pixels before mip generation to prevent dark texture fringes.
+Released CPU-side icon pixel data after upload and marked runtime icon textures as non-persistent Unity objects.
+
+Version 1.8.4
+Changed the Purple color-group default and Wyrd fallback color to #9870FF.
+Updated the bundled Wyrd icon artwork.
+Raised ConfigSchemaVersion to 21 because the PurpleColor default changed; untouched old defaults receive #9870FF while valid customized colors remain preserved.
+
+Version 1.8.3
+Fixed configurable color-group names being parsed as literal HTML named colors before their settings, which forced Purple to #800080 and ignored PurpleColor.
+Prioritized every configured color group before literal HTML color parsing, fixing the same issue for Red, Blue, Orange, White, Gray, and other colliding group names.
+
+Version 1.8.2
+Added focused color diagnostics that log each notification's event ID, selected color group, live configured value, resolved RGBA, and opacity when Diagnostics is enabled.
+Added live color-setting change logs to distinguish in-memory config updates from file-only edits.
+
+Version 1.8.1
+Fixed text and icons inheriting Unity IMGUI disabled or content-tint state, which could render even #FFFFFF as dark purple.
+Isolated and restored the complete relevant GUI color and enabled state around floating-text drawing.
+
+Version 1.8.0
+Routed built-in vanilla Wyrd notices, including Wyrdnight falls/fades, directly through the configurable Purple color group.
+Changed every color-group config description to show that setting's actual default hex value instead of one generic example color.
+
+Version 1.7.9
+Suppressed vanilla Wyrdnight and Safe/Exposed messages until gameplay is fully initialized and visible.
+Discarded Wyrd state changes that occur during loading or transitions instead of showing stale notifications after arrival.
+
+Version 1.7.8
+Brightened the Purple color group from #F5A0F8 to the high-contrast pale orchid #FFD0FF so Wyrd text and icons remain legible against dark scenes.
+Raised ConfigSchemaVersion to 20 because the PurpleColor default changed; untouched old defaults receive #FFD0FF while valid customized colors remain preserved.
+
+Version 1.7.7
+Changed the Purple color group from #E17AFF to the much brighter, warmer #F5A0F8 orchid tint for Wyrd Hunt status, Wyrdnight, Wyrd safety, Wyrd skill, and other Purple-style text.
+Raised ConfigSchemaVersion to 19 so untouched PurpleColor values receive the brighter default while valid customized colors remain preserved.
+
+Version 1.7.6
+Brightened the Purple color group from #C294FF to the less-blue #E17AFF for Wyrd Hunt status, Wyrdnight, Wyrd safety, Wyrd skill, and other Purple-style text.
+Raised ConfigSchemaVersion to 18 so untouched PurpleColor values receive the brighter default while valid customized colors remain preserved.
+
+Version 1.7.5
+Doubled the default Width from 520 to 1040 so concise compatibility notices and other medium-length messages remain on one centered line more often.
+Raised ConfigSchemaVersion to 17 so untouched Width values receive the new default while valid customized widths remain preserved.
+
+Version 1.7.4
+Centers the complete visible icon-and-text group instead of centering a capped text box that could overflow to the right.
+Wraps oversized messages within a screen-safe centered layout and preserves correct spacing between multiline stacked notifications.
+Shortens compatibility notices while keeping exact matched setting details in the BepInEx log.
+
+Version 1.7.3
+Expanded compatibility notices with a minimal verified rule set for Glorious UI, Better UI quick-wheel settings, Immersive HUD visibility, Steel and Bone damage-number duplication, and Owrocc ModifyCrosshair.
+Reads exact settings from loaded plugins and skips rules it cannot verify instead of guessing from filenames or general overlap descriptions.
+
+Version 1.7.2
+Matches compatibility rules against each loaded BepInEx plugin's actual DLL filename, with plugin GUID and loaded assembly fallbacks for reliable detection.
+
+Version 1.7.1
+Added configurable-on compatibility detection for documented Grailwright mod conflicts, starting with Glorious UI's seven exact incompatible DLL identities.
+Shows one soft main-menu notice per detected DLL with the System category, configurable System duration, and system icon while treating the Grailwright mod as the preferred implementation.
+Documented all independently configurable duration buckets and the exact Glorious UI detection list.
+
+Version 1.7.0
+Raised the VeryShort, Short, Medium, Long, VeryLong, and System default durations to 3, 3.5, 4, 4.5, 5, and 10 seconds.
+Consolidated load-time errors and other system messages onto the configurable 10-second System duration instead of maintaining a separate error-only duration.
+Raised ConfigSchemaVersion to 16 so untouched timing defaults upgrade while customized timing values remain preserved.
+
+Version 1.6.9
+Restored a dedicated 10-second display duration for load-time errors while keeping other system messages on the configurable System duration.
+
+Version 1.6.8
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 1.6.7
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.6.6
+Added API v7 deferred delivery for immediate, main-menu, and loaded-game messages so load and reset notices appear only when visible.
+Added a five-second System duration, lengthened the standard duration presets, and scaled fade-out time to each message's total duration.
+Added successful config-reset notifications and strengthened Harmony callback registration.
+Preserves layout, font, timing, animation, opacity, icon, color, and per-source tuning across schema resets, including dynamically generated source controls.
+Added a conservative Import Previous Settings action for supported backups.
+
+Version 1.6.5
+Raised the VeryShort, Short, Medium, Long, and VeryLong default durations proportionally to 1.5, 2.25, 3, 3.75, and 4.5 seconds.
+Kept the dedicated System duration at five seconds and aligned the fallback default duration with the three-second Medium bucket.
+Raised ConfigSchemaVersion to 15 so previous duration defaults upgrade while custom timing values remain preserved.
+
+Version 1.6.4
+Preserves layout, font, timing, animation, opacity, icon, color, and per-source display tuning across config schema resets.
+Restores dynamically generated source controls even before their originating mods send another message.
+Keeps color-group event assignments, gameplay notification choices, and diagnostics on fresh schema defaults.
+
+Version 1.6.3
+Scaled fade-out time with total message duration while keeping fade-in time fixed, giving the five-second System bucket a 0.5-second fade-out and the two-second Medium bucket a 0.25-second fade-out by default.
+Raised ConfigSchemaVersion to 14 so the duration-relative fade behavior is documented in regenerated configs.
+
+Version 1.6.2
+Added a configurable System duration bucket with a five-second default for startup, config reset, and load-time messages.
+Routed config resets through OnLoad and load-time errors through OnMainMenu using the System duration.
+Raised ConfigSchemaVersion to 13 so the new System timing setting is generated cleanly.
+
+Version 1.6.1
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 1.6.0
+Added API v7 deferred delivery with Immediate, OnMainMenu, and OnLoad paths for mod authors.
+Config reset messages now wait for fully visible loaded gameplay, while load-time errors wait for the usable main menu.
+Deferred messages persist until their first eligible visible frame, and their display timers start only when rendered.
+Kept ConfigSchemaVersion 12 because no user settings changed.
+
+Version 1.5.7
+Added successful config schema reset notifications with the system icon and VeryLong duration bucket, including Grail Floating Text's own resets.
+
+Version 1.5.6
+Replaced owned Harmony callback name strings with compiler-checked references so callback renames cannot silently break XP notification takeover.
+
 Version 1.5.5
 Added FontMode so the overlay can follow the game's Accessibility font choice or force the simple Sans, stylized Serif, or IMGUI fallback font.
 Raised ConfigSchemaVersion to 12 so upgraded configs regenerate with the new font setting.
@@ -60,7 +238,7 @@ Updated the API reference with the rest icon and default-game-event feature flag
 Raised ConfigSchemaVersion to 6 for the new rest and combat default-event settings.
 
 Version 1.3.1
-Added built-in vanilla Wyrd notifications for Wyrd Night changes, Wyrd safety changes, and Wyrd power unlocks.
+Added built-in vanilla Wyrd notifications for Wyrdnight changes, Wyrd safety changes, and Wyrd power unlocks.
 Suppressed vanilla Safe/Exposed messages by default while Wyrd Hunt Addon is loaded so Wyrd Scent remains authoritative.
 Added Default Game Events config toggles for vanilla Wyrd notifications and raised ConfigSchemaVersion to 5.
 

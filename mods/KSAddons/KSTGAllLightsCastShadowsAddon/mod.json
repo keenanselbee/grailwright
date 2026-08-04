@@ -2,12 +2,13 @@
   "id": "TGAllLightsCastShadowsAddon",
   "displayName": "KS TG All Lights Cast Shadows Addon",
   "packageName": "TGAllLightsCastShadowsAddon",
-  "version": "1.1.2",
+  "version": "1.1.9",
   "pluginGuid": "ks.tgfoa.tg-all-lights-cast-shadows-addon",
   "dll": "TGAllLightsCastShadowsAddon.dll",
   "sourceFiles": [
     "src/TGAllLightsCastShadowsAddon.cs",
-    "../../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "../../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

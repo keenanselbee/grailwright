@@ -1,3 +1,40 @@
+Version 1.5.6
+Matched the game's hyphenated One-Handed and Two-Handed proficiency names in notifications, config descriptions, diagnostics, and documentation.
+
+Version 1.5.5
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+Changed Grail Floating Text killing-blow rewards from the Medium duration bucket to Short.
+
+Version 1.5.4
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.5.3
+Shortened the full finisher-sound distance fade to 50 meters and enabled the complete fade by default.
+Preserves finisher fade, reward audio, notification format, bloodless terms, and statistics-key tuning across config schema resets.
+Added a conservative Import Previous Settings action for supported backups, five-second Grail Floating Text notices, a hidden internal schema setting, and stronger Harmony callback registration.
+
+Version 1.5.2
+Preserves finisher distance fade, reward sound volume and pitch, notification format, bloodless whitelist terms, and statistics character key override across future config schema resets.
+Restored numeric values are parsed invariantly and clamped to their current supported ranges; invalid values are skipped.
+
+Version 1.5.1
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 1.5.0
+Shortened the full finisher-sound distance fade from 100m to 50m, reaching 10% volume at 50m and beyond.
+Changed FinisherSoundRangeVolume from 0.5 to 1 by default so the full distance fade is active.
+Bumped ConfigSchemaVersion to 13 so existing configs are backed up and regenerated with the stronger default.
+
+Version 1.4.9
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 1.4.8
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 1.4.7
+Replaced owned Harmony callback name strings with compiler-checked references so callback renames cannot silently break patch registration.
+
 Version 1.4.6
 Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
 Stopped reporting a successful load when the required NPC death reward hook is unavailable.

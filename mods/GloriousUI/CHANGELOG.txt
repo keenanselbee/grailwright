@@ -1,0 +1,389 @@
+Version 1.7.0
+Replaced the mod, plugin, DLL, package, GUID, config, persistence, source, and repository identity with Glorious UI.
+Started a fresh config schema under ks.tgfoa.glorious-ui with no previous-identity import or compatibility layer.
+Renamed standalone Equipment save entries and local backups for clean Glorious UI ownership.
+
+Version 1.6.1
+Moved QuestNotificationDurationSeconds from Grail Floating Text into Glorious UI's Notifications section, where native HUD timing belongs.
+Keeps new, completed, and failed quest notices plus objective updates fully visible for 10 seconds by default; 0 restores the game duration and values up to 60 seconds are supported.
+Preserves the native quest presentation and track/open prompts while changing only the fully visible duration.
+
+Version 1.6.0
+Transferred Wyrd Threat meter ownership to Eyes in the Dark; Glorious now only requests that the Eyes-owned meter be placed below the vanilla resource bars while Glorious is enabled.
+Removed Glorious's Wyrd Hunt scent-bar settings and runtime replacement path. Config schema 12 resets the config because those settings were removed.
+
+Version 1.5.8
+Disables top-right level and point notifications by default while retaining Timed Fade and Vanilla as optional modes.
+Raised ConfigSchemaVersion to 11 so existing untouched Timed Fade defaults reset to the new Disabled default.
+
+Version 1.5.7
+Mirrors the integrated Wyrd Scent bar artwork vertically as well as horizontally by default while keeping scent, glow, and indicator movement left-to-right.
+Added MirrorWyrdHuntScentBarVertically so horizontal and vertical mirroring can be controlled independently without changing the config schema.
+
+Version 1.5.6
+Mirrors the integrated Wyrd Scent bar artwork horizontally by default so it no longer exactly matches the mana meter while preserving left-to-right scent, glow, and indicator movement.
+Added MirrorWyrdHuntScentBar as an immediate fallback and leaves the normal bar active if the cloned layout cannot be mirrored safely.
+
+Version 1.5.5
+Made the Smart Bag key close an active weapon, armor, or quick-slot picker before navigating the parent Character Sheet to Bag.
+
+Version 1.5.4
+Changed the Wyrd Scent bar from #E17AFF to the much brighter, warmer #F5A0F8 orchid tint so it reads less blue against the HUD.
+
+Version 1.5.3
+Added a public Wyrd Hunt HUD ownership contract so companion addons can defer native-meter controls only while Glorious's replacement exists.
+Requires a valid hero in Wyrd Hunt's public exposure snapshot before showing the integrated scent bar, keeping loading and portal transitions fail-hidden.
+
+Version 1.5.2
+Brightened the Wyrd Scent bar from #C294FF to the less-blue #E17AFF.
+Moved the Wyrd Scent bar one UI pixel downward.
+Hides the Wyrd Scent bar when rounded scent is zero, Wyrd Night state is unavailable, or it is not Wyrd Night.
+
+Version 1.5.1
+Added optional Wyrd Hunt detection through its public read-only threat API.
+Added a #C294FF Wyrd Scent bar below stamina by cloning and recoloring the animated vanilla mana-bar visual.
+Made scent changes refresh Glorious's normal Hero HUD visibility timer and follow its existing fade and scale.
+Replaced Wyrd Hunt's separate meter only after the Glorious bar initializes successfully, preserving the original as a compatibility fallback.
+
+Version 1.4.9
+Resets vanilla All With Recent from its retained Recent filter to true All before the Smart Bag key treats the next press as a close request.
+
+Version 1.4.8
+Changed Smart Bag into a native Bag > All toggle: it opens or navigates to All first, then closes through the Character Sheet's Back hierarchy when All is already selected.
+Integrated optional direct hotkeys for every remaining Bag category without requiring owrocc.BagHotkeys.
+Moved Settings Restore Defaults to E when Interact is F, preventing the held F Apply Changes action from also opening the reset confirmation.
+Warns when owrocc.BagHotkeys is loaded because its independent key polling can reopen the Bag after Glorious closes it.
+Advanced the config schema because SmartInventoryBagHotkey now navigates and toggles Bag > All instead of cancelling every open Character Sheet panel.
+
+Version 1.4.7
+Kept the hidden quick-slot use and cycle prompts suppressed when later vanilla HUD refreshes reactivate them.
+Prevented returning from the Escape menu, Character Sheet, Inventory, or another modal menu from restarting an already-hidden timed level notification.
+
+Version 1.4.6
+Kept the hidden Wyrd use prompt suppressed when vanilla HUD state changes reactivate its GameObject after the initial layout pass.
+Made held Apply Changes prompts use the current Interact binding for both the displayed key and the hold action.
+
+Version 1.4.5
+Made the Smart Inventory Bag hotkey select the Bag subtab explicitly instead of opening the Inventory section on its default Equipment subtab.
+Restored the game's separate Equipment action and ensures it selects Equipment after opening, including after Bag was the most recently used inventory subtab.
+Limited generic Character Sheet suppression to the same physical press as the Smart Inventory Bag hotkey, preventing close-and-reopen loops without requiring either vanilla binding to be removed.
+
+Version 1.4.4
+Removed quick-use wheel loadout numbers and their global visibility and six per-loadout label settings.
+Added a simplified Smart Inventory Bag hotkey, defaulting to Tab, that opens only the Bag from gameplay and closes the deepest active menu or Character Sheet when one is open.
+Suppressed the vanilla Inventory action in gameplay, Character Sheet tabs, and Story while the Smart Inventory Bag hotkey is assigned so one press cannot close and immediately reopen the Bag; setting the hotkey to None restores vanilla handling.
+Advanced the config schema because ShowQuickWheelLoadoutLabels, QuickWheelLoadout1Label through QuickWheelLoadout6Label, and SecondaryMenuCancelHotkey were removed or replaced.
+
+Version 1.4.3
+Redirected the game's four native weapon-loadout actions to Glorious loadouts 1 through 4 while Glorious owns the equipment panel, preserving vanilla keyboard and controller remapping.
+Removed Glorious's redundant WeaponLoadout1Hotkey through WeaponLoadout4Hotkey settings and their physical-key polling path; dedicated configurable keys remain for extended loadouts 5 and 6.
+Restored normal native loadout behavior automatically whenever Glorious weapon-loadout ownership is disabled.
+Advanced the config schema because the four redundant loadout-hotkey settings were removed.
+
+Version 1.4.2
+Moved quick-wheel loadout labels inward to the open numbered positions and shows each label only while its loadout is hovered.
+Increased the gameplay arrow quick-slot count text by 30 percent while preserving and restoring the vanilla font size when HUD ownership is disabled.
+Removed Smart Inventory completely, including its runtime input path, delayed tab-selection state, config settings, preservation hooks, and current documentation.
+Baked the current Quick Slot HUD vertical adjustment and Hero HUD horizontal, vertical, and scale adjustments into their internal baselines so the same layouts now read 0/0/1.
+Advanced the config schema because Smart Inventory settings were removed and QuickSlotHudOffsetY, HeroHudOffsetX, HeroHudOffsetY, and HeroHudScale now adjust new baked baselines.
+
+Version 1.4.0
+Fixed the quick-use wheel exception caused by synthetic loadouts 5 and 6 attempting to register item sprites through a missing radial-menu owner.
+Made all six virtual loadout proxies use the active wheel view for sprite ownership, tooltips, and menu closing.
+Separated virtual loadout icon refresh from optional labels and ammo counters and removed redundant item-slot refreshes during presentation setup.
+
+Version 1.3.9
+Added default-enabled, virtual-loadout-aware arrow quantity counters to all six Glorious quick-wheel loadouts, including low-ammo color cues.
+Added default-enabled arrow cycling: left-clicking a bow loadout's arrow icon advances only that Glorious virtual loadout to the next available arrow type without selecting or closing the wheel.
+Immediately reapplies a cycled arrow when its virtual loadout is active and preserves inactive loadout assignments without touching unrelated native rows.
+Documented the three Better UI Quick Wheel settings that must be disabled while Glorious owns the six-loadout wheel.
+
+Version 1.3.8
+Replaced the layered reflection, replay, and assignment-verification backend with one typed More Weapon Loadouts-style native-row routine shared by the wheel and all six hotkeys.
+Made dedicated loadout hotkeys independent of the general cursor-visible suppression while still blocking loading, dialogue, cutscenes, knockdown, and unrelated paused screens.
+Stored weapon assignments as template GUIDs and resolves matching inventory copies by highest level, then lowest weight, while keeping dual-wielded copies distinct and handling fists, two-handed weapons, bows, and quivers.
+Fixed first-open quick-wheel exceptions by creating loadout labels only from a TextMesh Pro template with a complete font and material.
+Made persistence recover the most useful duplicate archive entry or local backup and removed obsolete exact-item-ID and forced equipment-replay code.
+
+Version 1.3.7
+Added dedicated configurable Glorious hotkeys for weapon loadouts 1 through 4, defaulting to number keys 1 through 4.
+Moved all six virtual loadouts onto the same direct physical-key polling path and removed the VHeroKeys.EquipLoadout interception hook.
+Users must unbind the game's four vanilla weapon-loadout actions from the same physical keys to prevent native and Glorious loadouts responding together.
+
+Version 1.3.6
+Replaced Smart Inventory's vanilla Inventory and Character Sheet action interception with a dedicated physical hotkey that defaults to Tab.
+Smart Inventory now reads key down, hold, and release directly so tap opens Bag, hold opens Equipment, and a press closes an open menu without depending on game input-handler order.
+Removed the Global Keys, Hero Keys, Story, and Character Sheet tab interception hooks; users must unbind the same physical key from vanilla Inventory and Character Sheet actions to prevent both systems responding.
+Advanced the config schema because EnableSmartInventoryKey now controls a dedicated physical hotkey instead of changing the meaning of the game's configured Inventory and Character Sheet actions.
+
+Version 1.3.5
+Mirrored the upper-left and upper-right two-item icon positions into lower loadouts 5 and 6 while keeping the weapon artwork upright.
+Explicitly synchronized native loadout 0 after applying a virtual loadout, fixing hotkeys that changed Glorious's selected ring without equipping the assigned weapons.
+Verified every native-row assignment before changing the selected virtual slot, preventing a rejected equip from presenting a false successful selection.
+
+Version 1.3.4
+Redirected vanilla loadout actions at VHeroKeys.EquipLoadout, the game's final equip call, so slots 1 through 4 cannot fall through to empty native loadouts.
+Made loadout 5 and 6 keys override overlapping vanilla bindings and deduplicated same-frame input so one press cannot activate two virtual slots.
+Intercepted the Story input route that could bypass Smart Inventory and open Bag directly.
+Replaced the lower quick-slot sector highlights with 180-degree mirrors of the upper-left and upper-right two-weapon loadout sectors.
+
+Version 1.3.3
+Fixed Smart Inventory by intercepting the gameplay and open-character-sheet handlers that actually consume the Inventory and Character Sheet actions; either configured action now taps for Bag, holds for Equipment, and closes an open menu.
+Redirected the game's four existing weapon-loadout actions to Glorious loadouts 1 through 4 and added configurable loadout 5 and 6 hotkeys defaulting to 5 and 6.
+Added default-enabled quick-wheel labels, hidden center-control and controls-legend options, and immediate left-click loadout selection.
+Copied the native lower quick-slot selected-sector transform and sprite onto loadouts 5 and 6, correcting their rotated hover highlight without resolution-specific tuning.
+Quick-wheel close now restores the exact prior level-notification state and suppresses the wheel-close UI refresh so it does not start another timed notification.
+
+Version 1.3.2
+Rebuilt the quick-use wheel around Glorious's six virtual weapon loadouts, preserving the four native weapon positions and placing loadouts 5 and 6 in the lower-right and lower-left positions.
+Removed the wheel's two manual quick slots and autofill slot while leaving those items available through the gameplay HUD and Equipment panel.
+Wheel icons, selected state, localized prompts, and comparison tooltips now read directly from Glorious's standalone loadout data; selecting a wedge equips through vanilla loadout 0 without changing native loadouts 1 through 3.
+Added a default-enabled Equipment Panel setting that can leave the vanilla quick-use wheel intact on subsequent openings.
+Documented owrocc.RebindQuickWheel as incompatible because both mods replace the same radial menu.
+
+Version 1.3.1
+Added Smart Inventory ownership of the game's configured Inventory action: tap opens Bag, holding for 0.3 seconds opens Equipment, and pressing it while a menu is open closes or consumes that menu state.
+Smart Inventory suppresses the vanilla Inventory handler only while enabled, follows the player's existing game binding, and latches an opening or closing press until release to prevent an immediate second action.
+Added configurable hold duration and an optional secondary physical menu-cancel key that defaults to None.
+Advanced the config schema because MenuCancelHotkey was removed and replaced by action-based Smart Inventory settings with different input semantics and defaults.
+
+Version 1.3.0
+Added a configurable Exit or Cancel Menu hotkey, defaulting to Tab, that closes only the active nested menu and leaves the key's normal game action untouched when no closable menu is open.
+Weapon-picker tooltips now clear immediately when their picker closes instead of lingering over the Equipment screen.
+Deferred Glorious panel construction until after the native Equipment views initialize and reduced display refreshes to one inventory scan, shortening Glorious's contribution to Equipment opening time.
+
+Version 1.2.9
+Replaced the hard show/hide level-notification toggle with Timed Fade, Disabled, and Vanilla modes.
+Timed Fade is now the default: points, bonfire, Arthur memory, and Wyrd whisper changes remain visible for five seconds and then fade out over one second.
+Added configurable visible and fade durations; every vanilla widget refresh restarts the timed display without changing the underlying points or notification state.
+Advanced the config schema because ShowLevelNotifications was removed and replaced by a differently typed LevelNotificationMode setting with new timed behavior and defaults.
+
+Version 1.2.8
+Generated weapon rows and quick slots now retain a warm Glorious hover and controller-focus cue without restoring ARButton's flashing white color transition.
+Hidden vanilla quick-slot backing controls now temporarily disable and later restore their Selectable components, preventing controller navigation from landing on invisible slots.
+
+Version 1.2.6
+Character Sheet teardown now identifies the selected tab from the active game-model element before falling back to reflected tab-controller state, preventing cleanup from silently missing delayed Character or Inventory views.
+Virtual loadout switching now uses the game's typed two-handed, bow, and two-handed-magic equipment categories when deciding whether the off hand must be cleared.
+
+Version 1.2.5
+Weapon choices and unequips are now captured immediately from the vanilla loadout slot that opened the picker, so the active virtual loadout updates before another row can be selected.
+Inactive Character Sheet tab roots are now suppressed for the full lifetime of the open menu, preventing delayed view or tween completion from stacking Character or Equipment panels over Map and other tabs.
+
+Version 1.2.4
+Starting a new game now clears the previous save's in-memory virtual weapon and quick-slot session before the old save domain is dropped, preventing assignments or the active slot from bleeding across characters.
+
+Version 1.2.3
+Virtual quick-slot hotkeys now emit the same QuickSlotUsed event as the vanilla input path, keeping HUD and gameplay listeners synchronized after direct use.
+Leaving Inventory now deactivates the stale Equipment view roots in addition to hiding their canvas groups, preventing independent fade tweens from making old panels visible again over another character-sheet tab.
+
+Version 1.2.2
+Deferred one-menu equipment hooks until the full BepInEx plugin chain has loaded, preventing Glorious and a later-loading owrocc.OneMenuEquip installation from intercepting the same weapon selection.
+Equipment controls now follow the character sheet's actual selected tab, immediately release their Inventory views when another tab opens, and deactivate stale discarded tab views that would otherwise remain layered over Map or another menu.
+
+Version 1.2.1
+Weapon loadout labels now place the slot number on a centered second line so every number remains readable within the narrow label column.
+
+Version 1.2.0
+Integrated standalone one-menu equipping: configurable main-hand and off-hand shortcuts now equip hovered weapons or spells from either equipment picker and hovered weapons from the Bag.
+Added optional equipped-item toggling, off-hand-picker support or redirection, invisible click interception, and short equip notifications without requiring owrocc.OneMenuEquip.
+Detects an enabled owrocc.OneMenuEquip installation and suppresses only Glorious's duplicate hooks for that session to avoid double input while users transition.
+Immediately deactivates and releases custom Equipment roots when their owning Loadouts or Equipment model is discarded or its native canvas is hidden, preventing Equipment controls from stacking over the Bag, Map, item chooser, or another character tab.
+Requires the Loadouts and Equipment views to share the same live target before constructing the six-slot quick panel, preventing stale or mismatched view instances from owning an overlay.
+Baked the tested 140 X, -55 Y, and -2 native-spacing adjustment into the buff/debuff layout; the user-facing values now read 0 X, 0 Y, and 1 spacing while producing the same placement.
+Changed the default status wrap to nine icons per row and aligns every row by the primary icon image center, fixing the apparent one-icon left shift when a wrapped row contained diagnostic and native status visuals.
+Replaced BuffDebuffSpacingAdjustment with the neutral BuffDebuffSpacingScale setting.
+Advanced the config schema because the buff/debuff offsets now adjust from baked baselines and the removed spacing-adjustment setting was replaced by a differently named multiplier; preserving old values would apply the tuned offsets or spacing twice.
+
+Version 1.1.9
+Retries Equipment overlay construction after both game views have settled, fixing cases where initialization order left the two vanilla quick slots visible without ever attempting the six-slot grid again.
+Falls back from the dedicated quick-and-autofill container to the complete Equipment view when the game prefab places its manual slots outside that container.
+Adds a focused one-time diagnostic containing the searched hierarchy and discovered slot count if QuickSlot2 still cannot be resolved.
+
+Version 1.1.8
+Disabled ARButton's built-in color transition on Glorious Equipment controls, eliminating the white hover flash while retaining the game's native pointer and submit input.
+Replaced legacy Arial loadout and quick-slot labels with TextMesh Pro text that inherits the Equipment screen's active font asset, material, weight, and spacing.
+Reduced weapon-loadout label size and disabled wrapping so each LOADOUT number stays on one clean line beside its icons.
+
+Version 1.1.7
+Binds virtual weapon and quick-slot assignments to the exact saved item model ID, preventing duplicate copies of the same template from silently swapping between slots after a reload.
+Retains template GUID matching as a recovery fallback when an item stack is replaced or an exact item ID is no longer available.
+Preserves unresolved weapon references when another slot in the same loadout is edited, so temporarily missing equipment is not accidentally forgotten.
+
+Version 1.1.6
+Made the six-slot Equipment quick panel discover its backing controls through the game's dedicated quick-and-autofill container and accept stable slot-name matching, fixing the silent fallback to the two vanilla quick slots.
+Reports a focused warning and restores the vanilla controls if the quick-slot backing control still cannot be found on a future game UI revision.
+
+Version 1.1.5
+Replaced the custom Equipment panel's generic Unity buttons with Tainted Grail's native ARButton input components so weapon-loadout rows and virtual quick slots receive the game's mouse and submit events.
+Replaced BuffDebuffHudGap with the signed BuffDebuffHudOffsetY setting. Positive values move status icons upward and negative values move them downward from the top edge of the Hero HUD bars.
+Advanced the config schema because BuffDebuffHudGap was removed and replaced with a differently named, signed vertical-offset setting with a new default and range.
+Corrected custom Equipment overlay anchoring so exact row and grid dimensions are preserved when the vanilla prefab uses stretched anchors.
+
+Version 1.1.4
+Added an Glorious-owned Equipment Panel with six virtual quick slots arranged in two columns by three rows while retaining the vanilla food autofill slot below them.
+Clicking a virtual quick slot now prepares the hidden vanilla QuickSlot2 backing control and opens the normal item chooser; equip and unequip results are stored in the selected virtual slot.
+Added optional direct-use gameplay hotkeys for all six virtual quick slots, disabled by default.
+Kept vanilla weapon loadout 0 as the active editable row and replaced the three extra visible vanilla rows with six compact virtual loadout selectors.
+Added live main-hand and context-sensitive off-hand or quiver icons plus gold selected-slot highlighting for the six virtual weapon loadouts.
+Shows current stack quantities on the six virtual quick slots.
+Added a standalone Glorious virtual-loadout backend with no More Weapon Loadouts dependency.
+Stores all six weapon loadouts, all six quick slots, and the selected slots in GloriousEquipmentSlots.dat inside the active save archive, with a per-save local backup under the Glorious UI config folder.
+Automatically restores the selected virtual weapon loadout after save loading and tracks normal changes made through vanilla loadout 0 back into the selected Glorious loadout.
+Resolves saved weapon fingerprints against the current inventory, preferring the highest-level and then lightest matching copy while keeping dual-wielded copies distinct.
+Adopts the existing vanilla loadout into the first selected Glorious slot on a new save instead of clearing the player's equipped weapons.
+Preserves saved weapon assignments when an item is temporarily unavailable and only updates a virtual loadout after a genuine backing-row change.
+Isolates weapon-backend API mismatches so the rest of Glorious remains available, and restores all vanilla Equipment controls if custom panel construction fails.
+Contains Glorious persistence-hook failures so the game's vanilla save loading and archive finalization always continue.
+Restores vanilla weapon rows and manual quick-slot controls when Equipment ownership is disabled or when the replacement view is discarded.
+
+Version 1.0.2
+Added an Glorious-owned Buffs and Debuffs section that aligns status icons above the Hero HUD bars, preserves native icon size and spacing, wraps at a configurable icon count, and expands additional rows upward.
+Added buff/debuff horizontal offset, gap, scale, icons-per-row, and spacing-adjustment controls with resolution-independent placement relative to the live Hero HUD bounds.
+Added a visual-only diagnostic test mode with a configurable placeholder count for testing dense buff and debuff layouts without applying gameplay effects or changing saves.
+Restores the original status transform, child positions, layout component, and content fitter when status ownership or Glorious UI is disabled.
+Hides the buff and debuff HUD with the rest of the gameplay HUD while the quick-use wheel is open.
+
+Version 1.0.0
+Established the mod, plugin, DLL, package, GUID, config, and repository identity.
+Enabled Wyrd Power position control and Wyrd prompt hiding by default.
+Baked the current Quick Slot, arrow, and Wyrd Power positions and scales into the centered layout so their user-facing offsets default to 0 and scales default to 1.
+Added compass ownership with Hidden, Always Visible, Toggle with Hotkey, and Hold Hotkey to Show modes; compass control is enabled and the compass is hidden by default.
+Added a default-off toggle for the top-right points, bonfire, Arthur memory, and Wyrd whisper reminders.
+Hides the Hero HUD, quick slots, arrow counter, Wyrd Power HUD, compass, and level notifications while the quick-use wheel is open, restoring their prior states when it closes.
+Keeps the Hero HUD and Quick Slot HUD screen-anchored for consistent placement at 1920x1080, 2560x1440, 3440x1440, and other resolutions.
+Starts a new config schema under ks.tgfoa.glorious-ui because the comprehensive identity change creates a new config path and the transform controls now use baked neutral baselines.
+
+Version 0.5.0
+Renamed Better Quick Slots to Wyrdframe as the mod expanded into broader HUD control.
+Integrated Hero HUD anchoring, position, scale, and visibility duration controls based on Modify Hero HUD.
+Added Bottom Center screen anchoring for the Hero HUD and Quick Slot HUD so one centered layout works across 1920x1080, 2560x1440, and 3440x1440 without resolution-specific presets.
+Made the centered Hero HUD layout the default at -72 X, -10 Y, 0.9 scale, and a two-second visible duration.
+Changed the Quick Slot HUD defaults to a centered-screen layout at -220 X, 22 Y, and 0.8 scale.
+Reset config schema 14 because Quick Slot HUD offsets use a screen anchor instead of the vanilla transform and its scale no longer includes the old hidden baseline multiplier; unsafe old Quick Slot transform values stay at the new defaults.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 0.4.0
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 0.3.9
+Added live, independent position and scale controls for the Quick Slot, arrow, and Wyrd Power HUDs, with wider ultrawide-friendly ranges and a refined default Quick Slot layout.
+Added prompt-hiding options and optional depth control for drawing the utility HUD behind the hero bars without changing its position.
+Reorganized FoA Mod Manager settings, added native potion-key capture, and improved HUD refresh, caching, bounds checks, and diagnostics.
+Added Grail Floating Text notices for config resets and load errors.
+Preserves current HUD tuning and potion hotkeys across schema resets, and adds a conservative Import Previous Settings action for supported backups.
+
+Version 0.3.8
+Changed the built-in Quick Slot HUD baseline so neutral offsets of 0 and scale 1.0 produce the refined -7 X, -7 Y, and 1.38x layout.
+Added HideQuickSlotUsePrompt to hide the vanilla quick-slot use prompt without disabling its input.
+Hides the quick-slot use prompt by default.
+
+Version 0.3.7
+Preserves the nine current Quick Slot, arrow, and Wyrd X/Y/scale values across config schema resets.
+Preserves the current health and mana potion hotkeys across config schema resets.
+Uses exact current setting names only, with no aliases or legacy-setting migration.
+Clamps preserved tuning values to current accepted ranges and logs restored, clamped, and invalid-value counts.
+Continues regenerating behavioral toggles, selection modes, visibility options, and diagnostics from current defaults.
+
+Version 0.3.6
+Expanded all Quick Slot, arrow, and Wyrd horizontal offset ranges to -4000 through 4000 for ultrawide and unusual HUD layouts.
+Expanded all corresponding vertical offset ranges to -2000 through 2000.
+Moved Render Utility HUD Behind Hero Bars to the General section and changed it to default off; the single toggle still controls Quick Slot, arrow, and Wyrd draw depth together.
+
+Version 0.3.5
+Replaced the misunderstood spatial stacking experiment with depth-only HUD layering.
+Added RenderUtilityHudBehindHeroBars to draw the Quick Slot HUD behind the HeroBars subtree and the Wyrd Power HUD behind the health, mana, and stamina bar children without changing any positions.
+Restored the stable vanilla-relative Quick Slot and Wyrd position behavior from 0.3.1.
+Added default-on layering diagnostics for sibling indices and nested Canvas sorting overrides.
+Restores original sibling order when depth control or Better Quick Slots is disabled.
+
+Version 0.3.4
+Replaced descendant-graphic HUD bounds with direct screen-space anchors from the hero-bar container and food, potion, arrow, and Wyrd transforms.
+Added default-on HUD layout diagnostics with source rectangles, target points, final transforms, and clear fallback reasons in the BepInEx log.
+Restores the vanilla transform automatically when an automatic Quick Slot or Wyrd placement would land outside the screen.
+
+Version 0.3.3
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 0.3.2
+Added automatic HUD stacking that centers the Quick Slot HUD below the health, mana, and stamina bars and places the Wyrd Power HUD beneath the quick slots.
+Added configurable spacing between the stacked HUD rows while preserving the existing position offsets for fine tuning.
+Enabled Wyrd position control by default so the complete stacked layout is active after the schema-regenerated config loads.
+Refreshes the stacked layout when hero-bar scale or screen dimensions change without rewriting transforms every frame.
+
+Version 0.3.1
+Standardized ConfigSchemaVersion hiding with the same built-in metadata used by the other Grailwright mods.
+
+Version 0.3.0
+Reorganized settings in FoA Mod Manager into General, Quick Slot HUD, Arrow HUD, Wyrd Power HUD, Hotkeys, Smart Selection, and Advanced sections with clearer labels and ordering.
+Hidden ConfigSchemaVersion from FoA Mod Manager and added friendly labels for smart-selection choices.
+Added validated -1000 to 1000 position sliders and 0.25 to 3.0 scale sliders for HUD controls.
+Changed potion hotkeys from KeyboardShortcut to KeyCode so FoA Mod Manager can provide native key capture and hotkey-conflict detection.
+
+Version 0.2.8
+Changed OwnWyrdSkillIndicator to default to false so Better Quick Slots leaves the Wyrd power HUD transform under vanilla control unless explicitly enabled.
+
+Version 0.2.7
+Added live HUD configuration updates through deferred dirty-layout refreshes instead of per-frame transform writes.
+Renamed HudOffsetX, HudOffsetY, and HudScale to QuickSlotHudOffsetX, QuickSlotHudOffsetY, and QuickSlotHudScale so they are distinct from the arrow and Wyrd HUD controls.
+Added HideWyrdSkillPrompt to hide the Wyrd power use prompt without disabling its input or hiding its indicator.
+
+Version 0.2.6
+Cached the Wyrd Skill Indicator transform per HUD instance and invalidated it on discard instead of traversing the HUD hierarchy every frame.
+
+Version 0.2.5
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 0.2.4
+Replaced owned Harmony callback name strings with compiler-checked references so callback renames cannot silently break patch registration.
+
+Version 0.2.3
+Added independent position and scale controls for the vanilla Wyrd Skill Indicator, including its shortcut prompt.
+
+Version 0.2.2
+Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
+Stopped reporting a successful load when the required quick-slot icon hook is unavailable.
+
+Version 0.2.1
+Added ArrowSlotOffsetX, ArrowSlotOffsetY, and ArrowSlotScale config controls for in-game arrow slot tuning.
+
+Version 0.2.0
+Matched the moved arrow counter against the health slot's visual footprint and centered it from the arrow icon instead of the text-inclusive counter box.
+
+Version 0.1.9
+Moved and scaled the vanilla arrow counter into the Better Quick Slots cluster by default.
+Added OwnArrowSlot config ownership with schema reset to regenerate the new default layout.
+
+Version 0.1.8
+Avoided repeated food-slot selection events while the HUD is already pinned to food, reducing full quick-slot UI blinking.
+
+Version 0.1.7
+Reversed the smart mana and health HUD preview positions.
+Reduced smart preview flicker by keeping vanilla small icons transparent instead of disabling their Image components and by reusing the current overlay sprite while the selected potion item is unchanged.
+
+Version 0.1.6
+Changed smart health and mana HUD previews to use separate overlay icons instead of repainting vanilla next-slot images.
+
+Version 0.1.5
+Deferred HeroItems quick-slot patches until after a HeroItems instance exists, avoiding early startup type-initializer failures that could block save loading.
+
+Version 0.1.4
+Kept the plugin loading when an individual game-method patch fails during startup.
+
+Version 0.1.3
+Added configurable quick-slot HUD position offsets and scale.
+
+Version 0.1.2
+Added an AddValue fallback for smart restore amount detection when duration metadata is unavailable.
+
+Version 0.1.1
+Kept smart potion HUD icons visible while health or mana is full.
+Added a guard around custom food-slot replacement after vanilla autofill.
+
+Version 0.1.0
+Added the initial Better Quick Slots quick-slot HUD rework.
+Pinned the vanilla quick-slot use action to the autofill food slot.
+Replaced the two small next-slot HUD icons with smart health and mana potion previews.
+Added configurable health and mana potion hotkeys.
+Added Biggest and SmallestSufficient selection modes for food, health potions, and mana potions.

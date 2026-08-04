@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.4.6.0")]
-[assembly: AssemblyFileVersion("1.4.6.0")]
-[assembly: AssemblyInformationalVersion("1.4.6")]
+[assembly: AssemblyVersion("1.5.6.0")]
+[assembly: AssemblyFileVersion("1.5.6.0")]
+[assembly: AssemblyInformationalVersion("1.5.6")]
 
 namespace KillingBlowMastery
 {
@@ -29,12 +29,12 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.4.6";
+        public const string PluginVersion = "1.5.6";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
         private const string GrailFloatingTextKillingBlowEventId = "killing-blow";
-        private const string GrailFloatingTextMediumDurationBucket = "Medium";
+        private const string GrailFloatingTextShortDurationBucket = "Short";
         private const string NpcElementTypeName = "Awaken.TG.Main.Fights.NPCs.NpcElement";
         private const string HealthElementTypeName = "Awaken.TG.Main.Character.HealthElement";
         private const string HeroTypeName = "Awaken.TG.Main.Heroes.Hero";
@@ -105,7 +105,13 @@ namespace KillingBlowMastery
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
-        private const int ConfigSchemaVersion = 12;
+        private const int ConfigSchemaVersion = 13;
+        private const int ConfigRecoveryBaselineSchema = 13;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
 
         internal static KillingBlowMasteryPlugin Instance;
         internal static ManualLogSource Log;
@@ -201,6 +207,11 @@ namespace KillingBlowMastery
         private string[] _cachedNonCorporealSoundTerms = new string[0];
         private string _cachedNonCorporealSoundExclusionTermsRaw;
         private string[] _cachedNonCorporealSoundExclusionTerms = new string[0];
+        private readonly Dictionary<string, float> _pendingPreservedCalibrationFloats =
+            new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private int _pendingPreservedInvalidValueCount;
 
         private void Awake()
         {
@@ -259,7 +270,14 @@ namespace KillingBlowMastery
             ResetConfigIfSchemaChanged();
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version. It changes only when an update requires fresh defaults.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _finisherSoundMode = Config.Bind(
                 "1. Core",
                 "FinisherSoundMode",
@@ -274,9 +292,9 @@ namespace KillingBlowMastery
             _finisherSoundRangeVolume = Config.Bind(
                 "1. Core",
                 "FinisherSoundRangeVolume",
-                0.5f,
+                1.0f,
                 new ConfigDescription(
-                    "How strongly finisher sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 100m+=10% curve.",
+                    "How strongly finisher sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 50m+=10% curve.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _bonusPercentOfEnemyXp = Config.Bind(
                 "1. Core",
@@ -291,8 +309,8 @@ namespace KillingBlowMastery
                 100.0f,
                 "Maximum extra proficiency XP from one killing blow. Zero or less disables the cap.");
 
-            _allowOneHanded = Config.Bind("2. Weapon Skills", "AllowOneHanded", true, "Award One Handed proficiency from one-handed weapon killing blows.");
-            _allowTwoHanded = Config.Bind("2. Weapon Skills", "AllowTwoHanded", true, "Award Two Handed proficiency from two-handed weapon killing blows.");
+            _allowOneHanded = Config.Bind("2. Weapon Skills", "AllowOneHanded", true, "Award One-Handed proficiency from one-handed weapon killing blows.");
+            _allowTwoHanded = Config.Bind("2. Weapon Skills", "AllowTwoHanded", true, "Award Two-Handed proficiency from two-handed weapon killing blows.");
             _allowUnarmed = Config.Bind("2. Weapon Skills", "AllowUnarmed", true, "Award Unarmed proficiency from fist killing blows.");
             _allowArchery = Config.Bind("2. Weapon Skills", "AllowArchery", true, "Award Archery proficiency from bow killing blows.");
             _allowShield = Config.Bind("2. Weapon Skills", "AllowShield", true, "Award Shield proficiency from shield killing blows.");
@@ -368,6 +386,15 @@ namespace KillingBlowMastery
                     new AcceptableValueRange<int>(1, 100)));
             _exportStatisticsReportOnSave = Config.Bind("6. Statistics", "ExportStatisticsReportOnSave", true, "Write the readable TSV statistics report when the game serializes save-backed gameplay memory.");
             _diagnostics = Config.Bind("7. Diagnostics", "Diagnostics", false, "Log kill source, resolved proficiency, enemy XP, awarded bonus, and statistics report export.");
+            RestorePreservedConfigValues();
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -409,6 +436,10 @@ namespace KillingBlowMastery
                 return;
             }
 
+            CapturePreservedConfigValues(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -430,9 +461,13 @@ namespace KillingBlowMastery
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception ex)
             {
+                ClearPendingPreservedConfigValues();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -453,6 +488,176 @@ namespace KillingBlowMastery
                     "Failed to reset Killing Blow Mastery config schema. Original config was left in place when possible.",
                     ex);
             }
+        }
+
+        private void CapturePreservedConfigValues(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedConfigValues();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                string settingId = currentSection + "\n" + settingName;
+
+                if (IsPreservedCalibrationFloat(settingId))
+                {
+                    float parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedCalibrationFloats[settingId] = parsedValue;
+                    }
+                }
+                else if (IsPreservedManualOverride(settingId))
+                {
+                    string preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedManualOverrides[settingId] =
+                            preservedValue;
+                    }
+                }
+            }
+        }
+
+        private static bool IsPreservedCalibrationFloat(string settingId)
+        {
+            return string.Equals(settingId, "1. Core\nFinisherSoundRangeVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "5. Audio\nRewardSoundVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "5. Audio\nRandomPitchSemitones", StringComparison.Ordinal);
+        }
+
+        private static bool IsPreservedManualOverride(string settingId)
+        {
+            return string.Equals(settingId, "4. Notifications\nNotificationTextFormat", StringComparison.Ordinal)
+                || string.Equals(settingId, "5. Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal)
+                || string.Equals(settingId, "6. Statistics\nStatisticsCharacterKeyOverride", StringComparison.Ordinal);
+        }
+
+        private void RestorePreservedConfigValues()
+        {
+            if (_pendingPreservedCalibrationFloats.Count == 0
+                && _pendingPreservedManualOverrides.Count == 0
+                && _pendingPreservedInvalidValueCount == 0)
+            {
+                return;
+            }
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreservedFloat("1. Core\nFinisherSoundRangeVolume", _finisherSoundRangeVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("5. Audio\nRewardSoundVolume", _rewardSoundVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("5. Audio\nRandomPitchSemitones", _randomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedString("4. Notifications\nNotificationTextFormat", _notificationTextFormat, ref restoredCount);
+            RestorePreservedString("5. Audio\nBloodlessSoundWhitelistTerms", _bloodlessSoundWhitelistTerms, ref restoredCount);
+            RestorePreservedString("6. Statistics\nStatisticsCharacterKeyOverride", _statisticsCharacterKeyOverride, ref restoredCount);
+
+            Log.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " calibration/manual override value(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + "; skippedInvalid="
+                + _pendingPreservedInvalidValueCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            ClearPendingPreservedConfigValues();
+        }
+
+        private void RestorePreservedFloat(
+            string settingId,
+            ConfigEntry<float> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            float preservedValue;
+            if (entry == null
+                || !_pendingPreservedCalibrationFloats.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedString(
+            string settingId,
+            ConfigEntry<string> entry,
+            ref int restoredCount)
+        {
+            string preservedValue;
+            if (entry == null
+                || !_pendingPreservedManualOverrides.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void ClearPendingPreservedConfigValues()
+        {
+            _pendingPreservedCalibrationFloats.Clear();
+            _pendingPreservedManualOverrides.Clear();
+            _pendingPreservedInvalidValueCount = 0;
         }
 
         private void CacheGameAccessors()
@@ -513,7 +718,9 @@ namespace KillingBlowMastery
             }
 
             MethodInfo original = AccessTools.Method(npcElementType, "DeathNonCriticalFunctions");
-            MethodInfo postfix = AccessTools.Method(typeof(NpcDeathPatch), "Postfix");
+            MethodInfo postfix = AccessTools.Method(
+                typeof(NpcDeathPatch),
+                nameof(NpcDeathPatch.Postfix));
             if (original == null || postfix == null)
             {
                 Log.LogError("Could not patch NPC death handling. " + PluginName + " is inactive.");
@@ -531,7 +738,9 @@ namespace KillingBlowMastery
 
             Type healthElementType = AccessTools.TypeByName(HealthElementTypeName);
             MethodInfo damageOriginal = healthElementType == null ? null : AccessTools.Method(healthElementType, "BeforeHealthDecreaseEvents");
-            MethodInfo damagePostfix = AccessTools.Method(typeof(HealthElementBeforeHealthDecreasePatch), "Postfix");
+            MethodInfo damagePostfix = AccessTools.Method(
+                typeof(HealthElementBeforeHealthDecreasePatch),
+                nameof(HealthElementBeforeHealthDecreasePatch.Postfix));
             if (damageOriginal == null || damagePostfix == null)
             {
                 LogDiagnostic("Could not patch HealthElement.BeforeHealthDecreaseEvents; damage-over-time kill source memory is unavailable.");
@@ -560,7 +769,9 @@ namespace KillingBlowMastery
             }
 
             MethodInfo original = AccessTools.Method(_gameplayMemoryType, "OnBeforeSerialize");
-            MethodInfo postfix = AccessTools.Method(typeof(GameplayMemoryBeforeSerializePatch), "Postfix");
+            MethodInfo postfix = AccessTools.Method(
+                typeof(GameplayMemoryBeforeSerializePatch),
+                nameof(GameplayMemoryBeforeSerializePatch.Postfix));
             if (original == null || postfix == null)
             {
                 LogDiagnostic("Could not patch GameplayMemory.OnBeforeSerialize; save-time statistics report export is unavailable.");
@@ -1030,7 +1241,7 @@ namespace KillingBlowMastery
                 {
                     result = _grailFloatingTextTryShowEventWithIconMethod.Invoke(
                         null,
-                        new object[] { PluginGuid, GrailFloatingTextKillingBlowEventId, text, "Reward", "Reward", "Normal", string.Empty, iconId, GrailFloatingTextMediumDurationBucket, 0.25f, 0.9f });
+                        new object[] { PluginGuid, GrailFloatingTextKillingBlowEventId, text, "Reward", "Reward", "Normal", string.Empty, iconId, GrailFloatingTextShortDurationBucket, 0.25f, 0.9f });
                 }
                 else if (_grailFloatingTextTryShowWithIconMethod != null)
                 {
@@ -1886,7 +2097,7 @@ namespace KillingBlowMastery
             }
 
             float distance = Vector3.Distance(heroPosition, targetPosition);
-            float t = Math.Max(0.0f, Math.Min(1.0f, distance / 100.0f));
+            float t = Math.Max(0.0f, Math.Min(1.0f, distance / 50.0f));
             float rangeCurveVolume = 1.0f - (0.9f * t);
             float multiplier = 1.0f + ((rangeCurveVolume - 1.0f) * strength);
             LogDiagnostic("FinisherSoundRangeVolume distance=" + distance.ToString("0.##", CultureInfo.InvariantCulture) + "m, multiplier=" + multiplier.ToString("0.###", CultureInfo.InvariantCulture) + ".");
@@ -1994,11 +2205,11 @@ namespace KillingBlowMastery
 
             if (GetBoolProperty(item, "IsOneHanded", false))
             {
-                LogDiagnostic("One Handed kill had no specific weapon subtype; using one_handed_blade instead of the generic killing_blow pool.");
+                LogDiagnostic("One-Handed kill had no specific weapon subtype; using one_handed_blade instead of the generic killing_blow pool.");
                 return OneHandedBladeSoundPool;
             }
 
-            LogDiagnostic("One Handed kill had no item subtype data; using one_handed_blade instead of the generic killing_blow pool.");
+            LogDiagnostic("One-Handed kill had no item subtype data; using one_handed_blade instead of the generic killing_blow pool.");
             return OneHandedBladeSoundPool;
         }
 
@@ -2019,11 +2230,11 @@ namespace KillingBlowMastery
 
             if (GetBoolProperty(item, "IsTwoHanded", false))
             {
-                LogDiagnostic("Two Handed kill had no specific weapon subtype; using two_handed_blade instead of the generic killing_blow pool.");
+                LogDiagnostic("Two-Handed kill had no specific weapon subtype; using two_handed_blade instead of the generic killing_blow pool.");
                 return TwoHandedBladeSoundPool;
             }
 
-            LogDiagnostic("Two Handed kill had no item subtype data; using two_handed_blade instead of the generic killing_blow pool.");
+            LogDiagnostic("Two-Handed kill had no item subtype data; using two_handed_blade instead of the generic killing_blow pool.");
             return TwoHandedBladeSoundPool;
         }
 
@@ -3053,11 +3264,11 @@ namespace KillingBlowMastery
         {
             if (ReferenceEquals(proficiency, _oneHandedProf))
             {
-                return "One Handed";
+                return "One-Handed";
             }
             if (ReferenceEquals(proficiency, _twoHandedProf))
             {
-                return "Two Handed";
+                return "Two-Handed";
             }
 
             return string.IsNullOrWhiteSpace(fallback) ? DescribeObject(proficiency) : fallback;

@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]KS Addons[/size][/color]
 [i]Companion addons for selected Tainted Grail: The Fall of Avalon mods.[/i][/center]
 
@@ -7,16 +8,13 @@ KS Addons is a small BepInEx 5 Mono collection for [b]Tainted Grail: The Fall of
 
 Each addon has its own folder and README. Install only the addons whose original mods you use.
 
-[b]Config updates:[/b] These add-ons use schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
-
 [line]
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]Wyrd Sight Addon 1.0.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.1.1.[/*]
-[*][b]Wyrd Hunt Addon 1.4.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] Nexus file Version 5, which loads in BepInEx as plugin version 0.4.65.[/*]
-[*][b]TG All Lights Cast Shadows Addon 1.1.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]More Weapon Loadouts Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Owrocc HUD Tweaks / More Weapon Loadouts[/url] 1.5.0, from Owrocc HUD Tweaks file 60.2.[/*]
+[*][b]Wyrd Sight Addon 1.1.0[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.1.1.[/*]
+[*][b]TG All Lights Cast Shadows Addon 1.1.9[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]Persistent Corpses Addon 1.0.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
 [/list]
 
 [line]
@@ -48,67 +46,12 @@ MaximumOffAttempts = 3[/code]
 
 [line]
 
-[heading][color=#C94A4A][size=5]Wyrd Hunt Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url].
-
-[list]
-[*]Adds [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] Wyrd Scent status text with the shared Wyrd icon when Wyrd Hunt status changes.[/*]
-[*]If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.[/*]
-[*]Can alternatively keep the parent meter and hide it only while safe or during title, loading, startup, and portal transitions.[/*]
-[*]Keeps the Wyrd Scent meter position configurable with horizontal and bottom offsets.[/*]
-[*]Adds weighted random Wyrd Hunt spawns from whitelisted native enemy templates.[/*]
-[*]Adds optional mixed hunt packs with rare extra same-or-lower-tier pack mates beside the primary hunt target.[/*]
-[*]Favors weaker sidecars, reduces same-tier and same-family picks, and treats Wyrdspirit as a prioritized 1-4 spirit sidecar cluster.[/*]
-[*]Adds one-shot tuning presets for rarer, more focused hunts without locking manual settings.[/*]
-[*]Avoids immediate repeat hunts by default when another valid monster is available.[/*]
-[*]Includes optional hard hunt pools, disabled by default.[/*]
-[/list]
-
-Config file:
-
-[code]
-BepInEx/config/ks.tgfoa.wyrd-hunt-addon.cfg[/code]
-
-Common entries:
-
-[code]
-Hunt Tuning Preset = Custom
-Scent Meter Mode = NotificationsOnly
-Notifications Enabled = true
-Notification Text Format = Wyrd Scent: {stage}
-Show Scent Number = false
-Hide When Safe From Wyrdness = true
-Hide On Loading Screens = true
-Bottom Offset = 205
-Enable Randomized Spawns = true
-Auto Profile Only = true
-Preserve Wyrdspirit Stalking = true
-Enable Hard Hunts = false
-Avoid Immediate Repeats = true
-Enable Mixed Hunt Packs = true
-Two Enemy Pack Chance Percent = 18
-Three Enemy Pack Chance Percent = 3
-Wyrdspirit Sidecar Weight = 80
-Wyrdspirit Max Pack Count = 4
-Same Tier Pack Mate Weight Percent = 25
-Same Family Pack Mate Weight Percent = 35[/code]
-
-Preset behavior is one-shot. [b]Hunt Tuning Preset[/b] defaults to [b]Custom[/b]. Selecting [b]Default[/b], [b]Sparse[/b], [b]Stalker[/b], or [b]CursedNight[/b] immediately writes Wyrd Hunt's own hunt/threat settings in [b]kane.tgfoa.wyrd-hunt.cfg[/b], saves them, records [b]Last Applied Hunt Tuning Preset[/b], and returns the selector to [b]Custom[/b]. After that, individual Wyrd Hunt settings remain editable.
-
-[b]Sparse[/b] makes hunts rare and calmer. [b]Stalker[/b] is the recommended rare-but-tense profile. These reduced-pressure presets are especially useful for slower-timescale or longer-night setups, where players may spend more real time in Wyrdness and want less hunt buildup across the night. [b]CursedNight[/b] keeps nights dangerous while still capping scene/session pressure. [b]Default[/b] restores Wyrd Hunt's original tuning.
-
-Weights live under [b]Weights.Contact[/b], [b]Weights.Stalking[/b], [b]Weights.Hunter[/b], [b]Weights.Pursuit[/b], and [b]Weights.Marked[/b]. Set a weight to [b]0[/b] to disable that entry.
-
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for Wyrd Hunt Addon notification text. If Grail Floating Text is installed, the parent Wyrd Scent meter is hidden by default.
-
-[line]
-
 [heading][color=#C94A4A][size=5]TG All Lights Cast Shadows Addon[/size][/color][/heading]
 Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url].
 
 [list]
 [*]Restores Unity's original global shadow-quality setting after the original mod's toggle restores tracked lights.[/*]
-[*]Protects configured bonfire and campfire lights so firepit stones do not incorrectly block their own illumination.[/*]
+[*]Protects built-in bonfire and campfire light names plus optional user-added path fragments so firepit stones do not incorrectly block their own illumination.[/*]
 [*]Runs only around the original light mod's own scan; no per-frame light polling.[/*]
 [/list]
 
@@ -121,36 +64,34 @@ Common entries:
 
 [code]
 ProtectBonfireLights = true
-ExcludedLightPathFragments = WyrdNight_Repeller_Bonfire,Repeller_Bonfire,Bonfire,Campfire
+AdditionalExcludedLightPathFragments =
 VerboseExclusionLogging = false[/code]
 
 [line]
 
-[heading][color=#C94A4A][size=5]More Weapon Loadouts Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Owrocc HUD Tweaks / More Weapon Loadouts[/url].
+[heading][color=#C94A4A][size=5]Persistent Corpses Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url].
 
 [list]
-[*]Handles saves that contain duplicate [b]VirtualLoadouts.json[/b] entries by preferring the useful/latest entry instead of a stale empty one.[/*]
-[*]Helps prevent More Weapon Loadouts slot 1 from loading as unbound and falling back to fists.[/*]
-[*]Redirects vanilla gameplay weapon loadout keys to More Weapon Loadouts virtual slots by default.[/*]
-[*]Coordinates shared number-row shortcuts so the same slot is not activated twice.[/*]
-[*]Can refresh More Weapon Loadouts' auto-track baseline shortly after loading a save.[/*]
+[*]Normally, restored enemies can briefly appear in a standing T-pose and fall over after loading a save.[/*]
+[*]This addon fixes that visible transition by concealing restored corpse renderers while ragdoll physics settles, then revealing each body in a natural resting pose.[/*]
+[*]Counts only active physics time, so loading screens and paused gameplay do not consume the settle window.[/*]
+[*]Uses a maximum timeout for bodies that continue moving on slopes.[/*]
+[*]Does not change corpse replacement rules, loot, colliders, or save data.[/*]
 [/list]
 
 Config file:
 
 [code]
-BepInEx/config/ks.tgfoa.more-weapon-loadouts-addon.cfg[/code]
+BepInEx/config/ks.tgfoa.persistent-corpses-addon.cfg[/code]
 
 Common entries:
 
 [code]
-FixDuplicateVirtualLoadoutEntries = true
-RedirectVanillaWeaponLoadoutKeys = true
-ReprimeAutoTrackAfterLoad = true
-ReapplyCurrentVirtualSlotAfterLoad = false[/code]
-
-Only enable [b]ReapplyCurrentVirtualSlotAfterLoad[/b] if slot 1 still comes back visually wrong after loading.
+Enabled = true
+MinimumSettleSeconds = 0.75
+MaximumSettleSeconds = 2
+Diagnostics = false[/code]
 
 [line]
 
@@ -159,11 +100,19 @@ Install with Vortex as [b]BepInEx plugins[/b], or place the selected addon folde
 
 [code]
 BepInEx/plugins/WyrdSightAddon/WyrdSightAddon.dll
-BepInEx/plugins/WyrdHuntAddon/WyrdHuntAddon.dll
 BepInEx/plugins/TGAllLightsCastShadowsAddon/TGAllLightsCastShadowsAddon.dll
-BepInEx/plugins/MoreWeaponLoadoutsAddon/MoreWeaponLoadoutsAddon.dll[/code]
+BepInEx/plugins/PersistentCorpsesAddon/PersistentCorpsesAddon.dll[/code]
 
-Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and TG All Lights Cast Shadows Addon declare hard dependencies, so they will not run without their original mods. Wyrd Hunt Addon also declares [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] as a soft dependency for notification text. More Weapon Loadouts Addon uses a soft dependency and simply leaves its redirect inactive if More Weapon Loadouts is missing.
+Keep each addon's original mod installed. All three addons declare hard dependencies, so they will not run without their original mods.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Each addon manages its own config and backups.
+
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
 [line]
 
@@ -172,8 +121,6 @@ Keep each addon's original mod installed. Wyrd Sight Addon, Wyrd Hunt Addon, and
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
 [*]The original mod required by each addon you install.[/*]
-[*][b]Optional/soft dependency:[/b] [b]Grail Floating Text[/b] for Wyrd Hunt Addon's notification text and default meter replacement.[/*]
-[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]

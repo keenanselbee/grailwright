@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Blood Magic Expansion[/size][/color]
 [i]Corpse rituals, live draining, and restrained blood-magic progression.[/i][/center]
 
@@ -13,24 +14,17 @@ This is not a broad magic overhaul. It is a blood-magic expansion built around c
 
 [line]
 
-[heading][color=#C94A4A][size=5]The Loop[/size][/color][/heading]
-[code]
-Kill a blood-plausible enemy
-Drain the corpse with Blood/Life Transfusion
-Gain corpse XP and immediate healing
-Higher-quality corpses improve healing and Abhartach effects
-Preset + Spirituality improve Blood/Life spell behavior
-Feed on living enemies for capped XP ticks during combat
-[/code]
-
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Corpse XP comes from the enemy's vanilla effective kill XP, including lower-level enemy XP falloff.[/*]
-[*]Corpse healing starts from the preset reward, then scales by enemy max HP and corpse quality.[/*]
-[*]Successful corpse drains can play a short quality-matched FMOD ritual sound.[/*]
-[*]Readied blood spells can cast a configurable red no-shadow inner player light, with a temporary cast boost.[/*]
-[*]Live drain gives small capped XP ticks while Blood/Life Transfusion damages living enemies.[/*]
-[*]Corpse quality affects healing and Abhartach effects. It does [b]not[/b] multiply corpse XP again.[/*]
-[*]Bloodless enemies can be blocked by name/type terms so stone, spirits, skeletons, Wyrd variants, and similar targets do not feed the loop.[/*]
+[*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
+[*][b]Vanilla-scaled progression:[/b] Corpse XP uses the enemy's effective kill XP, including lower-level falloff, so rewards stay grounded in the game's progression.[/*]
+[*][b]Distinct presets:[/b] Blood Rite, Desecration, and Soul Feast shape ritual timing, rewards, live-drain pacing, and spell behavior, while Custom exposes the underlying tuning.[/*]
+[*][b]Live draining:[/b] Damaging living enemies with Blood Transfusion or Life Transfusion grants small, capped XP ticks during combat.[/*]
+[*][b]Corpse quality:[/b] Enemy max health and kill XP determine corpse quality, which scales healing and Abhartach effects without multiplying corpse XP a second time.[/*]
+[*][b]Ritual audio:[/b] Successful corpse drains can play short, randomized FMOD ritual sounds matched to corpse quality.[/*]
+[*][b]Blood spell inner light:[/b] Readied blood spells can cast a configurable red no-shadow glow with a temporary casting boost, separate from the vanilla HeroLight and compatible with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url].[/*]
+[*][b]Bloodless filtering:[/b] Configurable name and type terms keep stone, spirits, skeletons, Wyrd variants, and similar targets from feeding the system.[/*]
+[*][b]Bleed hitch mitigation:[/b] An optional, enabled-by-default preload moves the vanilla Bleed graph's cold deserialization into gameplay loading. It is isolated from spell tuning and can be disabled if a future game update fixes the hitch.[/*]
 [/list]
 
 [line]
@@ -66,34 +60,22 @@ Start the game once to generate:
 
 [b]BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg[/b]
 
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
+[code]
+PreloadBleedSkillGraphs = true
+[/code]
+
+The Bleed preloader loads its dependency and parent graph on consecutive gameplay-loading frames and retains the parent for the active gameplay domain. It uses no Harmony patches and can be disabled independently from all Blood Magic Expansion gameplay features.
 
 Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. Most users should only touch [b]PlayCorpseLeechSound[/b] or [b]CorpseLeechSoundVolume[/b].
 
-When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.5.4 or newer is installed, corpse-leech character XP is claimed before the XP stat change and shown as red corpse-icon text such as [b]+42 XP (Worthy)[/b]. Labels use the corpse quality tier: [b]Meager[/b], [b]Worthy[/b], [b]Potent[/b], or [b]Prime[/b]. The XP still uses the normal character XP stat path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks use Grail Floating Text's generic XP display.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is installed, corpse-leech and live-drain XP use red source-specific messages with corpse and magic icons. GFT 1.9.0+ consolidates queued live-drain ticks together and corpse rewards only within the same [b]Meager[/b], [b]Worthy[/b], [b]Potent[/b], or [b]Prime[/b] tier. Blood Magic XP never merges with generic XP or another mod. Older GFT versions keep the styled gains separate. XP still uses the normal character stat path, so multipliers and level-up behavior are unchanged.
 
 Corpse leech sounds use the same quality bands: [b]<=0.25 Meager/low[/b], [b]<=0.50 Worthy/medium[/b], [b]<=0.75 Potent/high[/b], and [b]>0.75 Prime/max[/b].
 
 [code]
 ClaimGrailFloatingTextCorpseXP = true
+ClaimGrailFloatingTextLiveDrainXP = true
 [/code]
-
-[line]
-
-[heading][color=#C94A4A][size=5]Blood Spell Inner Light[/size][/color][/heading]
-Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and raising the magic hands can cast a red no-shadow point light slightly forward from the player camera. Sheathing or lowering hands disables it, and actual blood spell casting temporarily triples the brightness 0.3 seconds after cast start before fading back down when the cast performs, ends, or cancels. The light is separate from the vanilla HeroLight, so [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] can stay installed while BME provides only the blood-spell glow.
-
-[code]
-| Setting                 | Default |
-|-------------------------|---------|
-| Enabled                 | true    |
-| Intensity               | 0.75    |
-| Range                   | 5.0     |
-| FadeSeconds             | 0.12    |
-| LogBloodSpellInnerLight | true    |
-[/code]
-
-Lower intensity or range for a subtler effect. Set Enabled to false, or Intensity to zero, for no visual light. Diagnostics are limited and can be disabled after confirming readiness and visibility.
 
 [line]
 
@@ -111,7 +93,7 @@ Each blood-plausible corpse receives a quality value from 0 to 1. When both sign
 
 By default, corpse quality scales Blood/Life corpse healing and Abhartach corpse effects from 0.5x to 1.5x. Character XP is not multiplied again because it already comes from vanilla effective kill XP. The 50/50 blend keeps large, lower-XP bodies from outranking similarly valuable monsters from HP alone while still letting enemy bulk matter.
 
-When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is installed, the blood-magic corpse reticle can scale visually from the same quality. Reticle size is visual-only and defaults to 1.0x to 2.0x Magic reticle size with a low-quality dead zone. Quality changes scale only; valid usable corpses stay the same blood-red color.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is installed, the blood-magic corpse reticle can scale visually from the same quality. Reticle size is visual-only and defaults to 1.0x to 2.0x Magic reticle size with a low-quality dead zone. Quality changes scale only; valid usable corpses stay the same blood-red color. Corpses restored from save data are reconnected to their owning game location after restoration and remain connected for the current play session, so detection does not depend on loot or collider names. They use the default-size base-color corpse icon and remain non-drainable.
 
 [b]Working quality table[/b]
 
@@ -183,11 +165,17 @@ Install with a mod manager, or place the included folder at:
 
 [line]
 
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.5.4+ is supported as an optional soft dependency for red corpse-icon corpse XP text with quality labels.[/*]
-[*][b]Optional diagnostics:[/b] Grail Floating Text can show critical load errors in-game, with details in the BepInEx log.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for source-isolated corpse-quality and live-drain XP text; version 1.9.0+ enables consolidation.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
 [*]Do not deploy older [b]BloodMage.dll[/b] or interim [b]BloodMageExpansion.dll[/b] beside [b]BloodMagicExpansion.dll[/b].[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]

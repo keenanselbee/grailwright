@@ -1,0 +1,1 @@
+Fixes restored enemies visibly T-posing and falling after load by concealing their ragdolls until physics settles.

@@ -1,0 +1,25 @@
+{
+  "id": "WyrdsoulReserve",
+  "displayName": "Wyrdsoul Reserve",
+  "packageName": "WyrdsoulReserve",
+  "version": "1.0.4",
+  "pluginGuid": "ks.tgfoa.wyrdsoul-reserve",
+  "dll": "WyrdsoulReserve.dll",
+  "sourceFiles": [
+    "src/WyrdsoulReserve.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.ImageConversionModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UI.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
+  ]
+}

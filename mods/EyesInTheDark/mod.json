@@ -1,0 +1,36 @@
+{
+  "id": "EyesInTheDark",
+  "displayName": "Eyes in the Dark - Wyrd Night Overhaul",
+  "packageName": "EyesInTheDark",
+  "version": "0.8.3",
+  "pluginGuid": "ks.tgfoa.eyes-in-the-dark",
+  "dll": "EyesInTheDark.dll",
+  "sourceFiles": [
+    "src/EyesInTheDark.cs",
+    "src/NightState.cs",
+    "src/ThreatState.cs",
+    "src/ThreatMeter.cs",
+    "src/PacingState.cs",
+    "src/WorldTimescale.cs",
+    "src/Atmosphere.cs",
+    "src/GrailFloatingTextBridge.cs",
+    "src/BoundaryController.cs",
+    "src/HuntDirector.cs",
+    "src/HunterCatalog.cs",
+    "src/FirstHunterRuntime.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UI.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextCoreTextEngineModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.TextMeshPro.dll"
+  ]
+}

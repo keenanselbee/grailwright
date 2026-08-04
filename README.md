@@ -14,44 +14,46 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 
 | Mod | Version | Nexus |
 | --- | --- | --- |
-| [Better Quick Slots](mods/BetterQuickSlots) | 0.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.2.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.8.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.0.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Glorious UI](mods/GloriousUI) | 1.7.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.3.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.9.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.0.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Eyes in the Dark - Wyrd Night Overhaul](mods/EyesInTheDark) | 0.8.3 | Unpublished |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.3.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
-| [First Hit Hitch Fix](mods/FirstHitHitchFix) | 0.1.2 | Unpublished |
-| [Full Enemy XP](mods/FullEnemyXP) | 1.0.1 | Unpublished |
-| [Grail Floating Text](mods/GrailFloatingText) | 1.5.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
-| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.1.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
-| [KS More Weapon Loadouts Addon](mods/KSAddons/KSMoreWeaponLoadoutsAddon) | 0.1.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Owrocc HUD Tweaks / More Weapon Loadouts](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192) |
-| [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.1.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
-| [KS Wyrd Hunt Addon](mods/KSAddons/KSWyrdHuntAddon) | 1.4.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Hunt](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201) |
-| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.0.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
-| [No Player Light](mods/NoPlayerLight) | 1.3.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
-| [Steel and Bone](mods/SteelAndBone) | 0.9.3-beta | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
-| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Full Enemy XP](mods/FullEnemyXP) | 1.0.7 | Unpublished |
+| [Grail Floating Text](mods/GrailFloatingText) | 1.9.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.5.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
+| [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.0.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
+| [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.1.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
+| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.1.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
+| [No Player Light](mods/NoPlayerLight) | 1.3.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
+| [Player Voice Tuner](mods/PlayerVoiceTuner) | 0.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
+| [Steel and Bone](mods/SteelAndBone) | 1.0.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
+| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.4 | Unpublished |
 
 ## Layout
 
 ```text
 mods/
-  BetterQuickSlots/
+  GloriousUI/
   BloodMagicExpansion/
   DishonoredDynamicCrosshair/
   KillingBlowMastery/
   KingsElegyMainMenuMusic/
   EnemyRespawnControl/
-  FirstHitHitchFix/
+  EyesInTheDark/
   FullEnemyXP/
   NoPlayerLight/
+  PlayerVoiceTuner/
   SteelAndBone/
   UltrawideFixes/
+  WyrdsoulReserve/
   KSAddons/
-    KSWyrdHuntAddon/
+    KSPersistentCorpsesAddon/
     KSWyrdSightAddon/
     KSTGAllLightsCastShadowsAddon/
-    KSMoreWeaponLoadoutsAddon/
 
 tools/
   Build-Mod.ps1
@@ -63,6 +65,33 @@ tools/
     Convert-RewardSounds.ps1
 
 docs/
+```
+
+## Config Recovery
+
+Every config-owning mod compiles the shared
+`tools/shared/ConfigPreviousSettingsRecovery.cs` helper. FoA Mod Manager always
+shows its explicit final `Import Previous Settings` tab with the current and
+newest compatible backup schemas. The one-shot action imports only compatible
+values that the user changed from the backup's recorded defaults, clamps current
+ranges, keeps new defaults, and creates a transactional pre-import backup.
+
+Each mod fixes `ConfigRecoveryBaselineSchema` at the schema where recovery was
+introduced. Future schema changes leave that baseline alone and add exact
+`ConfigRecoveryKeepCurrentDefaultRule` entries only when an old customized
+same-name value must not return. Automatic durable-setting preservation uses
+the same typed customization profile, transition rules, and current
+`AcceptableValues` validation/clamping as manual import, so equivalent
+serialized values are not mistaken for customization and mods do not maintain
+parallel stale-value parsers. Each mod also declares permanent exclusions for
+one-shot actions, preset triggers, and derived status entries that must never
+be restored.
+
+Run both contracts after config or schema work:
+
+```powershell
+.\tools\Test-ConfigRecoveryContracts.ps1
+.\tools\Test-ConfigPreservationContracts.ps1
 ```
 
 ## Release Output
@@ -82,6 +111,13 @@ Vortex staging checks stay stable.
 If another thread already owns that mod lock, the command stops and prints the
 owner details from `owner.json`. Use `-LockWaitSeconds` when waiting is desired,
 or `-ForceStaleLock` only after confirming the recorded owner is gone.
+
+Compilation prefers Roslyn from the newest installed .NET SDK and pins
+`/langversion:7.3` for compatibility with the game's Mono/.NET Framework
+runtime. It uses the game's `mscorlib.dll`, `System.dll`, and `System.Core.dll`
+plus each mod manifest's references. A .NET SDK is required because the
+authored sources use language features that the legacy .NET Framework compiler
+cannot compile.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion -DestinationDirectory .\.codex-temp\builds -StageToVortex
@@ -197,7 +233,7 @@ build or export scripts.
 Exported zips are runtime payloads only. They include one top-level mod folder
 with the DLL, runtime assets, README, and changelog inside it. They do not
 include `src`, `tools`, `mod.json`, `API.txt`, `nexus-full-desc.txt`,
-`nexus-short-desc.txt`, `nexus-file-desc.txt`, or other repository-only
+`nexus-short-desc.txt`, `nexus-file-desc.txt`, `nexus-changelog.txt`, or other repository-only
 build and publishing scaffolding.
 
 ## Documentation Standards
@@ -227,6 +263,7 @@ Keep Nexus release metadata beside each mod:
 nexus-short-desc.txt   # Nexus page short description, 350 characters max
 nexus-file-desc.txt    # Nexus file-row description, 255 characters max
 nexus-full-desc.txt    # full Nexus description, manual/browser update
+nexus-changelog.txt    # reviewed consolidation for a multi-version Nexus upload
 ```
 
 In `nexus-full-desc.txt`, link the first nearby mention of each published mod
@@ -241,6 +278,13 @@ sentences describing what the mod does. Do not put version-specific changelog
 notes there; changelog entries remain separate and are posted only with
 `-AddChangelog`.
 
+When a Nexus upload spans several local versions, `Publish-NexusMod.ps1`
+generates a flattened candidate under `.codex-temp` and requires a reviewed
+`nexus-changelog.txt`. Its first two nonblank lines identify the target and
+current Nexus baseline; the remaining lines describe the final cumulative
+release without intermediate version headings or superseded repeated changes.
+The complete per-version history remains in `CHANGELOG.txt`.
+
 Validate Nexus metadata before publishing:
 
 ```powershell
@@ -248,3 +292,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-NexusMetadata.p
 ```
 
 Use `-RequireApi` when checking only mods that already have Nexus pages.
+
+Validate stale-config preservation source ordering, exact setting contracts,
+and use of shared typed recovery and current-range clamping with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ConfigPreservationContracts.ps1
+```

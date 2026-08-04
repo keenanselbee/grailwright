@@ -1,3 +1,33 @@
+Version 1.2.0
+Work in progress; not yet released.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 1.1.9
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.1.8
+Separated built-in bonfire and campfire exclusions from the user-maintained additional light-path exclusion list.
+Preserves the additional exclusion list across schema resets and adds a conservative Import Previous Settings action for supported backups.
+Added five-second Grail Floating Text notices for config resets and load errors, hid the internal schema setting in FoA Mod Manager, and strengthened Harmony callback registration.
+
+Version 1.1.7
+Separated the addon's built-in bonfire and campfire exclusions from the new AdditionalExcludedLightPathFragments user override.
+Preserves the additional user exclusion list by exact current setting name across future config schema resets.
+Raised ConfigSchemaVersion to 2; the removed combined ExcludedLightPathFragments setting is not migrated.
+
+Version 1.1.6
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 1.1.5
+Hid ConfigSchemaVersion from FoA Mod Manager, removing the otherwise empty Core category.
+
+Version 1.1.4
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 1.1.3
+Replaced owned Harmony callback name strings with compiler-checked references across shadow apply and restore hooks.
+
 Version 1.1.2
 Added optional Grail Floating Text load-time error notices with the debug icon for startup failures.
 Disabled the addon cleanly after startup failure so partial initialization does not keep running.

@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Ultrawide Fixes[/size][/color]
 [i]Cleaner title and loading screens for wider displays.[/i][/center]
 
@@ -27,8 +28,6 @@ The config is generated after the game starts once:
 
 [code]
 BepInEx/config/ks.tgfoa.ultrawide-fixes.cfg[/code]
-
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Common entries:
 
@@ -64,6 +63,13 @@ Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
 
 [code]
 BepInEx/plugins/UltrawideFixes/UltrawideFixes.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
 [line]
 

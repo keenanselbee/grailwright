@@ -1,3 +1,55 @@
+Version 1.0.6
+Replaced legacy IMGUI damage-number text with TextMesh Pro so GameDefault uses the active Accessibility FontAsset and forced Sans or Serif use the matching game FontAsset directly.
+Preserved damage-number motion, sizing, colors, fading, and outlines on the native font renderer.
+
+Version 1.0.5
+Added DamageOverTimeNumberHeightMultiplier for the initial height of Bleed, Poison, Burn, and Breath status-tick numbers.
+Raised the default damage-over-time number height to 1.25, placing those numbers 25% above the ordinary baseline.
+
+Version 1.0.4
+Added a 1.10 Blood Magic weakness to ordinary flesh and a 1.15 Wyrdness weakness to spirits.
+Gave ordinary, infected, and sea flesh shared 1.04 Slash and 1.06 Pierce weaknesses.
+Added mild 0.90 Pierce resistance to flesh undead and drowned enemies while keeping Slash neutral.
+Kept infected flesh physically distinct from broad flesh-undead rules so it remains neutral to Blunt.
+
+Version 1.0.3
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 1.0.2
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.0.1
+Promoted Steel and Bone from beta to a stable 1.0 release.
+Added independent horizontal and vertical damage-number drift controls plus separate size and color contrast controls.
+Reduced player-damage processing allocations and strengthened Harmony callback registration.
+Added five-second Grail Floating Text notices, hid the internal schema setting, and added a conservative Import Previous Settings action for supported backups.
+
+Version 1.0.0
+Promoted Steel and Bone from beta to a stable 1.0.0 release.
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 0.9.9-beta
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 0.9.8-beta
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 0.9.7-beta
+Removed per-rule-match and vanilla-multiplier result allocations from player damage processing.
+Replaced owned Harmony callback name strings with compiler-checked references.
+
+Version 0.9.6-beta
+Added separate DamageNumberSizeContrast and DamageNumberColorContrast settings with 0-to-3 ranges.
+Size contrast now independently controls weakness growth and resistance shrinking, while critical and weak-spot pop remain separate.
+Color contrast now independently controls resistance grey and weakness red-orange tinting, while immunity styling remains unchanged.
+Raised ConfigSchemaVersion to 14 for regenerated damage-number contrast defaults.
+
+Version 0.9.5-beta
+Added DamageNumberHorizontalDrift and DamageNumberVerticalDrift settings with 0-to-3 multipliers for disabling, preserving, or exaggerating each motion axis independently.
+Kept critical, weakness, resistance, and immunity motion profiles relative to the configured drift multipliers.
+Raised ConfigSchemaVersion to 13 for regenerated damage-number motion defaults.
+
 Version 0.9.4-beta
 Added DamageNumberFontMode so built-in damage numbers can follow the game's Accessibility font choice or force the simple Sans, stylized Serif, or IMGUI fallback font.
 Raised ConfigSchemaVersion to 12 for regenerated feedback font defaults.

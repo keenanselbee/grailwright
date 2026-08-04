@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("2.0.2.0")]
-[assembly: AssemblyFileVersion("2.0.2.0")]
-[assembly: AssemblyInformationalVersion("2.0.2")]
+[assembly: AssemblyVersion("2.0.9.0")]
+[assembly: AssemblyFileVersion("2.0.9.0")]
+[assembly: AssemblyInformationalVersion("2.0.9")]
 
 namespace EnemyRespawnControl
 {
@@ -24,8 +24,14 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "2.0.2";
+        public const string PluginVersion = "2.0.9";
         private const int ConfigSchemaVersion = 4;
+        private const int ConfigRecoveryBaselineSchema = 4;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
 
         private const string BaseSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.BaseLocationSpawner";
         private const string GroupSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.GroupLocationSpawner";
@@ -193,6 +199,8 @@ namespace EnemyRespawnControl
         private string[] _cachedAdditionalControlledSpawnerTerms;
         private string _cachedIgnoredSpawnerTermsRaw;
         private string[] _cachedIgnoredSpawnerTerms;
+        private readonly Dictionary<string, string> _pendingPreservedSpawnerOverrides =
+            new Dictionary<string, string>(StringComparer.Ordinal);
 
         private void Awake()
         {
@@ -240,7 +248,14 @@ namespace EnemyRespawnControl
             ResetConfigIfSchemaChanged();
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version. It changes only when an update requires fresh defaults.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. Vanilla=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled.");
             _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.");
             _controlFactionNeutralNpcSpawners = Config.Bind("2. Spawner Classification", "ControlFactionNeutralNpcSpawners", true, "Control NPC-template spawners with killed-state even when the current faction hostility check is false. This catches regular world mobs whose hostility is conditional or not restored yet.");
@@ -248,6 +263,15 @@ namespace EnemyRespawnControl
             _ignoredSpawnerTerms = Config.Bind("2. Spawner Classification", "IgnoredSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force out of respawn control when a world object or passive spawner is misclassified.");
             _diagnostics = Config.Bind("3. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped spawners with classification reasons, cleanup, and expiry decisions.");
             _blockedLogIntervalSeconds = Config.Bind("3. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
+            RestorePreservedSpawnerOverrides();
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -289,6 +313,10 @@ namespace EnemyRespawnControl
                 return;
             }
 
+            CapturePreservedSpawnerOverrides(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -310,9 +338,13 @@ namespace EnemyRespawnControl
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception ex)
             {
+                _pendingPreservedSpawnerOverrides.Clear();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -329,6 +361,108 @@ namespace EnemyRespawnControl
 
                 throw new InvalidOperationException("Failed to reset Enemy Respawn Control config schema. Original config was left in place when possible.", ex);
             }
+        }
+
+        private void CapturePreservedSpawnerOverrides(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            _pendingPreservedSpawnerOverrides.Clear();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = String.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                if (!String.Equals(currentSection, "2. Spawner Classification", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                if (String.Equals(settingName, "AdditionalControlledSpawnerTerms", StringComparison.Ordinal)
+                    || String.Equals(settingName, "IgnoredSpawnerTerms", StringComparison.Ordinal))
+                {
+                    string preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedSpawnerOverrides[settingName] =
+                            preservedValue;
+                    }
+                }
+            }
+        }
+
+        private void RestorePreservedSpawnerOverrides()
+        {
+            int restoredCount = 0;
+            string preservedValue;
+            if (_additionalControlledSpawnerTerms != null
+                && _pendingPreservedSpawnerOverrides.TryGetValue(
+                    "AdditionalControlledSpawnerTerms",
+                    out preservedValue))
+            {
+                bool clamped;
+                if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _additionalControlledSpawnerTerms,
+                    preservedValue,
+                    out clamped))
+                {
+                    restoredCount++;
+                }
+            }
+
+            if (_ignoredSpawnerTerms != null
+                && _pendingPreservedSpawnerOverrides.TryGetValue(
+                    "IgnoredSpawnerTerms",
+                    out preservedValue))
+            {
+                bool clamped;
+                if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _ignoredSpawnerTerms,
+                    preservedValue,
+                    out clamped))
+                {
+                    restoredCount++;
+                }
+            }
+
+            if (restoredCount > 0)
+            {
+                Log.LogInfo(
+                    "Preserved "
+                    + restoredCount.ToString(CultureInfo.InvariantCulture)
+                    + " manual spawner override value(s) across the config schema reset.");
+            }
+
+            _pendingPreservedSpawnerOverrides.Clear();
         }
 
         private bool PatchGame()
@@ -351,31 +485,136 @@ namespace EnemyRespawnControl
             _killedLocationsField = AccessTools.Field(baseSpawnerType, "killedLocations");
 
             bool requiredPatched = true;
-            requiredPatched &= PatchMethod(baseSpawnerType, "get_CooldownCondition", typeof(CooldownConditionPatch), true);
-            requiredPatched &= PatchMethod(baseSpawnerType, "get_CanSpawn", typeof(CanSpawnPatch), true);
-            PatchMethod(baseSpawnerType, "get_CanSpawnAmbush", typeof(CanSpawnAmbushPatch), false);
-            PatchMethod(baseSpawnerType, "get_IsValidState", typeof(IsValidStatePatch), false);
-            PatchMethod(baseSpawnerType, "OnLocationSpawned", typeof(OnLocationSpawnedPatch), false);
-            PatchMethod(baseSpawnerType, "AfterTimeSkipped", typeof(AfterTimeSkippedPatch), false);
-            PatchMethod(baseSpawnerType, "AfterHeroTeleport", typeof(AfterHeroTeleportPatch), false);
-            PatchMethod(baseSpawnerType, "OnRestore", typeof(OnRestorePatch), false);
-            requiredPatched &= PatchMethod(baseSpawnerType, "AfterLocationKilled", typeof(AfterLocationKilledPatch), true);
-            PatchMethod(baseSpawnerType, "OnLocationDiscardedOrKilled", typeof(OnLocationDiscardedOrKilledPatch), false);
-            PatchMethod(baseSpawnerType, "SceneInitializationEndedCallback", typeof(SceneInitializationEndedPatch), false);
-            PatchMethodsByName(groupSpawnerType, "InitFromAttachment", typeof(SpawnerInitPatch), false);
-            PatchMethodsByName(locationSpawnerType, "InitFromAttachment", typeof(SpawnerInitPatch), false);
-            PatchMethodsByName(hideSpotSpawnerType, "InitFromAttachment", typeof(SpawnerInitPatch), false);
-            PatchMethodsByName(groupSpawnerType, "ShouldSpawn", typeof(ShouldSpawnPatch), false);
-            PatchMethodsByName(locationSpawnerType, "ShouldSpawn", typeof(ShouldSpawnPatch), false);
-            PatchMethodsByName(hideSpotSpawnerType, "ShouldSpawn", typeof(ShouldSpawnPatch), false);
-            PatchMethodsByNamePrefix(groupSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
-            PatchMethodsByNamePrefix(locationSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
-            PatchMethodsByNamePrefix(hideSpotSpawnerType, "SpawnPrefabInternal", typeof(SpawnPrefabInternalPatch), false);
+            requiredPatched &= PatchMethod(
+                baseSpawnerType,
+                "get_CooldownCondition",
+                typeof(CooldownConditionPatch),
+                nameof(CooldownConditionPatch.Postfix),
+                true);
+            requiredPatched &= PatchMethod(
+                baseSpawnerType,
+                "get_CanSpawn",
+                typeof(CanSpawnPatch),
+                nameof(CanSpawnPatch.Postfix),
+                true);
+            PatchMethod(
+                baseSpawnerType,
+                "get_CanSpawnAmbush",
+                typeof(CanSpawnAmbushPatch),
+                nameof(CanSpawnAmbushPatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "get_IsValidState",
+                typeof(IsValidStatePatch),
+                nameof(IsValidStatePatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "OnLocationSpawned",
+                typeof(OnLocationSpawnedPatch),
+                nameof(OnLocationSpawnedPatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "AfterTimeSkipped",
+                typeof(AfterTimeSkippedPatch),
+                nameof(AfterTimeSkippedPatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "AfterHeroTeleport",
+                typeof(AfterHeroTeleportPatch),
+                nameof(AfterHeroTeleportPatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "OnRestore",
+                typeof(OnRestorePatch),
+                nameof(OnRestorePatch.Postfix),
+                false);
+            requiredPatched &= PatchMethod(
+                baseSpawnerType,
+                "AfterLocationKilled",
+                typeof(AfterLocationKilledPatch),
+                nameof(AfterLocationKilledPatch.Postfix),
+                true);
+            PatchMethod(
+                baseSpawnerType,
+                "OnLocationDiscardedOrKilled",
+                typeof(OnLocationDiscardedOrKilledPatch),
+                nameof(OnLocationDiscardedOrKilledPatch.Postfix),
+                false);
+            PatchMethod(
+                baseSpawnerType,
+                "SceneInitializationEndedCallback",
+                typeof(SceneInitializationEndedPatch),
+                nameof(SceneInitializationEndedPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                groupSpawnerType,
+                "InitFromAttachment",
+                typeof(SpawnerInitPatch),
+                nameof(SpawnerInitPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                locationSpawnerType,
+                "InitFromAttachment",
+                typeof(SpawnerInitPatch),
+                nameof(SpawnerInitPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                hideSpotSpawnerType,
+                "InitFromAttachment",
+                typeof(SpawnerInitPatch),
+                nameof(SpawnerInitPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                groupSpawnerType,
+                "ShouldSpawn",
+                typeof(ShouldSpawnPatch),
+                nameof(ShouldSpawnPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                locationSpawnerType,
+                "ShouldSpawn",
+                typeof(ShouldSpawnPatch),
+                nameof(ShouldSpawnPatch.Postfix),
+                false);
+            PatchMethodsByName(
+                hideSpotSpawnerType,
+                "ShouldSpawn",
+                typeof(ShouldSpawnPatch),
+                nameof(ShouldSpawnPatch.Postfix),
+                false);
+            PatchMethodsByNamePrefix(
+                groupSpawnerType,
+                "SpawnPrefabInternal",
+                typeof(SpawnPrefabInternalPatch),
+                nameof(SpawnPrefabInternalPatch.Prefix),
+                false);
+            PatchMethodsByNamePrefix(
+                locationSpawnerType,
+                "SpawnPrefabInternal",
+                typeof(SpawnPrefabInternalPatch),
+                nameof(SpawnPrefabInternalPatch.Prefix),
+                false);
+            PatchMethodsByNamePrefix(
+                hideSpotSpawnerType,
+                "SpawnPrefabInternal",
+                typeof(SpawnPrefabInternalPatch),
+                nameof(SpawnPrefabInternalPatch.Prefix),
+                false);
 
             return requiredPatched;
         }
 
-        private bool PatchMethod(Type declaringType, string methodName, Type patchType, bool required)
+        private bool PatchMethod(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required)
         {
             if (declaringType == null)
             {
@@ -398,7 +637,7 @@ namespace EnemyRespawnControl
                 return !required;
             }
 
-            MethodInfo postfix = AccessTools.Method(patchType, "Postfix");
+            MethodInfo postfix = AccessTools.Method(patchType, patchMethodName);
             if (postfix == null)
             {
                 Log.LogError("Could not find postfix " + patchType.FullName + ".Postfix.");
@@ -419,7 +658,12 @@ namespace EnemyRespawnControl
             return true;
         }
 
-        private void PatchMethodsByName(Type declaringType, string methodName, Type patchType, bool required)
+        private void PatchMethodsByName(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required)
         {
             if (declaringType == null)
             {
@@ -430,7 +674,7 @@ namespace EnemyRespawnControl
                 return;
             }
 
-            MethodInfo postfix = AccessTools.Method(patchType, "Postfix");
+            MethodInfo postfix = AccessTools.Method(patchType, patchMethodName);
             if (postfix == null)
             {
                 Log.LogError("Could not find postfix " + patchType.FullName + ".Postfix.");
@@ -460,7 +704,12 @@ namespace EnemyRespawnControl
             }
         }
 
-        private void PatchMethodsByNamePrefix(Type declaringType, string methodName, Type patchType, bool required)
+        private void PatchMethodsByNamePrefix(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required)
         {
             if (declaringType == null)
             {
@@ -471,7 +720,7 @@ namespace EnemyRespawnControl
                 return;
             }
 
-            MethodInfo prefix = AccessTools.Method(patchType, "Prefix");
+            MethodInfo prefix = AccessTools.Method(patchType, patchMethodName);
             if (prefix == null)
             {
                 Log.LogError("Could not find prefix " + patchType.FullName + ".Prefix.");

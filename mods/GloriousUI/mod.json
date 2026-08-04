@@ -1,0 +1,31 @@
+{
+  "id": "GloriousUI",
+  "displayName": "Glorious UI",
+  "packageName": "GloriousUI",
+  "version": "1.7.0",
+  "pluginGuid": "ks.tgfoa.glorious-ui",
+  "dll": "GloriousUI.dll",
+  "sourceFiles": [
+    "src/GloriousUI.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/System.IO.Compression.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.IMGUIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.InputLegacyModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextCoreTextEngineModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextRenderingModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UI.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UIModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.TextMeshPro.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Rewired_Core.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
+  ]
+}

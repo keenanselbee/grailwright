@@ -1,0 +1,39 @@
+Version 0.2.2
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 0.2.1
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 0.2.0
+Adds pitch, random pitch variation, and volume tuning for supported player nonverbal voice sounds, with configurable categories and a test action.
+Fixed voice tuning and test playback when the game exposes sounds only by FMOD GUID.
+Preserves pitch and volume tuning across config schema resets and adds a conservative Import Previous Settings action for supported backups.
+Added five-second Grail Floating Text notices for config resets and load errors, hid the internal schema setting, and strengthened the FMOD hook.
+
+Version 0.1.9
+Preserves pitch, random pitch variation, and volume tuning across config schema resets.
+Keeps sound-category selection, testing controls, and diagnostics on fresh schema defaults.
+
+Version 0.1.8
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 0.1.7
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 0.1.6
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 0.1.5
+Replaced the owned FMOD Harmony callback name string with a compiler-checked reference.
+
+Version 0.1.4
+Fixed player voice events not being tuned when the game exposes them only by FMOD GUID.
+Fixed the random test button to create supported sounds by GUID.
+Reduced the FMOD hook to the single shared instance-creation path.
+
+Version 0.1.2
+Initial release.
+Adds pitch and volume tuning for supported player nonverbal voice sounds.
+Includes player hit feedback by default and stamina-depleted breathing as an optional off-by-default category.
+Adds the PlayRandomTestSound pseudo-button config entry for config panels.

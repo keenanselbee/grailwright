@@ -1,0 +1,25 @@
+Version 1.0.4
+Renamed the mod, package, plugin, config, and save-data identities from Wyrd Reserve to Wyrdsoul Reserve.
+
+Version 1.0.3
+Updated soft load ordering and HUD integration wording for Glorious UI's new plugin identity.
+
+Version 1.0.2
+Restricted LimitedStat interception to the live hero's Wyrd duration and captured its raw value without invoking clamp-driven SetTo re-entry.
+Skipped Wyrd resource, activation, and night-state access while loading or after their owning models were discarded, preventing native crashes during scene transitions.
+Retained native Wyrd-night detection and the configurable passive regeneration multiplier.
+
+Version 1.0.1
+Reduced the default activation cost from 10% to 3% so Wyrd Power begins much closer to its expected smooth drain.
+Advanced the config schema because the activation-cost default changed; untouched old defaults adopt 3% while compatible customized values remain recoverable.
+
+Version 1.0.0
+Promoted the Wyrd Power recharge prototype into the standalone Wyrdsoul Reserve mod.
+Added three sequential overflow reserves with one full main bar of combined capacity.
+Filled the lower-left reserve first and drained the upper-right-most charged reserve first.
+Added delayed automatic transfer into the inactive main bar and slow passive regeneration with a configurable 3x Wyrd-night default.
+Preserved remaining main-bar charge on manual cancellation and retained the configurable activation cost.
+Added per-save reserve persistence so older saves restore their own recorded charge.
+Anchored the reserve HUD beneath the live Wyrd indicator for vanilla and Glorious UI ownership compatibility.
+Added ten replaceable transparent placeholder PNG states shared by all three reserve diamonds.
+Added conventional config schema recovery, previous-settings import, and optional Grail Floating Text startup-error reporting.

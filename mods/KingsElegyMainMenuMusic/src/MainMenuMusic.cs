@@ -17,9 +17,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.1.2.0")]
-[assembly: AssemblyFileVersion("2.1.2.0")]
-[assembly: AssemblyInformationalVersion("2.1.2")]
+[assembly: AssemblyVersion("2.2.0.0")]
+[assembly: AssemblyFileVersion("2.2.0.0")]
+[assembly: AssemblyInformationalVersion("2.2.0")]
 
 namespace MainMenuMusic
 {
@@ -44,9 +44,15 @@ namespace MainMenuMusic
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.1.2";
+        public const string PluginVersion = "2.2.0";
 
         private const int ConfigSchemaVersion = 16;
+        private const int ConfigRecoveryBaselineSchema = 16;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const float VolumeOutputScale = 0.2f;
         private const uint MinimumLoopLengthMs = 250;
 
@@ -55,6 +61,13 @@ namespace MainMenuMusic
         private const string MusicEmitterFieldName = "musicEmitter";
         private const string NonCopyrightedEmitterFieldName =
             "nonCopyrightedEmitter";
+
+        private static readonly string[] TitleMusicCloseMethodNames =
+        {
+            "OnDiscard",
+            "OnDisable",
+            "OnDestroy"
+        };
 
         private static readonly string[] GameLoadingTypeNames =
         {
@@ -183,7 +196,10 @@ namespace MainMenuMusic
                 "9. Internal",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
-                "Configuration layout version. Older layouts are backed up and regenerated.");
+                new ConfigDescription(
+                    "Configuration layout version. Older layouts are backed up and regenerated.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _musicMode = Config.Bind(
                 "1. Playback",
                 "MusicMode",
@@ -408,6 +424,14 @@ namespace MainMenuMusic
 
             RegisterConfigHandlers();
 
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -592,6 +616,8 @@ namespace MainMenuMusic
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception exception)
             {
@@ -655,28 +681,39 @@ namespace MainMenuMusic
                 playMusicMethod,
                 postfix: new HarmonyMethod(
                     typeof(Patches),
-                    "AfterPlayMusic"));
+                    nameof(Patches.AfterPlayMusic)));
 
-            PatchOptionalTitleMethod(titleMusicType, "OnDisable");
-            PatchOptionalTitleMethod(titleMusicType, "OnDestroy");
+            PatchTitleCloseMethod(titleMusicType);
             return true;
         }
 
-        private void PatchOptionalTitleMethod(Type titleMusicType, string methodName)
+        private void PatchTitleCloseMethod(Type titleMusicType)
         {
-            MethodInfo method = AccessTools.Method(titleMusicType, methodName);
-            if (method == null)
+            BindingFlags flags = BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.DeclaredOnly;
+
+            for (int i = 0; i < TitleMusicCloseMethodNames.Length; i++)
             {
-                LogDiagnostic("Title music " + methodName + " method was not found.");
+                MethodInfo method = titleMusicType.GetMethod(
+                    TitleMusicCloseMethodNames[i],
+                    flags);
+                if (method == null)
+                {
+                    continue;
+                }
+
+                _harmony.Patch(
+                    method,
+                    postfix: new HarmonyMethod(
+                        typeof(Patches),
+                        nameof(Patches.AfterTitleMusicClosed)));
+                LogDiagnostic("Patched title music close method " + method.Name + ".");
                 return;
             }
 
-            _harmony.Patch(
-                method,
-                postfix: new HarmonyMethod(
-                    typeof(Patches),
-                    "AfterTitleMusicClosed"));
-            LogDiagnostic("Patched title music " + methodName + ".");
+            LogDiagnostic("No title music close method was found.");
         }
 
         private void PatchGameLoading()
@@ -711,7 +748,7 @@ namespace MainMenuMusic
                     method,
                     prefix: new HarmonyMethod(
                         typeof(Patches),
-                        "BeforeGameLoading"));
+                        nameof(Patches.BeforeGameLoading)));
                 LogDiagnostic("Patched game loading transition: " + typeName + ".");
             }
         }

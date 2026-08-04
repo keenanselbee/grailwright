@@ -2,12 +2,13 @@
   "id": "UltrawideFixes",
   "displayName": "Ultrawide Fixes",
   "packageName": "UltrawideFixes",
-  "version": "1.0.2",
+  "version": "1.0.8",
   "pluginGuid": "ks.tgfoa.ultrawide-fixes",
   "dll": "UltrawideFixes.dll",
   "sourceFiles": [
     "src/UltrawideFixes.cs",
-    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

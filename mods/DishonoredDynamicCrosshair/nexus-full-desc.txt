@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Dishonored Dynamic Crosshair[/size][/color]
 [i]Reactive PNG reticles for weapons, targets, and blood-magic corpse feedback.[/i][/center]
 
@@ -46,12 +47,17 @@ Do not install older reticle DLLs beside [b]DishonoredDynamicCrosshair.dll[/b].
 
 [line]
 
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 Start the game once to generate:
 
 [b]BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg[/b]
-
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 [b]Core[/b] has [b]Enabled[/b] and [b]Preset[/b].
 

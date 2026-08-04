@@ -1,7 +1,7 @@
 TG All Lights Cast Shadows Addon
 ==============================
 
-Version: 1.1.2
+Version: 1.1.8
 
 Original mod: TG All Lights Cast Shadows 1.2.0
 
@@ -42,8 +42,11 @@ Start the game once to generate:
 
   BepInEx\config\ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg
 
-Version 1.1.2 uses ConfigSchemaVersion 1. Older configs are backed up and a
-fresh config is generated once so defaults apply cleanly.
+Version 1.1.8 uses ConfigSchemaVersion 2. Older configs are backed up and a
+fresh config is generated once so defaults apply cleanly. Built-in bonfire and
+campfire exclusions are now code-owned. Add custom names to
+AdditionalExcludedLightPathFragments; that manual list is preserved by exact
+current setting name across future schema resets.
 
 Default excluded light path fragments:
 
@@ -51,7 +54,7 @@ Default excluded light path fragments:
 
 Set VerboseExclusionLogging to true only while diagnosing a missed light. It
 logs each excluded light path once per scene so exact runtime names can be
-added to ExcludedLightPathFragments.
+added to AdditionalExcludedLightPathFragments.
 
 Installation
 ------------
@@ -83,3 +86,10 @@ Mod author note
 The TG All Lights Cast Shadows author is welcome to incorporate this behavior
 upstream if desired. This companion addon exists to solve local lighting issues
 quickly and is not intended to replace the original mod.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

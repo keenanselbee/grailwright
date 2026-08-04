@@ -1,5 +1,5 @@
 Full Enemy XP - No Overlevel Penalty
-Version 1.0.1
+Version 1.0.6
 
 Full Enemy XP is a standalone BepInEx plugin for Tainted Grail: The Fall of
 Avalon. It removes the vanilla kill XP falloff that reduces enemy XP when the
@@ -94,3 +94,10 @@ Build notes
 
 Use the repository-level tools/Build-Mod.ps1 script to compile and export the
 package. Release zips contain only the runtime payload, README, and changelog.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

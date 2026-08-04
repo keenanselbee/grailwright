@@ -1,0 +1,1 @@
+Adds three sequential Wyrd Power overflow diamonds, delayed automatic transfer, per-save charge, and a slow passive trickle with configurable 3x Wyrd-night regeneration. The HUD follows vanilla or Glorious UI ownership.

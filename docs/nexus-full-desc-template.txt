@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]{{Mod Display Name}}[/size][/color]
 [i]{{Short one-line subtitle focused on the player-facing benefit.}}[/i][/center]
 
@@ -38,6 +39,13 @@ BepInEx/plugins/{{PackageName}}/{{DllName}}[/code]
 
 [line]
 
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
@@ -48,7 +56,6 @@ BepInEx/plugins/{{PackageName}}/{{DllName}}[/code]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]{{Known supported integrations, dependencies, or conflicts.}}[/*]
 [*]{{Mention incompatible old DLLs, branch/runtime limits, or mod conflicts when relevant.}}[/*]
 [/list]
@@ -65,5 +72,9 @@ Template rules:
 - Use `[line]` between major sections.
 - Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and config file names.
 - Link the first nearby mention of each published mod name with `[url=...]Mod Name[/url]`; leave close repeats unlinked or bold so the page does not become link-noisy.
-- Put the optional Grail Floating Text diagnostics sentence in Compatibility or Optional Integrations when the section exists.
+- Use the optional Grail Floating Text diagnostics sentence only when the page has no more useful linked Grail Floating Text integration or dependency description. When used, put it in Compatibility or Optional Integrations: `[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.`
+- Include Updating only for config-owning mods and place it directly after Install.
+- Keep the Config updates and Import Previous Settings paragraphs identical to the template. Tailor only the optional Automatically preserved line.
+- List only settings the mod actually restores automatically. Omit Automatically preserved when the mod has no automatic durable-setting allowlist.
+- Do not duplicate config-update, schema-reset, or previous-settings recovery explanations elsewhere on the page.
 - Omit sections that do not apply, but keep the remaining section style identical.

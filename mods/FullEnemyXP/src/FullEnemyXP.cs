@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("Removes the enemy overlevel kill XP penalty in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Full Enemy XP")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
-[assembly: AssemblyInformationalVersion("1.0.1")]
+[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
+[assembly: AssemblyInformationalVersion("1.0.7")]
 
 namespace FullEnemyXP
 {
@@ -25,8 +25,14 @@ namespace FullEnemyXP
     {
         public const string PluginGuid = "ks.tgfoa.full-enemy-xp";
         public const string PluginName = "Full Enemy XP";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.0.7";
         private const int ConfigSchemaVersion = 1;
+        private const int ConfigRecoveryBaselineSchema = 1;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
 
         private const string NpcElementTypeName = "Awaken.TG.Main.Fights.NPCs.NpcElement";
         private const string HeroTypeName = "Awaken.TG.Main.Heroes.Hero";
@@ -116,7 +122,14 @@ namespace FullEnemyXP
             ResetConfigIfSchemaChanged();
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. Do not edit manually; the plugin backs up stale configs and regenerates defaults when this changes.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version. Do not edit manually; the plugin backs up stale configs and regenerates defaults when this changes.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _minimumOverlevelXpMultiplier = Config.Bind(
                 "1. Core",
                 "MinimumOverlevelXPMultiplier",
@@ -136,6 +149,14 @@ namespace FullEnemyXP
                 new ConfigDescription(
                     "When Diagnostics is enabled, log a session summary after this many adjusted or dry-run adjusted kills. Zero disables periodic summaries.",
                     new AcceptableValueRange<int>(0, 1000)));
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -198,6 +219,8 @@ namespace FullEnemyXP
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception ex)
             {
@@ -241,7 +264,9 @@ namespace FullEnemyXP
             }
 
             MethodInfo original = AccessTools.Method(npcElementType, "DeathNonCriticalFunctions");
-            MethodInfo transpiler = AccessTools.Method(typeof(NpcDeathXpPatch), "Transpiler");
+            MethodInfo transpiler = AccessTools.Method(
+                typeof(NpcDeathXpPatch),
+                nameof(NpcDeathXpPatch.Transpiler));
             if (original == null || transpiler == null)
             {
                 Log.LogError("Could not patch NPC death XP handling. Full Enemy XP is inactive.");
@@ -336,7 +361,7 @@ namespace FullEnemyXP
         }
 
         private void LogAdjustedKill(
-            XpRewardContext context,
+            in XpRewardContext context,
             float vanillaLevelMultiplier,
             float appliedLevelMultiplier,
             float vanillaAward,
@@ -418,22 +443,21 @@ namespace FullEnemyXP
 
         private XpRewardContext BuildXpRewardContext(object npc)
         {
-            XpRewardContext context = new XpRewardContext();
             object template = GetOptionalPropertyValue(npc, "Template");
             object hero = GetCurrentHero();
 
-            context.EnemyName = DescribeEnemy(npc, template);
-            context.EnemyExpLevel = GetOptionalFloatProperty(template, "ExpLevel", -1.0f);
-            context.BaseXp = Math.Max(0.0f, TryInvokeFloatMethod(template, "GetExpReward", 0.0f));
+            string enemyName = DescribeEnemy(npc, template);
+            float enemyExpLevel = GetOptionalFloatProperty(template, "ExpLevel", -1.0f);
+            float baseXp = Math.Max(0.0f, TryInvokeFloatMethod(template, "GetExpReward", 0.0f));
 
             object heroLevel = GetOptionalPropertyValue(hero, "Level");
-            context.HeroLevel = ReadStatValue(heroLevel, -1.0f);
+            float resolvedHeroLevel = ReadStatValue(heroLevel, -1.0f);
 
             object heroMultStats = GetOptionalPropertyValue(hero, "HeroMultStats");
             object killExpMultiplier = GetOptionalPropertyValue(heroMultStats, "KillExpMultiplier");
             object generalExpMultiplier = GetOptionalPropertyValue(heroMultStats, "ExpMultiplier");
-            context.KillExpMultiplier = Math.Max(0.0f, ReadStatValue(killExpMultiplier, 1.0f));
-            context.GeneralExpMultiplier = Math.Max(0.0f, ReadStatValue(generalExpMultiplier, 1.0f));
+            float resolvedKillExpMultiplier = Math.Max(0.0f, ReadStatValue(killExpMultiplier, 1.0f));
+            float resolvedGeneralExpMultiplier = Math.Max(0.0f, ReadStatValue(generalExpMultiplier, 1.0f));
 
             List<string> missing = new List<string>();
             if (template == null)
@@ -444,22 +468,29 @@ namespace FullEnemyXP
             {
                 missing.Add("Hero.Current");
             }
-            if (context.EnemyExpLevel < 0.0f)
+            if (enemyExpLevel < 0.0f)
             {
                 missing.Add("enemy ExpLevel");
             }
-            if (context.HeroLevel < 0.0f)
+            if (resolvedHeroLevel < 0.0f)
             {
                 missing.Add("hero Level");
             }
-            if (context.BaseXp <= 0.0f)
+            if (baseXp <= 0.0f)
             {
                 missing.Add("base XP");
             }
 
-            context.Complete = missing.Count == 0;
-            context.IncompleteReason = missing.Count == 0 ? "" : String.Join(", ", missing.ToArray());
-            return context;
+            bool complete = missing.Count == 0;
+            return new XpRewardContext(
+                enemyName,
+                resolvedHeroLevel,
+                enemyExpLevel,
+                baseXp,
+                resolvedKillExpMultiplier,
+                resolvedGeneralExpMultiplier,
+                complete,
+                complete ? "" : String.Join(", ", missing.ToArray()));
         }
 
         private object GetCurrentHero()
@@ -723,16 +754,36 @@ namespace FullEnemyXP
             Log.LogWarning(message);
         }
 
-        private sealed class XpRewardContext
+        private readonly struct XpRewardContext
         {
-            public string EnemyName = "unknown";
-            public float HeroLevel = -1.0f;
-            public float EnemyExpLevel = -1.0f;
-            public float BaseXp;
-            public float KillExpMultiplier = 1.0f;
-            public float GeneralExpMultiplier = 1.0f;
-            public bool Complete;
-            public string IncompleteReason = "";
+            public readonly string EnemyName;
+            public readonly float HeroLevel;
+            public readonly float EnemyExpLevel;
+            public readonly float BaseXp;
+            public readonly float KillExpMultiplier;
+            public readonly float GeneralExpMultiplier;
+            public readonly bool Complete;
+            public readonly string IncompleteReason;
+
+            public XpRewardContext(
+                string enemyName,
+                float heroLevel,
+                float enemyExpLevel,
+                float baseXp,
+                float killExpMultiplier,
+                float generalExpMultiplier,
+                bool complete,
+                string incompleteReason)
+            {
+                EnemyName = enemyName;
+                HeroLevel = heroLevel;
+                EnemyExpLevel = enemyExpLevel;
+                BaseXp = baseXp;
+                KillExpMultiplier = killExpMultiplier;
+                GeneralExpMultiplier = generalExpMultiplier;
+                Complete = complete;
+                IncompleteReason = incompleteReason;
+            }
         }
 
         private static class NpcDeathXpPatch
@@ -740,7 +791,9 @@ namespace FullEnemyXP
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
                 List<CodeInstruction> codes = new List<CodeInstruction>(instructions);
-                MethodInfo adjustMethod = AccessTools.Method(typeof(FullEnemyXPPlugin), "AdjustLevelMultiplier");
+                MethodInfo adjustMethod = AccessTools.Method(
+                    typeof(FullEnemyXPPlugin),
+                    nameof(AdjustLevelMultiplier));
                 bool patched = false;
 
                 for (int i = 3; i < codes.Count; i++)

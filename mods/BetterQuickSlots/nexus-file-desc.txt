@@ -1,1 +1,0 @@
-Movable smart food, health, mana, and arrow quick-slot HUD.

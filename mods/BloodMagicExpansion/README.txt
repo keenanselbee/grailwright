@@ -27,7 +27,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.2.5
+Version: 2.3.9
 ```
 
 This is a clean technical rename from Blood Mage. Do not deploy the older
@@ -87,25 +87,40 @@ Start the game once to generate:
 BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 ```
 
+The optional vanilla Bleed graph preload is enabled by default:
+
+```text
+PreloadBleedSkillGraphs = true
+```
+
+It loads the heavy dependency and parent graph on consecutive gameplay-loading
+frames and retains the parent for the active gameplay domain. Disable this
+setting if a future game update removes the first Bleed application hitch. The
+preloader is isolated from BME's spell tuning and uses no Harmony patches.
+
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-Version 2.1.8 and newer enforce ConfigSchemaVersion 9 because the optional
-Grail Floating Text corpse XP integration was added. If the schema marker is
+Version 2.3.1 and newer enforce ConfigSchemaVersion 10 because the default
+Blood Spell Inner Light intensity changed to 1.0. If the schema marker is
 missing or outdated, the old config is backed up beside the active file and
-fresh defaults are generated.
+fresh defaults are generated. Carefully tuned inner-light and corpse-leech
+audio values, blood whitelist terms, and exact spell template GUID overrides
+are then restored by exact current setting name with numeric values clamped to
+their current supported ranges.
 
 ## Grail Floating Text
 
-When Grail Floating Text 1.5.4 or newer is installed, corpse-leech character XP
-is claimed before the XP stat change and shown as red corpse-icon text such as
-`+42 XP (Worthy)`. The label uses the corpse quality tier: Meager, Worthy,
-Potent, or Prime. The XP amount still comes from the normal character XP stat
-path, so XP multipliers and level-up behavior are unchanged. Live-drain XP ticks
-use the generic XP display from Grail Floating Text.
+When Grail Floating Text is installed, corpse-leech and live-drain character XP
+use red source-specific messages with corpse and magic icons. GFT 1.9.0 or newer
+consolidates queued live-drain ticks together and corpse rewards only within the
+same Meager, Worthy, Potent, or Prime tier. Blood Magic XP never merges with
+generic XP or another mod. Older GFT versions keep the styled gains separate.
+The normal character XP stat path, multipliers, and level-up behavior are unchanged.
 
 ```text
 ClaimGrailFloatingTextCorpseXP = true
+ClaimGrailFloatingTextLiveDrainXP = true
 ```
 
 ## Blood Spell Inner Light
@@ -122,7 +137,7 @@ values remain human-friendly.
 
 ```text
 Enabled = true
-Intensity = 0.75
+Intensity = 1.0
 Range = 5.0
 FadeSeconds = 0.12
 LogBloodSpellInnerLight = true
@@ -190,7 +205,9 @@ When Dishonored Dynamic Crosshair is installed, the blood-magic corpse reticle
 can scale visually from the same quality. Reticle size is visual-only and
 defaults to 1.0x to 2.0x Magic reticle size with a low-quality dead zone.
 Quality changes scale only; valid usable corpses stay the same blood-red
-color.
+color. Corpses restored from save data are reconnected to their owning game
+location after restoration and remain connected for the current play session.
+They use the default-size base-color corpse icon and remain non-drainable.
 
 ```text
 Band / example                       | Quality | Effect  | Reticle
@@ -270,3 +287,10 @@ and Abhartach tuning are event-driven from real damage, status, and spell
 events. Spirituality is cached
 briefly before spell tuning reads it. Noisy diagnostics default to off; startup
 and patch-warning logs remain enabled.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

@@ -2,12 +2,13 @@
   "id": "DishonoredDynamicCrosshair",
   "displayName": "Dishonored Dynamic Crosshair",
   "packageName": "DishonoredDynamicCrosshair",
-  "version": "2.8.4",
+  "version": "2.9.1",
   "pluginGuid": "ks.tgfoa.dishonored-dynamic-crosshair",
   "dll": "DishonoredDynamicCrosshair.dll",
   "sourceFiles": [
     "src/Plugin.cs",
-    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",

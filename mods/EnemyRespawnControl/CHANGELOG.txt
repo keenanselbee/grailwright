@@ -1,18 +1,40 @@
+Version 2.1.0
+Work in progress; not yet released.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 2.0.9
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 2.0.8
+Preserves custom controlled-spawner and ignored-spawner terms across config schema resets while keeping gameplay, timing, and diagnostics on current defaults.
+Added a conservative Import Previous Settings action for supported backups.
+Added five-second Grail Floating Text notices for config resets and load errors, hid the internal schema setting in FoA Mod Manager, and strengthened Harmony callback registration.
+
+Version 2.0.7
+Preserves AdditionalControlledSpawnerTerms and IgnoredSpawnerTerms across future config schema resets.
+Keeps gameplay, timing, and diagnostic settings resettable so new defaults still apply.
+
+Version 2.0.6
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 2.0.5
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 2.0.4
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 2.0.3
+Replaced owned Harmony callback name strings with compiler-checked references across direct, overload, and name-prefix patch registration.
+
 Version 2.0.2
-Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
-Stopped reporting a successful load when required respawn-control hooks are unavailable.
-
-Version 2.0.1
-Removed a disposable pooled-list metadata read from spawner classification while keeping safe template tags, type, surface, and private abstract-reference evidence.
-Added lightweight cached classification evidence per spawner while keeping current hostility and killed-state checks live.
-Changed term matching to normalized whole-token matching so short ignore terms do not accidentally match unrelated enemy names.
-
-Version 2.0.0
-Reworked spawner classification so a false game hostility check no longer excludes regular NPC-template mob spawners.
-Added built-in coverage for enemy families seen in game templates and diagnostics, including Wyrdspirits, Dal Riata and Galahad guards, bandits, druids, undead, beasts, and constructs.
-Added ControlFactionNeutralNpcSpawners, AdditionalControlledSpawnerTerms, and IgnoredSpawnerTerms for ambiguous or misclassified spawner families.
-Kept bypasses for manual/story spawners, ambush-only spawners, and active Wyrd-night spawner state.
-Improved diagnostics with classification reasons and template names for skipped spawners.
+Reworked spawner classification so regular NPC-template mobs remain under respawn control even when the game's current hostility check reports false.
+Expanded built-in recognition for guards, bandits, druids, undead, beasts, constructs, Wyrd enemies, and other common hostile families while continuing to bypass resources, passive creatures, manual/story spawners, ambush-only spawners, and active Wyrd-night spawns.
+Added ControlFactionNeutralNpcSpawners, AdditionalControlledSpawnerTerms, and IgnoredSpawnerTerms so ambiguous or mod-added spawners can be corrected through config.
+Improved classification safety and accuracy with normalized whole-token matching, cached static template evidence, and live hostility and killed-state checks.
+Expanded diagnostics with readable template names and explicit classification reasons for skipped spawners.
+Added optional Grail Floating Text load-time error notices for startup and required hook failures; the plugin now disables cleanly instead of reporting a successful load when core hooks are unavailable.
+Raised ConfigSchemaVersion to 4 so the new classification settings generate with clean defaults.
 
 Version 1.0.9
 Logged skipped non-enemy spawners from kill and restore registration paths when Diagnostics is enabled.

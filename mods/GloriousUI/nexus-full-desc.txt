@@ -1,0 +1,215 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][color=#C94A4A][size=6]Glorious UI[/size][/color]
+[i]A centered gameplay HUD, smarter utilities, and a six-loadout Equipment and quick-use suite.[/i][/center]
+
+[line]
+
+[b]Glorious UI[/b] is a resolution-independent interface suite for [b]Tainted Grail: The Fall of Avalon[/b]. It centers and organizes the gameplay HUD, adds smart consumable controls, expands Equipment with six virtual quick slots and weapon loadouts, rebuilds the quick-use wheel around those loadouts, and quiets intrusive navigation and notification elements.
+
+Each major area has its own ownership switch. Disable an area to return that part of the interface to vanilla behavior without giving up the rest of the suite.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Centered Gameplay HUD[/size][/color][/heading]
+[list]
+[*]Anchors the health, mana, and stamina HUD to Bottom Center with the tuned -72 X, -25 Y, and 0.9 scale built into the layout.[/*]
+[*]Keeps the composition consistent at 1920x1080, 2560x1440, 3440x1440, and other resolutions or aspect ratios.[/*]
+[*]Provides live anchor, offset, scale, and visible-duration controls over neutral 0, 0, and 1 adjustment values.[/*]
+[*]Keeps the Hero HUD visible for two seconds after the game refreshes it by default.[/*]
+[*]Places the Quick Slot HUD at a built-in 196 X, 39.1 Y, and 0.8 scale beneath the centered bars.[/*]
+[*]Moves the arrow counter into the utility cluster with a built-in -7 X, -7 Y, and 1.38 scale and larger quantity text.[/*]
+[*]Controls the Wyrd Power HUD with a built-in -2 X, -5 Y, and 0.9 scale while hiding its use prompt without disabling the input.[/*]
+[/list]
+
+When [b]Eyes in the Dark[/b] is installed, Glorious UI requests that its Eyes-owned Wyrd Threat meter sit below the vanilla resource bars. Eyes remains responsible for creating, updating, hiding, and destroying the meter; Glorious UI never creates a duplicate.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Smart Quick Slots[/size][/color][/heading]
+[list]
+[*]Keeps the large gameplay quick slot pinned to the vanilla autofill food slot.[/*]
+[*]Replaces the two small next-slot previews with smart health and mana potion choices.[/*]
+[*]Supports Biggest and Smallest Sufficient selection modes.[/*]
+[*]Provides configurable health and mana potion hotkeys, defaulting to C and V.[/*]
+[*]Can prevent potion use when the matching resource is already full.[/*]
+[*]Keeps hidden quick-slot use and cycle prompts suppressed when later vanilla HUD refreshes try to reactivate them.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Buffs, Compass, And Notifications[/size][/color][/heading]
+[list]
+[*]Places vanilla buff and debuff icons above the live Hero HUD bounds at every resolution.[/*]
+[*]Uses a built-in 140 X, -55 Y layout with compact spacing, nine icons per row, and additional rows growing upward.[/*]
+[*]Offers signed offsets plus scale, spacing, and icons-per-row controls.[/*]
+[*]Includes a visual-only status-layout test that applies no gameplay effects and changes no saves.[/*]
+[*]Owns compass visibility by default and starts with the compass hidden.[/*]
+[*]Offers Hidden, Always Visible, Toggle with Hotkey, and Hold Hotkey to Show compass modes.[/*]
+[*]Disables top-right point, bonfire, Arthur memory, and Wyrd whisper reminders by default, with Timed Fade and Vanilla modes available.[/*]
+[*]Keeps native new, completed, and failed quest notices plus objective updates fully visible for 10 seconds by default; 0 restores the game's timing.[/*]
+[*]Hides the gameplay HUD while the quick-use wheel is open and restores each element's previous active state when it closes.[/*]
+[/list]
+
+Held Apply Changes prompts use the current Interact binding for both the displayed key and the hold action. When Interact is F, Restore Defaults moves to E so one held input cannot trigger both actions.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Expanded Equipment Panel[/size][/color][/heading]
+[list]
+[*]Replaces the two visible manual quick slots with six virtual slots arranged in a two-column by three-row grid.[/*]
+[*]Leaves the vanilla food autofill slot below the grid.[/*]
+[*]Opens the normal item chooser when a virtual quick slot is selected and shows current stack quantities.[/*]
+[*]Offers optional direct-use gameplay hotkeys for all six virtual quick slots.[/*]
+[*]Keeps vanilla weapon loadout 0 as the active editable row and places six compact virtual weapon-loadout selectors beneath it.[/*]
+[*]Tracks normal weapon changes made through the active vanilla row back into the selected Glorious loadout.[/*]
+[*]Shows live weapon and item icons, context-sensitive off-hand or quiver previews, arrow quantities, low-ammo colors, and gold selection highlights.[/*]
+[*]Removes custom controls immediately when Equipment closes so they cannot remain over the Bag, Map, or another character tab.[/*]
+[*]Restores the associated vanilla controls whenever quick-slot or weapon-loadout ownership is disabled.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Six-Loadout Quick-Use Wheel[/size][/color][/heading]
+The quick-use wheel presents Glorious weapon loadouts 1 through 6. Loadouts 1 through 4 retain the vanilla left and upper positions; loadouts 5 and 6 replace the two bottom consumable wedges. Virtual quick slots and the autofill food slot remain available through the gameplay HUD and Equipment panel.
+
+[list]
+[*]Routes every wheel selection through the active vanilla weapon row and the game's normal equip path.[/*]
+[*]Leaves native weapon loadouts 1 through 3 untouched.[/*]
+[*]Redirects the game's four configurable weapon-loadout actions to Glorious loadouts 1 through 4, preserving keyboard and controller rebinding.[/*]
+[*]Provides dedicated configurable keys only for extended loadouts 5 and 6, defaulting to number keys 5 and 6.[/*]
+[*]Mirrors the lower weapon sectors from the upper positions while keeping their item artwork upright.[/*]
+[*]Can hide the center control diagram and controls legend and supports immediate left-click selection by default.[/*]
+[*]Shows virtual-loadout-aware arrow quantities on every bow loadout.[/*]
+[*]Lets a left click on a bow loadout's arrow icon cycle that loadout's arrow type without selecting it or closing the wheel.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]One-Menu Equipping[/size][/color][/heading]
+[list]
+[*]Left click equips a hovered weapon or spell to the main hand.[/*]
+[*]Right click equips it to the off hand from the same picker.[/*]
+[*]Applies the same configurable hand shortcuts to hovered weapons in the Bag.[/*]
+[*]Supports both hand pickers, optional off-hand-to-main-hand redirection, equipped-item toggling, click interception, and short notifications.[/*]
+[*]Requires no external OneMenuEquip plugin.[/*]
+[/list]
+
+If [b]owrocc.OneMenuEquip[/b] is still enabled, Glorious UI detects it and suppresses only its duplicate hooks for that session. Disable the old plugin to use Glorious UI's complete implementation and settings.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Smart Bag And Category Hotkeys[/size][/color][/heading]
+The Smart Bag / All hotkey defaults to Tab. It first closes an active equipment or quick-slot picker, otherwise opens or navigates to Bag > All, then closes through the game's native Back hierarchy when All is already selected.
+
+Optional direct hotkeys can open Weapons, Magic, Armor, Jewelry, Gems, Potions, Consumables, Crafting, Readables, Recipes, Quest Items, or Other. When the same physical key also triggers the generic Character Sheet action, Glorious UI suppresses that duplicate press so the Bag cannot immediately reopen. The separate Equipment action remains available.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Per-Save Equipment Persistence[/size][/color][/heading]
+Glorious UI stores six virtual quick slots, six weapon loadouts, and the selected weapon loadout in [b]GloriousEquipmentSlots.dat[/b] inside the active game save. It also keeps a per-save local backup under:
+
+[code]
+BepInEx/config/GloriousUI/Equipment/
+[/code]
+
+Weapon assignments use template GUIDs. When several copies match, Glorious UI chooses the highest-level and then lightest copy while keeping dual-wielded copies distinct. After loading, it restores the selected weapon loadout through the normal native equipment path.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.glorious-ui.cfg
+[/code]
+
+FoA Mod Manager organizes the options into General, Hero HUD, Quick Slot HUD, Arrow HUD, Wyrd Power HUD, Buffs and Debuffs, Compass, Notifications, Hotkeys, Bag Category Hotkeys, Smart Selection, Equipment Panel, One-Menu Equipping, Diagnostics, and Import Previous Settings sections.
+
+[code]
+| Area                         | Default                                      |
+|------------------------------|----------------------------------------------|
+| Hero HUD                     | Bottom Center; 0, 0 adjustment; scale 1      |
+| Hero HUD visible duration    | 2 seconds                                    |
+| Smart potion previews        | Enabled                                      |
+| Health / mana potion hotkeys | C / V                                        |
+| Wyrd Power control           | Enabled; use prompt hidden                   |
+| Buff and debuff layout       | Enabled; 9 icons per row                     |
+| Compass                      | Controlled and hidden                        |
+| Level and point reminders    | Disabled                                     |
+| Quest and objective duration | 10 seconds                                   |
+| Smart Bag / All hotkey       | Tab                                          |
+| Extended loadout hotkeys     | 5 / 6                                        |
+| Equipment and wheel control  | Enabled                                      |
+| One-menu equipping           | Enabled                                      |
+| Diagnostics                  | Disabled                                     |
+[/code]
+
+The neutral HUD values above adjust Glorious UI's tuned built-in baselines; they are not the raw vanilla coordinates.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/GloriousUI/GloriousUI.dll
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+Automatically preserved: Hero HUD, Quick Slot HUD, arrow, Wyrd Power, and buff/debuff position and scale tuning; Hero HUD visible duration; Smart Bag, health potion, mana potion, loadout 5-6, and quick-slot 1-6 hotkeys. The visual-only buff/debuff layout test is permanently excluded.
+
+Glorious UI replaces the previous Better Quick Slots and Wyrdframe identities with a new plugin GUID, DLL, package, config, and persistence names. It does not import settings or save data from those previous identities. Disable or remove the old plugins before enabling Glorious UI.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+Eyes in the Dark and Grail Floating Text integrations are optional. Neither is required for Glorious UI's core HUD, Equipment, wheel, or hotkey features.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[b]Eyes in the Dark:[/b] Optional soft dependency. Eyes creates and controls its Wyrd Threat meter. Glorious UI only requests its below-resource-bars placement and makes no meter changes when Eyes or its placement contract is unavailable.
+
+Do not load these older plugins alongside Glorious UI:
+
+[list]
+[*][b]owrocc.ModifyHeroHUD.dll[/b][/*]
+[*][b]owrocc.ModifyQuickSlotsHud.dll[/b][/*]
+[*][b]owrocc.HideLevelUp.dll[/b][/*]
+[*][b]owrocc.MoreWeaponSlots.dll[/b] / More Weapon Loadouts[/*]
+[*][b]owrocc.OneMenuEquip.dll[/b][/*]
+[*][b]owrocc.RebindQuickWheel.dll[/b][/*]
+[*][b]owrocc.BagHotkeys.dll[/b] / Bag Category Hotkeys[/*]
+[/list]
+
+[b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/169]Immersive HUD[/url]:[/b] Partially compatible. Keep [b]ForceVanillaHeroHud=false[/b]. Its bar and quick-slot visibility settings may still cause uneven or delayed fading.
+
+[b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/111]Better UI[/url]:[/b] Compatible outside its Quick Wheel replacements. When Glorious UI's six-loadout wheel is enabled, set these Better UI options to false because Glorious UI removes the consumable wheel slots and supplies virtual-loadout-aware ammo counters and arrow cycling:
+
+[code]
+QuickSlotEffectEnabled = false
+AmmoCounterEnabled = false
+ArrowCycleEnabled = false
+[/code]
+
+[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
+If HUD elements appear twice or fight for position, remove the older plugins listed above and verify that another mod is not controlling the same Hero HUD, quick-slot, status-icon, compass, notification, arrow, Wyrd Power, Equipment, or quick-use component.
+
+If Better UI is installed and the wheel shows overlapping consumable effects or ammo controls, confirm that its three compatibility settings are disabled. If an individual Glorious UI feature causes trouble, disable that feature's ownership setting to restore the corresponding vanilla control while testing.
+
+Enable [b]Diagnostics[/b] only while investigating behavior. Full details are written to [b]BepInEx/LogOutput.log[/b].

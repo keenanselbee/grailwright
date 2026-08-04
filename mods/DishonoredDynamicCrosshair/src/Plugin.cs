@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("2.8.4.0")]
-[assembly: AssemblyFileVersion("2.8.4.0")]
+[assembly: AssemblyVersion("2.9.1.0")]
+[assembly: AssemblyFileVersion("2.9.1.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -89,8 +89,14 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "2.8.4";
+        public const string PluginVersion = "2.9.1";
         private const int ConfigSchemaVersion = 3;
+        private const int ConfigRecoveryBaselineSchema = 3;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const string BloodMagicExpansionPluginGuid =
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicExpansionApiTypeName =
@@ -124,6 +130,14 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<bool> _hideMeleeReticle;
         private ConfigEntry<bool> _hideBowReticle;
         private ConfigEntry<bool> _hideItemSpecificReticles;
+        private readonly Dictionary<string, float> _pendingPreservedVisualFloats =
+            new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _pendingPreservedVisualStrings =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, bool> _pendingPreservedVisualBools =
+            new Dictionary<string, bool>(StringComparer.Ordinal);
+        private ReticleSizeMode? _pendingPreservedSizeMode;
+        private int _pendingPreservedInvalidValueCount;
 
         private ContextSettings _general;
         private ContextSettings _bow;
@@ -237,7 +251,10 @@ namespace DishonoredDynamicCrosshair
                 "1. Core",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
-                "Configuration layout version. It changes only when an update requires fresh defaults.");
+                new ConfigDescription(
+                    "Configuration layout version. It changes only when an update requires fresh defaults.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _preset = Config.Bind(
                 "1. Core",
                 "Preset",
@@ -383,6 +400,15 @@ namespace DishonoredDynamicCrosshair
                 "LogBloodMagicScaleDiagnostics",
                 false,
                 "Log throttled Blood Magic reticle state, quality, and final scale math.");
+            RestorePreservedVisualProfile();
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -424,6 +450,10 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            CapturePreservedVisualProfile(
+                configPath,
+                storedSchemaVersion);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -445,9 +475,13 @@ namespace DishonoredDynamicCrosshair
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception exception)
             {
+                ClearPendingPreservedVisualProfile();
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -468,6 +502,303 @@ namespace DishonoredDynamicCrosshair
                     "Could not reset the outdated crosshair config. The previous config was retained when possible: "
                     + exception.Message);
             }
+        }
+
+        private void CapturePreservedVisualProfile(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            ClearPendingPreservedVisualProfile();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            string currentSection = string.Empty;
+            foreach (string rawLine in File.ReadLines(configPath))
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line[0] == '#')
+                {
+                    continue;
+                }
+
+                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
+                {
+                    currentSection = line.Substring(1, line.Length - 2);
+                    continue;
+                }
+
+                int separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                string settingName = line.Substring(0, separatorIndex).Trim();
+                string settingId = currentSection + "\n" + settingName;
+
+                if (IsPreservedVisualFloat(settingId))
+                {
+                    float parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedVisualFloats[settingId] = parsedValue;
+                    }
+
+                    continue;
+                }
+
+                if (IsPreservedVisualString(settingId))
+                {
+                    string preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedVisualStrings[settingId] =
+                            preservedValue;
+                    }
+                    continue;
+                }
+
+                if (string.Equals(
+                        settingId,
+                        "4. Blood Magic\nUseCorpseQualityScale",
+                        StringComparison.Ordinal))
+                {
+                    bool parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedVisualBools[settingId] = parsedValue;
+                    }
+
+                    continue;
+                }
+
+                if (string.Equals(
+                        settingId,
+                        "5. Advanced\nSizeMode",
+                        StringComparison.Ordinal))
+                {
+                    ReticleSizeMode parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                            currentSection,
+                            settingName,
+                            out parsedValue)
+                        && Enum.IsDefined(typeof(ReticleSizeMode), parsedValue))
+                    {
+                        _pendingPreservedSizeMode = parsedValue;
+                    }
+                    else
+                    {
+                        _pendingPreservedInvalidValueCount++;
+                    }
+                }
+            }
+        }
+
+        private static bool IsPreservedVisualFloat(string settingId)
+        {
+            switch (settingId)
+            {
+                case "2. Reticles\nReticleSizePixels":
+                case "2. Reticles\nBowScale":
+                case "2. Reticles\nMagicScale":
+                case "2. Reticles\nBloodMagicScale":
+                case "3. Colors and Opacity\nIdleOpacity":
+                case "3. Colors and Opacity\nTargetOpacity":
+                case "3. Colors and Opacity\nMountedOpacityMultiplier":
+                case "4. Blood Magic\nMaximumQualityScale":
+                case "5. Advanced\nCrouchIndicatorOpacity":
+                case "5. Advanced\nCrouchIndicatorVerticalOffset":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsPreservedVisualString(string settingId)
+        {
+            switch (settingId)
+            {
+                case "2. Reticles\nGeneralSprite":
+                case "2. Reticles\nBowSprite":
+                case "2. Reticles\nMagicSprite":
+                case "2. Reticles\nBloodMagicSprite":
+                case "3. Colors and Opacity\nDefaultColor":
+                case "3. Colors and Opacity\nHostileColor":
+                case "3. Colors and Opacity\nNonHostileColor":
+                case "4. Blood Magic\nUsableCorpseColor":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void RestorePreservedVisualProfile()
+        {
+            if (_pendingPreservedVisualFloats.Count == 0
+                && _pendingPreservedVisualStrings.Count == 0
+                && _pendingPreservedVisualBools.Count == 0
+                && !_pendingPreservedSizeMode.HasValue
+                && _pendingPreservedInvalidValueCount == 0)
+            {
+                return;
+            }
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreservedFloat(
+                "2. Reticles\nReticleSizePixels",
+                _baseSizePixels,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedString("2. Reticles\nGeneralSprite", _general.SpriteFile, ref restoredCount);
+            RestorePreservedString("2. Reticles\nBowSprite", _bow.SpriteFile, ref restoredCount);
+            RestorePreservedString("2. Reticles\nMagicSprite", _magic.SpriteFile, ref restoredCount);
+            RestorePreservedString("2. Reticles\nBloodMagicSprite", _bloodMagic.SpriteFile, ref restoredCount);
+            RestorePreservedFloat("2. Reticles\nBowScale", _bow.ScaleMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Reticles\nMagicScale", _magic.ScaleMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Reticles\nBloodMagicScale", _bloodMagic.ScaleMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedString("3. Colors and Opacity\nDefaultColor", _general.DefaultColor, ref restoredCount);
+            RestorePreservedString("3. Colors and Opacity\nHostileColor", _general.HostileColor, ref restoredCount);
+            RestorePreservedString("3. Colors and Opacity\nNonHostileColor", _general.NonHostileColor, ref restoredCount);
+            RestorePreservedFloat("3. Colors and Opacity\nIdleOpacity", _defaultOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("3. Colors and Opacity\nTargetOpacity", _hostileOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("3. Colors and Opacity\nMountedOpacityMultiplier", _mountedOpacityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedBool("4. Blood Magic\nUseCorpseQualityScale", _bloodMagicUseQualityScale, ref restoredCount);
+            RestorePreservedFloat("4. Blood Magic\nMaximumQualityScale", _bloodMagicMaximumQualityScale, ref restoredCount, ref clampedCount);
+            RestorePreservedString("4. Blood Magic\nUsableCorpseColor", _bloodMagicUsableCorpseColor, ref restoredCount);
+            if (_pendingPreservedSizeMode.HasValue)
+            {
+                bool clamped;
+                if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _sizeMode,
+                    _pendingPreservedSizeMode.Value,
+                    out clamped))
+                {
+                    restoredCount++;
+                }
+                else
+                {
+                    _pendingPreservedInvalidValueCount++;
+                }
+            }
+            RestorePreservedFloat("5. Advanced\nCrouchIndicatorOpacity", _crouchIndicatorOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("5. Advanced\nCrouchIndicatorVerticalOffset", _crouchIndicatorVerticalOffset, ref restoredCount, ref clampedCount);
+
+            Logger.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " reticle visual value(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + "; skippedInvalid="
+                + _pendingPreservedInvalidValueCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            ClearPendingPreservedVisualProfile();
+        }
+
+        private void RestorePreservedFloat(
+            string settingId,
+            ConfigEntry<float> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            float preservedValue;
+            if (entry == null
+                || !_pendingPreservedVisualFloats.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedString(
+            string settingId,
+            ConfigEntry<string> entry,
+            ref int restoredCount)
+        {
+            string preservedValue;
+            if (entry == null
+                || !_pendingPreservedVisualStrings.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void RestorePreservedBool(
+            string settingId,
+            ConfigEntry<bool> entry,
+            ref int restoredCount)
+        {
+            bool preservedValue;
+            if (entry == null
+                || !_pendingPreservedVisualBools.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
+        private void ClearPendingPreservedVisualProfile()
+        {
+            _pendingPreservedVisualFloats.Clear();
+            _pendingPreservedVisualStrings.Clear();
+            _pendingPreservedVisualBools.Clear();
+            _pendingPreservedSizeMode = null;
+            _pendingPreservedInvalidValueCount = 0;
         }
 
         private ContextSettings BindContext(
@@ -787,55 +1118,55 @@ namespace DishonoredDynamicCrosshair
                 setActiveMethod,
                 new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "CrosshairPartSetActivePrefix"),
+                    nameof(DishonoredDynamicCrosshairPatches.CrosshairPartSetActivePrefix)),
                 new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "CrosshairPartSetActivePostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.CrosshairPartSetActivePostfix)));
             _harmony.Patch(
                 initializedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "HeroCrosshairInitializedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.HeroCrosshairInitializedPostfix)));
             _harmony.Patch(
                 _targetChangedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "TargetChangedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.TargetChangedPostfix)));
             _harmony.Patch(
                 perspectiveChangedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "PerspectiveChangedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.PerspectiveChangedPostfix)));
             _harmony.Patch(
                 equipmentSlotsChangedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "EquipmentChangedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.EquipmentChangedPostfix)));
             _harmony.Patch(
                 equipmentItemChangedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "EquipmentChangedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.EquipmentChangedPostfix)));
             _harmony.Patch(
                 crosshairSettingChangedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "EquipmentChangedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.EquipmentChangedPostfix)));
             _harmony.Patch(
                 _refreshCrosshairMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "CrosshairRefreshedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.CrosshairRefreshedPostfix)));
             _harmony.Patch(
                 raycasterAttachedMethod,
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "HeroRaycasterAttachedPostfix"));
+                    nameof(DishonoredDynamicCrosshairPatches.HeroRaycasterAttachedPostfix)));
             _harmony.Patch(
                 raycasterDiscardingMethod,
                 prefix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
-                    "HeroRaycasterDiscardingPrefix"));
+                    nameof(DishonoredDynamicCrosshairPatches.HeroRaycasterDiscardingPrefix)));
         }
 
         internal void FilterVanillaPartActivation(object part, ref bool active)
@@ -2494,7 +2825,7 @@ namespace DishonoredDynamicCrosshair
 
     internal static class DishonoredDynamicCrosshairPatches
     {
-        private static void CrosshairPartSetActivePrefix(
+        internal static void CrosshairPartSetActivePrefix(
             object __instance,
             ref bool __0)
         {
@@ -2506,7 +2837,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void CrosshairPartSetActivePostfix(object __instance)
+        internal static void CrosshairPartSetActivePostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2516,7 +2847,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void HeroCrosshairInitializedPostfix(object __instance)
+        internal static void HeroCrosshairInitializedPostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2526,7 +2857,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void TargetChangedPostfix(
+        internal static void TargetChangedPostfix(
             object __instance,
             object __0)
         {
@@ -2538,7 +2869,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void PerspectiveChangedPostfix(object __instance)
+        internal static void PerspectiveChangedPostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2548,7 +2879,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void EquipmentChangedPostfix(object __instance)
+        internal static void EquipmentChangedPostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2558,7 +2889,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void CrosshairRefreshedPostfix(object __instance)
+        internal static void CrosshairRefreshedPostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2568,7 +2899,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void HeroRaycasterAttachedPostfix(object __instance)
+        internal static void HeroRaycasterAttachedPostfix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;
@@ -2578,7 +2909,7 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
-        private static void HeroRaycasterDiscardingPrefix(object __instance)
+        internal static void HeroRaycasterDiscardingPrefix(object __instance)
         {
             DishonoredDynamicCrosshairPlugin plugin =
                 DishonoredDynamicCrosshairPlugin.Instance;

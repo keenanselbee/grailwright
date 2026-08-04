@@ -2,12 +2,14 @@
   "id": "BloodMagicExpansion",
   "displayName": "Blood Magic Expansion",
   "packageName": "BloodMagicExpansion",
-  "version": "2.2.5",
+  "version": "2.3.9",
   "pluginGuid": "ks.tgfoa.blood-magic-expansion",
   "dll": "BloodMagicExpansion.dll",
   "sourceFiles": [
     "src/BloodMagicExpansion.cs",
-    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs"
+    "src/BleedSkillGraphPreloader.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
   "references": [
     "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
@@ -16,6 +18,8 @@
     "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
-    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll"
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.VisualScripting.Flow.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
   ]
 }

@@ -1,3 +1,28 @@
+Version 1.0.8
+Work in progress; not yet released.
+Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
+
+Version 1.0.7
+Made the final Import Previous Settings tab always available with current and compatible backup schema status.
+Kept the one-shot import action safe when no compatible backup exists and clarified restart guidance.
+
+Version 1.0.6
+Added an explicit Import Previous Settings tab in FoA Mod Manager when a supported pre-schema backup exists.
+The one-shot import restores only compatible settings that differed from their previous defaults, keeps new defaults, clamps current ranges, applies schema safety rules, and creates a pre-import backup.
+
+Version 1.0.5
+Requests Grail Floating Text's five-second System duration for config schema resets and load-time errors.
+
+Version 1.0.4
+Hid ConfigSchemaVersion from FoA Mod Manager while keeping it in the config file for safe schema resets.
+
+Version 1.0.3
+Shows successful config schema resets through Grail Floating Text with the system icon and VeryLong duration bucket.
+
+Version 1.0.2
+Removed the per-kill XP diagnostic context allocation by using a readonly value context.
+Replaced owned Harmony callback and transpiler helper name strings with compiler-checked references.
+
 Version 1.0.1
 Added optional Grail Floating Text load-time error notices with the debug icon for startup and required hook failures.
 Stopped reporting a successful load when the required NPC death XP hook is unavailable.

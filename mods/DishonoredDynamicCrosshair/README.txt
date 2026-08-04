@@ -7,7 +7,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 2.8.4
+  Version: 2.9.0
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -32,10 +32,12 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 2.8.4 uses ConfigSchemaVersion 3. On first launch from an older
+Version 2.9.0 uses ConfigSchemaVersion 3. On first launch from an older
 schema, the previous config is backed up beside the active config as a dated
-.bak file and fresh defaults are generated. Future releases keep user settings
-unless another configuration change requires the schema version to increase.
+.bak file and fresh defaults are generated. Reticle PNG paths, sizes, scales,
+colors, opacities, size mode, Blood Magic quality scaling, and crouch-indicator
+visual tuning survive schema resets. Behavioral and diagnostic settings receive
+fresh defaults.
 
 Design Goal
 -----------
@@ -227,3 +229,10 @@ Older DLLs can use a different plugin identity and patch the same UI.
 
 Build from this folder:
   MSBuild.exe src\DishonoredDynamicCrosshair.csproj /p:Configuration=Release
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

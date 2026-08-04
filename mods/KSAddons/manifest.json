@@ -7,40 +7,29 @@
       "id": "WyrdSightAddon",
       "displayName": "KS Wyrd Sight Addon",
       "importedVersion": "1.0.3",
-      "listedSuiteVersion": "1.0.3",
+      "listedSuiteVersion": "1.1.0",
       "targetMod": "Wyrd Sight",
       "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94",
       "targetPluginVersion": "1.1.1"
     },
     {
-      "id": "WyrdHuntAddon",
-      "displayName": "KS Wyrd Hunt Addon",
-      "importedVersion": "1.4.1",
-      "listedSuiteVersion": "1.4.1",
-      "targetMod": "Wyrd Hunt",
-      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201",
-      "targetNexusFileVersion": "5",
-      "targetPluginVersion": "0.4.65"
-    },
-    {
       "id": "TGAllLightsCastShadowsAddon",
       "displayName": "KS TG All Lights Cast Shadows Addon",
       "importedVersion": "1.1.1",
-      "listedSuiteVersion": "1.1.1",
+      "listedSuiteVersion": "1.1.9",
       "targetMod": "TG All Lights Cast Shadows",
       "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133",
       "targetNexusFileVersion": "1.0.0-mono",
       "targetPluginVersion": "1.2.0"
     },
     {
-      "id": "MoreWeaponLoadoutsAddon",
-      "displayName": "KS More Weapon Loadouts Addon",
-      "importedVersion": "0.1.3",
-      "listedSuiteVersion": "0.1.3",
-      "targetMod": "Owrocc HUD Tweaks / More Weapon Loadouts",
-      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192",
-      "targetModVersion": "1.5.0",
-      "targetNexusFileVersion": "60.2"
+      "id": "PersistentCorpsesAddon",
+      "displayName": "KS Persistent Corpses Addon",
+      "importedVersion": "1.0.0",
+      "listedSuiteVersion": "1.0.6",
+      "targetMod": "Persistent Corpses",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228",
+      "targetPluginVersion": "1.0.0"
     }
   ]
 }

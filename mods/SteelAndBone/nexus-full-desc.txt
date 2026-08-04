@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Steel and Bone[/size][/color]
 [i]Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.[/i][/center]
 
@@ -6,9 +7,6 @@
 [b]Steel and Bone[/b] is a small BepInEx 5 Mono knowledge-based difficulty mod for [b]Tainted Grail: The Fall of Avalon[/b]. It expands the game's existing enemy weakness and resistance system instead of replacing it.
 
 Tainted Grail already gives some enemies hand-authored damage reactions. Skeletons, for example, already have a vanilla blunt weakness. Steel and Bone keeps those vanilla rules first, can amplify them by preset, and then adds its own material-based rules where the same damage type is still neutral.
-
-[center][color=#F0B35A][b]Beta testing note[/b][/color]
-This 0.9.4-beta upload needs in-game testing. Please report odd enemy classifications, surprising resistance/weakness outcomes, duplicate damage numbers, or unreadable combat text.[/center]
 
 [b]Tempered[/b] is the Vanilla+ preset: it stays close to the base game and leaves vanilla enemy multipliers unchanged by default. [b]Hardened[/b] and [b]Crucible[/b] make weaknesses and resistances sharper, so the higher you set the preset, the more important it becomes to read the enemy and choose the right damage type.
 
@@ -43,12 +41,11 @@ This is meant to replace separate combat-text overlays for Steel and Bone feedba
 
 [heading][color=#C94A4A][size=5]Preset Model[/size][/color][/heading]
 [code]
-| Preset   | Meaning                                 |
+| Preset   | Meaning                                 |
 |----------|-----------------------------------------|
-| Tempered | Vanilla+; close to the base game        |
-| Hardened | Intended default; matchups matter more  |
-| Crucible | Strongest; enemy knowledge matters most |
-[/code]
+| Tempered | Vanilla+; close to the base game        |
+| Hardened | Intended default; matchups matter more  |
+| Crucible | Strongest; enemy knowledge matters most |[/code]
 
 Presets change intensity, not the list of matchups. Every Steel and Bone overlay has one base multiplier, and the preset scales that multiplier toward or away from neutral. Vanilla-authored enemy multipliers can also be amplified: Tempered defaults to 0% extra distance from neutral, Hardened to 35%, and Crucible to 70%, with true vanilla immunities left intact and extremes clamped.
 
@@ -59,20 +56,19 @@ Presets change intensity, not the list of matchups. Every Steel and Bone overlay
 These are the general combat lessons Steel and Bone teaches. Exact strength depends on your preset and on whether Tainted Grail already gave that enemy a vanilla weakness or resistance for the same damage type.
 
 [code]
-| Enemy family     | Weaknesses                   | Resistances                                             |
-|------------------|------------------------------|---------------------------------------------------------|
-| Bone undead      | Blunt                        | Blood, bleed, slash, pierce, untyped physical           |
-| Construct        | Blunt                        | Blood, bleed, poison, slash, pierce, untyped physical   |
-| Armored humanoid | Blunt                        | Slash, untyped physical                                 |
-| Ordinary flesh   | Bleed, poison, slash, pierce | Mostly neutral; specific families win first             |
-| Flesh undead     | Fire, blunt                  | Blood, bleed, poison                                    |
-| Wyrd             | Non-Wyrdness tools           | Wyrdness                                                |
-| Drowned          | Electric, blunt              | Blood, bleed                                            |
-| Infected flesh   | Fire                         | Poison                                                  |
-| Sea creatures    | Electric                     | Cold                                                    |
-| Spirit           | Special or enchanted answers | Blood, bleed, poison, plain physical                    |
-| Flora            | Fire, slash                  | Poison, bleed, pierce                                   |
-[/code]
+| Enemy family     | Weaknesses                   | Resistances                                 |
+|------------------|------------------------------|---------------------------------------------|
+| Bone undead      | Blunt                        | Blood, slash, pierce, physical              |
+| Construct        | Blunt                        | Blood, poison, slash, pierce, physical      |
+| Armored humanoid | Blunt                        | Slash, physical                             |
+| Ordinary flesh   | Blood, poison, slash, pierce | Mostly neutral                              |
+| Flesh undead     | Fire, blunt                  | Blood, poison, pierce                       |
+| Wyrd             | Non-Wyrdness tools           | Wyrdness                                    |
+| Drowned          | Electric, blunt              | Blood, pierce                               |
+| Infected flesh   | Fire, slash, pierce          | Poison                                      |
+| Sea creatures    | Electric, slash, pierce      | Cold                                        |
+| Spirit           | Wyrdness                     | Blood, poison, physical                     |
+| Flora            | Fire, slash                  | Poison, bleed, pierce                       |[/code]
 
 [line]
 
@@ -81,8 +77,6 @@ Start the game once to generate:
 
 [code]
 BepInEx/config/ks.tgfoa.steel-and-bone.cfg[/code]
-
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
 
 Common entries:
 
@@ -101,6 +95,11 @@ DamageNumbersEnabled = true
 DamageNumberBaseColor = #E3BD02
 DamageNumberFontSize = 34
 DamageNumberFontMode = GameDefault
+DamageNumberHorizontalDrift = 1
+DamageNumberVerticalDrift = 1
+DamageOverTimeNumberHeightMultiplier = 1.25
+DamageNumberSizeContrast = 1
+DamageNumberColorContrast = 1
 Diagnostics = false[/code]
 
 Steel and Bone draws its own damage-number feedback for outgoing player hits
@@ -108,6 +107,19 @@ when [b]DamageNumbersEnabled[/b] is true. To avoid duplicate combat text,
 disable other damage-number overlays such as [b]DamageNumbers.dll[/b] or
 Immersive HUD's damage text option. [b]DamageNumberFontMode[/b] can be
 [b]GameDefault[/b], [b]Sans[/b], [b]Serif[/b], or [b]ImguiDefault[/b].
+[b]DamageNumberHorizontalDrift[/b] and [b]DamageNumberVerticalDrift[/b]
+independently scale movement from 0 (off) through 1 (default) to 3
+(exaggerated). Set both to 0 for numbers that pop and fade near the hit
+position.
+[b]DamageOverTimeNumberHeightMultiplier[/b] controls the initial height of
+Bleed, Poison, Burn, and Breath status-tick numbers. Its default of 1.25 starts
+those numbers 25% higher than ordinary damage numbers.
+[b]DamageNumberSizeContrast[/b] independently controls resistance shrinking
+and weakness growth. [b]DamageNumberColorContrast[/b] independently controls
+resistance grey and weakness red-orange tinting. Both use 0 for no contrast,
+1 for the default look, and values up to 3 for a more dramatic difference.
+Critical and weak-spot pop remain independent, and immunity styling is
+unchanged.
 
 [line]
 
@@ -116,6 +128,13 @@ Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
 
 [code]
 BepInEx/plugins/SteelAndBone/SteelAndBone.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
 [line]
 
@@ -129,6 +148,8 @@ BepInEx/plugins/SteelAndBone/SteelAndBone.dll[/code]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
+[*]Compatible with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url]; its poise and combat-system changes remain separate from Steel and Bone's health-damage rules.[/*]
+[*]Compatible with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/57]Custom Difficulty[/url]; its dealer and target damage multipliers stack multiplicatively with Steel and Bone's matchup multipliers.[/*]
 [*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 

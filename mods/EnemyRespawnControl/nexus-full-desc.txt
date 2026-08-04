@@ -1,3 +1,4 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Enemy Respawn Control[/size][/color]
 [i]Control regular world mob respawn timing with game-world time presets.[/i][/center]
 
@@ -45,8 +46,6 @@ Start the game once to generate:
 BepInEx/config/ks.tgfoa.enemy-respawn-control.cfg
 [/code]
 
-[b]Config updates:[/b] This mod uses schema-versioned configs. When an update adds or changes settings, the old config is backed up and clean defaults are generated.
-
 Generated defaults use the Default preset and diagnostics off. All preset and custom durations are measured in in-game/weather time. There is no real-time mode.
 
 [code]
@@ -69,6 +68,13 @@ Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
 [code]
 BepInEx/plugins/EnemyRespawnControl/EnemyRespawnControl.dll
 [/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
 [line]
 

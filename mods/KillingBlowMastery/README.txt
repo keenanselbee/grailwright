@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.4.6
+Version 1.5.6
 
 Killing Blow Mastery is a standalone BepInEx plugin for Tainted Grail: The
 Fall of Avalon. It gives a small extra proficiency bonus to the combat skill
@@ -20,14 +20,18 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 Killing Blow Mastery starts from a clean plugin identity and uses
-ConfigSchemaVersion 12. Older KS Killing Blow configs are ignored.
+ConfigSchemaVersion 13. Older KS Killing Blow configs are ignored. Future
+schema resets preserve finisher distance fade, reward volume and pitch,
+notification format, bloodless whitelist terms, and the statistics character
+key override by exact current setting name. Numeric values are clamped to their
+current supported ranges and invalid values are skipped.
 
 Default behavior:
 
 Enabled = true
-ConfigSchemaVersion = 12
+ConfigSchemaVersion = 13
 FinisherSoundMode = WeaponSpecific
-FinisherSoundRangeVolume = 0.5
+FinisherSoundRangeVolume = 1
 BonusPercentOfEnemyXP = 4
 MaximumBonusXP = 100
 MinimumBonusXP = 1
@@ -56,8 +60,8 @@ ExportStatisticsReportOnSave = true
 
 Eligible combat skills:
 
-One Handed
-Two Handed
+One-Handed
+Two-Handed
 Unarmed
 Archery
 Shield
@@ -109,14 +113,14 @@ GoatTest -> always use goat.wav for every awarded killing blow.
 Off -> no finisher sound.
 
 FinisherSoundRangeVolume controls realistic distance fade for active finisher
-sound modes. Zero disables distance fade. One uses the full 0m = 100%, 100m+ =
-10% curve. The default 0.5 applies half-strength fade:
+sound modes. Zero disables distance fade. The default 1 uses the full 0m = 100%,
+50m+ = 10% curve:
 
 0m -> 100%
-25m -> 89%
-50m -> 78%
-75m -> 66%
-100m+ -> 55%
+12.5m -> 78%
+25m -> 55%
+37.5m -> 33%
+50m+ -> 10%
 
 FMOD is used for reward sounds. If FMOD playback fails, the mod falls back to the
 older Unity AudioSource path and logs the failure when Diagnostics is enabled.
@@ -247,7 +251,7 @@ Killing blow: +{xp} {skill}
 
 NotificationMode defaults to GrailFloatingText, the optional shared Grail
 Floating Text overlay. When Grail Floating Text 1.2.0 or newer is installed,
-reward text uses skill-level icons for One Handed, Two Handed, Archery, Shield,
+reward text uses skill-level icons for One-Handed, Two-Handed, Archery, Shield,
 Unarmed, and Magic. When Grail Floating Text 1.4.7 or newer is installed,
 killing-blow rewards use the killing-blow event ID and are red by default through
 Grail Floating Text's editable RedEvents group. Set NotificationMode = GameHud to
@@ -273,3 +277,10 @@ Build:
 
 Use the repository-level tools/Build-Mod.ps1 script to compile and export the
 package. Release zips contain only the runtime payload, README, and changelog.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

@@ -12,8 +12,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Pulse-key companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.0.4.0")]
-[assembly: AssemblyFileVersion("1.0.4.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
@@ -24,10 +24,16 @@ namespace Keenan.TGFoA.WyrdSightAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.0.4";
+        public const string PluginVersion = "1.1.0";
         public const string ParentPluginGuid = "WyrdSight";
 
         private const int ConfigSchemaVersion = 2;
+        private const int ConfigRecoveryBaselineSchema = 2;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const float DefaultPulseDurationSeconds = 3.0f;
         private const float DefaultPulseStateCheckIntervalSeconds = 0.25f;
         private const float DefaultOffRetryDelaySeconds = 0.25f;
@@ -74,6 +80,14 @@ namespace Keenan.TGFoA.WyrdSightAddon
             {
                 ResetConfigIfSchemaChanged();
                 BindConfig();
+                Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                    Config,
+                    Logger,
+                    PluginName,
+                    ConfigSchemaVersion,
+                    ConfigRecoveryBaselineSchema,
+                    ConfigRecoveryKeepCurrentDefaultRules,
+                    ConfigRecoveryPermanentExclusions);
 
                 if (!TryResolveParentFromChainloader())
                 {
@@ -97,7 +111,9 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 _harmony = new Harmony(PluginGuid);
                 _harmony.Patch(
                     handleInputMethod,
-                    prefix: new HarmonyMethod(typeof(WyrdSightInputPatch), "BeforeHandleInput"));
+                    prefix: new HarmonyMethod(
+                        typeof(WyrdSightInputPatch),
+                        nameof(WyrdSightInputPatch.BeforeHandleInput)));
 
                 Config.Save();
                 Logger.LogInfo(
@@ -203,7 +219,10 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 "1. Core",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
-                "Configuration layout version. Older layouts are backed up and regenerated.");
+                new ConfigDescription(
+                    "Configuration layout version. Older layouts are backed up and regenerated.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
                 "1. Core",
                 "Enabled",
@@ -296,6 +315,8 @@ namespace Keenan.TGFoA.WyrdSightAddon
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception exception)
             {

@@ -1,0 +1,901 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+
+namespace EyesInTheDark
+{
+    internal enum HuntRegion
+    {
+        Unknown,
+        HornsOfTheSouth,
+        Cuanacht,
+        Forlorn,
+        Sarras
+    }
+
+    internal enum GameplayTuningPreset
+    {
+        Custom,
+        UneasyNight,
+        WatchfulNight,
+        CursedNight
+    }
+
+    internal enum HunterFamily
+    {
+        Wyrdspirit,
+        Redcap,
+        CorpseEater,
+        Mistling,
+        Sharg,
+        Ogre,
+        Wyrdspawn,
+        Wyrdheir
+    }
+
+    [Flags]
+    internal enum HunterSafetyFlags
+    {
+        None = 0,
+        ReviewedUniversal = 1,
+        CanBeSidecar = 2,
+        WyrdspiritCluster = 4,
+        SoloOnly = 8
+    }
+
+    internal sealed class HunterProfile
+    {
+        public readonly string Id;
+        public readonly string TemplateGuid;
+        public readonly string TemplateName;
+        public readonly string DisplayName;
+        public readonly HunterFamily Family;
+        public readonly HuntRegion Region;
+        public readonly int Tier;
+        public readonly int MinimumPlayerLevel;
+        public readonly float DangerCost;
+        public readonly float PrimaryWeight;
+        public readonly float SidecarWeight;
+        public readonly int MaximumCopies;
+        public readonly HunterSafetyFlags SafetyFlags;
+
+        public bool IsUniversal
+        {
+            get
+            {
+                return (SafetyFlags
+                    & HunterSafetyFlags.ReviewedUniversal) != 0;
+            }
+        }
+
+        public bool CanBeSidecar
+        {
+            get
+            {
+                return (SafetyFlags
+                    & HunterSafetyFlags.CanBeSidecar) != 0;
+            }
+        }
+
+        public HunterProfile(
+            string id,
+            string templateGuid,
+            string templateName,
+            string displayName,
+            HunterFamily family,
+            HuntRegion region,
+            int tier,
+            int minimumPlayerLevel,
+            float dangerCost,
+            float primaryWeight,
+            float sidecarWeight,
+            int maximumCopies,
+            HunterSafetyFlags safetyFlags)
+        {
+            Id = id;
+            TemplateGuid = templateGuid;
+            TemplateName = templateName;
+            DisplayName = displayName;
+            Family = family;
+            Region = region;
+            Tier = tier;
+            MinimumPlayerLevel = minimumPlayerLevel;
+            DangerCost = dangerCost;
+            PrimaryWeight = primaryWeight;
+            SidecarWeight = sidecarWeight;
+            MaximumCopies = maximumCopies;
+            SafetyFlags = safetyFlags;
+        }
+    }
+
+    internal sealed class HuntEncounterPlan
+    {
+        private readonly List<HunterProfile> _members;
+
+        public HunterProfile Primary
+        {
+            get { return _members[0]; }
+        }
+
+        public IList<HunterProfile> Members
+        {
+            get { return _members.AsReadOnly(); }
+        }
+
+        public float DangerCost { get; private set; }
+
+        public int Count
+        {
+            get { return _members.Count; }
+        }
+
+        public HuntEncounterPlan(HunterProfile primary)
+        {
+            _members = new List<HunterProfile> { primary };
+            DangerCost = primary.DangerCost;
+        }
+
+        public void AddSidecar(HunterProfile profile)
+        {
+            _members.Add(profile);
+            DangerCost += profile.DangerCost;
+        }
+
+        public void ApplyCostMultiplier(float multiplier)
+        {
+            DangerCost *= multiplier;
+        }
+
+        public string DescribeComposition()
+        {
+            string[] names = new string[_members.Count];
+            for (int index = 0; index < _members.Count; index++)
+            {
+                names[index] = _members[index].DisplayName;
+            }
+            return string.Join(" + ", names);
+        }
+
+        public bool ContainsProfile(string profileId)
+        {
+            for (int index = 0; index < _members.Count; index++)
+            {
+                if (string.Equals(
+                    _members[index].Id,
+                    profileId,
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    internal struct HunterSelectionContext
+    {
+        public HuntRegion Region;
+        public int PlayerLevel;
+        public float Threat;
+        public float RemainingBudget;
+        public float DangerCostMultiplier;
+        public float SidecarChance;
+        public int MaximumPackSize;
+    }
+
+    internal sealed class HunterSelectionResult
+    {
+        public readonly HuntEncounterPlan Plan;
+        public readonly string FilterSummary;
+        public readonly string WeightSummary;
+        public readonly string Reason;
+
+        public bool Success
+        {
+            get { return Plan != null; }
+        }
+
+        public HunterSelectionResult(
+            HuntEncounterPlan plan,
+            string filterSummary,
+            string weightSummary,
+            string reason)
+        {
+            Plan = plan;
+            FilterSummary = filterSummary ?? string.Empty;
+            WeightSummary = weightSummary ?? string.Empty;
+            Reason = reason ?? string.Empty;
+        }
+    }
+
+    internal static class HuntRegionResolver
+    {
+        public static HuntRegion Resolve(string sceneName)
+        {
+            if (string.Equals(
+                sceneName,
+                "CampaignMap_HOS",
+                StringComparison.Ordinal))
+            {
+                return HuntRegion.HornsOfTheSouth;
+            }
+            if (string.Equals(
+                sceneName,
+                "CampaignMap_Cuanacht",
+                StringComparison.Ordinal))
+            {
+                return HuntRegion.Cuanacht;
+            }
+            if (string.Equals(
+                sceneName,
+                "CampaignMap_Forlorn",
+                StringComparison.Ordinal))
+            {
+                return HuntRegion.Forlorn;
+            }
+            if (string.Equals(
+                sceneName,
+                "CampaignMap_Sarras",
+                StringComparison.Ordinal))
+            {
+                return HuntRegion.Sarras;
+            }
+            return HuntRegion.Unknown;
+        }
+
+        public static string ShortName(HuntRegion region)
+        {
+            switch (region)
+            {
+                case HuntRegion.HornsOfTheSouth:
+                    return "HoS";
+                case HuntRegion.Cuanacht:
+                    return "Cuanacht";
+                case HuntRegion.Forlorn:
+                    return "Forlorn";
+                case HuntRegion.Sarras:
+                    return "Sarras";
+                default:
+                    return "Unknown";
+            }
+        }
+    }
+
+    internal sealed class HunterCatalogDirector
+    {
+        public const float MinimumBaseDangerCost = 8f;
+        private const int FailureRejectionCount = 3;
+        private const int HistoryLimit = 4;
+
+        private static readonly HunterProfile[] Profiles =
+        {
+            new HunterProfile(
+                "wyrdspirit-contact",
+                "843643575fa01ba4292e60afb9291fea",
+                "Spec_EnemyMonster_T1_Wyrdspirit",
+                "Wyrdspirit",
+                HunterFamily.Wyrdspirit,
+                HuntRegion.Unknown,
+                1,
+                1,
+                8f,
+                1.15f,
+                1.25f,
+                3,
+                HunterSafetyFlags.ReviewedUniversal
+                    | HunterSafetyFlags.CanBeSidecar
+                    | HunterSafetyFlags.WyrdspiritCluster),
+            new HunterProfile(
+                "redcap-hos",
+                "a32e5074492cce34f89ff0667fdb41b7",
+                "Spec_EnemyMonster_T1_Redcap",
+                "Redcap",
+                HunterFamily.Redcap,
+                HuntRegion.HornsOfTheSouth,
+                1,
+                4,
+                10f,
+                1.0f,
+                0.75f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "corpse-eater-hos",
+                "1a41678c288c2264c8bcfad7a6eb3ba3",
+                "Spec_EnemyMonster_T1_CorpseEater",
+                "Corpse Eater",
+                HunterFamily.CorpseEater,
+                HuntRegion.HornsOfTheSouth,
+                1,
+                7,
+                12f,
+                0.9f,
+                0.6f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "sharg-hos",
+                "324e9b5ed131ce34eb12a520cdb2b52a",
+                "Spec_EnemyMonster_T2_ShargHoS",
+                "Sharg",
+                HunterFamily.Sharg,
+                HuntRegion.HornsOfTheSouth,
+                2,
+                12,
+                16f,
+                0.8f,
+                0.25f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "ogre-hos",
+                "3f7d4ccf62c440b40b1fca822ef6ac1b",
+                "Spec_EnemyMonster_T3_Ogre",
+                "Ogre",
+                HunterFamily.Ogre,
+                HuntRegion.HornsOfTheSouth,
+                3,
+                20,
+                24f,
+                0.65f,
+                0f,
+                1,
+                HunterSafetyFlags.SoloOnly),
+            new HunterProfile(
+                "corpse-eater-cuanacht",
+                "ec6ee283175f87240b6f292697bc9d9c",
+                "Spec_EnemyMonster_T3_CorpseEater_Cuanacht",
+                "Cuanacht Corpse Eater",
+                HunterFamily.CorpseEater,
+                HuntRegion.Cuanacht,
+                3,
+                15,
+                16f,
+                0.95f,
+                0.45f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "mistling-cuanacht",
+                "f673e122b6f7e984fab5758d91f84031",
+                "Spec_EnemyMonster_T3_Mistling_Cuanacht",
+                "Cuanacht Mistling",
+                HunterFamily.Mistling,
+                HuntRegion.Cuanacht,
+                3,
+                18,
+                18f,
+                0.9f,
+                0.35f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "sharg-cuanacht",
+                "a6893b6bbb474aa4aa359fc1cfab3aa8",
+                "Spec_EnemyMonster_T4_ShargCuanacht",
+                "Cuanacht Sharg",
+                HunterFamily.Sharg,
+                HuntRegion.Cuanacht,
+                4,
+                22,
+                22f,
+                0.75f,
+                0f,
+                1,
+                HunterSafetyFlags.None),
+            new HunterProfile(
+                "ogre-cuanacht",
+                "4203075aa3e840144a18c7c6dee46ed6",
+                "Spec_EnemyMonster_T4_Ogre_Cuanacht",
+                "Cuanacht Ogre",
+                HunterFamily.Ogre,
+                HuntRegion.Cuanacht,
+                4,
+                26,
+                28f,
+                0.6f,
+                0f,
+                1,
+                HunterSafetyFlags.SoloOnly),
+            new HunterProfile(
+                "redcap-forlorn",
+                "47a85f2bc9a369a488a454d70435caac",
+                "Spec_EnemyMonster_T4_Redcap_Forlorn",
+                "Forlorn Redcap",
+                HunterFamily.Redcap,
+                HuntRegion.Forlorn,
+                4,
+                22,
+                18f,
+                0.95f,
+                0.4f,
+                1,
+                HunterSafetyFlags.CanBeSidecar),
+            new HunterProfile(
+                "mistling-forlorn",
+                "6f7fcf075b9e8f64495fc893f853bceb",
+                "Spec_EnemyMonster_T4_Mistling_Forlorn",
+                "Forlorn Mistling",
+                HunterFamily.Mistling,
+                HuntRegion.Forlorn,
+                4,
+                26,
+                24f,
+                0.75f,
+                0f,
+                1,
+                HunterSafetyFlags.None),
+            new HunterProfile(
+                "corpse-eater-forlorn",
+                "dfd5303226380e34f8ed8a59db6da5fa",
+                "Spec_EnemyMonster_T5_CorpseEater_Forlorn",
+                "Forlorn Corpse Eater",
+                HunterFamily.CorpseEater,
+                HuntRegion.Forlorn,
+                5,
+                30,
+                28f,
+                0.65f,
+                0f,
+                1,
+                HunterSafetyFlags.None),
+            new HunterProfile(
+                "wyrdspawn-sarras-t5",
+                "ae8cba51034ffdc478acd3fb2cb9bea6",
+                "Spec_EnemyMonster_T5_Wyrdspawn",
+                "Wyrdspawn",
+                HunterFamily.Wyrdspawn,
+                HuntRegion.Sarras,
+                5,
+                28,
+                26f,
+                0.85f,
+                0f,
+                1,
+                HunterSafetyFlags.None),
+            new HunterProfile(
+                "wyrdspawn-sarras-t6",
+                "529fdba73eae1c9439b5f601225d0446",
+                "Spec_EnemyMonster_T6_Wyrdspawn",
+                "Greater Wyrdspawn",
+                HunterFamily.Wyrdspawn,
+                HuntRegion.Sarras,
+                6,
+                34,
+                32f,
+                0.65f,
+                0f,
+                1,
+                HunterSafetyFlags.None),
+            new HunterProfile(
+                "wyrdheir-sarras",
+                "11cd7b8d77ff2774092d5f82c6193224",
+                "Spec_EnemyMonster_T6_Wyrdheir",
+                "Wyrdheir",
+                HunterFamily.Wyrdheir,
+                HuntRegion.Sarras,
+                6,
+                36,
+                34f,
+                0.55f,
+                0f,
+                1,
+                HunterSafetyFlags.SoloOnly)
+        };
+
+        private readonly Random _random;
+        private readonly List<string> _recentProfiles =
+            new List<string>();
+        private readonly List<HunterFamily> _recentFamilies =
+            new List<HunterFamily>();
+        private readonly Dictionary<string, int> _failureCounts =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public HunterCatalogDirector(int seed)
+        {
+            _random = new Random(seed);
+        }
+
+        public HunterSelectionResult Select(
+            HunterSelectionContext context)
+        {
+            List<WeightedProfile> primaryPool =
+                new List<WeightedProfile>();
+            List<string> filters = new List<string>();
+            float costMultiplier = Clamp(
+                context.DangerCostMultiplier,
+                0.5f,
+                2f);
+
+            for (int index = 0; index < Profiles.Length; index++)
+            {
+                HunterProfile profile = Profiles[index];
+                string reason = HardFilterReason(
+                    profile,
+                    context,
+                    costMultiplier,
+                    false);
+                if (!string.IsNullOrEmpty(reason))
+                {
+                    filters.Add(profile.Id + "(" + reason + ")");
+                    continue;
+                }
+
+                primaryPool.Add(new WeightedProfile(
+                    profile,
+                    PrimaryWeight(profile, context)));
+            }
+
+            string filterSummary = JoinLimited(filters, 120);
+            string weightSummary = DescribeWeights(primaryPool);
+            HunterProfile primary = Choose(primaryPool);
+            if (primary == null)
+            {
+                return new HunterSelectionResult(
+                    null,
+                    filterSummary,
+                    weightSummary,
+                    "eligible pool is empty");
+            }
+
+            HuntEncounterPlan plan = new HuntEncounterPlan(primary);
+            int packCap = SafetyPackCap(context.PlayerLevel);
+            packCap = Math.Min(
+                packCap,
+                Clamp(context.MaximumPackSize, 1, 3));
+            if ((primary.SafetyFlags
+                    & HunterSafetyFlags.SoloOnly) != 0)
+            {
+                packCap = 1;
+            }
+
+            while (plan.Count < packCap
+                && ShouldAddSidecar(
+                    context.SidecarChance,
+                    context.Threat,
+                    plan.Count))
+            {
+                List<WeightedProfile> sidecarPool =
+                    BuildSidecarPool(
+                        plan,
+                        context,
+                        costMultiplier);
+                HunterProfile sidecar = Choose(sidecarPool);
+                if (sidecar == null)
+                {
+                    break;
+                }
+                plan.AddSidecar(sidecar);
+            }
+
+            ScalePlanCost(plan, costMultiplier);
+            return new HunterSelectionResult(
+                plan,
+                filterSummary,
+                weightSummary,
+                "selected");
+        }
+
+        public void RecordConfirmed(HuntEncounterPlan plan)
+        {
+            if (plan == null)
+            {
+                return;
+            }
+
+            for (int index = 0; index < plan.Members.Count; index++)
+            {
+                HunterProfile profile = plan.Members[index];
+                _failureCounts.Remove(profile.Id);
+            }
+            PushHistory(plan.Primary);
+        }
+
+        public void RecordFailure(string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return;
+            }
+
+            int count;
+            _failureCounts.TryGetValue(profileId, out count);
+            _failureCounts[profileId] = count + 1;
+        }
+
+        public bool IsSessionRejected(string profileId)
+        {
+            int count;
+            return !string.IsNullOrWhiteSpace(profileId)
+                && _failureCounts.TryGetValue(profileId, out count)
+                && count >= FailureRejectionCount;
+        }
+
+        private List<WeightedProfile> BuildSidecarPool(
+            HuntEncounterPlan plan,
+            HunterSelectionContext context,
+            float costMultiplier)
+        {
+            List<WeightedProfile> pool =
+                new List<WeightedProfile>();
+            bool wyrdspiritCluster = plan.Primary.Family
+                == HunterFamily.Wyrdspirit;
+
+            for (int index = 0; index < Profiles.Length; index++)
+            {
+                HunterProfile profile = Profiles[index];
+                if (!profile.CanBeSidecar
+                    || profile.SidecarWeight <= 0f
+                    || profile.Tier > plan.Primary.Tier
+                    || (wyrdspiritCluster
+                        && profile.Family
+                            != HunterFamily.Wyrdspirit)
+                    || (!wyrdspiritCluster
+                        && plan.ContainsProfile(profile.Id))
+                    || CountProfile(plan, profile.Id)
+                        >= profile.MaximumCopies)
+                {
+                    continue;
+                }
+
+                HunterSelectionContext remainingContext = context;
+                remainingContext.RemainingBudget =
+                    context.RemainingBudget - plan.DangerCost
+                        * costMultiplier;
+                if (!string.IsNullOrEmpty(HardFilterReason(
+                    profile,
+                    remainingContext,
+                    costMultiplier,
+                    true)))
+                {
+                    continue;
+                }
+
+                float weight = profile.SidecarWeight;
+                if (profile.Tier == plan.Primary.Tier)
+                {
+                    weight *= 0.55f;
+                }
+                if (profile.Family == plan.Primary.Family)
+                {
+                    weight *= wyrdspiritCluster ? 0.85f : 0.35f;
+                }
+                pool.Add(new WeightedProfile(profile, weight));
+            }
+            return pool;
+        }
+
+        private string HardFilterReason(
+            HunterProfile profile,
+            HunterSelectionContext context,
+            float costMultiplier,
+            bool sidecar)
+        {
+            if (context.Region == HuntRegion.Unknown)
+            {
+                return "unknown-region";
+            }
+            if (!profile.IsUniversal
+                && profile.Region != context.Region)
+            {
+                return "region";
+            }
+            if (context.PlayerLevel < profile.MinimumPlayerLevel)
+            {
+                return "level<"
+                    + profile.MinimumPlayerLevel.ToString(
+                        CultureInfo.InvariantCulture);
+            }
+            if (IsSessionRejected(profile.Id))
+            {
+                return "session-rejected";
+            }
+            if (profile.DangerCost * costMultiplier
+                > context.RemainingBudget + 0.001f)
+            {
+                return "budget";
+            }
+            if (sidecar
+                && (profile.SafetyFlags
+                    & HunterSafetyFlags.SoloOnly) != 0)
+            {
+                return "solo-only";
+            }
+            return string.Empty;
+        }
+
+        private float PrimaryWeight(
+            HunterProfile profile,
+            HunterSelectionContext context)
+        {
+            float threat = Clamp(context.Threat / 100f, 0f, 1f);
+            float strength = Clamp((profile.Tier - 1f) / 2f, 0f, 1f);
+            float threatFit = 0.6f
+                + (1f - strength) * (1f - threat) * 0.8f
+                + strength * threat * 1.4f;
+            float weight = profile.PrimaryWeight * threatFit;
+
+            if (_recentProfiles.Count > 0
+                && string.Equals(
+                    _recentProfiles[0],
+                    profile.Id,
+                    StringComparison.Ordinal))
+            {
+                weight *= 0.2f;
+            }
+            else if (_recentProfiles.Contains(profile.Id))
+            {
+                weight *= 0.55f;
+            }
+
+            if (_recentFamilies.Count > 0
+                && _recentFamilies[0] == profile.Family)
+            {
+                weight *= 0.45f;
+            }
+            else if (_recentFamilies.Contains(profile.Family))
+            {
+                weight *= 0.72f;
+            }
+            return Math.Max(0.001f, weight);
+        }
+
+        private bool ShouldAddSidecar(
+            float configuredChance,
+            float threat,
+            int currentCount)
+        {
+            float chance = Clamp(configuredChance, 0f, 1f)
+                * (0.15f + 0.85f
+                    * Clamp(threat / 100f, 0f, 1f));
+            if (currentCount >= 2)
+            {
+                chance *= 0.55f;
+            }
+            return _random.NextDouble() < chance;
+        }
+
+        private HunterProfile Choose(List<WeightedProfile> pool)
+        {
+            float total = 0f;
+            for (int index = 0; index < pool.Count; index++)
+            {
+                total += pool[index].Weight;
+            }
+            if (total <= 0f)
+            {
+                return null;
+            }
+
+            double roll = _random.NextDouble() * total;
+            for (int index = 0; index < pool.Count; index++)
+            {
+                roll -= pool[index].Weight;
+                if (roll <= 0d)
+                {
+                    return pool[index].Profile;
+                }
+            }
+            return pool[pool.Count - 1].Profile;
+        }
+
+        private void PushHistory(HunterProfile profile)
+        {
+            _recentProfiles.Insert(0, profile.Id);
+            _recentFamilies.Insert(0, profile.Family);
+            if (_recentProfiles.Count > HistoryLimit)
+            {
+                _recentProfiles.RemoveAt(HistoryLimit);
+                _recentFamilies.RemoveAt(HistoryLimit);
+            }
+        }
+
+        private static int SafetyPackCap(int playerLevel)
+        {
+            if (playerLevel < 8)
+            {
+                return 1;
+            }
+            if (playerLevel < 15)
+            {
+                return 2;
+            }
+            return 3;
+        }
+
+        private static int CountProfile(
+            HuntEncounterPlan plan,
+            string profileId)
+        {
+            int count = 0;
+            for (int index = 0; index < plan.Members.Count; index++)
+            {
+                if (string.Equals(
+                    plan.Members[index].Id,
+                    profileId,
+                    StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static void ScalePlanCost(
+            HuntEncounterPlan plan,
+            float multiplier)
+        {
+            if (Math.Abs(multiplier - 1f) < 0.001f)
+            {
+                return;
+            }
+
+            plan.ApplyCostMultiplier(multiplier);
+        }
+
+        private static string DescribeWeights(
+            List<WeightedProfile> pool)
+        {
+            List<string> weights = new List<string>();
+            for (int index = 0; index < pool.Count; index++)
+            {
+                weights.Add(
+                    pool[index].Profile.Id
+                    + "="
+                    + pool[index].Weight.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture));
+            }
+            return JoinLimited(weights, 120);
+        }
+
+        private static string JoinLimited(
+            List<string> values,
+            int maximumCharacters)
+        {
+            string result = string.Empty;
+            for (int index = 0; index < values.Count; index++)
+            {
+                string candidate = string.IsNullOrEmpty(result)
+                    ? values[index]
+                    : result + ", " + values[index];
+                if (candidate.Length > maximumCharacters)
+                {
+                    return string.IsNullOrEmpty(result)
+                        ? candidate.Substring(0, maximumCharacters)
+                        : result + ", ...";
+                }
+                result = candidate;
+            }
+            return result;
+        }
+
+        private static float Clamp(float value, float minimum, float maximum)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value))
+            {
+                return minimum;
+            }
+            return Math.Max(minimum, Math.Min(maximum, value));
+        }
+
+        private static int Clamp(int value, int minimum, int maximum)
+        {
+            return Math.Max(minimum, Math.Min(maximum, value));
+        }
+
+        private struct WeightedProfile
+        {
+            public readonly HunterProfile Profile;
+            public readonly float Weight;
+
+            public WeightedProfile(
+                HunterProfile profile,
+                float weight)
+            {
+                Profile = profile;
+                Weight = weight;
+            }
+        }
+    }
+}

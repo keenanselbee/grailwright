@@ -1,7 +1,7 @@
 Ultrawide Fixes
 ===============
 
-Version 1.0.2
+Version 1.0.7
 
 Ultrawide Fixes is a standalone BepInEx 5 Mono plugin for Tainted Grail: The
 Fall of Avalon.
@@ -39,8 +39,10 @@ The config is generated after the game starts once:
 
   BepInEx\config\ks.tgfoa.ultrawide-fixes.cfg
 
-Version 1.0.2 uses ConfigSchemaVersion 1. Older configs are backed up and a
-fresh config is generated once so defaults apply cleanly.
+Version 1.0.7 uses ConfigSchemaVersion 1. Older configs are backed up and a
+fresh config is generated once so defaults apply cleanly. Display aspect,
+crop/stretch, crop focus, and title-rendering compatibility calibration survive
+schema resets.
 
 Useful config entries:
 
@@ -97,3 +99,10 @@ This does not edit bundles, video files, resources.assets, sprites, or game
 files. The title video and loading paintings are native assets, so the plugin
 cannot reveal real extra side artwork. It presents them with configurable
 crop/stretch behavior at runtime instead.
+
+PREVIOUS SETTINGS
+-----------------
+
+FoA Mod Manager always shows a final Import Previous Settings tab with the
+current and available backup schemas. Its one-shot action restores compatible
+customized settings, then automatically turns back off. Restart the game after importing.

@@ -12,6 +12,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
 using UnityEngine.TextCore.Text;
 
@@ -19,9 +20,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Knowledge-based weakness and resistance difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("0.9.4.0")]
-[assembly: AssemblyFileVersion("0.9.4.0")]
-[assembly: AssemblyInformationalVersion("0.9.4-beta")]
+[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyInformationalVersion("1.0.6")]
 
 namespace SteelAndBone
 {
@@ -31,9 +32,15 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "0.9.4";
+        public const string PluginVersion = "1.0.6";
 
-        private const int ConfigSchemaVersion = 12;
+        private const int ConfigSchemaVersion = 14;
+        private const int ConfigRecoveryBaselineSchema = 14;
+        private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
+            ConfigRecoveryKeepCurrentDefaultRules =
+                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+        private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
+            new ConfigDefinition[0];
         private const string DefaultDamageNumberBaseColor = "#E3BD02";
         private const int MaxPendingDamageFeedback = 128;
         private const float PendingDamageFeedbackLifetimeSeconds = 4.0f;
@@ -60,20 +67,29 @@ namespace SteelAndBone
             new DamageRule(TargetFamily.Construct, DamageTag.GenericPhysical, "Construct", "Physical", 0.85f, 40),
             new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Slashing | DamageTag.GenericPhysical, "Armor", "Slash/Physical", 0.88f, 65),
             new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Bludgeoning, "Armor", "Blunt", 1.10f, 66),
+            new DamageRule(TargetFamily.Flesh, DamageTag.BloodMagic, "Flesh", "Blood", 1.10f, 25),
             new DamageRule(TargetFamily.Flesh, DamageTag.Bleed | DamageTag.Poison, "Flesh", "Bleed/Poison", 1.06f, 20),
-            new DamageRule(TargetFamily.Flesh, DamageTag.Slashing | DamageTag.Piercing, "Flesh", "Slash/Pierce", 1.04f, 15),
+            new DamageRule(TargetFamily.Flesh, DamageTag.Piercing, "Flesh", "Pierce", 1.06f, 16),
+            new DamageRule(TargetFamily.Flesh, DamageTag.Slashing, "Flesh", "Slash", 1.04f, 15),
             new DamageRule(TargetFamily.FleshUndead, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Undead", "Blood/Bleed/Poison", 0.78f, 55),
+            new DamageRule(TargetFamily.FleshUndead, DamageTag.Piercing, "Undead", "Pierce", 0.90f, 56),
             new DamageRule(TargetFamily.FleshUndead, DamageTag.Fire, "Undead", "Fire", 1.08f, 50),
             new DamageRule(TargetFamily.FleshUndead, DamageTag.Bludgeoning, "Undead", "Blunt", 1.05f, 45),
             new DamageRule(TargetFamily.Wyrd, DamageTag.Wyrdness, "Wyrd", "Wyrdness", 0.35f, 70),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.BloodMagic | DamageTag.Bleed, "Drowned", "Blood/Bleed", 0.65f, 80),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.Electric, "Drowned", "Electric", 1.15f, 70),
+            new DamageRule(TargetFamily.DrownedZombie, DamageTag.Piercing, "Drowned", "Pierce", 0.90f, 65),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.Bludgeoning, "Drowned", "Blunt", 1.10f, 60),
             new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Poison, "Infected", "Poison", 0.66f, 80),
             new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Fire, "Infected", "Fire", 1.15f, 70),
+            new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Piercing, "Infected", "Pierce", 1.06f, 62),
+            new DamageRule(TargetFamily.InfectedFlesh, DamageTag.Slashing, "Infected", "Slash", 1.04f, 61),
             new DamageRule(TargetFamily.SeaFlesh, DamageTag.Cold, "Sea", "Cold", 0.70f, 70),
             new DamageRule(TargetFamily.SeaFlesh, DamageTag.Electric, "Sea", "Electric", 1.12f, 60),
+            new DamageRule(TargetFamily.SeaFlesh, DamageTag.Piercing, "Sea", "Pierce", 1.06f, 56),
+            new DamageRule(TargetFamily.SeaFlesh, DamageTag.Slashing, "Sea", "Slash", 1.04f, 55),
             new DamageRule(TargetFamily.Spirit, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Spirit", "Blood/Bleed/Poison", 0.35f, 90),
+            new DamageRule(TargetFamily.Spirit, DamageTag.Wyrdness, "Spirit", "Wyrdness", 1.15f, 60),
             new DamageRule(TargetFamily.Spirit, DamageTag.GenericPhysical | DamageTag.Slashing | DamageTag.Piercing | DamageTag.Bludgeoning, "Spirit", "Physical", 0.85f, 50),
             new DamageRule(TargetFamily.Flora, DamageTag.Poison | DamageTag.Bleed | DamageTag.Piercing, "Flora", "Poison/Bleed/Pierce", 0.70f, 70),
             new DamageRule(TargetFamily.Flora, DamageTag.Fire | DamageTag.Slashing, "Flora", "Fire/Slash", 1.15f, 70)
@@ -136,6 +152,11 @@ namespace SteelAndBone
         private ConfigEntry<DamageNumberFontMode> _damageNumberFontMode;
         private ConfigEntry<float> _damageNumberDurationSeconds;
         private ConfigEntry<float> _damageNumberCriticalDurationSeconds;
+        private ConfigEntry<float> _damageNumberHorizontalDrift;
+        private ConfigEntry<float> _damageNumberVerticalDrift;
+        private ConfigEntry<float> _damageOverTimeNumberHeightMultiplier;
+        private ConfigEntry<float> _damageNumberSizeContrast;
+        private ConfigEntry<float> _damageNumberColorContrast;
         private ConfigEntry<float> _damageNumberMinimumAmount;
         private ConfigEntry<int> _damageNumberMaximumActive;
         private ConfigEntry<string> _boneUndeadTerms;
@@ -181,6 +202,7 @@ namespace SteelAndBone
         private string[] _cachedArmoredHumanoidTerms = new string[0];
         private int _targetTermsRevision = 1;
         private string _lastDamageNumberFontDiagnosticKey;
+        private FontAsset _imguiDefaultFontAsset;
 
         private void Awake()
         {
@@ -225,6 +247,12 @@ namespace SteelAndBone
                 _damageNumberRenderer = null;
             }
 
+            if (_imguiDefaultFontAsset != null)
+            {
+                Destroy(_imguiDefaultFontAsset);
+                _imguiDefaultFontAsset = null;
+            }
+
             Instance = null;
         }
 
@@ -233,7 +261,14 @@ namespace SteelAndBone
             ResetConfigIfSchemaChanged();
 
             _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, "Configuration layout version. It changes only when an update requires fresh defaults.");
+            Config.Bind(
+                "1. Core",
+                "ConfigSchemaVersion",
+                ConfigSchemaVersion,
+                new ConfigDescription(
+                    "Configuration layout version. It changes only when an update requires fresh defaults.",
+                    null,
+                    new System.ComponentModel.BrowsableAttribute(false)));
             _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Damage-rule strength profile. Tempered is lighter, Hardened is the default, and Crucible makes every Steel and Bone rule matter more.");
             _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, "Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.");
             _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, "Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.");
@@ -253,6 +288,11 @@ namespace SteelAndBone
             _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, "Font used by Steel and Bone damage numbers. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
             _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, "Seconds a normal Steel and Bone damage number remains visible.");
             _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, "Seconds a critical Steel and Bone damage number remains visible.");
+            _damageNumberHorizontalDrift = Config.Bind("3. Feedback", "DamageNumberHorizontalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberVerticalDrift = Config.Bind("3. Feedback", "DamageNumberVerticalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageOverTimeNumberHeightMultiplier = Config.Bind("3. Feedback", "DamageOverTimeNumberHeightMultiplier", 1.25f, new ConfigDescription("Multiplier for the initial world-space height of Bleed, Poison, Burn, and Breath status-tick damage numbers. 1 uses the ordinary damage-number height, while 1.25 starts damage-over-time numbers 25% higher.", new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberSizeContrast = Config.Bind("3. Feedback", "DamageNumberSizeContrast", 1.0f, new ConfigDescription("Strength of the size difference between resisted, neutral, and weakness damage numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberColorContrast = Config.Bind("3. Feedback", "DamageNumberColorContrast", 1.0f, new ConfigDescription("Strength of resistance grey and weakness red-orange tinting away from the neutral damage-number color. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", new AcceptableValueRange<float>(0.0f, 3.0f)));
             _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, "Suppress non-immune damage numbers below this final damage amount.");
             _damageNumberMaximumActive = Config.Bind("3. Feedback", "DamageNumberMaximumActive", 36, "Maximum Steel and Bone floating damage numbers kept on screen at once.");
 
@@ -315,6 +355,14 @@ namespace SteelAndBone
             _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, "Log damage-rule classification, vanilla multiplier checks, and multiplier decisions.");
             _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, "Log warnings when required game methods cannot be patched.");
 
+            Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
+                Config,
+                Logger,
+                PluginName,
+                ConfigSchemaVersion,
+                ConfigRecoveryBaselineSchema,
+                ConfigRecoveryKeepCurrentDefaultRules,
+                ConfigRecoveryPermanentExclusions);
             Config.Save();
         }
 
@@ -377,6 +425,8 @@ namespace SteelAndBone
                     + ". Generated fresh defaults and backed up the old config to "
                     + backupPath
                     + ".");
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowConfigReset(
+                    PluginGuid, PluginName, storedSchemaVersion, ConfigSchemaVersion);
             }
             catch (Exception ex)
             {
@@ -427,7 +477,9 @@ namespace SteelAndBone
             }
 
             MethodInfo original = AccessTools.Method(healthElementType, "ApplyDamageModifiers");
-            MethodInfo postfix = AccessTools.Method(typeof(ApplyDamageModifiersPatch), "Postfix");
+            MethodInfo postfix = AccessTools.Method(
+                typeof(ApplyDamageModifiersPatch),
+                nameof(ApplyDamageModifiersPatch.Postfix));
             if (original == null || postfix == null)
             {
                 Warn("Could not patch HealthElement.ApplyDamageModifiers. " + PluginName + " is inactive.");
@@ -439,7 +491,9 @@ namespace SteelAndBone
             LogDiagnostic("Patched " + healthElementType.FullName + ".ApplyDamageModifiers.");
 
             MethodInfo outcomeOriginal = AccessTools.Method(healthElementType, "AfterHealthDecreaseEvents");
-            MethodInfo outcomePostfix = AccessTools.Method(typeof(AfterHealthDecreaseEventsPatch), "Postfix");
+            MethodInfo outcomePostfix = AccessTools.Method(
+                typeof(AfterHealthDecreaseEventsPatch),
+                nameof(AfterHealthDecreaseEventsPatch.Postfix));
             if (outcomeOriginal == null || outcomePostfix == null)
             {
                 Warn("Could not patch HealthElement.AfterHealthDecreaseEvents. Steel and Bone damage numbers are unavailable, but damage rules remain active.");
@@ -520,7 +574,7 @@ namespace SteelAndBone
             }
 
             float feedbackMultiplier = multiplier;
-            if (appliedVanillaAmplification && vanillaAmplification != null)
+            if (appliedVanillaAmplification)
             {
                 feedbackMultiplier *= vanillaAmplification.AmplifiedMultiplier;
             }
@@ -565,7 +619,7 @@ namespace SteelAndBone
             ref float damageModifier,
             out VanillaMultiplierAmplification amplification)
         {
-            amplification = null;
+            amplification = default(VanillaMultiplierAmplification);
             if (_amplifyVanillaMultipliers == null
                 || !_amplifyVanillaMultipliers.Value
                 || damage == null
@@ -587,7 +641,7 @@ namespace SteelAndBone
 
             if (!HasMeaningfulEffect(amplification.AdjustmentMultiplier))
             {
-                amplification = null;
+                amplification = default(VanillaMultiplierAmplification);
                 return false;
             }
 
@@ -623,7 +677,7 @@ namespace SteelAndBone
             float strength,
             out VanillaMultiplierAmplification amplification)
         {
-            amplification = null;
+            amplification = default(VanillaMultiplierAmplification);
             if (damage == null || damageClass == null)
             {
                 return false;
@@ -678,13 +732,11 @@ namespace SteelAndBone
                 return false;
             }
 
-            amplification = new VanillaMultiplierAmplification
-            {
-                SubtypeName = subtypeBuilder.ToString(),
-                NativeMultiplier = nativeProduct,
-                AmplifiedMultiplier = amplifiedProduct,
-                AdjustmentMultiplier = adjustmentProduct
-            };
+            amplification = new VanillaMultiplierAmplification(
+                subtypeBuilder.ToString(),
+                nativeProduct,
+                amplifiedProduct,
+                adjustmentProduct);
             return true;
         }
 
@@ -777,7 +829,8 @@ namespace SteelAndBone
             out bool skippedForVanilla,
             out bool skippedForEliteClamp)
         {
-            match = null;
+            match = default(DamageRuleMatch);
+            bool hasMatch = false;
             skippedForVanilla = false;
             skippedForEliteClamp = false;
 
@@ -790,6 +843,16 @@ namespace SteelAndBone
             for (int i = 0; i < DamageRules.Length; i++)
             {
                 DamageRule rule = DamageRules[i];
+                if (rule.TargetFamily == TargetFamily.FleshUndead
+                    && targetClass.IsInfectedFlesh
+                    && rule.MatchesDamageTag(
+                        DamageTag.GenericPhysical
+                        | DamageTag.Slashing
+                        | DamageTag.Piercing
+                        | DamageTag.Bludgeoning))
+                {
+                    continue;
+                }
                 if (!TargetMatchesRule(targetClass, rule.TargetFamily) || !damageClass.HasAny(rule.DamageTags))
                 {
                     continue;
@@ -834,26 +897,25 @@ namespace SteelAndBone
                     continue;
                 }
 
-                DamageRuleMatch candidate = new DamageRuleMatch
-                {
-                    Multiplier = ruleMultiplier,
-                    TargetLabel = rule.TargetLabel,
-                    DamageLabel = rule.DamageLabel,
-                    Priority = rule.Priority,
-                    Impact = GetRuleImpact(ruleMultiplier),
-                    PresetMultiplier = presetMultiplier,
-                    WasEliteClamped = Math.Abs(presetMultiplier - ruleMultiplier) > 0.001f
-                };
+                DamageRuleMatch candidate = new DamageRuleMatch(
+                    ruleMultiplier,
+                    rule.TargetLabel,
+                    rule.DamageLabel,
+                    rule.Priority,
+                    GetRuleImpact(ruleMultiplier),
+                    presetMultiplier,
+                    Math.Abs(presetMultiplier - ruleMultiplier) > 0.001f);
 
-                if (match == null
+                if (!hasMatch
                     || candidate.Priority > match.Priority
                     || (candidate.Priority == match.Priority && candidate.Impact > match.Impact))
                 {
                     match = candidate;
+                    hasMatch = true;
                 }
             }
 
-            return match != null;
+            return hasMatch;
         }
 
         private bool ShouldSkipForVanillaMultiplier(
@@ -1352,6 +1414,15 @@ namespace SteelAndBone
             }
 
             return classification;
+        }
+
+        private bool IsDamageOverTime(object damage)
+        {
+            object statusDamageType = GetOptionalPropertyValue(damage, "StatusDamageType");
+            return ValueNameContains(statusDamageType, "Bleed")
+                || ValueNameContains(statusDamageType, "Poison")
+                || ValueNameContains(statusDamageType, "Burn")
+                || ValueNameContains(statusDamageType, "Breath");
         }
 
         private bool DamageHasSubtype(object damage, string subtypeName)
@@ -2082,7 +2153,13 @@ namespace SteelAndBone
                 || IsTrueMember(damage, "IsWeakSpot")
                 || IsTrueMember(modifiersInfo, "IsWeakSpot");
 
-            DamageNumberVisual visual = BuildDamageNumberVisual(finalAmount, feedback, critical, weakSpot, immune);
+            DamageNumberVisual visual = BuildDamageNumberVisual(
+                finalAmount,
+                feedback,
+                critical,
+                weakSpot,
+                immune,
+                IsDamageOverTime(damage));
             _damageNumberRenderer.ShowDamageNumber(position, visual);
         }
 
@@ -2200,11 +2277,14 @@ namespace SteelAndBone
             PendingDamageFeedback feedback,
             bool critical,
             bool weakSpot,
-            bool immune)
+            bool immune,
+            bool damageOverTime)
         {
             float multiplier = feedback == null ? 1.0f : feedback.Multiplier;
             float resistance = multiplier < 0.999f ? Mathf.Clamp01((1.0f - multiplier) / 0.95f) : 0.0f;
             float weakness = multiplier > 1.001f ? Mathf.Clamp01(multiplier - 1.0f) : 0.0f;
+            float sizeContrast = GetDamageNumberSizeContrast();
+            float colorContrast = GetDamageNumberColorContrast();
 
             Color baseColor = GetDamageNumberBaseColor();
             Color color = baseColor;
@@ -2218,8 +2298,9 @@ namespace SteelAndBone
             if (resistance > 0.0f)
             {
                 float tone = Mathf.Clamp01(0.18f + (resistance * 0.82f));
-                color = Color.Lerp(baseColor, ResistedDamageNumberColor, tone);
-                scale = Mathf.Lerp(0.96f, 0.68f, resistance);
+                color = Color.Lerp(baseColor, ResistedDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                float resistedScale = Mathf.Lerp(0.96f, 0.68f, resistance);
+                scale = 1.0f + ((resistedScale - 1.0f) * sizeContrast);
                 duration = Mathf.Lerp(duration, 0.60f, resistance);
                 fadeStart = 0.44f;
                 horizontalDistance = UnityEngine.Random.Range(26.0f, 52.0f);
@@ -2229,8 +2310,9 @@ namespace SteelAndBone
             else if (weakness > 0.0f)
             {
                 float tone = Mathf.Clamp01(0.30f + (weakness * 0.70f));
-                color = Color.Lerp(baseColor, WeaknessDamageNumberColor, tone);
-                scale = Mathf.Lerp(1.12f, 1.46f, weakness);
+                color = Color.Lerp(baseColor, WeaknessDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                float weaknessScale = Mathf.Lerp(1.12f, 1.46f, weakness);
+                scale = 1.0f + ((weaknessScale - 1.0f) * sizeContrast);
                 duration = Mathf.Max(duration, Mathf.Lerp(duration, 1.05f, weakness));
                 fadeStart = 0.62f;
                 horizontalDistance = UnityEngine.Random.Range(8.0f, 24.0f);
@@ -2279,6 +2361,7 @@ namespace SteelAndBone
                 HorizontalDistance = horizontalDistance,
                 VerticalRise = verticalRise,
                 Gravity = gravity,
+                WorldHeightMultiplier = damageOverTime ? GetDamageOverTimeNumberHeightMultiplier() : 1.0f,
                 Critical = critical
             };
         }
@@ -2312,42 +2395,42 @@ namespace SteelAndBone
             return Math.Max(12, Math.Min(80, value));
         }
 
-        private Font ResolveDamageNumberFont()
+        private FontAsset ResolveDamageNumberFontAsset()
         {
             DamageNumberFontMode mode = GetDamageNumberFontMode();
             if (mode == DamageNumberFontMode.ImguiDefault)
             {
-                return null;
+                return ResolveImguiDefaultFontAsset();
             }
 
             try
             {
                 if (mode == DamageNumberFontMode.Sans)
                 {
-                    return ResolveFontFamily(FontFamily.Sans, "Sans");
+                    return ResolveFontFamilyAsset(FontFamily.Sans, "Sans");
                 }
 
                 if (mode == DamageNumberFontMode.Serif)
                 {
-                    return ResolveFontFamily(FontFamily.Serif, "Serif");
+                    return ResolveFontFamilyAsset(FontFamily.Serif, "Serif");
                 }
 
                 FontChooseSetting setting = World.Any<FontChooseSetting>();
                 if (setting == null)
                 {
-                    return null;
+                    return TMP_Settings.defaultFontAsset;
                 }
 
                 FontFamily activeFont = setting.ActiveFont;
-                return ResolveFontFamily(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
+                return ResolveFontFamilyAsset(activeFont, activeFont == null ? "game" : "game " + activeFont.EnumName);
             }
             catch (Exception ex)
             {
                 LogDamageNumberFontDiagnosticOnce(
-                    "ResolveDamageNumberFont:" + mode.ToString() + ":" + ex.GetType().FullName,
-                    "Could not resolve " + mode + " font for Steel and Bone damage numbers; using Unity IMGUI fallback font. "
+                    "ResolveDamageNumberFontAsset:" + mode.ToString() + ":" + ex.GetType().FullName,
+                    "Could not resolve " + mode + " font asset for Steel and Bone damage numbers; using the TextMesh Pro default. "
                     + ex.GetBaseException().Message);
-                return null;
+                return TMP_Settings.defaultFontAsset;
             }
         }
 
@@ -2356,14 +2439,14 @@ namespace SteelAndBone
             return _damageNumberFontMode == null ? DamageNumberFontMode.GameDefault : _damageNumberFontMode.Value;
         }
 
-        private Font ResolveFontFamily(FontFamily fontFamily, string label)
+        private FontAsset ResolveFontFamilyAsset(FontFamily fontFamily, string label)
         {
             if (fontFamily == null)
             {
                 LogDamageNumberFontDiagnosticOnce(
                     "FontFamilyMissing:" + label,
-                    "Could not resolve " + label + " font family for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
-                return null;
+                    "Could not resolve " + label + " font family for Steel and Bone damage numbers; using the TextMesh Pro default.");
+                return TMP_Settings.defaultFontAsset;
             }
 
             FontAsset fontAsset = fontFamily.FontAsset;
@@ -2371,21 +2454,43 @@ namespace SteelAndBone
             {
                 LogDamageNumberFontDiagnosticOnce(
                     "FontAssetMissing:" + fontFamily.EnumName,
-                    "Could not resolve " + label + " FontAsset for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
-                return null;
+                    "Could not resolve " + label + " FontAsset for Steel and Bone damage numbers; using the TextMesh Pro default.");
+                return TMP_Settings.defaultFontAsset;
             }
 
-            Font sourceFont = fontAsset.sourceFontFile;
-            if (sourceFont == null)
+            return fontAsset;
+        }
+
+        private FontAsset ResolveImguiDefaultFontAsset()
+        {
+            if (_imguiDefaultFontAsset != null)
+            {
+                return _imguiDefaultFontAsset;
+            }
+
+            try
+            {
+                Font sourceFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                if (sourceFont != null)
+                {
+                    _imguiDefaultFontAsset = FontAsset.CreateFontAsset(sourceFont);
+                    if (_imguiDefaultFontAsset != null)
+                    {
+                        _imguiDefaultFontAsset.name = "SteelAndBone-ImguiDefault";
+                        _imguiDefaultFontAsset.hideFlags = HideFlags.HideAndDontSave;
+                        return _imguiDefaultFontAsset;
+                    }
+                }
+            }
+            catch (Exception ex)
             {
                 LogDamageNumberFontDiagnosticOnce(
-                    "SourceFontMissing:" + fontFamily.EnumName + ":" + fontAsset.name,
-                    "The " + label + " FontAsset '" + fontAsset.name
-                    + "' does not expose a UnityEngine.Font source file for Steel and Bone damage numbers; using Unity IMGUI fallback font.");
-                return null;
+                    "ResolveImguiDefaultFontAsset:" + ex.GetType().FullName,
+                    "Could not create the legacy fallback font asset for Steel and Bone damage numbers; using the TextMesh Pro default. "
+                    + ex.GetBaseException().Message);
             }
 
-            return sourceFont;
+            return TMP_Settings.defaultFontAsset;
         }
 
         private void LogDamageNumberFontDiagnosticOnce(string key, string message)
@@ -2409,6 +2514,36 @@ namespace SteelAndBone
         {
             float value = _damageNumberCriticalDurationSeconds == null ? 1.10f : _damageNumberCriticalDurationSeconds.Value;
             return Clamp(value, 0.45f, 3.00f);
+        }
+
+        private float GetDamageNumberHorizontalDrift()
+        {
+            float value = _damageNumberHorizontalDrift == null ? 1.0f : _damageNumberHorizontalDrift.Value;
+            return Clamp(value, 0.0f, 3.0f);
+        }
+
+        private float GetDamageNumberVerticalDrift()
+        {
+            float value = _damageNumberVerticalDrift == null ? 1.0f : _damageNumberVerticalDrift.Value;
+            return Clamp(value, 0.0f, 3.0f);
+        }
+
+        private float GetDamageOverTimeNumberHeightMultiplier()
+        {
+            float value = _damageOverTimeNumberHeightMultiplier == null ? 1.25f : _damageOverTimeNumberHeightMultiplier.Value;
+            return Clamp(value, 0.0f, 3.0f);
+        }
+
+        private float GetDamageNumberSizeContrast()
+        {
+            float value = _damageNumberSizeContrast == null ? 1.0f : _damageNumberSizeContrast.Value;
+            return Clamp(value, 0.0f, 3.0f);
+        }
+
+        private float GetDamageNumberColorContrast()
+        {
+            float value = _damageNumberColorContrast == null ? 1.0f : _damageNumberColorContrast.Value;
+            return Clamp(value, 0.0f, 3.0f);
         }
 
         private float GetDamageNumberMinimumAmount()
@@ -2865,23 +3000,53 @@ namespace SteelAndBone
             }
         }
 
-        private sealed class DamageRuleMatch
+        private readonly struct DamageRuleMatch
         {
-            public float Multiplier;
-            public string TargetLabel;
-            public string DamageLabel;
-            public int Priority;
-            public float Impact;
-            public float PresetMultiplier;
-            public bool WasEliteClamped;
+            public readonly float Multiplier;
+            public readonly string TargetLabel;
+            public readonly string DamageLabel;
+            public readonly int Priority;
+            public readonly float Impact;
+            public readonly float PresetMultiplier;
+            public readonly bool WasEliteClamped;
+
+            public DamageRuleMatch(
+                float multiplier,
+                string targetLabel,
+                string damageLabel,
+                int priority,
+                float impact,
+                float presetMultiplier,
+                bool wasEliteClamped)
+            {
+                Multiplier = multiplier;
+                TargetLabel = targetLabel;
+                DamageLabel = damageLabel;
+                Priority = priority;
+                Impact = impact;
+                PresetMultiplier = presetMultiplier;
+                WasEliteClamped = wasEliteClamped;
+            }
         }
 
-        private sealed class VanillaMultiplierAmplification
+        private readonly struct VanillaMultiplierAmplification
         {
-            public string SubtypeName;
-            public float NativeMultiplier;
-            public float AmplifiedMultiplier;
-            public float AdjustmentMultiplier;
+            public readonly string SubtypeName;
+            public readonly float NativeMultiplier;
+            public readonly float AmplifiedMultiplier;
+            public readonly float AdjustmentMultiplier;
+
+            public VanillaMultiplierAmplification(
+                string subtypeName,
+                float nativeMultiplier,
+                float amplifiedMultiplier,
+                float adjustmentMultiplier)
+            {
+                SubtypeName = subtypeName;
+                NativeMultiplier = nativeMultiplier;
+                AmplifiedMultiplier = amplifiedMultiplier;
+                AdjustmentMultiplier = adjustmentMultiplier;
+            }
         }
 
         private sealed class TargetClassification
@@ -2981,6 +3146,7 @@ namespace SteelAndBone
             public float HorizontalDistance;
             public float VerticalRise;
             public float Gravity;
+            public float WorldHeightMultiplier;
             public bool Critical;
         }
 
@@ -2989,19 +3155,20 @@ namespace SteelAndBone
             public Vector3 WorldPosition;
             public float StartTime;
             public DamageNumberVisual Visual;
+            public TextMeshProUGUI Text;
         }
 
         private sealed class DamageNumberRenderer : MonoBehaviour
         {
             private readonly List<DamageNumberEntry> _entries = new List<DamageNumberEntry>();
             private SteelAndBonePlugin _plugin;
-            private GUIStyle _style;
-            private Font _styleFont;
+            private RectTransform _canvasRoot;
 
             public void Initialize(SteelAndBonePlugin plugin)
             {
                 _plugin = plugin;
                 hideFlags = HideFlags.HideAndDontSave;
+                EnsureCanvas();
             }
 
             public void ShowDamageNumber(Vector3 worldPosition, DamageNumberVisual visual)
@@ -3014,20 +3181,31 @@ namespace SteelAndBone
                 int maximumActive = _plugin.GetDamageNumberMaximumActive();
                 while (_entries.Count >= maximumActive)
                 {
+                    DestroyEntry(_entries[0]);
                     _entries.RemoveAt(0);
+                }
+
+                TextMeshProUGUI text = CreateText(visual);
+                if (text == null)
+                {
+                    return;
                 }
 
                 _entries.Add(new DamageNumberEntry
                 {
-                    WorldPosition = worldPosition + (Vector3.up * UnityEngine.Random.Range(0.25f, 0.65f)),
+                    WorldPosition = worldPosition
+                        + (Vector3.up
+                            * UnityEngine.Random.Range(0.25f, 0.65f)
+                            * visual.WorldHeightMultiplier),
                     StartTime = Time.unscaledTime,
-                    Visual = visual
+                    Visual = visual,
+                    Text = text
                 });
             }
 
-            private void OnGUI()
+            private void LateUpdate()
             {
-                if (_plugin == null || _entries.Count == 0 || Event.current == null || Event.current.type != EventType.Repaint)
+                if (_plugin == null || _entries.Count == 0)
                 {
                     return;
                 }
@@ -3035,10 +3213,16 @@ namespace SteelAndBone
                 Camera camera = Camera.main;
                 if (camera == null)
                 {
+                    for (int i = 0; i < _entries.Count; i++)
+                    {
+                        if (_entries[i].Text != null)
+                        {
+                            _entries[i].Text.enabled = false;
+                        }
+                    }
+
                     return;
                 }
-
-                EnsureStyle();
 
                 float now = Time.unscaledTime;
                 for (int i = _entries.Count - 1; i >= 0; i--)
@@ -3049,6 +3233,7 @@ namespace SteelAndBone
                     float elapsed = now - entry.StartTime;
                     if (elapsed >= duration)
                     {
+                        DestroyEntry(entry);
                         _entries.RemoveAt(i);
                         continue;
                     }
@@ -3056,38 +3241,71 @@ namespace SteelAndBone
                     Vector3 projected = camera.WorldToScreenPoint(entry.WorldPosition);
                     if (projected.z <= 0.0f)
                     {
+                        entry.Text.enabled = false;
                         continue;
                     }
 
+                    entry.Text.enabled = true;
                     float t = Mathf.Clamp01(elapsed / duration);
-                    DrawEntry(projected, visual, t);
+                    UpdateEntry(entry, projected, visual, t);
                 }
             }
 
-            private void EnsureStyle()
+            private void EnsureCanvas()
             {
-                Font styleFont = _plugin.ResolveDamageNumberFont();
-                if (_style != null && ReferenceEquals(_styleFont, styleFont))
+                if (_canvasRoot != null)
                 {
                     return;
                 }
 
-                _styleFont = styleFont;
-                _style = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    clipping = TextClipping.Overflow,
-                    fontStyle = FontStyle.Bold,
-                    richText = false,
-                    wordWrap = false
-                };
-                if (styleFont != null)
-                {
-                    _style.font = styleFont;
-                }
+                GameObject canvasObject = new GameObject(
+                    "SteelAndBoneDamageNumberCanvas",
+                    typeof(RectTransform),
+                    typeof(Canvas));
+                canvasObject.hideFlags = HideFlags.HideAndDontSave;
+                canvasObject.transform.SetParent(transform, false);
+
+                Canvas canvas = canvasObject.GetComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.overrideSorting = true;
+                canvas.sortingOrder = 30000;
+                _canvasRoot = canvasObject.GetComponent<RectTransform>();
             }
 
-            private void DrawEntry(Vector3 projected, DamageNumberVisual visual, float t)
+            private TextMeshProUGUI CreateText(DamageNumberVisual visual)
+            {
+                EnsureCanvas();
+                if (_canvasRoot == null)
+                {
+                    return null;
+                }
+
+                GameObject textObject = new GameObject(
+                    "DamageNumber",
+                    typeof(RectTransform),
+                    typeof(CanvasRenderer),
+                    typeof(TextMeshProUGUI));
+                textObject.hideFlags = HideFlags.HideAndDontSave;
+                RectTransform rect = textObject.GetComponent<RectTransform>();
+                rect.SetParent(_canvasRoot, false);
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.zero;
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(640.0f, 220.0f);
+
+                TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
+                text.text = visual.Text;
+                text.alignment = TextAlignmentOptions.Center;
+                text.fontStyle = TMPro.FontStyles.Bold;
+                text.textWrappingMode = TextWrappingModes.NoWrap;
+                text.overflowMode = TextOverflowModes.Overflow;
+                text.richText = false;
+                text.raycastTarget = false;
+                text.outlineWidth = 0.18f;
+                return text;
+            }
+
+            private void UpdateEntry(DamageNumberEntry entry, Vector3 projected, DamageNumberVisual visual, float t)
             {
                 float smoothT = Mathf.SmoothStep(0.0f, 1.0f, t);
                 float scale = Mathf.Lerp(visual.StartScale, visual.EndScale, smoothT);
@@ -3100,41 +3318,49 @@ namespace SteelAndBone
                 float alpha = t <= fadeStart ? 1.0f : 1.0f - Mathf.Clamp01((t - fadeStart) / (1.0f - fadeStart));
                 if (alpha <= 0.01f)
                 {
+                    entry.Text.enabled = false;
                     return;
                 }
 
-                float xOffset = visual.Direction * visual.HorizontalDistance * Mathf.Sin(t * Mathf.PI * 0.75f);
-                float yOffset = (-visual.VerticalRise * t) + (visual.Gravity * t * t);
+                float xOffset = visual.Direction * visual.HorizontalDistance * Mathf.Sin(t * Mathf.PI * 0.75f) * _plugin.GetDamageNumberHorizontalDrift();
+                float yOffset = ((-visual.VerticalRise * t) + (visual.Gravity * t * t)) * _plugin.GetDamageNumberVerticalDrift();
                 float centerX = projected.x + xOffset;
-                float centerY = Screen.height - projected.y + yOffset;
+                float centerY = projected.y - yOffset;
 
-                int fontSize = Math.Max(8, Mathf.RoundToInt(visual.FontSize * scale));
-                _style.fontSize = fontSize;
+                FontAsset fontAsset = _plugin.ResolveDamageNumberFontAsset();
+                if (fontAsset != null && !ReferenceEquals(entry.Text.font, fontAsset))
+                {
+                    entry.Text.font = fontAsset;
+                }
 
-                GUIContent content = new GUIContent(visual.Text);
-                Vector2 size = _style.CalcSize(content);
-                Rect rect = new Rect(
-                    centerX - (size.x * 0.5f) - 6.0f,
-                    centerY - (size.y * 0.5f) - 3.0f,
-                    size.x + 12.0f,
-                    size.y + 6.0f);
-
-                DrawOutlinedLabel(rect, content, WithAlpha(visual.Color, alpha), WithAlpha(visual.OutlineColor, alpha * 0.88f));
+                entry.Text.fontSize = Math.Max(8.0f, visual.FontSize * scale);
+                entry.Text.color = WithAlpha(visual.Color, alpha);
+                entry.Text.outlineColor = WithAlpha(visual.OutlineColor, alpha * 0.88f);
+                entry.Text.rectTransform.anchoredPosition = new Vector2(centerX, centerY);
             }
 
-            private void DrawOutlinedLabel(Rect rect, GUIContent content, Color textColor, Color outlineColor)
+            private void DestroyEntry(DamageNumberEntry entry)
             {
-                _style.normal.textColor = outlineColor;
-                const float offset = 2.0f;
-                GUI.Label(new Rect(rect.x - offset, rect.y, rect.width, rect.height), content, _style);
-                GUI.Label(new Rect(rect.x + offset, rect.y, rect.width, rect.height), content, _style);
-                GUI.Label(new Rect(rect.x, rect.y - offset, rect.width, rect.height), content, _style);
-                GUI.Label(new Rect(rect.x, rect.y + offset, rect.width, rect.height), content, _style);
-                GUI.Label(new Rect(rect.x - offset, rect.y - offset, rect.width, rect.height), content, _style);
-                GUI.Label(new Rect(rect.x + offset, rect.y + offset, rect.width, rect.height), content, _style);
+                if (entry != null && entry.Text != null)
+                {
+                    Destroy(entry.Text.gameObject);
+                    entry.Text = null;
+                }
+            }
 
-                _style.normal.textColor = textColor;
-                GUI.Label(rect, content, _style);
+            private void OnDestroy()
+            {
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    DestroyEntry(_entries[i]);
+                }
+
+                _entries.Clear();
+                if (_canvasRoot != null)
+                {
+                    Destroy(_canvasRoot.gameObject);
+                    _canvasRoot = null;
+                }
             }
 
             private static Color WithAlpha(Color color, float alpha)

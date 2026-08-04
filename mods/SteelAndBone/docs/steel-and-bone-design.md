@@ -88,7 +88,7 @@ This section describes the current 0.9.0 behavior.
 | FleshUndead | `Zombie`, `Undead`, `Wight`, `Bloody`, `Frostbitten Warrior`, `Plaguewraith` | Covers fleshy undead where reliable zombie/bloody metadata exists but drowned or infected specifics do not. | Mild overlay only. DrownedZombie and InfectedFlesh terms can refine broad FleshUndead metadata when names expose them. |
 | Wyrd | `Wyrdspawn`, `Wyrdspirit`, `Wyrd Spirit`, `WyrdSlime`, `Wyrd Slime`, `Wyrdness` | Catches Wyrd enemies. | `Abstract:WyrdnessBound` is a better detector when reachable. Wyrdstalker is not a confirmed WyrdnessBound enemy. |
 | DrownedZombie | `Drowner`, `Drowned`, `Drowned Knight`, `Ghost Crew`, `Scourge` | Adds drowned-undead body logic without making them fire-weak. | Drowner Fire resistance is vanilla and is not duplicated as a Steel and Bone overlay. |
-| InfectedFlesh | `Red Death`, `RedDeath`, `Infected` | Catches Red Death and infected flesh enemies. | Fire and Poison overlays are skipped if vanilla already has a non-neutral subtype multiplier. |
+| InfectedFlesh | `Red Death`, `RedDeath`, `Infected` | Catches Red Death and infected flesh enemies. | Fire and Poison overlays are skipped if vanilla already has a non-neutral subtype multiplier; mild slash/pierce weaknesses retain living-flesh physical behavior. |
 | SeaFlesh | `Sarras`, `Finbled`, `Tadpole`, `Tidewraith`, `Scion`, `Archivist`, `Floatling`, `Reefback`, `Wailcap`, `Grindylow`, `Croakmaw` | Adds modest aquatic identity. | Cold resistance is often vanilla in Sarras data, so `RespectVanillaMultipliers` matters here. |
 | Spirit | `Ghost`, `Spirit`, `Wraith`, `Banshee`, `Melancholy`, `Mistling`, `Mistbearer`, `Strawchild`, `Strawfather` | Makes spirits less like ordinary flesh without full lockouts. | Physical resistance is deliberately modest until play testing confirms stronger values. |
 | Flora | `Dryad`, `Gloomfrond`, `Fleshtree`, `Wailcap`, `Viridian` | Makes plant/fungus enemies favor Fire and slash. | Wailcap poison resistance is vanilla; broad flora rules are Steel and Bone overlays. |
@@ -186,6 +186,9 @@ True vanilla immunities remain true vanilla immunities. Non-immune amplified res
 |---|---|---|
 | `DamageNumbersEnabled` | Shows built-in floating damage numbers for outgoing player hits. Neutral hits use the base color, while resistance and weakness hits still scale color/size from the applied multiplier. | Keep. This replaces the older reason-text feedback route. |
 | `DamageNumberFontMode` | Follows the game's Accessibility font choice by default and can force the simple Sans, stylized Serif, or Unity IMGUI fallback font. | Keep in parity with Grail Floating Text's font support. |
+| `DamageNumberHorizontalDrift` and `DamageNumberVerticalDrift` | Independently scale each motion axis from `0` (off) through `1` (default) to `3` (exaggerated) while preserving the relative motion profiles for criticals, weaknesses, resistances, and immunities. | Keep. This supports stationary, straight-rise, wide-spray, and exaggerated feedback styles without separate animation modes. |
+| `DamageOverTimeNumberHeightMultiplier` | Multiplies the initial world-space height for Bleed, Poison, Burn, and Breath status-tick numbers. The `1.25` default starts them 25% higher than ordinary damage numbers. | Keep. Status ticks often report a lower target position than direct hits, so they need a separate baseline without changing their motion. |
+| `DamageNumberSizeContrast` and `DamageNumberColorContrast` | Independently scale weakness/resistance size and color differences from `0` (neutral) through `1` (default) to `3` (dramatic). Critical and weak-spot pop remain independent, and immunity styling is unchanged. | Keep. Players can emphasize color without oversized text, emphasize size without color dependence, or neutralize either channel. |
 | Damage-number color scaling | The baseline number color is `#E3BD02`; stronger resistances shrink and desaturate toward grey, while stronger weaknesses grow and warm toward red-orange. | Tune after in-game visibility testing. |
 | Final-damage outcome hook | Patches the post-health-decrease event and reads the game's final damage amount and hit position for display. | Keep. This is more accurate than showing the pre-final `Damage.Amount`. |
 | Vanilla amplification config | `AmplifyVanillaMultipliers`, per-preset amplification values, and min/max clamps control how strongly vanilla-authored matchups are pushed. | Keep. This is central to the 0.9.0 atlas goal because it makes confirmed vanilla data matter more without duplicating it as custom rules. |
@@ -239,16 +242,17 @@ Recommended Hardened baseline:
 
 | Family | Slash | Pierce | Blunt | Generic Physical | Evidence note |
 |---|---:|---:|---:|---:|---|
-| Flesh | 1.10 | 1.10 | 1.00 | 1.00 | Design overlay; vanilla usually leaves ordinary flesh neutral. |
-| Armored humanoid | 0.85 | 1.05 | 1.15 | 0.95 | Design overlay. Use metadata or armor visuals carefully. |
-| Bone undead | 0.70 | 0.60 | 1.33 | 0.85 | Blunt `1.33` is confirmed on common skeleton templates; slash/pierce penalties are overlays. |
-| Drowned zombie | 0.95 | 0.90 | 1.10 | 0.90 | Design overlay; confirmed vanilla facts are Fire resistance and blind immunity, not bleed immunity or blunt weakness. |
-| Flesh undead | 0.95 | 0.90 | 1.10 | 0.90 | Design overlay; tune by template family. |
-| Spirit | 0.75 | 0.75 | 0.85 | 0.75 | Cautious overlay; no broad vanilla physical resistance was found. |
+| Flesh | 1.04 | 1.06 | 1.00 | 1.00 | Mild living-flesh baseline; vanilla usually leaves ordinary flesh neutral. |
+| Infected flesh | 1.04 | 1.06 | 1.00 | 1.00 | Shares the living-flesh physical baseline while keeping its Poison/Fire identity. |
+| Armored humanoid | 0.88 | 1.00 | 1.10 | 0.88 | Design overlay. Piercing stays neutral because the subtype does not imply armor penetration. |
+| Bone undead | 0.55 | 0.55 | 1.08 | 0.85 | Blunt `1.33` is common vanilla data and wins through vanilla-skip behavior; the table shows the fallback Steel and Bone overlay. |
+| Drowned zombie | 1.00 | 0.90 | 1.10 | 1.00 | Dead organs make pierce mildly poor, severing slash stays neutral, and blunt disrupts the degraded body. |
+| Flesh undead | 1.00 | 0.90 | 1.05 | 1.00 | Dead organs make pierce mildly poor while slash stays neutral and blunt is a mild structural counter. |
+| Spirit | 0.85 | 0.85 | 0.85 | 0.85 | Cautious overlay; no broad vanilla physical resistance was found. Wyrdness supplies the positive counter. |
 | Construct | 0.75 | 0.75 | 1.15 | 0.85 | Design overlay. Do not use one universal elemental rule for all constructs. |
-| Flora | 1.20 | 0.75 | 0.95 | 0.90 | Design overlay; Wailcap poison resistance is confirmed, but broad flora damage data is not. |
-| SeaFlesh | 1.00 | 1.00 | 0.95 | 0.95 | Confirmed vanilla pattern is Cold resistance, not physical weakness. |
-| Wyrd | 0.95 | 1.00 | 0.95 | 0.85 | Design overlay; vanilla WyrdnessBound does not imply a Wyrdness multiplier. |
+| Flora | 1.15 | 0.70 | 1.00 | 1.00 | Design overlay; Wailcap poison resistance is confirmed, but broad flora damage data is not. |
+| SeaFlesh | 1.04 | 1.06 | 1.00 | 1.00 | Shares the living-flesh physical baseline; the confirmed vanilla family pattern remains Cold resistance. |
+| Wyrd | 1.00 | 1.00 | 1.00 | 1.00 | Physical damage stays neutral; vanilla WyrdnessBound does not imply a physical multiplier. |
 
 Preset scaling:
 
@@ -267,11 +271,11 @@ Target examples:
 | Lost Knight style construct | Sword, poison, blood magic | Electric is confirmed for Lost Knight; blunt can be a Steel and Bone physical overlay. |
 | Forgeborn style construct | Sword, poison, blood magic, Fire | Cold is confirmed; blunt can be a Steel and Bone physical overlay. |
 | Cairnguard style construct | Sword, poison, blood magic, Cold | Fire is confirmed; blunt can be a Steel and Bone physical overlay. |
-| Spirit | Plain sword or spear | Holy/silver item-term, Wyrdness, purge, or enchanted weapon only if detectable. Keep physical penalty modest until validated. |
+| Spirit | Plain sword or spear | Wyrdness is the implemented answer; holy/silver or purge remain deferred until detectable. Keep the physical penalty modest. |
 | Flora | Spear, poison, bleed | Slash and Fire, with poison resistance strongest for Wailcap-style fungi. |
 | Armored humanoid | Sword-only attrition | Blunt, Electric if template supports it, or separate armor-penetrating pierce if implemented through vanilla armor penetration. |
 | Flesh brute | Hammer-only attrition | Bleed, poison, pierce, Fire if appropriate. |
-| Drowned zombie | Bleed, fire-only undead plan | Electric or blunt as shared overlays; respect confirmed Fire resistance. |
+| Drowned zombie | Pierce, bleed, fire-only undead plan | Electric or blunt as shared overlays; slash remains neutral and confirmed Fire resistance is preserved. |
 
 ## Priority 3: Magic And Status Identity
 
@@ -279,10 +283,10 @@ Different magic should have strengths and weaknesses, but only where Steel and B
 
 | Magic or status | Strong against | Weak against | Minimal implementation |
 |---|---|---|---|
-| Blood magic | Living flesh, maybe infected flesh if lore supports it later | Bone undead, drowned zombies, constructs, spirits | Current text search exists. More resistant families are implemented; add flesh bonus only after runtime testing. |
+| Blood magic | Living flesh | Bone undead, drowned zombies, constructs, spirits | Ordinary flesh now has a `1.10` weakness; keep validating that blood-magic text classification does not produce false positives. |
 | Bleed | Flesh, beasts, unarmored humanoids | Bone, constructs, Red Death, Banshee, spirits, plants if not fleshy; Drowners as a Steel and Bone overlay | Positive flesh weakness is implemented cautiously at `1.06`; tune only after false-positive checks. |
 | Poison | Flesh, beasts, some humans | Bone, constructs, undead, plants/fungus, Red Death, Wailcap-style enemies | Positive flesh weakness is implemented cautiously at `1.06`. Red Death `Poison 66%`, Wailcap `Poison 25%`, Lost Knight/Cairnguard `Poison 50%` are confirmed and respected by vanilla-skip logic. |
-| Wyrdness | Needs lore decision | Current Wyrd enemies resist it; Ice Weaver, Blood Abomination, and Giant Sentinel-style enemies have confirmed partial Wyrdness resistance | Keep current Wyrd resistance until testing says Wyrdness should destabilize Wyrd targets. Document that broad Wyrdspawn Wyrdness resistance is a mod choice. |
+| Wyrdness | Spirits | Current Wyrd enemies resist it; Ice Weaver, Blood Abomination, and Giant Sentinel-style enemies have confirmed partial Wyrdness resistance | Spirits now have a `1.15` weakness. Keep current Wyrd-family resistance until testing says Wyrdness should destabilize Wyrd targets. |
 | Fire | Confirmed against Red Death, Ice Weaver, Cairnguard, and ice Stagfather variants; plants as a Steel and Bone overlay | Confirmed weak into Drowners, Forgeborn, Flamegobbler, Lost Knight, and fire Stagfather variants | `DamageSubType.Fire` and `StatusDamageType.Burn` detection are implemented. Vanilla fire-resistant exceptions are preserved by subtype skip logic. |
 | Cold | Confirmed against Forgeborn, Grindylow, Blood Abomination, Giant Sentinel, and fire Stagfather variants | Confirmed weak into Sarras sea creatures, Ice Weaver, Cairnguard, Rimefiend, and many high-tier skeletons | `DamageSubType.Cold` detection is implemented. Use `Cold`, not frost, in config and feedback. |
 | Electric | Confirmed against Lost Knight and Tibby; Steel and Bone overlay against drowned/sea targets | Electric-aligned enemies if found | `DamageSubType.Electric` detection is implemented. Broad construct Electric weakness is still avoided. |
@@ -385,14 +389,14 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 |---|---|
 | Skeleton and bone undead | Sword, dagger/polearm/bow, mace/hammer, Cold if vanilla template has Cold resistance. |
 | Construct and animated armor | Sword/pierce, blunt, blood magic, poison, Electric only where vanilla or testing supports it. |
-| Drowned | Blood/bleed, Fire, Electric, blunt. |
-| Red Death and infected flesh | Poison, Fire, bleed if available. |
-| Sarras and sea creatures | Cold, Electric, generic physical. |
-| Spirit | Plain physical, blood/bleed/poison, any reliable special damage found during testing. |
+| Drowned | Blood/bleed, Fire, Electric, blunt, Pierce, and a neutral Slash control. |
+| Red Death and infected flesh | Poison, Fire, slash, pierce, and a neutral Blunt control. |
+| Sarras and sea creatures | Cold, Electric, slash, pierce, and a neutral Blunt control. |
+| Spirit | Plain physical, blood/bleed/poison, and Wyrdness. |
 | Flora | Poison, bleed, pierce, Fire, slash. |
 | Wyrd enemies | Wyrdness, poison/bleed if available, ordinary physical. |
 | Ordinary flesh | Bleed, poison, slash, pierce, and a control hit that should stay neutral. |
-| Flesh undead | Blood/bleed/poison, Fire, blunt, and a specific-family sample that should refine into DrownedZombie or InfectedFlesh. |
+| Flesh undead | Blood/bleed/poison, Fire, blunt, Pierce, a neutral Slash control, and a specific-family sample that should refine into DrownedZombie or InfectedFlesh. |
 | Armored humanoid | Slash, generic physical, blunt, and a specific-family overlap sample such as construct or bone armor. |
 | Elite-class target | Weakness bonus reduction, resistance floor, and a mild weakness that should become neutral. |
 
@@ -432,11 +436,11 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Cairnguard Fire/Cold test | Fire is strong and Cold is poor. |
 | Same enemy, poison/bleed vs construct | Damage is resisted or ignored and the floating number makes the resistance visible. |
 | Ordinary flesh sample | Mild Flesh rules should trigger only when no more specific family is detected. |
-| Flesh-undead sample | Mild FleshUndead rules should trigger on zombie/bloody paths, while DrownedZombie and InfectedFlesh terms refine them when present. |
+| Flesh-undead sample | Pierce is mildly resisted, Slash stays neutral, and Blunt is mildly rewarded on zombie/bloody paths; DrownedZombie and InfectedFlesh terms refine them when present. |
 | Armored humanoid sample | Slash and generic physical are modestly resisted, blunt is modestly rewarded, and stronger construct/bone/sea/spirit/flora/Wyrd families keep precedence. |
 | Elite-class sample | Diagnostics show `targetFlags=EliteClass`; custom weaknesses are reduced, low custom resistances are floored, and mild custom weaknesses can become neutral. |
-| Same spirit enemy, plain physical vs special damage | Plain physical is only modestly poor until special damage detection is reliable. |
-| Sea creature Cold/Electric test | Cold resistance is respected; Electric weakness feels modest rather than mandatory. |
+| Same spirit enemy, plain physical vs Wyrdness | Plain physical is modestly poor and Wyrdness is the clear strong answer. |
+| Sea creature Cold/Electric/physical test | Cold resistance is respected, Electric weakness feels modest rather than mandatory, Slash/Pierce receive the living-flesh bonus, and Blunt stays neutral. |
 | Preset scaling pass | The same matchup appears on Tempered, Hardened, and Crucible, but grows stronger as the preset rises. |
 | Two-handed sword route | Can beat ordinary flesh but gets increasingly inefficient against bone, construct, spirit, and flora matchups as preset strength rises. |
 | Feedback spam | Floating numbers appear often enough to teach, not often enough to annoy. |

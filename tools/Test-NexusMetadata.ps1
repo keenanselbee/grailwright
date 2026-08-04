@@ -155,6 +155,45 @@ function Get-CurrentChangelogEntryCount {
     return $count
 }
 
+function Test-ConsolidatedChangelog {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$Version
+    )
+
+    $path = Join-Path $Root "nexus-changelog.txt"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        return "NONE"
+    }
+
+    $lines = @(Get-Content -LiteralPath $path | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($lines.Count -lt 3 -or $lines[0].Trim() -ne "TargetVersion=$Version") {
+        return "INVALID"
+    }
+
+    $baselineMatch = [regex]::Match($lines[1].Trim(), '^BaselineVersion=(?<version>[0-9]+(?:\.[0-9]+){1,3})$')
+    if (-not $baselineMatch.Success -or [version]$baselineMatch.Groups["version"].Value -ge [version]$Version) {
+        return "INVALID"
+    }
+
+    $seen = @{}
+    foreach ($line in $lines | Select-Object -Skip 2) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^Version\s+[0-9]' -or $trimmed -match '^(?i:work in progress|not yet released)' -or $trimmed -match '^[-*]\s+') {
+            return "INVALID"
+        }
+
+        $normalized = ($trimmed -replace '\s+', ' ').ToLowerInvariant()
+        if ($seen.ContainsKey($normalized)) {
+            return "INVALID"
+        }
+
+        $seen[$normalized] = $true
+    }
+
+    return "OK"
+}
+
 function Test-ApiMetadata {
     param([Parameter(Mandatory = $true)][string]$Root)
 
@@ -198,8 +237,9 @@ foreach ($manifestFile in $manifestFiles) {
     $api = Test-ApiMetadata -Root $root
     $changelogCount = Get-CurrentChangelogEntryCount -Root $root -Version ([string]$manifest.version)
     $changelogState = if ($changelogCount -gt 0) { "OK" } elseif ($changelogCount -eq 0) { "MISSING" } else { "NO FILE" }
+    $consolidatedChangelog = Test-ConsolidatedChangelog -Root $root -Version ([string]$manifest.version)
 
-    if ($shortDescription.State -ne "OK" -or $fileDescription.State -ne "OK" -or $fileDescriptionShape -notin @("OK", "SKIP") -or $api.State -eq "SECRET" -or ($RequireApi -and $api.State -ne "OK")) {
+    if ($shortDescription.State -ne "OK" -or $fileDescription.State -ne "OK" -or $fileDescriptionShape -notin @("OK", "SKIP") -or $api.State -eq "SECRET" -or ($RequireApi -and $api.State -ne "OK") -or $consolidatedChangelog -eq "INVALID") {
         $hasFailure = $true
     }
 
@@ -211,6 +251,7 @@ foreach ($manifestFile in $manifestFiles) {
         FileDescriptionShape = $fileDescriptionShape
         Api = $api.State
         Changelog = "$changelogState $changelogCount"
+        ConsolidatedChangelog = $consolidatedChangelog
     })
 }
 

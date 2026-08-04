@@ -228,7 +228,7 @@ function Test-ShouldSkipExportFile {
 
     $relativePath = Get-RelativePathCompat -Root $Root -Path $File.FullName
     $segments = $relativePath -split '[\\/]'
-    if ($segments | Where-Object { $_ -in @(".git", ".svn", ".vs", "bin", "obj", "__pycache__", "images", "src", "Source", "tools") }) {
+    if ($segments | Where-Object { $_ -in @(".git", ".svn", ".vs", "bin", "obj", "__pycache__", "docs", "images", "src", "Source", "tools") }) {
         return $true
     }
 
@@ -236,7 +236,7 @@ function Test-ShouldSkipExportFile {
         return $true
     }
 
-    if ($File.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc))\.(txt|md)$') {
+    if ($File.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc|changelog))\.(txt|md)$') {
         return $true
     }
 
@@ -311,7 +311,7 @@ function Assert-PackageScratchLayout {
     }
 
     $nexusMetadata = @(Get-ChildItem -LiteralPath $topLevelItems[0].FullName -Recurse -File -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc))\.(txt|md)$' })
+        Where-Object { $_.Name -match '^(?i:nexus-(?:full-desc|short-desc|file-desc|changelog))\.(txt|md)$' })
     if ($nexusMetadata.Count -gt 0) {
         throw "Nexus metadata files are publishing source and must not be included in release zips."
     }

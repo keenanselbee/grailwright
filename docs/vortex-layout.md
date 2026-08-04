@@ -18,8 +18,9 @@ payload keeps the compact plugin folder from `mod.json`, such as
 `BloodMagicExpansion`.
 
 Repository-only content such as `src/`, `tools/`, `mod.json`, and
-`nexus-full-desc.txt` is not included in release zips. Nexus descriptions are
-publishing source, not runtime install payload.
+`nexus-full-desc.txt` or `nexus-changelog.txt` is not included in release zips.
+Nexus descriptions and consolidated release text are publishing source, not
+runtime install payload.
 
 Vortex should install the package as a BepInEx plugin mod so the payload lands
 under:

@@ -28,6 +28,8 @@ param(
 
     [switch]$ListFiles,
     [switch]$AddChangelog,
+    [string]$ConsolidatedChangelogPath = "",
+    [string]$DryRunChangelogBaselineVersion = "",
     [switch]$DryRun,
     [string]$ApiBaseUrl = "https://api.nexusmods.com/v3",
     [int]$LockWaitSeconds = 0,
@@ -357,13 +359,24 @@ function Resolve-RemoteModId {
     }
 }
 
-function Get-CurrentChangelogEntries {
+function ConvertTo-NexusReleaseVersion {
     param(
-        [string]$Root,
-        [string]$Version
+        [string]$Version,
+        [string]$Context
     )
 
-    if ([string]::IsNullOrWhiteSpace($Root) -or [string]::IsNullOrWhiteSpace($Version)) {
+    $match = [regex]::Match($Version.Trim(), '^(?<numeric>[0-9]+(?:\.[0-9]+){1,3})(?:[-+][0-9A-Za-z][0-9A-Za-z._-]*)?$')
+    if (!$match.Success) {
+        throw "Invalid release version '$Version'$Context. Expected two to four numeric components with an optional prerelease/build suffix."
+    }
+
+    return [version]$match.Groups["numeric"].Value
+}
+
+function Get-ChangelogSections {
+    param([string]$Root)
+
+    if ([string]::IsNullOrWhiteSpace($Root)) {
         return @()
     }
 
@@ -373,32 +386,275 @@ function Get-CurrentChangelogEntries {
     }
 
     $lines = Get-Content -LiteralPath $path
-    $entries = New-Object "System.Collections.Generic.List[string]"
-    $inSection = $false
+    $sections = New-Object "System.Collections.Generic.List[object]"
+    $currentVersion = ""
+    $currentEntries = New-Object "System.Collections.Generic.List[string]"
 
     foreach ($line in $lines) {
         $trimmed = $line.Trim()
-        $isHeader = $trimmed -match '^(?:Version\s+)?[A-Za-z0-9 ''().:_-]*\b[0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z][0-9A-Za-z._-]*)?\b\s*$'
-        if ($isHeader) {
-            if ($inSection) {
-                break
+        $headerMatch = [regex]::Match($trimmed, '^Version\s+(?<version>[0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z][0-9A-Za-z._-]*)?)$')
+        if ($headerMatch.Success) {
+            if (-not [string]::IsNullOrWhiteSpace($currentVersion)) {
+                $sections.Add([pscustomobject]@{
+                    Version = $currentVersion
+                    Entries = $currentEntries.ToArray()
+                })
             }
 
-            if ($trimmed -match [regex]::Escape($Version)) {
-                $inSection = $true
-            }
-
+            $currentVersion = $headerMatch.Groups["version"].Value
+            $currentEntries = New-Object "System.Collections.Generic.List[string]"
             continue
         }
 
-        if (!$inSection -or [string]::IsNullOrWhiteSpace($trimmed)) {
+        if ([string]::IsNullOrWhiteSpace($currentVersion) -or [string]::IsNullOrWhiteSpace($trimmed)) {
             continue
         }
 
-        $entries.Add(($trimmed -replace '^\s*[-*]\s*', ''))
+        $currentEntries.Add(($trimmed -replace '^\s*[-*]\s*', ''))
     }
 
-    return @($entries)
+    if (-not [string]::IsNullOrWhiteSpace($currentVersion)) {
+        $sections.Add([pscustomobject]@{
+            Version = $currentVersion
+            Entries = $currentEntries.ToArray()
+        })
+    }
+
+    return $sections.ToArray()
+}
+
+function Get-CumulativeChangelogSelection {
+    param(
+        [string]$Root,
+        [string]$TargetVersion,
+        [string]$PublishedVersion
+    )
+
+    $target = ConvertTo-NexusReleaseVersion -Version $TargetVersion -Context " for the upload target"
+    $published = ConvertTo-NexusReleaseVersion -Version $PublishedVersion -Context " reported by Nexus"
+    if ($target -le $published) {
+        throw "Nexus already reports version $PublishedVersion for this file group; upload target $TargetVersion must be newer."
+    }
+
+    $sections = @(Get-ChangelogSections -Root $Root)
+    $targetSection = @($sections | Where-Object { $_.Version -eq $TargetVersion })
+    if ($targetSection.Count -ne 1) {
+        throw "Expected exactly one CHANGELOG.txt block for upload target Version $TargetVersion; found $($targetSection.Count)."
+    }
+
+    $selected = @($sections | Where-Object {
+        $sectionVersion = ConvertTo-NexusReleaseVersion -Version $_.Version -Context " in CHANGELOG.txt"
+        $sectionVersion -gt $published -and $sectionVersion -le $target
+    })
+    if ($selected.Count -eq 0) {
+        return [pscustomobject]@{
+            Sections = @()
+            Entries = @()
+        }
+    }
+
+    $entries = New-Object "System.Collections.Generic.List[string]"
+    foreach ($section in $selected) {
+        foreach ($entry in $section.Entries) {
+            $entries.Add($entry)
+        }
+    }
+
+    return [pscustomobject]@{
+        Sections = @($selected)
+        Entries = $entries.ToArray()
+    }
+}
+
+function Assert-ConsolidatedChangelogEntries {
+    param(
+        [string[]]$Entries,
+        [string]$Source
+    )
+
+    if ($Entries.Count -eq 0) {
+        throw "Consolidated Nexus changelog has no entries: $Source"
+    }
+
+    $seen = @{}
+    foreach ($entry in $Entries) {
+        $trimmed = $entry.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            continue
+        }
+
+        if ($trimmed -match '^Version\s+[0-9]') {
+            throw "Consolidated Nexus changelog must not contain embedded version headings: '$trimmed' in $Source"
+        }
+
+        if ($trimmed -match '^(?i:work in progress|not yet released)') {
+            throw "Consolidated Nexus changelog contains an unreleased-work marker: '$trimmed' in $Source"
+        }
+
+        if ($trimmed -match '^[-*]\s+') {
+            throw "Consolidated Nexus changelog entries must not include Markdown bullet prefixes: '$trimmed' in $Source"
+        }
+
+        $normalized = ($trimmed -replace '\s+', ' ').ToLowerInvariant()
+        if ($seen.ContainsKey($normalized)) {
+            throw "Consolidated Nexus changelog contains an obvious duplicate entry: '$trimmed' in $Source"
+        }
+
+        $seen[$normalized] = $true
+    }
+}
+
+function Read-ConsolidatedChangelog {
+    param(
+        [string]$Path,
+        [string]$TargetVersion,
+        [string]$PublishedVersion
+    )
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        return $null
+    }
+
+    $candidateRoot = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot ".codex-temp\nexus-changelog-candidates")).TrimEnd("\") + "\"
+    if ($resolvedPath.StartsWith($candidateRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Generated changelog candidates cannot be uploaded directly. Review and consolidate the candidate, then save the result as the mod's nexus-changelog.txt or another explicit reviewed path."
+    }
+
+    $lines = @(Get-Content -LiteralPath $resolvedPath)
+    $contentLines = @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($contentLines.Count -lt 3) {
+        throw "Reviewed Nexus changelog must contain TargetVersion, BaselineVersion, and at least one change entry: $resolvedPath"
+    }
+
+    if ($contentLines[0].Trim() -ne "TargetVersion=$TargetVersion") {
+        throw "Reviewed Nexus changelog target is stale. Expected 'TargetVersion=$TargetVersion' as its first nonblank line: $resolvedPath"
+    }
+
+    if ($contentLines[1].Trim() -ne "BaselineVersion=$PublishedVersion") {
+        throw "Reviewed Nexus changelog baseline is stale. Expected 'BaselineVersion=$PublishedVersion' as its second nonblank line: $resolvedPath"
+    }
+
+    $entries = @($contentLines | Select-Object -Skip 2 | ForEach-Object { $_.Trim() })
+    Assert-ConsolidatedChangelogEntries -Entries $entries -Source $resolvedPath
+    return [pscustomobject]@{
+        Path = $resolvedPath
+        Entries = $entries
+    }
+}
+
+function Write-ConsolidatedChangelogCandidate {
+    param(
+        [string]$PackageName,
+        [string]$TargetVersion,
+        [string]$PublishedVersion,
+        [string[]]$Entries
+    )
+
+    $candidateRoot = Join-Path $RepoRoot ".codex-temp\nexus-changelog-candidates"
+    New-Item -ItemType Directory -Force -Path $candidateRoot | Out-Null
+    $safePackageName = $PackageName -replace '[^A-Za-z0-9._-]', '-'
+    $candidatePath = Join-Path $candidateRoot ("{0}-{1}-from-{2}.txt" -f $safePackageName, $TargetVersion, $PublishedVersion)
+    $candidateLines = @(
+        "TargetVersion=$TargetVersion",
+        "BaselineVersion=$PublishedVersion",
+        ""
+    ) + $Entries
+    Set-Content -LiteralPath $candidatePath -Value $candidateLines -Encoding UTF8
+    return $candidatePath
+}
+
+function Get-NexusChangelogPlan {
+    param(
+        [string]$Root,
+        [string]$PackageName,
+        [string]$TargetVersion,
+        [string]$PublishedVersion,
+        [string]$ReviewedPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        throw "Cannot prepare a Nexus changelog without a mod root containing CHANGELOG.txt."
+    }
+
+    $selection = Get-CumulativeChangelogSelection -Root $Root -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion
+    $includedVersions = @($selection.Sections | ForEach-Object { $_.Version })
+    $rawEntries = @($selection.Entries)
+    if ($rawEntries.Count -eq 0) {
+        throw "Cannot add changelog: no entries found after Nexus version $PublishedVersion through target $TargetVersion."
+    }
+
+    $resolvedReviewedPath = $ReviewedPath
+    if ([string]::IsNullOrWhiteSpace($resolvedReviewedPath)) {
+        $resolvedReviewedPath = Join-Path $Root "nexus-changelog.txt"
+    }
+
+    $candidatePath = ""
+    if ($selection.Sections.Count -gt 1) {
+        $candidatePath = Write-ConsolidatedChangelogCandidate -PackageName $PackageName -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion -Entries $rawEntries
+    }
+
+    try {
+        $reviewed = Read-ConsolidatedChangelog -Path $resolvedReviewedPath -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion
+    } catch {
+        $candidateNote = if ([string]::IsNullOrWhiteSpace($candidatePath)) { "" } else { " Fresh raw candidate: '$candidatePath'." }
+        throw "$($_.Exception.Message)$candidateNote"
+    }
+    if ($reviewed -ne $null) {
+        return [pscustomobject]@{
+            Entries = @($reviewed.Entries)
+            IncludedVersions = $includedVersions
+            RawEntryCount = $rawEntries.Count
+            Source = "reviewed-consolidation"
+            ReviewedPath = $reviewed.Path
+            CandidatePath = $candidatePath
+        }
+    }
+
+    if ($selection.Sections.Count -gt 1) {
+        throw "Nexus upload spans $($selection.Sections.Count) local versions ($($includedVersions -join ', ')). Review and lightly consolidate repeated or superseded changes in '$candidatePath', then save the reviewed text as '$(Join-Path $Root 'nexus-changelog.txt')' or pass -ConsolidatedChangelogPath."
+    }
+
+    Assert-ConsolidatedChangelogEntries -Entries $rawEntries -Source (Join-Path $Root "CHANGELOG.txt")
+    return [pscustomobject]@{
+        Entries = $rawEntries
+        IncludedVersions = $includedVersions
+        RawEntryCount = $rawEntries.Count
+        Source = "single-version-changelog"
+        ReviewedPath = ""
+        CandidatePath = ""
+    }
+}
+
+function Get-CurrentRemoteFileVersion {
+    if ([string]::IsNullOrWhiteSpace($script:ModFileId)) {
+        throw "Cannot resolve the current Nexus changelog baseline without ModFileId/GroupId."
+    }
+
+    $response = Invoke-NexusApi -Method GET -Path ("/mod-files/{0}/versions" -f $script:ModFileId)
+    $versions = @()
+    if ($response -ne $null -and $response.data -ne $null -and (Test-JsonProperty -Object $response.data -Name "versions")) {
+        $versions = @($response.data.versions)
+    }
+    if ($versions.Count -eq 0) {
+        throw "Nexus file group $($script:ModFileId) has no existing versions to use as a cumulative changelog baseline."
+    }
+
+    $current = @($versions | Where-Object { (Test-JsonProperty -Object $_ -Name "is_primary") -and [bool]$_.is_primary } | Select-Object -First 1)
+    if ($current.Count -eq 0) {
+        $current = @($versions |
+            Where-Object { -not (Test-JsonProperty -Object $_ -Name "category") -or [string]$_.category -eq "main" } |
+            Sort-Object @{ Expression = { if (Test-JsonProperty -Object $_ -Name "uploaded_at") { [datetime]$_.uploaded_at } else { [datetime]::MinValue } }; Descending = $true } |
+            Select-Object -First 1)
+    }
+    if ($current.Count -eq 0 -or [string]::IsNullOrWhiteSpace([string]$current[0].version)) {
+        throw "Could not identify the current Nexus version for file group $($script:ModFileId)."
+    }
+
+    return [pscustomobject]@{
+        Version = [string]$current[0].version
+        VersionId = if (Test-JsonProperty -Object $current[0] -Name "id") { [string]$current[0].id } else { "" }
+    }
 }
 
 function Get-NexusMetadataText {
@@ -667,6 +923,12 @@ function Write-PublishPlan {
     param(
         [object]$Manifest,
         [string[]]$ChangelogEntries,
+        [string]$ChangelogBaselineVersion,
+        [string[]]$ChangelogIncludedVersions,
+        [string]$ChangelogSource,
+        [string]$ReviewedChangelogPath,
+        [string]$ChangelogCandidatePath,
+        [int]$RawChangelogEntryCount,
         [string]$ShortDescription,
         [string]$FileDescriptionSource
     )
@@ -694,6 +956,12 @@ function Write-PublishPlan {
         ShortDescription = $ShortDescription
         ShortDescriptionLength = $ShortDescription.Length
         AddChangelog = [bool]$script:AddChangelog
+        ChangelogBaselineVersion = $ChangelogBaselineVersion
+        ChangelogIncludedVersions = $ChangelogIncludedVersions
+        ChangelogSource = $ChangelogSource
+        ReviewedChangelogPath = $ReviewedChangelogPath
+        ChangelogCandidatePath = $ChangelogCandidatePath
+        RawChangelogEntryCount = $RawChangelogEntryCount
         ChangelogEntries = $ChangelogEntries
         DescriptionUpdate = "Manual/browser step: v3 API does not expose a main mod description update endpoint."
     }
@@ -708,6 +976,10 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedModRoot)) {
 }
 
 Resolve-NexusUrl
+
+if (-not [string]::IsNullOrWhiteSpace($DryRunChangelogBaselineVersion) -and -not $DryRun) {
+    throw "DryRunChangelogBaselineVersion may only be used with -DryRun. Live uploads must resolve their baseline from Nexus immediately before upload."
+}
 
 if ($manifest -ne $null) {
     if ([string]::IsNullOrWhiteSpace($FileName)) {
@@ -756,7 +1028,28 @@ if ([string]::IsNullOrWhiteSpace($FileName)) {
     throw "Could not infer FileName. Pass -FileName or use a mod manifest."
 }
 
-$changelogEntries = @(Get-CurrentChangelogEntries -Root $resolvedModRoot -Version $FileVersion)
+$changelogEntries = @()
+$changelogBaselineVersion = ""
+$changelogIncludedVersions = @()
+$changelogSource = ""
+$reviewedChangelogPath = ""
+$changelogCandidatePath = ""
+$rawChangelogEntryCount = 0
+if ($AddChangelog) {
+    $changelogBaselineVersion = if (-not [string]::IsNullOrWhiteSpace($DryRunChangelogBaselineVersion)) {
+        $DryRunChangelogBaselineVersion
+    } else {
+        (Get-CurrentRemoteFileVersion).Version
+    }
+    $changelogPackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
+    $changelogPlan = Get-NexusChangelogPlan -Root $resolvedModRoot -PackageName $changelogPackageName -TargetVersion $FileVersion -PublishedVersion $changelogBaselineVersion -ReviewedPath $ConsolidatedChangelogPath
+    $changelogEntries = @($changelogPlan.Entries)
+    $changelogIncludedVersions = @($changelogPlan.IncludedVersions)
+    $changelogSource = [string]$changelogPlan.Source
+    $reviewedChangelogPath = [string]$changelogPlan.ReviewedPath
+    $changelogCandidatePath = [string]$changelogPlan.CandidatePath
+    $rawChangelogEntryCount = [int]$changelogPlan.RawEntryCount
+}
 $shortDescription = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-short-desc.txt" -MaximumLength 350 -SearchParents
 $fileDescriptionSource = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-file-desc.txt" -MaximumLength 255
 if ([string]::IsNullOrWhiteSpace($FileDescription) -and -not [string]::IsNullOrWhiteSpace($fileDescriptionSource)) {
@@ -768,7 +1061,7 @@ if ($FileDescription.Length -gt 255) {
 }
 
 if ($DryRun) {
-    Write-PublishPlan -Manifest $manifest -ChangelogEntries $changelogEntries -ShortDescription $shortDescription -FileDescriptionSource $fileDescriptionSource
+    Write-PublishPlan -Manifest $manifest -ChangelogEntries $changelogEntries -ChangelogBaselineVersion $changelogBaselineVersion -ChangelogIncludedVersions $changelogIncludedVersions -ChangelogSource $changelogSource -ReviewedChangelogPath $reviewedChangelogPath -ChangelogCandidatePath $changelogCandidatePath -RawChangelogEntryCount $rawChangelogEntryCount -ShortDescription $shortDescription -FileDescriptionSource $fileDescriptionSource
     return
 }
 
@@ -802,7 +1095,25 @@ try {
         throw "Could not infer FileName. Pass -FileName or use a mod manifest."
     }
 
-    $changelogEntries = @(Get-CurrentChangelogEntries -Root $resolvedModRoot -Version $FileVersion)
+    $changelogEntries = @()
+    $changelogBaselineVersion = ""
+    $changelogIncludedVersions = @()
+    $changelogSource = ""
+    $reviewedChangelogPath = ""
+    $changelogCandidatePath = ""
+    $rawChangelogEntryCount = 0
+    if ($AddChangelog) {
+        $currentRemoteVersion = Get-CurrentRemoteFileVersion
+        $changelogBaselineVersion = $currentRemoteVersion.Version
+        $changelogPackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
+        $changelogPlan = Get-NexusChangelogPlan -Root $resolvedModRoot -PackageName $changelogPackageName -TargetVersion $FileVersion -PublishedVersion $changelogBaselineVersion -ReviewedPath $ConsolidatedChangelogPath
+        $changelogEntries = @($changelogPlan.Entries)
+        $changelogIncludedVersions = @($changelogPlan.IncludedVersions)
+        $changelogSource = [string]$changelogPlan.Source
+        $reviewedChangelogPath = [string]$changelogPlan.ReviewedPath
+        $changelogCandidatePath = [string]$changelogPlan.CandidatePath
+        $rawChangelogEntryCount = [int]$changelogPlan.RawEntryCount
+    }
     $shortDescription = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-short-desc.txt" -MaximumLength 350 -SearchParents
     $fileDescriptionSource = Get-NexusMetadataText -Root $resolvedModRoot -FileName "nexus-file-desc.txt" -MaximumLength 255
     if (-not $PSBoundParameters.ContainsKey("FileDescription") -or [string]::IsNullOrWhiteSpace($FileDescription)) {

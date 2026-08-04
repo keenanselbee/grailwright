@@ -11,7 +11,10 @@
    Both names should use the readable display name plus version, such as `Blood Magic Expansion 2.0.7`.
 6. Inspect the zip or staged folder for one compact top-level plugin folder and the expected DLL.
 7. Confirm the zip does not contain `src`, `tools`, `mod.json`, or
-   Nexus publishing metadata such as `nexus-full-desc.txt`.
+   Nexus publishing metadata such as `nexus-full-desc.txt` or `nexus-changelog.txt`.
 8. For a Desktop-only zip, omit `-StageToVortex` only when the user explicitly asks to send the build to Desktop.
 9. Publish and update Nexus only through `tools/Publish-NexusMod.ps1` and
    `tools/Update-NexusDescription.ps1` so `.codex-temp\locks\nexus.lock` serializes remote updates.
+10. Let `Publish-NexusMod.ps1 -AddChangelog` resolve the current Nexus file-group version and collect every newer local changelog block through the upload target.
+11. When more than one local version is included, review the generated candidate and save the final text as the mod's `nexus-changelog.txt`. Merge repeated work on the same feature into one final-state change while retaining distinct changes and still-relevant compatibility, config-reset, or migration effects.
+12. Confirm the Nexus payload contains one target-version entry, no embedded version headings, no duplicate or work-in-progress lines, and no content from the already-published baseline block.

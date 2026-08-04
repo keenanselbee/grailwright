@@ -1,0 +1,105 @@
+Version 0.3.0
+Converted the shared weapon translation into each linked Drake entity's own transform space so animated child rotations cannot turn one parent-space offset into inconsistent world motion.
+Reduced multi-part and two-handed weapon jitter without adding temporal filtering, persistent smoothing state, or camera-response lag.
+
+Version 0.2.9
+Kept fireplace offsets at the vanilla position until the hero controller reports that its actual stand-up tween has completed, preventing the body from crossing the camera during the final transition frames.
+Restored configured offsets with the existing smooth ease only after standing finishes, with a conservative timed fallback when the controller signal is unavailable.
+
+Version 0.2.8
+Smoothly blends configured viewmodel offsets back to the vanilla position during fireplace interactions so the crouched body does not move into view.
+Keeps the vanilla position through cooking, rest, level-up, storage, fast travel, and other fireplace submenus without changing saved settings.
+Delays and eases offset restoration to follow the fireplace stand-up animation instead of snapping when the menu closes.
+
+Version 0.2.7
+Restored the visually complete 0.2.0 rendering approach for Kandra arms and body meshes, Kandra culling data, and linked Drake weapons and held arrows.
+Retained category offsets enabled by default with melee and magic at 0.30 and bows at 0.10.
+Kept the later per-frame rig refresh and scene-transition cache cleanup safeguards that prevent stale first-person rig data from being reused after equipment or scene changes.
+Removed active bow-state diagnostic hooks; bows now receive only their normal category offset with no special full-draw hand handling.
+
+Version 0.2.6
+Removed the temporary Kandra transform-capture path and its Harmony hooks after isolation testing identified it as the repeatable native crash trigger.
+Added read-only hierarchy diagnostics that report camera masks, object layers, Kandra and Unity renderer paths, held weapon roots, hand sockets, and both pooled arrow variants when their state changes.
+Preserved a customized Diagnostics value across this schema reset so an enabled diagnostic session remains enabled.
+Incremented the config schema because the unsafe EnableKandraTransformCapture setting was removed.
+
+Version 0.2.5
+Removed the obsolete native Kandra buffer, culling-array, and Drake ECS mutation implementation from the source after the transform-capture replacement completed the transition test cleanly.
+Cleared active bow diagnostic sampling on scene changes and rejected bow callbacks while capture is suspended, preventing stale transition references.
+Disabled diagnostic logging by default for the stabilized transform-capture build.
+Incremented the config schema because the Diagnostics default changed from true to false.
+
+Version 0.2.4
+Replaced direct Kandra native-buffer writes with a temporary first-person hierarchy shift around the game's own transform capture and upload.
+Removed the unsafe Kandra culling and Drake ECS diagnostic switches and stopped installing the linked-transform ECS patch.
+Restored the shifted hierarchy after Kandra uploads its buffer, with fallback restoration during update, disable, destruction, and scene changes.
+Incremented the config schema because EnableKandraBoneOffsets was replaced by EnableKandraTransformCapture and the unsafe Kandra culling and Drake settings were removed.
+
+Version 0.2.3
+Replaced the scheduled Kandra bone-mutation job with a synchronous copied-matrix adjustment after the game's own bone-read job completes.
+Ensured no custom Kandra bone job remains in flight across scene teardown while retaining first-person arm positioning.
+Kept Kandra culling correction and Drake weapon offsets disabled after both native mutation paths independently reproduced the same crash.
+
+Version 0.2.2
+Decoupled Kandra bone adjustment from the Drake weapon switch so the native arm path can be tested independently.
+Disabled Drake weapon offsets by default after isolation testing identified that path as the native crash trigger.
+Enabled diagnostic logging by default for this isolation build so successful Kandra execution is visible in the log.
+Incremented the config schema because the Drake weapon-offset and diagnostic logging defaults changed.
+
+Version 0.2.1
+Added independent diagnostic switches for Kandra bone offsets, Kandra culling correction, and linked Drake weapon offsets.
+Disabled Kandra culling-array correction by default to isolate the leading native scene-transition crash candidate while retaining arm and weapon positioning.
+Cleared cached Kandra, renderer, weapon, and ECS references on scene changes and briefly suspended native offsets while the replacement scene settles.
+Added Kandra bone-region bounds checks, culling-array creation and length checks, and ECS world-lifetime validation before native access.
+
+Version 0.2.0
+Enabled category-specific forward offsets by default and changed the bow default to 0.10 while retaining 0.30 for melee and magic.
+Moved UseCategoryForwardOffsets into the Core config section so the main category switch appears near the top.
+Removed the experimental full-draw hand-depth correction and its two settings.
+Incremented the config schema because the category switch moved sections, category and bow defaults changed, and the full-draw correction settings were removed.
+
+Version 0.1.9
+Added the matched pulling-hand Kandra bone count to bow diagnostics so adaptive correction coverage can be verified directly in the log.
+
+Version 0.1.8
+Added an adaptive full-draw depth correction that keeps the pulling hand in front of the camera while leaving the normal bow and body offset at 0.30.
+Applied the correction only to the hand and finger bone subtree, with smaller weighted forearm and upper-arm adjustments to avoid exposing or moving the shoulders.
+Derived the correction from the live hand-to-nock depth difference, blended it smoothly, capped it at 0.22, and left the bow, torso, projectile fire point, and gameplay transforms unchanged.
+
+Version 0.1.7
+Recorded both unmodified socket viewport positions and their render-adjusted positions in bow diagnostics so near-plane and screen-edge losses can be identified accurately.
+
+Version 0.1.6
+Added opt-in melee, bow, and magic forward offsets while retaining ForwardOffset as the default and unarmed fallback.
+Added timed bow diagnostics for hand viewport depth, Kandra renderer visibility, arrow-pool activity, parenting, and nock-hand toggles through pull, hold, release, and idle transitions.
+Kept all category defaults at 0.30 and left category overrides disabled by default so existing presentation remains unchanged.
+
+Version 0.1.5
+Removed cached late Kandra bone resampling and now resolves each active first-person rig region every frame, preventing disappearing arms or unrelated creature meshes after equipment changes.
+Kept one late camera-offset sample for arms and rigid equipment without writing through stale Kandra buffer indices.
+Included linked render entities beneath both animated hand sockets so both pooled bow-arrow variants receive the viewmodel offset.
+
+Version 0.1.4
+Late-resampled the first-person Kandra bones so hands, rigid weapons, and held arrows use the same post-LateUpdate animation pose and camera offset.
+Corrected Kandra culling spheres and root matrices for the shifted first-person renderers so hands remain visible at full bow draw.
+Kept the stable native Drake offset path and the 0.30 default without another config reset.
+
+Version 0.1.3
+Fixed linked swords, held arrows, and other Drake-rendered equipment flickering between adjusted and vanilla positions.
+Applied the weapon offset before the game's linked-transform synchronization so rendering, bounds, and motion history consume one stable transform.
+Preserved and restored each weapon prefab's original local-to-world offset when the mod is disabled or the item is unequipped.
+
+Version 0.1.2
+Moved linked Drake-rendered melee weapons, shields, and other equipped rigid models with the same visual offset as the first-person arms.
+Changed the default ForwardOffset from 0.12 to 0.30.
+Incremented the config schema because ForwardOffset now has a materially different default; customized compatible offsets remain recoverable.
+
+Version 0.1.1
+Moved Kandra-rendered first-person arms and equipment through their copied GPU bone matrices so the position settings affect the visible arm meshes.
+Kept particle effects and non-Kandra geometry aligned through the existing render-time hierarchy offset.
+Left the live animation skeleton, world FOV, aiming, projectile origins, and physics unchanged.
+
+Version 0.1.0
+Added an experimental render-time first-person body and weapon position offset without changing world FOV.
+Added configurable forward, horizontal, and vertical offsets with a safe master toggle.
+Restores the original first-person transform immediately after each main-camera render so gameplay transforms remain unchanged.

@@ -1,0 +1,5 @@
+TargetVersion=0.3.0
+BaselineVersion=0.2.7
+Stabilized multi-part and two-handed Drake weapons by applying the shared viewmodel translation in each linked entity's own transform space, reducing animation jitter without camera lag.
+Smoothly returns the viewmodel to its vanilla position throughout fireplace interactions and waits for the hero's complete stand-up transition before restoring configured offsets.
+Keeps saved viewmodel settings unchanged during fireplace transitions and uses a conservative timed fallback if the controller transition signal is unavailable.

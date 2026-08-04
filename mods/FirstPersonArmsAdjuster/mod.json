@@ -1,0 +1,30 @@
+{
+  "id": "FirstPersonArmsAdjuster",
+  "displayName": "First Person Arms Adjuster",
+  "packageName": "FirstPersonArmsAdjuster",
+  "version": "0.3.0",
+  "pluginGuid": "ks.tgfoa.first-person-arms-adjuster",
+  "dll": "FirstPersonArmsAdjuster.dll",
+  "sourceFiles": [
+    "src/FirstPersonArmsAdjuster.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Collections.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Entities.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Entities.Graphics.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Mathematics.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Mathematics.Extensions.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.Transforms.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Kandra.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.ECS.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
+  ]
+}

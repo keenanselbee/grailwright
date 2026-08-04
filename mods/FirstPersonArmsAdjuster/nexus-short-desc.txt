@@ -1,0 +1,1 @@
+Moves first-person arms, body, weapons, and held arrows with configurable category offsets without changing world FOV or projectile origins.

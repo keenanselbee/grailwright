@@ -1,0 +1,115 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][color=#C94A4A][size=6]First Person Arms Adjuster[/size][/color]
+[b]Get weapons away from your face.[/b] Adjust their position without changing FOV or aim.[/center]
+
+[line]
+
+[b]First Person Arms Adjuster[/b] is a presentation-only BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It moves the rendered first-person body, arms, weapons, shields, and held arrows in camera space while leaving the world camera and gameplay transforms alone.
+
+Use it to push an oversized viewmodel farther away, bring it closer, or make small horizontal and vertical corrections without replacing the game's field of view.
+
+[line]
+
+[heading][color=#C94A4A][size=5]What It Changes[/size][/color][/heading]
+[list]
+[*]Moves the visible first-person body and equipped items farther from or closer to the camera.[/*]
+[*]Adds horizontal and vertical camera-space adjustments.[/*]
+[*]Uses separate forward offsets for melee weapons, bows, and magic by default.[/*]
+[*]Keeps unarmed and unrecognized equipment on the general ForwardOffset value.[/*]
+[*]Moves current Kandra first-person render regions, matching culling data, linked Drake equipment, and ordinary hierarchy content together.[/*]
+[*]Converts the shared weapon translation into each linked Drake entity's own transform space to keep multi-part and two-handed weapons stable during animation.[/*]
+[*]Smoothly returns to the vanilla viewmodel position during fireplace interactions, waits for the controller's complete stand-up transition, then restores configured offsets.[/*]
+[*]Applies configuration changes live.[/*]
+[*]Leaves world FOV, aiming, hand sockets, the weapon fire point, projectile origins, hit detection, physics, and the saved player position unchanged.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Positioning[/size][/color][/heading]
+Offsets are measured in meters relative to the camera:
+
+[list]
+[*]Positive [b]ForwardOffset[/b] moves the first-person model farther from the camera.[/*]
+[*]Positive [b]HorizontalOffset[/b] moves it to the right.[/*]
+[*]Positive [b]VerticalOffset[/b] moves it upward.[/*]
+[/list]
+
+Category offsets are enabled by default. Melee weapons and magic use 0.30, while bows use the smaller 0.10 offset. Start with forward values between 0.20 and 0.35. Set every offset to 0 or disable the plugin to restore the vanilla presentation.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
+[/code]
+
+[code]
+| Setting                    | Default | Purpose                                      |
+|----------------------------|---------|----------------------------------------------|
+| Enabled                    | true    | Master switch                                |
+| UseCategoryForwardOffsets  | true    | Use separate melee, bow, and magic values    |
+| ForwardOffset              | 0.30    | General and unrecognized-equipment depth     |
+| HorizontalOffset           | 0.0     | Right or left camera-space adjustment        |
+| VerticalOffset             | 0.0     | Up or down camera-space adjustment           |
+| MeleeForwardOffset         | 0.30    | Melee weapon depth                           |
+| BowForwardOffset           | 0.10    | Bow depth                                    |
+| MagicForwardOffset         | 0.30    | Equipped-magic depth                         |
+| Diagnostics                | false   | Log resolved render paths and active offsets |
+[/code]
+
+All position values accept a range from -0.50 to 0.50 meters.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Rendering Scope And Limitations[/size][/color][/heading]
+The game uses one first-person body hierarchy, so visible torso or leg geometry may move with the arms. Fireplace interactions are handled specially: offsets ease to zero during the crouch, remain at the vanilla position through fireplace submenus and the complete controller stand-up transition, then ease back in. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
+
+The plugin refreshes the active rig and equipment regions repeatedly, clears cached rig and render references during scene changes, and briefly suspends offsets while a replacement scene settles. It changes presentation data only; the live animation skeleton and gameplay transforms remain untouched.
+
+Bows use their normal category offset without a special full-draw hand correction. Released arrows originate from the unchanged gameplay fire point, so a small visual transition can remain when a held arrow becomes a projectile.
+
+Because this mod adjusts native Kandra and Drake rendering data, treat unusually large offsets as experimental and test them across the activities you use.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/FirstPersonArmsAdjuster/FirstPersonArmsAdjuster.dll
+[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+Automatically preserved: Enabled, ForwardOffset, HorizontalOffset, VerticalOffset, MeleeForwardOffset, BowForwardOffset, MagicForwardOffset, and Diagnostics.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*]The plugin does not change world FOV and does not require a camera or FOV replacement.[/*]
+[*]Mods that write to the same first-person Kandra, Drake, culling, or hierarchy presentation data may conflict.[/*]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
+If arms or equipment appear clipped, hidden, or too distant, reduce the active category offset first. Set all offsets to 0 or disable [b]Enabled[/b] to confirm the vanilla presentation before testing another value.
+
+Enable [b]Diagnostics[/b] to log the resolved first-person hierarchy plus the Kandra rig, culling, and linked Drake equipment paths receiving the offset. Full details are written to [b]BepInEx/LogOutput.log[/b].

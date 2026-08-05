@@ -17,7 +17,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Glorious UI](mods/GloriousUI) | 1.7.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
 | [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.3.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.9.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.0.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.1.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Encounters](mods/EyesInTheDark) | 0.9.1 | Unpublished |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.3.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Full Enemy XP](mods/FullEnemyXP) | 1.0.7 | Unpublished |

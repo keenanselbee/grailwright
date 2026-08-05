@@ -1,5 +1,13 @@
+Version 2.1.2
+Made manual ignored terms override live hostility and manual controlled terms override built-in exclusions for NPC-template spawners, matching their documented force-in and force-out behavior.
+
+Version 2.1.1
+Retried prey and summon classification when game template services are not ready yet instead of caching an ambiguous early result.
+
 Version 2.1.0
-Work in progress; not yet released.
+Excluded faction-neutral spawners when every NPC template is prey or summon-derived, while keeping positively hostile and mixed-template spawners under normal control.
+Ignored the known Friendly Stronghold template variants when they are not currently hostile.
+Expanded diagnostics with the classification reason retained by each lock and compact NPC type, prey, and summon signals.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
 
 Version 2.0.9

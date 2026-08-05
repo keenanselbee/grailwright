@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("2.0.9.0")]
-[assembly: AssemblyFileVersion("2.0.9.0")]
-[assembly: AssemblyInformationalVersion("2.0.9")]
+[assembly: AssemblyVersion("2.1.2.0")]
+[assembly: AssemblyFileVersion("2.1.2.0")]
+[assembly: AssemblyInformationalVersion("2.1.2")]
 
 namespace EnemyRespawnControl
 {
@@ -24,7 +24,7 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "2.0.9";
+        public const string PluginVersion = "2.1.2";
         private const int ConfigSchemaVersion = 4;
         private const int ConfigRecoveryBaselineSchema = 4;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -168,7 +168,8 @@ namespace EnemyRespawnControl
             "rooster",
             "goat",
             "goats",
-            "sheep"
+            "sheep",
+            "friendly stronghold"
         };
 
         internal static EnemyRespawnControlPlugin Instance;
@@ -776,7 +777,7 @@ namespace EnemyRespawnControl
             }
 
             string key = GetSpawnerKey(spawner);
-            RegisterLock(key, spawner, now, timeSource, reason, true);
+            RegisterLock(key, spawner, now, timeSource, reason, classificationReason, true);
         }
 
         internal void RegisterSpawnerIfKilledState(object spawner, string reason)
@@ -808,7 +809,7 @@ namespace EnemyRespawnControl
             string timeSource;
             if (TryGetCurrentTimeSeconds(spawner, out now, out timeSource))
             {
-                RegisterLock(key, spawner, now, timeSource, reason, false);
+                RegisterLock(key, spawner, now, timeSource, reason, classificationReason, false);
             }
         }
 
@@ -932,7 +933,12 @@ namespace EnemyRespawnControl
                         respawnLock.StartSeconds = now;
                         respawnLock.TimeSource = "weather";
                         respawnLock.Reason = "weather-time-unavailable";
+                        respawnLock.ClassificationReason = classificationReason;
                         respawnLock.SpawnerDescription = DescribeSpawner(spawner);
+                        if (_diagnostics.Value)
+                        {
+                            respawnLock.NpcTemplateSignals = DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates"));
+                        }
                     }
 
                     LogDiagnosticRateLimited(
@@ -953,10 +959,10 @@ namespace EnemyRespawnControl
             key = GetSpawnerKey(spawner);
             if (!_locks.TryGetValue(key, out respawnLock) && HasKilledLocationState(spawner) && !_expiredKeys.Contains(key))
             {
-                RegisterLock(key, spawner, now, timeSource, "killed-state-" + gateName, false);
+                RegisterLock(key, spawner, now, timeSource, "killed-state-" + gateName, classificationReason, false);
             }
 
-            return ShouldBlockRespawn(key, spawner, now, timeSource, out respawnLock);
+            return ShouldBlockRespawn(key, spawner, now, timeSource, classificationReason, out respawnLock);
         }
 
         private bool ShouldBypassRespawnControl(object spawner, string gateName)
@@ -976,6 +982,16 @@ namespace EnemyRespawnControl
 
         private bool ShouldControlSpawner(object spawner, string gateName, out string reason)
         {
+            string additionalTermsRaw = _additionalControlledSpawnerTerms == null ? "" : _additionalControlledSpawnerTerms.Value;
+            string ignoredTermsRaw = _ignoredSpawnerTerms == null ? "" : _ignoredSpawnerTerms.Value;
+            string searchText = BuildSpawnerSearchText(spawner);
+            string matchedTerm;
+            if (TryFindTerm(searchText, GetIgnoredSpawnerTerms(), out matchedTerm))
+            {
+                reason = "manual-ignored-term:" + matchedTerm;
+                return false;
+            }
+
             bool hasHostilitySignal = false;
             bool isHostileToHero;
             if (TryReadBoolMember(spawner, "IsHostileToHero", out isHostileToHero))
@@ -988,7 +1004,20 @@ namespace EnemyRespawnControl
                 }
             }
 
-            CachedClassification classification = GetSpawnerClassification(spawner, hasHostilitySignal);
+            bool hasNpcSpawnTemplate = HasNpcSpawnTemplate(spawner);
+            if (hasNpcSpawnTemplate && TryFindTerm(searchText, GetAdditionalControlledSpawnerTerms(), out matchedTerm))
+            {
+                reason = "manual-controlled-term:" + matchedTerm;
+                return true;
+            }
+
+            CachedClassification classification = GetSpawnerClassification(
+                spawner,
+                searchText,
+                hasNpcSpawnTemplate,
+                additionalTermsRaw,
+                ignoredTermsRaw,
+                hasHostilitySignal);
             if (classification.HasStaticDecision)
             {
                 reason = classification.Reason;
@@ -1010,11 +1039,14 @@ namespace EnemyRespawnControl
             return false;
         }
 
-        private CachedClassification GetSpawnerClassification(object spawner, bool hasHostilitySignal)
+        private CachedClassification GetSpawnerClassification(
+            object spawner,
+            string searchText,
+            bool hasNpcSpawnTemplate,
+            string additionalTermsRaw,
+            string ignoredTermsRaw,
+            bool hasHostilitySignal)
         {
-            string additionalTermsRaw = _additionalControlledSpawnerTerms == null ? "" : _additionalControlledSpawnerTerms.Value;
-            string ignoredTermsRaw = _ignoredSpawnerTerms == null ? "" : _ignoredSpawnerTerms.Value;
-
             CachedClassification cached;
             if (_classificationCache.TryGetValue(spawner, out cached)
                 && cached.Matches(additionalTermsRaw, ignoredTermsRaw))
@@ -1022,7 +1054,13 @@ namespace EnemyRespawnControl
                 return cached;
             }
 
-            CachedClassification classification = BuildSpawnerClassification(spawner, additionalTermsRaw, ignoredTermsRaw, hasHostilitySignal);
+            CachedClassification classification = BuildSpawnerClassification(
+                spawner,
+                searchText,
+                hasNpcSpawnTemplate,
+                additionalTermsRaw,
+                ignoredTermsRaw,
+                hasHostilitySignal);
             if (classification.Cacheable)
             {
                 _classificationCache.Remove(spawner);
@@ -1032,16 +1070,20 @@ namespace EnemyRespawnControl
             return classification;
         }
 
-        private CachedClassification BuildSpawnerClassification(object spawner, string additionalTermsRaw, string ignoredTermsRaw, bool hasHostilitySignal)
+        private CachedClassification BuildSpawnerClassification(
+            object spawner,
+            string searchText,
+            bool hasNpcSpawnTemplate,
+            string additionalTermsRaw,
+            string ignoredTermsRaw,
+            bool hasHostilitySignal)
         {
             CachedClassification classification = new CachedClassification();
             classification.AdditionalTermsRaw = additionalTermsRaw;
             classification.IgnoredTermsRaw = ignoredTermsRaw;
 
-            string searchText = BuildSpawnerSearchText(spawner);
             string matchedTerm;
-            if (TryFindTerm(searchText, BuiltInIgnoredSpawnerTerms, out matchedTerm)
-                || TryFindTerm(searchText, GetIgnoredSpawnerTerms(), out matchedTerm))
+            if (TryFindTerm(searchText, BuiltInIgnoredSpawnerTerms, out matchedTerm))
             {
                 classification.Cacheable = true;
                 classification.HasStaticDecision = true;
@@ -1050,7 +1092,7 @@ namespace EnemyRespawnControl
                 return classification;
             }
 
-            if (!HasNpcSpawnTemplate(spawner))
+            if (!hasNpcSpawnTemplate)
             {
                 classification.Cacheable = false;
                 classification.HasStaticDecision = true;
@@ -1059,9 +1101,19 @@ namespace EnemyRespawnControl
                 return classification;
             }
 
-            classification.Cacheable = true;
-            if (TryFindTerm(searchText, BuiltInControlledSpawnerTerms, out matchedTerm)
-                || TryFindTerm(searchText, GetAdditionalControlledSpawnerTerms(), out matchedTerm))
+            string specialTemplateReason;
+            bool specialTemplateSignalsReadable;
+            if (TryClassifyAllNpcTemplatesAsSpecial(spawner, out specialTemplateReason, out specialTemplateSignalsReadable))
+            {
+                classification.Cacheable = true;
+                classification.HasStaticDecision = true;
+                classification.ShouldControl = false;
+                classification.Reason = specialTemplateReason;
+                return classification;
+            }
+
+            classification.Cacheable = specialTemplateSignalsReadable;
+            if (TryFindTerm(searchText, BuiltInControlledSpawnerTerms, out matchedTerm))
             {
                 classification.HasStaticDecision = true;
                 classification.ShouldControl = true;
@@ -1106,6 +1158,65 @@ namespace EnemyRespawnControl
             }
 
             return false;
+        }
+
+        private bool TryClassifyAllNpcTemplatesAsSpecial(object spawner, out string reason, out bool signalsReadable)
+        {
+            reason = "";
+            signalsReadable = true;
+            IEnumerable templates = GetMemberValue(spawner, "AllUniqueTemplates") as IEnumerable;
+            if (templates == null || templates is string)
+            {
+                return false;
+            }
+
+            bool foundNpcTemplate = false;
+            bool allPrey = true;
+            bool allSummons = true;
+            bool allPreyOrSummons = true;
+            try
+            {
+                foreach (object template in templates)
+                {
+                    object npcTemplate = GetNpcTemplateFromLocationTemplate(template);
+                    if (npcTemplate == null)
+                    {
+                        continue;
+                    }
+
+                    foundNpcTemplate = true;
+                    bool isPrey;
+                    bool hasPreySignal = TryReadBoolMember(npcTemplate, "IsPreyAnimal", out isPrey);
+                    bool isSummon;
+                    bool hasSummonSignal = TryReadBoolMember(npcTemplate, "IsSummon", out isSummon);
+                    if (!hasPreySignal || !hasSummonSignal)
+                    {
+                        signalsReadable = false;
+                        return false;
+                    }
+
+                    allPrey &= isPrey;
+                    allSummons &= isSummon;
+                    allPreyOrSummons &= isPrey || isSummon;
+                }
+            }
+            catch
+            {
+                signalsReadable = false;
+                return false;
+            }
+
+            if (!foundNpcTemplate || !allPreyOrSummons)
+            {
+                return false;
+            }
+
+            reason = allPrey
+                ? "npc-template-all-prey"
+                : allSummons
+                    ? "npc-template-all-summons"
+                    : "npc-template-all-prey-or-summons";
+            return true;
         }
 
         private Type GetNpcAttachmentType()
@@ -1456,7 +1567,8 @@ namespace EnemyRespawnControl
                 "skipped-spawner|" + gateName + "|" + StableHash(description + "|" + reason),
                 "Skipped respawn control at " + gateName + " because " + reason +
                 ". spawner=" + description +
-                "; templates=" + DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates")) + ".");
+                "; templates=" + DescribeTemplates(GetMemberValue(spawner, "AllUniqueTemplates")) +
+                "; npcTemplates=" + DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates")) + ".");
         }
 
         private void MarkSpecialSpawnedLocation(object location)
@@ -1485,7 +1597,8 @@ namespace EnemyRespawnControl
 
             LogDiagnosticRateLimited(
                 "special-spawn-bypass|" + gateName + "|" + DescribeObject(spawner),
-                "Ignored special spawn gate at " + gateName + ". spawner=" + DescribeSpawner(spawner) + ".");
+                "Ignored special spawn gate at " + gateName + ". spawner=" + DescribeSpawner(spawner) +
+                "; npcTemplates=" + DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates")) + ".");
         }
 
         private void LogAllowedSpawnAttempt(string key, object spawner, string gateName, RespawnLock respawnLock)
@@ -1501,7 +1614,8 @@ namespace EnemyRespawnControl
                 ". hasLock=" + (respawnLock != null).ToString(CultureInfo.InvariantCulture) +
                 "; killedState=" + HasKilledLocationState(spawner).ToString(CultureInfo.InvariantCulture) +
                 "; lastClearPlay=" + lastClearText +
-                "; spawner=" + DescribeSpawner(spawner) + ".");
+                "; spawner=" + DescribeSpawner(spawner) +
+                "; npcTemplates=" + DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates")) + ".");
         }
 
         private void LogDiagnosticRateLimited(string key, string message)
@@ -1523,7 +1637,7 @@ namespace EnemyRespawnControl
             Log.LogInfo(message);
         }
 
-        private bool ShouldBlockRespawn(string key, object spawner, double now, string timeSource, out RespawnLock respawnLock)
+        private bool ShouldBlockRespawn(string key, object spawner, double now, string timeSource, string classificationReason, out RespawnLock respawnLock)
         {
             respawnLock = null;
 
@@ -1540,7 +1654,7 @@ namespace EnemyRespawnControl
                 double lastClear;
                 if (HasKilledLocationState(spawner) || TryReadLastClearPlaySeconds(spawner, out lastClear))
                 {
-                    RegisterLock(key, spawner, now, timeSource, "disabled-mode", false);
+                    RegisterLock(key, spawner, now, timeSource, "disabled-mode", classificationReason, false);
                     _locks.TryGetValue(key, out respawnLock);
                     return true;
                 }
@@ -1588,7 +1702,7 @@ namespace EnemyRespawnControl
             return false;
         }
 
-        private void RegisterLock(string key, object spawner, double now, string timeSource, string reason, bool resetExpired)
+        private void RegisterLock(string key, object spawner, double now, string timeSource, string reason, string classificationReason, bool resetExpired)
         {
             if (resetExpired)
             {
@@ -1599,7 +1713,12 @@ namespace EnemyRespawnControl
             respawnLock.StartSeconds = now;
             respawnLock.TimeSource = timeSource;
             respawnLock.Reason = reason;
+            respawnLock.ClassificationReason = classificationReason;
             respawnLock.SpawnerDescription = DescribeSpawner(spawner);
+            if (_diagnostics.Value)
+            {
+                respawnLock.NpcTemplateSignals = DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates"));
+            }
             _locks[key] = respawnLock;
 
             if (_diagnostics.Value)
@@ -1914,6 +2033,75 @@ namespace EnemyRespawnControl
             return String.Join(",", templates.ToArray());
         }
 
+        private string DescribeNpcTemplateSignals(object templatesObject)
+        {
+            IEnumerable enumerable = templatesObject as IEnumerable;
+            if (enumerable == null || templatesObject is string)
+            {
+                return "none";
+            }
+
+            List<string> signals = new List<string>();
+            try
+            {
+                foreach (object template in enumerable)
+                {
+                    object npcTemplate = GetNpcTemplateFromLocationTemplate(template);
+                    if (npcTemplate == null)
+                    {
+                        continue;
+                    }
+
+                    string name = GetStringMember(npcTemplate, "name");
+                    if (String.IsNullOrWhiteSpace(name))
+                    {
+                        name = GetStringMember(npcTemplate, "Name");
+                    }
+                    if (String.IsNullOrWhiteSpace(name))
+                    {
+                        name = GetStringMember(npcTemplate, "DebugName");
+                    }
+                    if (String.IsNullOrWhiteSpace(name))
+                    {
+                        name = GetStringMember(npcTemplate, "GUID");
+                    }
+                    if (String.IsNullOrWhiteSpace(name))
+                    {
+                        name = DescribeObject(npcTemplate);
+                    }
+
+                    object npcType = GetMemberValue(npcTemplate, "NpcType");
+                    bool isPrey;
+                    bool hasPreySignal = TryReadBoolMember(npcTemplate, "IsPreyAnimal", out isPrey);
+                    bool isSummon;
+                    bool hasSummonSignal = TryReadBoolMember(npcTemplate, "IsSummon", out isSummon);
+                    string signal = "npc=" + name +
+                        "; type=" + (npcType == null ? "unknown" : Convert.ToString(npcType, CultureInfo.InvariantCulture)) +
+                        "; prey=" + (hasPreySignal ? isPrey.ToString(CultureInfo.InvariantCulture) : "unknown") +
+                        "; summon=" + (hasSummonSignal ? isSummon.ToString(CultureInfo.InvariantCulture) : "unknown");
+                    if (!signals.Contains(signal))
+                    {
+                        signals.Add(signal);
+                    }
+                    if (signals.Count >= 12)
+                    {
+                        break;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            if (signals.Count == 0)
+            {
+                return "none";
+            }
+
+            signals.Sort(StringComparer.Ordinal);
+            return "[" + String.Join("] [", signals.ToArray()) + "]";
+        }
+
         private static void AddPart(List<string> parts, string name, string value)
         {
             if (!String.IsNullOrWhiteSpace(value))
@@ -2084,9 +2272,13 @@ namespace EnemyRespawnControl
             return "key=" + keyPrefix +
                 "; source=" + (respawnLock == null ? "unknown" : respawnLock.TimeSource) +
                 "; reason=" + (respawnLock == null ? "unknown" : respawnLock.Reason) +
+                "; classification=" + (respawnLock == null ? "unknown" : respawnLock.ClassificationReason) +
                 "; elapsed=" + (elapsed / 3600d).ToString("0.##", CultureInfo.InvariantCulture) + "h" +
                 "; " + remainingText +
-                "; spawner=" + (respawnLock == null ? "unknown" : respawnLock.SpawnerDescription) + ".";
+                "; spawner=" + (respawnLock == null ? "unknown" : respawnLock.SpawnerDescription) +
+                (respawnLock == null || String.IsNullOrWhiteSpace(respawnLock.NpcTemplateSignals)
+                    ? ""
+                    : "; npcTemplates=" + respawnLock.NpcTemplateSignals) + ".";
         }
 
         private sealed class CachedKey
@@ -2120,7 +2312,9 @@ namespace EnemyRespawnControl
             internal double StartSeconds;
             internal string TimeSource;
             internal string Reason;
+            internal string ClassificationReason;
             internal string SpawnerDescription;
+            internal string NpcTemplateSignals;
         }
 
         private sealed class SpecialSpawnedLocation

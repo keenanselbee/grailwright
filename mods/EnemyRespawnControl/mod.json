@@ -2,7 +2,7 @@
   "id": "EnemyRespawnControl",
   "displayName": "Enemy Respawn Control",
   "packageName": "EnemyRespawnControl",
-  "version": "2.0.9",
+  "version": "2.1.2",
   "pluginGuid": "ks.tgfoa.enemy-respawn-control",
   "dll": "EnemyRespawnControl.dll",
   "sourceFiles": [

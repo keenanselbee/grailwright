@@ -16,12 +16,12 @@ ERC measures respawn delays with the game's world/weather clock, not real time. 
 [list]
 [*]Guards cleared regular mob spawners after their spawned NPCs or creatures are killed.[/*]
 [*]Blocks respawn checks and direct spawn attempts until the configured delay has elapsed.[/*]
-[*]Ignores resource, pickable, and passive non-enemy location spawners.[/*]
-[*]Controls NPC-template mob spawners even when the game's current hostility check is false or not restored yet.[/*]
+[*]Ignores resource, pickable, passive prey, summon-derived, and other passive non-enemy location spawners when they are not currently hostile.[/*]
+[*]Controls ordinary NPC-template mob spawners even when the game's current hostility check is false or not restored yet.[/*]
 [*]Leaves ambush-only spawners, active Wyrd-night spawner state, and manual/story-triggered spawns alone while keeping ordinary spawners controlled.[/*]
 [*]Uses in-game/weather time only, so day-night speed changes are reflected in real-world wait time.[/*]
 [*]Offers presets from vanilla-style timing to indefinitely blocked cleared spawners.[/*]
-[*]Includes diagnostics for spawner lock creation, blocked gate names, allowed spawn attempts, skipped spawners with classification reasons, cleanup, and lock expiry decisions.[/*]
+[*]Includes diagnostics for spawner lock creation, lifecycle and classification reasons, compact NPC type/prey/summon signals, blocked gate names, allowed spawn attempts, skipped spawners, cleanup, and lock expiry decisions.[/*]
 [/list]
 
 [line]
@@ -58,7 +58,7 @@ IgnoredSpawnerTerms =
 Diagnostics = false
 [/code]
 
-[b]Spawner classification:[/b] Hostility=true is controlled immediately. A false hostility read no longer excludes regular NPC-template mob spawners that have killed-state, which catches regular groups whose faction hostility is conditional or not restored yet. Set [b]ControlFactionNeutralNpcSpawners[/b] to false for conservative behavior, or use [b]AdditionalControlledSpawnerTerms[/b] and [b]IgnoredSpawnerTerms[/b] to force a specific spawner/template family in or out.
+[b]Spawner classification:[/b] Manual ignored terms are checked first and can force any matching regular spawner out. Hostility=true is then controlled immediately. Manual controlled terms can force a matching NPC-template spawner in before the built-in exclusions are applied. A false hostility read no longer excludes regular NPC-template mob spawners that have killed-state, which catches regular groups whose faction hostility is conditional or not restored yet. Faction-neutral spawners are ignored when every NPC template is prey or summon-derived, while mixed-template spawners remain eligible for normal control. Known Friendly Stronghold variants are also ignored while faction-neutral. Set [b]ControlFactionNeutralNpcSpawners[/b] to false for conservative behavior, or use [b]AdditionalControlledSpawnerTerms[/b] and [b]IgnoredSpawnerTerms[/b] to force a specific spawner/template family in or out.
 
 [line]
 

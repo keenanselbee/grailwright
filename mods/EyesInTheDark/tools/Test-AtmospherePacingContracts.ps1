@@ -77,14 +77,66 @@ namespace EyesInTheDark
                 GftNotificationPreset.Atmospheric,
                 AtmosphereEventKind.UpwardStage),
                 "Atmospheric includes upward stages");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.BattlecryResponse),
+                "Atmospheric includes repeated-battlecry responses");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Minimal,
+                AtmosphereEventKind.BattlecryResponse),
+                "Minimal excludes repeated-battlecry responses");
             Ensure(!AtmospherePolicy.ShouldNotify(
                 GftNotificationPreset.Atmospheric,
                 AtmosphereEventKind.ProtectionEntered),
                 "Atmospheric excludes protection changes");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Minimal,
+                AtmosphereEventKind.StalkerSighted),
+                "Minimal keeps ambient stalkers implicit");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerSighted),
+                "Atmospheric leaves the visual sighting implicit");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerVanished),
+                "Atmospheric includes one disappearance message");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerProvoked),
+                "Atmospheric does not narrate the obvious provocation");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Detailed,
+                AtmosphereEventKind.StalkerSighted),
+                "Detailed includes stalker sighting context");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Detailed,
+                AtmosphereEventKind.StalkerRetreated),
+                "Detailed includes pursuit retreat context");
             Ensure(AtmospherePolicy.ShouldNotify(
                 GftNotificationPreset.Detailed,
                 AtmosphereEventKind.ProtectionEntered),
                 "Detailed includes protection changes");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Minimal,
+                AtmosphereEventKind.StalkerVanished),
+                "Minimal excludes ambient stalker messages");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerSighted),
+                "Atmospheric does not announce a sighting");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerVanished),
+                "Atmospheric includes a witnessed disappearance");
+            Ensure(!AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Atmospheric,
+                AtmosphereEventKind.StalkerProvoked),
+                "Atmospheric leaves hostility to gameplay");
+            Ensure(AtmospherePolicy.ShouldNotify(
+                GftNotificationPreset.Detailed,
+                AtmosphereEventKind.StalkerRetreated),
+                "Detailed includes stalker retreat messages");
 
             AtmosphereTextPools pools = new AtmosphereTextPools(7);
             string previous = pools.Select(
@@ -96,6 +148,19 @@ namespace EyesInTheDark
                     AtmosphereEventKind.NightBegin,
                     ThreatStage.Unnoticed);
                 Ensure(current != previous, "Immediate pool repeat");
+                previous = current;
+            }
+
+            previous = pools.Select(
+                AtmosphereEventKind.BattlecryResponse,
+                ThreatStage.Watched);
+            for (int index = 0; index < 50; index++)
+            {
+                string current = pools.Select(
+                    AtmosphereEventKind.BattlecryResponse,
+                    ThreatStage.Watched);
+                Ensure(current != previous,
+                    "Immediate battlecry-response repeat");
                 previous = current;
             }
 
@@ -193,7 +258,10 @@ foreach ($required in @(
     '"Low"',
     '"Immediate"',
     '"eyes-in-the-dark-diagnostics"',
-    '"wyrd"')) {
+    '"wyrd"',
+    'WyrdnessPalette.NativeOrange',
+    '? "Orange"',
+    ': "Purple"')) {
     if (!$gftSource.Contains($required)) {
         throw "GFT integration is missing source token: $required"
     }

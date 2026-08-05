@@ -15,6 +15,7 @@ namespace EyesInTheDark
             TestInteriorExitGraceAndDawnReset();
             TestSuppressedProgressDoesNotCatchUp();
             TestStages();
+            TestDiagnosticThreatOverride();
             TestSourceThrottlesAndRepeatProtection();
         }
 
@@ -131,6 +132,38 @@ namespace EyesInTheDark
             EnsureNear(state.Value, 10f, 0.001f, "transition progress must not add catch-up threat");
         }
 
+        private static void TestDiagnosticThreatOverride()
+        {
+            ThreatState state = SeedTenThreat();
+            ThreatUpdateResult forced = state.SetDiagnosticOverride(true, 72f);
+            Ensure(forced.Cause == ThreatChangeCause.DiagnosticOverride,
+                "override cause");
+            EnsureNear(state.Value, 72f, 0.001f, "forced threat");
+            Ensure(state.DiagnosticOverrideActive, "override active state");
+
+            state.Advance(NightFrame(0.8f, true, true, 60f), Tuning());
+            EnsureNear(state.Value, 72f, 0.001f,
+                "natural gain and decay are suppressed by override");
+            state.AddActivity(20f, ThreatChangeCause.Combat);
+            state.Reduce(20f, ThreatChangeCause.OfficialHunterKilled);
+            EnsureNear(state.Value, 72f, 0.001f,
+                "activity and relief are suppressed by override");
+
+            state.SetDiagnosticOverride(true, 1000f);
+            EnsureNear(state.Value, 100f, 0.001f, "override upper clamp");
+            state.SetDiagnosticOverride(false, 0f);
+            Ensure(!state.DiagnosticOverrideActive, "override disabled state");
+
+            ThreatFrame dawn = new ThreatFrame
+            {
+                IsKnownDaylight = true,
+                CanAdvanceActiveTime = true,
+                ActiveSeconds = 1f
+            };
+            state.Advance(dawn, Tuning());
+            EnsureNear(state.Value, 0f, 0.001f, "dawn still resets override threat");
+        }
+
         private static void TestSourceThrottlesAndRepeatProtection()
         {
             ThreatActivityLimiter limiter = new ThreatActivityLimiter();
@@ -242,16 +275,42 @@ foreach ($required in @(
     }
 }
 foreach ($required in @(
+    'ICharacter.Events.OnFiredProjectile',
+    'ICharacter.Events.CastingEnded',
+    'QueueRangedActionThreat(',
+    'sourceWeapon.IsMagic',
+    '"ranged-action:" + ModelId(item)',
+    'maximum * 0.25f')) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Confirmed ranged or spell-use threat is missing: $required"
+    }
+}
+$attackStart = $pluginSource.IndexOf(
+    'private void OnAttackStarted(',
+    [StringComparison]::Ordinal)
+$environmentHit = $pluginSource.IndexOf(
+    'private void OnEnvironmentHit(',
+    $attackStart,
+    [StringComparison]::Ordinal)
+if ($attackStart -lt 0 -or $environmentHit -le $attackStart -or
+    $pluginSource.Substring($attackStart, $environmentHit - $attackStart).Contains('RecordCombat(')) {
+    throw "Melee attack start must not add threat before a confirmed hit."
+}
+foreach ($required in @(
     'ThreatMeterColor',
-    'ThreatMeterController.DefaultColorText')) {
+    'ThreatMeterController.DefaultColorText',
+    '"EnableThreatOverride"',
+    '"ThreatOverrideValue"',
+    'SetDiagnosticOverride(')) {
     if (!$pluginSource.Contains($required)) {
         throw "Configurable threat-meter color is missing: $required"
     }
 }
 foreach ($required in @(
-    'public const string DefaultColorText = "#B878FF";',
+    'public const string DefaultColorText = "#8032FF";',
     'ColorUtility.TryParseHtmlString(',
-    'ApplyColor(colorText);')) {
+    'BrightnessMultiplier = 1.5f;',
+    'WyrdVisualMath.ShiftTowardRed(')) {
     if (!$meterSource.Contains($required)) {
         throw "Threat-meter color application is missing: $required"
     }

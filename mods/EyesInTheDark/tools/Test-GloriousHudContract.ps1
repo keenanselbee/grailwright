@@ -85,4 +85,16 @@ foreach ($required in @(
     }
 }
 
+foreach ($required in @(
+    'GetComponentsInChildren<TextureScroller>(true)',
+    'new Material(originalMaterial)',
+    '? -scroller.speed.x',
+    '? -scroller.speed.y',
+    '_ownedScrollerMaterials.AddRange(createdMaterials)',
+    'UnityEngine.Object.Destroy(')) {
+    if (!$meterSource.Contains($required)) {
+        throw "Eyes in the Dark is missing mirrored texture-scroll isolation: $required"
+    }
+}
+
 Write-Host "Eyes in the Dark ownership and Glorious placement contracts passed."

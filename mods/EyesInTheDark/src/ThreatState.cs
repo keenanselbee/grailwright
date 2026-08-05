@@ -24,8 +24,11 @@ namespace EyesInTheDark
         Combat,
         WyrdKill,
         Acquisition,
+        Battlecry,
+        StalkerProvoked,
         OfficialHunterKilled,
-        HunterEscaped
+        HunterEscaped,
+        DiagnosticOverride
     }
 
     internal struct ThreatTuning
@@ -91,6 +94,7 @@ namespace EyesInTheDark
         private bool _pendingLoadReconstruction = true;
         private bool _progressNeedsResync;
         private bool _wasInterior;
+        private bool _diagnosticOverrideActive;
         private float _lastNightProgress;
 
         public float Value { get; private set; }
@@ -100,6 +104,10 @@ namespace EyesInTheDark
             get { return GetStage(Value); }
         }
         public bool CanAcceptActivity { get; private set; }
+        public bool DiagnosticOverrideActive
+        {
+            get { return _diagnosticOverrideActive; }
+        }
 
         public void NotifyLoad()
         {
@@ -110,6 +118,7 @@ namespace EyesInTheDark
             _pendingLoadReconstruction = true;
             _progressNeedsResync = false;
             _wasInterior = false;
+            _diagnosticOverrideActive = false;
             _lastNightProgress = 0f;
         }
 
@@ -150,6 +159,20 @@ namespace EyesInTheDark
             }
 
             float progress = Clamp01(frame.NightProgress);
+            if (_diagnosticOverrideActive)
+            {
+                _nightEstablished = true;
+                _pendingLoadReconstruction = false;
+                _progressNeedsResync = false;
+                _wasInterior = !frame.IsOutdoor;
+                _lastNightProgress = progress;
+                CanAcceptActivity = false;
+                return Result(
+                    ThreatChangeCause.None,
+                    previous,
+                    previousStage);
+            }
+
             float activeSeconds = IsFinitePositive(frame.ActiveSeconds)
                 ? frame.ActiveSeconds
                 : 0f;
@@ -259,7 +282,8 @@ namespace EyesInTheDark
         {
             float previous = Value;
             ThreatStage previousStage = Stage;
-            if (!CanAcceptActivity
+            if (_diagnosticOverrideActive
+                || !CanAcceptActivity
                 || !IsFinitePositive(amount)
                 || cause == ThreatChangeCause.None)
             {
@@ -279,7 +303,8 @@ namespace EyesInTheDark
         {
             float previous = Value;
             ThreatStage previousStage = Stage;
-            if (!IsFinitePositive(amount)
+            if (_diagnosticOverrideActive
+                || !IsFinitePositive(amount)
                 || (cause != ThreatChangeCause.OfficialHunterKilled
                     && cause != ThreatChangeCause.HunterEscaped))
             {
@@ -291,6 +316,29 @@ namespace EyesInTheDark
 
             Value = ClampThreat(Value - amount);
             return Result(cause, previous, previousStage);
+        }
+
+        public ThreatUpdateResult SetDiagnosticOverride(
+            bool active,
+            float value)
+        {
+            float previous = Value;
+            ThreatStage previousStage = Stage;
+            _diagnosticOverrideActive = active;
+            if (!active)
+            {
+                return Result(
+                    ThreatChangeCause.None,
+                    previous,
+                    previousStage);
+            }
+
+            Value = ClampThreat(value);
+            CanAcceptActivity = false;
+            return Result(
+                ThreatChangeCause.DiagnosticOverride,
+                previous,
+                previousStage);
         }
 
         public static ThreatStage GetStage(float threat)

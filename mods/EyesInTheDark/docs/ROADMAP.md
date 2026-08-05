@@ -1,14 +1,14 @@
-# Eyes in the Dark 0.8.3 Implementation Roadmap
+# Eyes in the Dark 1.1.0 Implementation Roadmap
 
 ## Objective
 
-Reach a hardened, user-testable `0.8.3` beta of **Eyes in the Dark -
-Wyrdnight Encounters** without expanding beyond the product rules in
+Reach a hardened, user-testable `1.1.0` release candidate of **Eyes in the Dark -
+Wyrdnight Overhaul** without expanding beyond the product rules in
 [DESIGN.md](DESIGN.md).
 
 The roadmap advances through narrow vertical slices. Each milestone must compile
 and satisfy its automated contracts before the next begins. Consolidated
-in-game acceptance begins only after the `0.8.3` implementation is complete.
+in-game acceptance begins only after the `1.1.0` implementation is complete.
 Patch releases may fix a milestone, but authored patch versions must remain
 below 10; roll to the next minor version instead of using an `X.Y.10` version.
 
@@ -48,8 +48,27 @@ below 10; roll to the next minor version instead of using an `X.Y.10` version.
 | 0.5.0 | First official hunt | One safe solo encounter completes the full warning-to-recovery loop. |
 | 0.6.0 | Curated director | Level/region roster weighting, mixed encounters, and gameplay presets work. |
 | 0.7.0 | HUD integration and hardening | Glorious placement, transition resilience, and final config/API surfaces work. |
-| 0.8.3 | Dynamic clock and hardening | The 60/15 clock, expanded regional roster, and runtime hardening are validated. |
+| 0.8.3 | Dynamic clock and hardening | The initial duration-aware clock, expanded regional roster, and runtime hardening are validated. |
 | 0.9.0 | Native roster data pass | Scene-backed regional variety and opt-in high-threat elites are validated. |
+| 0.9.2 | Ambient stalkers | Separate suspense lane, native stalking movement, hidden escalation, safe camera lifecycle, and GFT routing are validated. |
+| 0.9.3 | Ambient hardening candidate | Provocation accounting and the complete ambient acceptance candidate are validated. |
+| 0.9.4 | Pursuit consequences and safe rest | Close pursuit has consequences, protected rest uses native safety, and sleep atmosphere reconciles cleanly. |
+| 0.9.5 | Tested visual defaults | The approved meter and layered-boundary presentation becomes the schema-reset baseline. |
+| 0.9.6 | Unified Wyrdnight visuals | Purple Moon Test is integrated and one threat response drives world, boundary, and HUD visuals. |
+| 0.9.7 | Full-sky tint correction | The palette controls the complete visible Wyrdnight sky without conflicting with Light Control. |
+| 0.9.8 | Threat-drawn Wyrdnights | User-facing minute settings, threat-stretched nights, palette-matched GFT, and diagnostic threat control are validated. |
+| 0.9.9 | Product identity restoration | Display, assembly, Nexus, and release ZIP identity use Wyrdnight Overhaul. |
+| 1.0.0 | Rest gate and visual transitions | Exposed Wyrdnight rest is blocked before the clock screen, and natural dusk/dawn presentation fades smoothly. |
+| 1.0.1 | Readable rest clock | The native 24-hour clock clearly labels its orientation and shows the exact palette-matched Wyrdnight sector without changing input or rest behavior. |
+| 1.0.2 | Native disabled-rest presentation | Exposed Wyrdnight REST is greyed out without warning spam, protected rest remains available, and an opt-out setting is available. |
+| 1.0.3 | Pre-dawn fade and ranged noise | The Wyrd palette finishes fading at dawn, while released projectiles and successful spells create threat without weakening melee hit requirements. |
+| 1.0.4 | Rest UI and visual continuity | Exposed REST is disabled at the actual control, the clock uses neutral configurable labels, and short rest/load transitions do not flash vanilla lighting. |
+| 1.0.5 | Battlecry response | Optional battlecries add diminishing Wyrd Threat and restrained, separately cooled Wyrdnight atmosphere. |
+| 1.0.6 | Clock and visual polish | Quick-use time follows the clock-format preference, dial icons move inside, dusk is centered on nightfall, loaded threat color ramps in, purple brightness is configurable, and battlecry responses use a 15-second default cooldown. |
+| 1.0.7 | Config UX and clock baseline | Quiet/max-threat nights use 6/12 minutes, boundary brightness is normalized, and common settings lead clearly labeled advanced tuning. |
+| 1.0.8 | Noon-first clock and performance pass | The rest clock uses a complete noon-at-top mapping, popup times follow the selected format, and the Wyrdnight hot paths avoid redundant work. |
+| 1.0.9 | Preset-driven risky rest | Unprotected sleep uses cumulative native-integrated interruption risk, can commit one official hunt, and has optional rest-menu ownership. |
+| 1.1.0 | Mirrored meter animation correction | Meter artwork stays mirrored while its animated texture retains the vanilla resource-bar direction without changing shared materials. |
 
 ## 0.1.0 - Scaffold
 
@@ -166,7 +185,7 @@ Verification:
 - Build, Vortex stage, and package inspection.
 - Threat-source tests with source-specific logs.
 - Outdoor/protected/indoor/daylight visibility matrix.
-- World timescale checks at `1.0`, `0.5`, `0.25`, and `0.1`.
+- World-clock checks at 60-minute daylight and the 5/10/15-minute threat endpoints.
 - Config recovery and preservation contract scripts.
 
 ## 0.4.0 - Atmosphere and adaptive pacing
@@ -282,7 +301,7 @@ Verification:
 
 - Successful spawn, failed spawn, target death, sustained escape, doorway
   escape, dawn, player death, portal, save/load, and scene-change scenarios.
-- Vanilla and `0.1` timescale hunt-cadence comparison.
+- Five-minute quiet and 15-minute maximum-threat hunt-cadence comparison.
 - GFT incompatibility notice with both plugins loaded and no notice otherwise.
 
 ## 0.6.0 - Curated director
@@ -330,7 +349,7 @@ Exit criteria:
 Verification:
 
 - Early-, mid-, and late-level profiles on every supported map.
-- Each preset at vanilla and `0.1` timescale.
+- Each preset at the default five-minute quiet and 15-minute maximum night.
 - Solo, two-member, larger allowed pack, Wyrdspirit cluster, failed sidecar,
   primary death, and surviving-sidecar scenarios.
 - Config recovery, build, stage, and package checks.
@@ -393,8 +412,8 @@ regional roster, harden encounter ownership, and package the agreed feature set.
 
 Implement and finish:
 
-- Dynamic `GameRealTime` weather-rate ownership balanced around a `0.23` day
-  and `0.413` night, approximately 60/15 real minutes.
+- Dynamic `GameRealTime` weather-rate ownership presented as a 60-minute day,
+  5-minute zero-threat night, and 15-minute maximum-threat night.
 - Expanded Cuanacht, Forlorn, and Sarras candidate rosters and mappings.
 - Exact post-spawn Hero combat confirmation and bounded reacquisition.
 - Listener retry backoff and aggregated continuous-threat diagnostics.
@@ -425,7 +444,7 @@ Gameplay:
 - Threat always uses that name in UI, config, GFT, logs, and public surfaces.
 - Outdoor Wyrdnights contain suspense and recovery rather than uninterrupted
   sequential spawns.
-- At the `0.23/0.413` reference cycle, Watchful pacing completes coherently;
+- Across the default 60-minute day and 6-to-12-minute night, Watchful pacing completes coherently;
   at `0.1`, total pressure increases only within the preset's
   capped long-night design and remains playable.
 - Killing an official hunter provides the largest relief; escape provides less
@@ -456,10 +475,12 @@ Presentation:
 
 Reliability:
 
-- The default day and night measure within 0.5 real minute of 60 and 15.
+- The default day, zero-threat night, and maximum-threat night measure within
+  0.5 real minute of 60, 5, and 15.
 - Dynamic clock switching, live config changes, load/time-skip handling,
   safe disable restoration, and external-override protection pass.
-- `1.0`, `0.5`, `0.25`, and `0.1` world-timescale regressions pass.
+- Live threat and duration changes do not produce repeated clock setters,
+  catch-up threat, or linear encounter multiplication.
 - Early-, mid-, and late-level scenarios pass on every supported map.
 - Day/night, protected/exposed, indoor/outdoor, pause, portal, fast travel,
   death, dawn, save/load, and scene-transition scenarios pass.
@@ -471,7 +492,7 @@ Reliability:
 
 ### Consolidated in-game test pass
 
-Begin this pass only after the `0.9.0` implementation, automated contracts, and
+Begin this pass only after the `1.1.0` implementation, automated contracts, and
 clean build are complete. Execute every accumulated milestone Verification
 matrix against the same candidate build, recording failures and fixes. Rebuild
 and repeat affected scenarios after a fix; do not mark the goal complete merely
@@ -516,7 +537,470 @@ Acceptance additions:
 - The consolidated [TEST-MATRIX.md](TEST-MATRIX.md) passes against the staged
   `0.9.0` build before the release is considered complete.
 
-## Explicitly deferred beyond 0.9.0
+## 0.9.2 - Ambient stalker suspense lane
+
+Status: implementation, automated verification, clean packaging, package
+inspection, and Vortex staging are complete for `0.9.3`. The expanded in-game
+matrix remains required before the goal can be marked complete.
+
+Purpose: fill low- and medium-threat quiet stretches with readable but
+unpredictable distant presence instead of turning every encounter opportunity
+into combat.
+
+Implemented scope:
+
+- Add a dedicated randomized-cooldown director and exact volatile runtime,
+  mutually exclusive with official warning and hunt ownership.
+- Curate 26 ordinary profiles below `50` threat and seven high-pressure
+  profiles from `50` to below `75` when `AllowEliteEnemies` is enabled.
+- Roll hidden `45-55` ordinary and `70-80` high-pressure hostility values.
+  Exact Hero damage escalates through a pre-damage listener and adds one-time
+  configurable provocation threat.
+- Use exact per-Npc combat blocking plus native `Observe`, `FollowMovement`,
+  and `Flee` states without faction, global perception, or general AI changes.
+- Require walkable verified placement, connected path graphs, no Wyrd repeller,
+  and off-camera point plus initialized-renderer validation.
+- Permit passive cleanup only after configured distance and continuous camera
+  absence. Never release or despawn a hostile stalker because of distance.
+- Keep ambient lifecycle isolated from nightly danger budget and official
+  kill/escape relief.
+- Add additive in-game pacing, placement, disappearance, and provocation
+  settings; tune all three one-shot presets without changing schema `6`.
+- Add randomized atmosphere pools and restrained GFT routing: Minimal remains
+  official-hunt-only, Atmospheric adds witnessed disappearance, and Detailed
+  adds sightings, retreats, and escalation flavor without exposing thresholds.
+- Add deterministic contracts for bands, cooldowns, rosters, thresholds,
+  pursuit, movement, damage escalation, visibility, path safety, cleanup,
+  exclusivity, diagnostics, budget isolation, and legacy regression.
+
+Acceptance additions:
+
+- Every profile initializes passive without native premature combat on its
+  mapped exterior and becomes hostile at its exact rolled threshold.
+- Running deliberately toward each representative body type produces native
+  Flee behavior; moving away permits bounded FollowMovement without stacking.
+- Turning the camera away never removes a nearby stalker, while a distant
+  continuously off-camera passive stalker may disappear cleanly.
+- A hostile stalker remains an ordinary live enemy at distance and blocks a
+  second Eyes lane until exact lifecycle resolution.
+- GFT behavior for Minimal, Atmospheric, Detailed, Diagnostics on/off, absence,
+  and rapid event collapse matches the documented routing.
+- Every new row in [TEST-MATRIX.md](TEST-MATRIX.md) passes or is explicitly
+  removed from scope.
+
+## 0.9.4 - Pursuit consequences and safe rest
+
+Status: implementation and focused contracts complete. Clean packaging,
+Vortex staging, and the expanded in-game matrix remain required.
+
+Purpose: make deliberate close pursuit dangerous, keep passive stalking at a
+credible distance, and prevent sleep or GFT phase transitions from contradicting
+the final waking state.
+
+Implemented scope:
+
+- Keep the existing configurable protected-area decay as the slow safe-state
+  threat drain; protected time never adds passive exposure.
+- Hold passive stalking around a 20-metre observation buffer and add a
+  five-active-second rearm delay after a completed flee episode.
+- Escalate the exact stalker when the Hero closes within 8 metres while it is
+  fleeing. This is defensive escalation, not an attack, so it adds no special
+  provocation threat.
+- Patch only the native `RestPopupUI.Rest` action. During an active outdoor
+  Wyrdnight, require the native `IsSafelyResting` result, which represents an
+  active fueled Wyrd repeller at the Hero's rest point.
+- Preserve native daylight rest and native sleep-interruption checks. A Hero at
+  a fueled protective point may sleep through the Wyrdnight when no native
+  interruption occurs.
+- Suppress atmosphere while rest advances world time, then adopt the first
+  stable waking phase and protection state without replaying slept-through
+  night, stage, protection, hunt, or stalker messages.
+
+Acceptance additions:
+
+- Safe-distance following and flee rearm avoid repeated flee-transition floods.
+- Closing to 8 metres during Flee produces exact-Hero combat without awarding
+  attack-only provocation threat; remaining outside that boundary stays passive.
+- Unprotected active-Wyrdnight Rest is blocked without advancing time, while a
+  fueled protective rest point retains native interruption behavior.
+- Sleeping across nightfall or dawn produces no contradictory atmosphere and
+  at most one diagnostics-only final-phase reconciliation summary.
+
+## 0.9.5 - Tested visual defaults
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the expanded in-game matrix remain required.
+
+Purpose: turn the approved live meter and boundary tuning into predictable
+first-install and upgrade defaults.
+
+Implemented scope:
+
+- Change the threat-meter default to `#8032FF`.
+- Set near, middle, and outer radius/intensity/thickness defaults to
+  `10 / 0.05 / 0.25`, `20 / 0.05 / 0.25`, and `30 / 0.05 / 0.25`.
+- Set minimum threat intensity to `0.8` and boundary pulse amount to `0.8`;
+  retain maximum intensity `1.2`, maximum thickness `1.15`, boundary color
+  `#B878FF`, and Diagnostics off.
+- Advance the config schema because these are material default changes. Back up
+  and regenerate the old config, conservatively restore other compatible
+  durable customizations, and deliberately retain the new pulse and
+  Diagnostics-off defaults instead of restoring their previous custom values.
+
+Acceptance additions:
+
+- A clean config exposes the exact approved defaults in FoA Mod Manager.
+- A schema-6 upgrade creates a backup and restores unrelated compatible custom
+  settings while pulse becomes `0.8` and Diagnostics becomes false.
+- The default boundary remains readable, smoothly animated, and free of radius,
+  material, or native-protection side effects.
+
+## 0.9.6 - Unified Wyrdnight visuals
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the expanded in-game matrix remain required.
+
+Implemented scope:
+
+- Fully integrate Purple Moon Test's moon surface, HDR corona, moonlight,
+  night-sky tint, and fueled protection-bubble controls.
+- Promote the tested live Purple Moon values to EITD's defaults and retain one
+  EITD-owned Diagnostics setting with its safe `false` default.
+- Add Purple Wyrdness and region-derived Native Orange palettes.
+- Replace boundary-only threat reactivity with a configurable shared visual
+  scale of `0.8` at zero threat and `1.2` at 100 threat.
+- Smoothly shift moon, moonlight, protection bubble, boundary, and threat meter
+  toward configurable red `#FF3028`; explicitly exclude night-sky hue.
+- Render the threat meter at `1.5` times RGB brightness before the shared scale.
+- Remove threat-driven boundary thickness changes while retaining independent
+  per-ring geometry, brightness, and organic pulse.
+- Restore captured visual state on daylight, interiors, disablement, and
+  teardown without overwriting a later external property change.
+- Advance schema to `8`, remove the obsolete boundary threat settings, and
+  retire Purple Moon Test only after the integrated package passes automation.
+
+Acceptance additions:
+
+- Purple and Native Orange palettes produce the expected base hues at zero,
+  midpoint behavior at 50, and scale/red-shift endpoints at 100 threat.
+- The moon surface, corona, and moonlight all shift toward red; night-sky
+  color does not.
+- Boundary and meter use the same threat response, with no duplicate boundary
+  scaling and no threat-driven thickness change.
+- Daylight/interior/disable restoration, normal and Ultra Plus systems,
+  multiple protection bubbles, loads, time skips, and live config edits work
+  without cumulative HDR gain, per-frame warnings, or gameplay changes.
+- The package and repository contain no standalone Purple Moon Test, and its
+  retired config is absent from the active BepInEx config directory.
+
+## 0.9.7 - Full-sky tint correction
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the updated in-game matrix remain required.
+
+Implemented scope:
+
+- Confirm through Light Control's shipped DLL that it owns light intensity,
+  volumetrics, exposure, and post-exposure, but no sky tint property.
+- Move EITD sky coloration from `_NightSkyTint` to `_SkyTint` so it affects the
+  complete visible Wyrdnight sky.
+- Correct the setting labels and documentation without renaming the durable
+  config keys; customized colors and strengths remain valid.
+- Preserve external-override-safe restoration and the deliberate exclusion of
+  sky color from the threat-driven red shift.
+- Advance schema to `9` because the existing color setting now has broader,
+  corrected visible-sky semantics.
+
+Acceptance additions:
+
+- The configured palette visibly affects the complete sky and restores the
+  captured original `_SkyTint` after daylight, interiors, or disablement.
+- Fog, clouds, terrain lighting, and reflections are not described or treated
+  as direct outputs of the sky tint.
+- Light Control and EITD can run together without repeated sky-property writes
+  or ownership contention.
+
+## 0.9.8 - Threat-drawn Wyrdnights
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the updated in-game matrix remain required.
+
+Implemented scope:
+
+- Replace raw clock multipliers with `DayMinutes`, `BaseNightMinutes`, and
+  `MaximumThreatNightMinutes`, defaulting to `60`, `5`, and `15`.
+- Interpolate live Wyrdnight duration with current threat while thresholding
+  clock writes and preserving native restoration/override safety.
+- Base capped sublinear budget capacity on the configured maximum night so a
+  fully stretched default night retains the established Watchful bonus.
+- Route EITD and GFT-owned Wyrd messages through Purple or Orange according to
+  the live Wyrdness palette without conflating color with priority.
+- Add an explicit diagnostics-only threat override and forced 0-to-100 value.
+- Advance Eyes schema to `10`; keep GFT schema `24` because its integration
+  adds no stored setting.
+
+Acceptance additions:
+
+- Measure 60-minute daylight, a 5-minute zero-threat night, and a 15-minute
+  continuously forced 100-threat night within the matrix tolerance.
+- Change threat during a night and confirm clock duration reacts without
+  per-poll setter or log spam.
+- Switch palettes live and confirm both Eyes atmosphere and vanilla GFT Wyrd
+  messages use the matching configurable color group.
+- Force each threat stage, confirm every downstream system responds, disable
+  the override, and verify natural threat behavior resumes.
+
+## 0.9.9 - Product identity restoration
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the consolidated in-game matrix remain required.
+
+Implemented scope:
+
+- Restore the display, assembly, Nexus, and release ZIP identity to
+  **Eyes in the Dark - Wyrdnight Overhaul**.
+- Retain `EyesInTheDark` as the compact package folder and DLL name, and retain
+  the existing plugin GUID, config title, config filename, and schema.
+
+## 1.0.0 - Rest gate and visual transitions
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and the consolidated in-game matrix remain required.
+
+Implemented scope:
+
+- Filter the native rest-availability result so exposed beds and fireplaces do
+  not open the clock screen during an active outdoor Wyrdnight. Preserve native
+  denials and leave protected and daylight rest under native control.
+- Show the exact protective-boundary explanation once per continuous blocked
+  episode, with the original Rest action check retained as a failsafe.
+- Fade only the integrated environment and fueled protection-bubble palette
+  across natural dusk and dawn. Default to `60` active real-time seconds, freeze
+  while paused, and restore immediately for confirmed interiors, disablement,
+  teardown, or failures. Version 1.0.4 supersedes the original load behavior
+  with short-transition continuity.
+- Keep config schema `10`; the transition-duration setting is additive.
+
+## 1.0.1 - Readable rest clock
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game visual/input acceptance remain
+required.
+
+Implemented scope:
+
+- Preserve the native clockwise 24-hour selection model and label its cardinal
+  hours so the dial cannot reasonably be mistaken for a 12-hour clock.
+- Replace the generic 12/12 half-circle with an exact runtime-drawn Wyrdnight
+  arc spanning approximately 22:05 to 05:31.
+- Move the existing moon and sun markers to those phase boundaries and match the
+  overlay to the current Wyrdness palette and threat-to-red response.
+- Fail open to the usable native rest clock if the expected prefab hierarchy or
+  optional rendering layer is unavailable.
+
+## 1.0.2 - Native disabled-rest presentation
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Add `AllowUnprotectedWyrdnightRest`, default `false`, as a durable preference
+  independent of the Uneasy, Watchful, and Cursed gameplay presets.
+- Keep protected Wyrdnight rest available by default while exposed REST uses
+  the game's native greyed-out, inactive presentation.
+- Remove the blocked-rest warning panel and episode-tracking state. Retain the
+  original Rest action prefix only as a silent failsafe for stale UI or another
+  entry route.
+- Preserve daylight behavior and every native rest denial. Keep schema `10`
+  because the setting is additive.
+
+## 1.0.3 - Pre-dawn fade and ranged noise
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Derive remaining real Wyrdnight time from normalized night progress and the
+  current game weather rate.
+- Begin the visual fade-out during the final configured transition duration so
+  it reaches the restored presentation at dawn. Retain the existing post-dusk
+  fade-in and immediate unsafe-context restoration.
+- Record modest capped threat for a released Hero projectile and a successfully
+  completed spell even when it hits nothing. Skip failed and canceled casts and
+  avoid double-counting projectile spells.
+- Keep melee attack-start non-threatening; melee still requires meaningful
+  damage or one confirmed environment impact per attack.
+- Keep schema `10`; no config setting changed identity, type, default, or
+  meaning.
+
+## 1.0.4 - Rest UI and visual continuity
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Reapply the final native-plus-Eyes rest result to the actual fireplace REST
+  button after initialization, upgraded-bonfire refreshes, and live eligibility
+  changes while the menu remains open. Retain the silent final action guard.
+- Replace the palette arc and Wyrdnight caption with neutral cardinal labels,
+  the moon at the top, and sun at the bottom. Add an additive 12-hour/24-hour
+  label-format preference, defaulting to 12-hour labels.
+- Keep Wyrdnight visuals active while the rest popup is open. Hold the last
+  confirmed presentation through short loading/transition states and prime new
+  exterior-night renderers from the authoritative world clock.
+- Restore immediately only for confirmed daylight, interiors, title screen,
+  disablement, teardown, or visual failure, retaining external-write protection.
+- Keep schema `10`; the label-format setting is additive.
+
+## 1.0.5 - Battlecry response
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Expose a versioned soft API for Battlecry Voice Tuner without creating a hard
+  dependency in either direction.
+- Accept cries only while the Hero is exposed outdoors during a valid active
+  Wyrdnight and apply full, half, quarter, then diminishing threat down to a
+  10 percent floor.
+- Reset the diminishing sequence after 30 active seconds without an accepted
+  cry.
+- After two or three accepted cries, allow Atmospheric and Detailed GFT presets
+  to select one of seven Wyrdnight-response lines, with a separate configurable
+  45-active-second default cooldown. Keep Minimal quiet.
+- Keep schema `10`; BattlecryResponseCooldownSeconds is additive.
+
+## 1.0.6 - Clock and visual polish
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Apply the existing TwelveHour preference to the quick-use weather clock with
+  AM/PM text; leave the game's native quick-use label untouched in
+  TwentyFourHour mode.
+- Place the neutral rest-clock moon and sun just inside the dial below the
+  midnight and noon labels without touching native selection behavior.
+- Center the configured dusk transition on nightfall. At the default 60-second
+  duration it begins 30 seconds before, is half blended at nightfall, and
+  finishes 30 seconds after; retain the existing fade that finishes at dawn.
+- Ramp only the loaded threat contribution to presentation color over 10 active
+  seconds while keeping authoritative threat, meter fill, stages, gameplay,
+  and dynamic night timing immediate.
+- Add PurpleWyrdnessBrightness with a 1.2 default and 0.5-to-2.0 range for sky
+  emission and HDR moon/world-light color channels. Leave exposure,
+  post-exposure, light intensity, dimmers, volumetrics, and Native Orange
+  outside Eyes ownership.
+- Suppress Eyes diagnostic GFT at the title screen, during loading, and without
+  a playable Hero. Preserve GFT-owned compatibility notices.
+- Change the battlecry-response notification cooldown default from 45 to 15
+  active seconds without changing the battlecry API, diminishing threat,
+  randomized response pool, or two-to-three-cry cadence.
+- Increment schema from `10` to `11` because the existing battlecry-response
+  cooldown default changed. Preserve genuine customized values conservatively.
+
+## 1.0.7 - Config UX and clock baseline
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Change the primary world-clock baseline to a 60-minute day, six-minute quiet
+  Wyrdnight, and 12-minute maximum-threat Wyrdnight. This keeps low threat near
+  the game's approximately 6.2-minute night and lets maximum threat double it.
+- Preserve dynamic interpolation and capped square-root encounter-budget
+  scaling; Watchful receives roughly a 14 percent maximum-night capacity bonus.
+- Reorder General as master switch, apply-preset-once, ambient stalkers, elite
+  enemies, unprotected rest, and time display with unique ordering.
+- Keep World Clock, HUD, Boundary Appearance, Wyrdnight Appearance, and
+  Notifications concise, then group detailed controls under clearly labeled
+  Advanced sections.
+- Add units directly to time and distance labels and replace user-facing hazard,
+  danger-budget, and sidecar terminology with hunt pressure, encounter budget,
+  and additional hunter language.
+- Replace raw `BoundaryHdrIntensity` with `BoundaryBrightness`, default `1.0`
+  and range `0-3`, converted internally through the preserved `271.529`
+  vanilla-equivalent HDR baseline.
+- Increment schema from `11` to `12` because the existing night-duration
+  defaults changed and the boundary setting was replaced with a new scale.
+  Preserve compatible durable settings and skip the retired raw HDR value.
+- Preserve the 1.0.6 battlecry API, diminishing threat, randomized response
+  pool, two-to-three-cry cadence, and 15-second notification cooldown default.
+
+## 1.0.8 - Noon-first clock and performance pass
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Rotate the rest selector's labels, sun/moon icons, hand, fill, mouse mapping,
+  and controller mapping together so noon is at the top without changing the
+  selected hour or native rest behavior.
+- Format Current time and Resting until with AM/PM when TwelveHour is selected;
+  TwentyFourHour continues to leave native text untouched.
+- Recalculate Wyrdnight lighting at the existing five-times-per-second state
+  cadence, then reapply only cached values after the native per-frame lighting
+  update overwrites them.
+- Cache parsed visual colors and coalesce environment-lighting refreshes to at
+  most four per second while retaining immediate forced restoration.
+- Disable the custom layered-boundary pass whenever the native boundary has no
+  visible intensity, cache stalker renderers, and remove steady-state camera
+  visibility arrays.
+- Avoid redundant threat-meter layout and activation writes, poll Hero and
+  world subscription state with the existing director cadence, and aggregate
+  continuous movement diagnostics instead of logging every poll.
+
+## 1.0.9 - Preset-driven risky rest
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Route added Wyrdnight sleep risk through the native time-skip interruption
+  check, preserving native interruptions as the first authority and native wake
+  presentation for Eyes interruptions.
+- Keep one chance roll and one cumulative exposure threshold per Wyrdnight so
+  repeated short rests do not reroll. Accumulate only accepted unprotected
+  Wyrdnight overlap.
+- Apply preset defaults of 0/0 percent for Uneasy, 45/75 percent for Watchful,
+  and 80/100 percent for Cursed. Uneasy and Watchful permit active-night rest;
+  Cursed blocks starting it after nightfall while permitting pre-night rest to
+  cross the phase boundary.
+- Lock further unprotected rest until dawn after an interruption. Fueled
+  protective boundaries remain safe and available.
+- Queue one immediate official hunt after an Eyes interruption and retain all
+  normal selection, budget, placement confirmation, and failure rules. Do not
+  duplicate native interruption encounters.
+- Add OwnRestMenu, default true. When disabled, restore and leave native rest
+  controls, clock layout, labels, and popup formatting untouched while keeping
+  a silent final gameplay guard.
+- Advance schema to `13` because the existing unprotected-rest default changed
+  from false to true. Additive risk and presentation settings remain eligible
+  for normal preservation.
+
+## 1.1.0 - Mirrored meter animation correction
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Keep the threat meter artwork mirrored horizontally and vertically.
+- Reverse only the cloned `TextureScroller` speed axes affected by that mirror
+  so its apparent movement matches the vanilla Hero resource bars.
+- Give each cloned scroller a private runtime material before initialization so
+  the meter cannot change shared vanilla materials.
+- Destroy those materials during meter teardown and retain config schema `13`.
+
+## Explicitly deferred beyond 1.1.0
 
 - Custom save persistence for threat or active encounters.
 - Indoor hunts.
@@ -529,10 +1013,10 @@ Acceptance additions:
 
 ## Goal execution rule
 
-When this roadmap is used as the 0.9.0 development goal, execute one
+When this roadmap is used as the 1.1.0 development goal, execute one
 implementation milestone at a time with automated contracts and clean builds,
-then run the consolidated in-game pass after the `0.8.3` implementation is
-complete. Do not mark the goal complete until every `0.8.3` acceptance criterion
+then run the consolidated in-game pass after the `1.1.0` implementation is
+complete. Do not mark the goal complete until every `1.1.0` acceptance criterion
 is either verified or explicitly removed from scope by the user. Failures found
 in the consolidated pass require a fix and focused retest; they are not a reason
 to omit the affected scenario.

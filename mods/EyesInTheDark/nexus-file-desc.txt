@@ -1,1 +1,1 @@
-Timescale-aware Wyrd Threat, curated native hunts, gameplay presets, HUD meter, boundary visuals, and optional diagnostics.
+A dynamic world clock and Wyrd Threat drive stalkers, regional hunts, protected rest, and escalating visuals.

@@ -108,7 +108,7 @@ namespace EyesInTheDark
 
         protected override void Execute(CustomPassContext context)
         {
-            if (_targetObject == null)
+            if (_targetObject == null || _nativeIntensity <= 0.0001f)
             {
                 return;
             }

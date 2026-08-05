@@ -1,0 +1,171 @@
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = "Stop"
+$modRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $modRoot)
+$plugin = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\EyesInTheDark.cs") -Raw
+$visual = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\WyrdVisualRuntime.cs") -Raw
+$boundary = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\BoundaryController.cs") -Raw
+$layeredBoundary = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\LayeredBoundaryPass.cs") -Raw
+$meter = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\ThreatMeter.cs") -Raw
+$manifest = Get-Content -LiteralPath (
+    Join-Path $modRoot "mod.json") -Raw
+
+function Assert-VisualContract {
+    param([bool]$Condition, [string]$Message)
+    if (!$Condition) {
+        throw "Eyes Wyrd visual contract failed: $Message"
+    }
+}
+
+foreach ($required in @(
+    'src/WyrdVisualRuntime.cs',
+    '"version": "1.1.0"')) {
+    Assert-VisualContract ($manifest.Contains($required)) "manifest omits $required"
+}
+
+foreach ($required in @(
+    'private const int ConfigSchemaVersion = 13;',
+    'DefaultMinimumThreatVisualScale = 0.8f;',
+    'DefaultMaximumThreatVisualScale = 1.2f;',
+    'DefaultThreatRedColor = "#FF3028";',
+    'DefaultMaximumThreatRedBlend = 0.8f;',
+    'DefaultMoonSurfaceColor = "#3200FF";',
+    'DefaultMoonSurfaceTintStrength = 0.75f;',
+    'DefaultMoonSurfaceIntensity = 2.0f;',
+    'DefaultMoonCoronaColor = "#8000FF";',
+    'DefaultMoonCoronaIntensity = 2.0f;',
+    'DefaultMoonlightColor = "#7E47FF";',
+    'DefaultMoonlightTintStrength = 0.9f;',
+    'DefaultNightSkyAmbientColor = "#401C63";',
+    'DefaultNightSkyAmbientTintStrength = 1.0f;',
+    'DefaultPurpleWyrdnessBrightness = 1.2f;',
+    'DefaultProtectionBubbleColor = "#B050FF";',
+    'DefaultWyrdVisualTransitionSeconds = 60.0f;',
+    '"EnableWyrdnightVisuals"',
+    '"WyrdVisualTransitionSeconds"',
+    '"WyrdnessPalette"',
+    '"PurpleWyrdnessBrightness"',
+    '"MinimumThreatVisualScale"',
+    '"MaximumThreatVisualScale"',
+    '"ThreatRedColor"',
+    '"MaximumThreatRedBlend"')) {
+    Assert-VisualContract ($plugin.Contains($required)) "plugin omits $required"
+}
+
+foreach ($removed in @(
+    'BoundaryThreatReactivity',
+    'MinimumThreatIntensityMultiplier',
+    'MaximumThreatIntensityMultiplier',
+    'MaximumThreatThicknessMultiplier')) {
+    Assert-VisualContract (!$plugin.Contains($removed)) "removed boundary threat setting remains: $removed"
+    Assert-VisualContract (!$boundary.Contains($removed)) "boundary runtime retains: $removed"
+}
+
+foreach ($required in @(
+    'DayNightSystemTypeName',
+    'WyrdnightSphereRepellerTypeName',
+    'MoonSurfaceColor',
+    'MoonCoronaColor',
+    'MoonlightColor',
+    'NightSkyAmbientColor',
+    'ProtectionBubbleColor',
+    'WyrdVisualMath.ThreatScale(',
+    'WyrdVisualMath.ShiftTowardRed(',
+    'WyrdVisualMath.AdvanceBlend(',
+    'public static float CenteredDuskBlend(',
+    'TransitionSeconds',
+    'PurpleWyrdnessBrightness',
+    'SkyEmissionMultiplierId',
+    'BeginLoadThreatTransition(',
+    '_loadThreatTransitionActive',
+    '_visualBlend',
+    '_transitioning',
+    'WyrdnessPalette.NativeOrange',
+    'DynamicGI.UpdateEnvironment();',
+    'EnvironmentRefreshIntervalSeconds = 0.25f;',
+    'FlushEnvironmentRefresh(false);',
+    '_parsedColors',
+    'CalculationVersion',
+    'ReapplyDayNightState(',
+    'if (!_active)',
+    'RestoreDayNightSystems();',
+    'RestoreProtectionBubbles();')) {
+    Assert-VisualContract ($visual.Contains($required)) "integrated runtime omits $required"
+}
+
+foreach ($required in @(
+    'beginNaturalTransition',
+    'canContinueTransition',
+    'WorldTimescalePolicy.RemainingNightRealSeconds(',
+    'WorldTimescalePolicy.RemainingDaylightRealSeconds(',
+    'WorldTimescalePolicy.ElapsedNightRealSeconds(',
+    'WyrdVisualMath.PreDawnBlendLimit(',
+    'WyrdVisualMath.CenteredDuskBlend(',
+    'phaseBlendLimit',
+    'LoadThreatVisualTransitionSeconds',
+    'IsStableExteriorVisualPhase(',
+    'CurrentVisualIntent(',
+    'IsKnownValidWyrdNightForVisuals(',
+    'IsKnownDaylightForVisuals(',
+    'PrimeWyrdVisualsDuringTransientLoad(',
+    'TrySampleImmediateVisualState(',
+    '_visualLoadContinuityPending',
+    '_wyrdVisuals.TargetActive',
+    '_wyrdVisuals.Prime(')) {
+    Assert-VisualContract ($plugin.Contains($required)) "plugin omits transition ownership token $required"
+}
+
+Assert-VisualContract ($plugin.Contains('!observation.IsResting')) "gameplay Wyrdnight validity no longer excludes rest"
+$visualNightStart = $plugin.IndexOf('private static bool IsKnownValidWyrdNightForVisuals(', [StringComparison]::Ordinal)
+$visualDayStart = $plugin.IndexOf('private static bool IsKnownDaylight(', $visualNightStart, [StringComparison]::Ordinal)
+Assert-VisualContract ($visualNightStart -ge 0 -and $visualDayStart -gt $visualNightStart) "visual Wyrdnight predicate was not found"
+$visualNightMethod = $plugin.Substring($visualNightStart, $visualDayStart - $visualNightStart)
+Assert-VisualContract (!$visualNightMethod.Contains('observation.IsResting')) "rest still disables Wyrdnight visuals"
+
+foreach ($required in @(
+    'public bool TargetActive',
+    'public void Prime(',
+    'ApplyDayNightSystem(state.Component);')) {
+    Assert-VisualContract ($visual.Contains($required)) "visual continuity runtime omits $required"
+}
+
+$skyStart = $visual.IndexOf('private void ApplySky(', [StringComparison]::Ordinal)
+$skyEnd = $visual.IndexOf('private Color PaletteColor(', $skyStart, [StringComparison]::Ordinal)
+Assert-VisualContract ($skyStart -ge 0 -and $skyEnd -gt $skyStart) "night-sky method was not found"
+$skyMethod = $visual.Substring($skyStart, $skyEnd - $skyStart)
+Assert-VisualContract (!$skyMethod.Contains('ShiftTowardRed(')) "night sky incorrectly shifts toward red"
+Assert-VisualContract ($visual.Contains('Shader.PropertyToID("_SkyTint")')) "night sky does not use the full-sky tint"
+Assert-VisualContract (!$visual.Contains('Shader.PropertyToID("_NightSkyTint")')) "narrow night-texture tint remains"
+
+foreach ($required in @(
+    'private const float BrightnessMultiplier = 1.5f;',
+    'WyrdVisualMath.ShiftTowardRed(',
+    'WyrdVisualMath.ThreatScale(')) {
+    Assert-VisualContract ($meter.Contains($required)) "threat meter omits $required"
+}
+foreach ($required in @(
+    'ThreatVisualScale',
+    'WyrdVisualMath.ShiftTowardRed(',
+    'WyrdnessPalette.NativeOrange',
+    '_layeredPass.enabled = nativeIntensity > 0.0001f;')) {
+    Assert-VisualContract ($boundary.Contains($required)) "boundary does not use unified response: $required"
+}
+
+Assert-VisualContract (
+    ([regex]::Matches($visual, 'DynamicGI\.UpdateEnvironment\(\);')).Count -eq 1) `
+    "environment lighting has more than one refresh call site"
+Assert-VisualContract (
+    $layeredBoundary.Contains('_nativeIntensity <= 0.0001f')) `
+    "inactive layered boundary still reaches the fullscreen draw path"
+
+Assert-VisualContract (!(Test-Path -LiteralPath (
+    Join-Path $repoRoot 'mods\PurpleMoonTest'))) "standalone PurpleMoonTest package remains"
+
+Write-Host "Eyes in the Dark Wyrd visual contracts passed."

@@ -5,6 +5,7 @@ using System.Reflection;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.HUD;
 using Awaken.TG.Main.Heroes.HUD.Bars;
+using Awaken.TG.Main.UI.Components;
 using BepInEx.Logging;
 using HarmonyLib;
 using TMPro;
@@ -15,12 +16,16 @@ namespace EyesInTheDark
 {
     internal sealed class ThreatMeterController
     {
-        public const string DefaultColorText = "#B878FF";
+        public const string DefaultColorText = "#8032FF";
+        private const string DefaultThreatRedColor = "#FF3028";
+        private const float BrightnessMultiplier = 1.5f;
 
         private readonly ManualLogSource _log;
         private readonly FieldInfo _barField = AccessTools.Field(
             typeof(VCHeroHUDBar),
             "bar");
+        private readonly List<Material> _ownedScrollerMaterials =
+            new List<Material>();
 
         private VHeroHUD _heroHud;
         private VCHeroHealthBar _sourceHealth;
@@ -31,12 +36,30 @@ namespace EyesInTheDark
         private Bar[] _bars;
         private TextMeshProUGUI _exactValue;
         private string _appliedColorText;
+        private string _appliedRedColorText;
         private string _lastInvalidColorText;
+        private string _lastInvalidRedColorText;
         private Color _appliedColor;
+        private float _lastColorThreat = -1f;
+        private float _lastMinimumVisualScale = -1f;
+        private float _lastMaximumVisualScale = -1f;
+        private float _lastMaximumRedBlend = -1f;
         private float _lastThreat = -1f;
         private int _lastExactThreatValue = int.MinValue;
         private bool _visible;
         private bool _buildFailureLogged;
+        private bool _hasPositionSnapshot;
+        private Transform _lastPositionParent;
+        private Vector2 _lastHealthPosition;
+        private Vector2 _lastManaPosition;
+        private Vector2 _lastStaminaPosition;
+        private Vector2 _lastHealthSize;
+        private Vector2 _lastManaSize;
+        private Vector2 _lastStaminaSize;
+        private Vector2 _lastThreatPosition;
+        private float _lastOffsetX;
+        private float _lastOffsetY;
+        private bool _lastPlaceBelowResourceBars;
 
         public ThreatMeterController(ManualLogSource log)
         {
@@ -107,7 +130,13 @@ namespace EyesInTheDark
                     bar.SetPrediction(0f);
                     bar.SetPercentInstant(0f);
                 }
-                ApplyColor(DefaultColorText);
+                ApplyColor(
+                    DefaultColorText,
+                    DefaultThreatRedColor,
+                    0f,
+                    0.8f,
+                    1.2f,
+                    0.8f);
 
                 DisableBehaviour(clonedMana);
                 DisableBehaviour(FindComponentByTypeName(
@@ -121,6 +150,11 @@ namespace EyesInTheDark
                     _root,
                     true,
                     true);
+                bool scrollDirectionPreserved = mirrored
+                    && TryPreserveTextureScrollDirection(
+                        _root,
+                        true,
+                        true);
                 Position(0f, 0f, false);
                 _root.SetActive(false);
                 _visible = false;
@@ -130,7 +164,10 @@ namespace EyesInTheDark
                     "Created the Eyes-owned Wyrd Threat meter above the vanilla Hero HUD"
                     + (mirrored
                         ? " with horizontally and vertically mirrored artwork."
-                        : "."));
+                        : ".")
+                    + (scrollDirectionPreserved
+                        ? " Animated texture direction matches the vanilla Hero bars."
+                        : string.Empty));
             }
             catch (Exception exception)
             {
@@ -157,6 +194,10 @@ namespace EyesInTheDark
             float threat,
             bool visible,
             string colorText,
+            string redColorText,
+            float minimumVisualScale,
+            float maximumVisualScale,
+            float maximumRedBlend,
             bool showExactValue,
             float offsetX,
             float offsetY,
@@ -167,11 +208,27 @@ namespace EyesInTheDark
                 return;
             }
 
-            ApplyColor(colorText);
-            Position(
+            ApplyColor(
+                colorText,
+                redColorText,
+                threat,
+                minimumVisualScale,
+                maximumVisualScale,
+                maximumRedBlend);
+            if (NeedsPosition(
                 offsetX,
                 offsetY,
-                placeBelowResourceBars);
+                placeBelowResourceBars))
+            {
+                Position(
+                    offsetX,
+                    offsetY,
+                    placeBelowResourceBars);
+                CapturePosition(
+                    offsetX,
+                    offsetY,
+                    placeBelowResourceBars);
+            }
             float clamped = Mathf.Clamp(threat, 0f, 100f);
             float percent = clamped / 100f;
             if (visible && !_visible)
@@ -191,8 +248,11 @@ namespace EyesInTheDark
             EnsureExactValue(showExactValue);
             if (_exactValue != null)
             {
-                _exactValue.gameObject.SetActive(
-                    visible && showExactValue);
+                bool exactVisible = visible && showExactValue;
+                if (_exactValue.gameObject.activeSelf != exactVisible)
+                {
+                    _exactValue.gameObject.SetActive(exactVisible);
+                }
                 int rounded = Mathf.RoundToInt(clamped);
                 if (visible
                     && showExactValue
@@ -206,7 +266,10 @@ namespace EyesInTheDark
 
             _visible = visible;
             _lastThreat = clamped;
-            _root.SetActive(visible);
+            if (_root.activeSelf != visible)
+            {
+                _root.SetActive(visible);
+            }
         }
 
         public void Release()
@@ -215,6 +278,17 @@ namespace EyesInTheDark
             {
                 UnityEngine.Object.Destroy(_root);
             }
+            for (int index = 0;
+                index < _ownedScrollerMaterials.Count;
+                index++)
+            {
+                Material material = _ownedScrollerMaterials[index];
+                if (material != null)
+                {
+                    UnityEngine.Object.Destroy(material);
+                }
+            }
+            _ownedScrollerMaterials.Clear();
 
             _heroHud = null;
             _sourceHealth = null;
@@ -225,19 +299,153 @@ namespace EyesInTheDark
             _bars = null;
             _exactValue = null;
             _appliedColorText = null;
+            _appliedRedColorText = null;
             _lastInvalidColorText = null;
+            _lastInvalidRedColorText = null;
+            _lastColorThreat = -1f;
+            _lastMinimumVisualScale = -1f;
+            _lastMaximumVisualScale = -1f;
+            _lastMaximumRedBlend = -1f;
             _lastThreat = -1f;
             _lastExactThreatValue = int.MinValue;
             _visible = false;
+            _hasPositionSnapshot = false;
+            _lastPositionParent = null;
         }
 
-        private void ApplyColor(string colorText)
+        private bool NeedsPosition(
+            float offsetX,
+            float offsetY,
+            bool placeBelowResourceBars)
+        {
+            RectTransform health = _sourceHealth == null
+                ? null
+                : _sourceHealth.transform as RectTransform;
+            RectTransform mana = _sourceMana == null
+                ? null
+                : _sourceMana.transform as RectTransform;
+            RectTransform stamina = _sourceStamina == null
+                ? null
+                : _sourceStamina.transform as RectTransform;
+            RectTransform threat = _root == null
+                ? null
+                : _root.transform as RectTransform;
+            Transform parent = threat == null ? null : threat.parent;
+            return !_hasPositionSnapshot
+                || !ReferenceEquals(parent, _lastPositionParent)
+                || !Approximately(offsetX, _lastOffsetX)
+                || !Approximately(offsetY, _lastOffsetY)
+                || placeBelowResourceBars
+                    != _lastPlaceBelowResourceBars
+                || !Approximately(
+                    health == null
+                        ? Vector2.zero
+                        : health.anchoredPosition,
+                    _lastHealthPosition)
+                || !Approximately(
+                    mana == null ? Vector2.zero : mana.anchoredPosition,
+                    _lastManaPosition)
+                || !Approximately(
+                    stamina == null
+                        ? Vector2.zero
+                        : stamina.anchoredPosition,
+                    _lastStaminaPosition)
+                || !Approximately(
+                    health == null ? Vector2.zero : health.rect.size,
+                    _lastHealthSize)
+                || !Approximately(
+                    mana == null ? Vector2.zero : mana.rect.size,
+                    _lastManaSize)
+                || !Approximately(
+                    stamina == null ? Vector2.zero : stamina.rect.size,
+                    _lastStaminaSize)
+                || !Approximately(
+                    threat == null
+                        ? Vector2.zero
+                        : threat.anchoredPosition,
+                    _lastThreatPosition);
+        }
+
+        private void CapturePosition(
+            float offsetX,
+            float offsetY,
+            bool placeBelowResourceBars)
+        {
+            RectTransform health = _sourceHealth == null
+                ? null
+                : _sourceHealth.transform as RectTransform;
+            RectTransform mana = _sourceMana == null
+                ? null
+                : _sourceMana.transform as RectTransform;
+            RectTransform stamina = _sourceStamina == null
+                ? null
+                : _sourceStamina.transform as RectTransform;
+            RectTransform threat = _root == null
+                ? null
+                : _root.transform as RectTransform;
+            _lastPositionParent = threat == null ? null : threat.parent;
+            _lastHealthPosition = health == null
+                ? Vector2.zero
+                : health.anchoredPosition;
+            _lastManaPosition = mana == null
+                ? Vector2.zero
+                : mana.anchoredPosition;
+            _lastStaminaPosition = stamina == null
+                ? Vector2.zero
+                : stamina.anchoredPosition;
+            _lastHealthSize = health == null
+                ? Vector2.zero
+                : health.rect.size;
+            _lastManaSize = mana == null
+                ? Vector2.zero
+                : mana.rect.size;
+            _lastStaminaSize = stamina == null
+                ? Vector2.zero
+                : stamina.rect.size;
+            _lastThreatPosition = threat == null
+                ? Vector2.zero
+                : threat.anchoredPosition;
+            _lastOffsetX = offsetX;
+            _lastOffsetY = offsetY;
+            _lastPlaceBelowResourceBars = placeBelowResourceBars;
+            _hasPositionSnapshot = true;
+        }
+
+        private static bool Approximately(float left, float right)
+        {
+            return Mathf.Abs(left - right) <= 0.01f;
+        }
+
+        private static bool Approximately(Vector2 left, Vector2 right)
+        {
+            return (left - right).sqrMagnitude <= 0.0001f;
+        }
+
+        private void ApplyColor(
+            string colorText,
+            string redColorText,
+            float threat,
+            float minimumVisualScale,
+            float maximumVisualScale,
+            float maximumRedBlend)
         {
             string configuredColor = colorText ?? string.Empty;
+            string configuredRed = redColorText ?? string.Empty;
             if (string.Equals(
                 configuredColor,
                 _appliedColorText,
-                StringComparison.Ordinal))
+                StringComparison.Ordinal)
+                && string.Equals(
+                    configuredRed,
+                    _appliedRedColorText,
+                    StringComparison.Ordinal)
+                && Math.Abs(threat - _lastColorThreat) <= 0.0001f
+                && Math.Abs(minimumVisualScale - _lastMinimumVisualScale)
+                    <= 0.0001f
+                && Math.Abs(maximumVisualScale - _lastMaximumVisualScale)
+                    <= 0.0001f
+                && Math.Abs(maximumRedBlend - _lastMaximumRedBlend)
+                    <= 0.0001f)
             {
                 return;
             }
@@ -266,6 +474,44 @@ namespace EyesInTheDark
             {
                 _lastInvalidColorText = null;
             }
+
+            Color redColor;
+            if (!ColorUtility.TryParseHtmlString(
+                configuredRed,
+                out redColor))
+            {
+                ColorUtility.TryParseHtmlString(
+                    DefaultThreatRedColor,
+                    out redColor);
+                if (!string.Equals(
+                    configuredRed,
+                    _lastInvalidRedColorText,
+                    StringComparison.Ordinal))
+                {
+                    _lastInvalidRedColorText = configuredRed;
+                    _log.LogWarning(
+                        "ThreatRedColor is invalid; using "
+                        + DefaultThreatRedColor
+                        + ".");
+                }
+            }
+            else
+            {
+                _lastInvalidRedColorText = null;
+            }
+
+            color = WyrdVisualMath.ShiftTowardRed(
+                color,
+                redColor,
+                threat,
+                maximumRedBlend);
+            color = WyrdVisualMath.ScaleRgb(
+                color,
+                BrightnessMultiplier
+                    * WyrdVisualMath.ThreatScale(
+                        threat,
+                        minimumVisualScale,
+                        maximumVisualScale));
 
             if (_bars != null)
             {
@@ -297,6 +543,11 @@ namespace EyesInTheDark
             }
 
             _appliedColorText = configuredColor;
+            _appliedRedColorText = configuredRed;
+            _lastColorThreat = threat;
+            _lastMinimumVisualScale = minimumVisualScale;
+            _lastMaximumVisualScale = maximumVisualScale;
+            _lastMaximumRedBlend = maximumRedBlend;
         }
 
         private void Position(
@@ -693,6 +944,93 @@ namespace EyesInTheDark
 
                 _log.LogWarning(
                     "Could not mirror the Wyrd Threat meter; the normal artwork remains active: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool TryPreserveTextureScrollDirection(
+            GameObject root,
+            bool mirrorHorizontally,
+            bool mirrorVertically)
+        {
+            TextureScroller[] scrollers = root == null
+                ? new TextureScroller[0]
+                : root.GetComponentsInChildren<TextureScroller>(true);
+            List<TextureScroller> configured =
+                new List<TextureScroller>();
+            List<Vector2> originalSpeeds = new List<Vector2>();
+            List<Material> originalMaterials = new List<Material>();
+            List<Material> createdMaterials = new List<Material>();
+            try
+            {
+                for (int index = 0;
+                    index < scrollers.Length;
+                    index++)
+                {
+                    TextureScroller scroller = scrollers[index];
+                    if (scroller == null || scroller.image == null)
+                    {
+                        continue;
+                    }
+
+                    Material originalMaterial = scroller.image.material;
+                    if (originalMaterial == null)
+                    {
+                        continue;
+                    }
+
+                    Material material = new Material(originalMaterial);
+                    material.name = originalMaterial.name
+                        + " (EITD Threat Meter)";
+                    material.hideFlags = HideFlags.DontSave;
+                    configured.Add(scroller);
+                    originalSpeeds.Add(scroller.speed);
+                    originalMaterials.Add(originalMaterial);
+                    createdMaterials.Add(material);
+                    scroller.image.material = material;
+                    scroller.speed = new Vector2(
+                        mirrorHorizontally
+                            ? -scroller.speed.x
+                            : scroller.speed.x,
+                        mirrorVertically
+                            ? -scroller.speed.y
+                            : scroller.speed.y);
+                }
+
+                _ownedScrollerMaterials.AddRange(createdMaterials);
+                return configured.Count > 0;
+            }
+            catch (Exception exception)
+            {
+                for (int index = 0;
+                    index < configured.Count;
+                    index++)
+                {
+                    TextureScroller scroller = configured[index];
+                    if (scroller != null)
+                    {
+                        scroller.speed = originalSpeeds[index];
+                        if (scroller.image != null)
+                        {
+                            scroller.image.material =
+                                originalMaterials[index];
+                        }
+                    }
+                }
+                for (int index = 0;
+                    index < createdMaterials.Count;
+                    index++)
+                {
+                    if (createdMaterials[index] != null)
+                    {
+                        UnityEngine.Object.Destroy(
+                            createdMaterials[index]);
+                    }
+                }
+
+                _log.LogWarning(
+                    "Could not preserve the vanilla texture-scroll direction on the mirrored Wyrd Threat meter; the meter remains usable: "
                     + exception.GetBaseException().Message);
                 return false;
             }

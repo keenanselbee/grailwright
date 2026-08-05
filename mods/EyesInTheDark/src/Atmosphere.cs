@@ -21,7 +21,13 @@ namespace EyesInTheDark
         MajorThreatSurge,
         HuntCommitted,
         HunterKilled,
-        HunterEscaped
+        HunterEscaped,
+        StalkerSighted,
+        StalkerRetreated,
+        StalkerVanished,
+        StalkerProvoked,
+        StalkerAwakened,
+        BattlecryResponse
     }
 
     internal static class AtmospherePolicy
@@ -42,6 +48,8 @@ namespace EyesInTheDark
                 return eventKind == AtmosphereEventKind.NightBegin
                     || eventKind == AtmosphereEventKind.NightEnd
                     || eventKind == AtmosphereEventKind.UpwardStage
+                    || eventKind == AtmosphereEventKind.BattlecryResponse
+                    || eventKind == AtmosphereEventKind.StalkerVanished
                     || eventKind == AtmosphereEventKind.HuntCommitted
                     || eventKind == AtmosphereEventKind.HunterKilled
                     || eventKind == AtmosphereEventKind.HunterEscaped;
@@ -137,6 +145,52 @@ namespace EyesInTheDark
             "The hunter loses you in the dark."
         };
 
+        private static readonly string[] StalkerSightedTexts =
+        {
+            "A shape watches from the edge of sight.",
+            "Something keeps pace beyond the firelight.",
+            "For a moment, the dark has a silhouette."
+        };
+
+        private static readonly string[] StalkerVanishedTexts =
+        {
+            "The shape is no longer there.",
+            "You look again, and find only night.",
+            "Whatever watched you has slipped away."
+        };
+
+        private static readonly string[] StalkerRetreatedTexts =
+        {
+            "The watcher recoils from your approach.",
+            "The shape slips back into the dark.",
+            "Something retreats just beyond your reach."
+        };
+
+        private static readonly string[] StalkerProvokedTexts =
+        {
+            "Your violence gives the watcher purpose.",
+            "The thing in the dark answers your blow.",
+            "You have turned its attention into hunger."
+        };
+
+        private static readonly string[] StalkerAwakenedTexts =
+        {
+            "The watcher stops retreating.",
+            "The shape in the dark turns toward you.",
+            "Observation gives way to pursuit."
+        };
+
+        private static readonly string[] BattlecryResponseTexts =
+        {
+            "The Wyrdnight takes notice.",
+            "The Wyrdnight reacts to your cries.",
+            "Something in the dark hears your challenge.",
+            "Your voice carries farther than it should.",
+            "The night leans closer to listen.",
+            "The dark remembers your defiance.",
+            "Something answers without a voice."
+        };
+
         private readonly Random _random;
         private readonly Dictionary<string, int> _lastIndices =
             new Dictionary<string, int>(StringComparer.Ordinal);
@@ -193,6 +247,30 @@ namespace EyesInTheDark
                 case AtmosphereEventKind.HunterEscaped:
                     key = "hunter-escaped";
                     pool = HunterEscapedTexts;
+                    break;
+                case AtmosphereEventKind.StalkerSighted:
+                    key = "stalker-sighted";
+                    pool = StalkerSightedTexts;
+                    break;
+                case AtmosphereEventKind.StalkerVanished:
+                    key = "stalker-vanished";
+                    pool = StalkerVanishedTexts;
+                    break;
+                case AtmosphereEventKind.StalkerRetreated:
+                    key = "stalker-retreated";
+                    pool = StalkerRetreatedTexts;
+                    break;
+                case AtmosphereEventKind.StalkerProvoked:
+                    key = "stalker-provoked";
+                    pool = StalkerProvokedTexts;
+                    break;
+                case AtmosphereEventKind.StalkerAwakened:
+                    key = "stalker-awakened";
+                    pool = StalkerAwakenedTexts;
+                    break;
+                case AtmosphereEventKind.BattlecryResponse:
+                    key = "battlecry-response";
+                    pool = BattlecryResponseTexts;
                     break;
                 default:
                     key = "major-surge";

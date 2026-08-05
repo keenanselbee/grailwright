@@ -183,6 +183,54 @@ namespace EyesInTheDark
                 && observation.SceneInitialized;
         }
 
+        public static bool IsActiveWyrdnightPhaseForRest(
+            NightObservation observation)
+        {
+            return observation.HasPlayableHero
+                && observation.HeroAlive
+                && !observation.AtTitleScreen
+                && !observation.IsLoading
+                && !observation.IsTransitioning
+                && !observation.IsTraveling
+                && observation.SceneKnown
+                && observation.SceneInitialized
+                && observation.HasWorldTime
+                && observation.HasHeroNightState
+                && observation.IsOutdoor
+                && observation.AllowsWyrdNight
+                && !observation.IsPrologue
+                && observation.GameSaysNight
+                && observation.HeroSaysNight;
+        }
+
+        public static bool CanBeginRest(
+            bool featureEnabled,
+            bool allowUnprotectedWyrdnightRest,
+            NightObservation observation,
+            bool isSafelyResting)
+        {
+            return !featureEnabled
+                || !IsActiveWyrdnightPhaseForRest(observation)
+                || allowUnprotectedWyrdnightRest
+                || isSafelyResting;
+        }
+
+        public static bool IsStableAfterRest(
+            NightObservation observation)
+        {
+            return observation.HasPlayableHero
+                && observation.HeroAlive
+                && !observation.AtTitleScreen
+                && !observation.IsLoading
+                && !observation.IsTransitioning
+                && !observation.IsTraveling
+                && !observation.IsResting
+                && observation.SceneKnown
+                && observation.SceneInitialized
+                && observation.HasWorldTime
+                && observation.HasHeroNightState;
+        }
+
         public static bool ShouldShowThreatMeter(NightStateDecision decision)
         {
             return decision.State == DirectorState.Roaming

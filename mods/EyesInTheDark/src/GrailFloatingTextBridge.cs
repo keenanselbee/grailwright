@@ -28,12 +28,15 @@ namespace EyesInTheDark
             string eventId,
             string text,
             string collapseLane,
-            bool warning)
+            bool warning,
+            WyrdnessPalette palette)
         {
             return TryShow(
                 eventId,
                 text,
-                warning ? "Warning" : "Wyrd",
+                palette == WyrdnessPalette.NativeOrange
+                    ? "Orange"
+                    : "Purple",
                 "Status",
                 warning ? "High" : "Normal",
                 collapseLane,

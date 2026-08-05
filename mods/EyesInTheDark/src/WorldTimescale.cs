@@ -9,38 +9,128 @@ namespace EyesInTheDark
     {
         public const float DayFraction = 0.69f;
         public const float NightFraction = 0.31f;
-        public const float MinimumMultiplier = 0.01f;
-        public const float MaximumMultiplier = 5f;
+        public const float MinimumPhaseMinutes = 1f;
+        public const float MaximumPhaseMinutes = 600f;
+        public const float MinimumNightUpdateMinutes = 0.05f;
 
-        public static float ClampMultiplier(float multiplier)
+        public static float ClampPhaseMinutes(float minutes)
         {
-            if (float.IsNaN(multiplier)
-                || float.IsInfinity(multiplier))
+            if (float.IsNaN(minutes))
             {
-                return 1f;
+                return MinimumPhaseMinutes;
+            }
+            if (float.IsPositiveInfinity(minutes))
+            {
+                return MaximumPhaseMinutes;
             }
             return Math.Max(
-                MinimumMultiplier,
-                Math.Min(MaximumMultiplier, multiplier));
+                MinimumPhaseMinutes,
+                Math.Min(MaximumPhaseMinutes, minutes));
         }
 
-        public static float EquivalentCycleMinutes(
-            float vanillaCycleMinutes,
-            float multiplier)
-        {
-            return Math.Max(0.01f, vanillaCycleMinutes)
-                / ClampMultiplier(multiplier);
-        }
-
-        public static float PhaseMinutes(
-            float vanillaCycleMinutes,
-            float multiplier,
+        public static float CycleMinutesForPhase(
+            float phaseMinutes,
             bool night)
         {
-            return EquivalentCycleMinutes(
-                vanillaCycleMinutes,
-                multiplier)
+            return ClampPhaseMinutes(phaseMinutes)
+                / (night ? NightFraction : DayFraction);
+        }
+
+        public static float DynamicNightMinutes(
+            float baseNightMinutes,
+            float maximumThreatNightMinutes,
+            float threat)
+        {
+            float minimum = ClampPhaseMinutes(baseNightMinutes);
+            float maximum = Math.Max(
+                minimum,
+                ClampPhaseMinutes(maximumThreatNightMinutes));
+            float normalizedThreat = float.IsNaN(threat)
+                ? 0f
+                : Math.Max(0f, Math.Min(100f, threat)) / 100f;
+            return minimum + (maximum - minimum) * normalizedThreat;
+        }
+
+        public static float PhaseDurationMultiplier(
+            float vanillaCycleMinutes,
+            float phaseMinutes,
+            bool night)
+        {
+            float vanillaPhaseMinutes = Math.Max(
+                0.01f,
+                vanillaCycleMinutes)
                 * (night ? NightFraction : DayFraction);
+            return ClampPhaseMinutes(phaseMinutes)
+                / vanillaPhaseMinutes;
+        }
+
+        public static float RemainingNightRealSeconds(
+            float nightProgress,
+            float weatherSecondsPerRealSecond)
+        {
+            if (float.IsNaN(nightProgress)
+                || float.IsInfinity(nightProgress)
+                || float.IsNaN(weatherSecondsPerRealSecond)
+                || float.IsInfinity(weatherSecondsPerRealSecond)
+                || weatherSecondsPerRealSecond <= 0f)
+            {
+                return float.PositiveInfinity;
+            }
+
+            float remainingNightFraction =
+                (1f - Math.Max(0f, Math.Min(1f, nightProgress)))
+                * NightFraction;
+            return remainingNightFraction
+                * 24f
+                * 60f
+                * 60f
+                / weatherSecondsPerRealSecond;
+        }
+
+        public static float ElapsedNightRealSeconds(
+            float nightProgress,
+            float weatherSecondsPerRealSecond)
+        {
+            if (float.IsNaN(nightProgress)
+                || float.IsInfinity(nightProgress)
+                || float.IsNaN(weatherSecondsPerRealSecond)
+                || float.IsInfinity(weatherSecondsPerRealSecond)
+                || weatherSecondsPerRealSecond <= 0f)
+            {
+                return float.PositiveInfinity;
+            }
+
+            float elapsedNightFraction = Math.Max(
+                0f,
+                Math.Min(1f, nightProgress))
+                * NightFraction;
+            return elapsedNightFraction
+                * 24f
+                * 60f
+                * 60f
+                / weatherSecondsPerRealSecond;
+        }
+
+        public static float RemainingDaylightRealSeconds(
+            float dayFraction,
+            float weatherSecondsPerRealSecond)
+        {
+            if (float.IsNaN(dayFraction)
+                || float.IsInfinity(dayFraction)
+                || float.IsNaN(weatherSecondsPerRealSecond)
+                || float.IsInfinity(weatherSecondsPerRealSecond)
+                || weatherSecondsPerRealSecond <= 0f
+                || dayFraction < NightStateEvaluator.NightEndFraction
+                || dayFraction > NightStateEvaluator.NightStartFraction)
+            {
+                return float.PositiveInfinity;
+            }
+
+            return (NightStateEvaluator.NightStartFraction - dayFraction)
+                * 24f
+                * 60f
+                * 60f
+                / weatherSecondsPerRealSecond;
         }
 
         public static bool Approximately(float left, float right)
@@ -57,8 +147,11 @@ namespace EyesInTheDark
         private readonly ManualLogSource _log;
         private GameRealTime _clock;
         private float _lastAppliedRate;
-        private float _lastMultiplier;
         private float _lastVanillaCycleMinutes;
+        private float _lastDayMinutes;
+        private float _lastBaseNightMinutes;
+        private float _lastMaximumThreatNightMinutes;
+        private float _lastTargetPhaseMinutes;
         private bool _lastWasNight;
         private bool _ownsRate;
         private bool _failureLogged;
@@ -72,8 +165,10 @@ namespace EyesInTheDark
             GameRealTime clock,
             float vanillaCycleMinutes,
             bool enabled,
-            float dayMultiplier,
-            float nightMultiplier)
+            float dayMinutes,
+            float baseNightMinutes,
+            float maximumThreatNightMinutes,
+            float threat)
         {
             if (!ReferenceEquals(_clock, clock))
             {
@@ -100,13 +195,37 @@ namespace EyesInTheDark
             }
 
             bool isNight = clock.WeatherTime.IsNight;
-            float multiplier = WorldTimescalePolicy.ClampMultiplier(
-                isNight ? nightMultiplier : dayMultiplier);
+            float safeDayMinutes =
+                WorldTimescalePolicy.ClampPhaseMinutes(dayMinutes);
+            float safeBaseNightMinutes =
+                WorldTimescalePolicy.ClampPhaseMinutes(baseNightMinutes);
+            float safeMaximumThreatNightMinutes = Math.Max(
+                safeBaseNightMinutes,
+                WorldTimescalePolicy.ClampPhaseMinutes(
+                    maximumThreatNightMinutes));
+            float targetPhaseMinutes = isNight
+                ? WorldTimescalePolicy.DynamicNightMinutes(
+                    safeBaseNightMinutes,
+                    safeMaximumThreatNightMinutes,
+                    threat)
+                : safeDayMinutes;
+            bool settingsUnchanged = isNight
+                ? WorldTimescalePolicy.Approximately(
+                        safeBaseNightMinutes,
+                        _lastBaseNightMinutes)
+                    && WorldTimescalePolicy.Approximately(
+                        safeMaximumThreatNightMinutes,
+                        _lastMaximumThreatNightMinutes)
+                : WorldTimescalePolicy.Approximately(
+                    safeDayMinutes,
+                    _lastDayMinutes);
+            bool targetUnchanged = Math.Abs(
+                    targetPhaseMinutes - _lastTargetPhaseMinutes)
+                < WorldTimescalePolicy.MinimumNightUpdateMinutes;
             bool stateUnchanged = _ownsRate
                 && isNight == _lastWasNight
-                && WorldTimescalePolicy.Approximately(
-                    multiplier,
-                    _lastMultiplier);
+                && settingsUnchanged
+                && targetUnchanged;
             if (stateUnchanged)
             {
                 return;
@@ -115,28 +234,31 @@ namespace EyesInTheDark
             try
             {
                 clock.SetWeatherDayDuration(
-                    WorldTimescalePolicy.EquivalentCycleMinutes(
-                        vanillaCycleMinutes,
-                        multiplier));
+                    WorldTimescalePolicy.CycleMinutesForPhase(
+                        targetPhaseMinutes,
+                        isNight));
                 _lastAppliedRate = clock.WeatherSecondsPerRealSecond;
-                _lastMultiplier = multiplier;
+                _lastDayMinutes = safeDayMinutes;
+                _lastBaseNightMinutes = safeBaseNightMinutes;
+                _lastMaximumThreatNightMinutes =
+                    safeMaximumThreatNightMinutes;
+                _lastTargetPhaseMinutes = targetPhaseMinutes;
                 _lastWasNight = isNight;
                 _ownsRate = true;
                 _failureLogged = false;
                 _log.LogInfo(
                     "World timescale applied: phase="
                     + (isNight ? "night" : "day")
-                    + "; multiplier="
-                    + multiplier.ToString(
-                        "0.###",
-                        CultureInfo.InvariantCulture)
                     + "; phaseMinutes="
-                    + WorldTimescalePolicy.PhaseMinutes(
-                        vanillaCycleMinutes,
-                        multiplier,
-                        isNight).ToString(
+                    + targetPhaseMinutes.ToString(
                             "0.0",
                             CultureInfo.InvariantCulture)
+                    + (isNight
+                        ? "; threat="
+                            + Math.Max(0f, Math.Min(100f, threat)).ToString(
+                                "0.0",
+                                CultureInfo.InvariantCulture)
+                        : string.Empty)
                     + ".");
             }
             catch (Exception exception)

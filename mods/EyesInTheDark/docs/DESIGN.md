@@ -1,20 +1,20 @@
-# Eyes in the Dark - Wyrdnight Encounters
+# Eyes in the Dark - Wyrdnight Overhaul
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `0.9.1` is the
+This is the living design document for `EyesInTheDark`. Version `1.1.0` is the
 current implementation and acceptance target.
 
 ## Product identity
 
-- Display name: **Eyes in the Dark - Wyrdnight Encounters**
+- Display name: **Eyes in the Dark - Wyrdnight Overhaul**
 - Package and folder: `EyesInTheDark`
 - DLL: `EyesInTheDark.dll`
 - Plugin GUID: `ks.tgfoa.eyes-in-the-dark`
 - Central resource: **Wyrd Threat**
 - Gameplay presets: **Uneasy Night**, **Watchful Night**, and **Cursed Night**
 - Default gameplay tuning: **Watchful Night**
-- Reference world-clock cycle: **60-minute day / 15-minute night**
+- Reference world clock: **60-minute day / dynamic 6-to-12-minute night**
 
 The project is inspired by Wyrd Hunt. Its defining difference is that Wyrd
 Threat controls a probabilistic night director rather than a fixed sequence of
@@ -24,8 +24,8 @@ threshold-triggered spawns.
 
 1. Make outdoor Wyrdnights tense without sending one enemy after another
    until dawn.
-2. Own a configurable dynamic world clock balanced around a 60-minute day and
-   15-minute night, while retaining safe behavior from `1.0` through `0.1`.
+2. Own a configurable dynamic world clock balanced around a 60-minute day, a
+   6-minute unnoticed night, and a 12-minute maximum-threat night.
 3. Make player behavior the main source of additional Wyrd Threat.
 4. Use uncertainty, warnings, recovery, and varied encounters to create
    suspense.
@@ -77,6 +77,12 @@ The director must preserve quiet stretches. High Wyrd Threat makes an event
 more likely and makes stronger or larger encounters more likely, but it does
 not guarantee a spawn at an exact meter value.
 
+During those quiet stretches, the separate ambient-stalker lane may place one
+volatile map-native creature outside the camera. It watches, follows, or
+retreats without becoming an official hunt. Seeing the watcher is atmosphere;
+attacking it or allowing Wyrd Threat to reach its hidden aggression value turns
+it into an ordinary hostile enemy.
+
 ## Runtime states
 
 Keep the initial state machine small:
@@ -113,23 +119,47 @@ Do not use one clock for every system. Assign time intentionally:
 Read actual game world time and Wyrdnight progress. Do not infer night length
 from Unity `Time.timeScale` and do not inspect another mod's config.
 
+### Rest-clock presentation
+
+The native rest selector remains a 24-hour clock, presented with noon at the
+top, 6 PM at the right, midnight at the bottom, and 6 AM at the left. Eyes
+applies the same half-day rotation to the hand, fill, mouse-angle, and
+controller radial mapping. Keyboard stepping, rest calculations, and
+interruption behavior remain native. An isolated neutral overlay places the
+sun and moon just inside the dial, hides the generic 12/12 half-circle, and
+labels the four cardinal hours. The default `TwelveHour` format reads `12 PM`,
+`6 PM`, `12 AM`, and `6 AM` clockwise from the top; optional `TwentyFourHour`
+reads `12`, `18`, `00`, and `06`.
+
+The same preference governs Current time and Resting until in the rest popup
+and the quick-use weather clock. `TwelveHour` formats native values as
+`12:05 AM` or `9:49 PM`; `TwentyFourHour` does not replace or reformat the
+game's native text.
+
+The popup adds no Wyrdnight caption, palette-colored arc, glow, or phase
+markers. Missing UI children or rendering failures fail open to the untouched,
+usable native clock and warn once per failure episode.
+
 Eyes owns the `GameRealTime` world-weather rate when both its master switch and
 `EnableDynamicTimescale` are enabled:
 
-- `DayTimescale = 0.23`, producing approximately 60 real minutes of daylight;
-- `NightTimescale = 0.413`, producing approximately 15 real minutes of night;
-- the reference complete cycle is approximately 75 real minutes;
-- both multipliers accept `0.01` through `5.0`;
-- all three gameplay presets use this same clock target.
+- `DayMinutes = 60` controls approximate real daylight duration;
+- `BaseNightMinutes = 6` is the approximate duration at zero threat and remains
+  close to the game's approximately `6.2`-minute Wyrdnight;
+- `MaximumThreatNightMinutes = 12` is the approximate duration at 100 threat;
+- live Wyrdnight duration interpolates linearly between those endpoints using
+  current Wyrd Threat;
+- all three gameplay presets share these clock settings.
 
-The controller calls
-`GameRealTime.SetWeatherDayDuration(baseDayDuration / multiplier)` only when
-the live clock instance, day/night phase, enabled state, or configured phase
-multiplier changes. It never writes Unity gameplay `Time.timeScale`, so combat,
-animations, effects, and pause behavior are unaffected. Dawn/nightfall, loads,
-and phase-changing time skips are observed on the next update. On disable or
-plugin release, Eyes restores the native duration only when the current rate
-still equals the last value Eyes applied; a later external change is preserved.
+This creates a readable consequence: hiding keeps threat low and lets darkness
+pass quickly, while attracting attention draws the Wyrdnight out. The
+controller converts the requested phase minutes to the complete-cycle value
+expected by `GameRealTime.SetWeatherDayDuration`. It reapplies on clock, phase,
+enabled-state, or config changes and whenever threat changes the requested
+night length by at least `0.05` minute. It never writes Unity gameplay
+`Time.timeScale`, so combat, animations, effects, and pause behavior are
+unaffected. On disable or plugin release, Eyes restores the native duration
+only when the current rate still equals its last applied value.
 
 ### Extended-night scaling
 
@@ -141,20 +171,21 @@ still equals the last value Eyes applied; a later external change is preserved.
   linear multiplier.
 - The initial Watchful Night tuning uses a base budget of `30`, a long-night
   bonus scale of `0.35`, and a maximum bonus fraction of `0.75`.
-- Let `m` be the current world-clock night-duration multiplier relative to the
-  game's native configured rate. Calculate
+- Let `m` be the configured maximum-threat night duration relative to the
+  game's native configured night duration. Calculate
   `bonus = min(maximumBonus, max(0, sqrt(m) - 1) * bonusScale)` and
   `nightBudget = baseBudget * (1 + bonus)`.
-- Read `m` from the game's current weather/world-clock rate and native day
-  duration. Do not use Unity `Time.timeScale` or another mod's settings.
+- Derive `m` from `MaximumThreatNightMinutes` and the native day duration. Do
+  not use Unity `Time.timeScale` or another mod's settings.
 - Preset-specific budget bases and caps replace these initial Watchful values
   when the gameplay presets are implemented in 0.6.0.
 - Minimum active-real-time recovery prevents compressed vanilla nights from
   producing back-to-back hunts.
 
-At the default `0.413` night multiplier, the duration multiplier is about
-`2.42`; Watchful therefore receives about a 19 percent bonus, not a linear
-142 percent increase.
+At the default 12-minute maximum-threat night, the duration multiplier is
+about `1.94`; Watchful therefore receives about a 14 percent bonus, not a
+linear 94 percent increase. The budget is merely capacity: a quiet six-minute
+night does not force the director to spend it.
 
 A night that lasts ten times longer receives the capped `0.75` bonus with the
 initial tuning: `30 * 1.75 = 52.5`, not ten times the base budget.
@@ -179,16 +210,19 @@ most additional pressure. Candidate sources for the first implementation are:
 
 - sustained sprinting or fast swimming while exposed;
 - meaningful combat actions observed through proven game events;
+- releasing an arrow or other projectile, even when it misses;
+- successfully completing a spell cast, even when it hits nothing;
 - confirmed melee impacts against scenery or non-damageable objects, limited
   to one contribution per attack;
 - killing Wyrd creatures;
 - looting corpses or containers while exposed;
 - direct world pickup or stealing while exposed;
-- powerful or noisy magic after a reliable event route is proven.
+- powerful or noisy magic through the confirmed successful-cast event.
 
 Every repeatable source requires a cooldown, aggregation window, or diminishing
-return. Inputs such as empty weapon swings or repeatedly moving the same item
-must not farm threat.
+return. Released projectiles and completed spells share the capped combat
+window with damage and environment impacts. Failed or canceled casts and empty
+melee swings add nothing; repeatedly moving the same item must not farm threat.
 
 Normal combat can raise threat, but the director should defer a new hunt until
 the unrelated combat ends. Active hunts suspend additional encounter rolls.
@@ -198,7 +232,8 @@ the unrelated combat ends. Active hunts suspend additional encounter rolls.
 - Killing the official hunter provides the greatest immediate reduction.
 - Escaping provides a smaller reduction and a longer `Recently Pursued`
   recovery state.
-- Protected outdoor areas reduce threat at a moderate rate.
+- Protected outdoor areas slowly reduce threat at the configured
+  active-real-time rate and never add passive-exposure threat.
 - Interiors hide the meter, suspend encounter generation, and slowly reduce
   threat using active real time.
 - Leaving an interior grants a short outdoor grace period.
@@ -263,6 +298,110 @@ seconds, with at most three attempts per member. Reacquisition runs only while
 outdoors, exposed, in the same initialized scene, and outside loading or travel
 states. Eyes does not own navigation, perception, faction, guards, or general
 AI behavior.
+
+## Ambient stalkers
+
+Ambient stalkers are a dedicated director and runtime lane, not lightweight
+official hunts. At most one ambient stalker or official warning/hunt may be
+owned at a time. Ambient selection and placement never read or spend the hunt
+danger budget, and killing or escaping a stalker never grants official-hunter
+threat relief.
+
+### Eligibility and roster
+
+New ambient placement requires a valid outdoor Wyrdnight, exposure, no Wyrd
+protection, no unrelated Hero combat, a supported exterior map, an available
+encounter lane, and an advancing active clock. Player level, exact region,
+explicit template review, repetition penalties, and three-failure session
+rejection remain hard gates. A confirmed placement clears that profile's prior
+failure count. Unknown regions and empty pools fail closed.
+
+Two disjoint bands are used:
+
+- **Ordinary, below 50 threat:** 26 reviewed small-to-medium or humanoid
+  creatures. Wyrdspirit is the sole universal level-1 fallback. Regional
+  candidates include Grindylow, Redcap, Corpse Eater, Mistling, Drowner,
+  Slugholder, Bonemask, Frostbitten, Drowned crew, Finbled, Tadpole, Wailcap,
+  and Tidewraith profiles.
+- **High pressure, 50 to below 75 threat:** seven Sharg, Lost Knight, Finbled
+  Heavy, and Drowned Knight profiles. This band additionally requires
+  `AllowEliteEnemies`; Uneasy and Watchful disable it and Cursed enables it.
+- At 75 threat and above, no new ambient stalker is selected. The official
+  hunt director remains the high-threat attack lane.
+
+Flamegobblers, swarms, skeletons, Ogres, Barnaclators, Nuckelavees, bosses,
+friendlies, summons, challenge/trial/story/custom variants, and other unsafe or
+poor stalking candidates are excluded from this lane even when they remain
+valid official-hunt profiles.
+
+### Cooldown and hidden aggression
+
+Each ambient resolution schedules a randomized active-real-time cooldown. The
+Watchful defaults are 55 to 165 seconds at zero threat; the upper bound shrinks
+linearly to 70 seconds by 50 threat and never falls below the configured
+minimum. A rising threat value clamps an already scheduled remaining cooldown
+to the new live upper bound. Loading, menus, pauses, protection, unrelated
+combat, and an occupied encounter lane do not advance it.
+
+Every confirmed stalker receives a hidden per-instance aggression value:
+
+- ordinary: 45 through 55 threat;
+- high pressure: 70 through 80 threat.
+
+The player-facing meter and atmospheric GFT text never reveal this value.
+Diagnostics may report it. Reaching it escalates the exact actor. Damage from
+the exact Hero escalates immediately before damage resolution and applies the
+configured provocation threat once per stalker; later hits cannot repeat that
+threat input.
+
+### Native movement and passive guards
+
+A passive stalker retains its native faction, perception, combat attachment,
+and actor template. Eyes temporarily owns only:
+
+- `BlockEnterCombatMarker`, preventing premature native combat;
+- `HideEnemyFromPlayer`, suppressing enemy HUD/compass presentation;
+- the exact actor's current native movement state;
+- an exact pre-damage listener for Hero provocation.
+
+It begins in native `Observe`, changes to `FollowMovement` after a randomized
+watch interval, and returns to Observe at a 20-metre buffer before crowding the
+Hero. Deliberate
+pursuit requires the Hero to face the stalker, move quickly, and measurably
+close distance across a sample window; proximity alone is insufficient. That
+transition uses native `Flee`, then returns to Observe after gaining distance
+or exhausting the bounded flee interval. A completed flee has a five-active-
+second rearm delay. If the Hero closes within 8 metres while the stalker is
+still fleeing, the exact actor releases its passive guards and turns hostile;
+this defensive escalation does not award attack-only provocation threat.
+
+On escalation Eyes disposes its damage listener, releases its owned movement
+state and both passive guards, and calls native `EnterCombatWith(hero)`. It may
+reassert exact Hero acquisition at most three times at half-second intervals.
+Eyes never changes factions, guards, global perception, or general AI.
+
+### Placement, camera lifecycle, and volatility
+
+Placement samples behind or well outside the current camera, then requires all
+of the following before confirmation:
+
+- a reviewed exact `LocationTemplate` identity;
+- native `BaseLocationSpawner.VerifyPosition` walkable placement;
+- a connected A* path between Hero and candidate position;
+- no Wyrd repeller at the verified position;
+- configured minimum/maximum distance bounds;
+- the verified point and initialized renderer bounds outside an expanded
+  camera margin.
+
+The spawned Location is `MarkedNotSaved`. Visibility uses every renderer's
+bounds corners and center, with a short continuous on-screen confirmation
+before a sighting is reported. A passive actor may be discarded only when it
+has been continuously outside the camera for the configured interval, is at
+least the configured distance away, and was previously seen or has reached its
+bounded ambient lifetime. A hostile stalker never disappears or releases its
+lane because of distance. Death, native discard, dawn, feature shutdown,
+gameplay load, an interior, or a scene transition may still perform required
+volatile cleanup.
 
 ## Enemy eligibility
 
@@ -444,6 +583,19 @@ capped at one member, levels `8` through
 preset cap, profile cap, and budget can reduce the result further. Three failed
 placements from the same template reject it for the rest of the session.
 
+### Regional ambient roster
+
+The explicit roster implements the eligibility and safety rules above. It is
+smaller than the official-hunt catalog but deliberately varied by map.
+
+| Region | Ordinary stalkers below 50 | High-pressure stalkers from 50 to below 75 |
+| --- | --- | --- |
+| Universal | Wyrdspirit | none |
+| Horns of the South | Grindylow, Redcap, Corpse Eater, Mistling, Drowner | Sharg |
+| Cuanacht | Grindylow, Redcap, Corpse Eater, Mistling, Slugholder Mage, Drowner | Lost Knight, Sharg |
+| Forlorn | Redcap, Mistling, Bonemask Mage, Bonemask Warrior, Corpse Eater, Frostbitten Warrior | smaller Sharg |
+| Sarras | Drowner, Drowned Deckhand, Drowned Mariner, Finbled Stalker, Finbled Javelin Hunter, Tadpole, Wailcap, Tidewraith | Finbled Heavy, Drowned Knight, Drowned Knight Huntress |
+
 ## Gameplay presets
 
 The config selector contains `Custom` plus three one-shot templates. Applying a
@@ -475,6 +627,8 @@ The 0.6.0 one-shot values are:
 | Warning seconds | 8 | 6 | 4 |
 | Maximum pack / sidecar chance | 1 / 0 | 2 / 0.55 | 3 / 0.8 |
 | Elite enemies above 75 threat | off | off | on |
+| Ambient cooldown min / max / near-50 max | 75 / 210 / 105 | 55 / 165 / 70 | 40 / 125 / 55 |
+| Stalker provocation threat | 4 | 6 | 8 |
 | Kill / escape / failed recovery | 120 / 240 / 45 | 90 / 180 / 30 | 60 / 120 / 20 |
 
 ## Threat meter
@@ -486,7 +640,7 @@ Threat meter.
 - Hidden during daylight, indoors, loading, title screens, and when no playable
   hero exists.
 - Default placement is above the vanilla Hero HUD.
-- Default presentation is a `#B878FF` bar without an exact number.
+- Default presentation is a `#8032FF` bar without an exact number.
 - RGB color, exact value display, and layout offsets are configurable. Standalone vanilla-HUD
   placement adds an internal +9, -9 baseline while the exposed adjustments
   remain 0, 0; Glorious UI placement does not use the standalone baseline.
@@ -494,6 +648,12 @@ Threat meter.
   Eyes in the Dark HUD API. Eyes in the Dark remains the sole meter owner.
 - If the Glorious layout request disappears or fails, the meter returns to its
   default position.
+- The meter artwork remains mirrored horizontally and vertically to match the
+  intended Hero HUD layout, but animated texture scrolling retains the same
+  screen direction as the vanilla resource bars.
+- Every cloned texture scroller receives a private runtime material before its
+  mirrored axes are reversed. Eyes never changes the materials or animation of
+  the source Hero bars, and it destroys the private materials with the meter.
 
 The existing Wyrd Threat meter implementation should be removed from Glorious
 UI when this integration replaces it.
@@ -504,31 +664,113 @@ The mod incorporates the standalone Purple Wyrdness presentation directly.
 Its default layered presentation draws three visual-only rings:
 
 - color `#B878FF`;
-- HDR intensity `271.529`, matching the brightest channel of the shipped edge;
-- near radius/intensity/thickness `12 / 0.35 / 0.08`;
-- middle radius/intensity/thickness `22 / 0.60 / 0.14`;
-- outer radius/intensity/thickness `32 / 1.0 / 0.25`, matching the native edge;
-- subtle threat reactivity and independent smooth bounded pulses.
+- normalized brightness `1.0`, converted internally through the `271.529`
+  vanilla-equivalent HDR baseline;
+- near radius/intensity/thickness `10 / 0.05 / 0.25`;
+- middle radius/intensity/thickness `20 / 0.05 / 0.25`;
+- outer radius/intensity/thickness `30 / 0.05 / 0.25`;
+- the shared Wyrd visual threat scale beginning at `0.8`, plus independent
+  smooth bounded pulses with a `0.8` default amount.
 
 Settings include:
 
 - enable boundary customization;
 - layered or native-style single rendering;
 - boundary color;
-- HDR intensity;
+- normalized boundary brightness from `0` to `3`;
 - per-ring visual radius, brightness, and thickness;
-- threat reactivity mode;
-- minimum and maximum threat intensity multipliers;
-- maximum threat thickness multiplier;
 - pulse enable, amount from `0` to `1`, and minimum/maximum transition duration.
 
 EITD inserts its owned custom pass beside the native edge only after all three
 materials are ready, then disables rather than destroys the native pass. Any
 failure or feature shutdown removes the owned pass, releases its materials,
-and restores the original native values and enabled state. Threat and pulse
-animation may subtly brighten and thicken each ring, but never change a radius
-dynamically. Boundary settings never change protection, native mask intensity,
-or other gameplay rules.
+and restores the original native values and enabled state. The shared threat
+scale and red-shift curve affect ring brightness and hue; organic pulse remains
+independent. Threat never changes ring thickness or radius. Boundary settings
+never change protection, native mask intensity, or other gameplay rules.
+
+## Wyrdnight environment palette
+
+Eyes fully incorporates Purple Moon Test rather than depending on or loading
+its standalone configuration. The integrated runtime owns the visible moon
+surface, HDR corona, directional and volumetric moonlight, the full visible
+Wyrdnight sky tint, and fueled-bonfire protection-bubble body and border.
+
+Two independent palette choices are available:
+
+- **Purple Wyrdness**, the default, uses the configured purple values;
+- **Native Orange** derives each low-threat hue from the active region's
+  original game-owned value instead of hard-coding one orange.
+
+The promoted Purple defaults are moon surface `#3200FF`, tint `0.75`, intensity
+`2`; corona `#8000FF`, intensity `2`; moonlight `#7E47FF`, tint `0.9`; full-sky
+tint `#401C63`, strength `1`; and protection bubble `#B050FF`, body/border
+intensity `1 / 1`.
+
+`PurpleWyrdnessBrightness`, default `1.2` and constrained to `0.5-2.0`, scales
+the purple sky emission and HDR moon/world-light color channels. It does not
+own exposure, post-exposure, light intensity, dimmers, volumetrics, or any
+Native Orange value, preserving the ownership boundary with Light Control.
+
+One global visual-strength multiplier replaces the former boundary-only threat
+response. It interpolates linearly from configurable `0.8` at zero threat to
+`1.2` at 100 threat. A smooth threat curve blends the moon surface, corona,
+moonlight, protection bubble, boundary, and threat meter toward configurable
+red `#FF3028`, reaching a default maximum blend of `0.8`. The full-sky color is
+explicitly excluded from red shifting, although its tint strength still follows
+the shared scale. It uses the sky material's `_SkyTint` property and does not
+directly own fog, clouds, terrain lighting, or reflections.
+
+The threat meter retains its configurable base color and is rendered at `1.5`
+times RGB brightness before applying the shared threat multiplier. It uses the
+same red-shift curve as the world presentation.
+
+Visual ownership targets the active outdoor Wyrdnight presentation. Natural
+dusk in the same stable exterior centers the integrated environment and fueled
+protection-bubble fade on nightfall: with the default
+`WyrdVisualTransitionSeconds = 60`, it begins 30 real seconds before nightfall,
+is halfway blended at the phase boundary, and finishes 30 real seconds after.
+The dawn fade begins when the current weather rate
+reports that duration remaining in the Wyrdnight and reaches the restored game
+presentation at dawn. If threat changes the dynamic night rate during this
+window, the blend never moves backward; it holds until the revised countdown
+catches up. Pausing freezes both weather progress and the envelope. Wyrdnight
+state, threat logic, weather-rate switching, meter visibility, boundary
+gameplay, and protection remain exact at the phase boundary.
+
+Resting does not invalidate presentation: opening or accepting the rest popup
+keeps the current Wyrdnight palette until the native fade hides any time skip.
+Short loading and transition states hold the last confirmed presentation, and
+newly available exterior-night rendering is primed from the authoritative world
+clock before the normal state poll. Confirmed daylight, interiors, title screen,
+disablement, teardown, and visual failures restore immediately. Captured game
+values are restored only when the current property still matches Eyes' last
+applied value. The system never changes Wyrd protection, bonfire fuel, boundary
+masks, gameplay time scale, or weather timing.
+
+After loading into an active Wyrdnight, the authoritative threat value remains
+immediate for gameplay, the meter, stage, and dynamic night duration, but its
+red-shift contribution to world presentation ramps from zero to the loaded
+value over 10 active real-time seconds. This avoids a hard color jump without
+delaying or falsifying threat state.
+
+### Runtime performance boundaries
+
+The director, threat, HUD, boundary, and visual target calculations use one
+five-times-per-second active-real-time cadence. The native day/night system
+rewrites its lighting during every rendered frame, so Eyes' postfix may reapply
+the already calculated light and emission values each frame, but it must not
+repeat color parsing, threat curves, native-value sampling, or transition math
+there. Parsed config colors remain cached until their source text changes.
+
+Environment-lighting refreshes are coalesced to at most four per active second,
+except for an immediate forced refresh when Eyes restores native presentation.
+The layered boundary performs no custom fullscreen draws while the native edge
+has zero visible intensity. Ambient visibility reuses each stalker's renderer
+set and performs no steady-state corner-array allocation. The threat meter
+rewrites layout only after its anchors, source bars, offsets, or placement mode
+change. These limits must preserve phase, threat, meter, and AI response within
+one normal 0.2-second update.
 
 ## Grail Floating Text
 
@@ -539,27 +781,96 @@ Use a separate enable toggle and three directly selected notification presets:
 
 - **Minimal:** committed hunts and hunt outcomes.
 - **Atmospheric:** recommended default; night boundaries, upward threat-stage
-  changes, committed hunts, and outcomes.
+  changes, committed hunts and outcomes, plus one restrained message after a
+  witnessed stalker disappears. The visual sighting remains implicit.
 - **Detailed:** also includes downward stages, protection changes, major threat
-  surges, and an optional exact value.
+  surges, stalker sightings and retreats, and escalation flavor. Optional exact
+  threat is appended only to non-stalker text; hidden aggression is never
+  exposed.
 
 Each event category uses a built-in randomized text pool with immediate-repeat
-prevention. Initial categories are night begin, night end, threat rise, high
-threat, hunt committed, hunter killed, and player escaped. Do not notify for
-every threat point or ordinary action.
+prevention. Categories cover night boundaries, meaningful threat-stage changes,
+official hunt commitments and outcomes, and the stalker events admitted by the
+selected notification preset. Do not notify for every threat point or ordinary
+action.
 
 Use the shared Wyrd icon and separate collapse lanes:
 
 - `eyes-in-the-dark-night`
 - `eyes-in-the-dark-threat`
 - `eyes-in-the-dark-hunt`
+- `eyes-in-the-dark-stalker`
 
-Status messages use normal Status presentation. A committed hunt uses Warning
-presentation. Text such as "Something has found you" appears only after an
-encounter is committed, never merely because threat is high.
+All atmospheric Wyrd messages use GFT's Purple color group under Purple
+Wyrdness and its Orange group under Native Orange. This includes committed
+hunt warnings; urgency remains represented independently by High priority.
+GFT's built-in Wyrdnight and Wyrd-safety messages follow the same live palette.
+Text such as "Something has found you" appears only after an encounter is
+committed, never merely because threat is high.
 
 If GFT is absent or its API is unavailable, gameplay and the meter continue
 normally.
+
+### Optional battlecry integration
+
+Battlecry Voice Tuner may call Eyes' versioned soft API after a successful
+player battlecry. Eyes accepts it only for a playable Hero who is exposed
+outdoors during an active Wyrdnight. Repeated accepted cries apply the existing
+full, half, quarter, and diminishing threat sequence down to its 10 percent
+floor; 30 active seconds without an accepted cry restores the full gain.
+
+Atmospheric and Detailed notifications may respond after a randomized two or
+three accepted cries, drawing from the existing seven-line pool with
+immediate-repeat prevention. The response lane has its own configurable
+15-active-second default cooldown and does not change the battlecry action
+cooldown. Minimal remains silent. The integration stays optional and must not
+create a hard dependency in either direction.
+
+### Rest and slept-through transitions
+
+Eyes filters the native `HeroDevelopment.CanRest` result without writing or
+owning that property. Native denials remain authoritative. A fueled protective
+boundary always bypasses Eyes' additional active-night gate and interruption
+risk.
+
+The gameplay presets own the default unprotected-rest model:
+
+- Uneasy Night allows rest during an active Wyrdnight and adds no Eyes
+  interruption risk. Native interruption logic still applies.
+- Watchful Night allows active-Wyrdnight rest and interpolates Eyes risk from
+  45 percent at zero threat to 75 percent at maximum threat.
+- Cursed Night prevents beginning new unprotected rest after Wyrdnight is
+  active and uses 80 to 100 percent risk for rest begun before nightfall. The
+  individual gate and chance settings remain editable after applying a preset.
+
+Eyes patches the native time-skip interruption check. A native interruption
+wins without modification. Otherwise Eyes uses one chance roll and one hidden
+exposure threshold per Wyrdnight. Only accepted unprotected rest accumulates
+the fraction of the Wyrdnight actually slept, so canceling the menu adds no
+exposure and repeated short rests cannot create fresh rolls. A successful Eyes
+interruption returns through the native wake presentation, then requests one
+official hunt after the rest transition is stable. Normal region, player level,
+elite, encounter budget, atomic placement, and zero-cost failure rules remain
+authoritative. Native interruptions never create a duplicate Eyes hunt.
+
+Any interruption that occurs during unprotected Wyrdnight exposure marks the
+Hero disturbed and prevents further unprotected rest until dawn. Protected
+rest remains available. Rest begun during daylight may cross nightfall on every
+preset. Cursed makes that attempt highly likely, but not absolutely guaranteed,
+to be interrupted before dawn.
+
+`OwnRestMenu` is a presentation boundary and is enabled by default. When
+enabled, Eyes can apply native greyed-out button availability, its noon-first
+clock, and selected popup time format. When disabled, the CanRest presentation
+filter returns the native result and the clock overlay is detached and restored.
+The final `RestPopupUI.Rest` guard still enforces gameplay policy silently.
+
+Once allowed rest begins, atmosphere is suppressed until the first stable
+post-rest context. Eyes then adopts the final daylight or Wyrdnight phase and
+protection state without replaying night-begin, night-end, stage, protection,
+hunt, or stalker flavor that occurred while the Hero was asleep. Diagnostics
+may emit one concise reconciliation summary after waking. Canceling the Rest
+popup without resting does not activate this suppression.
 
 ### Diagnostics presentation
 
@@ -569,11 +880,23 @@ notifications. This is diagnostic output, independent of the selected Minimal,
 Atmospheric, or Detailed gameplay-notification preset. Diagnostics off emits no
 diagnostic GFT messages.
 
+The Diagnostics tab also owns an explicit testing override. When
+`EnableThreatOverride` is enabled during a valid Wyrdnight,
+`ThreatOverrideValue` forces the authoritative 0-to-100 threat value. Natural
+gain, protected/interior decay, hunter relief, and activity inputs are
+suppressed while it is active. The forced value deliberately drives every
+normal consumer, including the meter, visuals, dynamic night duration, ambient
+stalkers, and official hunts. Dawn still resets threat. Both override settings
+are excluded from schema recovery/import so a new testing control cannot be
+silently re-enabled after configuration regeneration.
+
 Use System style and category, Low priority, short duration, immediate delivery,
 and the single `eyes-in-the-dark-diagnostics` collapse lane. Do not defer these
 messages through loading or menus because a stale diagnostic is misleading.
-Suppress identical repeats and apply an active-real-time cooldown that stops
-while paused.
+Eyes diagnostic GFT is suppressed at the title screen, during loading, and
+whenever no playable Hero exists; GFT's own compatibility notices remain
+independent. Suppress identical repeats and apply an active-real-time cooldown
+that stops while paused.
 
 Useful summaries are limited to meaningful commits and transitions:
 
@@ -584,6 +907,8 @@ Useful summaries are limited to meaningful commits and transitions:
   reason;
 - hard-filter reasons, final candidate weights, encounter composition, cost,
   budget, or placement failure;
+- ambient cooldown/band selection, hidden threshold, off-camera/path placement,
+  sighting, flee transition, escalation trigger, and zero-budget resolution;
 - encounter commitment and budget change;
 - kill, escape, lost-target, dawn, death, or load resolution and resulting
   threat/recovery state;
@@ -631,16 +956,28 @@ produce catch-up threat, instant encounters, or spent danger budget.
 
 ## Configuration organization
 
-FoA Mod Manager uses display-only metadata to present focused groups while the
-stable BepInEx section and key names remain unchanged:
+FoA Mod Manager uses display-only metadata to present a concise primary path
+while stable BepInEx section and key names remain unchanged except where a
+schema change explicitly replaces an unsafe or unreadable setting.
 
-1. General and World Clock
-2. Threat - Generation and Threat - Decay and Loading
-3. Hunts - Pacing, Hunts - Composition, and Hunts - Resolution
-4. HUD - Threat Meter
-5. Boundary - Appearance, Boundary - Rings, and Boundary - Motion
-6. Notifications and Diagnostics
-7. Import Previous Settings
+Primary sections appear first:
+
+1. General: master switch, one-shot gameplay preset, ambient and elite toggles,
+   rest rule, and time display.
+2. World Clock: dynamic ownership plus day, quiet-night, and maximum-threat
+   durations in real minutes.
+3. HUD, Boundary Appearance, Wyrdnight Appearance, and Notifications.
+
+Detailed controls follow in clearly labeled Advanced sections for threat
+tuning, hunt pacing/composition/outcomes, stalker tuning, boundary tuning,
+visual layers, and diagnostics. Import Previous Settings remains last. Labels
+state seconds, minutes, and metres directly and avoid internal terms such as
+hazard, sidecar, and raw HDR intensity.
+
+The one-shot gameplay selector explicitly returns to Custom after applying a
+template and identifies Watchful Night as recommended. Normalized
+`BoundaryBrightness = 1.0` maps to the preserved vanilla-equivalent HDR
+baseline; the retired raw `BoundaryHdrIntensity` value is not migrated.
 
 Follow the repository config schema and previous-settings recovery contract as
 soon as the first config entry is bound. Keep preset triggers and derived

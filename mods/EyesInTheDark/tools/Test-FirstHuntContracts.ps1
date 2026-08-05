@@ -134,6 +134,7 @@ namespace EyesInTheDark
                 IsExposed = true,
                 IsProtected = false,
                 HeroInUnrelatedCombat = false,
+                EncounterLaneBusy = false,
                 CanAdvance = true,
                 ActiveSeconds = 60f,
                 Threat = threat,
@@ -230,9 +231,10 @@ if (!$pacingSource.Contains('public bool TrySpend(') -or
     !$threatSource.Contains('HunterEscaped')) {
     throw "Pacing spend/refund or differentiated threat relief is incomplete."
 }
-if (!$gftSource.Contains('warning ? "Warning" : "Wyrd"') -or
+if (!$gftSource.Contains('WyrdnessPalette.NativeOrange') -or
+    !$gftSource.Contains('warning ? "High" : "Normal"') -or
     !$pluginSource.Contains('"eyes-in-the-dark-hunt"')) {
-    throw "Committed-hunt GFT Warning presentation is incomplete."
+    throw "Committed-hunt GFT palette and High-priority presentation is incomplete."
 }
 foreach ($required in @(
     'ScanEyesInTheDarkCompatibility();',

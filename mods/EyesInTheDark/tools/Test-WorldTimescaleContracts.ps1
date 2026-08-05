@@ -38,34 +38,63 @@ namespace Awaken.TG.Main.Timing
 
 namespace EyesInTheDark
 {
+    internal static class NightStateEvaluator
+    {
+        public const float NightStartFraction = 0.92f;
+        public const float NightEndFraction = 0.23f;
+    }
+
     public static class WorldTimescaleContractHarness
     {
         public static void Run()
         {
             const float vanillaCycleMinutes = 20f;
-            Near(WorldTimescalePolicy.PhaseMinutes(
-                vanillaCycleMinutes, 0.23f, false), 60f, 0.01f,
-                "0.23 day duration");
-            Near(WorldTimescalePolicy.PhaseMinutes(
-                vanillaCycleMinutes, 0.413f, true), 15f, 0.02f,
-                "0.413 night duration");
-            float cycle = WorldTimescalePolicy.PhaseMinutes(
-                    vanillaCycleMinutes, 0.23f, false)
-                + WorldTimescalePolicy.PhaseMinutes(
-                    vanillaCycleMinutes, 0.413f, true);
-            Near(cycle, 75f, 0.03f, "default complete cycle");
+            Near(WorldTimescalePolicy.CycleMinutesForPhase(60f, false),
+                86.95652f, 0.001f, "60-minute day cycle rate");
+            Near(WorldTimescalePolicy.DynamicNightMinutes(6f, 12f, 0f),
+                6f, 0.001f, "zero-threat night duration");
+            Near(WorldTimescalePolicy.DynamicNightMinutes(6f, 12f, 50f),
+                9f, 0.001f, "mid-threat night duration");
+            Near(WorldTimescalePolicy.DynamicNightMinutes(6f, 12f, 100f),
+                12f, 0.001f, "maximum-threat night duration");
+            Near(WorldTimescalePolicy.PhaseDurationMultiplier(
+                vanillaCycleMinutes, 12f, true), 1.935484f, 0.001f,
+                "maximum night pacing multiplier");
+            float twelveMinuteNightRate = 1440f
+                / WorldTimescalePolicy.CycleMinutesForPhase(12f, true);
+            Near(WorldTimescalePolicy.RemainingNightRealSeconds(
+                11f / 12f, twelveMinuteNightRate), 60f, 0.01f,
+                "one real minute remains before dawn");
+            Near(WorldTimescalePolicy.RemainingNightRealSeconds(
+                23f / 24f, twelveMinuteNightRate), 30f, 0.01f,
+                "thirty real seconds remain before dawn");
+            Near(WorldTimescalePolicy.RemainingNightRealSeconds(
+                1f, twelveMinuteNightRate), 0f, 0.001f,
+                "dawn has no remaining night time");
+            Near(WorldTimescalePolicy.ElapsedNightRealSeconds(
+                1f / 24f, twelveMinuteNightRate), 30f, 0.01f,
+                "thirty real seconds elapsed after nightfall");
+            float sixtyMinuteDayRate = 1440f
+                / WorldTimescalePolicy.CycleMinutesForPhase(60f, false);
+            float thirtySecondsBeforeNightfall =
+                NightStateEvaluator.NightStartFraction
+                - 30f * sixtyMinuteDayRate / 86400f;
+            Near(WorldTimescalePolicy.RemainingDaylightRealSeconds(
+                thirtySecondsBeforeNightfall,
+                sixtyMinuteDayRate), 30f, 0.01f,
+                "thirty real seconds remain before nightfall");
 
             var log = new BepInEx.Logging.ManualLogSource();
             var controller = new WorldTimescaleController(log);
             var first = Clock(false, 72f);
             controller.Update(first, vanillaCycleMinutes,
-                true, 0.23f, 0.413f);
+                true, 60f, 6f, 12f, 0f);
             Ensure(first.SetterCalls == 1, "initial day apply");
             Near(first.WeatherSecondsPerRealSecond, 16.56f, 0.001f,
                 "day weather rate");
 
             controller.Update(first, vanillaCycleMinutes,
-                true, 0.23f, 0.413f);
+                true, 60f, 6f, 12f, 0f);
             Ensure(first.SetterCalls == 1,
                 "unchanged state never repeats the setter");
 
@@ -74,50 +103,61 @@ namespace EyesInTheDark
                 IsNight = true
             };
             controller.Update(first, vanillaCycleMinutes,
-                true, 0.23f, 0.413f);
+                true, 60f, 6f, 12f, 0f);
             Ensure(first.SetterCalls == 2, "nightfall apply");
-            Near(first.WeatherSecondsPerRealSecond, 29.736f, 0.001f,
-                "night weather rate");
+            Near(first.WeatherSecondsPerRealSecond, 74.4f, 0.001f,
+                "zero-threat night weather rate");
 
             controller.Update(first, vanillaCycleMinutes,
-                true, 0.23f, 0.5f);
-            Ensure(first.SetterCalls == 3, "live night config apply");
-            Near(first.WeatherSecondsPerRealSecond, 36f, 0.001f,
-                "live night config rate");
+                true, 60f, 6f, 12f, 0.25f);
+            Ensure(first.SetterCalls == 2,
+                "tiny threat changes do not rewrite the clock");
+
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 12f, 50f);
+            Ensure(first.SetterCalls == 3, "threat-stretched night apply");
+            Near(first.WeatherSecondsPerRealSecond, 49.6f, 0.001f,
+                "mid-threat night weather rate");
+
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 20f, 50f);
+            Ensure(first.SetterCalls == 4, "live duration config apply");
+            Near(first.WeatherSecondsPerRealSecond, 34.33846f, 0.001f,
+                "live duration config rate");
 
             var loaded = Clock(true, 72f);
             controller.Update(loaded, vanillaCycleMinutes,
-                true, 0.23f, 0.5f);
+                true, 60f, 6f, 20f, 50f);
             Ensure(loaded.SetterCalls == 1, "new clock/load reapply");
 
             controller.Update(loaded, vanillaCycleMinutes,
-                false, 0.23f, 0.5f);
+                false, 60f, 6f, 20f, 50f);
             Ensure(loaded.SetterCalls == 2, "disable restores vanilla");
             Near(loaded.WeatherSecondsPerRealSecond, 72f, 0.001f,
                 "vanilla restoration rate");
             controller.Update(loaded, vanillaCycleMinutes,
-                false, 0.23f, 0.5f);
+                false, 60f, 6f, 20f, 50f);
             Ensure(loaded.SetterCalls == 2,
                 "disabled state does not repeat restoration");
 
             controller.Update(loaded, vanillaCycleMinutes,
-                true, 0.23f, 0.413f);
+                true, 60f, 6f, 12f, 100f);
             Ensure(loaded.SetterCalls == 3, "re-enable applies once");
             loaded.WeatherSecondsPerRealSecond = 99f;
             controller.Update(loaded, vanillaCycleMinutes,
-                true, 0.23f, 0.413f);
+                true, 60f, 6f, 12f, 100f);
             Ensure(loaded.SetterCalls == 3,
                 "external override is not overwritten every poll");
             controller.Update(loaded, vanillaCycleMinutes,
-                false, 0.23f, 0.413f);
+                false, 60f, 6f, 12f, 100f);
             Ensure(loaded.SetterCalls == 3,
                 "external override blocks vanilla restoration");
             Near(loaded.WeatherSecondsPerRealSecond, 99f, 0.001f,
                 "external rate remains untouched");
 
-            Near(WorldTimescalePolicy.ClampMultiplier(0f), 0.01f,
+            Near(WorldTimescalePolicy.ClampPhaseMinutes(0f), 1f,
                 0.0001f, "minimum clamp");
-            Near(WorldTimescalePolicy.ClampMultiplier(9f), 5f,
+            Near(WorldTimescalePolicy.ClampPhaseMinutes(900f), 600f,
                 0.0001f, "maximum clamp");
         }
 
@@ -170,11 +210,14 @@ $pluginSource = Get-Content -LiteralPath (
 foreach ($required in @(
     '"2. World Timescale"',
     '"EnableDynamicTimescale"',
-    '"DayTimescale"',
-    '"NightTimescale"',
-    'DefaultDayTimescale = 0.23f',
-    'DefaultNightTimescale = 0.413f',
-    'UpdateWorldTimescale();')) {
+    '"DayMinutes"',
+    '"BaseNightMinutes"',
+    '"MaximumThreatNightMinutes"',
+    'DefaultDayMinutes = 60f',
+    'DefaultBaseNightMinutes = 6f',
+    'DefaultMaximumThreatNightMinutes = 12f',
+    'UpdateWorldTimescale(nextContext);',
+    'private void UpdateWorldTimescale(RuntimeContext context)')) {
     if (!$pluginSource.Contains($required)) {
         throw "Dynamic world-timescale integration is missing token: $required"
     }

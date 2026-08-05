@@ -44,6 +44,7 @@ namespace EyesInTheDark
         public bool IsExposed;
         public bool IsProtected;
         public bool HeroInUnrelatedCombat;
+        public bool EncounterLaneBusy;
         public bool CanAdvance;
         public float ActiveSeconds;
         public float Threat;
@@ -135,6 +136,7 @@ namespace EyesInTheDark
                 && frame.IsExposed
                 && !frame.IsProtected
                 && !frame.HeroInUnrelatedCombat
+                && !frame.EncounterLaneBusy
                 && frame.RemainingDangerBudget
                     >= FiniteNonNegative(tuning.HunterDangerCost);
 
@@ -327,6 +329,10 @@ namespace EyesInTheDark
             if (frame.HeroInUnrelatedCombat)
             {
                 return "unrelated combat";
+            }
+            if (frame.EncounterLaneBusy)
+            {
+                return "ambient stalker lane busy";
             }
             if (frame.RemainingDangerBudget
                 < FiniteNonNegative(tuning.HunterDangerCost))

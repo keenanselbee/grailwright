@@ -1,1 +1,1 @@
-Rebuilds Wyrdnights with a configurable 60-minute day/15-minute night world clock, player-built Wyrd Threat, and curated level- and map-safe hunts. Includes three gameplay presets, an Eyes-owned HUD meter, configurable purple boundary visuals, and optional GFT atmosphere and diagnostics.
+Turns Wyrdnights into dynamic 6-12 minute nights that lengthen with Wyrd Threat. Your actions drive eerie map-native stalkers, level-safe regional hunts, protected rest, and a world and HUD that grow more dangerous with you. Optional Battlecry Voice Tuner and GFT support.

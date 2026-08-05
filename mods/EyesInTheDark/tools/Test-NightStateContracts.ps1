@@ -60,6 +60,26 @@ namespace EyesInTheDark
             valid = ValidObservation();
             valid.IsResting = true;
             Expect(valid, DirectorState.Inactive, InactiveReason.Resting, "rest");
+            Ensure(NightStateEvaluator.IsActiveWyrdnightPhaseForRest(valid),
+                "Open rest UI must not hide the current Wyrdnight phase from rest safety");
+            Ensure(!NightStateEvaluator.CanBeginRest(true, false, valid, false),
+                "Active Eyes Wyrdnight blocks unprotected rest by default");
+            Ensure(NightStateEvaluator.CanBeginRest(true, false, valid, true),
+                "Native safe-rest protection allows Wyrdnight rest");
+            Ensure(NightStateEvaluator.CanBeginRest(true, true, valid, false),
+                "The explicit option allows unprotected Wyrdnight rest");
+            Ensure(NightStateEvaluator.CanBeginRest(false, false, valid, false),
+                "Disabled Eyes leaves native rest behavior unchanged");
+            Ensure(!NightStateEvaluator.IsStableAfterRest(valid),
+                "Rest UI is not a stable post-rest context");
+            valid.IsResting = false;
+            Ensure(NightStateEvaluator.IsStableAfterRest(valid),
+                "Ready gameplay is a stable post-rest context");
+
+            valid.GameSaysNight = false;
+            valid.HeroSaysNight = false;
+            Ensure(NightStateEvaluator.CanBeginRest(true, false, valid, false),
+                "Daylight rest remains available outside protection");
 
             valid = ValidObservation();
             valid.HeroAlive = false;
@@ -181,6 +201,10 @@ if (!$pluginSource.Contains("if (wyrdnessService == null")) {
     throw "The startup readiness guard must fail closed while WyrdnessService is unavailable."
 }
 
+if ($pluginSource -notmatch '(?s)"AllowUnprotectedWyrdnightRest",\s*true,\s*UiDescription') {
+    throw "Unprotected Wyrdnight rest must default to enabled for Watchful tuning."
+}
+
 $travelDecisionIndex = $source.IndexOf("if (observation.IsTraveling)", [StringComparison]::Ordinal)
 $transitionDecisionIndex = $source.IndexOf("if (observation.IsTransitioning)", [StringComparison]::Ordinal)
 if ($travelDecisionIndex -lt 0 -or $transitionDecisionIndex -lt 0 -or $travelDecisionIndex -ge $transitionDecisionIndex) {
@@ -189,6 +213,49 @@ if ($travelDecisionIndex -lt 0 -or $transitionDecisionIndex -lt 0 -or $travelDec
 
 if ($pluginSource.Contains("Transition trace") -or $pluginSource.Contains("TraceCheckpoint")) {
     throw "Temporary high-volume transition checkpoint tracing must not remain in the normal build."
+}
+
+foreach ($required in @(
+    "PatchRest()",
+    "AccessTools.PropertyGetter(",
+    "typeof(HeroDevelopment)",
+    "nameof(HeroDevelopment.CanRest)",
+    "AfterCanRest",
+    "CanUseNativeRest",
+    "ApplyRestInterruptionRisk",
+    "ShouldSuppressNativeWyrdnightSurprise",
+    '"OwnRestMenu"',
+    '"RestInterruptionChanceAtZeroThreat"',
+    '"RestInterruptionChanceAtMaximumThreat"',
+    "typeof(VFireplaceUI)",
+    "typeof(VWyrdRepellingFireplaceUI)",
+    "nameof(VWyrdRepellingFireplaceUI.RefreshActions)",
+    "AfterFireplaceInitialize",
+    "AfterFireplaceRefresh",
+    "AfterFireplaceDiscard",
+    "RefreshActiveRestAvailability",
+    "restButton.Interactable = interactable",
+    '"AllowUnprotectedWyrdnightRest"',
+    "wyrdnessService.IsInRepeller(hero.Coords)",
+    "NightStateEvaluator.CanBeginRest(",
+    "restPopup.IsSafelyResting",
+    "restPopup.Close();",
+    "_restAtmosphereReconciliationPending",
+    "TryCompleteRestAtmosphereReconciliation(",
+    "slept-through transitions suppressed")) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Wyrdnight rest integration is missing contract token: $required"
+    }
+}
+
+foreach ($retired in @(
+    "NotifyRestBlockedOnce",
+    "_restBlockNoticeShown",
+    "FancyPanelType.Custom.Spawn",
+    "You can rest during a Wyrdnight only within a protective boundary.")) {
+    if ($pluginSource.Contains($retired)) {
+        throw "Retired blocked-rest warning behavior remains: $retired"
+    }
 }
 
 Write-Host "Eyes in the Dark night-state contracts passed."

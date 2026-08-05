@@ -8,12 +8,6 @@ using UnityEngine.Rendering.HighDefinition;
 
 namespace EyesInTheDark
 {
-    internal enum BoundaryThreatReactivity
-    {
-        Disabled,
-        Subtle
-    }
-
     internal enum BoundaryRenderMode
     {
         Single,
@@ -23,7 +17,11 @@ namespace EyesInTheDark
     internal struct BoundarySettings
     {
         public BoundaryRenderMode RenderMode;
+        public WyrdnessPalette Palette;
         public Color Color;
+        public Color ThreatRedColor;
+        public float MaximumRedBlend;
+        public float ThreatVisualScale;
         public float HdrIntensity;
         public float NearRadius;
         public float NearIntensityMultiplier;
@@ -34,10 +32,6 @@ namespace EyesInTheDark
         public float OuterRadius;
         public float OuterIntensityMultiplier;
         public float OuterThickness;
-        public BoundaryThreatReactivity ThreatReactivity;
-        public float MinimumIntensityMultiplier;
-        public float MaximumIntensityMultiplier;
-        public float MaximumThicknessMultiplier;
         public bool PulseEnabled;
         public float PulseAmount;
         public float PulseMinimumSeconds;
@@ -102,7 +96,8 @@ namespace EyesInTheDark
         public void Update(
             bool enabled,
             BoundarySettings settings,
-            float threat)
+            float threat,
+            bool allowSearch)
         {
             if (!enabled)
             {
@@ -115,6 +110,10 @@ namespace EyesInTheDark
                 if (_hasOriginals || _layeredPass != null)
                 {
                     Restore();
+                }
+                if (!allowSearch)
+                {
+                    return;
                 }
                 if (Time.unscaledTime < _nextSearchTime)
                 {
@@ -309,41 +308,19 @@ namespace EyesInTheDark
                 return;
             }
 
-            float normalizedThreat = Mathf.Clamp01(_threat / 100f);
-            float intensityMultiplier = 1f;
-            float thicknessMultiplier = 1f;
-            if (_settings.ThreatReactivity
-                == BoundaryThreatReactivity.Subtle)
-            {
-                intensityMultiplier = Mathf.Lerp(
-                    Mathf.Max(
-                        0f,
-                        _settings.MinimumIntensityMultiplier),
-                    Mathf.Max(
-                        0f,
-                        _settings.MaximumIntensityMultiplier),
-                    normalizedThreat);
-                thicknessMultiplier = Mathf.Lerp(
-                    1f,
-                    Mathf.Max(
-                        1f,
-                        _settings.MaximumThicknessMultiplier),
-                    normalizedThreat);
-            }
-
             _colorField.SetValue(
                 _edge,
                 HdrColor(
-                    _settings.Color,
+                    EffectiveColor(),
                     Mathf.Max(0f, _settings.HdrIntensity)
-                        * intensityMultiplier));
+                        * Mathf.Max(0f, _settings.ThreatVisualScale)));
             _radiusField.SetValue(
                 _edge,
                 Mathf.Clamp(_settings.OuterRadius, 0f, 100f));
             _thicknessField.SetValue(
                 _edge,
                 Mathf.Clamp(
-                    _settings.OuterThickness * thicknessMultiplier,
+                    _settings.OuterThickness,
                     0f,
                     1f));
         }
@@ -355,29 +332,18 @@ namespace EyesInTheDark
                 return;
             }
 
-            float normalizedThreat = Mathf.SmoothStep(
-                0f,
-                1f,
-                Mathf.Clamp01(_threat / 100f));
-            float intensityMultiplier = 1f;
-            float thicknessMultiplier = 1f;
-            if (_settings.ThreatReactivity
-                == BoundaryThreatReactivity.Subtle)
+            float nativeIntensity = 1f;
+            if (_nativeRuntimeMaterial != null
+                && _nativeRuntimeMaterial.HasProperty(NativeIntensityId))
             {
-                intensityMultiplier = Mathf.Lerp(
-                    Mathf.Max(
-                        0f,
-                        _settings.MinimumIntensityMultiplier),
-                    Mathf.Max(
-                        0f,
-                        _settings.MaximumIntensityMultiplier),
-                    normalizedThreat);
-                thicknessMultiplier = Mathf.Lerp(
-                    1f,
-                    Mathf.Max(
-                        1f,
-                        _settings.MaximumThicknessMultiplier),
-                    normalizedThreat);
+                nativeIntensity = _nativeRuntimeMaterial.GetFloat(
+                    NativeIntensityId);
+            }
+            _layeredPass.SetNativeIntensity(nativeIntensity);
+            _layeredPass.enabled = nativeIntensity > 0.0001f;
+            if (!_layeredPass.enabled)
+            {
+                return;
             }
 
             float pulseAmount = _settings.PulseEnabled
@@ -405,14 +371,15 @@ namespace EyesInTheDark
                 minimumSeconds * 1.25f,
                 maximumSeconds * 1.25f);
             float baseHdr = Mathf.Max(0f, _settings.HdrIntensity)
-                * intensityMultiplier;
+                * Mathf.Max(0f, _settings.ThreatVisualScale);
+            Color effectiveColor = EffectiveColor();
 
             _layeredPass.SetLayer(
                 0,
                 _settings.NearRadius,
-                _settings.NearThickness * thicknessMultiplier,
+                _settings.NearThickness,
                 HdrColor(
-                    _settings.Color,
+                    effectiveColor,
                     baseHdr
                         * Mathf.Max(
                             0f,
@@ -423,9 +390,9 @@ namespace EyesInTheDark
             _layeredPass.SetLayer(
                 1,
                 _settings.MiddleRadius,
-                _settings.MiddleThickness * thicknessMultiplier,
+                _settings.MiddleThickness,
                 HdrColor(
-                    _settings.Color,
+                    effectiveColor,
                     baseHdr
                         * Mathf.Max(
                             0f,
@@ -436,9 +403,9 @@ namespace EyesInTheDark
             _layeredPass.SetLayer(
                 2,
                 _settings.OuterRadius,
-                _settings.OuterThickness * thicknessMultiplier,
+                _settings.OuterThickness,
                 HdrColor(
-                    _settings.Color,
+                    effectiveColor,
                     baseHdr
                         * Mathf.Max(
                             0f,
@@ -447,14 +414,19 @@ namespace EyesInTheDark
                             0f,
                             1f + pulseAmount * 0.6f * outerPulse)));
 
-            float nativeIntensity = 1f;
-            if (_nativeRuntimeMaterial != null
-                && _nativeRuntimeMaterial.HasProperty(NativeIntensityId))
-            {
-                nativeIntensity = _nativeRuntimeMaterial.GetFloat(
-                    NativeIntensityId);
-            }
-            _layeredPass.SetNativeIntensity(nativeIntensity);
+        }
+
+        private Color EffectiveColor()
+        {
+            Color baseColor = _settings.Palette
+                == WyrdnessPalette.NativeOrange
+                    ? WyrdVisualMath.NormalizeHdrHue(_originalColor)
+                    : _settings.Color;
+            return WyrdVisualMath.ShiftTowardRed(
+                baseColor,
+                _settings.ThreatRedColor,
+                _threat,
+                _settings.MaximumRedBlend);
         }
 
         private float AdvancePulse(

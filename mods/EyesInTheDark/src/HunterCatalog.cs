@@ -1013,6 +1013,26 @@ namespace EyesInTheDark
             _random = new Random(seed);
         }
 
+        internal static bool TryGetProfile(
+            string profileId,
+            out HunterProfile profile)
+        {
+            for (int index = 0; index < Profiles.Length; index++)
+            {
+                if (string.Equals(
+                    Profiles[index].Id,
+                    profileId,
+                    StringComparison.Ordinal))
+                {
+                    profile = Profiles[index];
+                    return true;
+                }
+            }
+
+            profile = null;
+            return false;
+        }
+
         public HunterSelectionResult Select(
             HunterSelectionContext context)
         {

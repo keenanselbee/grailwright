@@ -1,11 +1,12 @@
 # Steel and Bone Docs
 
-This folder has two living design documents and three background research reports.
+This folder has three living design documents and three background research reports.
 
 ## Start Here
 
 | Question | Read |
 |---|---|
+| How does the 3.0 global difficulty layer work? | [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md) |
 | What should Steel and Bone implement next? | [steel-and-bone-design.md](steel-and-bone-design.md) |
 | What should each enemy or family resist and fear? | [steel-and-bone-enemies.md](steel-and-bone-enemies.md) |
 | What does the local NPC template data prove? | [research/npc-template-resistance-research-report.md](research/npc-template-resistance-research-report.md) |
@@ -26,7 +27,7 @@ When docs disagree, prefer sources in this order:
 
 ## Maintenance Rules
 
-Keep enemy numeric facts in [steel-and-bone-enemies.md](steel-and-bone-enemies.md). Keep implementation decisions, roadmap items, and preset philosophy in [steel-and-bone-design.md](steel-and-bone-design.md).
+Keep enemy numeric facts in [steel-and-bone-enemies.md](steel-and-bone-enemies.md). Keep matchup decisions and roadmap items in [steel-and-bone-design.md](steel-and-bone-design.md). Keep the current global modifier, compatibility, and verification contract in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 Use the research reports as evidence appendices. If a report conflicts with newer local TG data, add a dated correction note and update the two living docs rather than duplicating a second answer.
 

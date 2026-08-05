@@ -1,3 +1,44 @@
+Version 3.1.0
+Gave direct player arrows a distinct material identity layered onto their physical damage share instead of treating every bow hit as generic Pierce.
+Made exposed humanoid flesh strongly vulnerable to arrows, ordinary flesh mildly vulnerable, and infected or sea flesh favorable without turning arrows into a universal answer.
+Made armor, flesh undead, drowned corpses, flora or wood, spirits, constructs or stone, swarms, and confirmed skeletons progressively resistant to arrow impact.
+Preserved Fire, Electric, and other non-physical arrow payload matchups by weighting them separately from the arrow's physical impact.
+Added a mild preset-scaled weakness to direct player spell attacks against armored humanoids when vanilla has not already authored a reaction for the spell subtype.
+Added independent ArrowMaterialRulesEnabled and ArmoredSpellWeaknessEnabled switches so either new system can be disabled without affecting the rest of Steel and Bone.
+Reworked the Nexus description for narrower, reliable layouts with consistent section spacing and clearer material-combat emphasis.
+
+Version 3.0.1
+Automatically preserves compatible customized settings across config schema resets while keeping the new Preset default when its meaning changes.
+Expanded Tainted Combat Custom-preset overlap detection so active combat momentum is reported for stamina usage and enemy attack recovery as well as attack slots.
+Reframed the public documentation around the defining material weakness and resistance system, with broader difficulty features presented as supporting layers.
+
+Version 3.0.0
+Added independently toggleable native enemy sight-range scaling at x1.10, x1.30, and x1.50 for Tempered, Hardened, and Crucible.
+Applied sight tuning broadly to active hostile NPCs through temporary non-saved stat tweaks while preserving each enemy's authored range, line of sight, visibility, alert behavior, and AI gates.
+Excluded friendly actors, summons, allies, inactive AI, dead actors, and discarded actors from sight tuning, with automatic removal when eligibility or configuration changes.
+Kept enemy hearing, pursuit, immediate-combat behavior, attack cooldowns, and template-specific AI unchanged.
+Added conditional Tainted Instincts overlap detection for enemy sight range, incoming damage, and attack-slot pressure while remaining silent when no overlapping setting is active.
+Flagged Tainted Instincts as incompatible in public compatibility guidance while allowing individual Steel and Bone modifiers to be disabled.
+
+Version 2.1.0
+Added independently toggleable player and hostile arrow-velocity modifiers at x1.10, x1.30, and x1.50 for Tempered, Hardened, and Crucible.
+Scaled hostile arrows before the native ballistic aim solve so faster projectiles retain the game's intended trajectory and movement prediction.
+Added optional native armor-weight penalty scaling at x1.00, x1.05, and x1.10 while preserving vanilla armor proficiency and overload behavior.
+Added optional Light armor movement bonuses of 0%, 2.5%, and 5%.
+Added optional physical armor scaling: Medium uses x1.00/x1.05/x1.10 and Heavy or Overload uses x1.00/x1.10/x1.20.
+Expanded Tainted Combat overlap detection to include its armor-weight penalty modifier while remaining silent when no overlapping setting is active.
+Documented compatibility with Better Movement and how Steel and Bone extends the game's native armor and projectile systems.
+
+Version 2.0.0
+Expanded Steel and Bone into a lightweight but impactful difficulty mod while preserving its material weakness, resistance, and damage-number systems.
+Added individually toggleable modifiers for incoming player damage, stamina usage, mana usage, enemy attack slots, enemy attack recovery, player-dealt poise damage, kill experience, quest and objective experience, and proficiency experience.
+Made Tempered neutral for all new preset-controlled modifiers, Hardened apply a 5% penalty with one added attack slot, and Crucible apply a 10% penalty with two added attack slots.
+Added an independent configurable multiplier for outgoing player health damage that is never changed by presets.
+Added a six-slot default safety cap that limits only Steel and Bone's added enemy attack slots and never lowers a higher existing value.
+Added conditional Custom Difficulty and Tainted Combat overlap detection with silent normal operation, one-time in-game warnings for active overlaps, and exact conflicting settings in the BepInEx log.
+Kept coin gains and armor-weight penalties outside the 2.0.0 scope.
+Reset the configuration schema because Preset now controls global damage, resource, combat-pressure, poise, and progression systems in addition to material-rule intensity.
+
 Version 1.0.6
 Replaced legacy IMGUI damage-number text with TextMesh Pro so GameDefault uses the active Accessibility FontAsset and forced Sans or Serif use the matching game FontAsset directly.
 Preserved damage-number motion, sizing, colors, fading, and outlines on the native font renderer.

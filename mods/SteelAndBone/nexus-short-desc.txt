@@ -1,1 +1,1 @@
-Expands Tainted Grail's vanilla weakness and resistance system with material-based matchups, configurable presets, and dynamic damage numbers that visually react to weaknesses, resistances, critical hits, and immunities.
+A broad, native-first difficulty mod built from lightweight, modular changes and defined by material weaknesses and resistances. Weapon, spell, armor, awareness, resource, progression, and combat-pressure systems make preparation matter without replacing enemy AI or encounters.

@@ -17,28 +17,35 @@ using UnityEngine;
 using UnityEngine.TextCore.Text;
 
 [assembly: AssemblyTitle("Steel and Bone")]
-[assembly: AssemblyDescription("Knowledge-based weakness and resistance difficulty mod for Tainted Grail: The Fall of Avalon")]
+[assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
-[assembly: AssemblyInformationalVersion("1.0.6")]
+[assembly: AssemblyVersion("3.1.0.0")]
+[assembly: AssemblyFileVersion("3.1.0.0")]
+[assembly: AssemblyInformationalVersion("3.1.0")]
 
 namespace SteelAndBone
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
-    public sealed class SteelAndBonePlugin : BaseUnityPlugin
+    public sealed partial class SteelAndBonePlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "1.0.6";
+        public const string PluginVersion = "3.1.0";
 
-        private const int ConfigSchemaVersion = 14;
+        private const int ConfigSchemaVersion = 15;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
-                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+                new[]
+                {
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        15,
+                        "1. Core",
+                        "Preset",
+                        "Preset now controls global difficulty systems in addition to material-rule intensity.")
+                };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
         private const string DefaultDamageNumberBaseColor = "#E3BD02";
@@ -124,6 +131,13 @@ namespace SteelAndBone
         private static readonly string[] MetadataFleshUndeadTerms = { "Zombie", "Bloody" };
         private static readonly string[] MetadataFleshTerms = { "Animal", "Animal_Prey", "Bandit", "Cultist", "Human", "Humanoid" };
         private static readonly string[] MetadataEliteTerms = { "Elite", "MiniBoss", "Boss", "Type:Elite" };
+        private static readonly string[] MetadataConfirmedSkeletonTerms = { "Skeleton" };
+        private static readonly string[] MetadataStoneBodyTerms = { "HitStone" };
+        private static readonly string[] MetadataWoodBodyTerms = { "HitWood" };
+        private static readonly string[] MetadataHumanoidTerms = { "Human", "Humanoid" };
+        private static readonly string[] ConfirmedSkeletonTerms = { "Skeleton", "JollySkeleton", "Keeper Of The Barrow", "KeeperOfTheBarrow" };
+        private static readonly string[] HumanoidFleshTerms = { "Human", "Humanoid", "Bandit", "Outlaw", "Cultist" };
+        private static readonly string[] SwarmTerms = { "Swarm", "Bee Swarm", "BeeSwarm" };
 
         internal static SteelAndBonePlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
@@ -137,6 +151,8 @@ namespace SteelAndBone
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<Preset> _preset;
         private ConfigEntry<bool> _respectVanillaMultipliers;
+        private ConfigEntry<bool> _arrowMaterialRulesEnabled;
+        private ConfigEntry<bool> _armoredSpellWeaknessEnabled;
         private ConfigEntry<bool> _amplifyVanillaMultipliers;
         private ConfigEntry<float> _temperedVanillaAmplification;
         private ConfigEntry<float> _hardenedVanillaAmplification;
@@ -203,6 +219,7 @@ namespace SteelAndBone
         private int _targetTermsRevision = 1;
         private string _lastDamageNumberFontDiagnosticKey;
         private FontAsset _imguiDefaultFontAsset;
+        private Grailwright.Shared.ConfigRecoveryCustomizationProfile _pendingConfigRecoveryProfile;
 
         private void Awake()
         {
@@ -221,6 +238,7 @@ namespace SteelAndBone
                     return;
                 }
 
+                InitializeDifficultyOverhaul();
                 Log.LogInfo(PluginName + " " + PluginVersion + " loaded. Preset=" + _preset.Value + ".");
             }
             catch (Exception ex)
@@ -234,6 +252,7 @@ namespace SteelAndBone
 
         private void OnDestroy()
         {
+            ShutdownDifficultyOverhaul();
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -269,8 +288,10 @@ namespace SteelAndBone
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Damage-rule strength profile. Tempered is lighter, Hardened is the default, and Crucible makes every Steel and Bone rule matter more.");
+            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Difficulty profile. Tempered keeps penalty and armor modifiers neutral while setting arrows and enemy sight to 1.10x, Hardened applies the default 5% pressure profile with 1.30x arrows and sight, and Crucible applies the 10% profile with 1.50x arrows and sight plus stronger material rules.");
             _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, "Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.");
+            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, "Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Elemental payloads retain their own material matchup.");
+            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, "Give direct player spell attacks a mild weakness bonus against armored humanoids when vanilla does not already define a reaction for the spell's damage subtype.");
             _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, "Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.");
             _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, "Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets. 0.10 turns a 1.15 weakness into 1.05.");
             _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, "Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets.");
@@ -352,8 +373,11 @@ namespace SteelAndBone
                 "Knight;Guard;Squire;Warrior;Deserter;Kamelot;Soldier;Armor;Armored",
                 "Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.");
 
-            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, "Log damage-rule classification, vanilla multiplier checks, and multiplier decisions.");
+            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, "Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.");
             _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, "Log warnings when required game methods cannot be patched.");
+
+            BindDifficultyConfig();
+            RestorePreservedConfigSettings();
 
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -404,6 +428,15 @@ namespace SteelAndBone
                 return;
             }
 
+            _pendingConfigRecoveryProfile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(CultureInfo.InvariantCulture)
@@ -430,6 +463,8 @@ namespace SteelAndBone
             }
             catch (Exception ex)
             {
+                _pendingConfigRecoveryProfile = null;
+
                 try
                 {
                     if (File.Exists(backupPath))
@@ -445,6 +480,122 @@ namespace SteelAndBone
                 }
 
                 throw new InvalidOperationException("Failed to reset Steel and Bone config schema. Original config was left in place when possible.", ex);
+            }
+        }
+
+        private void RestorePreservedConfigSettings()
+        {
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                _pendingConfigRecoveryProfile;
+            if (profile == null)
+            {
+                return;
+            }
+
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreservedSetting(profile, _enabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _preset, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _respectVanillaMultipliers, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _arrowMaterialRulesEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _armoredSpellWeaknessEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _eliteRuleClampsEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _eliteWeaknessBonusReduction, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _eliteMinimumResistanceMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _amplifyVanillaMultipliers, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _temperedVanillaAmplification, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _hardenedVanillaAmplification, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _crucibleVanillaAmplification, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _minimumAmplifiedVanillaResistance, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _maximumAmplifiedVanillaWeakness, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumbersEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberBaseColor, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberFontSize, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberFontMode, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberDurationSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberCriticalDurationSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberHorizontalDrift, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberVerticalDrift, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageOverTimeNumberHeightMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberSizeContrast, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberColorContrast, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberMinimumAmount, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberMaximumActive, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _boneUndeadTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _constructTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _wyrdTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _drownedZombieTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _infectedFleshTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _seaFleshTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _spiritTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _floraTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _fleshUndeadTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _fleshTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _armoredHumanoidTerms, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _diagnostics, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _logPatchWarnings, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _difficultyModifiersEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPlayerDamageDealt, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _playerDamageDealtMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPlayerDamageTaken, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyStaminaUsage, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPlayerPoiseDamageDealt, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPlayerArrowVelocity, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyArmorWeightPenalties, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyHostileArrowVelocity, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemySightRange, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyKillExperience, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyQuestExperience, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyProficiencyExperience, ref restoredCount, ref clampedCount);
+
+            Log.LogInfo(
+                "Preserved "
+                + restoredCount.ToString(CultureInfo.InvariantCulture)
+                + " customized setting(s) across the config schema reset; clamped="
+                + clampedCount.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            _pendingConfigRecoveryProfile = null;
+        }
+
+        private static void RestorePreservedSetting<T>(
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            ConfigEntry<T> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            if (profile == null || entry == null)
+            {
+                return;
+            }
+
+            T previousValue;
+            if (!profile.TryGetCustomizedValue(
+                entry.Definition.Section,
+                entry.Definition.Key,
+                out previousValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                previousValue,
+                out clamped))
+            {
+                return;
+            }
+
+            restoredCount++;
+            if (clamped)
+            {
+                clampedCount++;
             }
         }
 
@@ -497,11 +648,13 @@ namespace SteelAndBone
             if (outcomeOriginal == null || outcomePostfix == null)
             {
                 Warn("Could not patch HealthElement.AfterHealthDecreaseEvents. Steel and Bone damage numbers are unavailable, but damage rules remain active.");
+                PatchDifficultyOverhaul();
                 return true;
             }
 
             _harmony.Patch(outcomeOriginal, null, new HarmonyMethod(outcomePostfix));
             LogDiagnostic("Patched " + healthElementType.FullName + ".AfterHealthDecreaseEvents.");
+            PatchDifficultyOverhaul();
             return true;
         }
 
@@ -513,22 +666,27 @@ namespace SteelAndBone
             }
 
             object hero = GetCurrentHero();
-            if (hero == null || !IsHeroDamageSource(damage, hero))
+            if (hero == null)
             {
                 return;
             }
 
             object heroHealthElement = GetOptionalPropertyValue(hero, "HealthElement");
-            if (ReferenceEquals(healthElement, heroHealthElement))
+            object target = ResolveDamageTargetOwner(healthElement, damage);
+            bool targetIsHero = ReferenceEquals(healthElement, heroHealthElement)
+                || (target != null && IsSameModelOrOwner(target, hero));
+            if (targetIsHero)
+            {
+                ApplyIncomingHealthDamageModifier(ref damageModifier);
+                return;
+            }
+
+            if (!IsHeroDamageSource(damage, hero))
             {
                 return;
             }
 
-            object target = ResolveDamageTargetOwner(healthElement, damage);
-            if (target != null && IsSameModelOrOwner(target, hero))
-            {
-                return;
-            }
+            ApplyOutgoingHealthDamageModifier(ref damageModifier);
 
             TargetClassification targetClass = GetTargetClassification(target, healthElement);
             DamageClassification damageClass = ClassifyDamage(damage);
@@ -541,13 +699,55 @@ namespace SteelAndBone
             DamageRuleMatch match;
             bool skippedForVanilla;
             bool skippedForEliteClamp;
-            bool matchedRule = TryResolveDamageRule(
-                targetClass,
-                damageClass,
-                damage,
-                out match,
-                out skippedForVanilla,
-                out skippedForEliteClamp);
+            bool matchedRule;
+            DamageRuleMatch arrowMatch;
+            if (damageClass.IsArrow
+                && (_arrowMaterialRulesEnabled == null || _arrowMaterialRulesEnabled.Value)
+                && TryResolveArrowMaterialRule(targetClass, out arrowMatch))
+            {
+                DamageRuleMatch payloadMatch;
+                bool payloadSkippedForVanilla;
+                bool payloadSkippedForEliteClamp;
+                bool matchedPayloadRule = TryResolveDamageRule(
+                    targetClass,
+                    damageClass,
+                    damage,
+                    DamageTag.Slashing | DamageTag.Piercing | DamageTag.Bludgeoning | DamageTag.GenericPhysical | DamageTag.Arrow | DamageTag.DirectSpell,
+                    out payloadMatch,
+                    out payloadSkippedForVanilla,
+                    out payloadSkippedForEliteClamp);
+
+                float physicalShare = GetPhysicalDamageShare(damage, damageClass);
+                float payloadMultiplier = matchedPayloadRule ? payloadMatch.Multiplier : 1.0f;
+                float combinedMultiplier = (physicalShare * arrowMatch.Multiplier)
+                    + ((1.0f - physicalShare) * payloadMultiplier);
+                match = new DamageRuleMatch(
+                    combinedMultiplier,
+                    arrowMatch.TargetLabel,
+                    matchedPayloadRule ? "Arrow + " + payloadMatch.DamageLabel : "Arrow",
+                    arrowMatch.Priority,
+                    GetRuleImpact(combinedMultiplier),
+                    arrowMatch.PresetMultiplier,
+                    arrowMatch.WasEliteClamped || (matchedPayloadRule && payloadMatch.WasEliteClamped));
+                skippedForVanilla = payloadSkippedForVanilla;
+                skippedForEliteClamp = payloadSkippedForEliteClamp;
+                matchedRule = true;
+            }
+            else if (TryResolveArmoredSpellRule(targetClass, damageClass, damage, out match, out skippedForVanilla))
+            {
+                skippedForEliteClamp = false;
+                matchedRule = true;
+            }
+            else
+            {
+                matchedRule = TryResolveDamageRule(
+                    targetClass,
+                    damageClass,
+                    damage,
+                    out match,
+                    out skippedForVanilla,
+                    out skippedForEliteClamp);
+            }
             if (!matchedRule && !appliedVanillaAmplification)
             {
                 LogNoRuleDiagnostic(target ?? healthElement, targetClass, damageClass, skippedForVanilla, skippedForEliteClamp);
@@ -821,10 +1021,245 @@ namespace SteelAndBone
             return Clamp(Math.Max(multiplier, GetEliteMinimumResistanceMultiplier()), 0.05f, 1.0f);
         }
 
+        private bool TryResolveArrowMaterialRule(
+            TargetClassification targetClass,
+            out DamageRuleMatch match)
+        {
+            match = default(DamageRuleMatch);
+            if (targetClass == null)
+            {
+                return false;
+            }
+
+            string targetLabel;
+            float baseMultiplier;
+            if (targetClass.IsConfirmedSkeleton)
+            {
+                targetLabel = "Skeleton";
+                baseMultiplier = 0.20f;
+            }
+            else if (targetClass.IsSwarm)
+            {
+                targetLabel = "Swarm";
+                baseMultiplier = 0.35f;
+            }
+            else if (targetClass.IsConstruct || targetClass.HasStoneBody)
+            {
+                targetLabel = "Construct/Stone";
+                baseMultiplier = 0.50f;
+            }
+            else if (targetClass.IsSpirit)
+            {
+                targetLabel = "Spirit";
+                baseMultiplier = 0.55f;
+            }
+            else if (targetClass.IsFlora || targetClass.HasWoodBody)
+            {
+                targetLabel = "Flora/Wood";
+                baseMultiplier = 0.60f;
+            }
+            else if (targetClass.IsArmoredHumanoid)
+            {
+                targetLabel = "Armor";
+                baseMultiplier = 0.75f;
+            }
+            else if (targetClass.IsDrownedZombie)
+            {
+                targetLabel = "Drowned";
+                baseMultiplier = 0.85f;
+            }
+            else if (targetClass.IsInfectedFlesh)
+            {
+                targetLabel = "Infected Flesh";
+                baseMultiplier = 1.15f;
+            }
+            else if (targetClass.IsSeaFlesh)
+            {
+                targetLabel = "Sea Flesh";
+                baseMultiplier = 1.10f;
+            }
+            else if (targetClass.IsFleshUndead)
+            {
+                targetLabel = "Flesh Undead";
+                baseMultiplier = 0.85f;
+            }
+            else if (targetClass.IsWyrd)
+            {
+                return false;
+            }
+            else if (targetClass.IsFlesh)
+            {
+                targetLabel = targetClass.IsHumanoidFlesh ? "Exposed Flesh" : "Flesh";
+                baseMultiplier = targetClass.IsHumanoidFlesh ? 1.20f : 1.12f;
+            }
+            else if (targetClass.IsBoneUndead)
+            {
+                targetLabel = "Bone Body";
+                baseMultiplier = 0.55f;
+            }
+            else
+            {
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                targetLabel,
+                "Arrow",
+                120,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
+        private bool TryResolveArmoredSpellRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            if ((_armoredSpellWeaknessEnabled != null && !_armoredSpellWeaknessEnabled.Value)
+                || targetClass == null
+                || !targetClass.IsArmoredHumanoid
+                || damageClass == null
+                || !damageClass.IsDirectSpell
+                || damageClass.IsBleed
+                || damageClass.IsPoison
+                || damageClass.IsWet)
+            {
+                return false;
+            }
+
+            DamageTag spellTags = damageClass.Tags & (
+                DamageTag.BloodMagic
+                | DamageTag.Wyrdness
+                | DamageTag.GenericMagical
+                | DamageTag.Fire
+                | DamageTag.Cold
+                | DamageTag.Electric);
+            if (spellTags == DamageTag.None)
+            {
+                return false;
+            }
+
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                spellTags,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(1.20f, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                "Armor",
+                "Direct Spell",
+                110,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return HasMeaningfulEffect(multiplier);
+        }
+
+        private float GetPhysicalDamageShare(object damage, DamageClassification damageClass)
+        {
+            object damageTypeData = GetOptionalMemberValue(damage, "DamageTypeData");
+            object parts = GetOptionalMemberValue(damageTypeData, "Parts");
+            float totalWeight = 0.0f;
+            float physicalWeight = 0.0f;
+            AccumulateDamagePartWeights(parts, ref totalWeight, ref physicalWeight);
+            if (totalWeight > 0.0001f)
+            {
+                return Clamp(physicalWeight / totalWeight, 0.0f, 1.0f);
+            }
+
+            return damageClass != null && damageClass.HasAny(
+                DamageTag.Slashing | DamageTag.Piercing | DamageTag.Bludgeoning | DamageTag.GenericPhysical)
+                ? 1.0f
+                : 0.0f;
+        }
+
+        private void AccumulateDamagePartWeights(object parts, ref float totalWeight, ref float physicalWeight)
+        {
+            IEnumerable enumerable = parts as IEnumerable;
+            if (enumerable != null)
+            {
+                foreach (object part in enumerable)
+                {
+                    AccumulateDamagePartWeight(part, ref totalWeight, ref physicalWeight);
+                }
+                return;
+            }
+
+            int count = GetOptionalIntProperty(parts, "Count", -1);
+            PropertyInfo indexer = count > 0 && parts != null ? GetIndexerProperty(parts.GetType()) : null;
+            for (int i = 0; i < count && indexer != null; i++)
+            {
+                AccumulateDamagePartWeight(GetIndexedValue(indexer, parts, i), ref totalWeight, ref physicalWeight);
+            }
+        }
+
+        private void AccumulateDamagePartWeight(object part, ref float totalWeight, ref float physicalWeight)
+        {
+            float weight;
+            if (part == null
+                || !TryGetFloatMemberValue(part, "TotalDamageMultiplier", out weight)
+                || weight <= 0.0f
+                || float.IsNaN(weight)
+                || float.IsInfinity(weight))
+            {
+                return;
+            }
+
+            totalWeight += weight;
+            object subtype = GetOptionalMemberValue(part, "SubType");
+            if (ValueNameContains(subtype, "GenericPhysical")
+                || ValueNameContains(subtype, "Slashing")
+                || ValueNameContains(subtype, "Piercing")
+                || ValueNameContains(subtype, "Bludgeoning"))
+            {
+                physicalWeight += weight;
+            }
+        }
+
         private bool TryResolveDamageRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
             object damage,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla,
+            out bool skippedForEliteClamp)
+        {
+            return TryResolveDamageRule(
+                targetClass,
+                damageClass,
+                damage,
+                DamageTag.None,
+                out match,
+                out skippedForVanilla,
+                out skippedForEliteClamp);
+        }
+
+        private bool TryResolveDamageRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            DamageTag excludedTags,
             out DamageRuleMatch match,
             out bool skippedForVanilla,
             out bool skippedForEliteClamp)
@@ -843,24 +1278,29 @@ namespace SteelAndBone
             for (int i = 0; i < DamageRules.Length; i++)
             {
                 DamageRule rule = DamageRules[i];
-                if (rule.TargetFamily == TargetFamily.FleshUndead
-                    && targetClass.IsInfectedFlesh
-                    && rule.MatchesDamageTag(
-                        DamageTag.GenericPhysical
-                        | DamageTag.Slashing
-                        | DamageTag.Piercing
-                        | DamageTag.Bludgeoning))
+                DamageTag eligibleRuleTags = rule.DamageTags & ~excludedTags;
+                if (eligibleRuleTags == DamageTag.None)
                 {
                     continue;
                 }
-                if (!TargetMatchesRule(targetClass, rule.TargetFamily) || !damageClass.HasAny(rule.DamageTags))
+                if (rule.TargetFamily == TargetFamily.FleshUndead
+                    && targetClass.IsInfectedFlesh
+                    && (eligibleRuleTags & (
+                        DamageTag.GenericPhysical
+                        | DamageTag.Slashing
+                        | DamageTag.Piercing
+                        | DamageTag.Bludgeoning)) != DamageTag.None)
+                {
+                    continue;
+                }
+                if (!TargetMatchesRule(targetClass, rule.TargetFamily) || !damageClass.HasAny(eligibleRuleTags))
                 {
                     continue;
                 }
 
                 string vanillaSubtype;
                 float vanillaMultiplier;
-                if (ShouldSkipForVanillaMultiplier(rule, damageClass, damage, out vanillaSubtype, out vanillaMultiplier))
+                if (ShouldSkipForVanillaMultiplier(eligibleRuleTags, damageClass, damage, out vanillaSubtype, out vanillaMultiplier))
                 {
                     skippedForVanilla = true;
                     if (DiagnosticsEnabled())
@@ -919,7 +1359,7 @@ namespace SteelAndBone
         }
 
         private bool ShouldSkipForVanillaMultiplier(
-            DamageRule rule,
+            DamageTag ruleTags,
             DamageClassification damageClass,
             object damage,
             out string subtypeName,
@@ -939,7 +1379,7 @@ namespace SteelAndBone
             for (int i = 0; i < NativeSubtypeChecks.Length; i++)
             {
                 NativeSubtypeCheck check = NativeSubtypeChecks[i];
-                if (!rule.MatchesDamageTag(check.Tag)
+                if ((ruleTags & check.Tag) == DamageTag.None
                     || !damageClass.HasAny(check.Tag)
                     || !DamageHasSubtype(damage, check.SubtypeName))
                 {
@@ -1088,6 +1528,13 @@ namespace SteelAndBone
             };
 
             string metadataText = BuildTargetMetadataSearchText(target, healthElement);
+            classification.IsConfirmedSkeleton = ContainsAnyTerm(metadataText, MetadataConfirmedSkeletonTerms)
+                || ContainsAnyTerm(text, ConfirmedSkeletonTerms);
+            classification.HasStoneBody = ContainsAnyTerm(metadataText, MetadataStoneBodyTerms);
+            classification.HasWoodBody = ContainsAnyTerm(metadataText, MetadataWoodBodyTerms);
+            classification.IsHumanoidFlesh = ContainsAnyTerm(metadataText, MetadataHumanoidTerms)
+                || ContainsAnyTerm(text, HumanoidFleshTerms);
+            classification.IsSwarm = ContainsAnyTerm(text, SwarmTerms);
             ApplyMetadataTargetClassification(classification, metadataText);
             if (!classification.HasMetadataFamily())
             {
@@ -1355,6 +1802,9 @@ namespace SteelAndBone
             classification.IsCold = DamageHasSubtype(damage, "Cold");
             classification.IsElectric = DamageHasSubtype(damage, "Electric");
             classification.IsWet = DamageHasSubtype(damage, "Wet");
+            classification.IsArrow = IsArrowDamage(damage);
+            classification.IsDirectSpell = ValueNameContains(GetOptionalPropertyValue(damage, "Type"), "MagicalHitSource")
+                && !IsDamageOverTime(damage);
 
             if (classification.IsBloodMagic)
             {
@@ -1412,8 +1862,43 @@ namespace SteelAndBone
             {
                 classification.Tags |= DamageTag.Burn;
             }
+            if (classification.IsArrow)
+            {
+                classification.Tags |= DamageTag.Arrow;
+            }
+            if (classification.IsDirectSpell)
+            {
+                classification.Tags |= DamageTag.DirectSpell;
+            }
 
             return classification;
+        }
+
+        private bool IsArrowDamage(object damage)
+        {
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            if (projectile == null || IsDestroyedUnityObject(projectile))
+            {
+                return false;
+            }
+
+            Type projectileType = projectile.GetType();
+            while (projectileType != null)
+            {
+                if (projectileType.Name.IndexOf("ThrowingKnife", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return false;
+                }
+                if (string.Equals(projectileType.Name, "Arrow", StringComparison.OrdinalIgnoreCase)
+                    || projectileType.Name.EndsWith("Arrow", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                projectileType = projectileType.BaseType;
+            }
+
+            return false;
         }
 
         private bool IsDamageOverTime(object damage)
@@ -2839,12 +3324,19 @@ namespace SteelAndBone
 
         private string DescribeTargetFlags(TargetClassification classification)
         {
-            if (classification == null || !classification.IsEliteClass)
+            if (classification == null)
             {
                 return "None";
             }
 
-            return "EliteClass";
+            StringBuilder builder = new StringBuilder();
+            AppendDiagnosticLabel(builder, classification.IsEliteClass, "EliteClass");
+            AppendDiagnosticLabel(builder, classification.IsConfirmedSkeleton, "ConfirmedSkeleton");
+            AppendDiagnosticLabel(builder, classification.HasStoneBody, "StoneBody");
+            AppendDiagnosticLabel(builder, classification.HasWoodBody, "WoodBody");
+            AppendDiagnosticLabel(builder, classification.IsHumanoidFlesh, "HumanoidFlesh");
+            AppendDiagnosticLabel(builder, classification.IsSwarm, "Swarm");
+            return builder.Length == 0 ? "None" : builder.ToString();
         }
 
         private string DescribeDamageTags(DamageClassification classification)
@@ -2954,7 +3446,9 @@ namespace SteelAndBone
             Cold = 1024,
             Electric = 2048,
             Wet = 4096,
-            Burn = 8192
+            Burn = 8192,
+            Arrow = 16384,
+            DirectSpell = 32768
         }
 
         private sealed class NativeSubtypeCheck
@@ -3069,6 +3563,11 @@ namespace SteelAndBone
             public bool IsSpirit;
             public bool IsFlora;
             public bool IsEliteClass;
+            public bool IsConfirmedSkeleton;
+            public bool HasStoneBody;
+            public bool HasWoodBody;
+            public bool IsHumanoidFlesh;
+            public bool IsSwarm;
 
             public bool HasAnyFamily()
             {
@@ -3109,6 +3608,8 @@ namespace SteelAndBone
             public bool IsElectric;
             public bool IsWet;
             public bool IsBurn;
+            public bool IsArrow;
+            public bool IsDirectSpell;
             public DamageTag Tags;
             public string PhysicalTypeHint;
 

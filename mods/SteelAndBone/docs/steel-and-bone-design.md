@@ -1,6 +1,6 @@
 # Steel and Bone Design Notes
 
-Steel and Bone should enhance vanilla Tainted Grail combat by making the existing damage pipeline more legible and more tactical. It should not replace enemy AI, rewrite encounters, flatten the vanilla build system, or turn every fight into a puzzle lock.
+Steel and Bone should be a lightweight but impactful difficulty mod. It enhances vanilla Tainted Grail combat by making the existing damage pipeline more legible and tactical, then adds small preset-driven pressures through existing game systems. It should not replace enemy AI, rewrite encounters, flatten the vanilla build system, or turn every fight into a puzzle lock.
 
 The goal is simple: the player should look at an enemy, look at the weapon or spell in hand, and have a reason to switch.
 
@@ -16,11 +16,11 @@ This is the living implementation and tuning spec. Keep detailed enemy facts in 
 | Give magic clear lanes | Blood, poison, bleed, Wyrdness, Fire, Cold, Electric, and Wet should have strengths and bad matchups where those tags can be detected. Holy or silver should only be added if item, effect, or skill text exposes reliable terms. |
 | Preserve ordinary builds | Tempered, Hardened, and Crucible should use the same rule table. The difference is how strongly the rules pull away from neutral. |
 | Keep feedback readable | If damage changes, the player should get a clear visual outcome signal, not just a hidden multiplier. |
-| Keep implementation narrow | Prefer rule-table expansion, target terms, damage tags, preset multipliers, and compact feedback. Avoid broad stateful systems unless a hook is already easy. |
+| Keep implementation narrow | Prefer event-driven hooks, model-owned stat tweaks, small preset multipliers, rule-table expansion, and compact feedback. Avoid broad stateful rewrites when the game already exposes a focused multiplier or getter. |
 
 ## Game-File Ground Truth
 
-These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 0.9.0 source.
+These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.1.0 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 | Evidence | Confirmed finding | Design consequence |
 |---|---|---|
@@ -42,14 +42,34 @@ Keep enemy-specific numeric facts in [steel-and-bone-enemies.md](steel-and-bone-
 - Do not generalize all undead, constructs, spirits, Wyrd enemies, bosses, or aquatic enemies into one resistance package.
 - Treat Holy and Silver as optional item/effect text rules only, not native damage subtypes.
 
+## Arrow Delivery Identity
+
+Version 3.1.0 treats a direct Arrow projectile as a delivery tag layered onto the physical share of its native damage parts. It does not add or replace a game damage subtype. Throwing knives are excluded, and elemental or magical payload shares retain their own material rules.
+
+| Hardened target | Physical arrow multiplier | Purpose |
+|---|---:|---|
+| Exposed humanoid flesh | 1.20 | Primary bow target and strongest readable weakness. |
+| Infected / sea / ordinary flesh | 1.15 / 1.10 / 1.12 | Keeps bows broadly useful against appropriate living bodies. |
+| Armored humanoid | 0.75 | Makes armor a meaningful answer without invalidating bows. |
+| Flesh undead / drowned | 0.85 | Distinguishes dead tissue from exposed living flesh. |
+| Flora or wood | 0.60 | Arrows lodge in or pass poorly through fibrous bodies. |
+| Spirit | 0.55 | Ordinary physical impact is unreliable against incorporeal bodies. |
+| Construct or stone | 0.50 | Hard bodies strongly resist arrow impact. |
+| Swarm | 0.35 | A single projectile is a poor answer to many small bodies. |
+| Confirmed skeleton | 0.20 | Arrows pass through or glance from sparse bone structure. |
+
+Tempered and Crucible apply the shared 55% and 135% rule-intensity scaling. Elite clamps remain authoritative. Wyrd creatures receive no special Arrow overlay until their body evidence supports a clearer rule.
+
+Direct player spells gain a 1.20 Hardened multiplier against armored humanoids, scaling to 1.11/1.20/1.27 by preset. The rule excludes damage-over-time and biological status damage, does not affect physical elemental enchantments, and yields whenever vanilla already defines the active spell subtype's reaction. Both 3.1.0 features have independent Core toggles.
+
 ## Non-Goals
 
 | Non-goal | Why |
 |---|---|
 | Full Requiem-style overhaul | Tainted Grail does not need a world, perk, AI, and encounter rebuild for this mod's purpose. |
-| Global health/damage scaling | More enemy health or more enemy damage does not create better combat decisions by itself. Presets should scale matchup importance, not raw stat inflation. |
+| Enemy health scaling | Larger health pools do not create better combat decisions. Steel and Bone changes incoming pressure and player choices without turning enemies into health sponges. |
 | Preset-exclusive matchups | Tempered, Hardened, and Crucible should not have different enemy rules. They should scale the same rules. |
-| Stamina, armor, and AI rewrites | These can fight vanilla systems and create brittle bugs. Armor is also global in the decompiled code, so material identity belongs in subtype rules first. |
+| Broad armor and AI rewrites | Steel and Bone narrowly scales native armor penalties, tier mobility/protection, and arrow velocity; enemy AI and armor classification remain native. |
 | Perfect taxonomy for every NPC | Start with family rules that catch common enemies. Add exceptions only when templates or testing prove they are needed. |
 
 ## Preset Philosophy
@@ -64,16 +84,18 @@ Steel and Bone presets are independent from the vanilla difficulties `Story`, `E
 
 Presets should be a general matchup-strength and difficulty influence, not separate rulesets. Every Steel and Bone rule has one base multiplier. The preset scales that multiplier toward or away from neutral: Tempered is closer to vanilla, Hardened uses the base rule, and Crucible makes the same rule more decisive. Vanilla-authored multipliers are separate: Tempered leaves them unchanged by default, while Hardened and Crucible amplify their distance from neutral with clamps.
 
+For the 3.0 global layer, Tempered keeps pressure and armor modifiers neutral while setting arrows and hostile enemy sight to x1.10. Hardened applies 5% pressure with one additional enemy attack slot and x1.30 arrows/sight. Crucible applies 10% pressure with two additional slots and x1.50 arrows/sight. Outgoing player health damage is independently configurable and never preset-controlled.
+
 ## Implemented
 
-This section describes the current 0.9.0 behavior.
+This section describes the material-rule engine introduced before 1.0 and extended in 3.1.0.
 
 ### Damage Hook
 
 | Implemented item | Current behavior | Keep or change |
 |---|---|---|
 | Per-target damage modifier patch | Patches `HealthElement.ApplyDamageModifiers` and adjusts `dmgModifier` after vanilla has calculated subtype, armor, and target damage-received multipliers. The adjusted value folds into the same final outgoing modifier as crit, sneak, weakspot, and backstab. | Keep. This is the right low-impact surface. |
-| Player-source guard | Applies only when the hero is the damage source and avoids modifying damage against the hero. | Keep. Steel and Bone should not surprise the player by changing incoming damage yet. |
+| Player and target guards | Material rules and outgoing scaling require a hero source. Incoming preset scaling instead requires the hero target and remains safe when the damage dealer is missing. | Keep the two paths explicit so environmental damage never needs a dealer dereference. |
 | Event-driven evaluation | Runs only when damage is being processed. It does not scan enemies. | Keep. This matches the lightweight mod goal. |
 | Cached metadata-first target classification | Caches target family classification by runtime object identity and target-term revision. Reachable surface type, NPC type, tags, and abstract types classify first; broad display-name terms fill in only when metadata does not identify a family. High-signal terms can refine only broad `Flesh` or `FleshUndead` metadata, not stronger metadata families. | Keep. This is the 0.9.0 atlas foundation. |
 
@@ -93,7 +115,7 @@ This section describes the current 0.9.0 behavior.
 | Spirit | `Ghost`, `Spirit`, `Wraith`, `Banshee`, `Melancholy`, `Mistling`, `Mistbearer`, `Strawchild`, `Strawfather` | Makes spirits less like ordinary flesh without full lockouts. | Physical resistance is deliberately modest until play testing confirms stronger values. |
 | Flora | `Dryad`, `Gloomfrond`, `Fleshtree`, `Wailcap`, `Viridian` | Makes plant/fungus enemies favor Fire and slash. | Wailcap poison resistance is vanilla; broad flora rules are Steel and Bone overlays. |
 
-### 0.9.0 Atlas Boundaries
+### Historical 0.9.0 Atlas Boundaries
 
 | Path or signal | 0.9.0 behavior | Reason |
 |---|---|---|
@@ -455,7 +477,7 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Should every family have both a physical and magical answer? | Yes for high-identity families where possible, but the answer should exist on every preset and scale by preset strength. |
 | Should ordinary humans get many rules? | No. Let vanilla handle most human combat unless armor, infection, or caster identity is obvious. |
 | Should bosses ignore weaknesses? | No. Clamp weaknesses instead of disabling them. |
-| Should Steel and Bone alter incoming player damage? | Not yet. Finish outgoing player damage identity first. |
+| Should Steel and Bone alter incoming player damage? | Yes, through the small 0%/5%/10% preset layer, independently toggleable and applied after vanilla routes the hit. |
 
 ## Design Rule Of Thumb
 

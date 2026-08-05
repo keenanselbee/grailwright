@@ -81,6 +81,7 @@
 
   <ItemGroup>
     <Compile Include="SteelAndBone.cs" />
+    <Compile Include="DifficultyOverhaul.cs" />
   </ItemGroup>
 
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

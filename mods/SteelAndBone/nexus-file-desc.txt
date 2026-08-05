@@ -1,1 +1,1 @@
-Expands enemy weaknesses and resistances with material-based combat rules and dynamic damage numbers.
+Material-driven combat with distinct arrow matchups, armored spell counters, modular difficulty tuning, and readable damage feedback.

@@ -1,3 +1,10 @@
+Version 1.0.0
+Renamed Player Voice Tuner to Battlecry Voice Tuner with the new ks.tgfoa.battlecry-voice-tuner plugin and config identity.
+Added gender-aware random battlecries from pools of up to 10 custom WAV files per gender, with placeholder slots and existing pitch, random-pitch, and volume tuning.
+Added tap-or-hold Toggle Weapon input that preserves a tap on release, supports the game's remapped keyboard and controller action, provides an optional separate hotkey, and uses a short three-second default cooldown.
+Added a configurable three-second enemy challenge at twice each hostile NPC's hearing range: unaware enemies become alert and previously alert enemies attempt to enter combat.
+Added optional Eyes in the Dark integration that requests a configurable 20 Wyrd Threat per successful cry and contributes to diminishing threat returns plus throttled atmospheric Wyrdnight responses.
+
 Version 0.2.2
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
 

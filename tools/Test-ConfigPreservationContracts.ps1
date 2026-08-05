@@ -50,8 +50,8 @@ $sourceContracts = @(
         Tokens = @('TargetAspect', 'CropVideoUv', 'VerticalCropFocus')
     },
     [pscustomobject]@{
-        Name = 'Player Voice Tuner'
-        Source = 'mods\PlayerVoiceTuner\src\PlayerVoiceTuner.cs'
+        Name = 'Battlecry Voice Tuner'
+        Source = 'mods\BattlecryVoiceTuner\src\BattlecryVoiceTuner.cs'
         Capture = 'CapturePreservedVoiceTuning('
         Restore = 'RestorePreservedVoiceTuning();'
         Save = 'Config.Save();'

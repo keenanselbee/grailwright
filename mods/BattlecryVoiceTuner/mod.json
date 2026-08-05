@@ -1,0 +1,25 @@
+{
+  "id": "BattlecryVoiceTuner",
+  "displayName": "Battlecry Voice Tuner",
+  "packageName": "BattlecryVoiceTuner",
+  "version": "1.0.0",
+  "pluginGuid": "ks.tgfoa.battlecry-voice-tuner",
+  "dll": "BattlecryVoiceTuner.dll",
+  "sourceFiles": [
+    "src/BattlecryVoiceTuner.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.InputLegacyModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Rewired_Core.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll"
+  ]
+}

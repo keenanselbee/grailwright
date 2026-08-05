@@ -120,7 +120,7 @@ $modContracts = @(
     @{ Mod = 'KSAddons\KSPersistentCorpsesAddon'; Source = 'src\PersistentCorpsesAddon.cs'; Schema = 1; AutoPreserves = $false },
     @{ Mod = 'KSAddons\KSTGAllLightsCastShadowsAddon'; Source = 'src\TGAllLightsCastShadowsAddon.cs'; Schema = 2; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSWyrdSightAddon'; Source = 'src\WyrdSightAddon.cs'; Schema = 2; AutoPreserves = $false },
-    @{ Mod = 'PlayerVoiceTuner'; Source = 'src\PlayerVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },
+    @{ Mod = 'BattlecryVoiceTuner'; Source = 'src\BattlecryVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'SteelAndBone'; Source = 'src\SteelAndBone.cs'; Schema = 14; AutoPreserves = $false },
     @{ Mod = 'UltrawideFixes'; Source = 'src\UltrawideFixes.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'WyrdsoulReserve'; Source = 'src\WyrdsoulReserve.cs'; Schema = 1; AutoPreserves = $true }
@@ -133,8 +133,8 @@ $expectedPermanentExclusions = @{
     'EyesInTheDark' = @(
         @{ Section = '2. Gameplay Preset'; Key = 'ApplyPreset' }
     )
-    'PlayerVoiceTuner' = @(
-        @{ Section = '3. Testing'; Key = 'PlayRandomTestSound' }
+    'BattlecryVoiceTuner' = @(
+        @{ Section = '4. Testing'; Key = 'PlayRandomTestSound' }
     )
 }
 

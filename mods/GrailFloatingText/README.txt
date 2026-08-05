@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 1.9.8
+Version 1.9.9
 
 Grail Floating Text is a shared BepInEx 5 Mono floating text overlay any
 Tainted Grail: The Fall of Avalon mod author can use.
@@ -9,6 +9,10 @@ of each other. Callers can send style, category, priority, icon, and collapse-ke
 intent so status messages update cleanly while reward and event messages still
 stack normally. New messages use a short pop-in scale animation, and stacked
 messages glide into their new positions when pushed.
+
+When Eyes in the Dark is loaded, built-in Wyrd notifications follow its live
+Purple Wyrdness or Native Orange palette through GFT's corresponding color
+group. Priority, duration, and icon behavior remain independent.
 
 It also includes a small optional default-game-event layer for useful facts the
 game does not already show as ordinary notification text. It can show the actual

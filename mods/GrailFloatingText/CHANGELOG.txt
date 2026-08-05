@@ -1,3 +1,8 @@
+Version 1.9.9
+Made built-in vanilla Wyrdnight, Wyrd safety, fragment, and Wyrd skill notifications follow Eyes in the Dark's live Purple Wyrdness or Native Orange palette when Eyes is loaded.
+Kept urgency independent from color-group selection, so high-priority Wyrd warnings retain their ordering while using the selected palette.
+Kept ConfigSchemaVersion at 24 because no GFT setting or stored value changed.
+
 Version 1.9.8
 Added GUID and assembly-fallback compatibility detection for Custom Timescale when Eyes in the Dark is also loaded.
 Shows one existing-convention main-menu System notice stating that Custom Timescale is flagged as incompatible with Eyes in the Dark without disabling or modifying either plugin.

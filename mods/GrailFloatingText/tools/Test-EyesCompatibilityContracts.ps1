@@ -6,11 +6,14 @@ $source = Get-Content -LiteralPath (
 $manifest = Get-Content -LiteralPath (
     Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 
-if ($manifest.version -ne "1.9.8") {
-    throw "GFT manifest version is not 1.9.8."
+if ($manifest.version -ne "1.9.9") {
+    throw "GFT manifest version is not 1.9.9."
 }
 foreach ($required in @(
-    'public const string PluginVersion = "1.9.8";',
+    'public const string PluginVersion = "1.9.9";',
+    'ResolveEyesWyrdStyle()',
+    '"WyrdnessPalette"',
+    '"NativeOrange"',
     'private const int ConfigSchemaVersion = 24;',
     '"ks.tgfoa.eyes-in-the-dark"',
     '"DeathWrench.TimeMod"',

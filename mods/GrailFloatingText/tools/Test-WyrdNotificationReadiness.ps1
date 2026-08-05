@@ -19,8 +19,11 @@ if ($method.Contains("QueueDeferredNotification")) {
     throw "Vanilla Wyrd state changes must be discarded during loading, not deferred."
 }
 
-if (-not $method.Contains('"Purple"') -or $method.Contains('"Wyrd"')) {
-    throw "Vanilla Wyrd notifications must request the configurable Purple color group directly."
+if (-not $method.Contains('ResolveEyesWyrdStyle()') -or
+    -not $source.Contains('return "Orange";') -or
+    -not $source.Contains('return "Purple";') -or
+    $method.Contains('"Wyrd"')) {
+    throw "Vanilla Wyrd notifications must request the Eyes-selected Purple or Orange color group."
 }
 
 if (-not $source.Contains('description + " Default: " + defaultColor')) {

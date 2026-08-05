@@ -42,9 +42,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("1.9.8.0")]
-[assembly: AssemblyFileVersion("1.9.8.0")]
-[assembly: AssemblyInformationalVersion("1.9.8")]
+[assembly: AssemblyVersion("1.9.9.0")]
+[assembly: AssemblyFileVersion("1.9.9.0")]
+[assembly: AssemblyInformationalVersion("1.9.9")]
 
 namespace GrailFloatingText
 {
@@ -218,7 +218,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "1.9.8";
+        public const string PluginVersion = "1.9.9";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -1527,7 +1527,7 @@ namespace GrailFloatingText
                 PluginGuid,
                 eventId,
                 text,
-                "Purple",
+                ResolveEyesWyrdStyle(),
                 category,
                 priority,
                 collapseKey,
@@ -4185,6 +4185,16 @@ namespace GrailFloatingText
                 return fallbackStyle;
             }
 
+            if (eventId.StartsWith(
+                    "vanilla_wyrd_",
+                    StringComparison.OrdinalIgnoreCase)
+                && IsPluginOrAssemblyLoaded(
+                    EyesInTheDarkPluginGuid,
+                    EyesInTheDarkAssemblyName))
+            {
+                return ResolveEyesWyrdStyle();
+            }
+
             for (int i = 0; i < _colorGroups.Count; i++)
             {
                 ColorGroupSettings group = _colorGroups[i];
@@ -4195,6 +4205,39 @@ namespace GrailFloatingText
             }
 
             return fallbackStyle;
+        }
+
+        private static string ResolveEyesWyrdStyle()
+        {
+            try
+            {
+                PluginInfo pluginInfo;
+                if (Chainloader.PluginInfos.TryGetValue(
+                        EyesInTheDarkPluginGuid,
+                        out pluginInfo)
+                    && pluginInfo != null
+                    && pluginInfo.Instance != null)
+                {
+                    ConfigEntryBase palette = pluginInfo.Instance.Config[
+                        "8. Wyrd Visuals",
+                        "WyrdnessPalette"];
+                    if (palette != null
+                        && string.Equals(
+                            Convert.ToString(
+                                palette.BoxedValue,
+                                CultureInfo.InvariantCulture),
+                            "NativeOrange",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "Orange";
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return "Purple";
         }
 
         private static bool EventListContains(string eventList, string eventId)

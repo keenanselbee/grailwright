@@ -93,7 +93,7 @@ Rule shorthand:
 | Steel and Bone family | Use for | Candidate resistance identity | Candidate weakness identity |
 |---|---|---|---|
 | `Flesh` | Ordinary humans, animals, humanoid creatures | Minimal resistances | Blood magic, bleed, poison, slash, and pierce |
-| `ArmoredHumanoid` | Knights, guards, heavy deserters | Slash, `GenericPhysical`, mild bleed | `Bludgeoning`, `Electric`, armor-piercing `Piercing` |
+| `ArmoredHumanoid` | Knights, guards, heavy deserters | Slash, then generic physical; arrows against Heavy | `Bludgeoning`, Pierce over Slash, Fire or Electric according to armor material |
 | `InfectedFlesh` | Red Death, corrupted living bodies | Confirmed Red Death pattern: `Poison 66%`; blunt remains neutral | Confirmed Red Death pattern: `Fire 133%`; mild slash/pierce Steel and Bone overlays |
 | `Flora` | Dryads, trees, fungal enemies | Poison and pierce only where template or visuals support it | `Fire`, slash, blight/purge if detectable |
 | `SeaFlesh` | Reef creatures, Sarras aquatic humanoids | Confirmed Sarras pattern: `Cold 60%`; Wailcaps have `Poison 25%`; blunt remains neutral | `Electric` plus mild slash/pierce Steel and Bone overlays |
@@ -230,7 +230,7 @@ These buckets are probably more useful than one-off rules for every enemy.
 | 2 | Spirits and shades | Implemented; validate in game | `Ghost`, `Banshee`, `Melancholy`, `Mist`, `Spirit`, `Wraith`, `HitMagic` | Current rules resist blood/bleed/poison and modestly resist physical; Wyrdness is the strong answer. Confirm both sides are readable without becoming a hard wall or universal shortcut. |
 | 2 | Sarras sea flesh | Implemented; validate in game | `Finbled`, `Tadpole`, `Tide`, `Floatling`, `Archivist`, `Scion`, `Reef`, `Type:SarrasCreature` | Current rules resist Cold, add modest Electric weakness, and share ordinary flesh's mild slash/pierce weaknesses while leaving blunt neutral. Confirm common vanilla `Cold 60%` rows are preserved by subtype skip logic. |
 | 3 | Flora and fungus | Implemented; validate in game | `Dryad`, `Frond`, `Tree`, `Wailcap`, `Stump`, `Fleshtree` | Current rules resist Poison/Bleed/Pierce and add Fire/Slash weakness. Confirm false positives, especially Wailcap overlap with `SeaFlesh`. |
-| 3 | Armored humanoids | Implemented cautiously; validate in game | `Knight`, `Guard`, `Squire`, `Warrior`, `Deserter`, `Kamelot`, `Soldier`, `Armor`, `Armored` | Current rules resist slash/`GenericPhysical` and add `Bludgeoning` weakness. Armor terms can override broad `Flesh` only; armor-piercing `Piercing` stays neutral until runtime armor penetration evidence is reliable. |
+| 3 | Armored humanoids | Implemented cautiously; validate in game | `Knight`, `Guard`, `Squire`, `Warrior`, `Deserter`, `Kamelot`, `Soldier`, `Armor`, `Armored` | Equipped Light/Medium/Heavy armor drives a tiered physical curve: Slash falls behind Pierce, Blunt improves with armor weight, and native Fabric/Leather/Metal surfaces guide direct elemental spell responses. |
 | 4 | Ordinary flesh | Implemented cautiously; validate in game | `Wolf`, `Bear`, `Bandit`, `Outlaw`, `Human`, `Humanoid`, `Remor`, `Redcap`, `Corpse Eater` | Current rules add blood magic plus mild bleed/poison/slash/pierce bonuses only when no more specific family wins first. |
 
 ## Completed Local Validations

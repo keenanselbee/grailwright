@@ -1,3 +1,22 @@
+Version 3.1.4
+Reworked mixed-damage processing so vanilla amplification and Steel and Bone rules are weighted by each damage part's post-vanilla contribution instead of modifying the whole hit.
+Kept physical, elemental, and status payloads independent on arrows, enchanted weapons, and multi-element spells, while updating runtime damage-part shares for downstream systems.
+Made damage-number feedback reflect weighted native reactions even when vanilla amplification is disabled or neutral on Tempered.
+
+Version 3.1.3
+Expanded ordinary humanoid armor into a complete physical matchup curve where Slash loses effectiveness faster than Pierce and Blunt becomes progressively stronger from Light through Heavy armor.
+Dampened added armor-tier resistances when vanilla numerical armor is already reducing the hit, preventing Heavy armor from multiplying arrows or edged attacks down to impractical damage.
+Classified equipped armor as Fabric, Leather, or Metal from the game's native surface data and made direct Fire, Electric, Cold, and generic magical hits react to armor tier and material.
+Prevented blood, Wyrdness, biological effects, and spells that already ignore armor from receiving an inappropriate duplicate armor-tier bonus.
+
+Version 3.1.2
+Classified ordinary humanoid armor from equipped native Light, Medium, and Heavy item data, with the cuirass defining full armor and partial sets treated as Light coverage.
+Gave arrows and ordinary piercing attacks a readable protection curve: exposed flesh is most vulnerable, Light remains slightly favorable, Medium is neutral, and Heavy provides meaningful resistance.
+Cached each NPC's armor profile and refreshes it only when equipment changes, while preserving the higher-priority identities of skeletons, constructs, spirits, flora, undead, and other material families.
+
+Version 3.1.1
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 3.1.0
 Gave direct player arrows a distinct material identity layered onto their physical damage share instead of treating every bow hit as generic Pierce.
 Made exposed humanoid flesh strongly vulnerable to arrows, ordinary flesh mildly vulnerable, and infected or sea flesh favorable without turning arrows into a universal answer.

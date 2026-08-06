@@ -1,5 +1,7 @@
 Steel and Bone
-Version 3.1.0
+Version 3.1.4
+
+Platforms: Windows and Linux through Proton.
 
 Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.
 
@@ -12,11 +14,13 @@ MATERIAL COMBAT
 
 Vanilla-authored weaknesses, resistances, and immunities run first. Steel and Bone can preserve or amplify them by preset, then adds one focused material rule only where appropriate. More specific families take precedence over broad categories, and elite enemies soften custom extremes.
 
-Bone undead favor blunt damage and resist blood, bleed, slash, and pierce. Constructs favor blunt and resist biological damage, slash, and pierce. Armored humanoids favor blunt over slash. Ordinary flesh receives mild biological and edged-weapon weaknesses. Flesh undead, drowned corpses, infected flesh, sea creatures, spirits, Wyrd creatures, and flora each have distinct physical or magical answers.
+Mixed hits are resolved by damage part, so an enchanted weapon's physical strike, elemental payload, and status effect each keep their own matchup.
 
-Direct player arrows now have their own material identity instead of acting as generic Pierce. Exposed flesh is especially vulnerable; ordinary flesh, infected bodies, and sea creatures remain favorable targets. Armor, flesh undead, drowned corpses, flora or wood, spirits, constructs or stone, swarms, and confirmed skeletons resist the arrow's physical share to progressively stronger degrees. Fire, Electric, and other payloads keep their own matchup rather than inheriting the physical arrow penalty.
+Bone undead favor blunt damage and resist blood, bleed, slash, and pierce. Constructs favor blunt and resist biological damage, slash, and pierce. Against ordinary humanoid armor, Slash loses effectiveness faster than Pierce while Blunt becomes progressively stronger from Light through Heavy armor. Ordinary flesh receives mild biological and edged-weapon weaknesses. Flesh undead, drowned corpses, infected flesh, sea creatures, spirits, Wyrd creatures, and flora each have distinct physical or magical answers.
 
-Direct player spell attacks gain a mild preset-scaled advantage against armored humanoids when vanilla has not already authored a reaction for that spell subtype. Set ArrowMaterialRulesEnabled or ArmoredSpellWeaknessEnabled to false to disable either feature independently.
+Direct player arrows now have their own material identity instead of acting as generic Pierce. Against ordinary humanoids, equipped armor creates a clear curve: exposed flesh is most vulnerable, Light armor remains slightly favorable, Medium is neutral, and Heavy strongly resists arrows while also resisting ordinary Pierce. Other material families retain their own arrow reactions. Fire, Electric, and other payloads keep their own matchup rather than inheriting the physical arrow penalty.
+
+Direct player spells receive a small tiered advantage against armor, while Fire, Electric, and Cold also react to the equipped armor's native Fabric, Leather, or Metal surface. Electricity is strongest against metal, while fire remains useful against fabric, leather, and heated metal. Blood, Wyrdness, biological effects, and spells that already ignore armor do not receive a duplicate armor-tier bonus. Set ArrowMaterialRulesEnabled or ArmoredSpellWeaknessEnabled to false to disable either feature independently.
 
 The design is inspired by Requiem's emphasis on coherent rules, preparation, and intelligent tactical play, but Steel and Bone is not a port or total conversion. It translates that philosophy into Tainted Grail's native combat systems with independently toggleable features.
 

@@ -7,7 +7,15 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Awaken.TG.MVC;
+using Awaken.TG.MVC.Elements;
+using Awaken.TG.MVC.Events;
+using Awaken.TG.Main.Character;
+using Awaken.TG.Main.Fights.DamageInfo;
+using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Heroes.Items.Attachments.Audio;
 using Awaken.TG.Main.Settings.Accessibility;
+using Awaken.TG.Main.Utility.Animations;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -20,9 +28,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.1.0.0")]
-[assembly: AssemblyFileVersion("3.1.0.0")]
-[assembly: AssemblyInformationalVersion("3.1.0")]
+[assembly: AssemblyVersion("3.1.4.0")]
+[assembly: AssemblyFileVersion("3.1.4.0")]
+[assembly: AssemblyInformationalVersion("3.1.4")]
 
 namespace SteelAndBone
 {
@@ -32,7 +40,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.1.0";
+        public const string PluginVersion = "3.1.4";
 
         private const int ConfigSchemaVersion = 15;
         private const int ConfigRecoveryBaselineSchema = 14;
@@ -72,8 +80,6 @@ namespace SteelAndBone
             new DamageRule(TargetFamily.Construct, DamageTag.Slashing | DamageTag.Piercing, "Construct", "Slash/Pierce", 0.75f, 70),
             new DamageRule(TargetFamily.Construct, DamageTag.Bludgeoning, "Construct", "Blunt", 1.15f, 80),
             new DamageRule(TargetFamily.Construct, DamageTag.GenericPhysical, "Construct", "Physical", 0.85f, 40),
-            new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Slashing | DamageTag.GenericPhysical, "Armor", "Slash/Physical", 0.88f, 65),
-            new DamageRule(TargetFamily.ArmoredHumanoid, DamageTag.Bludgeoning, "Armor", "Blunt", 1.10f, 66),
             new DamageRule(TargetFamily.Flesh, DamageTag.BloodMagic, "Flesh", "Blood", 1.10f, 25),
             new DamageRule(TargetFamily.Flesh, DamageTag.Bleed | DamageTag.Poison, "Flesh", "Bleed/Poison", 1.06f, 20),
             new DamageRule(TargetFamily.Flesh, DamageTag.Piercing, "Flesh", "Pierce", 1.06f, 16),
@@ -193,6 +199,8 @@ namespace SteelAndBone
             new Dictionary<int, TargetClassification>();
         private readonly Dictionary<int, PendingDamageFeedback> _pendingDamageFeedback =
             new Dictionary<int, PendingDamageFeedback>();
+        private readonly DamageClassification _partDamageClassification = new DamageClassification();
+        private float[] _damagePartAdjustments = new float[8];
 
         private string _cachedBoneUndeadTermsRaw;
         private string[] _cachedBoneUndeadTerms = new string[0];
@@ -290,8 +298,8 @@ namespace SteelAndBone
                     new System.ComponentModel.BrowsableAttribute(false)));
             _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Difficulty profile. Tempered keeps penalty and armor modifiers neutral while setting arrows and enemy sight to 1.10x, Hardened applies the default 5% pressure profile with 1.30x arrows and sight, and Crucible applies the 10% profile with 1.50x arrows and sight plus stronger material rules.");
             _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, "Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.");
-            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, "Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Elemental payloads retain their own material matchup.");
-            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, "Give direct player spell attacks a mild weakness bonus against armored humanoids when vanilla does not already define a reaction for the spell's damage subtype.");
+            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, "Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.");
+            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, "Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.");
             _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, "Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.");
             _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, "Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets. 0.10 turns a 1.15 weakness into 1.05.");
             _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, "Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets.");
@@ -692,6 +700,11 @@ namespace SteelAndBone
             DamageClassification damageClass = ClassifyDamage(damage);
             LogDamageCheckDiagnostic(target ?? healthElement, damage, targetClass, damageClass);
 
+            if (TryApplyWeightedDamageComposition(targetClass, damageClass, damage, ref damageModifier))
+            {
+                return;
+            }
+
             VanillaMultiplierAmplification vanillaAmplification;
             bool appliedVanillaAmplification =
                 TryApplyVanillaMultiplierAmplification(damage, damageClass, ref damageModifier, out vanillaAmplification);
@@ -703,7 +716,7 @@ namespace SteelAndBone
             DamageRuleMatch arrowMatch;
             if (damageClass.IsArrow
                 && (_arrowMaterialRulesEnabled == null || _arrowMaterialRulesEnabled.Value)
-                && TryResolveArrowMaterialRule(targetClass, out arrowMatch))
+                && TryResolveArrowMaterialRule(targetClass, damage, out arrowMatch))
             {
                 DamageRuleMatch payloadMatch;
                 bool payloadSkippedForVanilla;
@@ -1021,8 +1034,126 @@ namespace SteelAndBone
             return Clamp(Math.Max(multiplier, GetEliteMinimumResistanceMultiplier()), 0.05f, 1.0f);
         }
 
+        private bool TryGetOrdinaryHumanoidArmorTier(
+            TargetClassification targetClass,
+            out EnemyArmorTier tier,
+            out string evidence)
+        {
+            tier = EnemyArmorTier.Unknown;
+            evidence = "";
+            if (targetClass == null
+                || (!targetClass.IsHumanoidFlesh && !targetClass.IsArmoredHumanoid)
+                || targetClass.IsBoneUndead
+                || targetClass.IsConstruct
+                || targetClass.IsFleshUndead
+                || targetClass.IsWyrd
+                || targetClass.IsDrownedZombie
+                || targetClass.IsInfectedFlesh
+                || targetClass.IsSeaFlesh
+                || targetClass.IsSpirit
+                || targetClass.IsFlora
+                || targetClass.IsConfirmedSkeleton
+                || targetClass.HasStoneBody
+                || targetClass.HasWoodBody
+                || targetClass.IsSwarm)
+            {
+                return false;
+            }
+
+            if (targetClass.ArmorProfile != null)
+            {
+                tier = targetClass.ArmorProfile.Tier;
+                evidence = targetClass.ArmorProfile.Evidence;
+                if (tier != EnemyArmorTier.Unknown)
+                {
+                    return true;
+                }
+            }
+
+            if (targetClass.IsArmoredHumanoid)
+            {
+                tier = EnemyArmorTier.Medium;
+                evidence = "terms:ArmoredHumanoid:MediumFallback";
+                return true;
+            }
+
+            if (targetClass.IsFlesh && targetClass.IsHumanoidFlesh)
+            {
+                tier = EnemyArmorTier.Exposed;
+                evidence = "family:ExposedHumanoidFlesh";
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsEffectivelyArmoredHumanoid(TargetClassification targetClass)
+        {
+            EnemyArmorTier tier;
+            string evidence;
+            return TryGetOrdinaryHumanoidArmorTier(targetClass, out tier, out evidence)
+                && tier != EnemyArmorTier.Exposed;
+        }
+
+        private EnemyArmorMaterial GetOrdinaryHumanoidArmorMaterial(TargetClassification targetClass)
+        {
+            return targetClass != null && targetClass.ArmorProfile != null
+                ? targetClass.ArmorProfile.Material
+                : EnemyArmorMaterial.Unknown;
+        }
+
+        private string GetArmorTargetLabel(EnemyArmorTier tier, EnemyArmorMaterial material)
+        {
+            if (tier == EnemyArmorTier.Exposed)
+            {
+                return "Exposed Flesh";
+            }
+
+            return material == EnemyArmorMaterial.Unknown || material == EnemyArmorMaterial.None
+                ? tier + " Armor"
+                : tier + " " + material + " Armor";
+        }
+
+        private float DampArmorTierResistanceAgainstNativeArmor(
+            float multiplier,
+            TargetClassification targetClass,
+            object damage)
+        {
+            if (multiplier >= 1.0f
+                || targetClass == null
+                || damage == null
+                || !GetOptionalBoolProperty(damage, "CanBeReducedByArmor")
+                || GetOptionalBoolProperty(damage, "IgnoreArmor"))
+            {
+                return multiplier;
+            }
+
+            NpcElement npc = targetClass.Key as NpcElement;
+            if (npc == null && targetClass.ArmorProfile != null)
+            {
+                npc = targetClass.ArmorProfile.ParentModel;
+            }
+            if (npc == null)
+            {
+                return multiplier;
+            }
+
+            float armorPenetration = 0.0f;
+            object parameters = GetOptionalMemberValue(damage, "Parameters");
+            TryGetFloatMemberValue(parameters, "ArmorPenetration", out armorPenetration);
+            float effectiveArmor = npc.TotalArmor(DamageSubType.GenericPhysical) - armorPenetration;
+            if (effectiveArmor <= 0.0f)
+            {
+                return multiplier;
+            }
+
+            float vanillaRemaining = Damage.GetArmorMitigatedMultiplier(effectiveArmor);
+            return 1.0f + ((multiplier - 1.0f) * vanillaRemaining);
+        }
+
         private bool TryResolveArrowMaterialRule(
             TargetClassification targetClass,
+            object damage,
             out DamageRuleMatch match)
         {
             match = default(DamageRuleMatch);
@@ -1033,6 +1164,7 @@ namespace SteelAndBone
 
             string targetLabel;
             float baseMultiplier;
+            bool ordinaryArmorResistance = false;
             if (targetClass.IsConfirmedSkeleton)
             {
                 targetLabel = "Skeleton";
@@ -1058,11 +1190,6 @@ namespace SteelAndBone
                 targetLabel = "Flora/Wood";
                 baseMultiplier = 0.60f;
             }
-            else if (targetClass.IsArmoredHumanoid)
-            {
-                targetLabel = "Armor";
-                baseMultiplier = 0.75f;
-            }
             else if (targetClass.IsDrownedZombie)
             {
                 targetLabel = "Drowned";
@@ -1087,23 +1214,58 @@ namespace SteelAndBone
             {
                 return false;
             }
-            else if (targetClass.IsFlesh)
-            {
-                targetLabel = targetClass.IsHumanoidFlesh ? "Exposed Flesh" : "Flesh";
-                baseMultiplier = targetClass.IsHumanoidFlesh ? 1.20f : 1.12f;
-            }
-            else if (targetClass.IsBoneUndead)
-            {
-                targetLabel = "Bone Body";
-                baseMultiplier = 0.55f;
-            }
             else
             {
-                return false;
+                EnemyArmorTier armorTier;
+                string armorEvidence;
+                if (TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence))
+                {
+                    EnemyArmorMaterial armorMaterial = GetOrdinaryHumanoidArmorMaterial(targetClass);
+                    targetLabel = GetArmorTargetLabel(armorTier, armorMaterial);
+                    switch (armorTier)
+                    {
+                        case EnemyArmorTier.Exposed:
+                            baseMultiplier = 1.20f;
+                            break;
+                        case EnemyArmorTier.Light:
+                            baseMultiplier = 1.08f;
+                            break;
+                        case EnemyArmorTier.Medium:
+                            baseMultiplier = 1.00f;
+                            break;
+                        case EnemyArmorTier.Heavy:
+                            baseMultiplier = 0.75f;
+                            ordinaryArmorResistance = true;
+                            break;
+                        default:
+                            return false;
+                    }
+                }
+                else if (targetClass.IsFlesh)
+                {
+                    targetLabel = "Flesh";
+                    baseMultiplier = 1.12f;
+                }
+                else if (targetClass.IsBoneUndead)
+                {
+                    targetLabel = "Bone Body";
+                    baseMultiplier = 0.55f;
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
             float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            if (ordinaryArmorResistance)
+            {
+                presetMultiplier = DampArmorTierResistanceAgainstNativeArmor(
+                    presetMultiplier,
+                    targetClass,
+                    damage);
+            }
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             match = new DamageRuleMatch(
                 multiplier,
@@ -1127,9 +1289,10 @@ namespace SteelAndBone
             skippedForVanilla = false;
             if ((_armoredSpellWeaknessEnabled != null && !_armoredSpellWeaknessEnabled.Value)
                 || targetClass == null
-                || !targetClass.IsArmoredHumanoid
                 || damageClass == null
                 || !damageClass.IsDirectSpell
+                || damageClass.IsBloodMagic
+                || damageClass.IsWyrdness
                 || damageClass.IsBleed
                 || damageClass.IsPoison
                 || damageClass.IsWet)
@@ -1137,10 +1300,16 @@ namespace SteelAndBone
                 return false;
             }
 
+            EnemyArmorTier armorTier;
+            string armorEvidence;
+            if (!TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence)
+                || armorTier == EnemyArmorTier.Exposed)
+            {
+                return false;
+            }
+
             DamageTag spellTags = damageClass.Tags & (
-                DamageTag.BloodMagic
-                | DamageTag.Wyrdness
-                | DamageTag.GenericMagical
+                DamageTag.GenericMagical
                 | DamageTag.Fire
                 | DamageTag.Cold
                 | DamageTag.Electric);
@@ -1162,18 +1331,90 @@ namespace SteelAndBone
                 return false;
             }
 
+            float tierBonus = 0.0f;
+            if (GetOptionalBoolProperty(damage, "CanBeReducedByArmor")
+                && !GetOptionalBoolProperty(damage, "IgnoreArmor"))
+            {
+                switch (armorTier)
+                {
+                    case EnemyArmorTier.Light:
+                        tierBonus = 0.02f;
+                        break;
+                    case EnemyArmorTier.Medium:
+                        tierBonus = 0.07f;
+                        break;
+                    case EnemyArmorTier.Heavy:
+                        tierBonus = 0.12f;
+                        break;
+                }
+            }
+
+            EnemyArmorMaterial armorMaterial = GetOrdinaryHumanoidArmorMaterial(targetClass);
+            float materialBonus = GetSpellArmorMaterialBonus(damageClass, armorMaterial);
+            float baseMultiplier = Clamp(1.0f + tierBonus + materialBonus, 1.0f, 1.25f);
+            if (!HasMeaningfulEffect(baseMultiplier))
+            {
+                return false;
+            }
+
             Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(1.20f, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            string damageLabel = damageClass.IsElectric
+                ? "Electric Spell"
+                : damageClass.IsFire
+                    ? "Fire Spell"
+                    : damageClass.IsCold
+                        ? "Cold Spell"
+                        : "Direct Spell";
             match = new DamageRuleMatch(
                 multiplier,
-                "Armor",
-                "Direct Spell",
+                GetArmorTargetLabel(armorTier, armorMaterial),
+                damageLabel,
                 110,
                 GetRuleImpact(multiplier),
                 presetMultiplier,
                 Math.Abs(presetMultiplier - multiplier) > 0.001f);
-            return HasMeaningfulEffect(multiplier);
+            return true;
+        }
+
+        private float GetSpellArmorMaterialBonus(
+            DamageClassification damageClass,
+            EnemyArmorMaterial armorMaterial)
+        {
+            if (damageClass == null)
+            {
+                return 0.0f;
+            }
+
+            if (damageClass.IsElectric)
+            {
+                if (armorMaterial == EnemyArmorMaterial.Metal)
+                {
+                    return 0.10f;
+                }
+                if (armorMaterial == EnemyArmorMaterial.Leather)
+                {
+                    return 0.02f;
+                }
+            }
+
+            if (damageClass.IsFire)
+            {
+                if (armorMaterial == EnemyArmorMaterial.Fabric
+                    || armorMaterial == EnemyArmorMaterial.Metal)
+                {
+                    return 0.08f;
+                }
+                if (armorMaterial == EnemyArmorMaterial.Leather)
+                {
+                    return 0.05f;
+                }
+            }
+
+            return damageClass.IsCold && armorMaterial == EnemyArmorMaterial.Metal
+                ? 0.03f
+                : 0.0f;
         }
 
         private float GetPhysicalDamageShare(object damage, DamageClassification damageClass)
@@ -1237,6 +1478,123 @@ namespace SteelAndBone
             }
         }
 
+        private bool TryResolveArmorTierPhysicalRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            DamageTag excludedTags,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            if (targetClass == null
+                || damageClass == null
+                || damageClass.IsArrow
+                || damageClass.IsDirectSpell)
+            {
+                return false;
+            }
+
+            DamageTag damageTag;
+            string damageLabel;
+            if (damageClass.IsBludgeoning && (excludedTags & DamageTag.Bludgeoning) == DamageTag.None)
+            {
+                damageTag = DamageTag.Bludgeoning;
+                damageLabel = "Blunt";
+            }
+            else if (damageClass.IsPiercing && (excludedTags & DamageTag.Piercing) == DamageTag.None)
+            {
+                damageTag = DamageTag.Piercing;
+                damageLabel = "Pierce";
+            }
+            else if (damageClass.IsSlashing && (excludedTags & DamageTag.Slashing) == DamageTag.None)
+            {
+                damageTag = DamageTag.Slashing;
+                damageLabel = "Slash";
+            }
+            else if (damageClass.IsGenericPhysical && (excludedTags & DamageTag.GenericPhysical) == DamageTag.None)
+            {
+                damageTag = DamageTag.GenericPhysical;
+                damageLabel = "Physical";
+            }
+            else
+            {
+                return false;
+            }
+
+            EnemyArmorTier armorTier;
+            string armorEvidence;
+            if (!TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence))
+            {
+                return false;
+            }
+
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                damageTag,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                return false;
+            }
+
+            float baseMultiplier;
+            switch (damageTag)
+            {
+                case DamageTag.Bludgeoning:
+                    baseMultiplier = armorTier == EnemyArmorTier.Exposed
+                        ? 0.98f
+                        : armorTier == EnemyArmorTier.Light
+                            ? 1.00f
+                            : armorTier == EnemyArmorTier.Medium ? 1.08f : 1.15f;
+                    break;
+                case DamageTag.Piercing:
+                    baseMultiplier = armorTier == EnemyArmorTier.Exposed
+                        ? 1.06f
+                        : armorTier == EnemyArmorTier.Light
+                            ? 1.03f
+                            : armorTier == EnemyArmorTier.Medium ? 1.00f : 0.90f;
+                    break;
+                case DamageTag.Slashing:
+                    baseMultiplier = armorTier == EnemyArmorTier.Exposed
+                        ? 1.04f
+                        : armorTier == EnemyArmorTier.Light
+                            ? 0.98f
+                            : armorTier == EnemyArmorTier.Medium ? 0.92f : 0.82f;
+                    break;
+                default:
+                    baseMultiplier = armorTier == EnemyArmorTier.Exposed
+                        ? 1.00f
+                        : armorTier == EnemyArmorTier.Light
+                            ? 0.98f
+                            : armorTier == EnemyArmorTier.Medium ? 0.94f : 0.88f;
+                    break;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            presetMultiplier = DampArmorTierResistanceAgainstNativeArmor(
+                presetMultiplier,
+                targetClass,
+                damage);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            EnemyArmorMaterial armorMaterial = GetOrdinaryHumanoidArmorMaterial(targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                GetArmorTargetLabel(armorTier, armorMaterial),
+                damageLabel,
+                90,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
         private bool TryResolveDamageRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
@@ -1275,6 +1633,23 @@ namespace SteelAndBone
             }
 
             Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            bool armorTierSkippedForVanilla;
+            if (TryResolveArmorTierPhysicalRule(
+                targetClass,
+                damageClass,
+                damage,
+                excludedTags,
+                out match,
+                out armorTierSkippedForVanilla))
+            {
+                return true;
+            }
+            skippedForVanilla = armorTierSkippedForVanilla;
+            if (skippedForVanilla)
+            {
+                return false;
+            }
+
             for (int i = 0; i < DamageRules.Length; i++)
             {
                 DamageRule rule = DamageRules[i];
@@ -1476,7 +1851,7 @@ namespace SteelAndBone
                 case TargetFamily.Construct:
                     return targetClass.IsConstruct;
                 case TargetFamily.ArmoredHumanoid:
-                    return targetClass.IsArmoredHumanoid;
+                    return IsEffectivelyArmoredHumanoid(targetClass);
                 case TargetFamily.Flesh:
                     return targetClass.IsFlesh;
                 case TargetFamily.FleshUndead:
@@ -1544,6 +1919,18 @@ namespace SteelAndBone
             {
                 ApplyBroadFamilyTermOverrides(classification, text);
                 ApplySpecificTermTargetClassification(classification, text);
+            }
+
+            NpcElement npc = target as NpcElement;
+            if (npc != null && (classification.IsHumanoidFlesh || classification.IsArmoredHumanoid))
+            {
+                EnemyArmorProfile armorProfile = npc.TryGetElement<EnemyArmorProfile>();
+                if (armorProfile == null)
+                {
+                    armorProfile = npc.AddElement(new EnemyArmorProfile());
+                }
+
+                classification.ArmorProfile = armorProfile;
             }
 
             _targetClassifications[cacheKey] = classification;
@@ -2021,6 +2408,11 @@ namespace SteelAndBone
                 ? ""
                 : ", familyEvidence=" + targetClass.Evidence;
             string targetFlags = DescribeTargetFlags(targetClass);
+            EnemyArmorTier armorTier;
+            string armorEvidence;
+            string armorProfile = TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence)
+                ? ", armorTier=" + armorTier + ", armorEvidence=" + armorEvidence
+                : "";
 
             LogDiagnostic(
                 "Damage check: target="
@@ -2030,6 +2422,7 @@ namespace SteelAndBone
                 + targetEvidence
                 + ", targetFlags="
                 + targetFlags
+                + armorProfile
                 + ", damageType="
                 + DescribeValue(GetOptionalPropertyValue(damage, "Type"))
                 + ", statusDamageType="
@@ -3310,7 +3703,7 @@ namespace SteelAndBone
             StringBuilder builder = new StringBuilder();
             AppendDiagnosticLabel(builder, classification.IsBoneUndead, "BoneUndead");
             AppendDiagnosticLabel(builder, classification.IsConstruct, "Construct");
-            AppendDiagnosticLabel(builder, classification.IsArmoredHumanoid, "ArmoredHumanoid");
+            AppendDiagnosticLabel(builder, IsEffectivelyArmoredHumanoid(classification), "ArmoredHumanoid");
             AppendDiagnosticLabel(builder, classification.IsFlesh, "Flesh");
             AppendDiagnosticLabel(builder, classification.IsFleshUndead, "FleshUndead");
             AppendDiagnosticLabel(builder, classification.IsWyrd, "Wyrd");
@@ -3543,6 +3936,212 @@ namespace SteelAndBone
             }
         }
 
+        private enum EnemyArmorTier
+        {
+            Unknown,
+            Exposed,
+            Light,
+            Medium,
+            Heavy
+        }
+
+        private enum EnemyArmorMaterial
+        {
+            Unknown,
+            None,
+            Fabric,
+            Leather,
+            Metal
+        }
+
+        private sealed class EnemyArmorProfile : Element<NpcElement>
+        {
+            private bool _dirty = true;
+            private EnemyArmorTier _tier = EnemyArmorTier.Unknown;
+            private EnemyArmorMaterial _material = EnemyArmorMaterial.Unknown;
+            private string _evidence = "equipment:Pending";
+
+            public sealed override bool IsNotSaved
+            {
+                get { return true; }
+            }
+
+            public EnemyArmorTier Tier
+            {
+                get
+                {
+                    RefreshIfNeeded();
+                    return _tier;
+                }
+            }
+
+            public string Evidence
+            {
+                get
+                {
+                    RefreshIfNeeded();
+                    return _evidence;
+                }
+            }
+
+            public EnemyArmorMaterial Material
+            {
+                get
+                {
+                    RefreshIfNeeded();
+                    return _material;
+                }
+            }
+
+            protected override void OnFullyInitialized()
+            {
+                ModelExtensions.ListenTo(
+                    base.ParentModel.Inventory,
+                    ICharacterInventory.Events.AfterEquipmentChanged,
+                    OnEquipmentChanged,
+                    this);
+            }
+
+            private void OnEquipmentChanged(ICharacterInventory inventory)
+            {
+                _dirty = true;
+            }
+
+            private void RefreshIfNeeded()
+            {
+                if (!_dirty)
+                {
+                    return;
+                }
+
+                if (!base.ParentModel.ItemsAddedToInventory)
+                {
+                    _tier = EnemyArmorTier.Unknown;
+                    _material = EnemyArmorMaterial.Unknown;
+                    _evidence = "equipment:Pending";
+                    return;
+                }
+
+                _dirty = false;
+                ItemInSlots slots = base.ParentModel.NpcItems.ItemInSlots;
+                Item cuirass = slots[EquipmentSlotType.Cuirass];
+                EnemyArmorTier declaredTier;
+                if (TryGetDeclaredArmorTier(cuirass, out declaredTier))
+                {
+                    _tier = declaredTier;
+                    _material = GetArmorMaterial(cuirass);
+                    _evidence = "equipment:Cuirass:" + declaredTier + ":" + _material;
+                    return;
+                }
+
+                if (cuirass != null && cuirass.IsArmor)
+                {
+                    _tier = EnemyArmorTier.Unknown;
+                    _material = GetArmorMaterial(cuirass);
+                    _evidence = "equipment:Cuirass:Unknown:" + _material;
+                    return;
+                }
+
+                bool hasPartialArmor = false;
+                bool hasUnknownArmor = false;
+                EnemyArmorMaterial partialMaterial = EnemyArmorMaterial.Unknown;
+                for (int i = 0; i < EquipmentSlotType.Armors.Length; i++)
+                {
+                    EquipmentSlotType slot = EquipmentSlotType.Armors[i];
+                    if (slot == EquipmentSlotType.Cuirass)
+                    {
+                        continue;
+                    }
+
+                    Item item = slots[slot];
+                    if (item == null || !item.IsArmor)
+                    {
+                        continue;
+                    }
+
+                    if (TryGetDeclaredArmorTier(item, out declaredTier))
+                    {
+                        hasPartialArmor = true;
+                        EnemyArmorMaterial itemMaterial = GetArmorMaterial(item);
+                        if ((int)itemMaterial > (int)partialMaterial)
+                        {
+                            partialMaterial = itemMaterial;
+                        }
+                    }
+                    else
+                    {
+                        hasUnknownArmor = true;
+                    }
+                }
+
+                if (hasPartialArmor)
+                {
+                    _tier = EnemyArmorTier.Light;
+                    _material = partialMaterial;
+                    _evidence = "equipment:PartialArmor:Light:" + _material;
+                }
+                else if (hasUnknownArmor)
+                {
+                    _tier = EnemyArmorTier.Unknown;
+                    _material = EnemyArmorMaterial.Unknown;
+                    _evidence = "equipment:PartialArmor:Unknown";
+                }
+                else
+                {
+                    _tier = EnemyArmorTier.Exposed;
+                    _material = EnemyArmorMaterial.None;
+                    _evidence = "equipment:NoArmor";
+                }
+            }
+
+            private static EnemyArmorMaterial GetArmorMaterial(Item item)
+            {
+                ItemAudio itemAudio = item == null ? null : item.TryGetElement<ItemAudio>();
+                SurfaceType surface = itemAudio == null ? null : itemAudio.ArmorSurfaceType;
+                if (surface == SurfaceType.ArmorMetal)
+                {
+                    return EnemyArmorMaterial.Metal;
+                }
+                if (surface == SurfaceType.ArmorLeather)
+                {
+                    return EnemyArmorMaterial.Leather;
+                }
+                if (surface == SurfaceType.ArmorFabric)
+                {
+                    return EnemyArmorMaterial.Fabric;
+                }
+
+                return EnemyArmorMaterial.Unknown;
+            }
+
+            private static bool TryGetDeclaredArmorTier(Item item, out EnemyArmorTier tier)
+            {
+                tier = EnemyArmorTier.Unknown;
+                if (item == null || !item.IsArmor || item.Template == null)
+                {
+                    return false;
+                }
+
+                if (item.Template.IsHeavyArmor)
+                {
+                    tier = EnemyArmorTier.Heavy;
+                    return true;
+                }
+                if (item.Template.IsMediumArmor)
+                {
+                    tier = EnemyArmorTier.Medium;
+                    return true;
+                }
+                if (item.Template.IsLightArmor)
+                {
+                    tier = EnemyArmorTier.Light;
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         private sealed class TargetClassification
         {
             public static readonly TargetClassification Empty = new TargetClassification();
@@ -3568,6 +4167,7 @@ namespace SteelAndBone
             public bool HasWoodBody;
             public bool IsHumanoidFlesh;
             public bool IsSwarm;
+            public EnemyArmorProfile ArmorProfile;
 
             public bool HasAnyFamily()
             {
@@ -3881,6 +4481,363 @@ namespace SteelAndBone
                     plugin.ApplyDamageRuleModifier(__instance, damage, ref dmgModifier);
                 }
             }
+        }
+
+        private bool TryApplyWeightedDamageComposition(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damageObject,
+            ref float damageModifier)
+        {
+            Damage damage = damageObject as Damage;
+            if (damage == null || damage.DamageTypeData == null || damage.DamageTypeData.Parts == null)
+            {
+                return false;
+            }
+
+            int partCount = damage.DamageTypeData.Parts.Count;
+            if (partCount <= 0)
+            {
+                return false;
+            }
+
+            EnsureDamagePartAdjustmentCapacity(partCount);
+
+            float shareSum = 0.0f;
+            var shareEnumerator = damage.DamageTypeData.Parts.GetEnumerator();
+            try
+            {
+                while (shareEnumerator.MoveNext())
+                {
+                    float share = shareEnumerator.Current.TotalDamageMultiplier;
+                    if (float.IsNaN(share) || float.IsInfinity(share) || share < 0.0f)
+                    {
+                        return false;
+                    }
+
+                    shareSum += share;
+                }
+            }
+            finally
+            {
+                shareEnumerator.Dispose();
+            }
+
+            if (shareSum <= 0.0001f || float.IsNaN(shareSum) || float.IsInfinity(shareSum))
+            {
+                return false;
+            }
+
+            bool amplifyVanilla = _amplifyVanillaMultipliers != null
+                && _amplifyVanillaMultipliers.Value;
+            float amplificationStrength = amplifyVanilla ? GetVanillaAmplificationStrength() : 0.0f;
+            float weightedAdjustment = 0.0f;
+            float weightedFeedback = 0.0f;
+            float feedbackWeight = 0.0f;
+            float bestFeedbackScore = -1.0f;
+            string feedbackTargetLabel = "";
+            string feedbackDamageLabel = "";
+            bool hasNativeResponse = false;
+            bool hasCustomRule = false;
+            bool compositionChanged = false;
+            int partIndex = 0;
+
+            var partEnumerator = damage.DamageTypeData.Parts.GetEnumerator();
+            try
+            {
+                while (partEnumerator.MoveNext())
+                {
+                    ref DamageTypeDataPart part = ref partEnumerator.Current;
+                    float postVanillaShare = part.TotalDamageMultiplier / shareSum;
+                    PopulatePartDamageClassification(damageClass, part.SubType, _partDamageClassification);
+
+                    float nativeMultiplier = damage.DamageReceivedMultiplierData == null
+                        ? 1.0f
+                        : damage.DamageReceivedMultiplierData.GetMultiplierForSubtype(part.SubType);
+                    if (float.IsNaN(nativeMultiplier) || float.IsInfinity(nativeMultiplier) || nativeMultiplier < 0.0f)
+                    {
+                        nativeMultiplier = 1.0f;
+                    }
+
+                    float amplifiedMultiplier = nativeMultiplier;
+                    float amplificationRatio = 1.0f;
+                    if (amplificationStrength > 0.0001f
+                        && nativeMultiplier > 0.0001f
+                        && HasMeaningfulEffect(nativeMultiplier))
+                    {
+                        amplifiedMultiplier = AmplifyVanillaMultiplier(nativeMultiplier, amplificationStrength);
+                        amplificationRatio = amplifiedMultiplier / nativeMultiplier;
+                    }
+
+                    if (HasMeaningfulEffect(nativeMultiplier))
+                    {
+                        hasNativeResponse = true;
+                    }
+
+                    DamageRuleMatch partMatch;
+                    bool matchedPartRule = TryResolveDamagePartRule(
+                        targetClass,
+                        _partDamageClassification,
+                        damage,
+                        out partMatch);
+                    float customMultiplier = matchedPartRule
+                        ? Clamp(partMatch.Multiplier, 0.05f, 2.0f)
+                        : 1.0f;
+                    float partAdjustment = amplificationRatio * customMultiplier;
+                    _damagePartAdjustments[partIndex++] = partAdjustment;
+                    weightedAdjustment += postVanillaShare * partAdjustment;
+                    compositionChanged |= Math.Abs(partAdjustment - 1.0f) > 0.001f;
+                    hasCustomRule |= matchedPartRule;
+
+                    float originalWeight = Math.Max(0.0f, part.PercentageAsFloat);
+                    weightedFeedback += originalWeight * amplifiedMultiplier * customMultiplier;
+                    feedbackWeight += originalWeight;
+
+                    float customScore = matchedPartRule
+                        ? postVanillaShare * GetRuleImpact(customMultiplier)
+                        : -1.0f;
+                    float nativeScore = postVanillaShare * GetRuleImpact(amplifiedMultiplier);
+                    float feedbackScore = Math.Max(customScore, nativeScore);
+                    if (feedbackScore > bestFeedbackScore)
+                    {
+                        bestFeedbackScore = feedbackScore;
+                        feedbackTargetLabel = matchedPartRule ? partMatch.TargetLabel : "Vanilla";
+                        feedbackDamageLabel = matchedPartRule ? partMatch.DamageLabel : part.SubType.ToString();
+                    }
+
+                    if (DiagnosticsEnabled())
+                    {
+                        LogDiagnostic(
+                            "Damage part: subtype="
+                            + part.SubType
+                            + ", originalWeight="
+                            + originalWeight.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ", postVanillaShare="
+                            + postVanillaShare.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ", nativeMultiplier="
+                            + nativeMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ", amplifiedMultiplier="
+                            + amplifiedMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ", customMultiplier="
+                            + customMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ", adjustment="
+                            + partAdjustment.ToString("0.###", CultureInfo.InvariantCulture)
+                            + ".");
+                    }
+                }
+            }
+            finally
+            {
+                partEnumerator.Dispose();
+            }
+
+            if (weightedAdjustment <= 0.0001f
+                || float.IsNaN(weightedAdjustment)
+                || float.IsInfinity(weightedAdjustment))
+            {
+                return false;
+            }
+
+            float before = damageModifier;
+            damageModifier *= weightedAdjustment;
+
+            if (compositionChanged)
+            {
+                int adjustmentIndex = 0;
+                var updateEnumerator = damage.DamageTypeData.Parts.GetEnumerator();
+                try
+                {
+                    while (updateEnumerator.MoveNext())
+                    {
+                        ref DamageTypeDataPart part = ref updateEnumerator.Current;
+                        float normalizedShare = part.TotalDamageMultiplier / shareSum;
+                        float adjustedShare = normalizedShare
+                            * _damagePartAdjustments[adjustmentIndex++]
+                            / weightedAdjustment;
+                        part.SetTotalDamageMultiplier(adjustedShare);
+                    }
+                }
+                finally
+                {
+                    updateEnumerator.Dispose();
+                }
+            }
+
+            if ((hasNativeResponse || hasCustomRule) && feedbackWeight > 0.0001f)
+            {
+                RememberDamageFeedback(
+                    damage,
+                    weightedFeedback / feedbackWeight,
+                    string.IsNullOrEmpty(feedbackTargetLabel) ? "Mixed" : feedbackTargetLabel,
+                    string.IsNullOrEmpty(feedbackDamageLabel) ? "Mixed" : feedbackDamageLabel);
+            }
+
+            if (DiagnosticsEnabled() && (compositionChanged || hasNativeResponse || hasCustomRule))
+            {
+                LogDiagnostic(
+                    "Applied weighted damage composition: parts="
+                    + partCount
+                    + ", adjustment="
+                    + weightedAdjustment.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ", feedback="
+                    + (feedbackWeight > 0.0001f
+                        ? (weightedFeedback / feedbackWeight).ToString("0.###", CultureInfo.InvariantCulture)
+                        : "neutral")
+                    + ", damageModifier "
+                    + before.ToString("0.###", CultureInfo.InvariantCulture)
+                    + " -> "
+                    + damageModifier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ".");
+            }
+
+            return true;
+        }
+
+        private void EnsureDamagePartAdjustmentCapacity(int partCount)
+        {
+            if (_damagePartAdjustments.Length >= partCount)
+            {
+                return;
+            }
+
+            int capacity = _damagePartAdjustments.Length;
+            while (capacity < partCount)
+            {
+                capacity *= 2;
+            }
+
+            Array.Resize(ref _damagePartAdjustments, capacity);
+        }
+
+        private bool TryResolveDamagePartRule(
+            TargetClassification targetClass,
+            DamageClassification partClass,
+            Damage damage,
+            out DamageRuleMatch match)
+        {
+            match = default(DamageRuleMatch);
+            DamageTag physicalTags = DamageTag.Slashing
+                | DamageTag.Piercing
+                | DamageTag.Bludgeoning
+                | DamageTag.GenericPhysical;
+            bool physicalPart = partClass != null && partClass.HasAny(physicalTags);
+            bool arrowRulesEnabled = partClass != null
+                && partClass.IsArrow
+                && (_arrowMaterialRulesEnabled == null || _arrowMaterialRulesEnabled.Value);
+
+            if (arrowRulesEnabled
+                && physicalPart
+                && TryResolveArrowMaterialRule(targetClass, damage, out match))
+            {
+                return true;
+            }
+
+            if (arrowRulesEnabled && !physicalPart)
+            {
+                bool payloadSkippedForVanilla;
+                bool payloadSkippedForEliteClamp;
+                return TryResolveDamageRule(
+                    targetClass,
+                    partClass,
+                    damage,
+                    physicalTags | DamageTag.Arrow | DamageTag.DirectSpell,
+                    out match,
+                    out payloadSkippedForVanilla,
+                    out payloadSkippedForEliteClamp);
+            }
+
+            bool skippedForVanilla;
+            if (partClass != null
+                && partClass.IsDirectSpell
+                && TryResolveArmoredSpellRule(
+                    targetClass,
+                    partClass,
+                    damage,
+                    out match,
+                    out skippedForVanilla))
+            {
+                return true;
+            }
+
+            bool skippedForEliteClamp;
+            return TryResolveDamageRule(
+                targetClass,
+                partClass,
+                damage,
+                out match,
+                out skippedForVanilla,
+                out skippedForEliteClamp);
+        }
+
+        private void PopulatePartDamageClassification(
+            DamageClassification overall,
+            DamageSubType subtype,
+            DamageClassification part)
+        {
+            part.IsBloodMagic = false;
+            part.IsBleed = false;
+            part.IsPoison = false;
+            part.IsWyrdness = false;
+            part.IsSlashing = subtype == DamageSubType.Slashing;
+            part.IsPiercing = subtype == DamageSubType.Piercing;
+            part.IsBludgeoning = subtype == DamageSubType.Bludgeoning;
+            part.IsGenericPhysical = subtype == DamageSubType.GenericPhysical;
+            part.IsGenericMagical = subtype == DamageSubType.GenericMagical;
+            part.IsFire = subtype == DamageSubType.Fire;
+            part.IsCold = subtype == DamageSubType.Cold;
+            part.IsElectric = subtype == DamageSubType.Electric;
+            part.IsWet = subtype == DamageSubType.Wet;
+            part.IsBurn = false;
+            part.IsArrow = overall != null && overall.IsArrow;
+            part.IsDirectSpell = overall != null && overall.IsDirectSpell;
+            part.Tags = DamageTag.None;
+            part.PhysicalTypeHint = "";
+
+            bool physicalPart = part.IsSlashing
+                || part.IsPiercing
+                || part.IsBludgeoning
+                || part.IsGenericPhysical;
+            if (part.IsGenericPhysical
+                && overall != null
+                && !string.IsNullOrEmpty(overall.PhysicalTypeHint))
+            {
+                part.IsSlashing = overall.IsSlashing;
+                part.IsPiercing = overall.IsPiercing;
+                part.IsBludgeoning = overall.IsBludgeoning;
+                part.PhysicalTypeHint = overall.PhysicalTypeHint;
+            }
+
+            if (overall != null)
+            {
+                bool contextualStatusPart = subtype == DamageSubType.Pure
+                    || subtype == DamageSubType.Default;
+                part.IsBloodMagic = overall.IsBloodMagic
+                    && (contextualStatusPart || part.IsGenericMagical || part.IsWyrdness);
+                part.IsBleed = contextualStatusPart && overall.IsBleed;
+                part.IsPoison = subtype == DamageSubType.Poison
+                    || (contextualStatusPart && overall.IsPoison);
+                part.IsWyrdness = subtype == DamageSubType.Wyrdness
+                    || (contextualStatusPart && overall.IsWyrdness);
+                part.IsBurn = overall.IsBurn && (contextualStatusPart || part.IsFire);
+                part.IsFire |= part.IsBurn;
+            }
+
+            if (part.IsBloodMagic) part.Tags |= DamageTag.BloodMagic;
+            if (part.IsBleed) part.Tags |= DamageTag.Bleed;
+            if (part.IsPoison) part.Tags |= DamageTag.Poison;
+            if (part.IsWyrdness) part.Tags |= DamageTag.Wyrdness;
+            if (part.IsSlashing) part.Tags |= DamageTag.Slashing;
+            if (part.IsPiercing) part.Tags |= DamageTag.Piercing;
+            if (part.IsBludgeoning) part.Tags |= DamageTag.Bludgeoning;
+            if (part.IsGenericPhysical) part.Tags |= DamageTag.GenericPhysical;
+            if (part.IsGenericMagical) part.Tags |= DamageTag.GenericMagical;
+            if (part.IsFire) part.Tags |= DamageTag.Fire;
+            if (part.IsCold) part.Tags |= DamageTag.Cold;
+            if (part.IsElectric) part.Tags |= DamageTag.Electric;
+            if (part.IsWet) part.Tags |= DamageTag.Wet;
+            if (part.IsBurn) part.Tags |= DamageTag.Burn;
+            if (part.IsArrow) part.Tags |= DamageTag.Arrow;
+            if (part.IsDirectSpell) part.Tags |= DamageTag.DirectSpell;
         }
 
         private static class AfterHealthDecreaseEventsPatch

@@ -32,9 +32,9 @@ $nexusFull = Get-Content -LiteralPath $nexusFullPath -Raw
 $nexusShort = (Get-Content -LiteralPath $nexusShortPath -Raw).Trim()
 $nexusFile = (Get-Content -LiteralPath $nexusFilePath -Raw).Trim()
 
-Assert-Contract ($manifest.version -eq "3.1.0") "mod.json is not version 3.1.0."
+Assert-Contract ($manifest.version -eq "3.1.4") "mod.json is not version 3.1.4."
 Assert-Contract ($manifest.sourceFiles -contains "src/DifficultyOverhaul.cs") "DifficultyOverhaul.cs is missing from sourceFiles."
-Assert-Contract ($mainSource.Contains('PluginVersion = "3.1.0"')) "PluginVersion is not 3.1.0."
+Assert-Contract ($mainSource.Contains('PluginVersion = "3.1.4"')) "PluginVersion is not 3.1.4."
 Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 15')) "Config schema is not 15."
 Assert-Contract ($mainSource.Contains('ConfigRecoveryBaselineSchema = 14')) "Recovery baseline moved from 14."
 Assert-Contract ($mainSource.Contains('new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(')) "Preset safety rule is missing."
@@ -43,6 +43,21 @@ Assert-Contract ($mainSource.Contains('ReadCustomizationProfile(')) "Automatic c
 Assert-Contract ($mainSource.Contains('profile.TryGetCustomizedValue(')) "Automatic config preservation does not use shared typed customization detection."
 Assert-Contract ($mainSource.Contains('ConfigPreviousSettingsRecovery.TryRestore(')) "Automatic config preservation does not use shared current-range clamping."
 Assert-Contract ($mainSource.IndexOf('RestorePreservedConfigSettings();', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('ConfigPreviousSettingsRecovery.Bind(', [StringComparison]::Ordinal)) "Automatic preservation does not run before the manual recovery tab is bound."
+Assert-Contract ($mainSource.Contains('class EnemyArmorProfile : Element<NpcElement>')) "NPC armor profiles are not cached on the target."
+Assert-Contract ($mainSource.Contains('ICharacterInventory.Events.AfterEquipmentChanged')) "NPC armor profiles do not refresh after equipment changes."
+Assert-Contract ($mainSource.Contains('item.Template.IsLightArmor')) "Light armor does not use native item-template evidence."
+Assert-Contract ($mainSource.Contains('item.Template.IsMediumArmor')) "Medium armor does not use native item-template evidence."
+Assert-Contract ($mainSource.Contains('item.Template.IsHeavyArmor')) "Heavy armor does not use native item-template evidence."
+Assert-Contract ($mainSource.Contains('itemAudio.ArmorSurfaceType')) "Armor spell interactions do not use native armor-surface evidence."
+Assert-Contract ($mainSource.Contains('SurfaceType.ArmorFabric')) "Fabric armor material is not classified."
+Assert-Contract ($mainSource.Contains('SurfaceType.ArmorLeather')) "Leather armor material is not classified."
+Assert-Contract ($mainSource.Contains('SurfaceType.ArmorMetal')) "Metal armor material is not classified."
+Assert-Contract ($mainSource.Contains('baseMultiplier = 1.08f;')) "Light armor arrow tuning is not x1.08 on Hardened."
+Assert-Contract ($mainSource.Contains('baseMultiplier = 0.75f;')) "Heavy armor arrow tuning is not x0.75 on Hardened."
+Assert-Contract ($mainSource.Contains('DampArmorTierResistanceAgainstNativeArmor')) "Armor-tier resistance does not account for existing numerical armor."
+Assert-Contract ($mainSource.Contains('armorTier == EnemyArmorTier.Medium ? 1.00f : 0.90f')) "Heavy armor Pierce tuning is not x0.90 on Hardened."
+Assert-Contract ($mainSource.Contains('armorTier == EnemyArmorTier.Medium ? 0.92f : 0.82f')) "Slash is not less effective than Pierce against Medium and Heavy armor."
+Assert-Contract ($mainSource.Contains('armorTier == EnemyArmorTier.Medium ? 1.08f : 1.15f')) "Blunt does not improve against Medium and Heavy armor."
 
 $boundEntryFields = @(
     [regex]::Matches(
@@ -157,8 +172,24 @@ Assert-Contract ($mainSource.Contains('baseMultiplier = 0.20f;')) "Confirmed ske
 Assert-Contract ($mainSource.Contains('baseMultiplier = 0.50f;')) "Construct or stone arrow resistance is not 0.50 on Hardened."
 Assert-Contract ($mainSource.Contains('baseMultiplier = 0.55f;')) "Spirit arrow resistance is not 0.55 on Hardened."
 Assert-Contract ($mainSource.Contains('baseMultiplier = 0.60f;')) "Flora or wood arrow resistance is not 0.60 on Hardened."
-Assert-Contract ($mainSource.Contains('baseMultiplier = targetClass.IsHumanoidFlesh ? 1.20f : 1.12f;')) "Exposed and ordinary flesh arrow weaknesses are missing."
-Assert-Contract ($mainSource.Contains('float presetMultiplier = ApplyPresetIntensity(1.20f, preset);')) "Armored direct-spell weakness is not 1.20 on Hardened."
+Assert-Contract ($mainSource.Contains('return "Exposed Flesh";') -and $mainSource.Contains('baseMultiplier = 1.20f;')) "Exposed humanoid flesh arrow weakness is missing."
+Assert-Contract ($mainSource.Contains('targetLabel = "Flesh";') -and $mainSource.Contains('baseMultiplier = 1.12f;')) "Ordinary flesh arrow weakness is missing."
+Assert-Contract ($mainSource.Contains('case EnemyArmorTier.Heavy:') -and $mainSource.Contains('tierBonus = 0.12f;')) "Heavy armor direct-spell tier bonus is missing."
+Assert-Contract ($mainSource.Contains('return 0.10f;') -and $mainSource.Contains('EnemyArmorMaterial.Metal')) "Electric spells do not receive the intended Metal armor bonus."
+Assert-Contract ($mainSource.Contains('damageClass.IsBloodMagic') -and $mainSource.Contains('damageClass.IsWyrdness')) "Biological or Wyrd spell identities are not excluded from generic armor bonuses."
+Assert-Contract ($mainSource.Contains('GetOptionalBoolProperty(damage, "IgnoreArmor")')) "Armor-ignoring damage is not protected from duplicate armor interactions."
+Assert-Contract ($mainSource.Contains('TryApplyWeightedDamageComposition(')) "Mixed hits do not use weighted damage composition."
+Assert-Contract ($mainSource.Contains('weightedAdjustment += postVanillaShare * partAdjustment;')) "Per-part adjustments are not weighted by post-vanilla contribution."
+Assert-Contract ($mainSource.Contains('amplificationRatio = amplifiedMultiplier / nativeMultiplier;')) "Vanilla amplification does not preserve the existing native multiplier."
+Assert-Contract ($mainSource.Contains('part.SetTotalDamageMultiplier(adjustedShare);')) "Adjusted damage-part shares are not exposed to downstream systems."
+Assert-Contract ($mainSource.Contains('weightedFeedback / feedbackWeight')) "Damage feedback does not aggregate native and custom per-part reactions."
+Assert-Contract ($mainSource.Contains('bool contextualStatusPart = subtype == DamageSubType.Pure')) "Contextual status metadata is not isolated from unrelated mixed-damage parts."
+
+$opposingMixedAdjustment = (0.25 * (0.40 / 0.50)) + (0.75 * (1.60 / 1.50))
+Assert-Contract ([Math]::Abs($opposingMixedAdjustment - 1.0) -lt 0.000001) "Opposing mixed subtype reactions do not recombine to the expected neutral result."
+
+$physicalPayloadAdjustment = (0.80 * 0.75) + (0.20 * 1.25)
+Assert-Contract ([Math]::Abs($physicalPayloadAdjustment - 0.85) -lt 0.000001) "Independent physical and payload rules do not produce the expected weighted result."
 
 Assert-Contract ($readme.Contains("Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.")) "Packaged README lacks the defining subtext."
 Assert-Contract ($readme.Contains("Material weaknesses and resistances define the experience")) "Packaged README does not lead with material combat."

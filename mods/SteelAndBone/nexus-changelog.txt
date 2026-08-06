@@ -1,7 +1,0 @@
-TargetVersion=3.1.0
-BaselineVersion=3.0.1
-Gave direct player arrows a distinct material identity on their physical damage share, strongly rewarding exposed flesh while bone, stone, spirits, wood, armor, and swarms resist impact.
-Preserved Fire, Electric, and other non-physical arrow payload matchups instead of applying the physical arrow response to the entire hit.
-Added a mild preset-scaled direct-spell weakness to armored humanoids when vanilla has not already authored a reaction for that spell subtype.
-Added independent switches for arrow material rules and the armored spell weakness.
-Reworked the Nexus page into reliable mobile-friendly matchup groups with consistent section spacing.

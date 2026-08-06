@@ -20,7 +20,7 @@ This is the living implementation and tuning spec. Keep detailed enemy facts in 
 
 ## Game-File Ground Truth
 
-These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.1.0 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
+These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.1.4 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 | Evidence | Confirmed finding | Design consequence |
 |---|---|---|
@@ -60,7 +60,7 @@ Version 3.1.0 treats a direct Arrow projectile as a delivery tag layered onto th
 
 Tempered and Crucible apply the shared 55% and 135% rule-intensity scaling. Elite clamps remain authoritative. Wyrd creatures receive no special Arrow overlay until their body evidence supports a clearer rule.
 
-Direct player spells gain a 1.20 Hardened multiplier against armored humanoids, scaling to 1.11/1.20/1.27 by preset. The rule excludes damage-over-time and biological status damage, does not affect physical elemental enchantments, and yields whenever vanilla already defines the active spell subtype's reaction. Both 3.1.0 features have independent Core toggles.
+Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/Medium/Heavy armor. Fire, Electric, and Cold also react to the equipped cuirass's native Fabric, Leather, or Metal surface. Blood, Wyrdness, biological effects, and armor-ignoring spells do not receive the generic tier bonus, and vanilla-authored subtype reactions still take priority. Arrow and spell rules retain independent Core toggles.
 
 ## Non-Goals
 
@@ -158,7 +158,7 @@ This section describes the material-rule engine introduced before 1.0 and extend
 
 The table below lists the base Hardened multiplier. Tempered applies 55% of the distance from neutral. Crucible applies 135% of the distance from neutral, clamped to the safe `0.05` to `2.0` range.
 
-Vanilla enemy subtype multipliers are handled before these overlays. When `AmplifyVanillaMultipliers` is enabled, Steel and Bone adjusts detected non-neutral vanilla subtype multipliers by ratio so the final vanilla value becomes more decisive without double-counting the game's own multiplier. This only uses subtypes the hit actually carries; inferred weapon hints are Steel and Bone overlay evidence, not proof that vanilla applied that subtype.
+Vanilla enemy subtype multipliers are handled before these overlays. Steel and Bone evaluates each runtime damage part independently, applies any vanilla amplification and custom rule to that part, then recombines the hit from its post-vanilla shares. This keeps physical, elemental, and status payloads independent on arrows, enchanted weapons, and multi-element spells without double-counting the game's own multiplier. Inferred weapon hints remain overlay evidence, not proof that vanilla applied a subtype.
 
 | Target family | Damage tags | Base multiplier | Priority | Design intent | Accuracy note |
 |---|---|---:|---:|---|---|
@@ -170,8 +170,7 @@ Vanilla enemy subtype multipliers are handled before these overlays. When `Ampli
 | Construct | Slashing, piercing | 0.75 | 70 | Edged and pointed weapons are less effective against hard bodies. | Broad physical overlay. |
 | Construct | Bludgeoning | 1.15 | 80 | Impact weapons get a clear construct lane. | Steel and Bone overlay unless vanilla has a subtype rule. |
 | Construct | Generic Physical | 0.85 | 40 | Untyped physical should not erase the construct weapon-choice lesson. | Fallback only. Specific slash, pierce, or blunt rules win when detected. |
-| ArmoredHumanoid | Slashing, Generic Physical | 0.88 | 65 | Armor makes cuts and untyped physical attrition less efficient. | Conservative overlay; does not override stronger non-flesh families. |
-| ArmoredHumanoid | Bludgeoning | 1.10 | 66 | Impact damage gives armor a readable physical counter. | Conservative overlay; piercing is left neutral until armor penetration can be detected reliably. |
+| ArmoredHumanoid | Physical weapon types | 0.82-1.15 | 90 | Slash loses effectiveness faster than Pierce while Blunt improves with armor weight. | Uses the equipped Light/Medium/Heavy tier and dampens added resistance when vanilla numerical armor is already active. |
 | Flesh | Bleed, poison | 1.06 | 20 | Ordinary flesh gives status/body damage a small home. | Broad but mild; only applies after stronger families miss. |
 | Flesh | Slashing, piercing | 1.04 | 15 | Blades and points stay slightly better into ordinary flesh. | Broad but mild; only applies after stronger families miss. |
 | FleshUndead | Blood magic, bleed, poison | 0.78 | 55 | Fleshy undead are worse biological targets without using skeleton-level lockouts. | Broad but mild; drowned and infected specifics win when detected. |
@@ -266,7 +265,9 @@ Recommended Hardened baseline:
 |---|---:|---:|---:|---:|---|
 | Flesh | 1.04 | 1.06 | 1.00 | 1.00 | Mild living-flesh baseline; vanilla usually leaves ordinary flesh neutral. |
 | Infected flesh | 1.04 | 1.06 | 1.00 | 1.00 | Shares the living-flesh physical baseline while keeping its Poison/Fire identity. |
-| Armored humanoid | 0.88 | 1.00 | 1.10 | 0.88 | Design overlay. Piercing stays neutral because the subtype does not imply armor penetration. |
+| Light armor | 0.98 | 1.03 | 1.00 | 0.98 | Edges remain usable and Pierce retains a slight advantage. |
+| Medium armor | 0.92 | 1.00 | 1.08 | 0.94 | Slash begins losing ground while Blunt becomes favorable. |
+| Heavy armor | 0.82 | 0.90 | 1.15 | 0.88 | Slash is the poorest ordinary weapon match, Pierce remains better, and Blunt is the clear counter. |
 | Bone undead | 0.55 | 0.55 | 1.08 | 0.85 | Blunt `1.33` is common vanilla data and wins through vanilla-skip behavior; the table shows the fallback Steel and Bone overlay. |
 | Drowned zombie | 1.00 | 0.90 | 1.10 | 1.00 | Dead organs make pierce mildly poor, severing slash stays neutral, and blunt disrupts the degraded body. |
 | Flesh undead | 1.00 | 0.90 | 1.05 | 1.00 | Dead organs make pierce mildly poor while slash stays neutral and blunt is a mild structural counter. |
@@ -381,7 +382,7 @@ Elite handling should preserve family logic without letting the right answer del
 | 0.3 | Rule engine and first expansion | Implemented: `DamageRule`, weakness multipliers, the earlier reason-feedback route, Fire/Cold/Electric/Wet/Burn tags, vanilla multiplier skipping, and the first expanded family set. |
 | 0.4 | Release-readiness cleanup | Implemented: preset rename, Hardened default, generic physical fallback resistance, physical weapon-type hints from TG item identity, and expanded diagnostics for runtime validation. |
 | 0.5 | Built-in damage numbers and runtime validation | Implemented built-in floating damage numbers with final-damage display; remaining work is in-game family detection and readability tuning. |
-| 0.6 | Vanilla multiplier amplification | Implemented: Tempered leaves vanilla unchanged by default, while Hardened and Crucible amplify non-neutral vanilla subtype multipliers by ratio with clamps. |
+| 0.6 | Vanilla multiplier amplification | Implemented: Tempered leaves vanilla unchanged by default, while Hardened and Crucible amplify each non-neutral vanilla subtype by ratio with clamps and recombine mixed hits by post-vanilla share. |
 | 0.7 | Metadata-first classification | Implemented: reachable surface type, tags, abstracts, and NPC type classify before broad display-name terms. |
 | 0.8 | Flesh, armored humanoid, and elite pass | Implemented: cautious `Flesh` and `ArmoredHumanoid` baselines, broad-flesh-safe armor precedence, elite-class target flags, and shared elite weakness/resistance clamps. |
 | 0.9 | Feature-complete enemy atlas | Implemented: every reliably detectable current metadata path is classified or intentionally neutral, with vanilla amplification, overlays, diagnostics, feedback, and docs aligned. |
@@ -459,7 +460,7 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Same enemy, poison/bleed vs construct | Damage is resisted or ignored and the floating number makes the resistance visible. |
 | Ordinary flesh sample | Mild Flesh rules should trigger only when no more specific family is detected. |
 | Flesh-undead sample | Pierce is mildly resisted, Slash stays neutral, and Blunt is mildly rewarded on zombie/bloody paths; DrownedZombie and InfectedFlesh terms refine them when present. |
-| Armored humanoid sample | Slash and generic physical are modestly resisted, blunt is modestly rewarded, and stronger construct/bone/sea/spirit/flora/Wyrd families keep precedence. |
+| Armored humanoid sample | Slash falls behind Pierce as armor gets heavier, Blunt becomes increasingly effective, existing numerical armor does not create excessive duplicate resistance, and stronger material families keep precedence. |
 | Elite-class sample | Diagnostics show `targetFlags=EliteClass`; custom weaknesses are reduced, low custom resistances are floored, and mild custom weaknesses can become neutral. |
 | Same spirit enemy, plain physical vs Wyrdness | Plain physical is modestly poor and Wyrdness is the clear strong answer. |
 | Sea creature Cold/Electric/physical test | Cold resistance is respected, Electric weakness feels modest rather than mandatory, Slash/Pierce receive the living-flesh bonus, and Blunt stays neutral. |

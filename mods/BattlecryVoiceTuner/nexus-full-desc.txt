@@ -1,34 +1,97 @@
 [center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Battlecry Voice Tuner[/size][/color]
-[i]Tune the Hero's voice, unleash custom battlecries, and challenge whatever is listening.[/i][/center]
+[i]Shape the Hero's voice. Roar into battle. Make everything nearby answer.[/i][/center]
 
 [line]
 
-Battlecry Voice Tuner is a BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It tunes supported player grunts and adds a gender-aware custom battlecry with configurable enemy reactions and optional Eyes in the Dark integration.
+[b]Battlecry Voice Tuner[/b] is a player-voice and battlecry overhaul for [b]Tainted Grail: The Fall of Avalon[/b]. Tune the pitch, variation, and volume of the Hero's native combat vocals, then unleash gender-aware custom battlecries that reverberate through the environment and challenge nearby enemies.
 
-[heading][color=#C94A4A][size=5]Battlecry[/size][/color][/heading]
+This is no longer only a voice-pitch utility. The battlecry is a complete gameplay feature with its own audio pools, input controls, SFX routing, dynamic reverb, enemy hearing and aggro behavior, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] integration.
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Tap the game's [b]Toggle Weapon[/b] action for its normal show/sheath behavior.[/*]
-[*]Hold the same action for 0.45 seconds to battlecry.[/*]
-[*]The hold path follows the game's remapped keyboard and controller binding.[/*]
-[*]An optional separate configurable hotkey can trigger the cry directly.[/*]
-[*]Failed or cooldown-blocked holds fall back to the normal weapon toggle on release.[/*]
+[*][b]Native voice tuning:[/b] Adjust supported vocal pitch, add subtle randomized variation, scale overall voice volume, and choose which native categories are affected.[/*]
+[*][b]Gender-aware battlecries:[/b] Play from 15 included male cries and 12 included female cries, with independent pitch offsets for each pool.[/*]
+[*][b]Custom voice pools:[/b] Replace or expand either battlecry pool with up to 15 PCM WAV files per gender.[/*]
+[*][b]World-aware audio:[/b] Route cries through the game's SFX mixer with configurable volume, cooldown, dynamic reverb, and environmental response.[/*]
+[*][b]Gameplay challenge:[/b] Let battlecries reach and challenge nearby enemies using configurable hearing range and challenge duration.[/*]
+[*][b]Optional Wyrdnight interaction:[/b] Integrate battlecries with Eyes in the Dark's Wyrd Threat and atmospheric reaction systems.[/*]
 [/list]
 
-Each successful cry randomly selects one of up to 10 WAV files for the Hero's gender. The existing pitch, random-pitch, and volume settings are applied to custom cries as well as supported native voice events.
+[line]
 
-[heading][color=#C94A4A][size=5]Challenge Effect[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Hold Sheath/Unsheathe Button to Battlecry[/size][/color][/heading]
 
-The default cry remains threatening for three active gameplay seconds. Hostile NPCs are evaluated once per cry within twice their individual maximum hearing range:
+[soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-male[/soundcloud]
+[soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-female[/soundcloud]
+
+Tap the game's [b]Toggle Weapon[/b] action and it retains its normal show/sheath behavior. Hold the same action for 0.45 seconds and the Hero battlecries instead.
 
 [list]
-[*]Unaware enemies receive a strong alert directed at the Hero.[/*]
-[*]Enemies already alert when the cry reaches them attempt to enter combat with the Hero.[/*]
-[*]Walls, hostility, story restrictions, unconscious states, and the game's normal combat safeguards remain authoritative.[/*]
-[*]Allies, neutral civilians, summons, dead NPCs, and inactive AI are excluded.[/*]
+[*]Uses the game's current remapped keyboard or controller binding.[/*]
+[*]An optional separate keyboard or joystick-button hotkey is also available.[/*]
+[*]Failed or cooldown-blocked holds fall back to the normal weapon toggle when released.[/*]
+[*]The default battlecry cooldown is 1.5 seconds.[/*]
 [/list]
 
-[heading][color=#C94A4A][size=5]Custom WAV Pools[/size][/color][/heading]
+[line]
+
+[heading][color=#C94A4A][size=5]Battlecry Audio That Belongs in the World[/size][/color][/heading]
+
+Custom cries route through the game's [b]SFX mixer category[/b], so the Master and SFX volume sliders and mute state apply normally. Overall voice volume and a separate battlecry multiplier provide additional control; the tuned default battlecry scale is 0.5.
+
+Environment-aware reverb gives each cry a sense of place:
+
+[list]
+[*]Open outdoor areas use a light configurable reverb tail.[/*]
+[*]Interiors, caves, and structures covered by the game's roof volumes use a heavier configurable response.[/*]
+[*]Two battlecry-only FMOD reverb paths are created lazily and reused.[/*]
+[*]There is no continuous physics-raycast scan, and playback falls back safely to dry SFX if reverb setup fails.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Enemy Aggro and Challenge[/size][/color][/heading]
+
+A battlecry is more than a sound effect. For three active gameplay seconds by default, it challenges hostile NPCs within twice each NPC's own maximum hearing range. Each eligible enemy reacts once per cry:
+
+[list]
+[*][b]Unaware enemies[/b] receive a strong alert directed toward the Hero.[/*]
+[*][b]Already-alert enemies[/b] attempt to enter combat with the Hero.[/*]
+[*]Walls and the game's existing hearing checks still matter.[/*]
+[*]Hostility, story restrictions, unconscious states, and normal combat safeguards remain authoritative.[/*]
+[*]Allies, neutral civilians, summons, dead NPCs, and inactive AI are ignored.[/*]
+[/list]
+
+Hearing range and challenge duration are independently configurable. The result can be a controlled taunt, a reckless declaration of war, or anything between them.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Eyes in the Dark Integration[/size][/color][/heading]
+
+Shout into the night with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] integration: during an eligible exposed Wyrdnight, each battlecry generates [b]10[/b] [b]Wyrd Threat[/b], and contributes to Eyes in the Dark's throttled pool of atmospheric Wyrdnight reactions.
+
+Repeated cries are subject to Eyes in the Dark's diminishing threat returns. Eyes remains authoritative over Wyrdnight eligibility, exposure rules, threat acceptance, notification preferences, and its longer atmospheric-response cooldown.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Native Voice Tuning[/size][/color][/heading]
+
+The tuner supports the Hero's native:
+
+[list]
+[*]Attack and exertion grunts.[/*]
+[*]Hurt and death grunts.[/*]
+[*]Burn, bleed, poison, and drowning reactions.[/*]
+[*]SFX_Player_Hit feedback.[/*]
+[*]Optional stamina-depleted breathing loops.[/*]
+[/list]
+
+Overall pitch defaults to a neutral 0 semitones with up to 0.25 semitones of random variation. Native events use the overall tuning, while battlecries additionally apply their gender-specific pitch offset and battlecry-only volume multiplier.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Custom Battlecry Pools[/size][/color][/heading]
 
 Place PCM WAV files in the installed plugin folder:
 
@@ -36,16 +99,11 @@ Place PCM WAV files in the installed plugin folder:
 audio/battlecry/male/battlecry_01.wav
 audio/battlecry/female/battlecry_01.wav[/code]
 
-Each folder accepts up to 10 WAV files in alphabetical order. The package includes [b].wav.placeholder[/b] files for battlecry_01 through battlecry_10. They are not played; replace them with real WAV files. Immediate repeats are avoided when more than one file is available.
+Each folder accepts up to 15 WAV files in alphabetical order. Immediate repeats are avoided when a pool contains more than one sound.
 
-[heading][color=#C94A4A][size=5]Voice Tuning[/size][/color][/heading]
-[list]
-[*]Attack and exertion grunts.[/*]
-[*]Hurt and death grunts.[/*]
-[*]Burn, bleed, poison, and drowning grunts.[/*]
-[*]SFX_Player_Hit feedback.[/*]
-[*]Optional stamina-depleted breathing.[/*]
-[/list]
+The package includes all 15 male slots and female slots 1 through 12. [b].wav.placeholder[/b] files reserve female slots 13 through 15; placeholders are not played. Replace a placeholder with a real WAV to fill that slot.
+
+[line]
 
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 
@@ -53,34 +111,83 @@ Each folder accepts up to 10 WAV files in alphabetical order. The package includ
 BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/code]
 
 [code]
-| Setting                        | Default | Purpose                                      |
-|--------------------------------|---------|----------------------------------------------|
-| PitchSemitones                 | -3.0    | Fixed pitch shift                            |
-| RandomPitchSemitones           | 0.25    | Per-sound pitch variation                    |
-| VolumeMultiplier               | 1.0     | Voice and battlecry volume scale             |
-| BattlecryEnabled               | true    | Enable custom cries and challenge behavior   |
-| HoldToggleWeaponForBattlecry   | true    | Tap to toggle weapon; hold to cry             |
-| BattlecryHoldSeconds           | 0.45    | Hold threshold                               |
-| BattlecryHotkey                | None    | Optional separate shortcut                   |
-| BattlecryCooldownSeconds       | 3.0     | Minimum spacing between cries                |
-| BattlecryAggroRangeMultiplier  | 2.0     | Multiplier on individual NPC hearing range   |
-| BattlecryAggroDurationSeconds  | 3.0     | Active challenge duration                    |
-| EyesInTheDarkThreat            | 20.0    | Optional Wyrd Threat requested per cry       |
-| Diagnostics                    | false   | Detailed file, FMOD, input, AI, and API logs |
-[/code]
+| Setting                                   | Default | Purpose                                      |
+|-------------------------------------------|---------|----------------------------------------------|
+| PitchSemitones                            | 0.0     | Overall fixed pitch shift                    |
+| RandomPitchSemitones                      | 0.25    | Per-sound pitch variation                    |
+| VolumeMultiplier                          | 1.0     | Voice and battlecry volume scale             |
+| BattlecryEnabled                          | true    | Enable cries and challenge behavior          |
+| BattlecryVolumeMultiplier                 | 0.5     | Additional battlecry-only volume scale       |
+| BattlecryReverbEnabled                    | true    | Enable environment-aware reverb              |
+| OutdoorBattlecryReverbAmount              | 0.15    | Light outdoor reverb                         |
+| IndoorBattlecryReverbAmount               | 0.70    | Heavy interior and roofed-area reverb        |
+| MaleBattlecryPitchOffsetSemitones         | 0.0     | Additional male battlecry pitch shift        |
+| FemaleBattlecryPitchOffsetSemitones       | 0.0     | Additional female battlecry pitch shift      |
+| HoldToggleWeaponForBattlecry              | true    | Tap to toggle weapon; hold to battlecry      |
+| BattlecryHoldSeconds                      | 0.45    | Hold threshold                               |
+| BattlecryHotkey                           | None    | Optional separate shortcut                   |
+| BattlecryCooldownSeconds                  | 1.5     | Minimum spacing between cries                |
+| BattlecryAggroRangeMultiplier             | 2.0     | Multiplier on NPC hearing range              |
+| BattlecryAggroDurationSeconds             | 3.0     | Active challenge duration                    |
+| EyesInTheDarkThreat                       | 10.0    | Optional Wyrd Threat requested per cry       |
+| Diagnostics                               | false   | Detailed audio, input, AI, and API logs      |[/code]
 
-[heading][color=#C94A4A][size=5]Optional Integrations[/size][/color][/heading]
+FoA Mod Manager organizes these settings into General, Voice Tuning, Native Voice Events, Battlecry Audio, Battlecry Input, Battlecry Challenge, Optional Integrations, Testing, and Diagnostics groups.
 
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game. When Eyes in the Dark is installed, repeated cries during an eligible Wyrdnight also contribute to its throttled pool of atmospheric Wyrd responses.
+[line]
 
-Eyes in the Dark remains authoritative about exposed-Wyrdnight eligibility, diminishing threat returns, notification preferences, and its longer Wyrd-response cooldown. Battlecry Voice Tuner continues working normally when either optional mod is absent.
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 
-[heading][color=#C94A4A][size=5]Install and Updating[/size][/color][/heading]
+[list]
+[*]Requires BepInEx 5 Mono.[/*]
+[*]Requires Tainted Grail: The Fall of Avalon.[/*]
+[*]Supports Windows and Linux.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
 
 Install with Vortex as a BepInEx plugin, or place the package folder under [b]BepInEx/plugins[/b].
 
-Version 1.0.0 replaces the former Player Voice Tuner identity. Its new plugin GUID and config path intentionally generate fresh settings. FoA Mod Manager retains the final Import Previous Settings tab for future Battlecry Voice Tuner schema backups.
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+
+Battlecry Voice Tuner replaces the former Player Voice Tuner identity. Its plugin GUID and config path intentionally keep it separate from that older mod.
+
+Incompatible config updates create a backup and generate current defaults while preserving compatible customized values. FoA Mod Manager's final [b]Import Previous Settings[/b] tab can restore compatible custom values from supported backups. Restart the game after importing.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] is optional; no hard dependency is introduced.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can display critical load errors in-game and supports Eyes in the Dark's atmospheric Wyrdnight responses.[/*]
+[*]Battlecry Voice Tuner continues working normally when either optional mod is absent.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Credits[/size][/color][/heading]
+
+[b]Battlecry sound effects:[/b] [url=https://www.gamemasteraudio.com/product/human-vocalizations/]Human Vocalizations[/url] by Gamemaster Audio.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Performance[/size][/color][/heading]
+
+[list]
+[*]Battlecry audio resources and reverb paths are reused rather than recreated every frame.[/*]
+[*]Environment changes use the game's existing interior and roof-volume state without continuous physics raycasts.[/*]
+[*]Enemy challenge checks run only during the short active challenge window.[/*]
+[/list]
+
+[line]
 
 [heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
 
-If a hold only toggles the weapon, confirm that a real WAV exists for the current gender and the cooldown has elapsed. Enable Diagnostics and check [b]BepInEx/LogOutput.log[/b] for the selected file, FMOD results, input path, challenged NPCs, and Eyes in the Dark response.
+If holding Toggle Weapon only performs the normal toggle, confirm that a real WAV exists for the Hero's current gender and that the cooldown has elapsed.
+
+Enable [b]Diagnostics[/b] and inspect [b]BepInEx/LogOutput.log[/b] for the selected WAV, SFX routing, FMOD results, reverb environment, input path, challenged NPCs, and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] response.

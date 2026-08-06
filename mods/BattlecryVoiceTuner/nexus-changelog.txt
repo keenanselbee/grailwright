@@ -1,0 +1,10 @@
+TargetVersion=1.0.7
+BaselineVersion=0.2.2
+Renamed Player Voice Tuner to Battlecry Voice Tuner with a new plugin, config, package, and release identity; the renamed mod starts with a fresh config.
+Added gender-aware custom battlecries with 15 male and 15 female pool slots, including 15 packaged male sounds and 12 packaged female sounds while retaining open slots for custom WAVs.
+Added tap-or-hold Toggle Weapon input, an optional separate hotkey, configurable cooldowns, and a hostile-NPC challenge that uses each enemy's hearing range.
+Added optional Eyes in the Dark integration with diminishing Wyrd Threat gains and throttled atmospheric responses during exposed Wyrdnights.
+Routed custom battlecries through the game's SFX mixer and added configurable indoor and outdoor FMOD reverb with dry-audio fallback.
+Changed fresh-config defaults to neutral pitch offsets, 0.5 battlecry volume, and a 1.5-second cooldown; compatible customized values remain recoverable across the schema reset.
+Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
+Reduced the fresh-config Eyes in the Dark threat request from 20 to 10 per successful battlecry; compatible customized values remain recoverable across the schema reset.

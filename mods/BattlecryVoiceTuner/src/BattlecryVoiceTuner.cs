@@ -4,14 +4,17 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
 using Awaken.TG.MVC.UI;
 using Awaken.TG.MVC.UI.Events;
 using Awaken.TG.Main.AI;
+using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Character.Features;
 using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
+using Awaken.TG.Main.Heroes.VolumeCheckers;
 using Awaken.TG.Main.Utility;
 using BepInEx;
 using BepInEx.Configuration;
@@ -28,11 +31,20 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
 
 namespace BattlecryVoiceTuner
 {
+    internal sealed class FoASettingUiMetadata
+    {
+        public string DisplaySection { get; set; }
+        public string DisplayName { get; set; }
+        public int SectionOrder { get; set; }
+        public int Order { get; set; }
+        public bool Hidden { get; set; }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.eyes-in-the-dark", BepInDependency.DependencyFlags.SoftDependency)]
@@ -40,9 +52,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.7";
 
-        private const int CurrentConfigSchemaVersion = 1;
+        private const int CurrentConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -61,7 +73,7 @@ namespace BattlecryVoiceTuner
         private const string CategoryStatus = "Status";
         private const string CategoryHitFeedback = "HitFeedback";
         private const string CategoryStamina = "Stamina";
-        private const int MaximumBattlecryFilesPerGender = 10;
+        private const int MaximumBattlecryFilesPerGender = 15;
         private const float ChallengeScanIntervalSeconds = 0.25f;
         private const string EyesInTheDarkApiTypeName =
             "EyesInTheDark.EyesInTheDarkBattlecryApi, EyesInTheDark";
@@ -108,6 +120,12 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<bool> _includePlayerHitFeedback;
         private ConfigEntry<bool> _includeStaminaDepletedBreathing;
         private ConfigEntry<bool> _battlecryEnabled;
+        private ConfigEntry<float> _battlecryVolumeMultiplier;
+        private ConfigEntry<bool> _battlecryReverbEnabled;
+        private ConfigEntry<float> _outdoorBattlecryReverbAmount;
+        private ConfigEntry<float> _indoorBattlecryReverbAmount;
+        private ConfigEntry<float> _maleBattlecryPitchOffsetSemitones;
+        private ConfigEntry<float> _femaleBattlecryPitchOffsetSemitones;
         private ConfigEntry<bool> _holdToggleWeaponForBattlecry;
         private ConfigEntry<float> _battlecryHoldSeconds;
         private ConfigEntry<KeyboardShortcut> _battlecryHotkey;
@@ -123,6 +141,13 @@ namespace BattlecryVoiceTuner
             new List<string>();
         private readonly Dictionary<string, FMOD.Sound> _battlecrySoundsByPath =
             new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
+        private FMOD.Studio.Bus _battlecrySfxBus;
+        private FMOD.ChannelGroup _battlecrySfxChannelGroup;
+        private FMOD.ChannelGroup _outdoorBattlecryChannelGroup;
+        private FMOD.ChannelGroup _indoorBattlecryChannelGroup;
+        private FMOD.DSP _outdoorBattlecryReverb;
+        private FMOD.DSP _indoorBattlecryReverb;
+        private bool _battlecrySfxBusLocked;
         private readonly HashSet<NpcAI> _challengedNpcs =
             new HashSet<NpcAI>();
         private readonly Dictionary<string, float> _pendingPreservedVoiceTuning =
@@ -142,6 +167,7 @@ namespace BattlecryVoiceTuner
         private MethodInfo _eyesBattlecryMethod;
         private bool _noBattlecryFilesWarningLogged;
         private bool _resettingTestButton;
+        private bool _heroUnderRoof;
 
         private void Awake()
         {
@@ -441,144 +467,315 @@ namespace BattlecryVoiceTuner
                 new ConfigDescription(
                     "Internal config schema marker. Do not edit this value.",
                     null,
-                    new System.ComponentModel.BrowsableAttribute(false)));
+                    new System.ComponentModel.BrowsableAttribute(false),
+                    new FoASettingUiMetadata
+                    {
+                        DisplaySection = "General",
+                        DisplayName = "Config Schema Version",
+                        SectionOrder = 0,
+                        Order = -1,
+                        Hidden = true
+                    }));
 
             _enabled = Config.Bind(
                 "1. Core",
                 "Enabled",
                 true,
-                "Master toggle for player voice tuning and battlecries.");
+                UiDescription(
+                    "Master toggle for player voice tuning and battlecries.",
+                    "General",
+                    "Enabled",
+                    0,
+                    0));
 
             _pitchSemitones = Config.Bind(
                 "1. Core",
                 "PitchSemitones",
-                -3.0f,
-                new ConfigDescription(
-                    "Pitch shift applied to supported player voice sounds. Negative values lower the voice; positive values raise it.",
+                0.0f,
+                UiDescription(
+                    "Overall pitch shift applied to supported player voice sounds and battlecries. Gender-specific battlecry offsets are added to this value.",
+                    "Voice Tuning",
+                    "Overall Pitch (Semitones)",
+                    1,
+                    0,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _randomPitchSemitones = Config.Bind(
                 "1. Core",
                 "RandomPitchSemitones",
                 0.25f,
-                new ConfigDescription(
+                UiDescription(
                     "Maximum random pitch variation added per played sound, in semitones. Set 0 for a fixed pitch.",
+                    "Voice Tuning",
+                    "Random Pitch (Semitones)",
+                    1,
+                    1,
                     new AcceptableValueRange<float>(0.0f, 3.0f)));
 
             _volumeMultiplier = Config.Bind(
                 "1. Core",
                 "VolumeMultiplier",
                 1.0f,
-                new ConfigDescription(
-                    "Volume multiplier for supported player voice sounds.",
+                UiDescription(
+                    "Overall volume multiplier for supported native voice events and custom battlecries. Battlecries also apply their own volume multiplier.",
+                    "Voice Tuning",
+                    "Overall Voice Volume",
+                    1,
+                    2,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
             _includeAttackGrunts = Config.Bind(
                 "2. Supported Sounds",
                 "IncludeAttackGrunts",
                 true,
-                "Tune player attack/exertion grunts.");
+                UiDescription(
+                    "Tune player attack/exertion grunts.",
+                    "Native Voice Events",
+                    "Attack and Exertion Grunts",
+                    2,
+                    0));
 
             _includeHurtGrunts = Config.Bind(
                 "2. Supported Sounds",
                 "IncludeHurtGrunts",
                 true,
-                "Tune player hurt grunts.");
+                UiDescription(
+                    "Tune player hurt grunts.",
+                    "Native Voice Events",
+                    "Hurt Grunts",
+                    2,
+                    1));
 
             _includeDeathGrunts = Config.Bind(
                 "2. Supported Sounds",
                 "IncludeDeathGrunts",
                 true,
-                "Tune player death grunts.");
+                UiDescription(
+                    "Tune player death grunts.",
+                    "Native Voice Events",
+                    "Death Grunts",
+                    2,
+                    2));
 
             _includeStatusPainGrunts = Config.Bind(
                 "2. Supported Sounds",
                 "IncludeStatusPainGrunts",
                 true,
-                "Tune player burn, bleed, poison, and drown grunts.");
+                UiDescription(
+                    "Tune player burn, bleed, poison, and drown grunts.",
+                    "Native Voice Events",
+                    "Status Pain Grunts",
+                    2,
+                    3));
 
             _includePlayerHitFeedback = Config.Bind(
                 "2. Supported Sounds",
                 "IncludePlayerHitFeedback",
                 true,
-                "Tune SFX_Player_Hit, the player hit-feedback sound used when the player lands a hit.");
+                UiDescription(
+                    "Tune SFX_Player_Hit, the player hit-feedback sound used when the player lands a hit.",
+                    "Native Voice Events",
+                    "Player Hit Feedback",
+                    2,
+                    4));
 
             _includeStaminaDepletedBreathing = Config.Bind(
                 "2. Supported Sounds",
                 "IncludeStaminaDepletedBreathing",
                 false,
-                "Tune stamina-depleted breathing loops. Off by default because these are longer/looping sounds.");
+                UiDescription(
+                    "Tune stamina-depleted breathing loops. Off by default because these are longer/looping sounds.",
+                    "Native Voice Events",
+                    "Stamina-Depleted Breathing",
+                    2,
+                    5));
 
             _battlecryEnabled = Config.Bind(
                 "3. Battlecry",
                 "BattlecryEnabled",
                 true,
-                "Enable custom battlecry audio and its enemy challenge effect.");
+                UiDescription(
+                    "Enable custom battlecry audio and its enemy challenge effect.",
+                    "Battlecry Audio",
+                    "Enabled",
+                    3,
+                    0));
+
+            _battlecryVolumeMultiplier = Config.Bind(
+                "3. Battlecry",
+                "BattlecryVolumeMultiplier",
+                0.5f,
+                UiDescription(
+                    "Additional volume multiplier applied only to custom battlecries after Overall Voice Volume. Battlecries also follow the game's SFX volume category.",
+                    "Battlecry Audio",
+                    "Battlecry Volume",
+                    3,
+                    1,
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+
+            _battlecryReverbEnabled = Config.Bind(
+                "3. Battlecry",
+                "BattlecryReverbEnabled",
+                true,
+                UiDescription(
+                    "Apply environment-aware reverb only to custom battlecries. Full interiors and the game's roof volumes use the indoor amount; other open-world areas use the outdoor amount.",
+                    "Battlecry Audio",
+                    "Dynamic Reverb",
+                    3,
+                    2));
+
+            _outdoorBattlecryReverbAmount = Config.Bind(
+                "3. Battlecry",
+                "OutdoorBattlecryReverbAmount",
+                0.15f,
+                UiDescription(
+                    "Light reverb amount for battlecries in unroofed open-world areas. Zero is dry; one is the strongest supported effect.",
+                    "Battlecry Audio",
+                    "Outdoor Reverb Amount",
+                    3,
+                    3,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _indoorBattlecryReverbAmount = Config.Bind(
+                "3. Battlecry",
+                "IndoorBattlecryReverbAmount",
+                0.70f,
+                UiDescription(
+                    "Heavy reverb amount for battlecries in interior scenes, caves, and the game's roof volumes. Zero is dry; one is the strongest supported effect.",
+                    "Battlecry Audio",
+                    "Indoor Reverb Amount",
+                    3,
+                    4,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _maleBattlecryPitchOffsetSemitones = Config.Bind(
+                "3. Battlecry",
+                "MaleBattlecryPitchOffsetSemitones",
+                0.0f,
+                UiDescription(
+                    "Additional pitch shift applied only to male battlecries after the overall PitchSemitones setting.",
+                    "Battlecry Audio",
+                    "Male Pitch Offset (Semitones)",
+                    3,
+                    5,
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)));
+
+            _femaleBattlecryPitchOffsetSemitones = Config.Bind(
+                "3. Battlecry",
+                "FemaleBattlecryPitchOffsetSemitones",
+                0.0f,
+                UiDescription(
+                    "Additional pitch shift applied only to female battlecries after the overall PitchSemitones setting.",
+                    "Battlecry Audio",
+                    "Female Pitch Offset (Semitones)",
+                    3,
+                    6,
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _holdToggleWeaponForBattlecry = Config.Bind(
                 "3. Battlecry",
                 "HoldToggleWeaponForBattlecry",
                 true,
-                "Tap the game's Toggle Weapon action to keep its normal behavior, or hold it to battlecry. Uses the game's current remapped keyboard or controller binding.");
+                UiDescription(
+                    "Tap the game's Toggle Weapon action to keep its normal behavior, or hold it to battlecry. Uses the game's current remapped keyboard or controller binding.",
+                    "Battlecry Input",
+                    "Hold Toggle Weapon",
+                    4,
+                    0));
 
             _battlecryHoldSeconds = Config.Bind(
                 "3. Battlecry",
                 "BattlecryHoldSeconds",
                 0.45f,
-                new ConfigDescription(
+                UiDescription(
                     "Seconds the Toggle Weapon action must be held before attempting a battlecry.",
+                    "Battlecry Input",
+                    "Hold Time (Seconds)",
+                    4,
+                    1,
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
 
             _battlecryHotkey = Config.Bind(
                 "3. Battlecry",
                 "BattlecryHotkey",
                 new KeyboardShortcut(KeyCode.None),
-                "Optional separate keyboard or joystick-button shortcut. None disables the separate shortcut.");
+                UiDescription(
+                    "Optional separate keyboard or joystick-button shortcut. None disables the separate shortcut.",
+                    "Battlecry Input",
+                    "Separate Hotkey",
+                    4,
+                    2));
 
             _battlecryCooldownSeconds = Config.Bind(
                 "3. Battlecry",
                 "BattlecryCooldownSeconds",
-                3.0f,
-                new ConfigDescription(
+                1.5f,
+                UiDescription(
                     "Minimum active gameplay seconds between battlecries.",
+                    "Battlecry Input",
+                    "Cooldown (Seconds)",
+                    4,
+                    3,
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
             _battlecryAggroRangeMultiplier = Config.Bind(
                 "3. Battlecry",
                 "BattlecryAggroRangeMultiplier",
                 2.0f,
-                new ConfigDescription(
+                UiDescription(
                     "Multiplier applied to each hostile NPC's normal maximum hearing range while resolving the battlecry challenge.",
+                    "Battlecry Challenge",
+                    "Hearing Range Multiplier",
+                    5,
+                    0,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _battlecryAggroDurationSeconds = Config.Bind(
                 "3. Battlecry",
                 "BattlecryAggroDurationSeconds",
                 3.0f,
-                new ConfigDescription(
+                UiDescription(
                     "Active gameplay seconds during which newly reached hostile NPCs can hear the challenge.",
+                    "Battlecry Challenge",
+                    "Challenge Duration (Seconds)",
+                    5,
+                    1,
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
             _eyesInTheDarkThreat = Config.Bind(
                 "3. Battlecry",
                 "EyesInTheDarkThreat",
-                20.0f,
-                new ConfigDescription(
+                10.0f,
+                UiDescription(
                     "Wyrd Threat requested from Eyes in the Dark for each successful battlecry. Has no effect when Eyes is absent or its Wyrdnight activity rules reject the request.",
+                    "Optional Integrations",
+                    "Eyes in the Dark Threat",
+                    6,
+                    0,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
             _playRandomTestSound = Config.Bind(
                 "4. Testing",
                 "PlayRandomTestSound",
                 false,
-                "Pseudo-button. Toggle on to play one random supported one-shot sound, then the mod resets this to false.");
+                UiDescription(
+                    "Pseudo-button. Toggle on to play one random supported one-shot sound, then the mod resets this to false.",
+                    "Testing",
+                    "Play Random Native Voice Sound",
+                    7,
+                    0));
             _playRandomTestSound.SettingChanged += OnPlayRandomTestSoundChanged;
 
             _diagnostics = Config.Bind(
                 "5. Diagnostics",
                 "Diagnostics",
                 false,
-                "Write detailed match and FMOD result information to the BepInEx log.");
+                UiDescription(
+                    "Write detailed match and FMOD result information to the BepInEx log.",
+                    "Diagnostics",
+                    "Diagnostics",
+                    8,
+                    0));
 
             RestorePreservedVoiceTuning();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -590,6 +787,26 @@ namespace BattlecryVoiceTuner
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
             Config.Save();
+        }
+
+        private static ConfigDescription UiDescription(
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order,
+            AcceptableValueBase acceptableValues = null)
+        {
+            return new ConfigDescription(
+                description,
+                acceptableValues,
+                new FoASettingUiMetadata
+                {
+                    DisplaySection = displaySection,
+                    DisplayName = displayName,
+                    SectionOrder = sectionOrder,
+                    Order = order
+                });
         }
 
         private void PatchGame()
@@ -633,6 +850,47 @@ namespace BattlecryVoiceTuner
                 prefix: new HarmonyMethod(heroKeysPrefix));
             _log.LogInfo(
                 "Patched the remappable Toggle Weapon action for tap-or-hold battlecry input.");
+
+            MethodInfo roofEnterTarget = AccessTools.Method(
+                typeof(VCRainChecker),
+                "OnFirstVolumeEnter");
+            MethodInfo roofEnterPostfix = AccessTools.Method(
+                typeof(VCRainCheckerRoofEnterPatch),
+                nameof(VCRainCheckerRoofEnterPatch.Postfix));
+            MethodInfo roofExitTarget = AccessTools.Method(
+                typeof(VCRainChecker),
+                "OnAllVolumesExit");
+            MethodInfo roofExitPostfix = AccessTools.Method(
+                typeof(VCRainCheckerRoofExitPatch),
+                nameof(VCRainCheckerRoofExitPatch.Postfix));
+            MethodInfo roofDiscardTarget = AccessTools.Method(
+                typeof(VCRainChecker),
+                "OnDiscard");
+            MethodInfo roofDiscardPostfix = AccessTools.Method(
+                typeof(VCRainCheckerRoofExitPatch),
+                nameof(VCRainCheckerRoofExitPatch.Postfix));
+            if (roofEnterTarget == null
+                || roofEnterPostfix == null
+                || roofExitTarget == null
+                || roofExitPostfix == null
+                || roofDiscardTarget == null
+                || roofDiscardPostfix == null)
+            {
+                throw new MissingMethodException(
+                    "Awaken.TG.Main.Heroes.VolumeCheckers.VCRainChecker roof-volume callbacks");
+            }
+
+            _harmony.Patch(
+                roofEnterTarget,
+                postfix: new HarmonyMethod(roofEnterPostfix));
+            _harmony.Patch(
+                roofExitTarget,
+                postfix: new HarmonyMethod(roofExitPostfix));
+            _harmony.Patch(
+                roofDiscardTarget,
+                postfix: new HarmonyMethod(roofDiscardPostfix));
+            _log.LogInfo(
+                "Patched the game's Hero roof-volume state for dynamic battlecry reverb.");
         }
 
         private static void TuneCreatedEvent(EventDescription eventDescription, ref EventInstance eventInstance)
@@ -685,9 +943,11 @@ namespace BattlecryVoiceTuner
                 " volumeResult=" + volumeResult + ".");
         }
 
-        private float GetShiftedSemitones()
+        private float GetShiftedSemitones(
+            float baselineSemitones = 0.0f)
         {
-            float semitones = _pitchSemitones.Value;
+            float semitones = baselineSemitones
+                + _pitchSemitones.Value;
             float randomRange = Math.Max(0.0f, _randomPitchSemitones.Value);
             if (randomRange > 0.0f)
             {
@@ -1003,7 +1263,10 @@ namespace BattlecryVoiceTuner
             {
                 int index = (firstIndex + offset) % paths.Count;
                 float candidatePitch = SemitonesToPitchMultiplier(
-                    GetShiftedSemitones());
+                    GetShiftedSemitones(
+                        female
+                            ? _femaleBattlecryPitchOffsetSemitones.Value
+                            : _maleBattlecryPitchOffsetSemitones.Value));
                 if (!TryPlayBattlecrySound(
                     paths[index],
                     candidatePitch))
@@ -1074,12 +1337,14 @@ namespace BattlecryVoiceTuner
                 }
 
                 FMOD.ChannelGroup channelGroup;
-                RESULT groupResult =
-                    RuntimeManager.CoreSystem.getMasterChannelGroup(
-                        out channelGroup);
-                if (groupResult != RESULT.OK)
+                string environment;
+                float reverbAmount;
+                if (!TryGetBattlecryChannelGroup(
+                    out channelGroup,
+                    out environment,
+                    out reverbAmount))
                 {
-                    channelGroup = default(FMOD.ChannelGroup);
+                    return false;
                 }
 
                 FMOD.Channel channel;
@@ -1099,14 +1364,29 @@ namespace BattlecryVoiceTuner
                     return false;
                 }
 
-                RESULT volumeResult = channel.setVolume(
-                    Math.Max(0f, _volumeMultiplier.Value));
+                float volumeScale =
+                    Math.Max(0f, _volumeMultiplier.Value)
+                    * Math.Max(
+                        0f,
+                        _battlecryVolumeMultiplier.Value);
+                RESULT volumeResult = channel.setVolume(volumeScale);
                 RESULT pitchResult = channel.setPitch(
                     Math.Max(0.01f, pitch));
                 RESULT unpauseResult = channel.setPaused(false);
                 LogDiagnostic(
                     "Battlecry FMOD results: volume="
                     + volumeResult
+                    + " (scale="
+                    + volumeScale.ToString(
+                        "0.###",
+                        CultureInfo.InvariantCulture)
+                    + ", bus=SFX, environment="
+                    + environment
+                    + ", reverb="
+                    + reverbAmount.ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + ")"
                     + "; pitch="
                     + pitchResult
                     + "; unpause="
@@ -1125,6 +1405,393 @@ namespace BattlecryVoiceTuner
             }
         }
 
+        private bool TryGetBattlecryChannelGroup(
+            out FMOD.ChannelGroup channelGroup,
+            out string environment,
+            out float reverbAmount)
+        {
+            bool indoors = IsBattlecryIndoors(
+                out environment);
+            if (!TryGetBattlecrySfxChannelGroup(
+                out channelGroup))
+            {
+                reverbAmount = 0f;
+                return false;
+            }
+
+            reverbAmount = 0f;
+            if (_battlecryReverbEnabled == null
+                || !_battlecryReverbEnabled.Value)
+            {
+                return true;
+            }
+
+            reverbAmount = Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    indoors
+                        ? _indoorBattlecryReverbAmount.Value
+                        : _outdoorBattlecryReverbAmount.Value));
+            if (reverbAmount <= 0.001f)
+            {
+                reverbAmount = 0f;
+                return true;
+            }
+
+            if (!TryEnsureBattlecryReverbPaths())
+            {
+                _log.LogWarning(
+                    "Battlecry reverb setup failed; playing this battlecry dry through the game's SFX bus.");
+                reverbAmount = 0f;
+                return true;
+            }
+
+            FMOD.DSP reverb = indoors
+                ? _indoorBattlecryReverb
+                : _outdoorBattlecryReverb;
+            if (!TryConfigureBattlecryReverb(
+                reverb,
+                reverbAmount))
+            {
+                reverb.setBypass(true);
+                _log.LogWarning(
+                    "Battlecry reverb parameters could not be applied; playing this battlecry dry through the game's SFX bus.");
+                reverbAmount = 0f;
+                return true;
+            }
+
+            channelGroup = indoors
+                ? _indoorBattlecryChannelGroup
+                : _outdoorBattlecryChannelGroup;
+            return true;
+        }
+
+        private bool IsBattlecryIndoors(
+            out string environment)
+        {
+            SceneService sceneService =
+                World.Services.TryGet<SceneService>();
+            if (sceneService != null
+                && !sceneService.IsOpenWorld)
+            {
+                environment = "interior";
+                return true;
+            }
+            if (_heroUnderRoof)
+            {
+                environment = "roofed";
+                return true;
+            }
+
+            environment = "outdoor";
+            return false;
+        }
+
+        private bool TryGetBattlecrySfxChannelGroup(
+            out FMOD.ChannelGroup channelGroup)
+        {
+            if (_battlecrySfxBusLocked
+                && _battlecrySfxChannelGroup.hasHandle())
+            {
+                channelGroup = _battlecrySfxChannelGroup;
+                return true;
+            }
+
+            ReleaseBattlecrySfxBus();
+
+            FMOD.Studio.Bus sfxBus;
+            if (!BusGroup.SFX.TryGetBus(out sfxBus))
+            {
+                _log.LogWarning(
+                    "FMOD could not resolve the game's SFX bus for battlecry playback.");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            RESULT lockResult = sfxBus.lockChannelGroup();
+            if (lockResult != RESULT.OK)
+            {
+                _log.LogWarning(
+                    "FMOD could not lock the game's SFX bus channel group for battlecry playback: "
+                    + lockResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            RESULT groupResult = sfxBus.getChannelGroup(
+                out channelGroup);
+            if (groupResult != RESULT.OK
+                || !channelGroup.hasHandle())
+            {
+                sfxBus.unlockChannelGroup();
+                _log.LogWarning(
+                    "FMOD could not access the game's SFX bus channel group for battlecry playback: "
+                    + groupResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            _battlecrySfxBus = sfxBus;
+            _battlecrySfxChannelGroup = channelGroup;
+            _battlecrySfxBusLocked = true;
+            LogDiagnostic(
+                "Battlecry playback connected to the game's SFX bus.");
+            return true;
+        }
+
+        private bool TryEnsureBattlecryReverbPaths()
+        {
+            if (_outdoorBattlecryChannelGroup.hasHandle()
+                && _indoorBattlecryChannelGroup.hasHandle()
+                && _outdoorBattlecryReverb.hasHandle()
+                && _indoorBattlecryReverb.hasHandle())
+            {
+                return true;
+            }
+
+            ReleaseBattlecryReverbPaths();
+            if (!TryCreateBattlecryReverbPath(
+                    "Battlecry Voice Tuner - Outdoor",
+                    out _outdoorBattlecryChannelGroup,
+                    out _outdoorBattlecryReverb)
+                || !TryCreateBattlecryReverbPath(
+                    "Battlecry Voice Tuner - Indoor",
+                    out _indoorBattlecryChannelGroup,
+                    out _indoorBattlecryReverb))
+            {
+                ReleaseBattlecryReverbPaths();
+                return false;
+            }
+
+            LogDiagnostic(
+                "Created reusable outdoor and indoor battlecry reverb paths under the game's SFX bus.");
+            return true;
+        }
+
+        private bool TryCreateBattlecryReverbPath(
+            string name,
+            out FMOD.ChannelGroup channelGroup,
+            out FMOD.DSP reverb)
+        {
+            channelGroup = default(FMOD.ChannelGroup);
+            reverb = default(FMOD.DSP);
+
+            RESULT groupCreateResult =
+                RuntimeManager.CoreSystem.createChannelGroup(
+                    name,
+                    out channelGroup);
+            if (groupCreateResult != RESULT.OK)
+            {
+                _log.LogWarning(
+                    "FMOD could not create the "
+                    + name
+                    + " channel group: "
+                    + groupCreateResult
+                    + ".");
+                return false;
+            }
+
+            RESULT attachResult =
+                _battlecrySfxChannelGroup.addGroup(
+                    channelGroup,
+                    true);
+            if (attachResult != RESULT.OK)
+            {
+                channelGroup.release();
+                channelGroup = default(FMOD.ChannelGroup);
+                _log.LogWarning(
+                    "FMOD could not attach the "
+                    + name
+                    + " channel group to the game's SFX bus: "
+                    + attachResult
+                    + ".");
+                return false;
+            }
+
+            RESULT dspCreateResult =
+                RuntimeManager.CoreSystem.createDSPByType(
+                    DSP_TYPE.SFXREVERB,
+                    out reverb);
+            if (dspCreateResult != RESULT.OK)
+            {
+                channelGroup.release();
+                channelGroup = default(FMOD.ChannelGroup);
+                _log.LogWarning(
+                    "FMOD could not create the "
+                    + name
+                    + " reverb DSP: "
+                    + dspCreateResult
+                    + ".");
+                return false;
+            }
+
+            RESULT addDspResult = channelGroup.addDSP(
+                0,
+                reverb);
+            if (addDspResult != RESULT.OK)
+            {
+                reverb.release();
+                channelGroup.release();
+                reverb = default(FMOD.DSP);
+                channelGroup = default(FMOD.ChannelGroup);
+                _log.LogWarning(
+                    "FMOD could not attach reverb to the "
+                    + name
+                    + " channel group: "
+                    + addDspResult
+                    + ".");
+                return false;
+            }
+
+            reverb.setActive(true);
+            return true;
+        }
+
+        private bool TryConfigureBattlecryReverb(
+            FMOD.DSP reverb,
+            float amount)
+        {
+            if (!reverb.hasHandle())
+            {
+                return false;
+            }
+
+            float decayMilliseconds = 600f
+                + 2400f * amount;
+            float earlyDelayMilliseconds = 2f
+                + 18f * amount;
+            float lateDelayMilliseconds = 8f
+                + 42f * amount;
+            float highFrequencyDecayRatio = 80f
+                - 25f * amount;
+            float diffusion = 60f + 40f * amount;
+            float density = 55f + 45f * amount;
+            float highCutHertz = 14000f
+                - 7000f * amount;
+            float earlyLateMix = 25f + 50f * amount;
+            float wetLevelDecibels = -24f
+                + 24f * amount;
+
+            RESULT result = reverb.setParameterFloat(
+                (int)DSP_SFXREVERB.DECAYTIME,
+                decayMilliseconds);
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.EARLYDELAY,
+                    earlyDelayMilliseconds);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.LATEDELAY,
+                    lateDelayMilliseconds);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.HFDECAYRATIO,
+                    highFrequencyDecayRatio);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.DIFFUSION,
+                    diffusion);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.DENSITY,
+                    density);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.HIGHCUT,
+                    highCutHertz);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.EARLYLATEMIX,
+                    earlyLateMix);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.WETLEVEL,
+                    wetLevelDecibels);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setParameterFloat(
+                    (int)DSP_SFXREVERB.DRYLEVEL,
+                    0f);
+            }
+            if (result == RESULT.OK)
+            {
+                result = reverb.setBypass(false);
+            }
+
+            return result == RESULT.OK;
+        }
+
+        private void ReleaseBattlecryReverbPaths()
+        {
+            ReleaseBattlecryReverbPath(
+                ref _outdoorBattlecryChannelGroup,
+                ref _outdoorBattlecryReverb);
+            ReleaseBattlecryReverbPath(
+                ref _indoorBattlecryChannelGroup,
+                ref _indoorBattlecryReverb);
+        }
+
+        private static void ReleaseBattlecryReverbPath(
+            ref FMOD.ChannelGroup channelGroup,
+            ref FMOD.DSP reverb)
+        {
+            if (channelGroup.hasHandle()
+                && reverb.hasHandle())
+            {
+                channelGroup.removeDSP(reverb);
+            }
+            if (reverb.hasHandle())
+            {
+                reverb.release();
+            }
+            if (channelGroup.hasHandle())
+            {
+                channelGroup.release();
+            }
+
+            reverb = default(FMOD.DSP);
+            channelGroup = default(FMOD.ChannelGroup);
+        }
+
+        private void ReleaseBattlecrySfxBus()
+        {
+            ReleaseBattlecryReverbPaths();
+            _battlecrySfxChannelGroup =
+                default(FMOD.ChannelGroup);
+            if (_battlecrySfxBusLocked
+                && _battlecrySfxBus.isValid())
+            {
+                RESULT unlockResult =
+                    _battlecrySfxBus.unlockChannelGroup();
+                LogDiagnostic(
+                    "Battlecry SFX bus unlock result="
+                    + unlockResult
+                    + ".");
+            }
+
+            _battlecrySfxBus = default(FMOD.Studio.Bus);
+            _battlecrySfxBusLocked = false;
+        }
+
         private void ReleaseBattlecrySounds()
         {
             foreach (KeyValuePair<string, FMOD.Sound> pair
@@ -1140,6 +1807,7 @@ namespace BattlecryVoiceTuner
             }
 
             _battlecrySoundsByPath.Clear();
+            ReleaseBattlecrySfxBus();
             EndChallenge();
         }
 
@@ -1297,7 +1965,7 @@ namespace BattlecryVoiceTuner
             try
             {
                 float amount = _eyesInTheDarkThreat == null
-                    ? 20f
+                    ? 10f
                     : Math.Max(0f, _eyesInTheDarkThreat.Value);
                 object accepted = _eyesBattlecryMethod.Invoke(
                     null,
@@ -1442,6 +2110,30 @@ namespace BattlecryVoiceTuner
                 if (__result)
                 {
                     TuneCreatedEvent(eventDesc, ref newInstance);
+                }
+            }
+        }
+
+        private static class VCRainCheckerRoofEnterPatch
+        {
+            internal static void Postfix()
+            {
+                BattlecryVoiceTunerPlugin instance = _instance;
+                if (instance != null)
+                {
+                    instance._heroUnderRoof = true;
+                }
+            }
+        }
+
+        private static class VCRainCheckerRoofExitPatch
+        {
+            internal static void Postfix()
+            {
+                BattlecryVoiceTunerPlugin instance = _instance;
+                if (instance != null)
+                {
+                    instance._heroUnderRoof = false;
                 }
             }
         }

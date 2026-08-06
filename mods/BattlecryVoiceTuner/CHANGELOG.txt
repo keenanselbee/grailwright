@@ -1,3 +1,31 @@
+Version 1.0.7
+Reduced the fresh-config Eyes in the Dark threat request from 20 to 10 per successful battlecry. Eyes still applies its existing diminishing returns to repeated cries.
+Advanced the config schema from 2 to 3 because the EyesInTheDarkThreat default changed. Existing customized values remain eligible for conservative recovery.
+
+Version 1.0.6
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
+Version 1.0.5
+Changed the fresh-config defaults to neutral overall pitch, neutral male and female battlecry offsets, 0.5 battlecry volume, and a 1.5-second battlecry cooldown based on in-game tuning.
+Advanced the config schema from 1 to 2 because the overall pitch, battlecry volume, male battlecry pitch offset, and battlecry cooldown defaults changed; compatible customized values remain preserved during recovery.
+
+Version 1.0.4
+Added configurable dynamic battlecry reverb with a light 0.15 outdoor amount and heavy 0.70 indoor amount.
+Reused the game's full-interior and Hero roof-volume state for caves and covered structures without continuous polling or physics raycasts.
+Added two lazily created, reusable battlecry-only FMOD reverb paths beneath the SFX bus, with dry SFX fallback if DSP setup fails.
+
+Version 1.0.3
+Routed custom battlecry WAV playback through the game's SFX mixer bus so Master and SFX volume or mute changes apply.
+Added BattlecryVolumeMultiplier for independent battlecry scaling on top of the existing overall VolumeMultiplier.
+Reorganized FoA Mod Manager into clear General, voice, battlecry audio, input, challenge, integration, testing, and diagnostics groups using display-only metadata without changing stored config sections or keys.
+
+Version 1.0.2
+Added 12 packaged female battlecry sounds while retaining three open female pool slots for custom WAVs.
+
+Version 1.0.1
+Added 15 packaged male battlecry sounds and expanded each gender pool from 10 to 15 files.
+Added separate male and female battlecry pitch offsets, defaulting to +2 and 0 semitones, which combine with the overall pitch setting before random variation.
+
 Version 1.0.0
 Renamed Player Voice Tuner to Battlecry Voice Tuner with the new ks.tgfoa.battlecry-voice-tuner plugin and config identity.
 Added gender-aware random battlecries from pools of up to 10 custom WAV files per gender, with placeholder slots and existing pitch, random-pitch, and volume tuning.

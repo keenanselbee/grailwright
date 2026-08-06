@@ -76,6 +76,7 @@ Template rules:
 - Use `[center][color=#C94A4A][size=6]...[/size][/color]` for the title.
 - Use `[heading][color=#C94A4A][size=5]...[/size][/color][/heading]` for major headers.
 - Use `[line]` between major sections.
+- Avoid em dashes as comma substitutes. Prefer a comma unless the sentence genuinely requires stronger punctuation.
 - Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and config file names.
 - Link the first nearby mention of each published mod name with `[url=...]Mod Name[/url]`; leave close repeats unlinked or bold so the page does not become link-noisy.
 - Use the optional Grail Floating Text diagnostics sentence only when the page has no more useful linked Grail Floating Text integration or dependency description. When used, put it in Compatibility or Optional Integrations: `[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.`

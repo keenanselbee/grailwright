@@ -24,6 +24,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Grail Floating Text](mods/GrailFloatingText) | 1.10.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
 | [Killing Blow Mastery](mods/KillingBlowMastery) | 1.5.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
+| [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.1 | Unpublished; targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
 | [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.0.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
 | [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.2.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.1.1 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
@@ -51,6 +52,7 @@ mods/
   UltrawideFixes/
   WyrdsoulReserve/
   KSAddons/
+    KSBetterMovementAddon/
     KSPersistentCorpsesAddon/
     KSWyrdSightAddon/
     KSTGAllLightsCastShadowsAddon/

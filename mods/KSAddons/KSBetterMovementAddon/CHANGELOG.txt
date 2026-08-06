@@ -1,0 +1,11 @@
+Version 0.1.1
+Replaced the synthetic development placeholders with 66 edited terrain Foley assets from the licensed Footsteps: Full Bundle.
+Added two seamless loop, start, and stop variants for each of the eleven supported terrain categories.
+Standardized runtime audio as mono 48 kHz 16-bit PCM with controlled loudness, peak headroom, and measured loop boundaries.
+
+Version 0.1.0
+Added terrain-aware FMOD slide audio for Better Movement slide begin, continuation, terrain transitions, cancellation, and ending.
+Added native terrain splatmap, mesh surface, and shallow-water detection without patching Immersive Footsteps' playback route.
+Added replaceable loop, start, and stop WAV discovery for eleven native terrain categories.
+Added lightweight synthetic placeholder audio for development testing while final licensed Foley is selected.
+Added configurable volume, speed response, pitch response, crossfade timing, attenuation distance, terrain polling, and diagnostics.

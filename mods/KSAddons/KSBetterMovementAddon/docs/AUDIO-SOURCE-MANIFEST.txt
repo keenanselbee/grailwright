@@ -1,0 +1,31 @@
+KS Better Movement Addon audio source manifest
+
+Source pack
+
+Footsteps: Full Bundle
+Creator: Sound Armoury / Matt J Hart
+Store page: https://www.asoundeffect.com/sound-library/footsteps-full-bundle/
+Source format: mono 96 kHz 24-bit WAV
+
+Terrain source mapping
+
+grass: OneShots/Scuffs/Grass - In Field, with Grass - Astroturf support
+gravel: OneShots/Scuffs/Gravel - Dry
+ground: OneShots/Scuffs/Dirt - In Field, with Dirt support
+mud: OneShots/Scuffs/Mud, with Water support
+puddle: OneShots/Scuffs/Water
+snow: OneShots/Scuffs/Snow - Real, with Snow - Cornstarch support
+stone: OneShots/Scuffs/Brick
+sand: OneShots/Scuffs/Sand
+wood variant 1: OneShots/Scuffs/Wood - Large Plank
+wood variant 2: OneShots/Scuffs/Wood - MDF Board
+cloth variant 1: OneShots/Scuffs/Carpet - Very Thick
+cloth variant 2: OneShots/Scuffs/Carpet - Thick
+metal variant 1: OneShots/Scuffs/Metal - Frying Pan
+metal variant 2: OneShots/Scuffs/Metal - Grill Pan Tray
+
+Processing record
+
+The source scuffs were trimmed, resampled to 48 kHz, DC corrected, terrain-band filtered, level matched, overlapped into sustained texture beds, and crossfaded at measured low-discontinuity loop boundaries. Start and stop transients were selected separately and shaped with short fades. Runtime exports use mono 48 kHz 16-bit PCM with TPDF dither. Review masters use mono 48 kHz 32-bit float.
+
+Generated review records are kept under .codex-temp/slide-audio-build/source-manifest.json and source-manifest.tsv. Those records map every output to its exact source files and measured loudness, peak, duration, and loop-boundary values.

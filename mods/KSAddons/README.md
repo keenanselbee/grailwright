@@ -5,12 +5,17 @@ targeted plugins for other Tainted Grail: The Fall of Avalon mods.
 
 Current addon folders:
 
+- `KSBetterMovementAddon`
 - `KSWyrdSightAddon`
 - `KSTGAllLightsCastShadowsAddon`
 - `KSPersistentCorpsesAddon`
 
 Original mod targets:
 
+- Better Movement Addon 0.1.0: for Better Movement 1.3.0. It adds
+  terrain-aware positional slide audio, including continuing downhill slides
+  and live surface transitions. The initial package uses replaceable synthetic
+  placeholder WAVs while final licensed Foley is selected.
 - Wyrd Sight Addon: for Wyrd Sight, which loads in BepInEx as plugin version
   1.1.1.
 - TG All Lights Cast Shadows Addon 1.1.9: for TG All Lights Cast Shadows Mono file

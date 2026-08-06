@@ -1,0 +1,1 @@
+Adds terrain-aware slide audio to Better Movement, with positional FMOD playback, live surface changes, smooth crossfades, and replaceable sound folders for every native terrain family.

@@ -4,39 +4,20 @@
 
 [line]
 
-[b]Grail Floating Text[/b] is a shared BepInEx 5 Mono overlay for [b]Tainted Grail: The Fall of Avalon[/b] mods.
+[b]Grail Floating Text[/b] gives players and mod authors one shared overlay for short rewards, status updates, events, system notices, and debug messages.
 
 It gives mod authors one standard place to send short reward, status, event, system, and debug messages instead of each mod drawing its own text stack. Messages can include shared tinted icon masks, appear near the configured screen position, pop in briefly, push older still-visible messages upward, and fade out cleanly.
 
 For players, that means less overlapping HUD text. For mod authors, it means a small reflection-friendly API that can be used as an optional dependency without forcing a hard install requirement.
 
-[line]
-
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Shared floating text overlay any Tainted Grail mod author can use.[/*]
-[*]Optional default-game-event notices for useful facts the base game does not already show as ordinary notification text.[/*]
-[*]Actual rest duration text, including shortened sleep when rest is interrupted early.[/*]
-[*]Optional throttled block/parry combat defense feedback using dedicated shield and parry icons.[/*]
-[*]Optional event-driven encumbrance, location cleared, pickpocket, bounty, weak spot, and sneak attack feedback.[/*]
-[*]Optional built-in vanilla Wyrd event notices for Wyrdnight, Wyrd safety, and Wyrd power unlocks.[/*]
-[*]Stacked messages so active mod text does not draw directly on top of itself.[/*]
-[*]Smooth pop-in animation for new messages.[/*]
-[*]Smooth stack movement when new messages push older messages upward.[/*]
-[*]API v8 message intent: stable event IDs, duration buckets, style, category, priority, collapse key, optional icon ID, deferred delivery points, and source-isolated XP consolidation.[/*]
-[*]Immediate, OnMainMenu, and OnLoad delivery paths whose timers begin only on the first eligible visible frame.[/*]
-[*]Built-in painterly transparent icon masks for shared message types and skill-level reward text.[/*]
-[*]Runtime icon mipmaps with trilinear filtering and transparent-edge protection for cleaner animated scaling.[/*]
-[*]Blank-by-default per-group icon color overrides, plus independent icon-shadow enable and opacity controls.[/*]
-[*]Collapse keys let status messages update in place instead of spamming repeated lines.[/*]
-[*]Priority sorting keeps high-priority messages closer to the active slot.[/*]
-[*]Duplicate suppression for identical rapid-fire messages.[/*]
-[*]Category toggles for General, Combat, Reward, Status, System, and Debug messages.[/*]
-[*]Optional loaded-mod compatibility notices that use the System duration and system icon without automatically disabling another plugin.[/*]
-[*]Per-source controls for enabled state, throttle seconds, duration multiplier, and diagnostics.[/*]
-[*]Configurable position, scale, font mode, font size, width, spacing, timing, opacity, animation, icons, and maximum visible messages.[/*]
-[*]FontMode can follow the game's Accessibility font choice or force the simple Sans, stylized Serif, or IMGUI fallback font. Startup messages temporarily use a safe fallback until game font services are ready.[/*]
-[*]Reflection-friendly API so other mods can integrate without referencing the DLL at compile time.[/*]
+[*][b]One shared message stack:[/b] Keep active mod text organized with smooth pop-in, upward movement, priority sorting, duplicate suppression, and in-place status updates.[/*]
+[*][b]Useful game-event notices:[/b] Optionally show rest duration, block and parry feedback, encumbrance, cleared locations, pickpocket results, bounties, weak spots, sneak attacks, and Wyrd events.[/*]
+[*][b]Readable built-in presentation:[/b] Use painterly icons, protected texture filtering, configurable colors and shadows, and font modes that can follow the game's Accessibility choice.[/*]
+[*][b]Detailed player control:[/b] Configure message categories, position, scale, width, spacing, timing, opacity, animation, icons, and the maximum visible stack.[/*]
+[*][b]Source-aware behavior:[/b] Control enabled state, throttling, duration, and diagnostics per integration while keeping XP consolidation isolated by source.[/*]
+[*][b]Mod-author API:[/b] Send immediate or deferred reflection-friendly messages with stable event IDs, styles, categories, priorities, collapse keys, and optional icons.[/*]
 [/list]
 
 [line]
@@ -414,6 +395,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
+[*]Supports Windows and Linux.[/*]
 [*]Optional integrated mods for additional floating text messages.[/*]
 [/list]
 

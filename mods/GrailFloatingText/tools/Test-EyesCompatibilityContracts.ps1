@@ -6,11 +6,11 @@ $source = Get-Content -LiteralPath (
 $manifest = Get-Content -LiteralPath (
     Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 
-if ($manifest.version -ne "1.9.9") {
-    throw "GFT manifest version is not 1.9.9."
+if ($manifest.version -ne "1.10.0") {
+    throw "GFT manifest version is not 1.10.0."
 }
 foreach ($required in @(
-    'public const string PluginVersion = "1.9.9";',
+    'public const string PluginVersion = "1.10.0";',
     'ResolveEyesWyrdStyle()',
     '"WyrdnessPalette"',
     '"NativeOrange"',

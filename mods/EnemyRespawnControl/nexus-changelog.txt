@@ -1,0 +1,7 @@
+TargetVersion=2.1.3
+BaselineVersion=2.0.9
+Excluded faction-neutral spawners when every NPC template is prey or summon-derived, while keeping hostile and mixed-template spawners under normal control.
+Retries prey and summon classification when game template services are not ready instead of caching an ambiguous startup result.
+Made manual ignored terms authoritative over live hostility and manual controlled terms authoritative over built-in exclusions, matching their documented force-out and force-in behavior.
+Expanded diagnostics with the classification reason and compact NPC-template signals retained by each lock.
+Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.

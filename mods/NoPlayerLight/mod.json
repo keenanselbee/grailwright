@@ -2,7 +2,7 @@
   "id": "NoPlayerLight",
   "displayName": "No Player Light",
   "packageName": "NoPlayerLight",
-  "version": "1.3.4",
+  "version": "1.3.5",
   "pluginGuid": "ks.tgfoa.no-player-light",
   "dll": "NoPlayerLight.dll",
   "sourceFiles": [

@@ -4,7 +4,7 @@
 
 [line]
 
-[b]Wyrdsoul Reserve[/b] is a standalone BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It adds three diamond-shaped overflow vessels beside the Wyrd Power indicator without replacing the vanilla resource.
+[b]Wyrdsoul Reserve[/b] adds three diamond-shaped overflow vessels beside the Wyrd Power indicator without replacing the vanilla resource.
 
 Each diamond holds one third of the main bar. Together, the vanilla bar and all three reserves provide 200% total Wyrd Power capacity.
 
@@ -96,6 +96,7 @@ Automatically preserved: Enabled, all resource tuning, all HUD layout settings, 
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

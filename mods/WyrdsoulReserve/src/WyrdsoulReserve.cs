@@ -24,9 +24,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Adds three overflow reserves to Wyrd Power")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrdsoul Reserve")]
-[assembly: AssemblyVersion("1.0.4.0")]
-[assembly: AssemblyFileVersion("1.0.4.0")]
-[assembly: AssemblyInformationalVersion("1.0.4")]
+[assembly: AssemblyVersion("1.0.5.0")]
+[assembly: AssemblyFileVersion("1.0.5.0")]
+[assembly: AssemblyInformationalVersion("1.0.5")]
 
 namespace WyrdsoulReserve
 {
@@ -41,7 +41,7 @@ namespace WyrdsoulReserve
     {
         public const string PluginGuid = "ks.tgfoa.wyrdsoul-reserve";
         public const string PluginName = "Wyrdsoul Reserve";
-        public const string PluginVersion = "1.0.4";
+        public const string PluginVersion = "1.0.5";
 
         private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;

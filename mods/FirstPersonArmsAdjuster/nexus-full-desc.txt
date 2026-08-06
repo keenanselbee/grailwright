@@ -1,26 +1,21 @@
 [center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]First Person Arms Adjuster[/size][/color]
-Get weapons away from your face. Adjust their position without changing FOV or aim.[/center]
+[i]Get weapons away from your face. Adjust their position without changing FOV or aim.[/i][/center]
 
 [line]
 
-[b]First Person Arms Adjuster[/b] is a presentation-only BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It moves the rendered first-person body, arms, weapons, shields, and held arrows in camera space while leaving the world camera and gameplay transforms alone.
+[b]First Person Arms Adjuster[/b] moves the rendered first-person body, arms, weapons, shields, and held arrows in camera space while leaving the world camera and gameplay transforms alone.
 
 Use it to push an oversized viewmodel farther away, bring it closer, or make small horizontal and vertical corrections without replacing the game's field of view.
 
-[line]
-
-[heading][color=#C94A4A][size=5]What It Changes[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Moves the visible first-person body and equipped items farther from or closer to the camera.[/*]
-[*]Adds horizontal and vertical camera-space adjustments.[/*]
-[*]Uses separate forward offsets for melee weapons, bows, and magic by default.[/*]
-[*]Keeps unarmed and unrecognized equipment on the general ForwardOffset value.[/*]
-[*]Moves current Kandra first-person render regions, matching culling data, linked Drake equipment, and ordinary hierarchy content together.[/*]
-[*]Converts the shared weapon translation into each linked Drake entity's own transform space to keep multi-part and two-handed weapons stable during animation.[/*]
-[*]Smoothly returns to the vanilla viewmodel position during fireplace interactions, waits for the controller's complete stand-up transition, then restores configured offsets.[/*]
-[*]Applies configuration changes live.[/*]
-[*]Leaves world FOV, aiming, hand sockets, the weapon fire point, projectile origins, hit detection, physics, and the saved player position unchanged.[/*]
+[*][b]Camera-space positioning:[/b] Move the visible first-person body and equipped items forward, backward, horizontally, or vertically.[/*]
+[*][b]Category offsets:[/b] Use separate forward positions for melee weapons, bows, and magic while keeping unarmed and unrecognized equipment on the general value.[/*]
+[*][b]Stable equipment rendering:[/b] Move linked render regions, culling data, and Drake equipment together so multi-part and two-handed weapons remain stable during animation.[/*]
+[*][b]Interaction recovery:[/b] Ease back to the vanilla position during fireplace interactions and restore configured offsets after the complete stand-up transition.[/*]
+[*][b]Live configuration:[/b] Apply positioning changes immediately without restarting the game.[/*]
+[*][b]Presentation only:[/b] Leave FOV, aiming, sockets, projectile origins, hit detection, physics, and saved player position unchanged.[/*]
 [/list]
 
 [line]
@@ -96,6 +91,7 @@ Automatically preserved: Enabled, ForwardOffset, HorizontalOffset, VerticalOffse
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

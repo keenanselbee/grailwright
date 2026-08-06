@@ -1,0 +1,7 @@
+TargetVersion=1.10.0
+BaselineVersion=1.9.5
+Prevented title-screen notifications from initializing game font families before localization is ready and added a safe temporary font fallback during startup.
+Added one non-invasive compatibility notice when Custom Timescale and Eyes in the Dark are both detected.
+Made built-in Wyrdnight, Wyrd safety, fragment, and Wyrd skill notices follow Eyes in the Dark's live Purple Wyrdness or Native Orange palette without changing urgency or ordering.
+Standardized Wyrdnight terminology in notifications, configuration descriptions, and documentation.
+Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.

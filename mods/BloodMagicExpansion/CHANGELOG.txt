@@ -1,3 +1,6 @@
+Version 2.4.0
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 2.3.9
 Added source-isolated Grail Floating Text consolidation for Blood Magic XP when GFT 1.9.0 or newer is installed.
 Consolidates live-drain XP only with live-drain XP and corpse rewards only within the same corpse-quality tier; Blood Magic XP never merges with generic XP or another mod.

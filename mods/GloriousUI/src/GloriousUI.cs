@@ -52,9 +52,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Immersive HUD and expanded Equipment-panel controls for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Glorious UI")]
-[assembly: AssemblyVersion("1.7.0.0")]
-[assembly: AssemblyFileVersion("1.7.0.0")]
-[assembly: AssemblyInformationalVersion("1.7.0")]
+[assembly: AssemblyVersion("1.7.1.0")]
+[assembly: AssemblyFileVersion("1.7.1.0")]
+[assembly: AssemblyInformationalVersion("1.7.1")]
 
 namespace GloriousUI
 {
@@ -136,7 +136,7 @@ namespace GloriousUI
     {
         public const string PluginGuid = "ks.tgfoa.glorious-ui";
         public const string PluginName = "Glorious UI";
-        public const string PluginVersion = "1.7.0";
+        public const string PluginVersion = "1.7.1";
 
         private const int ConfigSchemaVersion = 1;
         private const int ConfigRecoveryBaselineSchema = 1;

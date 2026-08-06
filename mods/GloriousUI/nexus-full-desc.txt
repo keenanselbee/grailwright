@@ -172,6 +172,7 @@ Glorious UI replaces the previous Better Quick Slots and Wyrdframe identities wi
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 Eyes in the Dark and Grail Floating Text integrations are optional. Neither is required for Glorious UI's core HUD, Equipment, wheel, or hotkey features.

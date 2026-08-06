@@ -4,7 +4,7 @@
 
 [line]
 
-KS Addons is a small BepInEx 5 Mono collection for [b]Tainted Grail: The Fall of Avalon[/b]. It gathers focused companion plugins that run alongside the original mods they support.
+[b]KS Addons[/b] gathers focused companion plugins that run alongside selected [b]Tainted Grail: The Fall of Avalon[/b] mods.
 
 Each addon has its own folder and README. Install only the addons whose original mods you use.
 
@@ -120,6 +120,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
+[*]Supports Windows and Linux.[/*]
 [*]The original mod required by each addon you install.[/*]
 [/list]
 

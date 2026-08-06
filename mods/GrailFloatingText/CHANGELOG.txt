@@ -1,3 +1,6 @@
+Version 1.10.0
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 1.9.9
 Made built-in vanilla Wyrdnight, Wyrd safety, fragment, and Wyrd skill notifications follow Eyes in the Dark's live Purple Wyrdness or Native Orange palette when Eyes is loaded.
 Kept urgency independent from color-group selection, so high-priority Wyrd warnings retain their ordering while using the selected palette.

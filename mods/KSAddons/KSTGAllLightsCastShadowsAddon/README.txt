@@ -1,7 +1,8 @@
 TG All Lights Cast Shadows Addon
 ==============================
 
-Version: 1.1.8
+Version: 1.2.0
+Platforms: Windows and Linux through Proton.
 
 Original mod: TG All Lights Cast Shadows 1.2.0
 
@@ -42,7 +43,7 @@ Start the game once to generate:
 
   BepInEx\config\ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg
 
-Version 1.1.8 uses ConfigSchemaVersion 2. Older configs are backed up and a
+Version 1.2.0 uses ConfigSchemaVersion 2. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly. Built-in bonfire and
 campfire exclusions are now code-owned. Add custom names to
 AdditionalExcludedLightPathFragments; that manual list is preserved by exact

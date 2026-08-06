@@ -1,5 +1,7 @@
 Wyrd Sight Addon
-Version 1.0.9
+Version 1.1.1
+
+Platforms: Windows and Linux through Proton.
 
 Companion addon for Wyrd Sight 1.1.1.
 
@@ -39,7 +41,7 @@ PulseDurationSeconds for a shorter flash, or raise it for a longer scan. The
 state-check and off-retry timing defaults are conservative; change them only if
 the parent mod needs slower or faster pulse ownership handling.
 
-Version 1.0.9 appears as Wyrd Sight Addon in BepInEx and Configuration
+Version 1.1.1 appears as Wyrd Sight Addon in BepInEx and Configuration
 Manager while keeping the existing ks.tgfoa.wyrd-sight-addon.cfg config path.
 It still uses ConfigSchemaVersion 2. Older configs are backed up and a fresh
 default config is regenerated when the schema changes.

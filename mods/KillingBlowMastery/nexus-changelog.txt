@@ -1,0 +1,4 @@
+TargetVersion=1.5.7
+BaselineVersion=1.5.5
+Matched the game's hyphenated One-Handed and Two-Handed proficiency names in notifications, configuration descriptions, diagnostics, and documentation.
+Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.

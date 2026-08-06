@@ -4,32 +4,24 @@
 
 [line]
 
-Dishonored Dynamic Crosshair is a BepInEx 5 plugin for the game's Mono branch. It replaces the vanilla crosshair with PNG reticles that react to your equipped weapon, targeted NPCs, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback.
-
-[line]
+[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback.
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Separate hot-reloading PNG reticles for general, bow, magic, and blood-magic corpse contexts.[/*]
-[*]Simple visibility presets: AlwaysVisible, TargetOnly, CombatReady, and HostilesOnly.[/*]
-[*]Shared default, hostile, and friendly/neutral colors for normal reticles.[/*]
-[*]Live hostility updates while the same NPC remains under the reticle.[/*]
-[*]Configurable NPC target-detection range, defaulting to 1.2x vanilla.[/*]
-[*]True screen-pixel or canvas-relative sizing with direct final dimensions.[/*]
-[*]Selectable mipmapped trilinear or bilinear texture filtering.[/*]
-[*]Mounted opacity control; by default the custom reticle is hidden while riding and returns after dismounting.[/*]
-[*]Independent crouch/detection indicator opacity and vertical offset that preserve its animations.[/*]
-[*]One HideVanillaReticles option for the game's default, melee, bow, and item reticles.[/*]
-[*]Optional [b]Blood Magic Expansion[/b] API v4 support with a dedicated corpse-drain reticle.[/*]
+[*][b]Reactive reticles:[/b] Use separate hot-reloading PNGs for general, bow, magic, and blood-magic corpse contexts.[/*]
+[*][b]Flexible visibility:[/b] Choose AlwaysVisible, TargetOnly, CombatReady, or HostilesOnly, with live hostility updates and configurable target range.[/*]
+[*][b]Readable targeting:[/b] Apply shared default, hostile, and friendly or neutral colors while retaining independent crouch-indicator controls.[/*]
+[*][b]Precise presentation:[/b] Set true screen-pixel or canvas-relative dimensions, texture filtering, mounted opacity, and vanilla-reticle suppression.[/*]
+[*][b]Blood Magic integration:[/b] Show a dedicated corpse-drain reticle through the optional [b]Blood Magic Expansion[/b] API.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
-[*][b]Tainted Grail: The Fall of Avalon Patch 1.25[/b].[/*]
-[*]Steam beta branch [b]mono[/b], build [b]24270691[/b].[/*]
-[*][b]BepInEx 5 Mono[/b] (built against 5.4.23.3).[/*]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 This plugin uses the game's managed Mono assemblies. It is [b]not compatible[/b] with the normal public IL2CPP branch (build 23527157) or an IL2CPP BepInEx installation. BepInEx support for both runtimes does not make plugin DLLs interchangeable.

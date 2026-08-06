@@ -1,3 +1,6 @@
+Version 1.5.7
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 1.5.6
 Matched the game's hyphenated One-Handed and Two-Handed proficiency names in notifications, config descriptions, diagnostics, and documentation.
 

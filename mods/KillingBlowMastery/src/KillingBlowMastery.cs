@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.5.6.0")]
-[assembly: AssemblyFileVersion("1.5.6.0")]
-[assembly: AssemblyInformationalVersion("1.5.6")]
+[assembly: AssemblyVersion("1.5.7.0")]
+[assembly: AssemblyFileVersion("1.5.7.0")]
+[assembly: AssemblyInformationalVersion("1.5.7")]
 
 namespace KillingBlowMastery
 {
@@ -29,7 +29,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.5.6";
+        public const string PluginVersion = "1.5.7";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";

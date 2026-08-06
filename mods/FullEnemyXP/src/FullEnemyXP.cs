@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("Removes the enemy overlevel kill XP penalty in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Full Enemy XP")]
-[assembly: AssemblyVersion("1.0.7.0")]
-[assembly: AssemblyFileVersion("1.0.7.0")]
-[assembly: AssemblyInformationalVersion("1.0.7")]
+[assembly: AssemblyVersion("1.0.8.0")]
+[assembly: AssemblyFileVersion("1.0.8.0")]
+[assembly: AssemblyInformationalVersion("1.0.8")]
 
 namespace FullEnemyXP
 {
@@ -25,7 +25,7 @@ namespace FullEnemyXP
     {
         public const string PluginGuid = "ks.tgfoa.full-enemy-xp";
         public const string PluginName = "Full Enemy XP";
-        public const string PluginVersion = "1.0.7";
+        public const string PluginVersion = "1.0.8";
         private const int ConfigSchemaVersion = 1;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]

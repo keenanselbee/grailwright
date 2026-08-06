@@ -10,6 +10,7 @@
 5. Confirm the zip was written under `.codex-temp` and the new version was staged into Vortex.
    Both names should use the readable display name plus version, such as `Blood Magic Expansion 2.0.7`.
 6. Inspect the zip or staged folder for one compact top-level plugin folder and the expected DLL.
+   ZIP entry paths must use `/`, never `\`; the shared exporter validates this before publishing or staging.
 7. Confirm the zip does not contain `src`, `tools`, `mod.json`, or
    Nexus publishing metadata such as `nexus-full-desc.txt` or `nexus-changelog.txt`.
 8. For a Desktop-only zip, omit `-StageToVortex` only when the user explicitly asks to send the build to Desktop.

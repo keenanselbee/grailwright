@@ -317,6 +317,68 @@ function Assert-PackageScratchLayout {
     }
 }
 
+function New-PortableZipArchive {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $archive = [System.IO.Compression.ZipFile]::Open(
+        $DestinationPath,
+        [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($file in Get-ChildItem -LiteralPath $SourceRoot -Recurse -File -Force) {
+            $entryName = (Get-RelativePathCompat -Root $SourceRoot -Path $file.FullName).Replace('\', '/')
+            $null = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive,
+                $file.FullName,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal)
+        }
+    } finally {
+        $archive.Dispose()
+    }
+}
+
+function Assert-PortableArchiveLayout {
+    param(
+        [Parameter(Mandatory = $true)][string]$ArchivePath,
+        [Parameter(Mandatory = $true)][string]$PackageName
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    try {
+        if ($archive.Entries.Count -eq 0) {
+            throw 'Export archive contains no files.'
+        }
+
+        $expectedPrefix = $PackageName + '/'
+        foreach ($entry in $archive.Entries) {
+            $entryName = $entry.FullName
+            if ($entryName.Contains('\')) {
+                throw ('Export archive entry uses a Windows path separator: {0}' -f $entryName)
+            }
+
+            if (-not $entryName.StartsWith($expectedPrefix, [System.StringComparison]::Ordinal)) {
+                throw ('Export archive entry is outside the expected package folder: {0}' -f $entryName)
+            }
+
+            foreach ($segment in $entryName.Split('/')) {
+                if ([string]::IsNullOrWhiteSpace($segment) -or $segment -eq '.' -or $segment -eq '..') {
+                    throw ('Export archive entry has an unsafe path: {0}' -f $entryName)
+                }
+            }
+        }
+    } finally {
+        $archive.Dispose()
+    }
+}
+
 function Remove-PreviousPackageArchives {
     param(
         [Parameter(Mandatory = $true)][string]$DestinationDirectory,
@@ -456,8 +518,8 @@ try {
 
     Assert-PackageScratchLayout -ScratchRoot $scratch -PackageName $PackageName
 
-    $items = @(Get-ChildItem -LiteralPath $scratch -Force)
-    Compress-Archive -LiteralPath @($items.FullName) -DestinationPath $tempZipPath -CompressionLevel Optimal
+    New-PortableZipArchive -SourceRoot $scratch -DestinationPath $tempZipPath
+    Assert-PortableArchiveLayout -ArchivePath $tempZipPath -PackageName $PackageName
     if (Test-Path -LiteralPath $zipPath -PathType Leaf) {
         Remove-Item -LiteralPath $zipPath -Force
     }

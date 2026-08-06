@@ -14,8 +14,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Conceals restored Persistent Corpses ragdolls until they settle")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Persistent Corpses Addon")]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyVersion("1.0.7.0")]
+[assembly: AssemblyFileVersion("1.0.7.0")]
 
 namespace Keenan.TGFoA.PersistentCorpsesAddon
 {
@@ -31,7 +31,7 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         public const string PluginGuid =
             "ks.tgfoa.persistent-corpses-addon";
         public const string PluginName = "Persistent Corpses Addon";
-        public const string PluginVersion = "1.0.6";
+        public const string PluginVersion = "1.0.7";
         public const string ParentPluginGuid =
             "VirusAlex.PersistentCorpses";
 

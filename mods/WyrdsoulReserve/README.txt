@@ -1,5 +1,7 @@
 Wyrdsoul Reserve
-Version 1.0.4
+Version 1.0.5
+
+Platforms: Windows and Linux through Proton.
 
 Wyrdsoul Reserve adds three diamond-shaped overflow vessels beside the Wyrd Power
 indicator. Together they store one additional full Wyrd Power bar.

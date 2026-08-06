@@ -1,5 +1,5 @@
 Version 2.2.1
-Work in progress; not yet released.
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
 
 Version 2.2.0

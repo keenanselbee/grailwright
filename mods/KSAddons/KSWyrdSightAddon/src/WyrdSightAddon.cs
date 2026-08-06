@@ -12,8 +12,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Pulse-key companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
@@ -24,7 +24,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.1";
         public const string ParentPluginGuid = "WyrdSight";
 
         private const int ConfigSchemaVersion = 2;

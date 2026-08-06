@@ -27,7 +27,8 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.3.9
+Version: 2.4.0
+Platforms: Windows and Linux through Proton.
 ```
 
 This is a clean technical rename from Blood Mage. Do not deploy the older

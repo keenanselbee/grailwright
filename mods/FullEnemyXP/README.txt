@@ -1,5 +1,7 @@
 Full Enemy XP - No Overlevel Penalty
-Version 1.0.6
+Version 1.0.8
+
+Platforms: Windows and Linux through Proton.
 
 Full Enemy XP is a standalone BepInEx plugin for Tainted Grail: The Fall of
 Avalon. It removes the vanilla kill XP falloff that reduces enemy XP when the

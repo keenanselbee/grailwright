@@ -34,8 +34,8 @@ using UnityEngine.SceneManagement;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
+[assembly: AssemblyVersion("0.3.1.0")]
+[assembly: AssemblyFileVersion("0.3.1.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -48,7 +48,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.3.1";
 
         private const int ConfigSchemaVersion = 7;
         private const int ConfigRecoveryBaselineSchema = 1;

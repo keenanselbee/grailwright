@@ -1,4 +1,6 @@
-Glorious UI 1.7.0
+Glorious UI 1.7.1
+
+Platforms: Windows and Linux through Proton.
 
 Glorious UI provides a centered, resolution-independent gameplay HUD with
 smart quick slots, immersive compass visibility, quieter notifications, and

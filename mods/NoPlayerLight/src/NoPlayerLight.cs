@@ -9,8 +9,8 @@ using UnityEngine.SceneManagement;
 [assembly: AssemblyDescription("Disables the player HeroLight object in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("No Player Light")]
-[assembly: AssemblyVersion("1.3.4.0")]
-[assembly: AssemblyFileVersion("1.3.4.0")]
+[assembly: AssemblyVersion("1.3.5.0")]
+[assembly: AssemblyFileVersion("1.3.5.0")]
 
 namespace NoPlayerLight
 {
@@ -20,7 +20,7 @@ namespace NoPlayerLight
     {
         public const string PluginGuid = "ks.tgfoa.no-player-light";
         public const string PluginName = "No Player Light";
-        public const string PluginVersion = "1.3.4";
+        public const string PluginVersion = "1.3.5";
 
         private const string HeroLightObjectName = "HeroLight";
 

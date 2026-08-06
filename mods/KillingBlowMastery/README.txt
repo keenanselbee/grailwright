@@ -1,6 +1,8 @@
 Killing Blow Mastery
 
-Version 1.5.6
+Version 1.5.7
+
+Platforms: Windows and Linux through Proton.
 
 Killing Blow Mastery is a standalone BepInEx plugin for Tainted Grail: The
 Fall of Avalon. It gives a small extra proficiency bonus to the combat skill

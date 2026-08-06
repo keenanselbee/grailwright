@@ -1,6 +1,9 @@
 Dishonored Dynamic Crosshair
 ============================
 
+Version 2.9.2
+Platforms: Windows and Linux through Proton.
+
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
 
 Plugin identity:
@@ -32,7 +35,7 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 2.9.0 uses ConfigSchemaVersion 3. On first launch from an older
+Version 2.9.2 uses ConfigSchemaVersion 3. On first launch from an older
 schema, the previous config is backed up beside the active config as a dated
 .bak file and fresh defaults are generated. Reticle PNG paths, sizes, scales,
 colors, opacities, size mode, Blood Magic quality scaling, and crouch-indicator

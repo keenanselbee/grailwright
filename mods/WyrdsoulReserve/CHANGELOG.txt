@@ -1,3 +1,6 @@
+Version 1.0.5
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 1.0.4
 Renamed the mod, package, plugin, config, and save-data identities from Wyrd Reserve to Wyrdsoul Reserve.
 

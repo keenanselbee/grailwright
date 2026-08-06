@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("2.1.2.0")]
-[assembly: AssemblyFileVersion("2.1.2.0")]
-[assembly: AssemblyInformationalVersion("2.1.2")]
+[assembly: AssemblyVersion("2.1.3.0")]
+[assembly: AssemblyFileVersion("2.1.3.0")]
+[assembly: AssemblyInformationalVersion("2.1.3")]
 
 namespace EnemyRespawnControl
 {
@@ -24,7 +24,7 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "2.1.2";
+        public const string PluginVersion = "2.1.3";
         private const int ConfigSchemaVersion = 4;
         private const int ConfigRecoveryBaselineSchema = 4;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]

@@ -17,6 +17,11 @@ display name plus version, such as `Blood Magic Expansion 2.0.7`. The archive
 payload keeps the compact plugin folder from `mod.json`, such as
 `BloodMagicExpansion`.
 
+ZIP entry paths use the standard `/` separator even when packages are built on
+Windows. This lets Linux-native mod managers extract the same folder structure
+that Windows and Vortex see instead of creating flattened filenames containing
+backslashes. The shared exporter validates this before accepting an archive.
+
 Repository-only content such as `src/`, `tools/`, `mod.json`, and
 `nexus-full-desc.txt` or `nexus-changelog.txt` is not included in release zips.
 Nexus descriptions and consolidated release text are publishing source, not

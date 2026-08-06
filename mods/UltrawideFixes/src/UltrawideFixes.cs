@@ -16,8 +16,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Ultrawide presentation fixes for Tainted Grail title and loading screens")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Ultrawide Fixes")]
-[assembly: AssemblyVersion("1.0.8.0")]
-[assembly: AssemblyFileVersion("1.0.8.0")]
+[assembly: AssemblyVersion("1.0.9.0")]
+[assembly: AssemblyFileVersion("1.0.9.0")]
 
 namespace UltrawideFixes
 {
@@ -27,7 +27,7 @@ namespace UltrawideFixes
     {
         public const string PluginGuid = "ks.tgfoa.ultrawide-fixes";
         public const string PluginName = "Ultrawide Fixes";
-        public const string PluginVersion = "1.0.8";
+        public const string PluginVersion = "1.0.9";
 
         private const float SourceVideoAspect = 16.0f / 9.0f;
         private const float DefaultTargetAspect = 21.0f / 9.0f;

@@ -10,20 +10,14 @@ The goal is to make side weapons, shields, archery, and magic less painful to tr
 
 It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
 
-[line]
-
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Killing blow proficiency XP for One-Handed, Two-Handed, Unarmed, Archery, Shield, and Magic.[/*]
-[*]Small default reward based on enemy XP, with a minimum and cap to keep it controlled.[/*]
-[*]Damage-over-time attribution for recent supported hero damage sources.[/*]
-[*]Shared Grail Floating Text reward text showing the exact skill and XP gained, with skill-level icons when Grail Floating Text 1.2.0 or newer is installed.[/*]
-[*]FMOD finisher sounds with weapon-specific, soulslike, goat-test, and off modes.[/*]
-[*]Category sound pools for blades, axes, blunt weapons, bows, shield bashes, unarmed kills, and magic types.[/*]
-[*]Includes 165 finisher sound effects: 100 standard weapon, shield, and magic sounds, 60 optional dry variants for bloodless targets, and 5 non-corporeal target sounds.[/*]
-[*]Target-only [b]non_corporeal[/b] sound routing for Wyrdspirits, selected Wyrdspawn, Mistlings, Banshee/Melancholy, and selected ghost enemies.[/*]
-[*]Optional [b]_dry[/b] sound variants for skeletons, stone bodies, spirits, Wyrd variants, and similar targets.[/*]
-[*]Lightweight per-character statistics for rewarded killing blows, proficiency XP, kill sources, and repeated enemy types.[/*]
+[*][b]Finishing-skill XP:[/b] Reward One-Handed, Two-Handed, Unarmed, Archery, Shield, or Magic when that skill lands the killing blow.[/*]
+[*][b]Controlled progression:[/b] Base the modest bonus on enemy XP with configurable minimum and cap values, including recent supported damage-over-time attribution.[/*]
+[*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages and skill-level icons.[/*]
+[*][b]Weapon-aware finishers:[/b] Route FMOD sounds through blades, axes, blunt weapons, bows, shields, unarmed attacks, and distinct magic pools.[/*]
+[*][b]Large included sound library:[/b] Use 165 effects across standard, optional dry bloodless-target, and non-corporeal variants, with several selectable sound modes.[/*]
+[*][b]Per-character statistics:[/b] Track rewarded killing blows, proficiency XP, kill sources, and repeated enemy types in save-backed memory.[/*]
 [/list]
 
 [line]
@@ -277,8 +271,14 @@ BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
-[*]Tainted Grail: The Fall of Avalon[/*]
-[*]Steam beta branch: mono[/*]
-[*]BepInEx 5 Mono[/*]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is optional, but required for the default shared reward text route.[/*]
 [/list]

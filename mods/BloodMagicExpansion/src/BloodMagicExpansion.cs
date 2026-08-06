@@ -19,8 +19,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.3.9.0")]
-[assembly: AssemblyFileVersion("2.3.9.0")]
+[assembly: AssemblyVersion("2.4.0.0")]
+[assembly: AssemblyFileVersion("2.4.0.0")]
 
 namespace BloodMagicExpansion
 {
@@ -39,7 +39,7 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.3.9";
+        public const string PluginVersion = "2.4.0";
         private const int ConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]

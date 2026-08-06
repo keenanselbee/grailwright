@@ -2,7 +2,7 @@
   "id": "GloriousUI",
   "displayName": "Glorious UI",
   "packageName": "GloriousUI",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "pluginGuid": "ks.tgfoa.glorious-ui",
   "dll": "GloriousUI.dll",
   "sourceFiles": [

@@ -1,5 +1,7 @@
-First Person Arms Adjuster 0.3.0
+First Person Arms Adjuster 0.3.1
 ================================
+
+Platforms: Windows and Linux through Proton.
 
 First Person Arms Adjuster is an experimental prototype for Tainted Grail:
 The Fall of Avalon. It moves the rendered first-person body, arms, weapons, and

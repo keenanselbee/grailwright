@@ -4,24 +4,20 @@
 
 [line]
 
-Enemy Respawn Control is a standalone BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b]. It remembers regular world mob spawners after their spawned NPCs or creatures are killed and blocks future respawn attempts until the configured delay has elapsed.
+[b]Enemy Respawn Control[/b] lets you decide how long cleared regular world encounters stay cleared. It remembers mob spawners after their NPCs or creatures are killed and blocks future respawn attempts until the configured delay has elapsed.
 
 The default [b]Default[/b] preset waits 24 in-game/weather hours. This is still a large increase over the game's usual 2-hour fallback while keeping the world from feeling permanently empty.
 
 ERC measures respawn delays with the game's world/weather clock, not real time. Timescale and day-night mods can make these waits take more or less real-world time because the delay follows the in-game clock.
 
-[line]
-
-[heading][color=#C94A4A][size=5]What It Does[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Guards cleared regular mob spawners after their spawned NPCs or creatures are killed.[/*]
-[*]Blocks respawn checks and direct spawn attempts until the configured delay has elapsed.[/*]
-[*]Ignores resource, pickable, passive prey, summon-derived, and other passive non-enemy location spawners when they are not currently hostile.[/*]
-[*]Controls ordinary NPC-template mob spawners even when the game's current hostility check is false or not restored yet.[/*]
-[*]Leaves ambush-only spawners, active Wyrd-night spawner state, and manual/story-triggered spawns alone while keeping ordinary spawners controlled.[/*]
-[*]Uses in-game/weather time only, so day-night speed changes are reflected in real-world wait time.[/*]
-[*]Offers presets from vanilla-style timing to indefinitely blocked cleared spawners.[/*]
-[*]Includes diagnostics for spawner lock creation, lifecycle and classification reasons, compact NPC type/prey/summon signals, blocked gate names, allowed spawn attempts, skipped spawners, cleanup, and lock expiry decisions.[/*]
+[*][b]Persistent cleared encounters:[/b] Guard regular mob spawners and block respawn checks or direct spawn attempts until the selected delay expires.[/*]
+[*][b]World-time scheduling:[/b] Measure delays with the in-game weather clock so day-night speed changes naturally affect real-world wait time.[/*]
+[*][b]Flexible presets:[/b] Choose anything from vanilla-style timing to indefinitely blocked cleared spawners, with a Custom option for exact control.[/*]
+[*][b]Careful classification:[/b] Control ordinary enemy spawners while excluding resources, pickables, passive prey, summons, and other passive non-enemy spawners.[/*]
+[*][b]Story-safe boundaries:[/b] Leave ambush-only spawners, active Wyrdnight spawner state, and manual or story-triggered spawns alone.[/*]
+[*][b]Focused diagnostics:[/b] Trace spawner classification, locks, blocked gates, allowed attempts, cleanup, and expiry decisions when troubleshooting.[/*]
 [/list]
 
 [line]
@@ -82,6 +78,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

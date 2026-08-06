@@ -1,3 +1,6 @@
+Version 0.3.1
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 0.3.0
 Converted the shared weapon translation into each linked Drake entity's own transform space so animated child rotations cannot turn one parent-space offset into inconsistent world motion.
 Reduced multi-part and two-handed weapon jitter without adding temporal filtering, persistent smoothing state, or camera-response lag.

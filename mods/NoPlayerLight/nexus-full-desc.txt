@@ -4,7 +4,7 @@
 
 [line]
 
-No Player Light does one small thing: it removes the hidden player-centered [b]HeroLight[/b] from [b]Tainted Grail: The Fall of Avalon[/b].
+[b]No Player Light[/b] does one small thing: it removes the hidden player-centered [b]HeroLight[/b] from [b]Tainted Grail: The Fall of Avalon[/b].
 
 That means caves, nights, interiors, torches, lanterns, ReShade presets, and lighting mods get to carry the scene without a constant artificial glow around the player.
 
@@ -35,6 +35,7 @@ BepInEx/plugins/NoPlayerLight/NoPlayerLight.dll[/code]
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

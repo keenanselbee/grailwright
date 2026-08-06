@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("2.9.1.0")]
-[assembly: AssemblyFileVersion("2.9.1.0")]
+[assembly: AssemblyVersion("2.9.2.0")]
+[assembly: AssemblyFileVersion("2.9.2.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -89,7 +89,7 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "2.9.1";
+        public const string PluginVersion = "2.9.2";
         private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 3;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]

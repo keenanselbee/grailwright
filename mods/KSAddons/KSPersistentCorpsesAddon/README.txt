@@ -1,7 +1,8 @@
 Persistent Corpses Addon
 ========================
 
-Version: 1.0.5
+Version: 1.0.7
+Platforms: Windows and Linux through Proton.
 
 Original mod: Persistent Corpses 1.0.0
 
@@ -55,7 +56,7 @@ MinimumSettleSeconds is the shortest active-physics window before a sleeping
 ragdoll can be shown. MaximumSettleSeconds prevents a body on a slope or in an
 unstable collision from remaining invisible indefinitely.
 
-Version 1.0.5 uses ConfigSchemaVersion 1. Older or unversioned configs are
+Version 1.0.7 uses ConfigSchemaVersion 1. Older or unversioned configs are
 backed up and regenerated with fresh defaults when the schema changes.
 
 Installation

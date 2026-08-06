@@ -4,21 +4,17 @@
 
 [line]
 
-Ultrawide Fixes improves the title-screen and loading-screen presentation in [b]Tainted Grail: The Fall of Avalon[/b] on wider displays. It patches the title video, title-screen black bars, loading background, and loading blur background at runtime.
+[b]Ultrawide Fixes[/b] improves the title-screen and loading-screen presentation in [b]Tainted Grail: The Fall of Avalon[/b] on wider displays. It patches the title video, title-screen black bars, loading background, and loading blur background at runtime.
 
 By default, the plugin fills your current screen aspect to reduce leftover side bars. It uses configurable crop/stretch behavior because the original title video and loading paintings are native 16:9-style assets; the mod cannot reveal real extra artwork that is not present in the source image.
 
-[line]
-
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Resizes the title-screen video RawImage for ultrawide displays.[/*]
-[*]Resizes title-video parent RectTransforms so old 16:9 containers do not leave edge bars.[/*]
-[*]Disables title-screen black bar objects.[/*]
-[*]Patches loading-screen background and blurred background images after their real sprites are assigned.[/*]
-[*]Leaves loading text, loading bar, and loading wheel placement alone.[/*]
-[*]Supports current-screen aspect fill or a fixed target aspect such as 21:9.[/*]
-[*]Offers light crop/stretch tuning for title video and loading-screen artwork.[/*]
+[*][b]Wider title video:[/b] Resize the video and its parent containers so old 16:9 bounds do not leave side bars.[/*]
+[*][b]Clean title framing:[/b] Disable the title-screen black bar objects at runtime.[/*]
+[*][b]Improved loading art:[/b] Patch the loading background and blurred background after their real sprites are assigned.[/*]
+[*][b]Flexible aspect handling:[/b] Fill the current screen or use a fixed target such as 21:9, with light crop and stretch tuning.[/*]
+[*][b]Focused scope:[/b] Leave loading text, the loading bar, and the loading wheel placement alone.[/*]
 [/list]
 
 [line]
@@ -77,6 +73,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

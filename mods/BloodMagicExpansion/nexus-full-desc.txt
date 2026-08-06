@@ -12,19 +12,14 @@ Drain valid corpses for XP and healing, feed on living enemies for small capped 
 
 This is not a broad magic overhaul. It is a blood-magic expansion built around corpse rituals, live draining, preset identity, Abhartach corpse effects, and restrained scaling.
 
-[line]
-
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
-[*][b]Vanilla-scaled progression:[/b] Corpse XP uses the enemy's effective kill XP, including lower-level falloff, so rewards stay grounded in the game's progression.[/*]
-[*][b]Distinct presets:[/b] Blood Rite, Desecration, and Soul Feast shape ritual timing, rewards, live-drain pacing, and spell behavior, while Custom exposes the underlying tuning.[/*]
-[*][b]Live draining:[/b] Damaging living enemies with Blood Transfusion or Life Transfusion grants small, capped XP ticks during combat.[/*]
-[*][b]Corpse quality:[/b] Enemy max health and kill XP determine corpse quality, which scales healing and Abhartach effects without multiplying corpse XP a second time.[/*]
-[*][b]Ritual audio:[/b] Successful corpse drains can play short, randomized FMOD ritual sounds matched to corpse quality.[/*]
-[*][b]Blood spell inner light:[/b] Readied blood spells can cast a configurable red no-shadow glow with a temporary casting boost, separate from the vanilla HeroLight and compatible with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url].[/*]
-[*][b]Bloodless filtering:[/b] Configurable name and type terms keep stone, spirits, skeletons, Wyrd variants, and similar targets from feeding the system.[/*]
-[*][b]Bleed hitch mitigation:[/b] An optional, enabled-by-default preload moves the vanilla Bleed graph's cold deserialization into gameplay loading. It is isolated from spell tuning and can be disabled if a future game update fixes the hitch.[/*]
+[*][b]Restrained progression:[/b] Gain vanilla-scaled corpse XP and small capped live-drain ticks without turning blood magic into an unlimited leveling engine.[/*]
+[*][b]Distinct ritual identities:[/b] Blood Rite, Desecration, and Soul Feast shape ritual timing, rewards, live-drain pacing, and spell behavior, while Custom exposes the underlying tuning.[/*]
+[*][b]Corpse quality and filtering:[/b] Enemy health and kill XP scale healing and Abhartach effects, while configurable terms reject stone, spirits, skeletons, Wyrd variants, and other bloodless targets.[/*]
+[*][b]Blood-magic presentation:[/b] Quality-matched ritual audio, a configurable red spell light, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] compatibility reinforce the theme.[/*]
+[*][b]Optional hitch mitigation:[/b] An isolated, enabled-by-default preload moves the vanilla Bleed graph's cold deserialization into gameplay loading and can be disabled independently.[/*]
 [/list]
 
 [line]
@@ -149,12 +144,10 @@ The default filter blocks targets whose names, templates, or type text suggest t
 
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
-[*][b]Tainted Grail: The Fall of Avalon Patch 1.25[/b].[/*]
-[*]Steam beta branch [b]mono[/b], build [b]24270691[/b].[/*]
-[*][b]BepInEx 5 Mono[/b].[/*]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
-
-This plugin uses the game's managed Mono assemblies. It is [b]not compatible[/b] with the public IL2CPP branch or an IL2CPP BepInEx installation.
 
 [line]
 
@@ -177,7 +170,6 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for source-isolated corpse-quality and live-drain XP text; version 1.9.0+ enables consolidation.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
-[*]Do not deploy older [b]BloodMage.dll[/b] or interim [b]BloodMageExpansion.dll[/b] beside [b]BloodMagicExpansion.dll[/b].[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]
 [/list]
 

@@ -14,24 +14,24 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 
 | Mod | Version | Nexus |
 | --- | --- | --- |
-| [Glorious UI](mods/GloriousUI) | 1.7.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.3.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.9.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.1.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Glorious UI](mods/GloriousUI) | 1.7.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.9.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.1.0 | Unpublished |
-| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.3.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
-| [Full Enemy XP](mods/FullEnemyXP) | 1.0.7 | Unpublished |
-| [Grail Floating Text](mods/GrailFloatingText) | 1.9.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.5.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
-| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
-| [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.0.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
-| [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.1.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
-| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.1.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
-| [No Player Light](mods/NoPlayerLight) | 1.3.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
+| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.3.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
+| [Full Enemy XP](mods/FullEnemyXP) | 1.0.8 | Unpublished |
+| [Grail Floating Text](mods/GrailFloatingText) | 1.10.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.5.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
+| [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.0.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
+| [KS TG All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.2.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [TG All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
+| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.1.1 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
+| [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.0.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
 | [Steel and Bone](mods/SteelAndBone) | 3.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
-| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
-| [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.4 | Unpublished |
+| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
 
 ## Layout
 

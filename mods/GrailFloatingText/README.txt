@@ -1,5 +1,7 @@
 Grail Floating Text
-Version 1.9.9
+Version 1.10.0
+
+Platforms: Windows and Linux through Proton.
 
 Grail Floating Text is a shared BepInEx 5 Mono floating text overlay any
 Tainted Grail: The Fall of Avalon mod author can use.

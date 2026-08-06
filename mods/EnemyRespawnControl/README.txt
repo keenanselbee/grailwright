@@ -1,6 +1,8 @@
 Enemy Respawn Control
 
-Version 2.1.2
+Version 2.1.3
+
+Platforms: Windows and Linux through Proton.
 
 Enemy Respawn Control is a standalone BepInEx plugin for Tainted Grail: The Fall of Avalon. It remembers regular world mob spawners after their spawned NPCs or creatures are killed and blocks respawn checks until the configured delay has elapsed.
 

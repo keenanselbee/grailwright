@@ -1,3 +1,6 @@
+Version 1.7.1
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
 Version 1.7.0
 Replaced the mod, plugin, DLL, package, GUID, config, persistence, source, and repository identity with Glorious UI.
 Started a fresh config schema under ks.tgfoa.glorious-ui with no previous-identity import or compatibility layer.

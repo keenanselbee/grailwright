@@ -17,9 +17,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.2.0.0")]
-[assembly: AssemblyFileVersion("2.2.0.0")]
-[assembly: AssemblyInformationalVersion("2.2.0")]
+[assembly: AssemblyVersion("2.2.1.0")]
+[assembly: AssemblyFileVersion("2.2.1.0")]
+[assembly: AssemblyInformationalVersion("2.2.1")]
 
 namespace MainMenuMusic
 {
@@ -44,7 +44,7 @@ namespace MainMenuMusic
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.2.0";
+        public const string PluginVersion = "2.2.1";
 
         private const int ConfigSchemaVersion = 16;
         private const int ConfigRecoveryBaselineSchema = 16;

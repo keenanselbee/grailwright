@@ -1,41 +1,38 @@
 [center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
-[center][youtube]JZh5Ne4cCs0[/youtube][/center]
-
 [center][color=#C94A4A][size=6]King's Elegy - Main Menu Music[/size][/color]
 [i]Layered, configurable title-screen music with fire, wind, and custom WAV support.[/i][/center]
 
 [line]
 
-[b]King's Elegy - Main Menu Music[/b] is a BepInEx 5 Mono plugin for [b]Tainted Grail: The Fall of Avalon[/b] that gives you full control over the title-screen music route.
+[b]King's Elegy - Main Menu Music[/b] gives you full control over the title-screen music route, from its layered default arrangement to a completely custom WAV.
 
 By default, it now builds a layered version of the Tainted Grail title music from separate music, fire, and wind WAV files. The main music layer is lowered and treated with a subtle demonic FMOD DSP chain, while the fire and wind ambience stay unpitched so they keep their natural crackle and movement.
 
 [b]main_menu_music.wav[/b] is included as a small silent placeholder for the raw custom-track option. Replace it with your own WAV if you use [b]MusicMode = CustomFile[/b]. CustomFile still uses loop start, end trim, and crossfade settings, but it is not affected by pitch, demonic effects, fire ambience, wind ambience, or layered title music settings.
 
-[line]
-
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*]Mutes the game's original title-screen music emitters while replacement music is active.[/*]
-[*]Default layered title mode using separate music, fire, and wind WAV layers.[/*]
-[*]Pitch/demonic DSP treatment for the base title music layer only.[/*]
-[*]Unpitched fire and wind ambience with independent toggles and volume controls.[/*]
-[*]Raw custom WAV mode for users who only want to play their own track, with the same loop trim and crossfade controls.[/*]
-[*]Loop trimming and optional soft crossfade looping.[/*]
-[*]Fades replacement title music out when a real game load begins.[/*]
-[*]Stops muted original title emitters after the replacement fades out so title music does not bleed into loading or gameplay.[/*]
-[*]Does not replace FMOD banks or edit game files.[/*]
+[*][b]Layered default score:[/b] Build the title music from separate music, fire, and wind WAV layers with independent ambience controls.[/*]
+[*][b]Demonic music treatment:[/b] Apply pitch and FMOD DSP effects to the base music layer without distorting the natural fire and wind ambience.[/*]
+[*][b]Custom WAV mode:[/b] Replace the soundtrack with your own raw WAV while retaining loop trim and crossfade controls.[/*]
+[*][b]Clean title routing:[/b] Mute the original emitters while replacement music is active and prevent title audio from bleeding into loading or gameplay.[/*]
+[*][b]Polished transitions:[/b] Use configurable loop trimming, optional soft crossfades, and a fade-out when a real game load begins.[/*]
+[*][b]Non-destructive operation:[/b] Leave FMOD banks and game files untouched.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Default Base Music[/size][/color][/heading]
+[center][youtube]JZh5Ne4cCs0[/youtube][/center]
+
 [code]
 MusicMode = LayeredModifiedTaintedGrail
 Semitones = -7
 BaseMusicVolume = 1.0
 ApplyEffectsToBaseMusic = true
 BaseMusicFile = menu_layer_01.ksaudio[/code]
+
+[line]
 
 [heading][color=#C94A4A][size=5]Default Ambience Layers[/size][/color][/heading]
 [code]
@@ -133,8 +130,9 @@ Please support the original artists on Bandcamp.
 
 [heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
-[*]Tainted Grail: The Fall of Avalon Mono branch.[/*]
-[*]BepInEx 5 Mono.[/*]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

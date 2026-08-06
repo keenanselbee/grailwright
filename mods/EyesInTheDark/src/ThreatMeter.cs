@@ -5,7 +5,6 @@ using System.Reflection;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.HUD;
 using Awaken.TG.Main.Heroes.HUD.Bars;
-using Awaken.TG.Main.UI.Components;
 using BepInEx.Logging;
 using HarmonyLib;
 using TMPro;
@@ -24,9 +23,6 @@ namespace EyesInTheDark
         private readonly FieldInfo _barField = AccessTools.Field(
             typeof(VCHeroHUDBar),
             "bar");
-        private readonly List<Material> _ownedScrollerMaterials =
-            new List<Material>();
-
         private VHeroHUD _heroHud;
         private VCHeroHealthBar _sourceHealth;
         private VCHeroManaBar _sourceMana;
@@ -150,11 +146,6 @@ namespace EyesInTheDark
                     _root,
                     true,
                     true);
-                bool scrollDirectionPreserved = mirrored
-                    && TryPreserveTextureScrollDirection(
-                        _root,
-                        true,
-                        true);
                 Position(0f, 0f, false);
                 _root.SetActive(false);
                 _visible = false;
@@ -164,10 +155,7 @@ namespace EyesInTheDark
                     "Created the Eyes-owned Wyrd Threat meter above the vanilla Hero HUD"
                     + (mirrored
                         ? " with horizontally and vertically mirrored artwork."
-                        : ".")
-                    + (scrollDirectionPreserved
-                        ? " Animated texture direction matches the vanilla Hero bars."
-                        : string.Empty));
+                        : "."));
             }
             catch (Exception exception)
             {
@@ -278,18 +266,6 @@ namespace EyesInTheDark
             {
                 UnityEngine.Object.Destroy(_root);
             }
-            for (int index = 0;
-                index < _ownedScrollerMaterials.Count;
-                index++)
-            {
-                Material material = _ownedScrollerMaterials[index];
-                if (material != null)
-                {
-                    UnityEngine.Object.Destroy(material);
-                }
-            }
-            _ownedScrollerMaterials.Clear();
-
             _heroHud = null;
             _sourceHealth = null;
             _sourceMana = null;
@@ -944,93 +920,6 @@ namespace EyesInTheDark
 
                 _log.LogWarning(
                     "Could not mirror the Wyrd Threat meter; the normal artwork remains active: "
-                    + exception.GetBaseException().Message);
-                return false;
-            }
-        }
-
-        private bool TryPreserveTextureScrollDirection(
-            GameObject root,
-            bool mirrorHorizontally,
-            bool mirrorVertically)
-        {
-            TextureScroller[] scrollers = root == null
-                ? new TextureScroller[0]
-                : root.GetComponentsInChildren<TextureScroller>(true);
-            List<TextureScroller> configured =
-                new List<TextureScroller>();
-            List<Vector2> originalSpeeds = new List<Vector2>();
-            List<Material> originalMaterials = new List<Material>();
-            List<Material> createdMaterials = new List<Material>();
-            try
-            {
-                for (int index = 0;
-                    index < scrollers.Length;
-                    index++)
-                {
-                    TextureScroller scroller = scrollers[index];
-                    if (scroller == null || scroller.image == null)
-                    {
-                        continue;
-                    }
-
-                    Material originalMaterial = scroller.image.material;
-                    if (originalMaterial == null)
-                    {
-                        continue;
-                    }
-
-                    Material material = new Material(originalMaterial);
-                    material.name = originalMaterial.name
-                        + " (EITD Threat Meter)";
-                    material.hideFlags = HideFlags.DontSave;
-                    configured.Add(scroller);
-                    originalSpeeds.Add(scroller.speed);
-                    originalMaterials.Add(originalMaterial);
-                    createdMaterials.Add(material);
-                    scroller.image.material = material;
-                    scroller.speed = new Vector2(
-                        mirrorHorizontally
-                            ? -scroller.speed.x
-                            : scroller.speed.x,
-                        mirrorVertically
-                            ? -scroller.speed.y
-                            : scroller.speed.y);
-                }
-
-                _ownedScrollerMaterials.AddRange(createdMaterials);
-                return configured.Count > 0;
-            }
-            catch (Exception exception)
-            {
-                for (int index = 0;
-                    index < configured.Count;
-                    index++)
-                {
-                    TextureScroller scroller = configured[index];
-                    if (scroller != null)
-                    {
-                        scroller.speed = originalSpeeds[index];
-                        if (scroller.image != null)
-                        {
-                            scroller.image.material =
-                                originalMaterials[index];
-                        }
-                    }
-                }
-                for (int index = 0;
-                    index < createdMaterials.Count;
-                    index++)
-                {
-                    if (createdMaterials[index] != null)
-                    {
-                        UnityEngine.Object.Destroy(
-                            createdMaterials[index]);
-                    }
-                }
-
-                _log.LogWarning(
-                    "Could not preserve the vanilla texture-scroll direction on the mirrored Wyrd Threat meter; the meter remains usable: "
                     + exception.GetBaseException().Message);
                 return false;
             }

@@ -1,3 +1,49 @@
+Version 1.2.2
+Added configurable visual-only threat smoothing with a two-active-second default half-life, preventing battlecries and other brief threat jumps from abruptly recoloring world lighting.
+Kept authoritative threat, the HUD meter, hunts, notifications, and dynamic Wyrdnight duration immediate while reusing the existing five-times-per-second visual update.
+ConfigSchemaVersion remains 15 because ThreatVisualSmoothingSeconds is additive and existing configurations can safely receive its default.
+
+Version 1.2.1
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
+
+Version 1.2.0
+Made diagnostics refresh when any Purple exposure or indirect-diffuse control changes live, and included their exact values in the concise visual-state summary.
+Updated the consolidated acceptance candidate to use Battlecry Voice Tuner 1.0.7.
+ConfigSchemaVersion remains 15 because no configuration setting or meaning changed.
+
+Version 1.1.9
+Made the Purple exposure multiplier independently configurable with a 1.2 default and a 0-to-3 range. It remains separate from Purple Night Brightness EV compensation and the Purple indirect diffuse multiplier.
+Removed the ineffective mirrored-meter TextureScroller reversal and its private-material lifecycle. Runtime evidence showed the cloned mana-bar hierarchy had no eligible TextureScroller, so the code never altered the visible animation.
+Removed claims that the current meter corrects shader-driven animation direction. ConfigSchemaVersion remains 15 because the exposure setting is additive and the removed meter code owned no configuration.
+
+Version 1.1.8
+Added a configurable Purple Indirect Diffuse Multiplier with a 1.10 default and a 0-to-3 range.
+Applied the multiplier to the game-owned Indirect Lighting Controller after its native Wyrdnight update, following the existing presentation fade while leaving Native Orange, direct moonlight, reflections, exposure, gamma, colors, and global volumes unchanged.
+ConfigSchemaVersion remains 15 because the new setting is additive.
+
+Version 1.1.7
+Added configurable Purple Night Brightness with a +0.35 EV default and a -2-to-+2 EV range. The setting follows the existing Wyrdnight presentation fade and remains independent of threat.
+Applied Purple brightness after Light Control using the active exposure mode's native sign convention: automatic and physical-camera compensation add EV, while fixed exposure subtracts EV.
+Kept HDRP post-exposure, gamma, global volumes, colors, and Native Orange exposure untouched. ConfigSchemaVersion remains 15 because the new setting is additive.
+
+Version 1.1.4
+Removed the Purple Wyrdness Brightness setting while retaining the configurable 0.8-to-1.2 shared threat visual-strength response.
+Added a fixed 1.2 Purple Wyrdness exposure multiplier that follows the existing dusk, dawn, load, and disable presentation blend, remains independent of threat, and leaves Native Orange unchanged. Light Control exposure multipliers remain additive.
+Made the rotated rest-clock hand and fill idempotent by assigning one fixed half-turn from their captured native rotations on every refresh, and restored those rotations when Eyes releases the rest menu.
+Reduced the default diagnostics GFT System cooldown from 3 seconds to 1 second so closely timed discrete actions such as battlecries are less likely to be hidden by the shared notification lane.
+Incremented ConfigSchemaVersion from 14 to 15 because PurpleWyrdnessBrightness was removed and the existing GftSystemCooldownSeconds default changed from 3 to 1 second. Compatible durable customizations remain eligible for conservative recovery; the retired brightness value is intentionally skipped.
+
+Version 1.1.2
+Kept the configured moon, moonlight, and full-sky tint strengths independent of the shared 0.8-to-1.2 threat scale, so low threat retains the intended base palette instead of blending back toward the original game colors.
+Applied threat and Purple Wyrdness brightness to the selected HDR colors in linear color space, preserving their hue more reliably as illumination changes and threat rises.
+Stopped modifying the original skybox emission multiplier. Purple Wyrdness Brightness now scales the purple-tinted full-sky color and nighttime world illumination without boosting neutral or regional sky emission.
+Incremented ConfigSchemaVersion from 13 to 14 because PurpleWyrdnessBrightness now controls tinted-sky brightness rather than original sky emission. Compatible durable customizations, including genuine custom brightness values, remain eligible for conservative recovery.
+
+Version 1.1.1
+Added a diagnostics-only world-timescale override with a fixed 0.01-to-5.0 vanilla-clock multiplier for quickly testing phase changes, loads, and transitions.
+Made the override independent of normal Dynamic Timescale while still governed by the Eyes master switch, with safe restoration and external-clock ownership protection unchanged.
+Excluded both override controls from config recovery and previous-settings import so testing state cannot silently return. ConfigSchemaVersion remains 13 because both settings are additive.
+
 Version 1.1.0
 Preserved the vanilla Hero-bar animation direction on the horizontally and vertically mirrored Wyrd Threat meter by reversing only the cloned texture-scroller axes affected by the mirror.
 Isolated every cloned animated meter image onto its own runtime material so correcting the threat-meter animation cannot reverse or otherwise modify the original health, mana, or stamina bar effects.

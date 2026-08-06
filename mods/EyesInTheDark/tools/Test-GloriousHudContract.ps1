@@ -85,15 +85,12 @@ foreach ($required in @(
     }
 }
 
-foreach ($required in @(
+foreach ($removed in @(
+    'TryPreserveTextureScrollDirection',
     'GetComponentsInChildren<TextureScroller>(true)',
-    'new Material(originalMaterial)',
-    '? -scroller.speed.x',
-    '? -scroller.speed.y',
-    '_ownedScrollerMaterials.AddRange(createdMaterials)',
-    'UnityEngine.Object.Destroy(')) {
-    if (!$meterSource.Contains($required)) {
-        throw "Eyes in the Dark is missing mirrored texture-scroll isolation: $required"
+    '_ownedScrollerMaterials')) {
+    if ($meterSource.Contains($removed)) {
+        throw "Eyes in the Dark retains ineffective mirrored texture-scroll code: $removed"
     }
 }
 

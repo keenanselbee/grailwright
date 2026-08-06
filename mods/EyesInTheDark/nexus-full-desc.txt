@@ -36,7 +36,7 @@ Eyes owns only the [b]GameRealTime world-weather rate[/b]. It never changes Unit
 
 The live duration changes with current threat. Staying quiet lets the night move near the game's approximately 6.2-minute baseline; attracting maximum attention can double it. The 60-minute day and both night endpoints are independently configurable and remain separate from the three gameplay presets.
 
-[b]Technical clock defaults:[/b] DayMinutes 60, BaseNightMinutes 6, and MaximumThreatNightMinutes 12. Eyes converts those real-minute targets to the complete-cycle value expected by GameRealTime and rewrites the weather rate only when the active phase, clock instance, configuration, or meaningful night target changes.
+[b]Technical clock defaults:[/b] DayMinutes 60, BaseNightMinutes 6, and MaximumThreatNightMinutes 12. Eyes converts those real-minute targets to the complete-cycle value expected by GameRealTime and rewrites the weather rate only when the active phase, clock instance, configuration, or meaningful night target changes. Diagnostics also provides an optional fixed 0.01-to-5.0 vanilla-clock multiplier for accelerated transition testing without changing gameplay time.
 
 [b]How threat rises:[/b] exposed night progress provides the baseline. Sustained fast movement, meaningful combat, released projectiles, successful spell casts, confirmed melee impacts against the environment, eligible Wyrd kills, acquisitions, and optional battlecries add more. Arrows, throwables, and completed spells add modest capped threat even when they miss. Failed or canceled casts add nothing; empty melee swings add nothing and each melee attack can contribute at most once.
 
@@ -122,7 +122,7 @@ The artwork is mirrored horizontally and vertically while its animated textures 
 [heading][color=#C94A4A][size=5]Wyrdnight Visuals And Atmosphere[/size][/color][/heading]
 Eyes fully integrates its former Purple Moon Test. The configurable presentation covers the visible moon disc, HDR corona, directional and volumetric moonlight, full visible-sky tint, fueled protection-bubble body and border, Wyrd boundary, and threat meter. Purple Wyrdness is the default palette. Native Orange instead derives each base hue from the current region's game-owned values.
 
-One shared visual-strength range scales from 0.8 at zero threat to 1.2 at 100 threat. Moon, moonlight, protection bubble, boundary, and meter colors smoothly move toward a configurable #FF3028 red with a default maximum blend of 0.8. The full-sky tint deliberately retains its selected purple or native hue and never participates in the red shift. It changes the visible sky material, not fog, clouds, terrain lighting, or reflections.
+One shared visual-strength range scales brightness from 0.8 at zero threat to 1.2 at 100 threat without weakening the configured palette tint. Moon, moonlight, protection bubble, boundary, and meter colors smoothly move toward a configurable #FF3028 red with a default maximum blend of 0.8. Threat-driven world lighting and palette changes use a configurable two-active-second half-life, preventing battlecries and other sudden gains from snapping the scene to a new color. Gameplay threat, the meter, hunts, notifications, and dynamic Wyrdnight duration remain immediate. The full-sky tint deliberately retains its selected purple or native hue and never participates in the red shift. Purple Wyrdness applies a configurable exposure multiplier, default 1.2, plus configurable mode-aware brightness compensation through the same natural visual fade, independent of threat. The compensation defaults to +0.35 EV. Automatic and physical-camera exposure add the value, while fixed exposure subtracts it. Purple also applies a configurable 1.10 indirect diffuse multiplier to the game-owned Indirect Lighting Controller through that fade. Native Orange leaves exposure and indirect diffuse lighting unchanged. Eyes runs after Light Control and does not modify HDRP post-exposure, gamma, colors, direct moonlight, reflections, or global volumes.
 
 At natural dusk, the integrated environment and fueled protection-bubble palette uses a 60-active-second transition centered on nightfall by default: it begins 30 seconds before the boundary and finishes 30 seconds after. The dawn fade begins when 60 real seconds remain at the current world-clock rate and finishes at dawn, avoiding a late post-dawn Wyrd palette. This is presentation only: Wyrdnight gameplay, world-clock phase changes, threat-meter visibility, and protection state remain immediate. Pausing freezes the fade. Rest and short loading transitions hold the last confirmed presentation, while confirmed daylight, interiors, title screen, disablement, teardown, or an isolated visual failure restores safely. Loaded threat color is introduced over 10 active seconds after the first stable rendered frame instead of snapping immediately toward red.
 
@@ -195,7 +195,8 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b]. Common choice
 | Setting                  | Default             |
 |--------------------------|---------------------|
 | Palette                  | Purple              |
-| Purple brightness        | 1.2                 |
+| Purple exposure          | Fixed 1.2           |
+| Threat lighting smoothing | 2-second half-life  |
 | Visual strength          | 0.8 to 1.2          |
 | Red target / shift       | #FF3028 / 0.8       |
 | Dusk / dawn transition   | 60 seconds          |
@@ -205,6 +206,7 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b]. Common choice
 | Notifications            | Atmospheric         |
 | Battlecry response       | 15 seconds          |
 | Diagnostics              | Off                 |
+| Timescale override       | Off, multiplier 1.0 |
 [/code]
 
 Advanced sections retain individual threat sources, hunt-pressure curves, encounter composition and recovery, stalker placement, ring geometry, moon, sky, moonlight, bubble, color, HUD offset, notification, and diagnostic controls. The page focuses on the defaults most players need; every authored setting remains configurable in game.
@@ -225,7 +227,7 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
-Automatically preserved: Enabled; OwnRestMenu; AllowUnprotectedWyrdnightRest; RestClockLabelFormat; rest-interruption chances; dynamic world-clock duration settings; all Wyrd Threat, official encounter, and ambient-stalker tuning; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action and diagnostic threat-override controls are permanently excluded from recovery/import.
+Automatically preserved: Enabled; OwnRestMenu; AllowUnprotectedWyrdnightRest; RestClockLabelFormat; rest-interruption chances; dynamic world-clock duration settings; all Wyrd Threat, official encounter, and ambient-stalker tuning; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action plus diagnostic threat and timescale override controls are permanently excluded from recovery/import.
 
 When a visual-default reset is required, compatible durable customizations are restored conservatively. The tested pulse amount and Diagnostics-off state deliberately adopt their new defaults instead of restoring those two older customized values.
 
@@ -235,6 +237,7 @@ When a visual-default reset is required, compatible durable customizations are r
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]

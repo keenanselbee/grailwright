@@ -133,7 +133,9 @@ $expectedPermanentExclusions = @{
     'EyesInTheDark' = @(
         @{ Section = '2. Gameplay Preset'; Key = 'ApplyPreset' },
         @{ Section = '10. Diagnostics'; Key = 'EnableThreatOverride' },
-        @{ Section = '10. Diagnostics'; Key = 'ThreatOverrideValue' }
+        @{ Section = '10. Diagnostics'; Key = 'ThreatOverrideValue' },
+        @{ Section = '10. Diagnostics'; Key = 'EnableTimescaleOverride' },
+        @{ Section = '10. Diagnostics'; Key = 'TimescaleOverrideMultiplier' }
     )
     'BattlecryVoiceTuner' = @(
         @{ Section = '4. Testing'; Key = 'PlayRandomTestSound' }

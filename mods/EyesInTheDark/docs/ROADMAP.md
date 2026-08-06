@@ -1,14 +1,14 @@
-# Eyes in the Dark 1.1.0 Implementation Roadmap
+# Eyes in the Dark 1.2.2 Implementation Roadmap
 
 ## Objective
 
-Reach a hardened, user-testable `1.1.0` release candidate of **Eyes in the Dark -
+Reach a hardened, user-testable `1.2.2` release candidate of **Eyes in the Dark -
 Wyrdnight Overhaul** without expanding beyond the product rules in
 [DESIGN.md](DESIGN.md).
 
 The roadmap advances through narrow vertical slices. Each milestone must compile
 and satisfy its automated contracts before the next begins. Consolidated
-in-game acceptance begins only after the `1.1.0` implementation is complete.
+in-game acceptance begins only after the `1.2.2` implementation is complete.
 Patch releases may fix a milestone, but authored patch versions must remain
 below 10; roll to the next minor version instead of using an `X.Y.10` version.
 
@@ -69,6 +69,15 @@ below 10; roll to the next minor version instead of using an `X.Y.10` version.
 | 1.0.8 | Noon-first clock and performance pass | The rest clock uses a complete noon-at-top mapping, popup times follow the selected format, and the Wyrdnight hot paths avoid redundant work. |
 | 1.0.9 | Preset-driven risky rest | Unprotected sleep uses cumulative native-integrated interruption risk, can commit one official hunt, and has optional rest-menu ownership. |
 | 1.1.0 | Mirrored meter animation correction | Meter artwork stays mirrored while its animated texture retains the vanilla resource-bar direction without changing shared materials. |
+| 1.1.1 | Diagnostic timescale override | A fixed vanilla-clock multiplier accelerates transition testing without touching Unity gameplay time or weakening clock ownership safety. |
+| 1.1.2 | Palette-preserving brightness | Threat scales selected-color brightness instead of weakening tint, while the original sky emission remains game-owned. |
+| 1.1.4 | Exposure and rest-clock correction | Purple uses fixed exposure, the retired brightness control is removed, rest-clock rotation is idempotent, and diagnostics react sooner. |
+| 1.1.7 | Mode-aware Purple brightness | Purple adds configurable +0.35 EV exposure compensation after Light Control without touching HDRP post-exposure, gamma, colors, or global volumes. |
+| 1.1.8 | Purple indirect diffuse tuning | Purple applies a configurable 1.10 multiplier to the native indirect diffuse result without changing direct or reflected lighting. |
+| 1.1.9 | Exposure control and meter cleanup | The 1.2 Purple exposure multiplier becomes configurable, and the ineffective TextureScroller correction is removed pending targeted shader diagnostics. |
+| 1.2.0 | Diagnostic hardening candidate | Purple lighting controls refresh the concise diagnostic state, and the acceptance matrix targets the current Battlecry integration. |
+| 1.2.1 | Portable packaging | Release archives install correctly through Windows, Vortex, and Linux/Proton paths. |
+| 1.2.2 | Threat lighting smoothing | Sudden threat changes ease into world lighting at the existing bounded visual cadence while gameplay and HUD threat remain immediate. |
 
 ## 0.1.0 - Scaffold
 
@@ -492,7 +501,7 @@ Reliability:
 
 ### Consolidated in-game test pass
 
-Begin this pass only after the `1.1.0` implementation, automated contracts, and
+Begin this pass only after the `1.2.2` implementation, automated contracts, and
 clean build are complete. Execute every accumulated milestone Verification
 matrix against the same candidate build, recording failures and fixes. Rebuild
 and repeat affected scenarios after a fix; do not mark the goal complete merely
@@ -988,8 +997,8 @@ Implemented scope:
 
 ## 1.1.0 - Mirrored meter animation correction
 
-Status: implementation and documentation complete. Automated contracts, clean
-packaging, Vortex staging, and focused in-game acceptance remain required.
+Status: superseded by 1.1.9 after live diagnostics showed that the cloned
+mana-bar hierarchy had no eligible `TextureScroller`.
 
 Implemented scope:
 
@@ -1000,7 +1009,125 @@ Implemented scope:
   the meter cannot change shared vanilla materials.
 - Destroy those materials during meter teardown and retain config schema `13`.
 
-## Explicitly deferred beyond 1.1.0
+The attempted correction was structurally present but never activated on the
+tested HUD. Version 1.1.9 removes this dead path and defers a real correction
+until the animated renderer and shader properties are identified.
+
+## 1.1.1 - Diagnostic timescale override
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Add diagnostics-only enable and multiplier controls with a `0.01` to `5.0`
+  range and a safe default of disabled at `1.0`.
+- Apply the multiplier to the vanilla `GameRealTime` world clock even when
+  normal Dynamic Timescale is off, while continuing to obey the Eyes master
+  switch.
+- Keep Unity gameplay time untouched, avoid redundant setters across phase and
+  threat changes, and retain safe restoration plus external-owner protection.
+- Exclude both testing controls from config recovery and retain schema `13`.
+
+## 1.1.2 - Palette-preserving brightness
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Keep moon-surface, moonlight, and full-sky tint strengths independent of the
+  shared threat scale so low threat retains the configured base palette.
+- Apply threat brightness and Purple Wyrdness brightness to selected HDR colors
+  in linear color space.
+- Stop reading, writing, reapplying, or restoring the original skybox emission
+  multiplier.
+- Advance schema to `14` because PurpleWyrdnessBrightness now controls the
+  tinted-sky color rather than original sky emission. Preserve compatible
+  customized values conservatively.
+
+## 1.1.4 - Exposure and rest-clock correction
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Remove only `PurpleWyrdnessBrightness`; retain the configurable shared
+  minimum and maximum threat visual-strength settings.
+- Apply a fixed threat-independent `1.2` Purple exposure multiplier through the
+  existing visual fade. Native Orange remains unchanged and Light Control
+  exposure multipliers remain additive.
+- Capture native rest-clock rotations, assign the same fixed half-turn after
+  every native refresh, and restore the native rotations on release.
+- Change the existing diagnostics GFT System cooldown default from `3` seconds
+  to `1` second.
+- Advance schema to `15` because one setting was removed and an existing
+  setting default changed.
+
+## 1.1.7 - Mode-aware Purple brightness
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Add `PurpleExposureCompensation` in Wyrdnight Appearance with a `+0.35 EV`
+  default and a supported `-2` through `+2 EV` range.
+- Apply the value after Light Control through the existing DayNightSystem
+  exposure postfix and the existing natural visual fade.
+- Add EV to automatic and physical-camera compensation and subtract EV from
+  fixed exposure, matching the native exposure mode's sign convention.
+- Leave Native Orange, HDRP post-exposure, gamma, colors, and global volumes
+  unchanged.
+- Keep schema `15` because the setting is additive.
+
+## 1.1.8 - Purple indirect diffuse tuning
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Add `PurpleIndirectDiffuseMultiplier` in Wyrdnight Appearance with a `1.10`
+  default and a supported `0` through `3` range.
+- Patch the native `HandleIndirectLighting` result and multiply the game-owned
+  `indirectDiffuseLightingMultiplier` through the existing natural fade.
+- Leave Native Orange, direct moonlight, reflection lighting, reflection-probe
+  intensity, exposure, gamma, colors, and global volumes unchanged.
+- Keep schema `15` because the setting is additive.
+
+## 1.1.9 - Exposure control and meter cleanup
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Replace the fixed Purple exposure multiplier with
+  `PurpleExposureMultiplier`, default `1.2`, range `0` through `3`.
+- Keep the multiplier separate from mode-aware EV compensation and indirect
+  diffuse lighting.
+- Remove the ineffective TextureScroller speed reversal, private material
+  allocation, teardown, structural contract, and user-facing success claims.
+- Keep the mirrored meter artwork and correct fill-origin behavior unchanged.
+- Keep schema `15` because the new setting is additive and the removed runtime
+  path owned no configuration.
+
+## 1.2.0 - Diagnostic hardening candidate
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and consolidated in-game acceptance remain required.
+
+Implemented scope:
+
+- Refresh concise visual diagnostics when the Purple exposure multiplier,
+  mode-aware EV compensation, or indirect diffuse multiplier changes live.
+- Include the exact Purple exposure and indirect diffuse values in that summary.
+- Test the optional battlecry integration against Battlecry Voice Tuner 1.0.7.
+- Keep schema `15` because no configuration setting or meaning changed.
+
+## Explicitly deferred beyond 1.2.2
 
 - Custom save persistence for threat or active encounters.
 - Indoor hunts.
@@ -1013,10 +1140,10 @@ Implemented scope:
 
 ## Goal execution rule
 
-When this roadmap is used as the 1.1.0 development goal, execute one
+When this roadmap is used as the 1.2.2 development goal, execute one
 implementation milestone at a time with automated contracts and clean builds,
-then run the consolidated in-game pass after the `1.1.0` implementation is
-complete. Do not mark the goal complete until every `1.1.0` acceptance criterion
+then run the consolidated in-game pass after the `1.2.2` implementation is
+complete. Do not mark the goal complete until every `1.2.2` acceptance criterion
 is either verified or explicitly removed from scope by the user. Failures found
 in the consolidated pass require a fix and focused retest; they are not a reason
 to omit the affected scenario.

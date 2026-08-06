@@ -38,6 +38,12 @@ namespace EyesInTheDark
         private RectTransform _sun;
         private Vector2 _moonPosition;
         private Vector2 _sunPosition;
+        private Quaternion _nativeArmRotation;
+        private Quaternion _nativeFillRotation;
+        private Quaternion _lastAppliedArmRotation;
+        private Quaternion _lastAppliedFillRotation;
+        private bool _hasLastAppliedArmRotation;
+        private bool _hasLastAppliedFillRotation;
         private bool _halfCircleWasActive;
         private int _viewId;
 
@@ -103,6 +109,8 @@ namespace EyesInTheDark
                 overlay._sun = sun;
                 overlay._moonPosition = moon.anchoredPosition;
                 overlay._sunPosition = sun.anchoredPosition;
+                overlay._nativeArmRotation = arm.localRotation;
+                overlay._nativeFillRotation = fill.localRotation;
                 overlay._halfCircleWasActive =
                     halfCircle.gameObject.activeSelf;
                 overlay._viewId = view.GetInstanceID();
@@ -253,8 +261,16 @@ namespace EyesInTheDark
         private void ApplyAfterNativeRefresh(
             RestClockLabelFormat labelFormat)
         {
-            RotateHalfTurn(_arm);
-            RotateHalfTurn(_fill);
+            ApplyHalfTurn(
+                _arm,
+                ref _nativeArmRotation,
+                ref _lastAppliedArmRotation,
+                ref _hasLastAppliedArmRotation);
+            ApplyHalfTurn(
+                _fill,
+                ref _nativeFillRotation,
+                ref _lastAppliedFillRotation,
+                ref _hasLastAppliedFillRotation);
             FormatNativeTimes(labelFormat);
         }
 
@@ -267,6 +283,14 @@ namespace EyesInTheDark
             if (_sun != null)
             {
                 _sun.anchoredPosition = _sunPosition;
+            }
+            if (_arm != null)
+            {
+                _arm.localRotation = _nativeArmRotation;
+            }
+            if (_fill != null)
+            {
+                _fill.localRotation = _nativeFillRotation;
             }
             if (_halfCircle != null)
             {
@@ -287,12 +311,28 @@ namespace EyesInTheDark
             FormatNativeTime(RestingUntilValueTextField, _view);
         }
 
-        private static void RotateHalfTurn(RectTransform rect)
+        private static void ApplyHalfTurn(
+            RectTransform rect,
+            ref Quaternion nativeRotation,
+            ref Quaternion lastAppliedRotation,
+            ref bool hasLastAppliedRotation)
         {
-            if (rect != null)
+            if (rect == null)
             {
-                rect.rotation *= Quaternion.Euler(0f, 0f, 180f);
+                return;
             }
+
+            Quaternion current = rect.localRotation;
+            if (!hasLastAppliedRotation
+                || Quaternion.Angle(current, lastAppliedRotation) > 0.01f)
+            {
+                nativeRotation = current;
+            }
+
+            lastAppliedRotation = nativeRotation
+                * Quaternion.Euler(0f, 0f, 180f);
+            rect.localRotation = lastAppliedRotation;
+            hasLastAppliedRotation = true;
         }
 
         private static void FormatNativeTime(

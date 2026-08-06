@@ -1,14 +1,14 @@
-# Eyes in the Dark 1.1.0 consolidated in-game matrix
+# Eyes in the Dark 1.2.2 consolidated in-game matrix
 
 Candidate:
 
-- Eyes in the Dark `1.1.0`
-- Battlecry Voice Tuner `1.0.0` when the battlecry cases call for it
+- Eyes in the Dark `1.2.2`
+- Battlecry Voice Tuner `1.0.7` when the battlecry cases call for it
 - Glorious UI `1.7.0` when the integration case calls for it
 - Grail Floating Text `1.9.9` when the notification case calls for it
 - Tainted Grail Mono patch `1.25`
 
-Run this matrix only against the staged `1.1.0` candidate. Keep Wyrd Hunt,
+Run this matrix only against the staged `1.2.2` candidate. Keep Wyrd Hunt,
 Custom Timescale, and KS Wyrd Hunt Addon absent except for isolated
 incompatibility-notice cases.
 For each failure, save the relevant BepInEx log, fix the candidate, rebuild, and
@@ -47,10 +47,10 @@ output; the BepInEx log remains the authoritative detailed record.
 | B14 | During daylight, rest outside a protective boundary without crossing into night | Native rest remains available and no Eyes denial appears | Pending |
 | B15 | Apply Cursed Night, then target and repeatedly use an exposed bed or fireplace during an active outdoor Wyrdnight; also trigger an upgraded-bonfire action refresh | REST uses the game's greyed-out, inactive presentation before and after refresh; the clock never opens and Eyes queues no warning message | Pending |
 | B16 | During an active Wyrdnight, rest at a fueled protective point | Rest proceeds using the native safe-rest and interruption checks; if nothing interrupts it, the Hero may sleep through the Wyrdnight | Pending |
-| B17 | Start from a schema-12 config with the old untouched false unprotected-rest default and genuine customized gameplay, HUD, and sky values | A beside-config backup is created; schema 13 adopts the new true Watchful rest default, adds risk/menu settings, and restores other compatible durable values | Pending |
-| B18 | Purple palette at 0, 50, and 100 threat | Moon surface, corona, moonlight, bubble, boundary, and meter begin from their configured purple hues, scale from 0.8 through 1.0 to 1.2, and smoothly approach the configured red | Pending |
-| B19 | Observe NightSkyAmbientColor at 0, 50, and 100 threat | The complete visible sky retains the selected purple hue at every threat value and its tint strength follows the shared scale; fog, clouds, terrain lighting, and reflections are not directly recolored | Pending |
-| B25 | Compare the same scene with Light Control enabled and disabled | EITD retains visible-sky tint ownership while Light Control independently changes intensity, volumetrics, exposure, and post-exposure; neither mod fights over _SkyTint | Pending |
+| B17 | Start from a schema-12 config with the old untouched false unprotected-rest default and genuine customized gameplay, HUD, and sky values | A beside-config backup is created; the current schema adopts the true Watchful rest default and palette-preserving brightness behavior while restoring compatible durable values | Pending |
+| B18 | Purple palette at 0, 50, and 100 threat | Moon surface, corona, moonlight, bubble, boundary, and meter retain their configured purple tint strength while brightness scales from 0.8 through 1.0 to 1.2 and red-shifted layers smoothly approach the configured red | Pending |
+| B19 | Observe NightSkyAmbientColor at 0, 50, and 100 threat | The complete visible sky retains its configured tint strength and selected purple hue while the tinted color brightness follows the shared scale; original sky emission, fog, clouds, terrain lighting, and reflections are not directly changed | Pending |
+| B25 | Compare the same scene with Light Control enabled and disabled | EITD retains visible-sky tint ownership; Light Control independently changes intensity and volumetrics, runs before Eyes for shared exposure paths, and neither mod fights over _SkyTint | Pending |
 | B20 | Native Orange palette at low threat in each open-world region | Moon, corona, moonlight, sky, bubble, and boundary derive their base hue from that region's original game values rather than using a hard-coded orange | Pending |
 | B21 | Compare meter at low and high threat | Meter remains correctly filled and visible, renders at 1.5 times RGB brightness before shared scaling, and shifts smoothly toward red | Pending |
 | B22 | Disable Wyrdnight visuals, enter an interior, return outside, and re-enable | Disablement and the interior restore game-owned environment values immediately; meter and boundary retain their independent ownership without stale palette state | Pending |
@@ -60,7 +60,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | B27 | Pause halfway through a natural presentation transition, then resume | The visual blend freezes while paused and completes over the remaining active real time without a visible jump | Pending |
 | B28 | Load between scenes, enter an interior, disable Eyes, and set transition duration to 0 in isolated checks | Short loads hold the last confirmed presentation; confirmed interiors/disablement restore immediately; zero duration snaps at the natural phase boundary without stale materials or ownership | Pending |
 | B29 | Open the rest selector in daylight and at a fueled protective point during Wyrdnight with the default label format | Sun and 12 PM are at top, 6 PM is at right, moon and 12 AM are at bottom, and 6 AM is at left; no Wyrdnight caption, colored arc, glow, or markers appear | Pending |
-| B30 | Select representative hours with mouse, keyboard, and controller while watching the hand, native fill, and Resting until value | The half-day-rotated hand and fill remain aligned with mouse and controller radial selection, keyboard stepping remains native, and Resting until uses h:mm AM/PM | Pending |
+| B30 | Select every hour repeatedly with mouse, keyboard, and controller while watching the hand, native fill, and Resting until value | The fixed half-day-rotated hand and fill never alternate back to their native orientation, remain aligned with radial selection, keyboard stepping remains native, and Resting until uses h:mm AM/PM | Pending |
 | B31 | Select TwentyFourHour labels, then reopen the clock under Purple Wyrdness and Native Orange | Neutral labels read 00, 06, 12, and 18 in their cardinal positions and remain independent of palette and threat | Pending |
 | B32 | Use an exposed rest point during active Watchful Night | REST remains available if the game otherwise permits it; native interruption is checked first and Eyes then applies 45-to-75-percent threat-scaled cumulative risk | Pending |
 | B33 | Load directly into an exterior Wyrdnight from the title screen and through a same-night fast travel | The first visible rendered frame retains/applies the Wyrdnight palette without a brighter vanilla flash; no stale purple survives a confirmed daylight or interior destination | Pending |
@@ -68,8 +68,9 @@ output; the BepInEx log remains the authoritative detailed record.
 | B35 | View the quick-use weather clock with TwelveHour selected at midnight, noon, and an evening time | The native world time is shown as 12:xx AM, 12:xx PM, and h:mm PM with no leading zero | Pending |
 | B36 | Select TwentyFourHour and rebuild/reopen the quick-use wheel | Eyes leaves the game's native quick-use time text untouched | Pending |
 | B37 | Load a save with substantial retained Wyrd Threat directly into a Wyrdnight | Gameplay, stage, meter fill, and night duration use loaded threat immediately while only its world-palette red shift ramps in smoothly over 10 active seconds | Pending |
-| B38 | Compare Purple Wyrdness Brightness at 0.5, 1.2, and 2.0 | Purple sky emission and HDR moon/world-light colors change without cumulative gain; exposure, post-exposure, intensity, dimmers, volumetrics, and gameplay remain unchanged | Pending |
-| B39 | Repeat B38 with Native Orange and with Light Control enabled | Native Orange ignores the purple brightness setting; Light Control remains authoritative for its separate properties without an ownership fight | Pending |
+| B38 | Compare Purple Wyrdness at zero and maximum threat through dusk and dawn with Purple Exposure Multiplier at 1.2 and Purple Night Brightness at +0.35 EV | Both settings follow presentation state but remain unchanged by threat; the exposure multiplier is applied before mode-aware EV compensation | Pending |
+| B39 | Repeat B38 with Native Orange, Light Control enabled and disabled, and Purple Night Brightness set to 0, +0.35, -0.35, and each range limit | Native Orange does not alter exposure; Purple applies after Light Control in every native exposure mode; live setting changes respond cleanly; HDRP post-exposure, gamma, colors, and global volumes remain untouched | Pending |
+| B39a | Compare Purple Wyrdness with Purple Indirect Diffuse Multiplier at 1.0, 1.10, 0, and 3, then repeat with Native Orange and Light Control enabled | Purple multiplies only the native indirect diffuse result and follows the presentation fade; 1.0 is unchanged; Native Orange is unchanged; direct moonlight, reflections, exposure, gamma, colors, and global volumes remain untouched | Pending |
 | B40 | Set visual transition duration to 0 and cross nightfall | Presentation snaps at the exact phase boundary; no pre-dusk state remains active | Pending |
 | B41 | Apply each gameplay preset from General while Diagnostics is enabled | Each selection applies once, reports the chosen result, returns to Custom, preserves clock/presentation settings, and does not collide or reorder unpredictably with Time Display | Pending |
 | B42 | Apply Uneasy, Watchful, and Cursed in turn and inspect the three rest settings | Uneasy writes allow true and 0/0 risk; Watchful writes allow true and 45/75; Cursed writes allow false and 80/100; Own Rest Menu is never changed | Pending |
@@ -79,7 +80,10 @@ output; the BepInEx log remains the authoritative detailed record.
 | B46 | Force an Eyes sleep interruption in a valid regional scene | Native wake presentation appears, one official hunt is requested after the transition, and normal level, elite, budget, atomic placement, and zero-cost failure rules remain visible in diagnostics | Pending |
 | B47 | After an interruption, try exposed and fueled protected rest before dawn, then try exposed rest after dawn | Exposed rest remains unavailable before dawn, fueled protected rest remains available, and dawn clears the disturbed lock | Pending |
 | B48 | Disable Own Rest Menu and reopen beds, campfires, and the rest popup in both 12-hour and 24-hour modes | Eyes leaves button availability, clock orientation, labels, and popup time text native; active Cursed gameplay denial still closes an accepted exposed rest silently | Pending |
-| B49 | Compare health, mana, stamina, and threat-meter animation, then rebuild the Hero HUD | Threat artwork remains mirrored and fills correctly; its texture moves in the same screen direction as the vanilla bars; vanilla animation is unchanged; rebuilding creates no duplicate meter or visible material leak | Pending |
+| B49 | Compare health, mana, stamina, and threat-meter animation, then rebuild the Hero HUD | Threat artwork remains mirrored and fills correctly; no private TextureScroller material is created or leaked; record any opposite shader-animation direction for the separate targeted correction | Pending |
+| B50 | Start from a schema-14 config containing PurpleWyrdnessBrightness and other durable values | A beside-config backup is created; schema 15 skips the retired brightness key, preserves compatible durable values, adopts the 1-second diagnostics default when the old value was untouched, and leaves both diagnostic overrides disabled | Pending |
+| B51 | From stable Purple and Native Orange Wyrdnights, create sudden 10-point and 20-point threat gains while watching the meter and scene | Gameplay threat and meter fill update immediately; moon, moonlight, protection bubble, and integrated palette approach the new threat color smoothly with the default two-second half-life and no frame-rate spike | Pending |
+| B52 | Repeat B51 with Threat Lighting Smoothing at 0, 0.5, 2, and 10 seconds, including pause and resume | Zero applies immediately; positive values follow their configured active-time half-life; pausing freezes the visual transition; no per-frame lighting calculation or warning flood appears | Pending |
 
 ## C. Threat inputs and anti-spam behavior
 
@@ -119,6 +123,8 @@ output; the BepInEx log remains the authoritative detailed record.
 | D14 | Let another clock owner change the active rate, then disable Eyes | Eyes does not overwrite the external rate during safe restoration | Pending |
 | D15 | Complete representative Watchful nights at the default 60/6/12 durations | Quiet stretches, warnings, hunts, recovery, and roughly 14 percent maximum-night budget capacity remain coherent | Pending |
 | D16 | Configure maximum-threat night below the base night | Runtime safely clamps the maximum to the base and never makes increasing threat shorten the night | Pending |
+| D17 | Disable Dynamic Timescale, enable Override World Timescale, and test multipliers 2, 0.5, and 1 | The world clock runs at twice, half, and vanilla speed; phase and threat changes do not rewrite the fixed rate; gameplay time is unchanged | Pending |
+| D18 | Disable the timescale override, disable Eyes, and repeat after an external clock change | Dynamic timing resumes once when allowed; Eyes restores vanilla only while it still owns the rate and never overwrites the external change | Pending |
 
 ## E. Curated director and hunt lifecycle
 
@@ -201,7 +207,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | --- | --- | --- | --- |
 | H1 | Complete a 12-minute maximum-threat night with Diagnostics off | No repeated exceptions, per-poll log spam, duplicate meter, uninterrupted chain of hunts, or ambient/official lane overlap | Pending |
 | H2 | Review the full session log | No startup, placement, transition, ambient listener, movement, HUD, boundary, or GFT exception loop; every spent cost has a confirmed official composition | Pending |
-| H3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `1.1.0.0`; no standalone Purple Moon Test package or config remains | Pending |
+| H3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `1.2.2.0`; no standalone Purple Moon Test package or config remains | Pending |
 | H4 | Complete a long diagnostics-on default-cycle soak | No per-frame warnings, passive-threat log flood, repeated clock setters, movement transition flood, or stale GFT diagnostics | Pending |
 | H5 | Profile an active Wyrdnight with stable threat and no transition | Visual calculations run about five times per second; environment refreshes do not exceed four per second; the per-frame native-lighting postfix only reapplies cached values | Pending |
 | H6 | Compare an absent boundary, an inactive boundary, Native single ring, and active layered rings | The custom layered pass performs no fullscreen draws at zero native intensity; active boundaries still animate and respond within 0.2 seconds | Pending |

@@ -1,7 +1,8 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.1.0
+Version: 1.2.2
+Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
 Tainted Grail: The Fall of Avalon. Inspired by Wyrd Hunt, it combines
@@ -40,19 +41,27 @@ Current Features
 - The meter artwork is mirrored horizontally and vertically. When Glorious
   UI requests its versioned layout contract, Eyes remains the meter owner and
   moves the meter below the resource bars.
-- Animated meter textures retain the vanilla Hero-bar movement direction even
-  though the surrounding meter artwork remains mirrored.
 - A complete configurable Wyrdnight palette for the moon disc, HDR corona,
   directional and volumetric moonlight, full visible-sky tint, fueled
   protection bubble, Wyrd boundary, and threat meter. Purple Wyrdness is the
   default; Native Orange preserves the game's regional base hues.
-- Purple Wyrdness brightness defaults to 1.2 and can scale the purple sky
-  emission and HDR moon/world-light colors from 0.5 to 2.0 without changing
-  exposure, post-exposure, light intensity, volumetrics, or Native Orange.
+- Purple Wyrdness applies a configurable 1.2 exposure multiplier plus
+  mode-aware +0.35 EV brightness compensation through the natural visual
+  fade. Automatic and physical-camera exposure add the EV value, while fixed
+  exposure subtracts it. Native Orange does not change exposure. Eyes applies
+  after Light Control and does not modify HDRP post-exposure, gamma, colors,
+  or global volumes.
+- Purple Wyrdness also applies a configurable 1.10 indirect diffuse lighting
+  multiplier through the same natural fade. It uses the game's existing
+  Indirect Lighting Controller and does not alter direct moonlight or
+  reflections. Native Orange leaves indirect diffuse lighting unchanged.
 - Moon, moonlight, bubble, boundary, and meter colors smoothly move toward a
   configurable red as threat rises. The night-sky color deliberately
   retains its selected base hue. One shared 0.8-to-1.2 threat scale controls
   visual strength across the integrated presentation.
+- World lighting and palette changes caused by threat use a configurable
+  two-active-second half-life by default. Gameplay threat, the meter, hunts,
+  notifications, and dynamic Wyrdnight length still react immediately.
 - Configurable three-ring Wyrd boundary with near, middle, and outer visual
   distances, independent brightness and thickness, and a native-style single
   ring fallback. Smooth bounded pulses remain independent of the shared threat
@@ -252,15 +261,18 @@ Defaults:
   finishes at dawn. Gameplay, world-clock phase, meter visibility, and
   protection state remain immediate.
 - Wyrdness palette: Purple Wyrdness; Native Orange is available
-- Purple Wyrdness brightness: 1.2 (configurable from 0.5 to 2.0); affects sky
-  emission and HDR moon/world-light colors only
+- Purple Wyrdness exposure multiplier: 1.2; configurable from 0 to 3
+- Purple night brightness compensation: +0.35 EV; configurable from -2 to +2
+- Purple indirect diffuse multiplier: 1.10; configurable from 0 to 3
 - Shared minimum/maximum threat visual scale: 0.8, 1.2
+- Threat lighting smoothing half-life: 2 active real-time seconds
 - Threat red color / maximum smooth red blend: #FF3028 / 0.8
 - Moon surface color / tint / HDR intensity: #3200FF / 0.75 / 2
 - Moon corona: enabled; color / intensity: #8000FF / 2
 - Directional and volumetric moonlight color / tint: #7E47FF / 0.9
 - Full Wyrdnight sky tint: enabled; #401C63 / 1.0. This layer uses the sky
-  material's _SkyTint property, follows the strength scale, and never shifts
+  material's _SkyTint property, keeps its configured tint strength while its
+  brightness follows the shared threat scale, and never shifts
   toward red. It does not directly alter fog, clouds, terrain lighting, or
   reflections.
 - Fueled protection-bubble tint: enabled; #B050FF; body/border intensity 1 / 1
@@ -271,12 +283,18 @@ Defaults:
 - Detailed exact threat: false
 - GFT atmospheric cooldown: 8 active real-time seconds
 - GFT battlecry-response cooldown: 15 active real-time seconds
-- GFT diagnostic System cooldown: 3 active real-time seconds
+- GFT diagnostic System cooldown: 1 active real-time second
 - Diagnostics: false
 - Diagnostic threat override: disabled; override value 0
+- Diagnostic timescale override: disabled; multiplier 1.0
 
 The final Import Previous Settings tab reports compatible config backups and
 provides a conservative one-shot import action.
+
+Version 1.1.4 regenerates configuration because PurpleWyrdnessBrightness was
+removed and the existing diagnostic GFT System cooldown default changed from
+3 seconds to 1 second. Compatible durable customizations remain eligible for
+conservative recovery; the retired brightness value is intentionally skipped.
 
 Version 1.0.7 regenerates configuration because the quiet and maximum-threat
 Wyrdnight defaults changed from 5/15 to 6/12 minutes and the raw
@@ -318,6 +336,11 @@ concise low-priority System summaries of meaningful behind-the-scenes changes;
 these use immediate delivery and do not queue stale messages through loading
 or menus. Unsafe or unknown states remain Inactive and include their reason in
 the transition log.
+
+Override World Timescale is a diagnostics-only testing control. When enabled,
+it replaces normal dynamic day and Wyrdnight timing with a fixed multiplier of
+the vanilla world clock. A value of 1 is vanilla speed, 2 is twice as fast, and
+0.5 is half speed. It never changes combat, animation, effect, or pause speed.
 
 Compatibility
 -------------

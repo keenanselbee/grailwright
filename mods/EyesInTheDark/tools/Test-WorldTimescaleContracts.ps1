@@ -125,6 +125,33 @@ namespace EyesInTheDark
             Near(first.WeatherSecondsPerRealSecond, 34.33846f, 0.001f,
                 "live duration config rate");
 
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 20f, 50f, true, 2f);
+            Ensure(first.SetterCalls == 5,
+                "diagnostic multiplier override apply");
+            Near(first.WeatherSecondsPerRealSecond, 144f, 0.001f,
+                "twice-vanilla diagnostic rate");
+            first.WeatherTime = new Awaken.TG.Main.Timing.TestWeatherTime
+            {
+                IsNight = false
+            };
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 20f, 80f, true, 2f);
+            Ensure(first.SetterCalls == 5,
+                "override ignores phase and threat changes");
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 20f, 80f, true, 0.5f);
+            Ensure(first.SetterCalls == 6,
+                "live diagnostic multiplier change apply");
+            Near(first.WeatherSecondsPerRealSecond, 36f, 0.001f,
+                "half-vanilla diagnostic rate");
+            controller.Update(first, vanillaCycleMinutes,
+                true, 60f, 6f, 20f, 80f, false, 1f);
+            Ensure(first.SetterCalls == 7,
+                "disabling override resumes dynamic phase timing");
+            Near(first.WeatherSecondsPerRealSecond, 16.56f, 0.001f,
+                "dynamic day rate resumes after override");
+
             var loaded = Clock(true, 72f);
             controller.Update(loaded, vanillaCycleMinutes,
                 true, 60f, 6f, 20f, 50f);
@@ -159,6 +186,10 @@ namespace EyesInTheDark
                 0.0001f, "minimum clamp");
             Near(WorldTimescalePolicy.ClampPhaseMinutes(900f), 600f,
                 0.0001f, "maximum clamp");
+            Near(WorldTimescalePolicy.ClampOverrideMultiplier(0f), 0.01f,
+                0.0001f, "minimum diagnostic multiplier clamp");
+            Near(WorldTimescalePolicy.ClampOverrideMultiplier(10f), 5f,
+                0.0001f, "maximum diagnostic multiplier clamp");
         }
 
         private static Awaken.TG.Main.Timing.GameRealTime Clock(
@@ -216,6 +247,10 @@ foreach ($required in @(
     'DefaultDayMinutes = 60f',
     'DefaultBaseNightMinutes = 6f',
     'DefaultMaximumThreatNightMinutes = 12f',
+    '"EnableTimescaleOverride"',
+    '"TimescaleOverrideMultiplier"',
+    'WorldTimescalePolicy.MinimumOverrideMultiplier',
+    'WorldTimescalePolicy.MaximumOverrideMultiplier',
     'UpdateWorldTimescale(nextContext);',
     'private void UpdateWorldTimescale(RuntimeContext context)')) {
     if (!$pluginSource.Contains($required)) {

@@ -41,9 +41,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyVersion("1.2.2.0")]
+[assembly: AssemblyFileVersion("1.2.2.0")]
+[assembly: AssemblyInformationalVersion("1.2.2")]
 
 namespace EyesInTheDark
 {
@@ -101,7 +101,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.2.2";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -117,7 +117,7 @@ namespace EyesInTheDark
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 13;
+        private const int ConfigSchemaVersion = 15;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -156,7 +156,13 @@ namespace EyesInTheDark
                         "EnableThreatOverride"),
                     new ConfigDefinition(
                         "10. Diagnostics",
-                        "ThreatOverrideValue")
+                        "ThreatOverrideValue"),
+                    new ConfigDefinition(
+                        "10. Diagnostics",
+                        "EnableTimescaleOverride"),
+                    new ConfigDefinition(
+                        "10. Diagnostics",
+                        "TimescaleOverrideMultiplier")
                 };
 
         private const float StatePollIntervalSeconds = 0.2f;
@@ -236,9 +242,13 @@ namespace EyesInTheDark
         private const float DefaultBoundaryPulseMaximumSeconds = 6.0f;
         private const float DefaultGftCooldownSeconds = 8.0f;
         private const float DefaultBattlecryResponseCooldownSeconds = 15.0f;
-        private const float DefaultDiagnosticGftCooldownSeconds = 3.0f;
+        private const float DefaultDiagnosticGftCooldownSeconds = 1.0f;
         private const float DefaultMinimumThreatVisualScale = 0.8f;
         private const float DefaultMaximumThreatVisualScale = 1.2f;
+        private const float DefaultPurpleExposureMultiplier = 1.2f;
+        private const float DefaultPurpleExposureCompensation = 0.35f;
+        private const float DefaultPurpleIndirectDiffuseMultiplier = 1.10f;
+        private const float DefaultThreatVisualSmoothingSeconds = 2.0f;
         private const string DefaultThreatRedColor = "#FF3028";
         private const float DefaultMaximumThreatRedBlend = 0.8f;
         private const string DefaultMoonSurfaceColor = "#3200FF";
@@ -250,7 +260,6 @@ namespace EyesInTheDark
         private const float DefaultMoonlightTintStrength = 0.9f;
         private const string DefaultNightSkyAmbientColor = "#401C63";
         private const float DefaultNightSkyAmbientTintStrength = 1.0f;
-        private const float DefaultPurpleWyrdnessBrightness = 1.2f;
         private const string DefaultProtectionBubbleColor = "#B050FF";
         private const float DefaultProtectionBubbleIntensity = 1.0f;
         private const float DefaultProtectionBubbleBorderIntensity = 1.0f;
@@ -363,6 +372,10 @@ namespace EyesInTheDark
         private ConfigEntry<float> _boundaryPulseMaximumSeconds;
         private ConfigEntry<bool> _wyrdVisualsEnabled;
         private ConfigEntry<WyrdnessPalette> _wyrdnessPalette;
+        private ConfigEntry<float> _purpleExposureMultiplier;
+        private ConfigEntry<float> _purpleExposureCompensation;
+        private ConfigEntry<float> _purpleIndirectDiffuseMultiplier;
+        private ConfigEntry<float> _threatVisualSmoothingSeconds;
         private ConfigEntry<float> _minimumThreatVisualScale;
         private ConfigEntry<float> _maximumThreatVisualScale;
         private ConfigEntry<string> _threatRedColor;
@@ -378,7 +391,6 @@ namespace EyesInTheDark
         private ConfigEntry<bool> _tintNightSkyAmbient;
         private ConfigEntry<string> _nightSkyAmbientColor;
         private ConfigEntry<float> _nightSkyAmbientTintStrength;
-        private ConfigEntry<float> _purpleWyrdnessBrightness;
         private ConfigEntry<bool> _tintBonfireProtectionBubble;
         private ConfigEntry<string> _protectionBubbleColor;
         private ConfigEntry<float> _protectionBubbleIntensity;
@@ -393,6 +405,8 @@ namespace EyesInTheDark
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _enableThreatOverride;
         private ConfigEntry<float> _threatOverrideValue;
+        private ConfigEntry<bool> _enableTimescaleOverride;
+        private ConfigEntry<float> _timescaleOverrideMultiplier;
 
         private Harmony _harmony;
         private ThreatMeterController _meter;
@@ -706,11 +720,16 @@ namespace EyesInTheDark
             try
             {
                 GameRealTime clock = World.Any<GameRealTime>();
+                bool featureEnabled = IsFeatureEnabled();
+                bool timescaleOverrideEnabled = featureEnabled
+                    && _enableTimescaleOverride != null
+                    && _enableTimescaleOverride.Value;
                 _worldTimescale.Update(
                     clock,
                     VanillaCycleMinutes(),
-                    IsFeatureEnabled()
-                        && (_enableDynamicTimescale == null
+                    featureEnabled
+                        && (timescaleOverrideEnabled
+                            || _enableDynamicTimescale == null
                             || _enableDynamicTimescale.Value),
                     ValueOrDefault(
                         _dayMinutes,
@@ -724,7 +743,11 @@ namespace EyesInTheDark
                     context.Observation.GameSaysNight
                         && context.Observation.HeroSaysNight
                             ? _threat.Value
-                            : 0f);
+                            : 0f,
+                    timescaleOverrideEnabled,
+                    ValueOrDefault(
+                        _timescaleOverrideMultiplier,
+                        1f));
                 _worldTimescaleFailureLogged = false;
             }
             catch (Exception exception)
@@ -3377,6 +3400,18 @@ namespace EyesInTheDark
                     && _wyrdnessPalette != null
                         ? _wyrdnessPalette.Value
                         : WyrdnessPalette.Purple,
+                PurpleExposureMultiplier = ValueOrDefault(
+                    _purpleExposureMultiplier,
+                    DefaultPurpleExposureMultiplier),
+                PurpleExposureCompensation = ValueOrDefault(
+                    _purpleExposureCompensation,
+                    DefaultPurpleExposureCompensation),
+                PurpleIndirectDiffuseMultiplier = ValueOrDefault(
+                    _purpleIndirectDiffuseMultiplier,
+                    DefaultPurpleIndirectDiffuseMultiplier),
+                ThreatSmoothingHalfLifeSeconds = ValueOrDefault(
+                    _threatVisualSmoothingSeconds,
+                    DefaultThreatVisualSmoothingSeconds),
                 MinimumThreatScale = ValueOrDefault(
                     _minimumThreatVisualScale,
                     DefaultMinimumThreatVisualScale),
@@ -3420,9 +3455,6 @@ namespace EyesInTheDark
                 NightSkyAmbientTintStrength = ValueOrDefault(
                     _nightSkyAmbientTintStrength,
                     DefaultNightSkyAmbientTintStrength),
-                PurpleWyrdnessBrightness = ValueOrDefault(
-                    _purpleWyrdnessBrightness,
-                    DefaultPurpleWyrdnessBrightness),
                 TintBonfireProtectionBubble =
                     _tintBonfireProtectionBubble == null
                     || _tintBonfireProtectionBubble.Value,
@@ -5842,17 +5874,50 @@ namespace EyesInTheDark
                     90,
                     20,
                     choiceLabels: "Purple=Purple Wyrdness;NativeOrange=Native Orange"));
-            _purpleWyrdnessBrightness = Config.Bind(
+            _purpleExposureMultiplier = Config.Bind(
                 "8. Wyrd Visuals",
-                "PurpleWyrdnessBrightness",
-                DefaultPurpleWyrdnessBrightness,
+                "PurpleExposureMultiplier",
+                DefaultPurpleExposureMultiplier,
                 UiDescription(
-                    "Brightness multiplier for Purple Wyrdness sky emission and nighttime world illumination. Native Orange remains at the game's original brightness. This does not change exposure, post-exposure, light intensity, or Light Control settings.",
+                    "Purple-only multiplier applied to the game's native exposure result before Purple Night Brightness EV compensation. 1.0 leaves the native value unchanged. The effect follows the natural presentation fade and remains independent of threat.",
                     "Wyrdnight Appearance",
-                    "Purple Wyrdness Brightness",
+                    "Purple Exposure Multiplier",
+                    90,
+                    25,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _purpleExposureCompensation = Config.Bind(
+                "8. Wyrd Visuals",
+                "PurpleExposureCompensation",
+                DefaultPurpleExposureCompensation,
+                UiDescription(
+                    "Purple-only, mode-aware night brightness compensation in exposure values (EV). Positive values brighten and negative values darken. Eyes applies this after Light Control without changing HDRP post-exposure, gamma, colors, or global volumes. Automatic and physical-camera exposure add the value; fixed exposure subtracts it.",
+                    "Wyrdnight Appearance",
+                    "Purple Night Brightness (EV)",
                     90,
                     30,
-                    new AcceptableValueRange<float>(0.5f, 2f)));
+                    new AcceptableValueRange<float>(-2f, 2f)));
+            _purpleIndirectDiffuseMultiplier = Config.Bind(
+                "8. Wyrd Visuals",
+                "PurpleIndirectDiffuseMultiplier",
+                DefaultPurpleIndirectDiffuseMultiplier,
+                UiDescription(
+                    "Purple-only multiplier for the game's indirect diffuse lighting during a Wyrdnight. 1.0 leaves the native value unchanged. The effect follows the natural presentation fade and does not alter direct moonlight, reflections, exposure, gamma, colors, or global volumes.",
+                    "Wyrdnight Appearance",
+                    "Purple Indirect Diffuse Multiplier",
+                    90,
+                    35,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _threatVisualSmoothingSeconds = Config.Bind(
+                "8. Wyrd Visuals",
+                "ThreatVisualSmoothingSeconds",
+                DefaultThreatVisualSmoothingSeconds,
+                UiDescription(
+                    "Half-life in active real-time seconds for world lighting and Wyrd palette changes caused by threat. Gameplay threat, the HUD meter, hunts, and dynamic night length remain immediate. 0 applies visual changes immediately.",
+                    "Wyrdnight Appearance",
+                    "Threat Lighting Smoothing",
+                    90,
+                    38,
+                    new AcceptableValueRange<float>(0f, 10f)));
             _minimumThreatVisualScale = Config.Bind(
                 "8. Wyrd Visuals",
                 "MinimumThreatVisualScale",
@@ -6122,6 +6187,23 @@ namespace EyesInTheDark
                     "Forced Wyrd Threat used while Override Wyrd Threat is enabled. This affects the meter, visuals, night length, stalkers, and official hunts.",
                     "Advanced - Diagnostics", "Override Threat Value", 270, 40,
                     new AcceptableValueRange<float>(0f, 100f)));
+            _enableTimescaleOverride = Config.Bind(
+                "10. Diagnostics",
+                "EnableTimescaleOverride",
+                false,
+                UiDescription(
+                    "Testing control. While Eyes is enabled, replace normal dynamic day and Wyrdnight timing with the configured fixed multiplier of vanilla world-clock speed. This never changes Unity gameplay time.",
+                    "Advanced - Diagnostics", "Override World Timescale", 270, 50));
+            _timescaleOverrideMultiplier = Config.Bind(
+                "10. Diagnostics",
+                "TimescaleOverrideMultiplier",
+                1f,
+                UiDescription(
+                    "Fixed world-clock speed used while Override World Timescale is enabled. 1 is vanilla speed, 2 is twice as fast, and 0.5 is half speed.",
+                    "Advanced - Diagnostics", "Timescale Multiplier", 270, 60,
+                    new AcceptableValueRange<float>(
+                        WorldTimescalePolicy.MinimumOverrideMultiplier,
+                        WorldTimescalePolicy.MaximumOverrideMultiplier)));
 
             _gameplayPreset.SettingChanged += OnGameplayPresetChanged;
 
@@ -6378,6 +6460,10 @@ namespace EyesInTheDark
             CapturePreservedValue<bool>(profile, "8. Wyrd Visuals", "EnableWyrdnightVisuals");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "WyrdVisualTransitionSeconds");
             CapturePreservedValue<WyrdnessPalette>(profile, "8. Wyrd Visuals", "WyrdnessPalette");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleExposureMultiplier");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleExposureCompensation");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleIndirectDiffuseMultiplier");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "ThreatVisualSmoothingSeconds");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MinimumThreatVisualScale");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumThreatVisualScale");
             CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "ThreatRedColor");
@@ -6393,7 +6479,6 @@ namespace EyesInTheDark
             CapturePreservedValue<bool>(profile, "8. Wyrd Visuals", "TintNightSkyAmbient");
             CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "NightSkyAmbientColor");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "NightSkyAmbientTintStrength");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleWyrdnessBrightness");
             CapturePreservedValue<bool>(profile, "8. Wyrd Visuals", "TintBonfireProtectionBubble");
             CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "ProtectionBubbleColor");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "ProtectionBubbleIntensity");
@@ -6495,6 +6580,10 @@ namespace EyesInTheDark
             RestorePreservedValue(_wyrdVisualsEnabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdVisualTransitionSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdnessPalette, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleExposureMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleExposureCompensation, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleIndirectDiffuseMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_threatVisualSmoothingSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_minimumThreatVisualScale, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_maximumThreatVisualScale, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_threatRedColor, ref restored, ref clamped, ref invalid);
@@ -6510,7 +6599,6 @@ namespace EyesInTheDark
             RestorePreservedValue(_tintNightSkyAmbient, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_nightSkyAmbientColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_nightSkyAmbientTintStrength, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_purpleWyrdnessBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_tintBonfireProtectionBubble, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_protectionBubbleColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_protectionBubbleIntensity, ref restored, ref clamped, ref invalid);

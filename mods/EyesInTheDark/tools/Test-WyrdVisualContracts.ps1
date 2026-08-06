@@ -26,14 +26,18 @@ function Assert-VisualContract {
 
 foreach ($required in @(
     'src/WyrdVisualRuntime.cs',
-    '"version": "1.1.0"')) {
+    '"version": "1.2.2"')) {
     Assert-VisualContract ($manifest.Contains($required)) "manifest omits $required"
 }
 
 foreach ($required in @(
-    'private const int ConfigSchemaVersion = 13;',
+    'private const int ConfigSchemaVersion = 15;',
     'DefaultMinimumThreatVisualScale = 0.8f;',
     'DefaultMaximumThreatVisualScale = 1.2f;',
+    'DefaultPurpleExposureMultiplier = 1.2f;',
+    'DefaultPurpleExposureCompensation = 0.35f;',
+    'DefaultPurpleIndirectDiffuseMultiplier = 1.10f;',
+    'DefaultThreatVisualSmoothingSeconds = 2.0f;',
     'DefaultThreatRedColor = "#FF3028";',
     'DefaultMaximumThreatRedBlend = 0.8f;',
     'DefaultMoonSurfaceColor = "#3200FF";',
@@ -45,13 +49,15 @@ foreach ($required in @(
     'DefaultMoonlightTintStrength = 0.9f;',
     'DefaultNightSkyAmbientColor = "#401C63";',
     'DefaultNightSkyAmbientTintStrength = 1.0f;',
-    'DefaultPurpleWyrdnessBrightness = 1.2f;',
     'DefaultProtectionBubbleColor = "#B050FF";',
     'DefaultWyrdVisualTransitionSeconds = 60.0f;',
     '"EnableWyrdnightVisuals"',
     '"WyrdVisualTransitionSeconds"',
     '"WyrdnessPalette"',
-    '"PurpleWyrdnessBrightness"',
+    '"PurpleExposureMultiplier"',
+    '"PurpleExposureCompensation"',
+    '"PurpleIndirectDiffuseMultiplier"',
+    '"ThreatVisualSmoothingSeconds"',
     '"MinimumThreatVisualScale"',
     '"MaximumThreatVisualScale"',
     '"ThreatRedColor"',
@@ -81,8 +87,24 @@ foreach ($required in @(
     'WyrdVisualMath.AdvanceBlend(',
     'public static float CenteredDuskBlend(',
     'TransitionSeconds',
-    'PurpleWyrdnessBrightness',
-    'SkyEmissionMultiplierId',
+    'DayNightSystemHandleExposurePostfix',
+    'ApplyPurpleExposure(',
+    '_settings.PurpleExposureMultiplier',
+    'PurpleExposureCompensation',
+    '_lastReportedPurpleExposureMultiplier',
+    '_lastReportedPurpleExposureCompensation',
+    '_lastReportedPurpleIndirectDiffuseMultiplier',
+    'exposurePostfix.after',
+    '"owrocc.DayNightLightTweaks"',
+    'exposure.compensation.value * multiplier + compensation;',
+    'exposure.fixedExposure.value * multiplier - compensation;',
+    'DayNightSystemHandleIndirectLightingPostfix',
+    'ApplyPurpleIndirectDiffuse(',
+    'indirectDiffuseLightingMultiplier.value *= multiplier;',
+    'public static float SmoothThreat(',
+    'activeSeconds / halfLifeSeconds',
+    'settings.ThreatSmoothingHalfLifeSeconds',
+    'WyrdVisualMath.ScaleRgbLinear(',
     'BeginLoadThreatTransition(',
     '_loadThreatTransitionActive',
     '_visualBlend',
@@ -99,6 +121,15 @@ foreach ($required in @(
     'RestoreProtectionBubbles();')) {
     Assert-VisualContract ($visual.Contains($required)) "integrated runtime omits $required"
 }
+
+$twoSecondBlend = 1.0 - [Math]::Pow(0.5, 2.0 / 2.0)
+$sixSecondBlend = 1.0 - [Math]::Pow(0.5, 6.0 / 2.0)
+Assert-VisualContract ([Math]::Abs($twoSecondBlend - 0.5) -lt 0.000001) `
+    "default threat smoothing does not apply half a jump after two seconds"
+Assert-VisualContract ([Math]::Abs($sixSecondBlend - 0.875) -lt 0.000001) `
+    "default threat smoothing does not settle to 87.5 percent after six seconds"
+Assert-VisualContract ($plugin.Contains('_threat.Value,`r`n                    settings);') -or $plugin.Contains("_threat.Value,`n                    settings);")) `
+    "authoritative gameplay threat is no longer passed separately into visuals"
 
 foreach ($required in @(
     'beginNaturalTransition',
@@ -141,6 +172,15 @@ $skyEnd = $visual.IndexOf('private Color PaletteColor(', $skyStart, [StringCompa
 Assert-VisualContract ($skyStart -ge 0 -and $skyEnd -gt $skyStart) "night-sky method was not found"
 $skyMethod = $visual.Substring($skyStart, $skyEnd - $skyStart)
 Assert-VisualContract (!$skyMethod.Contains('ShiftTowardRed(')) "night sky incorrectly shifts toward red"
+Assert-VisualContract (!$visual.Contains('SkyEmissionMultiplierId')) "Eyes still owns original sky emission"
+Assert-VisualContract (!$visual.Contains('MoonlightTintStrength * scale')) "threat still weakens the configured moonlight tint"
+Assert-VisualContract (!$visual.Contains('NightSkyAmbientTintStrength * scale')) "threat still weakens the configured sky tint"
+Assert-VisualContract (!$visual.Contains('MoonSurfaceTintStrength * scale')) "threat still weakens the configured moon-surface tint"
+Assert-VisualContract (!$plugin.Contains('PurpleWyrdnessBrightness')) "retired Purple brightness setting remains in the plugin"
+Assert-VisualContract (!$visual.Contains('PurpleWyrdnessBrightness')) "retired Purple brightness plumbing remains in the visual runtime"
+Assert-VisualContract (!$visual.Contains('postExposure')) "Eyes still modifies HDRP post-exposure"
+Assert-VisualContract (!$visual.Contains('GammaSetting')) "Eyes still modifies HDRP gamma"
+Assert-VisualContract (!$visual.Contains('VolumeProfile')) "Eyes still owns a global volume profile"
 Assert-VisualContract ($visual.Contains('Shader.PropertyToID("_SkyTint")')) "night sky does not use the full-sky tint"
 Assert-VisualContract (!$visual.Contains('Shader.PropertyToID("_NightSkyTint")')) "narrow night-texture tint remains"
 

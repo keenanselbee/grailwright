@@ -1,0 +1,14 @@
+TargetVersion=1.2.2
+BaselineVersion=0.8.2
+Expanded the curated native encounter director to 50 reviewed regional profiles with level gates, danger costs, repetition limits, elite controls, and fail-closed placement and combat confirmation.
+Added 33 ambient-stalker profiles with passive observation, pursuit-aware retreat, hidden aggression thresholds, native navigation checks, and threat-adaptive pacing outside the official hunt budget.
+Added configurable dynamic world-clock pacing with a final 60-minute day and 6-to-12-minute threat-scaled Wyrdnight range without changing gameplay Time.timeScale.
+Expanded threat input to confirmed scenery impacts, projectile releases, completed spell casts, and optional Battlecry Voice Tuner integration with diminishing returns and atmospheric responses.
+Added a three-ring protective-boundary presentation, Purple Wyrdness and Native Orange palettes, threat-responsive color and intensity, and configurable moon, sky, exposure, indirect-lighting, and boundary controls.
+Improved the Wyrd Threat meter's standalone and Glorious UI placement, color response, update efficiency, and cleanup while removing an ineffective mirrored-animation correction.
+Reworked exposed Wyrdnight rest around native interruption rules, protective boundaries, threat-scaled cumulative risk, official hunt commitment, and an optional Eyes-owned 12- or 24-hour rest-clock presentation.
+Reduced Wyrdnight presentation overhead through cached lighting and stalker data, bounded update cadences, coalesced illumination refreshes, and fewer unchanged HUD writes.
+Renamed the release to Eyes in the Dark - Wyrdnight Overhaul and standardized Wyrdnight terminology throughout the UI and documentation.
+Advanced configuration schemas for removed, renamed, or redefined settings and changed defaults; stale configs are backed up while compatible durable customizations remain eligible for conservative recovery.
+Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
+Smoothed threat-driven world lighting and palette changes with a configurable two-active-second default half-life while keeping gameplay threat and the HUD immediate.

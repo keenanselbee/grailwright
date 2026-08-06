@@ -5,6 +5,7 @@ using System.Reflection;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace EyesInTheDark
 {
@@ -17,6 +18,10 @@ namespace EyesInTheDark
     internal struct WyrdVisualSettings
     {
         public WyrdnessPalette Palette;
+        public float PurpleExposureMultiplier;
+        public float PurpleExposureCompensation;
+        public float PurpleIndirectDiffuseMultiplier;
+        public float ThreatSmoothingHalfLifeSeconds;
         public float MinimumThreatScale;
         public float MaximumThreatScale;
         public string ThreatRedColor;
@@ -32,7 +37,6 @@ namespace EyesInTheDark
         public bool TintNightSkyAmbient;
         public string NightSkyAmbientColor;
         public float NightSkyAmbientTintStrength;
-        public float PurpleWyrdnessBrightness;
         public bool TintBonfireProtectionBubble;
         public string ProtectionBubbleColor;
         public float ProtectionBubbleIntensity;
@@ -60,6 +64,36 @@ namespace EyesInTheDark
                     1f,
                     Mathf.Clamp01(threat / 100f))
                 * Mathf.Clamp01(maximumBlend);
+        }
+
+        public static float SmoothThreat(
+            float current,
+            float target,
+            float activeSeconds,
+            float halfLifeSeconds)
+        {
+            current = Mathf.Clamp(current, 0f, 100f);
+            target = Mathf.Clamp(target, 0f, 100f);
+            if (float.IsNaN(halfLifeSeconds)
+                || float.IsInfinity(halfLifeSeconds)
+                || halfLifeSeconds <= 0f)
+            {
+                return target;
+            }
+            if (float.IsNaN(activeSeconds)
+                || float.IsInfinity(activeSeconds)
+                || activeSeconds <= 0f)
+            {
+                return current;
+            }
+
+            float blend = 1f - Mathf.Pow(
+                0.5f,
+                activeSeconds / halfLifeSeconds);
+            float smoothed = Mathf.Lerp(current, target, blend);
+            return Mathf.Abs(smoothed - target) <= 0.001f
+                ? target
+                : smoothed;
         }
 
         public static Color ShiftTowardRed(
@@ -97,6 +131,17 @@ namespace EyesInTheDark
             color.g *= scale;
             color.b *= scale;
             return color;
+        }
+
+        public static Color ScaleRgbLinear(Color color, float scale)
+        {
+            Color linear = color.linear;
+            linear.r *= scale;
+            linear.g *= scale;
+            linear.b *= scale;
+            Color scaled = linear.gamma;
+            scaled.a = color.a;
+            return scaled;
         }
 
         public static float AdvanceBlend(
@@ -195,8 +240,6 @@ namespace EyesInTheDark
 
         private static readonly int SkyTintId =
             Shader.PropertyToID("_SkyTint");
-        private static readonly int SkyEmissionMultiplierId =
-            Shader.PropertyToID("_SkyEmissionMultiplier");
         private static readonly int BubbleTintId =
             Shader.PropertyToID("_Tint");
         private static readonly int BubbleBorderColorId =
@@ -217,6 +260,8 @@ namespace EyesInTheDark
             new Dictionary<string, ParsedColor>(StringComparer.Ordinal);
 
         private FieldInfo _moonLightField;
+        private FieldInfo _exposureField;
+        private FieldInfo _indirectLightingControllerField;
         private FieldInfo _shadowCasterLightField;
         private FieldInfo _shadowCasterOwnerLightField;
         private PropertyInfo _lightColorProperty;
@@ -242,11 +287,14 @@ namespace EyesInTheDark
         private bool _hasReportedState;
         private bool _lastReportedActive;
         private WyrdnessPalette _lastReportedPalette;
+        private float _lastReportedPurpleExposureMultiplier;
+        private float _lastReportedPurpleExposureCompensation;
+        private float _lastReportedPurpleIndirectDiffuseMultiplier;
+        private float _lastReportedThreatSmoothingSeconds;
         private float _lastReportedMinimumThreatScale;
         private float _lastReportedMaximumThreatScale;
         private string _lastReportedThreatRedColor;
         private float _lastReportedMaximumRedBlend;
-        private float _lastReportedPurpleBrightness;
         private float _lastReportedTransitionSeconds;
         private bool _environmentRefreshPending;
         private float _nextEnvironmentRefreshTime;
@@ -325,10 +373,19 @@ namespace EyesInTheDark
             MethodInfo dayNightUpdate = AccessTools.Method(
                 _moonLightField.DeclaringType,
                 "Update");
+            MethodInfo handleExposure = AccessTools.Method(
+                _moonLightField.DeclaringType,
+                "HandleExposure");
+            MethodInfo handleIndirectLighting = AccessTools.Method(
+                _moonLightField.DeclaringType,
+                "HandleIndirectLighting");
             MethodInfo repellerInitialize = AccessTools.Method(
                 _repellerMaterialInstanceField.DeclaringType,
                 "OnInitialize");
-            if (dayNightUpdate == null || repellerInitialize == null)
+            if (dayNightUpdate == null
+                || handleExposure == null
+                || handleIndirectLighting == null
+                || repellerInitialize == null)
             {
                 throw new MissingMethodException(
                     "Wyrdnight visual update or repeller initialization target was not found");
@@ -339,6 +396,21 @@ namespace EyesInTheDark
                 postfix: new HarmonyMethod(
                     typeof(WyrdVisualRuntime),
                     nameof(DayNightSystemUpdatePostfix)));
+            HarmonyMethod exposurePostfix = new HarmonyMethod(
+                typeof(WyrdVisualRuntime),
+                nameof(DayNightSystemHandleExposurePostfix));
+            exposurePostfix.after = new[]
+            {
+                "owrocc.DayNightLightTweaks"
+            };
+            harmony.Patch(
+                handleExposure,
+                postfix: exposurePostfix);
+            harmony.Patch(
+                handleIndirectLighting,
+                postfix: new HarmonyMethod(
+                    typeof(WyrdVisualRuntime),
+                    nameof(DayNightSystemHandleIndirectLightingPostfix)));
             harmony.Patch(
                 repellerInitialize,
                 postfix: new HarmonyMethod(
@@ -375,7 +447,11 @@ namespace EyesInTheDark
             }
             else
             {
-                _threat = targetThreat;
+                _threat = WyrdVisualMath.SmoothThreat(
+                    _threat,
+                    targetThreat,
+                    activeDelta,
+                    settings.ThreatSmoothingHalfLifeSeconds);
                 _loadThreatTransitionActive = false;
             }
             _settings = settings;
@@ -451,6 +527,18 @@ namespace EyesInTheDark
                 && active == _lastReportedActive
                 && settings.Palette == _lastReportedPalette
                 && Mathf.Abs(
+                    settings.PurpleExposureMultiplier
+                        - _lastReportedPurpleExposureMultiplier) <= 0.0001f
+                && Mathf.Abs(
+                    settings.PurpleExposureCompensation
+                        - _lastReportedPurpleExposureCompensation) <= 0.0001f
+                && Mathf.Abs(
+                    settings.PurpleIndirectDiffuseMultiplier
+                        - _lastReportedPurpleIndirectDiffuseMultiplier) <= 0.0001f
+                && Mathf.Abs(
+                    settings.ThreatSmoothingHalfLifeSeconds
+                        - _lastReportedThreatSmoothingSeconds) <= 0.0001f
+                && Mathf.Abs(
                     settings.MinimumThreatScale
                         - _lastReportedMinimumThreatScale) <= 0.0001f
                 && Mathf.Abs(
@@ -463,9 +551,6 @@ namespace EyesInTheDark
                 && Mathf.Abs(
                     settings.MaximumRedBlend
                         - _lastReportedMaximumRedBlend) <= 0.0001f
-                && Mathf.Abs(
-                    settings.PurpleWyrdnessBrightness
-                        - _lastReportedPurpleBrightness) <= 0.0001f
                 && Mathf.Abs(
                     settings.TransitionSeconds
                         - _lastReportedTransitionSeconds) <= 0.0001f)
@@ -490,7 +575,27 @@ namespace EyesInTheDark
                         + "; scale="
                         + scale.ToString(
                             "0.00",
-                            CultureInfo.InvariantCulture));
+                            CultureInfo.InvariantCulture)
+                        + (settings.Palette == WyrdnessPalette.Purple
+                            ? "; exposure="
+                                + settings.PurpleExposureMultiplier.ToString(
+                                    "0.00",
+                                    CultureInfo.InvariantCulture)
+                                + "x/"
+                                + settings.PurpleExposureCompensation.ToString(
+                                    "+0.00;-0.00;0.00",
+                                    CultureInfo.InvariantCulture)
+                                + " EV; indirect="
+                                + settings.PurpleIndirectDiffuseMultiplier.ToString(
+                                    "0.00",
+                                    CultureInfo.InvariantCulture)
+                                + "x"
+                            : string.Empty)
+                        + "; smoothing="
+                        + settings.ThreatSmoothingHalfLifeSeconds.ToString(
+                            "0.0",
+                            CultureInfo.InvariantCulture)
+                        + "s");
                 }
                 else if (_hasReportedState && _lastReportedActive)
                 {
@@ -502,6 +607,14 @@ namespace EyesInTheDark
             _hasReportedState = true;
             _lastReportedActive = active;
             _lastReportedPalette = settings.Palette;
+            _lastReportedPurpleExposureMultiplier =
+                settings.PurpleExposureMultiplier;
+            _lastReportedPurpleExposureCompensation =
+                settings.PurpleExposureCompensation;
+            _lastReportedPurpleIndirectDiffuseMultiplier =
+                settings.PurpleIndirectDiffuseMultiplier;
+            _lastReportedThreatSmoothingSeconds =
+                settings.ThreatSmoothingHalfLifeSeconds;
             _lastReportedMinimumThreatScale =
                 settings.MinimumThreatScale;
             _lastReportedMaximumThreatScale =
@@ -509,8 +622,6 @@ namespace EyesInTheDark
             _lastReportedThreatRedColor =
                 settings.ThreatRedColor ?? string.Empty;
             _lastReportedMaximumRedBlend = settings.MaximumRedBlend;
-            _lastReportedPurpleBrightness =
-                settings.PurpleWyrdnessBrightness;
             _lastReportedTransitionSeconds = settings.TransitionSeconds;
         }
 
@@ -547,6 +658,12 @@ namespace EyesInTheDark
             _moonLightField = AccessTools.Field(
                 dayNightSystemType,
                 "_moonLight");
+            _exposureField = AccessTools.Field(
+                dayNightSystemType,
+                "_exposure");
+            _indirectLightingControllerField = AccessTools.Field(
+                dayNightSystemType,
+                "_indirectLightingController");
             _shadowCasterLightField = AccessTools.Field(
                 dayNightSystemType,
                 "_shadowCasterLight");
@@ -560,6 +677,8 @@ namespace EyesInTheDark
                 repellerType,
                 "_materialInstance");
             if (_moonLightField == null
+                || _exposureField == null
+                || _indirectLightingControllerField == null
                 || _shadowCasterLightField == null
                 || _shadowCasterOwnerLightField == null
                 || _skyboxInstanceProperty == null
@@ -665,12 +784,6 @@ namespace EyesInTheDark
                 || !currentSkybox.HasProperty(SkyTintId)
                 ? Color.black
                 : currentSkybox.GetColor(SkyTintId);
-            bool hasSkyEmission = skybox != null
-                && skybox.HasProperty(SkyEmissionMultiplierId);
-            float currentSkyEmission = hasSkyEmission
-                ? skybox.GetFloat(SkyEmissionMultiplierId)
-                : 0f;
-
             state.ObserveOriginals(
                 currentSurface,
                 currentMoonlight,
@@ -679,9 +792,7 @@ namespace EyesInTheDark
                 currentCorona,
                 currentCoronaMultiplier,
                 currentSkybox,
-                currentSky,
-                hasSkyEmission,
-                currentSkyEmission);
+                currentSky);
 
             if (!_active)
             {
@@ -693,13 +804,6 @@ namespace EyesInTheDark
                 _threat,
                 _settings.MinimumThreatScale,
                 _settings.MaximumThreatScale);
-            float purpleBrightness = _settings.Palette
-                    == WyrdnessPalette.Purple
-                ? Mathf.Clamp(
-                    _settings.PurpleWyrdnessBrightness,
-                    0.5f,
-                    2f)
-                : 1f;
             Color red = ReadColor(
                 _settings.ThreatRedColor,
                 DefaultThreatRedColor,
@@ -716,9 +820,8 @@ namespace EyesInTheDark
                     red,
                     _threat,
                     _settings.MaximumRedBlend),
-                Mathf.Clamp01(
-                    _settings.MoonSurfaceTintStrength * scale));
-            fullSurface = WyrdVisualMath.ScaleRgb(
+                Mathf.Clamp01(_settings.MoonSurfaceTintStrength));
+            fullSurface = WyrdVisualMath.ScaleRgbLinear(
                 fullSurface,
                 Mathf.Clamp(_settings.MoonSurfaceIntensity, 0f, 8f)
                     * scale);
@@ -745,11 +848,11 @@ namespace EyesInTheDark
                     red,
                     _threat,
                     _settings.MaximumRedBlend);
-                shiftedMoonlight = WyrdVisualMath.ScaleRgb(
+                shiftedMoonlight = WyrdVisualMath.ScaleRgbLinear(
                     shiftedMoonlight,
-                    purpleBrightness);
+                    scale);
                 float lightStrength = Mathf.Clamp01(
-                    _settings.MoonlightTintStrength * scale)
+                    _settings.MoonlightTintStrength)
                     * _visualBlend;
                 Color desiredMoonlight = Color.Lerp(
                     state.OriginalMoonlight,
@@ -773,7 +876,7 @@ namespace EyesInTheDark
             }
 
             ApplyCorona(state, lightData, red, scale);
-            ApplySky(state, scale, purpleBrightness);
+            ApplySky(state, scale);
             state.CalculationVersion = _calculationVersion;
             FlushEnvironmentRefresh(false);
         }
@@ -810,15 +913,6 @@ namespace EyesInTheDark
                 _moonFlareMultiplierField.SetValue(
                     lightData,
                     state.LastCoronaMultiplier);
-            }
-            if (state.Skybox != null
-                && state.HasSkyEmission
-                && state.HasLastSkyEmission
-                && state.Skybox.HasProperty(SkyEmissionMultiplierId))
-            {
-                state.Skybox.SetFloat(
-                    SkyEmissionMultiplierId,
-                    state.LastSkyEmission);
             }
         }
 
@@ -880,8 +974,7 @@ namespace EyesInTheDark
 
         private void ApplySky(
             DayNightState state,
-            float scale,
-            float purpleBrightness)
+            float scale)
         {
             if (state.Skybox == null)
             {
@@ -898,11 +991,14 @@ namespace EyesInTheDark
                         _settings.NightSkyAmbientColor,
                         DefaultNightSkyAmbientColor,
                         "NightSkyAmbientColor");
+                    baseColor = WyrdVisualMath.ScaleRgbLinear(
+                        baseColor,
+                        scale);
                     desired = Color.Lerp(
                         state.OriginalSky,
                         baseColor,
                         Mathf.Clamp01(
-                            _settings.NightSkyAmbientTintStrength * scale)
+                            _settings.NightSkyAmbientTintStrength)
                             * _visualBlend);
                 }
 
@@ -917,24 +1013,6 @@ namespace EyesInTheDark
                 state.HasLastSky = true;
             }
 
-            if (state.HasSkyEmission)
-            {
-                float desiredEmission = Mathf.Lerp(
-                    state.OriginalSkyEmission,
-                    state.OriginalSkyEmission * purpleBrightness,
-                    _visualBlend);
-                if (Mathf.Abs(
-                    state.Skybox.GetFloat(SkyEmissionMultiplierId)
-                        - desiredEmission) > 0.0001f)
-                {
-                    state.Skybox.SetFloat(
-                        SkyEmissionMultiplierId,
-                        desiredEmission);
-                    _environmentRefreshPending = true;
-                }
-                state.LastSkyEmission = desiredEmission;
-                state.HasLastSkyEmission = true;
-            }
         }
 
         private Color PaletteColor(
@@ -1188,19 +1266,6 @@ namespace EyesInTheDark
                 state.Skybox.SetColor(SkyTintId, state.OriginalSky);
                 _environmentRefreshPending = true;
             }
-            if (state.Skybox != null
-                && state.HasSkyEmission
-                && state.HasLastSkyEmission
-                && state.Skybox.HasProperty(SkyEmissionMultiplierId)
-                && Mathf.Abs(
-                    state.Skybox.GetFloat(SkyEmissionMultiplierId)
-                        - state.LastSkyEmission) <= 0.0001f)
-            {
-                state.Skybox.SetFloat(
-                    SkyEmissionMultiplierId,
-                    state.OriginalSkyEmission);
-                _environmentRefreshPending = true;
-            }
             state.ClearLastApplied();
         }
 
@@ -1404,6 +1469,105 @@ namespace EyesInTheDark
             }
         }
 
+        private static void DayNightSystemHandleExposurePostfix(
+            object __instance)
+        {
+            WyrdVisualRuntime runtime = _instance;
+            if (runtime == null)
+            {
+                return;
+            }
+            try
+            {
+                runtime.ApplyPurpleExposure(__instance);
+            }
+            catch (Exception exception)
+            {
+                runtime.Fail(
+                    "Purple Wyrdness exposure could not be applied",
+                    exception);
+            }
+        }
+
+        private void ApplyPurpleExposure(object system)
+        {
+            if (!_active
+                || _settings.Palette != WyrdnessPalette.Purple
+                || _visualBlend <= 0.00001f)
+            {
+                return;
+            }
+
+            Exposure exposure = _exposureField.GetValue(system) as Exposure;
+            if (exposure == null)
+            {
+                return;
+            }
+
+            float multiplier = Mathf.Lerp(
+                1f,
+                Mathf.Clamp(
+                    _settings.PurpleExposureMultiplier,
+                    0f,
+                    3f),
+                _visualBlend);
+            float compensation = Mathf.Clamp(
+                _settings.PurpleExposureCompensation,
+                -2f,
+                2f) * _visualBlend;
+            exposure.compensation.value =
+                exposure.compensation.value * multiplier + compensation;
+            exposure.fixedExposure.value =
+                exposure.fixedExposure.value * multiplier - compensation;
+        }
+
+        private static void DayNightSystemHandleIndirectLightingPostfix(
+            object __instance)
+        {
+            WyrdVisualRuntime runtime = _instance;
+            if (runtime == null)
+            {
+                return;
+            }
+            try
+            {
+                runtime.ApplyPurpleIndirectDiffuse(__instance);
+            }
+            catch (Exception exception)
+            {
+                runtime.Fail(
+                    "Purple Wyrdness indirect diffuse lighting could not be applied",
+                    exception);
+            }
+        }
+
+        private void ApplyPurpleIndirectDiffuse(object system)
+        {
+            if (!_active
+                || _settings.Palette != WyrdnessPalette.Purple
+                || _visualBlend <= 0.00001f)
+            {
+                return;
+            }
+
+            IndirectLightingController controller =
+                _indirectLightingControllerField.GetValue(system)
+                    as IndirectLightingController;
+            if (controller == null)
+            {
+                return;
+            }
+
+            float multiplier = Mathf.Lerp(
+                1f,
+                Mathf.Clamp(
+                    _settings.PurpleIndirectDiffuseMultiplier,
+                    0f,
+                    3f),
+                _visualBlend);
+            controller.indirectDiffuseLightingMultiplier.value *= multiplier;
+        }
+
         private static void WyrdnightSphereRepellerOnInitializePostfix(
             object __instance)
         {
@@ -1441,20 +1605,16 @@ namespace EyesInTheDark
             public float OriginalCoronaMultiplier { get; private set; }
             public Material Skybox { get; private set; }
             public Color OriginalSky { get; private set; }
-            public bool HasSkyEmission { get; private set; }
-            public float OriginalSkyEmission { get; private set; }
             public Color LastSurface;
             public Color LastMoonlight;
             public Color LastWorldLight;
             public Color LastCorona;
             public float LastCoronaMultiplier;
             public Color LastSky;
-            public float LastSkyEmission;
             public bool HasLastSurface;
             public bool HasLastLights;
             public bool HasLastCorona;
             public bool HasLastSky;
-            public bool HasLastSkyEmission;
             public int CalculationVersion;
 
             public void ObserveOriginals(
@@ -1465,9 +1625,7 @@ namespace EyesInTheDark
                 Color corona,
                 float coronaMultiplier,
                 Material skybox,
-                Color sky,
-                bool hasSkyEmission,
-                float skyEmission)
+                Color sky)
             {
                 if (!HasLastSurface
                     || !WyrdVisualMath.Approximately(surface, LastSurface))
@@ -1504,22 +1662,13 @@ namespace EyesInTheDark
                 {
                     Skybox = skybox;
                     HasLastSky = false;
-                    HasLastSkyEmission = false;
                 }
-                HasSkyEmission = hasSkyEmission;
                 if (skybox != null
                     && skybox.HasProperty(SkyTintId)
                     && (!HasLastSky
                         || !WyrdVisualMath.Approximately(sky, LastSky)))
                 {
                     OriginalSky = sky;
-                }
-                if (hasSkyEmission
-                    && (!HasLastSkyEmission
-                        || Mathf.Abs(
-                            skyEmission - LastSkyEmission) > 0.0001f))
-                {
-                    OriginalSkyEmission = skyEmission;
                 }
             }
 
@@ -1529,7 +1678,6 @@ namespace EyesInTheDark
                 HasLastLights = false;
                 HasLastCorona = false;
                 HasLastSky = false;
-                HasLastSkyEmission = false;
                 CalculationVersion = int.MinValue;
             }
         }

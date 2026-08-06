@@ -12,6 +12,8 @@ namespace EyesInTheDark
         public const float MinimumPhaseMinutes = 1f;
         public const float MaximumPhaseMinutes = 600f;
         public const float MinimumNightUpdateMinutes = 0.05f;
+        public const float MinimumOverrideMultiplier = 0.01f;
+        public const float MaximumOverrideMultiplier = 5f;
 
         public static float ClampPhaseMinutes(float minutes)
         {
@@ -49,6 +51,22 @@ namespace EyesInTheDark
                 ? 0f
                 : Math.Max(0f, Math.Min(100f, threat)) / 100f;
             return minimum + (maximum - minimum) * normalizedThreat;
+        }
+
+        public static float ClampOverrideMultiplier(float multiplier)
+        {
+            if (float.IsNaN(multiplier)
+                || float.IsNegativeInfinity(multiplier))
+            {
+                return 1f;
+            }
+            if (float.IsPositiveInfinity(multiplier))
+            {
+                return MaximumOverrideMultiplier;
+            }
+            return Math.Max(
+                MinimumOverrideMultiplier,
+                Math.Min(MaximumOverrideMultiplier, multiplier));
         }
 
         public static float PhaseDurationMultiplier(
@@ -152,7 +170,10 @@ namespace EyesInTheDark
         private float _lastBaseNightMinutes;
         private float _lastMaximumThreatNightMinutes;
         private float _lastTargetPhaseMinutes;
+        private float _lastTargetWeatherDayDuration;
+        private float _lastOverrideMultiplier;
         private bool _lastWasNight;
+        private bool _lastOverrideEnabled;
         private bool _ownsRate;
         private bool _failureLogged;
 
@@ -168,13 +189,16 @@ namespace EyesInTheDark
             float dayMinutes,
             float baseNightMinutes,
             float maximumThreatNightMinutes,
-            float threat)
+            float threat,
+            bool overrideEnabled = false,
+            float overrideMultiplier = 1f)
         {
             if (!ReferenceEquals(_clock, clock))
             {
                 _clock = clock;
                 _ownsRate = false;
                 _lastAppliedRate = 0f;
+                _lastOverrideEnabled = false;
                 _failureLogged = false;
             }
 
@@ -209,21 +233,41 @@ namespace EyesInTheDark
                     safeMaximumThreatNightMinutes,
                     threat)
                 : safeDayMinutes;
-            bool settingsUnchanged = isNight
-                ? WorldTimescalePolicy.Approximately(
-                        safeBaseNightMinutes,
-                        _lastBaseNightMinutes)
+            float safeOverrideMultiplier =
+                WorldTimescalePolicy.ClampOverrideMultiplier(
+                    overrideMultiplier);
+            float targetWeatherDayDuration = overrideEnabled
+                ? Math.Max(
+                    0.01f,
+                    vanillaCycleMinutes / safeOverrideMultiplier)
+                : WorldTimescalePolicy.CycleMinutesForPhase(
+                    targetPhaseMinutes,
+                    isNight);
+            bool settingsUnchanged = overrideEnabled
+                ? _lastOverrideEnabled
                     && WorldTimescalePolicy.Approximately(
-                        safeMaximumThreatNightMinutes,
-                        _lastMaximumThreatNightMinutes)
-                : WorldTimescalePolicy.Approximately(
-                    safeDayMinutes,
-                    _lastDayMinutes);
-            bool targetUnchanged = Math.Abs(
-                    targetPhaseMinutes - _lastTargetPhaseMinutes)
-                < WorldTimescalePolicy.MinimumNightUpdateMinutes;
+                        safeOverrideMultiplier,
+                        _lastOverrideMultiplier)
+                : !_lastOverrideEnabled
+                    && (isNight
+                        ? WorldTimescalePolicy.Approximately(
+                                safeBaseNightMinutes,
+                                _lastBaseNightMinutes)
+                            && WorldTimescalePolicy.Approximately(
+                                safeMaximumThreatNightMinutes,
+                                _lastMaximumThreatNightMinutes)
+                        : WorldTimescalePolicy.Approximately(
+                            safeDayMinutes,
+                            _lastDayMinutes));
+            bool targetUnchanged = overrideEnabled
+                ? WorldTimescalePolicy.Approximately(
+                    targetWeatherDayDuration,
+                    _lastTargetWeatherDayDuration)
+                : Math.Abs(
+                        targetPhaseMinutes - _lastTargetPhaseMinutes)
+                    < WorldTimescalePolicy.MinimumNightUpdateMinutes;
             bool stateUnchanged = _ownsRate
-                && isNight == _lastWasNight
+                && (overrideEnabled || isNight == _lastWasNight)
                 && settingsUnchanged
                 && targetUnchanged;
             if (stateUnchanged)
@@ -234,32 +278,42 @@ namespace EyesInTheDark
             try
             {
                 clock.SetWeatherDayDuration(
-                    WorldTimescalePolicy.CycleMinutesForPhase(
-                        targetPhaseMinutes,
-                        isNight));
+                    targetWeatherDayDuration);
                 _lastAppliedRate = clock.WeatherSecondsPerRealSecond;
                 _lastDayMinutes = safeDayMinutes;
                 _lastBaseNightMinutes = safeBaseNightMinutes;
                 _lastMaximumThreatNightMinutes =
                     safeMaximumThreatNightMinutes;
                 _lastTargetPhaseMinutes = targetPhaseMinutes;
+                _lastTargetWeatherDayDuration =
+                    targetWeatherDayDuration;
+                _lastOverrideMultiplier = safeOverrideMultiplier;
                 _lastWasNight = isNight;
+                _lastOverrideEnabled = overrideEnabled;
                 _ownsRate = true;
                 _failureLogged = false;
                 _log.LogInfo(
-                    "World timescale applied: phase="
-                    + (isNight ? "night" : "day")
-                    + "; phaseMinutes="
-                    + targetPhaseMinutes.ToString(
-                            "0.0",
-                            CultureInfo.InvariantCulture)
-                    + (isNight
-                        ? "; threat="
-                            + Math.Max(0f, Math.Min(100f, threat)).ToString(
-                                "0.0",
+                    overrideEnabled
+                        ? "World timescale diagnostic override applied: multiplier="
+                            + safeOverrideMultiplier.ToString(
+                                "0.00",
                                 CultureInfo.InvariantCulture)
-                        : string.Empty)
-                    + ".");
+                            + "."
+                        : "World timescale applied: phase="
+                            + (isNight ? "night" : "day")
+                            + "; phaseMinutes="
+                            + targetPhaseMinutes.ToString(
+                                    "0.0",
+                                    CultureInfo.InvariantCulture)
+                            + (isNight
+                                ? "; threat="
+                                    + Math.Max(
+                                        0f,
+                                        Math.Min(100f, threat)).ToString(
+                                        "0.0",
+                                        CultureInfo.InvariantCulture)
+                                : string.Empty)
+                            + ".");
             }
             catch (Exception exception)
             {

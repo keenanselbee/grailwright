@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `1.1.0` is the
+This is the living design document for `EyesInTheDark`. Version `1.2.2` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -160,6 +160,14 @@ night length by at least `0.05` minute. It never writes Unity gameplay
 `Time.timeScale`, so combat, animations, effects, and pause behavior are
 unaffected. On disable or plugin release, Eyes restores the native duration
 only when the current rate still equals its last applied value.
+
+The Diagnostics tab provides a separate fixed world-clock testing override.
+When `EnableTimescaleOverride` is enabled while Eyes itself is enabled,
+`TimescaleOverrideMultiplier` replaces both dynamic phase targets with a
+constant `0.01`-to-`5.0` multiplier of the native world clock. `1` is native
+speed, `2` is twice as fast, and `0.5` is half speed. It works even when
+`EnableDynamicTimescale` is off, never changes Unity gameplay `Time.timeScale`,
+and retains the normal safe-restoration and external-owner protections.
 
 ### Extended-night scaling
 
@@ -649,11 +657,10 @@ Threat meter.
 - If the Glorious layout request disappears or fails, the meter returns to its
   default position.
 - The meter artwork remains mirrored horizontally and vertically to match the
-  intended Hero HUD layout, but animated texture scrolling retains the same
-  screen direction as the vanilla resource bars.
-- Every cloned texture scroller receives a private runtime material before its
-  mirrored axes are reversed. Eyes never changes the materials or animation of
-  the source Hero bars, and it destroys the private materials with the meter.
+  intended Hero HUD layout. The current implementation does not claim to
+  reverse shader-driven animation. The previous TextureScroller correction was
+  removed after runtime evidence showed that no eligible scroller existed in
+  the cloned mana-bar hierarchy.
 
 The existing Wyrd Threat meter implementation should be removed from Glorious
 UI when this integration replaces it.
@@ -707,23 +714,48 @@ The promoted Purple defaults are moon surface `#3200FF`, tint `0.75`, intensity
 tint `#401C63`, strength `1`; and protection bubble `#B050FF`, body/border
 intensity `1 / 1`.
 
-`PurpleWyrdnessBrightness`, default `1.2` and constrained to `0.5-2.0`, scales
-the purple sky emission and HDR moon/world-light color channels. It does not
-own exposure, post-exposure, light intensity, dimmers, volumetrics, or any
-Native Orange value, preserving the ownership boundary with Light Control.
+Purple Wyrdness applies a configurable multiplier, default `1.2`, plus mode-aware
+exposure compensation to the native Wyrdnight exposure result. The compensation
+defaults to `+0.35 EV` and supports `-2` through `+2 EV`. Both effects are
+independent of threat and interpolate through the same visual blend used by
+natural dusk, dawn, load, and disable transitions. Automatic and physical-camera
+exposure use `compensation * multiplier + EV`; fixed exposure uses
+`fixedExposure * multiplier - EV`, matching the active mode's sign convention.
+Native Orange does not alter exposure. Light Control continues to own its
+settings and runs before Eyes. Eyes does not modify HDRP post-exposure, gamma,
+colors, or global volumes. The exposure multiplier supports `0` through `3`
+and remains separate from EV compensation and indirect diffuse lighting.
+
+Purple Wyrdness also multiplies the game-owned Indirect Lighting Controller's
+native indirect diffuse value. The setting defaults to `1.10`, supports `0`
+through `3`, and interpolates from `1.0` through the same natural presentation
+blend. Native Orange leaves indirect diffuse lighting unchanged. Direct
+moonlight, reflection lighting, reflection-probe intensity, exposure, gamma,
+colors, and global-volume ownership remain outside this setting.
 
 One global visual-strength multiplier replaces the former boundary-only threat
 response. It interpolates linearly from configurable `0.8` at zero threat to
 `1.2` at 100 threat. A smooth threat curve blends the moon surface, corona,
 moonlight, protection bubble, boundary, and threat meter toward configurable
-red `#FF3028`, reaching a default maximum blend of `0.8`. The full-sky color is
-explicitly excluded from red shifting, although its tint strength still follows
-the shared scale. It uses the sky material's `_SkyTint` property and does not
-directly own fog, clouds, terrain lighting, or reflections.
+red `#FF3028`, reaching a default maximum blend of `0.8`. Configured palette
+tint strengths remain independent of that scale, so zero threat retains the
+intended base hue rather than blending back toward the original game color.
+The full-sky color is explicitly excluded from red shifting; its selected color
+brightness, not its tint strength, follows the shared scale. It uses the sky
+material's `_SkyTint` property and does not directly own fog, clouds, terrain
+lighting, or reflections.
 
 The threat meter retains its configurable base color and is rendered at `1.5`
 times RGB brightness before applying the shared threat multiplier. It uses the
 same red-shift curve as the world presentation.
+
+The authoritative threat value remains immediate for gameplay, the meter,
+hunts, notifications, and dynamic Wyrdnight duration. World lighting and the
+integrated palette use a separate visual threat value with a configurable
+`2`-active-second default half-life. It advances only on the existing
+five-times-per-second visual update, so sudden gains such as battlecries ease
+into the scene without introducing per-frame calculation or rendering work.
+Setting `ThreatVisualSmoothingSeconds` to `0` restores immediate visual changes.
 
 Visual ownership targets the active outdoor Wyrdnight presentation. Natural
 dusk in the same stable exterior centers the integrated environment and fueled
@@ -886,9 +918,10 @@ The Diagnostics tab also owns an explicit testing override. When
 gain, protected/interior decay, hunter relief, and activity inputs are
 suppressed while it is active. The forced value deliberately drives every
 normal consumer, including the meter, visuals, dynamic night duration, ambient
-stalkers, and official hunts. Dawn still resets threat. Both override settings
-are excluded from schema recovery/import so a new testing control cannot be
-silently re-enabled after configuration regeneration.
+stalkers, and official hunts. Dawn still resets threat. Both threat-override
+settings are excluded from schema recovery/import. The world-timescale
+override and multiplier are excluded for the same reason, so testing controls
+cannot be silently re-enabled after configuration regeneration.
 
 Use System style and category, Low priority, short duration, immediate delivery,
 and the single `eyes-in-the-dark-diagnostics` collapse lane. Do not defer these

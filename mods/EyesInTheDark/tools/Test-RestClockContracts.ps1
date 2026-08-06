@@ -20,7 +20,7 @@ function Assert-RestClockContract {
 foreach ($required in @(
     'src/RestClockOverlay.cs',
     'UnityEngine.TextRenderingModule.dll',
-    '"version": "1.1.0"')) {
+    '"version": "1.2.2"')) {
     Assert-RestClockContract ($manifest.Contains($required)) "manifest omits $required"
 }
 
@@ -60,8 +60,12 @@ foreach ($required in @(
     'UsesNoonAtTop(',
     'Detach(',
     'RestoreNativePresentation()',
-    'RotateHalfTurn(_arm);',
-    'RotateHalfTurn(_fill);',
+    '_nativeArmRotation = arm.localRotation;',
+    '_nativeFillRotation = fill.localRotation;',
+    'ApplyHalfTurn(',
+    'Quaternion.Angle(current, lastAppliedRotation) > 0.01f',
+    '_arm.localRotation = _nativeArmRotation;',
+    '_fill.localRotation = _nativeFillRotation;',
     '"currentTimeValueText"',
     '"restingTimeUntilValueText"',
     'hour < 12 ? " AM" : " PM"',
@@ -93,5 +97,6 @@ foreach ($removed in @(
 
 Assert-RestClockContract (!$plugin.Contains('CurrentRestClockColor()')) "palette-dependent rest-clock color remains"
 Assert-RestClockContract (!$plugin.Contains('"HandleClockArmSetupForMouse"')) "native mouse input is patched"
+Assert-RestClockContract (!$overlay.Contains('rect.rotation *= Quaternion.Euler')) "rest-clock rotation still accumulates across refreshes"
 
 Write-Host "Eyes in the Dark rest-clock contracts passed."

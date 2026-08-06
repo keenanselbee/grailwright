@@ -239,7 +239,7 @@ function Get-MetadataText {
         throw "Missing Nexus metadata file: $path"
     }
 
-    $text = (Get-Content -LiteralPath $path -Raw).Trim()
+    $text = ([System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)).Trim()
     if ($MaximumLength -gt 0 -and $text.Length -gt $MaximumLength) {
         throw "$FileName is $($text.Length) characters, over limit $MaximumLength`: $path"
     }
@@ -540,7 +540,7 @@ It is safe to revert using the backup JSON path printed by the tool.
             throw "FullDescriptionPath not found: $fullPath"
         }
 
-        $desiredFull = (Get-Content -LiteralPath $fullPath -Raw).Trim()
+        $desiredFull = ([System.IO.File]::ReadAllText($fullPath, [System.Text.Encoding]::UTF8)).Trim()
     }
 }
 

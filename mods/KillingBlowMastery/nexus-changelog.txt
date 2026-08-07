@@ -1,4 +1,5 @@
-TargetVersion=1.5.7
-BaselineVersion=1.5.5
-Matched the game's hyphenated One-Handed and Two-Handed proficiency names in notifications, configuration descriptions, diagnostics, and documentation.
-Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
+TargetVersion=1.6.0
+BaselineVersion=1.5.7
+Removed the character-statistics counters, settings, save-memory hook, and TSV export so Killing Blow Mastery is focused on proficiency rewards, notifications, and audio.
+No Killing Blow Mastery counters are imported or migrated into Deeds of Avalon.
+Advanced ConfigSchemaVersion from 13 to 14 because the Statistics section was removed and Diagnostics moved from section 7 to section 6.

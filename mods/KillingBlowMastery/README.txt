@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.5.7
+Version 1.6.0
 
 Platforms: Windows and Linux through Proton.
 
@@ -22,16 +22,16 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 Killing Blow Mastery starts from a clean plugin identity and uses
-ConfigSchemaVersion 13. Older KS Killing Blow configs are ignored. Future
+ConfigSchemaVersion 14. Older KS Killing Blow configs are ignored. Future
 schema resets preserve finisher distance fade, reward volume and pitch,
-notification format, bloodless whitelist terms, and the statistics character
-key override by exact current setting name. Numeric values are clamped to their
+notification format, and bloodless whitelist terms by exact current setting
+name. Numeric values are clamped to their
 current supported ranges and invalid values are skipped.
 
 Default behavior:
 
 Enabled = true
-ConfigSchemaVersion = 13
+ConfigSchemaVersion = 14
 FinisherSoundMode = WeaponSpecific
 FinisherSoundRangeVolume = 1
 BonusPercentOfEnemyXP = 4
@@ -55,10 +55,6 @@ BloodlessSoundWhitelistTerms =
 AvoidRecentSoundRepeats = true
 RecentSoundMemory = 2
 RandomPitchSemitones = 0.35
-TrackStatistics = true
-EnemyStatsMode = Promoted
-EnemyPromoteKillCount = 2
-ExportStatisticsReportOnSave = true
 
 Eligible combat skills:
 
@@ -80,30 +76,6 @@ Thrown items are ignored by default.
 Targets with XpRewardAllowed = false are ignored by default.
 Magic kills can award Magic proficiency when the source is a spell, rod, magic
 item, or magical damage event.
-
-Statistics:
-
-Killing Blow Mastery tracks lightweight stats after a proficiency XP award
-succeeds. It does not scan enemies and it does not write on every kill. Counters
-are stored in the game's save-backed GameplayMemory, so loading an older save
-rolls the stats back with that save.
-
-When the game saves, the mod exports a readable report to:
-
-BepInEx/config/ks.tgfoa.killing-blow-mastery.stats.tsv
-
-Stats are separated by character automatically from the current hero when the
-game exposes a stable hero identifier. If automatic separation is not suitable
-for a playthrough, set StatisticsCharacterKeyOverride to a custom character/run
-name.
-
-The TSV is only a report generated from the current save-backed stats. Deleting
-it does not reset the save-backed counters. The report includes totals, bonus
-XP, damage-over-time credited kills, proficiency totals, sound/source-pool
-totals, exact kill-source totals, and enemy totals. EnemyStatsMode defaults to
-Promoted: repeated enemies become named enemy rows after two kills, while one-off
-enemies remain as enemy_candidate rows so special single encounters do not
-dominate the main enemy list.
 
 Audio:
 
@@ -159,7 +131,7 @@ When UseBloodlessSoundVariants is true, targets whose names, templates, or type
 text match BloodlessSoundBlacklistTerms try matching _dry files before
 their normal pool sound. BloodlessSoundWhitelistTerms can force normal sounds
 for specific targets. Detection only changes sound routing; it does not change
-XP, statistics, or whether the kill is eligible.
+XP or whether the kill is eligible.
 
 Examples:
 
@@ -273,7 +245,7 @@ custom format if you want the target name shown.
 Diagnostics:
 
 Turn Diagnostics on to log kill source, resolved proficiency, enemy XP, awarded
-bonus, notification route, reward sound pool, and statistics writes.
+bonus, notification route, and reward sound pool.
 
 Build:
 

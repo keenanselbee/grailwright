@@ -1,3 +1,8 @@
+Version 1.6.0
+Removed Killing Blow Mastery's character-statistics counters, statistics settings, save-memory hook, and TSV export so the mod is focused only on killing-blow proficiency rewards, notifications, and audio.
+No Killing Blow Mastery counters are imported or migrated into Deeds of Avalon.
+Incremented ConfigSchemaVersion from 13 to 14 because the Statistics section was removed and Diagnostics moved from section 7 to section 6.
+
 Version 1.5.7
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

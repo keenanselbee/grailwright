@@ -17,7 +17,6 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 [*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages and skill-level icons.[/*]
 [*][b]Weapon-aware finishers:[/b] Route FMOD sounds through blades, axes, blunt weapons, bows, shields, unarmed attacks, and distinct magic pools.[/*]
 [*][b]Large included sound library:[/b] Use 165 effects across standard, optional dry bloodless-target, and non-corporeal variants, with several selectable sound modes.[/*]
-[*][b]Per-character statistics:[/b] Track rewarded killing blows, proficiency XP, kill sources, and repeated enemy types in save-backed memory.[/*]
 [/list]
 
 [line]
@@ -30,7 +29,6 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 [*][b]Damage-over-time kills:[/b] supported when the kill can be traced to a recent hero damage source.[/*]
 [*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Two-Handed[/b].[/*]
 [*][b]Sounds:[/b] weapon-specific FMOD finisher sounds by default, with non-corporeal enemy sounds and bloodless variants enabled when matching files exist.[/*]
-[*][b]Statistics:[/b] on by default, grouped by character, save-backed, and exported as a readable report when the game saves.[/*]
 [/list]
 
 [code]
@@ -73,28 +71,6 @@ Magic
 
 [line]
 
-[heading][color=#C94A4A][size=5]Statistics[/size][/color][/heading]
-Stats are counted only after the proficiency XP award succeeds. The mod stores counters in the game's save-backed GameplayMemory, so loading an older save rolls the stats back with that save.
-
-When the game saves, the mod exports a small readable tab-separated report:
-
-[code]
-BepInEx/config/ks.tgfoa.killing-blow-mastery.stats.tsv
-[/code]
-
-The file is separated by character automatically when the game exposes a stable hero identifier. If you want to force a specific run name, set [b]StatisticsCharacterKeyOverride[/b].
-
-[code]
-TrackStatistics = true
-EnemyStatsMode = Promoted
-EnemyPromoteKillCount = 2
-ExportStatisticsReportOnSave = true
-[/code]
-
-The TSV is only a report generated from the current save-backed stats. Deleting it does not reset the save-backed counters. Tracked rows include total awards, total bonus XP, damage-over-time credited kills, proficiency totals, source-pool totals, exact kill-source totals, and enemy totals. [b]Promoted[/b] enemy stats keep repeated enemy types as named rows while one-off enemies stay as [b]enemy_candidate[/b] rows, so special single encounters do not take over the main enemy list.
-
-[line]
-
 [heading][color=#C94A4A][size=5]Finisher Sounds[/size][/color][/heading]
 The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matching category sound for the kill source, then uses FMOD for playback with optional no-repeat selection, subtle pitch randomization, and distance-based volume fade.
 
@@ -123,7 +99,7 @@ If FMOD playback fails, the mod falls back to the older Unity AudioSource path a
 
 [b]UseNonCorporealEnemySounds[/b] is enabled by default. Matched non-corporeal targets use [b]non_corporeal1.wav[/b] through [b]non_corporeal5.wav[/b] only, overriding weapon, magic, Soulslike, and [b]_dry[/b] routing for those targets. [b]GoatTest[/b] still uses [b]goat.wav[/b] for diagnostics, and [b]Off[/b] remains silent.
 
-[b]UseBloodlessSoundVariants[/b] is enabled by default. Targets whose names, templates, or type text match [b]BloodlessSoundBlacklistTerms[/b] try matching [b]_dry[/b] files before their normal pool sound. [b]BloodlessSoundWhitelistTerms[/b] can force normal sounds for specific targets. This only changes sound routing; it does not change XP, statistics, or kill eligibility.
+[b]UseBloodlessSoundVariants[/b] is enabled by default. Targets whose names, templates, or type text match [b]BloodlessSoundBlacklistTerms[/b] try matching [b]_dry[/b] files before their normal pool sound. [b]BloodlessSoundWhitelistTerms[/b] can force normal sounds for specific targets. This only changes sound routing; it does not change XP or kill eligibility.
 
 [line]
 

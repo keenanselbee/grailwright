@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.5.7.0")]
-[assembly: AssemblyFileVersion("1.5.7.0")]
-[assembly: AssemblyInformationalVersion("1.5.7")]
+[assembly: AssemblyVersion("1.6.0.0")]
+[assembly: AssemblyFileVersion("1.6.0.0")]
+[assembly: AssemblyInformationalVersion("1.6.0")]
 
 namespace KillingBlowMastery
 {
@@ -29,7 +29,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.5.7";
+        public const string PluginVersion = "1.6.0";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -41,9 +41,6 @@ namespace KillingBlowMastery
         private const string ItemTypeName = "Awaken.TG.Main.Heroes.Items.Item";
         private const string ProfUtilsTypeName = "Awaken.TG.Main.Heroes.Stats.Utils.ProfUtils";
         private const string ProfStatTypeName = "Awaken.TG.Main.General.StatTypes.ProfStatType";
-        private const string WorldTypeName = "Awaken.TG.MVC.World";
-        private const string GameplayMemoryTypeName = "Awaken.TG.Main.Memories.GameplayMemory";
-        private const string IModelTypeName = "Awaken.TG.MVC.IModel";
         private const string NotificationUtilsTypeName = "Awaken.TG.Main.UI.HUD.AdvancedNotifications.NotificationUtils";
         private const string LowerInfoNotificationTypeName = "Awaken.TG.Main.UI.HUD.AdvancedNotifications.MiddleScreen.FancyPanel.LowerInfoNotification";
         private const string LowerInfoViewTypeName = "Awaken.TG.Main.UI.HUD.AdvancedNotifications.MiddleScreen.FancyPanel.VLowerInfoNotification";
@@ -97,15 +94,10 @@ namespace KillingBlowMastery
         private const string FinisherSoundModeSoulslike = "Soulslike";
         private const string FinisherSoundModeGoatTest = "GoatTest";
         private const string FinisherSoundModeOff = "Off";
-        private const string EnemyStatsModePromoted = "Promoted";
-        private const string EnemyStatsModeAll = "All";
-        private const string EnemyStatsModeOff = "Off";
-        private const string StatisticsMemoryContext = "KillingBlowMastery";
-        private const string StatisticsFileName = "ks.tgfoa.killing-blow-mastery.stats.tsv";
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
-        private const int ConfigSchemaVersion = 13;
+        private const int ConfigSchemaVersion = 14;
         private const int ConfigRecoveryBaselineSchema = 13;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -120,15 +112,7 @@ namespace KillingBlowMastery
         private Type _heroType;
         private Type _itemType;
         private Type _profStatType;
-        private Type _gameplayMemoryType;
-        private Type _iModelType;
         private MethodInfo _heroCurrentGetter;
-        private MethodInfo _worldServicesGetter;
-        private MethodInfo _servicesGetGameplayMemoryMethod;
-        private MethodInfo _gameplayMemoryContextMethod;
-        private MethodInfo _factsGetGenericMethod;
-        private MethodInfo _factsSetGenericMethod;
-        private MethodInfo _factsGetAllMethod;
         private MethodInfo _profFromAbstractsMethod;
         private MethodInfo _tryAddXpMethod;
         private MethodInfo _notificationPushMethod;
@@ -180,11 +164,6 @@ namespace KillingBlowMastery
         private ConfigEntry<bool> _avoidRecentSoundRepeats;
         private ConfigEntry<int> _recentSoundMemory;
         private ConfigEntry<float> _randomPitchSemitones;
-        private ConfigEntry<bool> _trackStatistics;
-        private ConfigEntry<string> _statisticsCharacterKeyOverride;
-        private ConfigEntry<string> _enemyStatsMode;
-        private ConfigEntry<int> _enemyPromoteKillCount;
-        private ConfigEntry<bool> _exportStatisticsReportOnSave;
         private ConfigEntry<bool> _diagnostics;
 
         private readonly Dictionary<string, List<RewardSoundClip>> _rewardSoundClipsByPool = new Dictionary<string, List<RewardSoundClip>>(StringComparer.OrdinalIgnoreCase);
@@ -194,10 +173,8 @@ namespace KillingBlowMastery
         private readonly System.Random _random = new System.Random();
         private AudioSource _rewardAudioSource;
         private bool _rewardSoundLoadStarted;
-        private bool _statisticsMemoryUnavailableLogged;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextUnavailableLogged;
-        private Array _emptyModelOwners;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
         private string[] _cachedBloodlessSoundBlacklistTerms = new string[0];
@@ -374,18 +351,7 @@ namespace KillingBlowMastery
                 new ConfigDescription(
                     "Random reward-sound pitch variation in semitones. Zero disables pitch randomization.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _trackStatistics = Config.Bind("6. Statistics", "TrackStatistics", true, "Track lightweight killing-blow statistics in the current game's save-backed gameplay memory.");
-            _statisticsCharacterKeyOverride = Config.Bind("6. Statistics", "StatisticsCharacterKeyOverride", "", "Optional character key for separating stats. Leave blank for automatic hero-based separation.");
-            _enemyStatsMode = Config.Bind("6. Statistics", "EnemyStatsMode", EnemyStatsModePromoted, "Enemy stat detail: Promoted, All, or Off. Promoted keeps repeated enemies as named rows and leaves one-offs as candidates.");
-            _enemyPromoteKillCount = Config.Bind(
-                "6. Statistics",
-                "EnemyPromoteKillCount",
-                2,
-                new ConfigDescription(
-                    "Enemy kills needed before that enemy is treated as a promoted named enemy in the stats file.",
-                    new AcceptableValueRange<int>(1, 100)));
-            _exportStatisticsReportOnSave = Config.Bind("6. Statistics", "ExportStatisticsReportOnSave", true, "Write the readable TSV statistics report when the game serializes save-backed gameplay memory.");
-            _diagnostics = Config.Bind("7. Diagnostics", "Diagnostics", false, "Log kill source, resolved proficiency, enemy XP, awarded bonus, and statistics report export.");
+            _diagnostics = Config.Bind("6. Diagnostics", "Diagnostics", false, "Log kill source, resolved proficiency, enemy XP, and awarded bonus.");
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -564,8 +530,7 @@ namespace KillingBlowMastery
         private static bool IsPreservedManualOverride(string settingId)
         {
             return string.Equals(settingId, "4. Notifications\nNotificationTextFormat", StringComparison.Ordinal)
-                || string.Equals(settingId, "5. Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal)
-                || string.Equals(settingId, "6. Statistics\nStatisticsCharacterKeyOverride", StringComparison.Ordinal);
+                || string.Equals(settingId, "5. Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal);
         }
 
         private void RestorePreservedConfigValues()
@@ -584,7 +549,6 @@ namespace KillingBlowMastery
             RestorePreservedFloat("5. Audio\nRandomPitchSemitones", _randomPitchSemitones, ref restoredCount, ref clampedCount);
             RestorePreservedString("4. Notifications\nNotificationTextFormat", _notificationTextFormat, ref restoredCount);
             RestorePreservedString("5. Audio\nBloodlessSoundWhitelistTerms", _bloodlessSoundWhitelistTerms, ref restoredCount);
-            RestorePreservedString("6. Statistics\nStatisticsCharacterKeyOverride", _statisticsCharacterKeyOverride, ref restoredCount);
 
             Log.LogInfo(
                 "Preserved "
@@ -665,27 +629,10 @@ namespace KillingBlowMastery
             _heroType = AccessTools.TypeByName(HeroTypeName);
             _itemType = AccessTools.TypeByName(ItemTypeName);
             _profStatType = AccessTools.TypeByName(ProfStatTypeName);
-            _gameplayMemoryType = AccessTools.TypeByName(GameplayMemoryTypeName);
-            _iModelType = AccessTools.TypeByName(IModelTypeName);
-
             if (_heroType != null)
             {
                 _heroCurrentGetter = AccessTools.PropertyGetter(_heroType, "Current");
             }
-            Type worldType = AccessTools.TypeByName(WorldTypeName);
-            if (worldType != null)
-            {
-                _worldServicesGetter = AccessTools.PropertyGetter(worldType, "Services");
-            }
-            if (_gameplayMemoryType != null)
-            {
-                _gameplayMemoryContextMethod = AccessTools.Method(_gameplayMemoryType, "Context", new[] { typeof(string) });
-            }
-            if (_iModelType != null)
-            {
-                _emptyModelOwners = Array.CreateInstance(_iModelType, 0);
-            }
-
             Type profUtilsType = AccessTools.TypeByName(ProfUtilsTypeName);
             if (profUtilsType != null && _itemType != null)
             {
@@ -734,8 +681,6 @@ namespace KillingBlowMastery
                 Log.LogInfo("Patched " + npcElementType.FullName + ".DeathNonCriticalFunctions.");
             }
 
-            PatchGameplayMemorySerialization();
-
             Type healthElementType = AccessTools.TypeByName(HealthElementTypeName);
             MethodInfo damageOriginal = healthElementType == null ? null : AccessTools.Method(healthElementType, "BeforeHealthDecreaseEvents");
             MethodInfo damagePostfix = AccessTools.Method(
@@ -758,35 +703,6 @@ namespace KillingBlowMastery
             }
 
             return true;
-        }
-
-        private void PatchGameplayMemorySerialization()
-        {
-            if (_gameplayMemoryType == null)
-            {
-                LogDiagnostic("Could not find " + GameplayMemoryTypeName + "; save-time statistics report export is unavailable.");
-                return;
-            }
-
-            MethodInfo original = AccessTools.Method(_gameplayMemoryType, "OnBeforeSerialize");
-            MethodInfo postfix = AccessTools.Method(
-                typeof(GameplayMemoryBeforeSerializePatch),
-                nameof(GameplayMemoryBeforeSerializePatch.Postfix));
-            if (original == null || postfix == null)
-            {
-                LogDiagnostic("Could not patch GameplayMemory.OnBeforeSerialize; save-time statistics report export is unavailable.");
-                return;
-            }
-
-            try
-            {
-                _harmony.Patch(original, null, new HarmonyMethod(postfix));
-                LogDiagnostic("Patched " + _gameplayMemoryType.FullName + ".OnBeforeSerialize for save-time statistics report export.");
-            }
-            catch (Exception ex)
-            {
-                Log.LogWarning("Failed to patch GameplayMemory.OnBeforeSerialize for statistics export: " + ex.GetBaseException().Message);
-            }
         }
 
         internal void OnNpcDeath(object npc, object damageOutcome)
@@ -888,7 +804,6 @@ namespace KillingBlowMastery
                 string proficiencyName = DescribeProficiency(proficiency);
                 string enemyName = DescribeObject(npc);
 
-                RecordStatistics(npc, proficiency, proficiencyName, item, sourceDamage, sourceName, bonus, damageIsOverTime || usedSourceMemory);
                 ShowAwardNotification(bonus, DescribeNotificationProficiency(proficiency, proficiencyName), enemyName, sourceName, enemyXp, proficiency);
                 PlayAwardSound(bonus, proficiency, item, sourceDamage, npc);
 
@@ -3351,931 +3266,11 @@ namespace KillingBlowMastery
             return value.GetType().Name;
         }
 
-        private void RecordStatistics(object npc, object proficiency, string proficiencyName, object item, object damage, string sourceName, float bonus, bool damageOverTimeKill)
-        {
-            if (!_trackStatistics.Value)
-            {
-                return;
-            }
-
-            object facts = GetStatisticsFacts();
-            if (facts == null)
-            {
-                LogStatisticsMemoryUnavailableOnce("GameplayMemory is unavailable; killing-blow statistics were not recorded.");
-                return;
-            }
-
-            string characterDisplayName;
-            string characterKey = ResolveStatisticsCharacterKey(out characterDisplayName);
-            SetFact(facts, MakeStatisticsKey(characterKey, "display"), characterDisplayName);
-            AddStatisticsCount(facts, MakeStatisticsKey(characterKey, "total"), bonus, damageOverTimeKill);
-
-            AddStatisticsCount(
-                facts,
-                MakeStatisticsKey(characterKey, "proficiency", BuildStatsKey(proficiencyName)),
-                bonus,
-                damageOverTimeKill);
-
-            AddStatisticsCount(
-                facts,
-                MakeStatisticsKey(characterKey, "source_pool", ResolveStatisticsSourcePool(proficiency, item, damage, npc)),
-                bonus,
-                damageOverTimeKill);
-
-            string cleanSourceName = CleanStatsDisplayName(sourceName, "unknown source");
-            string sourceKey = BuildStatsKey(cleanSourceName);
-            SetFact(facts, MakeStatisticsKey(characterKey, "kill_source", sourceKey, "display"), cleanSourceName);
-            AddStatisticsCount(facts, MakeStatisticsKey(characterKey, "kill_source", sourceKey), bonus, damageOverTimeKill);
-
-            if (!string.Equals(GetEnemyStatsMode(), EnemyStatsModeOff, StringComparison.OrdinalIgnoreCase))
-            {
-                string enemyDisplayName = ResolveEnemyStatsDisplayName(npc);
-                string enemyKey = ResolveEntityStatsKey(npc, enemyDisplayName);
-                SetFact(facts, MakeStatisticsKey(characterKey, "enemy", enemyKey, "display"), enemyDisplayName);
-                AddStatisticsCount(facts, MakeStatisticsKey(characterKey, "enemy", enemyKey), bonus, damageOverTimeKill);
-            }
-        }
-
-        internal void OnGameplayMemoryBeforeSerialize()
-        {
-            if (!_trackStatistics.Value || !_exportStatisticsReportOnSave.Value)
-            {
-                return;
-            }
-
-            ExportStatisticsReportFromSaveMemory();
-        }
-
-        private void ExportStatisticsReportFromSaveMemory()
-        {
-            object facts = GetStatisticsFacts();
-            if (facts == null)
-            {
-                LogStatisticsMemoryUnavailableOnce("GameplayMemory is unavailable; statistics report was not exported.");
-                return;
-            }
-
-            Dictionary<string, CharacterStatistics> statistics = BuildStatisticsReport(facts);
-            string path = GetStatisticsFilePath();
-            string tempPath = path + ".tmp";
-
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
-                using (StreamWriter writer = new StreamWriter(tempPath, false, new UTF8Encoding(false)))
-                {
-                    writer.WriteLine("# Killing Blow Mastery statistics v2");
-                    writer.WriteLine("# This is a readable report generated from save-backed GameplayMemory when the game saves.");
-                    writer.WriteLine("# Deleting this file does not reset save-backed stats. Reloading an older save rolls stats back with that save.");
-                    writer.WriteLine("# EnemyStatsMode=" + GetEnemyStatsMode() + "; EnemyPromoteKillCount=" + Math.Max(1, _enemyPromoteKillCount.Value).ToString(CultureInfo.InvariantCulture));
-                    writer.WriteLine("# kind\tcharacterKey\t...");
-
-                    List<string> characterKeys = SortedKeys(statistics);
-                    for (int i = 0; i < characterKeys.Count; i++)
-                    {
-                        WriteCharacterStatistics(writer, statistics[characterKeys[i]]);
-                    }
-                }
-
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-
-                File.Move(tempPath, path);
-                LogDiagnostic("Exported save-backed Killing Blow Mastery statistics report to " + path + ".");
-            }
-            catch (Exception ex)
-            {
-                Log.LogWarning("Failed to export Killing Blow Mastery statistics report: " + ex.GetBaseException().Message);
-                try
-                {
-                    if (File.Exists(tempPath))
-                    {
-                        File.Delete(tempPath);
-                    }
-                }
-                catch
-                {
-                }
-            }
-        }
-
-        private Dictionary<string, CharacterStatistics> BuildStatisticsReport(object facts)
-        {
-            Dictionary<string, CharacterStatistics> statistics = new Dictionary<string, CharacterStatistics>(StringComparer.OrdinalIgnoreCase);
-            IEnumerable entries = GetFactEntries(facts);
-            if (entries == null)
-            {
-                return statistics;
-            }
-
-            foreach (object entry in entries)
-            {
-                object rawKey = GetOptionalPropertyValue(entry, "Key");
-                object rawValue = GetOptionalPropertyValue(entry, "Value");
-                string key = rawKey as string;
-                if (string.IsNullOrEmpty(key) || !key.StartsWith("c|", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                string[] parts = key.Split('|');
-                if (parts.Length < 3)
-                {
-                    continue;
-                }
-
-                string characterKey = parts[1];
-                CharacterStatistics character = GetOrCreateCharacterStatistics(statistics, characterKey, "Current Character");
-                string category = parts[2];
-
-                if (parts.Length == 3 && string.Equals(category, "display", StringComparison.Ordinal))
-                {
-                    character.DisplayName = CleanStatsDisplayName(rawValue == null ? "" : rawValue.ToString(), character.DisplayName);
-                    continue;
-                }
-
-                if (parts.Length == 4 && string.Equals(category, "total", StringComparison.Ordinal))
-                {
-                    ApplyStatisticsMetric(character.Totals, parts[3], rawValue);
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "proficiency", StringComparison.Ordinal))
-                {
-                    ApplyStatisticsMetric(GetOrCreateCount(character.Proficiencies, parts[3]), parts[4], rawValue);
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "source_pool", StringComparison.Ordinal))
-                {
-                    ApplyStatisticsMetric(GetOrCreateCount(character.SourcePools, parts[3]), parts[4], rawValue);
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "kill_source", StringComparison.Ordinal) && string.Equals(parts[4], "display", StringComparison.Ordinal))
-                {
-                    GetOrCreateNamedCount(character.KillSources, parts[3], CleanStatsDisplayName(rawValue == null ? "" : rawValue.ToString(), parts[3]));
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "enemy", StringComparison.Ordinal) && string.Equals(parts[4], "display", StringComparison.Ordinal))
-                {
-                    GetOrCreateNamedCount(character.Enemies, parts[3], CleanStatsDisplayName(rawValue == null ? "" : rawValue.ToString(), parts[3]));
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "kill_source", StringComparison.Ordinal))
-                {
-                    ApplyStatisticsMetric(GetOrCreateNamedCount(character.KillSources, parts[3], parts[3]), parts[4], rawValue);
-                    continue;
-                }
-
-                if (parts.Length == 5 && string.Equals(category, "enemy", StringComparison.Ordinal))
-                {
-                    ApplyStatisticsMetric(GetOrCreateNamedCount(character.Enemies, parts[3], parts[3]), parts[4], rawValue);
-                }
-            }
-
-            return statistics;
-        }
-
-        private void AddStatisticsCount(object facts, string prefix, float bonus, bool damageOverTimeKill)
-        {
-            SetFact(facts, prefix + "|kills", GetFact(facts, prefix + "|kills", 0) + 1);
-            SetFact(facts, prefix + "|bonus_xp", GetFact(facts, prefix + "|bonus_xp", 0.0f) + bonus);
-            if (damageOverTimeKill)
-            {
-                SetFact(facts, prefix + "|dot_kills", GetFact(facts, prefix + "|dot_kills", 0) + 1);
-            }
-
-            float largestBonus = GetFact(facts, prefix + "|largest_bonus_xp", 0.0f);
-            if (bonus > largestBonus)
-            {
-                SetFact(facts, prefix + "|largest_bonus_xp", bonus);
-            }
-        }
-
-        private object GetStatisticsFacts()
-        {
-            object gameplayMemory = GetGameplayMemory();
-            if (gameplayMemory == null || _gameplayMemoryContextMethod == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                return _gameplayMemoryContextMethod.Invoke(gameplayMemory, new object[] { StatisticsMemoryContext });
-            }
-            catch (Exception ex)
-            {
-                LogDiagnostic("GameplayMemory.Context failed for statistics: " + ex.GetBaseException().Message);
-                return null;
-            }
-        }
-
-        private object GetGameplayMemory()
-        {
-            if (_gameplayMemoryType == null || _worldServicesGetter == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                object services = _worldServicesGetter.Invoke(null, null);
-                if (services == null)
-                {
-                    return null;
-                }
-
-                if (_servicesGetGameplayMemoryMethod == null)
-                {
-                    _servicesGetGameplayMemoryMethod = ResolveServicesGetMethod(services.GetType());
-                }
-
-                return _servicesGetGameplayMemoryMethod == null
-                    ? null
-                    : _servicesGetGameplayMemoryMethod.Invoke(services, null);
-            }
-            catch (Exception ex)
-            {
-                LogDiagnostic("Could not resolve GameplayMemory service: " + ex.GetBaseException().Message);
-                return null;
-            }
-        }
-
-        private MethodInfo ResolveServicesGetMethod(Type servicesType)
-        {
-            if (servicesType == null || _gameplayMemoryType == null)
-            {
-                return null;
-            }
-
-            MethodInfo[] methods = servicesType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                MethodInfo method = methods[i];
-                if (!method.IsGenericMethodDefinition
-                    || method.Name != "Get"
-                    || method.GetParameters().Length != 0)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    return method.MakeGenericMethod(_gameplayMemoryType);
-                }
-                catch
-                {
-                }
-            }
-
-            return null;
-        }
-
-        private T GetFact<T>(object facts, string label, T fallback)
-        {
-            if (facts == null || string.IsNullOrEmpty(label))
-            {
-                return fallback;
-            }
-
-            try
-            {
-                MethodInfo method = GetFactsGetMethod(facts.GetType());
-                if (method == null)
-                {
-                    return fallback;
-                }
-
-                object value = method.MakeGenericMethod(typeof(T)).Invoke(facts, new object[] { label, fallback });
-                return value is T ? (T)value : fallback;
-            }
-            catch
-            {
-                return fallback;
-            }
-        }
-
-        private void SetFact<T>(object facts, string label, T value)
-        {
-            if (facts == null || string.IsNullOrEmpty(label))
-            {
-                return;
-            }
-
-            try
-            {
-                MethodInfo method = GetFactsSetMethod(facts.GetType());
-                if (method == null || _emptyModelOwners == null)
-                {
-                    return;
-                }
-
-                method.MakeGenericMethod(typeof(T)).Invoke(facts, new object[] { label, value, _emptyModelOwners });
-            }
-            catch (Exception ex)
-            {
-                LogDiagnostic("Failed to set statistics fact '" + label + "': " + ex.GetBaseException().Message);
-            }
-        }
-
-        private MethodInfo GetFactsGetMethod(Type factsType)
-        {
-            if (_factsGetGenericMethod != null)
-            {
-                return _factsGetGenericMethod;
-            }
-
-            MethodInfo[] methods = factsType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                MethodInfo method = methods[i];
-                if (!method.IsGenericMethodDefinition || method.Name != "Get")
-                {
-                    continue;
-                }
-
-                ParameterInfo[] parameters = method.GetParameters();
-                if (parameters.Length == 2)
-                {
-                    _factsGetGenericMethod = method;
-                    return method;
-                }
-            }
-
-            return null;
-        }
-
-        private MethodInfo GetFactsSetMethod(Type factsType)
-        {
-            if (_factsSetGenericMethod != null)
-            {
-                return _factsSetGenericMethod;
-            }
-
-            MethodInfo[] methods = factsType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                MethodInfo method = methods[i];
-                if (!method.IsGenericMethodDefinition || method.Name != "Set")
-                {
-                    continue;
-                }
-
-                ParameterInfo[] parameters = method.GetParameters();
-                if (parameters.Length == 3)
-                {
-                    _factsSetGenericMethod = method;
-                    return method;
-                }
-            }
-
-            return null;
-        }
-
-        private IEnumerable GetFactEntries(object facts)
-        {
-            if (facts == null)
-            {
-                return null;
-            }
-
-            try
-            {
-                if (_factsGetAllMethod == null)
-                {
-                    _factsGetAllMethod = GetMethodSilent(facts.GetType(), "GetAll", 0);
-                }
-
-                return _factsGetAllMethod == null ? null : _factsGetAllMethod.Invoke(facts, null) as IEnumerable;
-            }
-            catch (Exception ex)
-            {
-                LogDiagnostic("Could not enumerate statistics facts: " + ex.GetBaseException().Message);
-                return null;
-            }
-        }
-
-        private void LogStatisticsMemoryUnavailableOnce(string message)
-        {
-            if (_statisticsMemoryUnavailableLogged)
-            {
-                return;
-            }
-
-            _statisticsMemoryUnavailableLogged = true;
-            Log.LogWarning(message);
-        }
-
-        private CharacterStatistics GetOrCreateCharacterStatistics(Dictionary<string, CharacterStatistics> map, string key, string displayName)
-        {
-            key = CleanStatsDisplayName(key, "current_character");
-            displayName = CleanStatsDisplayName(displayName, "Current Character");
-
-            CharacterStatistics stats;
-            if (!map.TryGetValue(key, out stats))
-            {
-                stats = new CharacterStatistics(key, displayName);
-                map.Add(key, stats);
-            }
-            else if (!string.IsNullOrEmpty(displayName))
-            {
-                stats.DisplayName = displayName;
-            }
-
-            return stats;
-        }
-
-        private CountStatistics GetOrCreateCount(Dictionary<string, CountStatistics> map, string key)
-        {
-            key = CleanStatsDisplayName(key, "Unknown");
-
-            CountStatistics stats;
-            if (!map.TryGetValue(key, out stats))
-            {
-                stats = new CountStatistics();
-                map.Add(key, stats);
-            }
-
-            return stats;
-        }
-
-        private NamedCountStatistics GetOrCreateNamedCount(Dictionary<string, NamedCountStatistics> map, string key, string displayName)
-        {
-            key = CleanStatsDisplayName(key, "unknown");
-            displayName = CleanStatsDisplayName(displayName, key);
-
-            NamedCountStatistics stats;
-            if (!map.TryGetValue(key, out stats))
-            {
-                stats = new NamedCountStatistics(displayName);
-                map.Add(key, stats);
-            }
-            else if (!string.IsNullOrEmpty(displayName))
-            {
-                stats.DisplayName = displayName;
-            }
-
-            return stats;
-        }
-
-        private void ApplyStatisticsMetric(CountStatistics stats, string metric, object rawValue)
-        {
-            if (stats == null || string.IsNullOrEmpty(metric))
-            {
-                return;
-            }
-
-            if (string.Equals(metric, "kills", StringComparison.Ordinal))
-            {
-                stats.Kills = ConvertStatsInt(rawValue);
-                return;
-            }
-            if (string.Equals(metric, "bonus_xp", StringComparison.Ordinal))
-            {
-                stats.BonusXp = ConvertStatsFloat(rawValue);
-                return;
-            }
-            if (string.Equals(metric, "dot_kills", StringComparison.Ordinal))
-            {
-                stats.DamageOverTimeKills = ConvertStatsInt(rawValue);
-                return;
-            }
-            if (string.Equals(metric, "largest_bonus_xp", StringComparison.Ordinal))
-            {
-                stats.LargestBonusXp = ConvertStatsFloat(rawValue);
-            }
-        }
-
-        private int ConvertStatsInt(object value)
-        {
-            if (value is int)
-            {
-                return (int)value;
-            }
-            if (value is float)
-            {
-                return (int)Math.Round((float)value);
-            }
-            if (value is double)
-            {
-                return (int)Math.Round((double)value);
-            }
-
-            int parsed;
-            return value != null && int.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed) ? parsed : 0;
-        }
-
-        private float ConvertStatsFloat(object value)
-        {
-            if (value is float)
-            {
-                return (float)value;
-            }
-            if (value is int)
-            {
-                return (int)value;
-            }
-            if (value is double)
-            {
-                return (float)(double)value;
-            }
-
-            float parsed;
-            return value != null && float.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out parsed) ? parsed : 0.0f;
-        }
-
-        private void WriteCharacterStatistics(StreamWriter writer, CharacterStatistics character)
-        {
-            writer.WriteLine();
-            WriteCountLine(writer, "character", character.Key, character.DisplayName, character.Totals);
-
-            List<string> proficiencyKeys = SortedKeys(character.Proficiencies);
-            for (int i = 0; i < proficiencyKeys.Count; i++)
-            {
-                WriteCountLine(writer, "proficiency", character.Key, proficiencyKeys[i], character.Proficiencies[proficiencyKeys[i]]);
-            }
-
-            List<string> sourcePoolKeys = SortedKeys(character.SourcePools);
-            for (int i = 0; i < sourcePoolKeys.Count; i++)
-            {
-                WriteCountLine(writer, "source_pool", character.Key, sourcePoolKeys[i], character.SourcePools[sourcePoolKeys[i]]);
-            }
-
-            List<string> killSourceKeys = SortedKeys(character.KillSources);
-            for (int i = 0; i < killSourceKeys.Count; i++)
-            {
-                NamedCountStatistics stats = character.KillSources[killSourceKeys[i]];
-                WriteNamedCountLine(writer, "kill_source", character.Key, killSourceKeys[i], stats.DisplayName, stats);
-            }
-
-            string enemyMode = GetEnemyStatsMode();
-            if (string.Equals(enemyMode, EnemyStatsModeOff, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            int promoteKillCount = Math.Max(1, _enemyPromoteKillCount.Value);
-            List<string> enemyKeys = SortedKeys(character.Enemies);
-            for (int i = 0; i < enemyKeys.Count; i++)
-            {
-                NamedCountStatistics stats = character.Enemies[enemyKeys[i]];
-                string rowKind = "enemy";
-                if (string.Equals(enemyMode, EnemyStatsModePromoted, StringComparison.OrdinalIgnoreCase)
-                    && stats.Kills < promoteKillCount)
-                {
-                    rowKind = "enemy_candidate";
-                }
-
-                WriteNamedCountLine(writer, rowKind, character.Key, enemyKeys[i], stats.DisplayName, stats);
-            }
-        }
-
-        private void WriteCountLine(StreamWriter writer, string kind, string characterKey, string keyOrDisplayName, CountStatistics stats)
-        {
-            writer.Write(kind);
-            writer.Write('\t');
-            writer.Write(EncodeStatsText(characterKey));
-            writer.Write('\t');
-            writer.Write(EncodeStatsText(keyOrDisplayName));
-            writer.Write('\t');
-            WriteCountColumns(writer, stats);
-            writer.WriteLine();
-        }
-
-        private void WriteNamedCountLine(StreamWriter writer, string kind, string characterKey, string key, string displayName, CountStatistics stats)
-        {
-            writer.Write(kind);
-            writer.Write('\t');
-            writer.Write(EncodeStatsText(characterKey));
-            writer.Write('\t');
-            writer.Write(EncodeStatsText(key));
-            writer.Write('\t');
-            writer.Write(EncodeStatsText(displayName));
-            writer.Write('\t');
-            WriteCountColumns(writer, stats);
-            writer.WriteLine();
-        }
-
-        private void WriteCountColumns(StreamWriter writer, CountStatistics stats)
-        {
-            writer.Write(stats.Kills.ToString(CultureInfo.InvariantCulture));
-            writer.Write('\t');
-            writer.Write(FormatFloat(stats.BonusXp));
-            writer.Write('\t');
-            writer.Write(stats.DamageOverTimeKills.ToString(CultureInfo.InvariantCulture));
-            writer.Write('\t');
-            writer.Write(FormatFloat(stats.LargestBonusXp));
-        }
-
-        private string ResolveStatisticsCharacterKey(out string displayName)
-        {
-            string overrideValue = _statisticsCharacterKeyOverride == null ? "" : (_statisticsCharacterKeyOverride.Value ?? "").Trim();
-            if (!string.IsNullOrEmpty(overrideValue))
-            {
-                displayName = CleanStatsDisplayName(overrideValue, "Current Character");
-                return BuildStatsKey(displayName);
-            }
-
-            object hero = GetCurrentHero();
-            displayName = CleanStatsDisplayName(DescribeObject(hero), "Current Character");
-            if (string.Equals(displayName, "null", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(displayName, "Hero", StringComparison.OrdinalIgnoreCase))
-            {
-                displayName = "Current Character";
-            }
-
-            string stableId = TryGetStableStatsId(hero);
-            if (!string.IsNullOrEmpty(stableId))
-            {
-                return BuildStatsKey(displayName + "_" + stableId);
-            }
-
-            return BuildStatsKey(displayName);
-        }
-
-        private string ResolveStatisticsSourcePool(object proficiency, object item, object damage, object target)
-        {
-            if (IsNonCorporealSoundTarget(target, damage))
-            {
-                return NonCorporealSoundPool;
-            }
-
-            if (ReferenceEquals(proficiency, _oneHandedProf))
-            {
-                return ResolveOneHandedSpecificSoundPool(item);
-            }
-            if (ReferenceEquals(proficiency, _twoHandedProf))
-            {
-                return ResolveTwoHandedSpecificSoundPool(item);
-            }
-            if (ReferenceEquals(proficiency, _unarmedProf))
-            {
-                return UnarmedSoundPool;
-            }
-            if (ReferenceEquals(proficiency, _archeryProf))
-            {
-                return ResolveArcherySpecificSoundPool(item);
-            }
-            if (ReferenceEquals(proficiency, _shieldProf))
-            {
-                return ShieldBashSoundPool;
-            }
-            if (ReferenceEquals(proficiency, _magicProf))
-            {
-                return ResolveMagicSpecificSoundPool(item, damage);
-            }
-
-            return GlobalSoundPool;
-        }
-
-        private string ResolveEnemyStatsDisplayName(object npc)
-        {
-            string npcName = CleanStatsDisplayName(DescribeObject(npc), "Unknown Enemy");
-            object template = GetOptionalPropertyValue(npc, "Template");
-            string templateName = CleanStatsDisplayName(DescribeObject(template), npcName);
-
-            if (string.Equals(npcName, "NpcElement", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(npcName, "null", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(npcName, "Unknown Enemy", StringComparison.OrdinalIgnoreCase))
-            {
-                return templateName;
-            }
-
-            return npcName;
-        }
-
-        private string ResolveEntityStatsKey(object value, string displayName)
-        {
-            object template = GetOptionalPropertyValue(value, "Template");
-            string stableId = TryGetStableStatsId(template);
-            if (string.IsNullOrEmpty(stableId))
-            {
-                stableId = TryGetStableStatsId(value);
-            }
-
-            if (!string.IsNullOrEmpty(stableId))
-            {
-                return BuildStatsKey(displayName + "_" + stableId);
-            }
-
-            return BuildStatsKey(displayName);
-        }
-
-        private string TryGetStableStatsId(object value)
-        {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-
-            string[] propertyNames =
-            {
-                "ID",
-                "Id",
-                "Guid",
-                "GUID",
-                "UniqueID",
-                "UniqueId",
-                "ModelID",
-                "ModelId",
-                "TemplateGuid",
-                "TemplateID",
-                "TemplateId"
-            };
-
-            for (int i = 0; i < propertyNames.Length; i++)
-            {
-                object rawValue = GetOptionalPropertyValue(value, propertyNames[i]);
-                string text = rawValue == null ? string.Empty : rawValue.ToString();
-                text = CleanStatsDisplayName(text, string.Empty);
-                if (!string.IsNullOrEmpty(text) && !string.Equals(text, "null", StringComparison.OrdinalIgnoreCase))
-                {
-                    return text;
-                }
-            }
-
-            return string.Empty;
-        }
-
-        private string GetEnemyStatsMode()
-        {
-            string mode = _enemyStatsMode == null ? "" : (_enemyStatsMode.Value ?? "").Trim();
-            if (string.Equals(mode, EnemyStatsModeAll, StringComparison.OrdinalIgnoreCase))
-            {
-                return EnemyStatsModeAll;
-            }
-            if (string.Equals(mode, EnemyStatsModeOff, StringComparison.OrdinalIgnoreCase))
-            {
-                return EnemyStatsModeOff;
-            }
-            if (string.Equals(mode, EnemyStatsModePromoted, StringComparison.OrdinalIgnoreCase))
-            {
-                return EnemyStatsModePromoted;
-            }
-
-            LogDiagnostic("Unknown EnemyStatsMode '" + mode + "'; using " + EnemyStatsModePromoted + ".");
-            return EnemyStatsModePromoted;
-        }
-
-        private string GetStatisticsFilePath()
-        {
-            return Path.Combine(Paths.ConfigPath, StatisticsFileName);
-        }
-
-        private string MakeStatisticsKey(string characterKey, string category)
-        {
-            return "c|" + BuildStatsKey(characterKey) + "|" + BuildStatsKey(category);
-        }
-
-        private string MakeStatisticsKey(string characterKey, string category, string itemKey)
-        {
-            return "c|" + BuildStatsKey(characterKey) + "|" + BuildStatsKey(category) + "|" + BuildStatsKey(itemKey);
-        }
-
-        private string MakeStatisticsKey(string characterKey, string category, string itemKey, string leafKey)
-        {
-            return "c|" + BuildStatsKey(characterKey) + "|" + BuildStatsKey(category) + "|" + BuildStatsKey(itemKey) + "|" + BuildStatsKey(leafKey);
-        }
-
-        private string CleanStatsDisplayName(string value, string fallback)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return fallback;
-            }
-
-            string text = value.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ').Trim();
-            while (text.IndexOf("  ", StringComparison.Ordinal) >= 0)
-            {
-                text = text.Replace("  ", " ");
-            }
-
-            return string.IsNullOrEmpty(text) ? fallback : text;
-        }
-
-        private string BuildStatsKey(string value)
-        {
-            string text = CleanStatsDisplayName(value, "unknown").ToLowerInvariant();
-            StringBuilder builder = new StringBuilder(text.Length);
-            bool lastWasSeparator = false;
-            for (int i = 0; i < text.Length; i++)
-            {
-                char c = text[i];
-                if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-                {
-                    builder.Append(c);
-                    lastWasSeparator = false;
-                    continue;
-                }
-
-                if ((c == '_' || c == '-') && !lastWasSeparator)
-                {
-                    builder.Append(c);
-                    lastWasSeparator = true;
-                    continue;
-                }
-
-                if (!lastWasSeparator)
-                {
-                    builder.Append('_');
-                    lastWasSeparator = true;
-                }
-            }
-
-            string key = builder.ToString().Trim('_', '-');
-            if (key.Length == 0)
-            {
-                return "unknown";
-            }
-            if (key.Length > 120)
-            {
-                return key.Substring(0, 120).Trim('_', '-');
-            }
-
-            return key;
-        }
-
-        private string EncodeStatsText(string value)
-        {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-
-            return value
-                .Replace("\\", "\\\\")
-                .Replace("\t", "\\t")
-                .Replace("\r", "\\r")
-                .Replace("\n", "\\n");
-        }
-
-        private List<string> SortedKeys<T>(Dictionary<string, T> map)
-        {
-            List<string> keys = new List<string>(map.Keys);
-            keys.Sort(StringComparer.OrdinalIgnoreCase);
-            return keys;
-        }
-
         private void LogDiagnostic(string message)
         {
             if (_diagnostics.Value)
             {
                 Log.LogInfo(message);
-            }
-        }
-
-        private sealed class CharacterStatistics
-        {
-            public readonly string Key;
-            public readonly CountStatistics Totals = new CountStatistics();
-            public readonly Dictionary<string, CountStatistics> Proficiencies = new Dictionary<string, CountStatistics>(StringComparer.OrdinalIgnoreCase);
-            public readonly Dictionary<string, CountStatistics> SourcePools = new Dictionary<string, CountStatistics>(StringComparer.OrdinalIgnoreCase);
-            public readonly Dictionary<string, NamedCountStatistics> KillSources = new Dictionary<string, NamedCountStatistics>(StringComparer.OrdinalIgnoreCase);
-            public readonly Dictionary<string, NamedCountStatistics> Enemies = new Dictionary<string, NamedCountStatistics>(StringComparer.OrdinalIgnoreCase);
-            public string DisplayName;
-
-            public CharacterStatistics(string key, string displayName)
-            {
-                Key = key;
-                DisplayName = displayName;
-            }
-        }
-
-        private class CountStatistics
-        {
-            public int Kills;
-            public float BonusXp;
-            public int DamageOverTimeKills;
-            public float LargestBonusXp;
-
-            public void Add(float bonus, bool damageOverTimeKill)
-            {
-                Kills++;
-                BonusXp += bonus;
-                if (damageOverTimeKill)
-                {
-                    DamageOverTimeKills++;
-                }
-                if (bonus > LargestBonusXp)
-                {
-                    LargestBonusXp = bonus;
-                }
-            }
-        }
-
-        private sealed class NamedCountStatistics : CountStatistics
-        {
-            public string DisplayName;
-
-            public NamedCountStatistics(string displayName)
-            {
-                DisplayName = displayName;
             }
         }
 
@@ -4301,17 +3296,6 @@ namespace KillingBlowMastery
                 if (Instance != null)
                 {
                     Instance.OnNpcDeath(__instance, damageOutcome);
-                }
-            }
-        }
-
-        private static class GameplayMemoryBeforeSerializePatch
-        {
-            public static void Postfix()
-            {
-                if (Instance != null)
-                {
-                    Instance.OnGameplayMemoryBeforeSerialize();
                 }
             }
         }

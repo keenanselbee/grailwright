@@ -79,7 +79,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedConfigValues('
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
-        Tokens = @('FinisherSoundRangeVolume', 'NotificationTextFormat', 'StatisticsCharacterKeyOverride')
+        Tokens = @('FinisherSoundRangeVolume', 'NotificationTextFormat', 'BloodlessSoundWhitelistTerms')
     },
     [pscustomobject]@{
         Name = 'Enemy Respawn Control'

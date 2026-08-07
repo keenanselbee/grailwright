@@ -1,3 +1,17 @@
+Version 0.3.5
+Added a versioned, allocation-free visual-offset API for optional presentation integrations.
+Cached the effective first-person world translation once per frame, including category offsets and active fireplace or held-melee blends, while reporting no offset when disabled, suspended, or in third person.
+
+Version 0.3.3
+Added held-melee extra forward and vertical offsets after the vanilla-return scale so charge poses that expose body geometry even at vanilla can be pulled into the camera near plane and lowered independently.
+Defaulted the held-only correction to -0.10 forward and -0.06 vertical while retaining live adjustment from -0.50 to 0.50.
+Refactored the held-melee transition into one shared zero-to-one mitigation blend so the retained-offset scale and both extra corrections engage and restore together.
+
+Version 0.3.2
+Added a configurable held-melee body-intrusion guard that smoothly returns the complete viewmodel offset toward vanilla while a heavy attack is raised or held.
+Covered one-handed, two-handed, dual-wielded, and alternate melee heavy attacks through their shared active melee animation states while keeping Kandra arms, culling, ordinary geometry, and Drake weapons synchronized.
+Restored the configured offset smoothly after release, cancellation, or another state transition instead of snapping the viewmodel.
+
 Version 0.3.1
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.3.1
+First Person Arms Adjuster 0.3.5
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -22,6 +22,10 @@ UseCategoryForwardOffsets = true
 MeleeForwardOffset = 0.30
 BowForwardOffset = 0.10
 MagicForwardOffset = 0.30
+MitigateHeldMeleeBodyIntrusion = true
+HeldMeleeOffsetScale = 0.0
+HeldMeleeExtraForwardOffset = -0.10
+HeldMeleeExtraVerticalOffset = -0.06
 Diagnostics = false
 
 Offsets are measured in meters relative to the camera. Positive ForwardOffset
@@ -31,7 +35,27 @@ right, and positive VerticalOffset moves it up. Changes apply live.
 Category offsets are enabled by default so melee and magic use 0.30 while bows
 use 0.10. Unarmed and unrecognized equipment continue to use ForwardOffset.
 
-Version 0.3.0 converts the shared camera-space weapon translation into each
+Held melee mitigation is enabled by default. While a one-handed, two-handed,
+dual-wielded, or alternate melee heavy attack is raised or held, the complete
+viewmodel offset eases toward HeldMeleeOffsetScale. The default 0.0 returns to
+the vanilla presentation so the camera near plane can conceal shoulder and
+torso geometry. The configured position eases back after release or cancel.
+
+Set HeldMeleeOffsetScale between 0.0 and 1.0 to retain part of the normal
+offset during the held pose, or disable MitigateHeldMeleeBodyIntrusion to keep
+the configured position throughout heavy attacks.
+
+Some two-handed poses expose body geometry even at the vanilla position.
+HeldMeleeExtraForwardOffset and HeldMeleeExtraVerticalOffset therefore apply
+after the retained-offset scale. Their default -0.10 forward and -0.06 vertical
+correction pulls the charge pose toward the camera near plane and slightly down.
+Both accept -0.50 to 0.50 and update live for per-animation tuning.
+
+Version 0.3.5 adds a cached visual-offset API so optional presentation effects
+can follow the rendered first-person model without moving gameplay sockets.
+Version 0.3.3 adds the held-only beyond-vanilla correction. Version 0.3.2 adds
+the held-melee body-intrusion guard. Version 0.3.0 converts
+the shared camera-space weapon translation into each
 linked Drake entity's own transform space. Multi-part and two-handed weapons
 therefore receive one consistent world-space offset even while their child
 transforms rotate during animation, reducing viewmodel jitter without temporal
@@ -68,6 +92,10 @@ This restored implementation writes presentation-only Kandra and Drake render
 data. It does not move the live animation skeleton, hand sockets, fire point,
 or projectile origin, but it remains an experimental native-rendering mod.
 
+Held-melee mitigation uses the game's active melee animation states rather
+than movement or camera-bob heuristics, so standing and moving charge holds use
+the same presentation correction. Bow and spell charging remain independent.
+
 Because the game uses one first-person body hierarchy, visible torso or leg
 geometry may move with the arms. Test melee weapons, bows, shields, magic, item
 use, swimming, and mounted gameplay before treating the prototype as final.
@@ -83,6 +111,10 @@ Compatibility
 
 Grail Floating Text is optional. If installed, it can show critical load errors
 in game, with details in BepInEx/LogOutput.log.
+
+Blood Magic Expansion 2.4.3 and newer can optionally consume the visual-offset
+API so its blood-spell hand lights stay aligned with adjusted first-person arms.
+The integration is cached and allocation-free during normal frame updates.
 
 Previous settings
 -----------------

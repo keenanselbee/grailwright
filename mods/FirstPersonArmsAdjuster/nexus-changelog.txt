@@ -1,0 +1,5 @@
+TargetVersion=0.3.5
+BaselineVersion=0.3.1
+Added a configurable held-melee body-intrusion guard that smoothly returns the complete viewmodel offset toward vanilla while one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are raised or held.
+Added held-melee forward and vertical corrections after the vanilla-return scale, defaulting to -0.10 forward and -0.06 vertical, with one shared mitigation blend and smooth restoration after release or cancellation.
+Added a versioned, allocation-free visual-offset API for optional presentation integrations, caching the effective first-person world translation once per frame and reporting no offset while disabled, suspended, or in third person.

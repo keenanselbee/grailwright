@@ -10,6 +10,8 @@ using Awaken.ECS.Systems;
 using Awaken.Kandra;
 using Awaken.Kandra.Data;
 using Awaken.Kandra.Managers;
+using Awaken.TG.Main.Animations.FSM.Heroes.Base;
+using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.Main.Crafting.Fireplace;
 using Awaken.TG.Assets;
 using Awaken.TG.Main.Heroes;
@@ -34,11 +36,30 @@ using UnityEngine.SceneManagement;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.3.1.0")]
-[assembly: AssemblyFileVersion("0.3.1.0")]
+[assembly: AssemblyVersion("0.3.5.0")]
+[assembly: AssemblyFileVersion("0.3.5.0")]
 
 namespace FirstPersonArmsAdjuster
 {
+    public static class FirstPersonArmsAdjusterApi
+    {
+        public const int ApiVersion = 1;
+
+        public static bool TryGetCurrentVisualWorldOffset(
+            out Vector3 worldOffset)
+        {
+            FirstPersonArmsAdjusterPlugin instance =
+                FirstPersonArmsAdjusterPlugin.Instance;
+            if (instance == null)
+            {
+                worldOffset = Vector3.zero;
+                return false;
+            }
+
+            return instance.TryGetCurrentVisualWorldOffset(out worldOffset);
+        }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
@@ -48,7 +69,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.3.1";
+        public const string PluginVersion = "0.3.5";
 
         private const int ConfigSchemaVersion = 7;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -56,6 +77,8 @@ namespace FirstPersonArmsAdjuster
         private const float FireplaceBlendOutSeconds = 0.25f;
         private const float FireplaceStandFallbackSeconds = 1.15f;
         private const float FireplaceBlendInSeconds = 0.40f;
+        private const float HeldMeleeBlendOutSeconds = 0.12f;
+        private const float HeldMeleeBlendInSeconds = 0.20f;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
                 new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
@@ -113,13 +136,19 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<float> _horizontalOffset;
         private ConfigEntry<float> _verticalOffset;
         private ConfigEntry<bool> _useCategoryForwardOffsets;
+        private ConfigEntry<bool> _mitigateHeldMeleeBodyIntrusion;
         private ConfigEntry<float> _meleeForwardOffset;
         private ConfigEntry<float> _bowForwardOffset;
         private ConfigEntry<float> _magicForwardOffset;
+        private ConfigEntry<float> _heldMeleeOffsetScale;
+        private ConfigEntry<float> _heldMeleeExtraForwardOffset;
+        private ConfigEntry<float> _heldMeleeExtraVerticalOffset;
         private ConfigEntry<bool> _diagnostics;
 
         private bool _hasPendingEnabled;
         private bool _pendingEnabled;
+        private bool _hasPendingMitigateHeldMeleeBodyIntrusion;
+        private bool _pendingMitigateHeldMeleeBodyIntrusion;
         private bool _hasPendingForwardOffset;
         private float _pendingForwardOffset;
         private bool _hasPendingHorizontalOffset;
@@ -132,6 +161,12 @@ namespace FirstPersonArmsAdjuster
         private float _pendingBowForwardOffset;
         private bool _hasPendingMagicForwardOffset;
         private float _pendingMagicForwardOffset;
+        private bool _hasPendingHeldMeleeOffsetScale;
+        private float _pendingHeldMeleeOffsetScale;
+        private bool _hasPendingHeldMeleeExtraForwardOffset;
+        private float _pendingHeldMeleeExtraForwardOffset;
+        private bool _hasPendingHeldMeleeExtraVerticalOffset;
+        private float _pendingHeldMeleeExtraVerticalOffset;
         private bool _hasPendingDiagnostics;
         private bool _pendingDiagnostics;
 
@@ -140,6 +175,9 @@ namespace FirstPersonArmsAdjuster
         private Vector3 _originalWorldPosition;
         private bool _renderOffsetApplied;
         private Transform _lastReportedRoot;
+        private Vector3 _currentVisualWorldOffset;
+        private int _currentVisualWorldOffsetFrame = -1;
+        private bool _hasCurrentVisualWorldOffset;
 
         private Harmony _harmony;
         private FieldInfo _inputBonesArrayField;
@@ -173,6 +211,11 @@ namespace FirstPersonArmsAdjuster
         private bool _fireplaceInteractionActive;
         private bool _waitingForFireplaceStand;
         private bool _crouchTweenReadWarningLogged;
+        private float _heldMeleeMitigationBlend;
+        private float _heldMeleeBlendStart;
+        private float _heldMeleeBlendTarget;
+        private float _heldMeleeBlendStartedAt;
+        private bool _heldMeleeAttackActive;
         private CharacterHandBase _lastReportedMainHandWeapon;
         private CharacterHandBase _lastReportedOffHandWeapon;
         private FieldInfo _bowArrowInMainHandField;
@@ -236,6 +279,8 @@ namespace FirstPersonArmsAdjuster
             // body displaced during gameplay or physics updates.
             RestoreRenderOffset();
             UpdateFireplaceOffsetBlend();
+            UpdateHeldMeleeOffsetBlend();
+            RefreshCurrentVisualWorldOffset();
         }
 
         private void OnDisable()
@@ -321,6 +366,13 @@ namespace FirstPersonArmsAdjuster
             _lastReportedMainHandWeapon = null;
             _lastReportedOffHandWeapon = null;
             _originalDrakeOffsets.Clear();
+            _heldMeleeMitigationBlend = 0.0f;
+            _heldMeleeBlendStart = 0.0f;
+            _heldMeleeBlendTarget = 0.0f;
+            _heldMeleeAttackActive = false;
+            _currentVisualWorldOffset = Vector3.zero;
+            _currentVisualWorldOffsetFrame = -1;
+            _hasCurrentVisualWorldOffset = false;
         }
 
         private bool OffsetsSuspended()
@@ -408,6 +460,77 @@ namespace FirstPersonArmsAdjuster
                 _fireplaceBlendStart,
                 _fireplaceBlendTarget,
                 easedProgress);
+        }
+
+        private void UpdateHeldMeleeOffsetBlend()
+        {
+            float now = Time.unscaledTime;
+            Hero hero = Hero.Current;
+            bool attackActive = _mitigateHeldMeleeBodyIntrusion != null
+                && _mitigateHeldMeleeBodyIntrusion.Value
+                && IsHeldMeleeAttackActive(hero);
+            float target = attackActive ? 1.0f : 0.0f;
+            if (!Mathf.Approximately(target, _heldMeleeBlendTarget))
+            {
+                _heldMeleeBlendStart = _heldMeleeMitigationBlend;
+                _heldMeleeBlendTarget = target;
+                _heldMeleeBlendStartedAt = now;
+            }
+
+            if (attackActive != _heldMeleeAttackActive)
+            {
+                _heldMeleeAttackActive = attackActive;
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        attackActive
+                            ? "Blending the first-person offset toward the held-melee scale to prevent body intrusion."
+                            : "Restoring the configured first-person offset after the held melee attack.");
+                }
+            }
+
+            float duration = _heldMeleeBlendTarget
+                    > _heldMeleeBlendStart
+                ? HeldMeleeBlendOutSeconds
+                : HeldMeleeBlendInSeconds;
+            float elapsed = now - _heldMeleeBlendStartedAt;
+            float progress = duration <= 0.0f
+                ? 1.0f
+                : Mathf.Clamp01(elapsed / duration);
+            float easedProgress = progress
+                * progress
+                * (3.0f - (2.0f * progress));
+            _heldMeleeMitigationBlend = Mathf.LerpUnclamped(
+                _heldMeleeBlendStart,
+                _heldMeleeBlendTarget,
+                easedProgress);
+        }
+
+        private static bool IsHeldMeleeAttackActive(Hero hero)
+        {
+            if (hero == null)
+            {
+                return false;
+            }
+
+            foreach (MeleeFSM melee in hero.Elements<MeleeFSM>())
+            {
+                if (melee == null || !melee.IsLayerActive)
+                {
+                    continue;
+                }
+
+                HeroStateType state = melee.CurrentStateType;
+                if (state == HeroStateType.HeavyAttackStart
+                    || state == HeroStateType.HeavyAttackStartAlternate
+                    || state == HeroStateType.HeavyAttackWait
+                    || state == HeroStateType.HeavyAttackWaitAlternate)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsHeroCrouchTweenActive(out bool signalAvailable)
@@ -1257,11 +1380,73 @@ namespace FirstPersonArmsAdjuster
         private Vector3 GetEffectiveLocalOffset(Hero hero)
         {
             UpdateFireplaceOffsetBlend();
-            return new Vector3(
+            UpdateHeldMeleeOffsetBlend();
+            Vector3 configuredOffset = new Vector3(
                 _horizontalOffset.Value,
                 _verticalOffset.Value,
-                GetEffectiveForwardOffset(hero))
+                GetEffectiveForwardOffset(hero));
+            float retainedScale = Mathf.LerpUnclamped(
+                1.0f,
+                _heldMeleeOffsetScale.Value,
+                _heldMeleeMitigationBlend);
+            Vector3 heldCorrection = new Vector3(
+                0.0f,
+                _heldMeleeExtraVerticalOffset.Value,
+                _heldMeleeExtraForwardOffset.Value)
+                * _heldMeleeMitigationBlend;
+            return (configuredOffset * retainedScale + heldCorrection)
                 * _fireplaceOffsetBlend;
+        }
+
+        internal bool TryGetCurrentVisualWorldOffset(
+            out Vector3 worldOffset)
+        {
+            if (_currentVisualWorldOffsetFrame != Time.frameCount)
+            {
+                RefreshCurrentVisualWorldOffset();
+            }
+
+            worldOffset = _currentVisualWorldOffset;
+            return _hasCurrentVisualWorldOffset;
+        }
+
+        private void RefreshCurrentVisualWorldOffset()
+        {
+            _currentVisualWorldOffsetFrame = Time.frameCount;
+            _currentVisualWorldOffset = Vector3.zero;
+            _hasCurrentVisualWorldOffset = false;
+
+            if (!isActiveAndEnabled
+                || OffsetsSuspended()
+                || _enabled == null
+                || !_enabled.Value)
+            {
+                return;
+            }
+
+            Hero hero = Hero.Current;
+            if (hero == null || Hero.TppActive)
+            {
+                return;
+            }
+
+            VHeroController controller = hero.VHeroController;
+            HeroBodyData bodyData = controller == null
+                ? null
+                : controller.BodyData;
+            Camera camera = controller == null
+                ? null
+                : controller.MainCamera;
+            if (bodyData == null
+                || bodyData.transform == null
+                || camera == null)
+            {
+                return;
+            }
+
+            _currentVisualWorldOffset = camera.transform.TransformVector(
+                GetEffectiveLocalOffset(hero));
+            _hasCurrentVisualWorldOffset = true;
         }
 
         internal void BeginBowDiagnostics(
@@ -1899,6 +2084,11 @@ namespace FirstPersonArmsAdjuster
                 "UseCategoryForwardOffsets",
                 true,
                 "Use separate forward offsets for melee weapons, bows, and magic. Unarmed and unknown equipment continue to use ForwardOffset.");
+            _mitigateHeldMeleeBodyIntrusion = Config.Bind(
+                "1. Core",
+                "MitigateHeldMeleeBodyIntrusion",
+                true,
+                "Smoothly return the complete viewmodel offset toward vanilla while a melee heavy attack is raised or held, preventing shoulders and torso geometry from being pulled into view.");
             _forwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "ForwardOffset",
@@ -1940,6 +2130,27 @@ namespace FirstPersonArmsAdjuster
                 0.30f,
                 new ConfigDescription(
                     "Forward offset used for equipped magic when UseCategoryForwardOffsets is enabled.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+            _heldMeleeOffsetScale = Config.Bind(
+                "2. Viewmodel Position",
+                "HeldMeleeOffsetScale",
+                0.0f,
+                new ConfigDescription(
+                    "Fraction of the configured viewmodel offset retained while a melee heavy attack is raised or held. Zero uses the vanilla position; one disables the positional reduction without disabling state detection.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _heldMeleeExtraForwardOffset = Config.Bind(
+                "2. Viewmodel Position",
+                "HeldMeleeExtraForwardOffset",
+                -0.10f,
+                new ConfigDescription(
+                    "Additional camera-space forward offset applied only while a melee heavy attack is raised or held, after HeldMeleeOffsetScale. Negative values pull the viewmodel toward the camera so its near plane can conceal intrusive body geometry.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+            _heldMeleeExtraVerticalOffset = Config.Bind(
+                "2. Viewmodel Position",
+                "HeldMeleeExtraVerticalOffset",
+                -0.06f,
+                new ConfigDescription(
+                    "Additional camera-space vertical offset applied only while a melee heavy attack is raised or held, after HeldMeleeOffsetScale. Negative values move the held pose down.",
                     new AcceptableValueRange<float>(-0.50f, 0.50f)));
             _diagnostics = Config.Bind(
                 "3. Diagnostics",
@@ -2085,6 +2296,11 @@ namespace FirstPersonArmsAdjuster
                 "1. Core",
                 "Enabled",
                 out _pendingEnabled);
+            _hasPendingMitigateHeldMeleeBodyIntrusion =
+                profile.TryGetCustomizedValue(
+                    "1. Core",
+                    "MitigateHeldMeleeBodyIntrusion",
+                    out _pendingMitigateHeldMeleeBodyIntrusion);
             _hasPendingForwardOffset = profile.TryGetCustomizedValue(
                 "2. Viewmodel Position",
                 "ForwardOffset",
@@ -2109,6 +2325,21 @@ namespace FirstPersonArmsAdjuster
                 "2. Viewmodel Position",
                 "MagicForwardOffset",
                 out _pendingMagicForwardOffset);
+            _hasPendingHeldMeleeOffsetScale =
+                profile.TryGetCustomizedValue(
+                    "2. Viewmodel Position",
+                    "HeldMeleeOffsetScale",
+                    out _pendingHeldMeleeOffsetScale);
+            _hasPendingHeldMeleeExtraForwardOffset =
+                profile.TryGetCustomizedValue(
+                    "2. Viewmodel Position",
+                    "HeldMeleeExtraForwardOffset",
+                    out _pendingHeldMeleeExtraForwardOffset);
+            _hasPendingHeldMeleeExtraVerticalOffset =
+                profile.TryGetCustomizedValue(
+                    "2. Viewmodel Position",
+                    "HeldMeleeExtraVerticalOffset",
+                    out _pendingHeldMeleeExtraVerticalOffset);
             _hasPendingDiagnostics = profile.TryGetCustomizedValue(
                 "3. Diagnostics",
                 "Diagnostics",
@@ -2124,6 +2355,18 @@ namespace FirstPersonArmsAdjuster
                 && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
                     _enabled,
                     _pendingEnabled,
+                    out clamped))
+            {
+                restoredCount++;
+                if (clamped)
+                {
+                    clampedCount++;
+                }
+            }
+            if (_hasPendingMitigateHeldMeleeBodyIntrusion
+                && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _mitigateHeldMeleeBodyIntrusion,
+                    _pendingMitigateHeldMeleeBodyIntrusion,
                     out clamped))
             {
                 restoredCount++;
@@ -2167,6 +2410,24 @@ namespace FirstPersonArmsAdjuster
                 _hasPendingMagicForwardOffset,
                 _magicForwardOffset,
                 _pendingMagicForwardOffset,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingHeldMeleeOffsetScale,
+                _heldMeleeOffsetScale,
+                _pendingHeldMeleeOffsetScale,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingHeldMeleeExtraForwardOffset,
+                _heldMeleeExtraForwardOffset,
+                _pendingHeldMeleeExtraForwardOffset,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingHeldMeleeExtraVerticalOffset,
+                _heldMeleeExtraVerticalOffset,
+                _pendingHeldMeleeExtraVerticalOffset,
                 ref restoredCount,
                 ref clampedCount);
             if (_hasPendingDiagnostics
@@ -2226,12 +2487,16 @@ namespace FirstPersonArmsAdjuster
         private void ClearPendingPreservedSettings()
         {
             _hasPendingEnabled = false;
+            _hasPendingMitigateHeldMeleeBodyIntrusion = false;
             _hasPendingForwardOffset = false;
             _hasPendingHorizontalOffset = false;
             _hasPendingVerticalOffset = false;
             _hasPendingMeleeForwardOffset = false;
             _hasPendingBowForwardOffset = false;
             _hasPendingMagicForwardOffset = false;
+            _hasPendingHeldMeleeOffsetScale = false;
+            _hasPendingHeldMeleeExtraForwardOffset = false;
+            _hasPendingHeldMeleeExtraVerticalOffset = false;
             _hasPendingDiagnostics = false;
         }
     }

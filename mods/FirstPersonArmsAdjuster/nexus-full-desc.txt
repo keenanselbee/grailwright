@@ -13,9 +13,11 @@ Use it to push an oversized viewmodel farther away, bring it closer, or make sma
 [*][b]Camera-space positioning:[/b] Move the visible first-person body and equipped items forward, backward, horizontally, or vertically.[/*]
 [*][b]Category offsets:[/b] Use separate forward positions for melee weapons, bows, and magic while keeping unarmed and unrecognized equipment on the general value.[/*]
 [*][b]Stable equipment rendering:[/b] Move linked render regions, culling data, and Drake equipment together so multi-part and two-handed weapons remain stable during animation.[/*]
+[*][b]Held-melee body guard:[/b] Smoothly return the complete viewmodel offset toward vanilla while a melee heavy attack is raised or held, keeping intrusive shoulder and torso geometry out of view.[/*]
 [*][b]Interaction recovery:[/b] Ease back to the vanilla position during fireplace interactions and restore configured offsets after the complete stand-up transition.[/*]
 [*][b]Live configuration:[/b] Apply positioning changes immediately without restarting the game.[/*]
 [*][b]Presentation only:[/b] Leave FOV, aiming, sockets, projectile origins, hit detection, physics, and saved player position unchanged.[/*]
+[*][b]Optional integration API:[/b] Expose the effective visual world translation from a once-per-frame cache so presentation effects can follow adjusted arms without moving gameplay sockets.[/*]
 [/list]
 
 [line]
@@ -51,6 +53,10 @@ BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 | MeleeForwardOffset         | 0.30    | Melee weapon depth                           |
 | BowForwardOffset           | 0.10    | Bow depth                                    |
 | MagicForwardOffset         | 0.30    | Equipped-magic depth                         |
+| MitigateHeldMeleeBodyIntrusion | true | Reduce offsets during held melee attacks    |
+| HeldMeleeOffsetScale       | 0.0     | Fraction of the normal offset kept while held|
+| HeldMeleeExtraForwardOffset| -0.10   | Held-only depth correction after scaling    |
+| HeldMeleeExtraVerticalOffset| -0.06  | Held-only vertical correction after scaling |
 | Diagnostics                | false   | Log resolved render paths and active offsets |
 [/code]
 
@@ -59,7 +65,7 @@ All position values accept a range from -0.50 to 0.50 meters.
 [line]
 
 [heading][color=#C94A4A][size=5]Rendering Scope And Limitations[/size][/color][/heading]
-The game uses one first-person body hierarchy, so visible torso or leg geometry may move with the arms. Fireplace interactions are handled specially: offsets ease to zero during the crouch, remain at the vanilla position through fireplace submenus and the complete controller stand-up transition, then ease back in. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
+The game uses one first-person body hierarchy, so visible torso or leg geometry may move with the arms. Held one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are handled specially: the complete offset eases toward the configured held-melee scale while the attack is raised or held, then applies the held-only forward and vertical corrections. The defaults pull the pose 0.10 metres toward the camera near plane and 0.06 metres down because some two-handed poses expose body geometry even at the vanilla position. Everything eases back after release or cancellation. Fireplace interactions similarly ease to zero during the crouch, remain at the vanilla position through fireplace submenus and the complete controller stand-up transition, then ease back in. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
 
 The plugin refreshes the active rig and equipment regions repeatedly, clears cached rig and render references during scene changes, and briefly suspends offsets while a replacement scene settles. It changes presentation data only; the live animation skeleton and gameplay transforms remain untouched.
 
@@ -83,7 +89,7 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
-Automatically preserved: Enabled, ForwardOffset, HorizontalOffset, VerticalOffset, MeleeForwardOffset, BowForwardOffset, MagicForwardOffset, and Diagnostics.
+Automatically preserved: Enabled, MitigateHeldMeleeBodyIntrusion, ForwardOffset, HorizontalOffset, VerticalOffset, MeleeForwardOffset, BowForwardOffset, MagicForwardOffset, HeldMeleeOffsetScale, HeldMeleeExtraForwardOffset, HeldMeleeExtraVerticalOffset, and Diagnostics.
 
 [line]
 
@@ -99,6 +105,7 @@ Automatically preserved: Enabled, ForwardOffset, HorizontalOffset, VerticalOffse
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
 [*]The plugin does not change world FOV and does not require a camera or FOV replacement.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.4.3+ can use the optional visual-offset API to keep its blood-spell lights aligned with adjusted hands.[/*]
 [*]Mods that write to the same first-person Kandra, Drake, culling, or hierarchy presentation data may conflict.[/*]
 [*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]

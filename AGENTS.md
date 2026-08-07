@@ -2,7 +2,7 @@ AGENTS.md
 =========
 
 This file provides general working rules for coding agents in this repository.
-It extends the shared template at `C:\Repositories\AGENTS.md` with Grailwright-specific mod packaging, build, and staging rules.
+It is based on the shared starter template at `C:\Repositories\AGENTS.md` and adds Grailwright-specific mod packaging, build, and staging rules.
 
 
 Command Speed Rules
@@ -37,6 +37,23 @@ Working Rules
 - Prefer existing scripts, package-manager commands, Makefiles, Justfiles, Taskfiles, CI configuration, and documented workflows over invented commands.
 - Use `rg` / `rg --files` for searches when available.
 - Avoid destructive commands such as `git reset --hard`, broad deletes, or force pushes unless the user explicitly asks for that exact operation.
+
+
+Sol And Luna Delegation
+-----------------------
+
+- Sol High is the primary administrator. Sol owns requirements, task decomposition, architectural and product decisions, user-facing writing, integration, final verification, and reporting.
+- Spawned agents should use Luna High unless the user explicitly requests another model.
+- Use at most one Luna agent at a time.
+- When bounded work is deterministic, produces noisy intermediate output, or would otherwise require several routine tool calls, Sol should proactively delegate exactly one self-contained assignment to `luna_routine` and wait for its concise handoff before continuing.
+- For Nexus metadata validation, package inspection, dry runs, and explicitly authorized remote Nexus operations, Sol should use `luna_nexus_operator` instead of `luna_routine`.
+- Do not delegate a task merely because it is small. Avoid paying for a handoff when Sol can finish it directly with one or two simple actions.
+- Sol must give Luna an exact objective, allowed scope, expected output, verification command, stopping conditions, and whether edits or external actions are authorized.
+- Luna must return a concise result. Sol should review the result and relevant diff instead of repeating Luna's complete investigation.
+- Suitable Luna work includes targeted searches, inventories, builds, tests, log summaries, metadata validation, package inspection, consistency checks, and fully specified mechanical edits.
+- Keep ambiguous diagnosis, feature design, behavioral implementation, configuration-schema decisions, version decisions, user-facing release writing, changelog consolidation, and final review with Sol.
+- For Nexus work, Sol writes and approves all descriptions and changelog text. Luna may validate, dry-run, operate the existing Nexus tools, and verify the remote result only when the current user request explicitly authorizes that exact remote operation.
+- External publishing, commits, pushes, destructive operations, and live-game changes are never implied by delegation.
 
 
 Shell Reliability
@@ -74,18 +91,6 @@ Local Paths And Tooling
 - Use `tools/game-inspection/Invoke-UnityPython.ps1` for UnityPy, dnfile, pefile, and other repo-local Python inspection packages.
 - Use `tools/game-inspection/Invoke-AssetRipper.ps1` for AssetRipper. Prefer `--headless` when launching it for non-interactive investigation.
 - Treat `tools/game-inspection/downloads/`, extracted tool package directories, and generated inspection output as tool/cache material. Do not hand-edit downloaded tool contents unless replacing or upgrading the tool intentionally.
-
-
-SKSE Plugin Repositories
-------------------------
-
-- For Skyrim SKSE plugin work, prefer the repository's documented wrapper script, such as `tools/build-skse-plugin.ps1`, over raw `cl`, `cmake`, `ninja`, `xmake`, or Visual Studio commands.
-- Do not assume `cl`, `cmake`, or `ninja` are on the shell PATH. Let the repo wrapper locate MSVC and any repo-local or shared xmake tooling.
-- Do not copy Iron Soul's dev environment into another repository unless the user explicitly asks. A repo may instead declare a symlinked SKSE project or shared xmake tool/cache path in its own `AGENTS.md`.
-- Follow symlinked project roots only when the repo-specific `AGENTS.md` explicitly names them as intentional editable paths. Otherwise treat symlink targets outside the repo as external and read-only.
-- Verify-only native builds must not refresh shipped DLLs. DLL refresh builds may copy only the successful release DLL into `mod/SKSE/plugins`.
-- Keep refreshed DLLs in the same commit as the native source change that produced them unless the user explicitly asks for a DLL-only refresh.
-- Do not run dependency upgrades, delete package caches, or change global Git `safe.directory` settings unless the user explicitly asks.
 
 
 Keyword Commands
@@ -143,8 +148,8 @@ Commits
 - Do not stage or commit unrelated changes.
 
 
-Repository-Specific Notes
--------------------------
+Grailwright Mod Development And Publishing
+-------------------------------------------
 
 - Grailwright is the shared development repo for Keenan's Tainted Grail: The Fall of Avalon BepInEx 5 Mono mods.
 - Treat `mods/` as the source of truth for authored mod packages.

@@ -2,7 +2,7 @@
   "id": "UltrawideFixes",
   "displayName": "Ultrawide Fixes",
   "packageName": "UltrawideFixes",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "pluginGuid": "ks.tgfoa.ultrawide-fixes",
   "dll": "UltrawideFixes.dll",
   "sourceFiles": [

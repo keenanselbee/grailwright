@@ -33,7 +33,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
 | [Steel and Bone](mods/SteelAndBone) | 3.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.1.7 | Unpublished |
-| [Ultrawide Fixes](mods/UltrawideFixes) | 1.0.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
 | [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
 
 ## Layout

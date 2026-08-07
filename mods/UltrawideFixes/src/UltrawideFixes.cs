@@ -16,8 +16,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Ultrawide presentation fixes for Tainted Grail title and loading screens")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Ultrawide Fixes")]
-[assembly: AssemblyVersion("1.0.9.0")]
-[assembly: AssemblyFileVersion("1.0.9.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace UltrawideFixes
 {
@@ -27,7 +27,7 @@ namespace UltrawideFixes
     {
         public const string PluginGuid = "ks.tgfoa.ultrawide-fixes";
         public const string PluginName = "Ultrawide Fixes";
-        public const string PluginVersion = "1.0.9";
+        public const string PluginVersion = "1.1.0";
 
         private const float SourceVideoAspect = 16.0f / 9.0f;
         private const float DefaultTargetAspect = 21.0f / 9.0f;
@@ -74,6 +74,8 @@ namespace UltrawideFixes
         private int _pendingPreservedInvalidValueCount;
         private Coroutine _scanRoutine;
         private Harmony _harmony;
+        private bool _loadingHooksReady;
+        private bool _scanLoadingViewsOnce;
         private int _lastScreenWidth;
         private int _lastScreenHeight;
 
@@ -93,6 +95,7 @@ namespace UltrawideFixes
                 {
                     _harmony = new Harmony(PluginGuid);
                     _harmony.PatchAll(typeof(Plugin).Assembly);
+                    _loadingHooksReady = true;
                 }
                 catch (Exception exception)
                 {
@@ -618,6 +621,7 @@ namespace UltrawideFixes
             _patchedRawImages.Clear();
             _patchedLoadingImages.Clear();
             _hiddenBars.Clear();
+            _scanLoadingViewsOnce = true;
             StartScan("config changed");
         }
 
@@ -653,6 +657,7 @@ namespace UltrawideFixes
             _lastScreenHeight = Screen.height;
             _patchedRawImages.Clear();
             _patchedLoadingImages.Clear();
+            _scanLoadingViewsOnce = true;
             StartScan("resolution changed");
         }
 
@@ -681,23 +686,39 @@ namespace UltrawideFixes
 
             while (_enabled.Value && Time.realtimeSinceStartup <= endTime)
             {
-                ApplyPatchPass();
+                if (!ApplyPatchPass())
+                {
+                    break;
+                }
                 yield return new WaitForSecondsRealtime(_scanIntervalSeconds.Value);
             }
 
             _scanRoutine = null;
         }
 
-        private void ApplyPatchPass()
+        private bool ApplyPatchPass()
         {
             if (GetScreenAspect() < _minimumScreenAspect.Value)
             {
-                return;
+                return false;
             }
 
             float targetAspect = GetTargetAspect();
+            bool titleScene = IsLikelyTitleScene(
+                SceneManager.GetActiveScene().name);
+            bool needsTitleVideo = titleScene
+                && _patchTitleVideo.Value
+                && _patchedRawImages.Count == 0;
+            bool needsTitleBars = titleScene
+                && _hideTitleBlackBars.Value
+                && _hiddenBars.Count == 0;
+            bool needsLoadingFallback = (!_loadingHooksReady
+                    || _scanLoadingViewsOnce)
+                && (_patchLoadingBackground.Value
+                    || _patchLoadingBlurBackground.Value)
+                && _patchedLoadingImages.Count == 0;
 
-            if (_patchTitleVideo.Value)
+            if (needsTitleVideo)
             {
                 RawImage[] rawImages = Resources.FindObjectsOfTypeAll<RawImage>();
                 for (int i = 0; i < rawImages.Length; i++)
@@ -710,15 +731,21 @@ namespace UltrawideFixes
                 }
             }
 
-            if (_hideTitleBlackBars.Value)
+            if (needsTitleBars)
             {
                 HideTitleBlackBars();
             }
 
-            if (_patchLoadingBackground.Value || _patchLoadingBlurBackground.Value)
+            if (needsLoadingFallback)
             {
                 PatchKnownLoadingScreens(targetAspect, "scan");
+                _scanLoadingViewsOnce = false;
             }
+
+            return (needsTitleVideo && _patchedRawImages.Count == 0)
+                || (needsTitleBars && _hiddenBars.Count == 0)
+                || (needsLoadingFallback
+                    && _patchedLoadingImages.Count == 0);
         }
 
         private float GetScreenAspect()

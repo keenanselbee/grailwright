@@ -353,7 +353,11 @@ $ResolvedVortexModsRoot = Resolve-VortexModsRoot -Candidate $VortexModsRoot
 $ResolvedBepInExRoot = Resolve-BepInExRoot -Candidate $BepInExRoot -ResolvedGameRoot $ResolvedGameRoot -ResolvedVortexModsRoot $ResolvedVortexModsRoot
 
 if ([string]::IsNullOrWhiteSpace($DestinationDirectory)) {
-    $DestinationDirectory = Get-DesktopDirectory
+    $DestinationDirectory = if ($StageToVortex) {
+        Join-Path $RepoRoot ".codex-temp\packages"
+    } else {
+        Get-DesktopDirectory
+    }
 }
 
 if (-not $SkipCompile) {

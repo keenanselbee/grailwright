@@ -1,0 +1,1 @@
+Save-bounded character deeds and foe statistics with a two-column Grail Floating Text quick-wheel panel, XP progress, weapon and magic kill categories, crime and Wyrdnight records, and Blood Magic Corpses Drained integration.

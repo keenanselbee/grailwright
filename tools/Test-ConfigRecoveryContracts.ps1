@@ -109,6 +109,7 @@ function Get-ArrayInitializer {
 $modContracts = @(
     @{ Mod = 'GloriousUI'; Source = 'src\GloriousUI.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'BloodMagicExpansion'; Source = 'src\BloodMagicExpansion.cs'; Schema = 10; AutoPreserves = $true },
+    @{ Mod = 'DeedsOfAvalon'; Source = 'src\DeedsOfAvalon.cs'; Schema = 1; AutoPreserves = $false },
     @{ Mod = 'DishonoredDynamicCrosshair'; Source = 'src\Plugin.cs'; Schema = 3; AutoPreserves = $true },
     @{ Mod = 'EnemyRespawnControl'; Source = 'src\EnemyRespawnControl.cs'; Schema = 4; AutoPreserves = $true },
     @{ Mod = 'EyesInTheDark'; Source = 'src\EyesInTheDark.cs'; Schema = 1; AutoPreserves = $true },

@@ -16,6 +16,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | --- | --- | --- |
 | [Glorious UI](mods/GloriousUI) | 1.7.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
 | [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.4.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.0.1 | Unpublished |
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 2.9.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
@@ -41,6 +42,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 mods/
   GloriousUI/
   BloodMagicExpansion/
+  DeedsOfAvalon/
   DishonoredDynamicCrosshair/
   KillingBlowMastery/
   KingsElegyMainMenuMusic/

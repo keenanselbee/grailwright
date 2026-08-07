@@ -1,0 +1,71 @@
+[center][color=#C94A4A][size=6]Deeds of Avalon[/size][/color]
+[i]Character statistics that belong to the save, presented beside the quick wheel.[/i][/center]
+
+[line]
+
+[b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save game and presents them through a right-anchored, two-column quick-wheel panel.
+
+[heading][color=#C94A4A][size=5]Quick-Wheel Panel[/size][/color][/heading]
+[code]
+| DEEDS OF AVALON              | FOES DEFEATED              |
+|------------------------------|-----------------------------|
+| Level and current/required XP| Total foes                  |
+| Wyrdnights survived          | One-handed weapon subtypes  |
+| Quests completed             | Two-handed weapon subtypes  |
+| Locations discovered         | Bows, shields, and unarmed  |
+| Crimes and bounty            | Magic by spell/damage type  |
+| Rest records                 | Positive rows only          |
+| Corpses Drained              | Limited rows collapse Other |
+[/code]
+
+The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.11.1+ fonts, colors, and built-in icons. Statistics and file export still work when GFT is absent, but the panel requires it.
+
+Normal weapon and spell tooltips remain enabled by default. When either tooltip is visible, the statistics panel fades to 50% opacity by default, then returns smoothly when the tooltip closes. The tooltip opacity and fade time are configurable, and an off-by-default option can hide normal item tooltip text entirely.
+
+[heading][color=#C94A4A][size=5]Save-Bounded Statistics[/size][/color][/heading]
+The authoritative counters live in the active save's GameplayMemory. Deeds captures a readable snapshot during serialization but writes it only after the game confirms the save succeeded. Loading saved data refreshes the file from the loaded state.
+
+That means a death, reload, or quit without saving discards the unsaved session's counters. Those unsaved values are not added to the readable file.
+
+[code]
+BepInEx/config/DeedsOfAvalon/Characters/<character-id>/statistics.json
+[/code]
+
+Deleting the JSON does not reset the save-backed counters. It is rebuilt after a successful save or after loading saved data.
+
+[heading][color=#C94A4A][size=5]Foes Defeated[/size][/color][/heading]
+Hero-killed NPCs are counted once and classified from the fatal damage source. Weapon rows distinguish one-handed sword, axe, blunt, and dagger kills; two-handed sword, axe, blunt, and polearm kills; bow weights; shields; unarmed attacks; throwables; and fallbacks. Magic rows use the spell or equipped magic-item name when the game supplies one, then fall back to fatal Fire, Cold, Poison, Electric, Wyrdness, Pure, Wet, or Other damage.
+
+Only category values above zero are shown. Separate weapon and magic row limits keep the panel readable, with excess positive categories combined into Other rows when enabled.
+
+[heading][color=#C94A4A][size=5]Deeds and Integrations[/size][/color][/heading]
+The left column can show Wyrdnights survived, quests completed, locations discovered, crimes committed, recorded active and highest recorded bounty, rest count and hours, and Blood Magic statistics. Recorded active bounty covers factions observed through crime or bounty-clear events since Deeds began tracking; it is not presented as a complete current total for an existing save with unobserved faction bounty.
+
+[b]Blood Magic Expansion 2.4.6+:[/b] a corpse is counted only after its ritual completes successfully. The exact wording is [b]Corpses Drained[/b], with Meager, Worthy, Potent, and Prime quality rows. Interrupted, rejected, and incomplete rituals do not count.
+
+[b]Glorious UI:[/b] Deeds hides the top-right Points available widget during the quick wheel. When Glorious UI's master [b]Enabled[/b] switch and [b]HideGameplayHudInQuickUseWheel[/b] setting are both enabled, Deeds defers to Glorious UI. Otherwise, Deeds hides and restores only the live widget and never changes the Glorious UI setting.
+
+[b]Killing Blow Mastery:[/b] there is no statistics backward compatibility. Deeds does not read, import, translate, or migrate former Killing Blow Mastery counters or TSV reports.
+
+[heading][color=#C94A4A][size=5]Main Defaults[/size][/color][/heading]
+[code]
+| Setting                     | Default |
+|-----------------------------|---------|
+| ShowCharacterStatistics     | true    |
+| HideItemTooltipText         | false   |
+| PanelOpacity                | 1.0     |
+| TooltipPanelOpacity         | 0.5     |
+| TooltipFadeSeconds          | 0.15    |
+| PanelScale                  | 1.0     |
+| RightOffset                 | 48      |
+| TopOffset                   | 145     |
+| MaximumDeedRows             | 9       |
+| MaximumWeaponRows           | 7       |
+| MaximumMagicRows            | 5       |
+| ShowCollapsedOtherRows      | true    |
+| HidePointsAvailable         | true    |
+| ShowBloodMagicStatistics    | true    |
+[/code]
+
+[heading][color=#C94A4A][size=5]Installation[/size][/color][/heading]
+Install with Vortex or place the [b]DeedsOfAvalon[/b] folder under [b]BepInEx/plugins[/b]. Start the game once to create [b]BepInEx/config/ks.tgfoa.deeds-of-avalon.cfg[/b].

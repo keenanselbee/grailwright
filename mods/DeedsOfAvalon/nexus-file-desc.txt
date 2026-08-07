@@ -1,0 +1,1 @@
+Tracks per-save character statistics and presents positive categories beside the quick wheel.

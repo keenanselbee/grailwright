@@ -1,0 +1,14 @@
+Version 1.0.1
+Removed the circular Blood Magic Expansion soft dependency while retaining its one-way Deeds statistics integration.
+Made Glorious UI delegation honor its master Enabled switch and limited Points available selection to live scene views.
+Made event-listener retries transactional so partial binding failures do not duplicate listeners.
+Renamed the displayed bounty rows to Recorded active bounty and Highest recorded bounty so existing unobserved faction bounty is not presented as a complete current total.
+
+Version 1.0.0
+Added save-backed, per-character statistics with readable JSON export published only after confirmed successful saves and refreshed from loaded save data.
+Added a Grail Floating Text two-column quick-wheel panel with level, current/required XP, deeds, total foes, weapon subtype kills, magic spell-name kills, and damage-type fallbacks.
+Added configurable row limits, Other rows, right-edge placement, scale, opacity, tooltip-active opacity, and tooltip fade duration; zero-value category rows stay hidden.
+Added an option to hide normal quick-wheel item tooltip text while leaving it enabled by default.
+Hidden the Points available widget during the quick wheel, while deferring to Glorious UI when its HideGameplayHudInQuickUseWheel setting owns that behavior.
+Added Blood Magic Expansion integration using the wording Corpses Drained with Meager, Worthy, Potent, and Prime quality tiers.
+Started with independent counters and no import, migration, or backward compatibility for Killing Blow Mastery statistics.

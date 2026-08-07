@@ -1,14 +1,15 @@
-# Eyes in the Dark 1.3.0 consolidated in-game matrix
+# Eyes in the Dark 1.3.1 in-game matrix
 
 Candidate:
 
-- Eyes in the Dark `1.3.0`
+- Eyes in the Dark `1.3.1`
 - Battlecry Voice Tuner `1.1.0` when the battlecry cases call for it
-- Glorious UI `1.7.1` when the integration case calls for it
-- Grail Floating Text `1.10.0` when the notification case calls for it
+- Glorious UI `1.7.5` when the integration case calls for it
+- Grail Floating Text `1.10.1` when the notification case calls for it
 - Tainted Grail Mono patch `1.25`
 
-Run this matrix only against the staged `1.3.0` candidate. Keep Wyrd Hunt,
+Run the release smoke gate first against the staged `1.3.1` candidate. Keep
+Wyrd Hunt,
 Custom Timescale, and KS Wyrd Hunt Addon absent except for isolated
 incompatibility-notice cases.
 For each failure, save the relevant BepInEx log, fix the candidate, rebuild, and
@@ -16,6 +17,28 @@ repeat the failed case plus adjacent state transitions.
 
 Use Diagnostics only where requested. Its GFT System summaries are testing
 output; the BepInEx log remains the authoritative detailed record.
+
+## Release smoke gate
+
+These twelve checks are the practical release gate. The complete extended
+matrix remains below for deeper feature and soak coverage.
+
+| ID | Detailed cases | Release check | Status |
+| --- | --- | --- | --- |
+| S1 | A1 | Eyes-only exterior startup | Pending |
+| S2 | A2 | Eyes, GFT, and Glorious startup together | Pending |
+| S3 | B1 | Daylight hides Wyrdnight presentation | Pending |
+| S4 | B3 | Glorious placement produces one Eyes-owned meter | Pending |
+| S5 | B6-B7 | Interior entry and exterior return preserve threat correctly | Pending |
+| S6 | B15-B16, B29 | Exposed and protected rest availability remains correct | Pending |
+| S7 | B21 | Purple and Orange meter colors, brightness, and red shift | Pending |
+| S8 | B26-B27 | Dusk transition and pause behavior | Pending |
+| S9 | B33, B37 | Direct load and retained-threat presentation | Pending |
+| S10 | B35-B36 | Quick-menu 12-hour, 24-hour, and disabled formatting | Pending |
+| S11 | C3, C8 | Combat threat input and dawn reset | Pending |
+| S12 | E8, E10, H2 | Failed placement, resolved hunt, and final log review | Pending |
+
+## Extended matrix
 
 ## A. Startup and optional integrations
 
@@ -60,7 +83,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | B27 | Pause halfway through a natural presentation transition, then resume | The visual blend freezes while paused and completes over the remaining active real time without a visible jump | Pending |
 | B28 | Load between scenes, enter an interior, disable Eyes, and set transition duration to 0 in isolated checks | Short loads hold the last confirmed presentation; confirmed interiors/disablement restore immediately; zero duration snaps at the natural phase boundary without stale materials or ownership | Pending |
 | B29 | During active Cursed Wyrdnight exposure, compare Show Wyrdnight Rest Availability enabled and disabled at the same unprotected fireplace | Enabled greys out REST; disabled leaves the native button state; neither setting changes the final accepted-rest guard or interruption policy | Pending |
-| B30 | Install Glorious UI 1.7.2 with Eyes 1.3.1 and use mouse, keyboard, and controller in its Sensible Rest Menu | Glorious alone rotates and labels the clock, Eyes alone updates Wyrdnight REST-button availability, and all input and gameplay rules remain aligned | Pending |
+| B30 | Install Glorious UI 1.7.5 with Eyes 1.3.1 and use mouse, keyboard, and controller in its Sensible Rest Menu | Glorious alone rotates and labels the clock, Eyes alone updates Wyrdnight REST-button availability, and all input and gameplay rules remain aligned | Pending |
 | B31 | Disable Glorious UI's Sensible Rest Menu while Eyes remains enabled | The native clock layout and time text return while Eyes continues to show Wyrdnight REST-button availability | Pending |
 | B32 | Use an exposed rest point during active Watchful Night | REST remains available if the game otherwise permits it; native interruption is checked first and Eyes then applies 45-to-75-percent threat-scaled cumulative risk | Pending |
 | B33 | Load directly into an exterior Wyrdnight from the title screen and through a same-night fast travel | The first visible rendered frame retains/applies the Wyrdnight palette without a brighter vanilla flash; no stale purple survives a confirmed daylight or interior destination | Pending |
@@ -79,7 +102,7 @@ output; the BepInEx log remains the authoritative detailed record.
 | B45 | Cause a native sleep interruption during unprotected Wyrdnight overlap | Native wake behavior remains unchanged, further exposed rest is locked until dawn, and Eyes queues no duplicate official hunt | Pending |
 | B46 | Force an Eyes sleep interruption in a valid regional scene | Native wake presentation appears, one official hunt is requested after the transition, and normal level, elite, budget, atomic placement, and zero-cost failure rules remain visible in diagnostics | Pending |
 | B47 | After an interruption, try exposed and fueled protected rest before dawn, then try exposed rest after dawn | Exposed rest remains unavailable before dawn, fueled protected rest remains available, and dawn clears the disturbed lock | Pending |
-| B48 | Disable Own Rest Menu and reopen beds, campfires, and the rest popup in both 12-hour and 24-hour modes | Eyes leaves button availability, clock orientation, labels, and popup time text native; active Cursed gameplay denial still closes an accepted exposed rest silently | Pending |
+| B48 | Disable Show Wyrdnight Rest Availability and reopen exposed beds and campfires | Eyes leaves the native REST-button state unchanged; active Cursed gameplay denial still closes an accepted exposed rest silently | Pending |
 | B49 | Compare health, mana, stamina, and threat-meter animation, then rebuild the Hero HUD | Threat artwork remains mirrored and fills correctly; its shader animation moves in the same screen-space direction as the vanilla Hero bars; one private meter material is replaced cleanly during the rebuild without changing or leaking shared materials | Pending |
 | B50 | Start from a schema-14 config containing PurpleWyrdnessBrightness and other durable values | A beside-config backup is created; schema 15 skips the retired brightness key, preserves compatible durable values, adopts the 1-second diagnostics default when the old value was untouched, and leaves both diagnostic overrides disabled | Pending |
 | B51 | From stable Purple and Orange Wyrdness nights, create sudden 10-point and 20-point threat gains while watching the meter and scene | Gameplay threat and meter fill update immediately; moon, moonlight, protection bubble, and integrated palette approach the new threat color smoothly with the default two-second half-life and no frame-rate spike | Pending |

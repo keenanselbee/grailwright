@@ -123,6 +123,7 @@ $modContracts = @(
     @{ Mod = 'KSAddons\KSWyrdSightAddon'; Source = 'src\WyrdSightAddon.cs'; Schema = 2; AutoPreserves = $false },
     @{ Mod = 'BattlecryVoiceTuner'; Source = 'src\BattlecryVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'SteelAndBone'; Source = 'src\SteelAndBone.cs'; Schema = 14; AutoPreserves = $true },
+    @{ Mod = 'TorchlightRekindled'; Source = 'src\TorchlightRekindled.cs'; Schema = 1; AutoPreserves = $false },
     @{ Mod = 'UltrawideFixes'; Source = 'src\UltrawideFixes.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'WyrdsoulReserve'; Source = 'src\WyrdsoulReserve.cs'; Schema = 1; AutoPreserves = $true }
 )

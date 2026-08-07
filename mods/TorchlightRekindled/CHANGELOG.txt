@@ -1,0 +1,9 @@
+Version 0.1.7
+Added configurable held-torch reach and world illumination with practical recommended defaults.
+Added synchronized illumination-only flicker strength and speed controls that ride on the native torch update without changing flame particles or range.
+Added independent live flame brightness and HDR bloom controls, both defaulting to the recommended 0.75.
+Added a configurable soft radial flame corona for stronger bloom without solid geometry, another gameplay light, or a shadow caster.
+Added a spatial small-fire loop anchored to the held torch or equipped hand, with displayed volume 1 as the recommended balance.
+Added recommended Dungeon and Interior settings for Light Control plus First Person Arms Adjuster for first-person presentation.
+Added automatic config backup, reset, and conservative settings recovery support.
+Declared Torch Light Control incompatible to prevent both plugins from scaling the same held light.

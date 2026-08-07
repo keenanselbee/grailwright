@@ -1,0 +1,1 @@
+Configurable held-torch light, HDR flame glow, and spatial fire audio.

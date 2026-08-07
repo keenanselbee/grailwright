@@ -1,0 +1,26 @@
+{
+  "id": "TorchlightRekindled",
+  "displayName": "Torchlight Rekindled",
+  "packageName": "TorchlightRekindled",
+  "version": "0.1.7",
+  "pluginGuid": "ks.tgfoa.torchlight-rekindled",
+  "dll": "TorchlightRekindled.dll",
+  "sourceFiles": [
+    "src/TorchlightRekindled.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.ParticleSystemModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.VFXModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.Core.Runtime.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.HighDefinition.Runtime.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll"
+  ]
+}

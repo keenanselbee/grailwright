@@ -1,0 +1,106 @@
+[center][color=#E58A36][size=6]Torchlight Rekindled[/size][/color]
+[i]More useful light, a richer flame, and the sound a burning torch deserves.[/i][/center]
+
+[line]
+
+[b]Torchlight Rekindled[/b] expands the held torch in [b]Tainted Grail: The Fall of Avalon[/b] without replacing its character. The original flicker remains, while illumination, visible flame glow, HDR bloom, and fire audio can each be tuned separately.
+
+[line]
+
+[heading][color=#E58A36][size=5]Features[/size][/color][/heading]
+[list]
+[*][b]Range bonus:[/b] Choose between a tight atmospheric pool and long dungeon sightlines, with 3 recommended.[/*]
+[*][b]Illumination:[/b] Control how strongly the torch lights walls, floors, and characters. The original flicker is retained and 1 is recommended.[/*]
+[*][b]Light flicker:[/b] Add synchronized slow and fast variation to the illumination cast on the world without changing flame particles or range.[/*]
+[*][b]Flame brightness:[/b] Tune the visible flame, embers, and sparks separately from world illumination, with 0.75 recommended.[/*]
+[*][b]HDR bloom:[/b] Move from a crisp flame to a strong hard-to-look-at glare, with 0.75 recommended.[/*]
+[*][b]Flame corona:[/b] Add a soft radial warm glow for a larger, more readable bloom halo without solid geometry, another gameplay light, or a shadow caster.[/*]
+[*][b]Fire audio:[/b] Add the game's spatial small-fire loop at the torch in the equipped hand, with 1 recommended.[/*]
+[/list]
+
+[line]
+
+[heading][color=#E58A36][size=5]Configuration[/size][/color][/heading]
+[code]
+| Setting                   | Default | Range       |
+|---------------------------|---------|-------------|
+| Enabled                   | true    | true/false  |
+| RangeBonusMeters          | 3.0     | 0.0-10.0    |
+| BrightnessMultiplier      | 1.0     | 0.25-3.0    |
+| LightFlickerStrength      | 1.0     | 0.0-2.0     |
+| LightFlickerSpeed         | 1.0     | 0.5-2.0     |
+| FlameBrightnessMultiplier | 0.75    | 0.25-3.0    |
+| FlameBloomMultiplier      | 0.75    | 0.0-3.0     |
+| FlameHaloStrength         | 1.0     | 0.0-3.0     |
+| FlameHaloSize             | 0.08    | 0.02-0.25 m |
+| LoopingFireAudio          | true    | true/false  |
+| LoopingFireVolume         | 1.0     | 0.0-2.0     |
+[/code]
+
+The configuration is stored at:
+
+[code]
+BepInEx/config/ks.tgfoa.torchlight-rekindled.cfg[/code]
+
+The bloom result depends on the active post-processing and bloom settings. Setting FlameBloomMultiplier to 0 removes the flame's extra HDR headroom without removing the flame.
+
+LightFlickerStrength controls additional illumination variation and 0 retains only vanilla flicker. LightFlickerSpeed controls the added motion. The two held-torch lights share one signal, while flame particles and range remain unchanged.
+
+FlameHaloStrength controls the additional soft warm corona and 0 disables it. FlameHaloSize controls its diameter; the recommended 0.08 metre size keeps the radial glow inside the visible fire.
+
+The recommended defaults provide long torch reach, strong world illumination, a bright but readable flame, visible bloom, and an audible hand-positioned crackle. Lower individual controls for a darker, crisper, or quieter presentation.
+
+[line]
+
+[heading][color=#E58A36][size=5]Recommended Companion Setup[/size][/color][/heading]
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/213]Light Control[/url] is recommended for stronger dungeon contrast around the torch. Suggested values under [b]06 Dungeons[/b]:
+
+[code]
+| Setting                  | Value |
+|--------------------------|-------|
+| Brightness Offset Day    | -2    |
+| Brightness Offset Night  | -2    |
+| World Intensity Day      | 2     |
+| World Intensity Night    | 2     |
+[/code]
+
+Suggested values under [b]07 Interiors[/b]:
+
+[code]
+| Setting                  | Value |
+|--------------------------|-------|
+| Brightness Offset Day    | -1.5  |
+| Brightness Offset Night  | -1.5  |
+| World Intensity Day      | 1.5   |
+| World Intensity Night    | 1.5   |
+[/code]
+
+Light Control adjusts scene lighting and is compatible with Torchlight Rekindled. It is a different mod from Torch Light Control, which modifies the held torch itself and is incompatible.
+
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] is also recommended for positioning the rendered arms, weapons, and held torch without moving the gameplay camera.
+
+[line]
+
+[heading][color=#E58A36][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
+
+[code]
+BepInEx/plugins/TorchlightRekindled/TorchlightRekindled.dll[/code]
+
+[line]
+
+[heading][color=#E58A36][size=5]Requirements[/size][/color][/heading]
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux through Proton.[/*]
+[/list]
+
+[line]
+
+[heading][color=#E58A36][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*]Do not combine this mod with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/236]Torch Light Control[/url]. Both modify the same held light, and Torchlight Rekindled declares it incompatible to prevent compounded values.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] is compatible because it controls the separate hidden HeroLight.[/*]
+[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[/list]

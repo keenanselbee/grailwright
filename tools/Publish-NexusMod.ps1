@@ -626,6 +626,47 @@ function Get-NexusChangelogPlan {
     }
 }
 
+function Add-KsAddonChangelogHeading {
+    param(
+        [string]$Root,
+        [object]$Manifest,
+        [string[]]$Entries
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Root)) {
+        return @($Entries)
+    }
+
+    $ksAddonsRoot = [System.IO.Path]::GetFullPath(
+        (Join-Path $RepoRoot "mods\KSAddons")
+    ).TrimEnd("\") + "\"
+    $resolvedRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd("\") + "\"
+    if (-not $resolvedRoot.StartsWith(
+        $ksAddonsRoot,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )) {
+        return @($Entries)
+    }
+
+    if ($Manifest -eq $null -or
+        -not (Test-JsonProperty -Object $Manifest -Name "displayName") -or
+        [string]::IsNullOrWhiteSpace([string]$Manifest.displayName)) {
+        throw "KS Addons changelogs require a non-empty displayName in mod.json."
+    }
+
+    $heading = ([string]$Manifest.displayName).Trim()
+    $normalizedEntries = @($Entries | ForEach-Object { [string]$_ })
+    if ($normalizedEntries.Count -gt 0 -and
+        $normalizedEntries[0].Trim().Equals(
+            $heading,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+        return $normalizedEntries
+    }
+
+    return @($heading) + $normalizedEntries
+}
+
 function Get-CurrentRemoteFileVersion {
     if ([string]::IsNullOrWhiteSpace($script:ModFileId)) {
         throw "Cannot resolve the current Nexus changelog baseline without ModFileId/GroupId."
@@ -1043,7 +1084,10 @@ if ($AddChangelog) {
     }
     $changelogPackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
     $changelogPlan = Get-NexusChangelogPlan -Root $resolvedModRoot -PackageName $changelogPackageName -TargetVersion $FileVersion -PublishedVersion $changelogBaselineVersion -ReviewedPath $ConsolidatedChangelogPath
-    $changelogEntries = @($changelogPlan.Entries)
+    $changelogEntries = @(Add-KsAddonChangelogHeading `
+        -Root $resolvedModRoot `
+        -Manifest $manifest `
+        -Entries @($changelogPlan.Entries))
     $changelogIncludedVersions = @($changelogPlan.IncludedVersions)
     $changelogSource = [string]$changelogPlan.Source
     $reviewedChangelogPath = [string]$changelogPlan.ReviewedPath
@@ -1107,7 +1151,10 @@ try {
         $changelogBaselineVersion = $currentRemoteVersion.Version
         $changelogPackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
         $changelogPlan = Get-NexusChangelogPlan -Root $resolvedModRoot -PackageName $changelogPackageName -TargetVersion $FileVersion -PublishedVersion $changelogBaselineVersion -ReviewedPath $ConsolidatedChangelogPath
-        $changelogEntries = @($changelogPlan.Entries)
+        $changelogEntries = @(Add-KsAddonChangelogHeading `
+            -Root $resolvedModRoot `
+            -Manifest $manifest `
+            -Entries @($changelogPlan.Entries))
         $changelogIncludedVersions = @($changelogPlan.IncludedVersions)
         $changelogSource = [string]$changelogPlan.Source
         $reviewedChangelogPath = [string]$changelogPlan.ReviewedPath

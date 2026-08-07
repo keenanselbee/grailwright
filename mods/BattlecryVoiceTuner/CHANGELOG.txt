@@ -1,3 +1,20 @@
+Version 1.1.0
+Reduced the fresh-config random pitch variation from 0.25 to 0.15 semitones.
+Advanced the config schema from 4 to 5 because the RandomPitchSemitones default changed. Existing customized values remain eligible for conservative recovery.
+Extended geometry-sampled battlecry acoustics to full interiors, caves, and roofed spaces with dedicated horizontal, elevated, lowered, floor, and ceiling measurements.
+Added room-shape classification for open-roof structures, corridors, small and medium rooms, caves, large halls, and large caverns, then derived reverb decay, density, filtering, and early/late balance from the measured space.
+Limited discrete interior reflection taps to surfaces far enough away to produce a natural repeat, so compact rooms use dense early reverb while large spaces can return up to three distance-timed 3D echoes.
+Kept the proven outdoor tuning unchanged and retained the fixed indoor or roofed preset whenever geometry is too sparse or sampling fails.
+
+Version 1.0.9
+Replaced the fixed outdoor battlecry response with a one-shot 24-direction acoustic probe that measures nearby terrain, vegetation, structures, and overhead surfaces only when a cry plays.
+Added up to three filtered 3D reflection taps with timing derived from measured round-trip distance, while open terrain now receives a much drier diffuse tail and enclosed outdoor spaces retain stronger ambience.
+Kept the game's interior and roof-volume classification authoritative, retained the fixed indoor response, and preserved the previous outdoor preset as a safe fallback if geometry sampling fails.
+
+Version 1.0.8
+Increased the fresh-config battlecry hearing range multiplier from 2 to 3 times each hostile NPC's normal maximum hearing range.
+Advanced the config schema from 3 to 4 because the BattlecryAggroRangeMultiplier default changed. Existing customized values remain eligible for conservative recovery.
+
 Version 1.0.7
 Reduced the fresh-config Eyes in the Dark threat request from 20 to 10 per successful battlecry. Eyes still applies its existing diminishing returns to repeated cries.
 Advanced the config schema from 2 to 3 because the EyesInTheDarkThreat default changed. Existing customized values remain eligible for conservative recovery.

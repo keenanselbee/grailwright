@@ -16,6 +16,7 @@ using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.VolumeCheckers;
 using Awaken.TG.Main.Utility;
+using Awaken.Utility;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -31,8 +32,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.0.7.0")]
-[assembly: AssemblyFileVersion("1.0.7.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -52,9 +53,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.0.7";
+        public const string PluginVersion = "1.1.0";
 
-        private const int CurrentConfigSchemaVersion = 3;
+        private const int CurrentConfigSchemaVersion = 5;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -75,6 +76,23 @@ namespace BattlecryVoiceTuner
         private const string CategoryStamina = "Stamina";
         private const int MaximumBattlecryFilesPerGender = 15;
         private const float ChallengeScanIntervalSeconds = 0.25f;
+        private const int OutdoorProbeDirectionCount = 24;
+        private const int MaximumOutdoorReflectionTaps = 3;
+        private const float OutdoorProbeHeight = 1.5f;
+        private const float OutdoorProbeMaximumDistance = 80f;
+        private const float OutdoorReflectionSpeedOfSound = 343f;
+        private const float OutdoorReflectionDirectionSeparation = 0.72f;
+        private const int InteriorProbeDirectionCount = 30;
+        private const float InteriorProbeHeight = 1.4f;
+        private const float InteriorProbeMaximumDistance = 50f;
+        private const float InteriorDiscreteReflectionMinimumDelay = 0.06f;
+        private const int OutdoorAcousticLayerMask =
+            RenderLayers.Mask.Default
+            | RenderLayers.Mask.Walkable
+            | RenderLayers.Mask.Objects
+            | RenderLayers.Mask.Terrain
+            | RenderLayers.Mask.Vegetation
+            | RenderLayers.Mask.RainObstacle;
         private const string EyesInTheDarkApiTypeName =
             "EyesInTheDark.EyesInTheDarkBattlecryApi, EyesInTheDark";
 
@@ -101,6 +119,10 @@ namespace BattlecryVoiceTuner
 
             new SupportedVoiceEvent("46b384de-6ab9-464b-8e24-21e3a889777f", "event:/SFX/Player/SFX_Player_Hit", CategoryHitFeedback, "Player hit feedback")
         };
+        private static readonly Vector3[] OutdoorProbeDirections =
+            BuildOutdoorProbeDirections();
+        private static readonly Vector3[] InteriorProbeDirections =
+            BuildInteriorProbeDirections();
 
         private static BattlecryVoiceTunerPlugin _instance;
 
@@ -503,7 +525,7 @@ namespace BattlecryVoiceTuner
             _randomPitchSemitones = Config.Bind(
                 "1. Core",
                 "RandomPitchSemitones",
-                0.25f,
+                0.15f,
                 UiDescription(
                     "Maximum random pitch variation added per played sound, in semitones. Set 0 for a fixed pitch.",
                     "Voice Tuning",
@@ -641,7 +663,7 @@ namespace BattlecryVoiceTuner
                 "IndoorBattlecryReverbAmount",
                 0.70f,
                 UiDescription(
-                    "Heavy reverb amount for battlecries in interior scenes, caves, and the game's roof volumes. Zero is dry; one is the strongest supported effect.",
+                    "Strength multiplier for room-scaled reverb and qualifying long reflections in interiors, caves, and the game's roof volumes. Zero is dry; one is the strongest supported effect.",
                     "Battlecry Audio",
                     "Indoor Reverb Amount",
                     3,
@@ -721,7 +743,7 @@ namespace BattlecryVoiceTuner
             _battlecryAggroRangeMultiplier = Config.Bind(
                 "3. Battlecry",
                 "BattlecryAggroRangeMultiplier",
-                2.0f,
+                3.0f,
                 UiDescription(
                     "Multiplier applied to each hostile NPC's normal maximum hearing range while resolving the battlecry challenge.",
                     "Battlecry Challenge",
@@ -1269,7 +1291,8 @@ namespace BattlecryVoiceTuner
                             : _maleBattlecryPitchOffsetSemitones.Value));
                 if (!TryPlayBattlecrySound(
                     paths[index],
-                    candidatePitch))
+                    candidatePitch,
+                    hero))
                 {
                     continue;
                 }
@@ -1306,7 +1329,8 @@ namespace BattlecryVoiceTuner
 
         private bool TryPlayBattlecrySound(
             string path,
-            float pitch)
+            float pitch,
+            Hero hero)
         {
             try
             {
@@ -1339,10 +1363,13 @@ namespace BattlecryVoiceTuner
                 FMOD.ChannelGroup channelGroup;
                 string environment;
                 float reverbAmount;
+                BattlecryAcousticProfile acousticProfile;
                 if (!TryGetBattlecryChannelGroup(
+                    hero,
                     out channelGroup,
                     out environment,
-                    out reverbAmount))
+                    out reverbAmount,
+                    out acousticProfile))
                 {
                     return false;
                 }
@@ -1373,6 +1400,15 @@ namespace BattlecryVoiceTuner
                 RESULT pitchResult = channel.setPitch(
                     Math.Max(0.01f, pitch));
                 RESULT unpauseResult = channel.setPaused(false);
+                if (unpauseResult == RESULT.OK
+                    && acousticProfile != null)
+                {
+                    ScheduleAcousticReflections(
+                        sound,
+                        pitch,
+                        volumeScale,
+                        acousticProfile);
+                }
                 LogDiagnostic(
                     "Battlecry FMOD results: volume="
                     + volumeResult
@@ -1406,10 +1442,13 @@ namespace BattlecryVoiceTuner
         }
 
         private bool TryGetBattlecryChannelGroup(
+            Hero hero,
             out FMOD.ChannelGroup channelGroup,
             out string environment,
-            out float reverbAmount)
+            out float reverbAmount,
+            out BattlecryAcousticProfile acousticProfile)
         {
+            acousticProfile = null;
             bool indoors = IsBattlecryIndoors(
                 out environment);
             if (!TryGetBattlecrySfxChannelGroup(
@@ -1426,13 +1465,33 @@ namespace BattlecryVoiceTuner
                 return true;
             }
 
-            reverbAmount = Math.Max(
+            float configuredAmount = Math.Max(
                 0f,
                 Math.Min(
                     1f,
                     indoors
                         ? _indoorBattlecryReverbAmount.Value
                         : _outdoorBattlecryReverbAmount.Value));
+            reverbAmount = configuredAmount;
+            if (configuredAmount > 0.001f)
+            {
+                BattlecryAcousticProfile measuredProfile;
+                bool measured = indoors
+                    ? TryProbeInteriorAcoustics(
+                        hero,
+                        configuredAmount,
+                        environment,
+                        out measuredProfile)
+                    : TryProbeOutdoorAcoustics(
+                        hero,
+                        configuredAmount,
+                        out measuredProfile);
+                if (measured)
+                {
+                    acousticProfile = measuredProfile;
+                    reverbAmount = measuredProfile.DiffuseReverbAmount;
+                }
+            }
             if (reverbAmount <= 0.001f)
             {
                 reverbAmount = 0f;
@@ -1452,7 +1511,8 @@ namespace BattlecryVoiceTuner
                 : _outdoorBattlecryReverb;
             if (!TryConfigureBattlecryReverb(
                 reverb,
-                reverbAmount))
+                reverbAmount,
+                acousticProfile))
             {
                 reverb.setBypass(true);
                 _log.LogWarning(
@@ -1486,6 +1546,743 @@ namespace BattlecryVoiceTuner
 
             environment = "outdoor";
             return false;
+        }
+
+        private bool TryProbeOutdoorAcoustics(
+            Hero hero,
+            float configuredAmount,
+            out BattlecryAcousticProfile profile)
+        {
+            profile = null;
+            if (hero == null
+                || hero.HasBeenDiscarded
+                || OutdoorProbeDirections.Length
+                    != OutdoorProbeDirectionCount)
+            {
+                return false;
+            }
+
+            try
+            {
+                Vector3 origin = hero.Coords
+                    + Vector3.up * OutdoorProbeHeight;
+                List<AcousticReflectionCandidate> candidates =
+                    new List<AcousticReflectionCandidate>();
+                int hitCount = 0;
+                float totalHitDistance = 0f;
+                float totalSurfaceReflectivity = 0f;
+
+                for (int index = 0;
+                    index < OutdoorProbeDirections.Length;
+                    index++)
+                {
+                    Vector3 direction =
+                        OutdoorProbeDirections[index];
+                    RaycastHit hit;
+                    if (!Physics.Raycast(
+                        origin,
+                        direction,
+                        out hit,
+                        OutdoorProbeMaximumDistance,
+                        OutdoorAcousticLayerMask,
+                        QueryTriggerInteraction.Ignore))
+                    {
+                        continue;
+                    }
+
+                    float reflectivity = GetAcousticSurfaceReflectivity(
+                        hit.collider);
+                    float facing = Mathf.Clamp01(
+                        Vector3.Dot(hit.normal, -direction));
+                    hitCount++;
+                    totalHitDistance += hit.distance;
+                    totalSurfaceReflectivity += reflectivity;
+                    if (facing <= 0.1f || reflectivity <= 0.1f)
+                    {
+                        continue;
+                    }
+
+                    candidates.Add(
+                        new AcousticReflectionCandidate
+                        {
+                            Direction = direction,
+                            Position = hit.point
+                                + hit.normal * 0.15f,
+                            Distance = hit.distance,
+                            Facing = facing,
+                            Reflectivity = reflectivity,
+                            Score = reflectivity
+                                * facing
+                                / (1f + hit.distance * 0.0125f)
+                        });
+                }
+
+                float openness = 1f
+                    - hitCount
+                        / (float)OutdoorProbeDirections.Length;
+                float averageDistance = hitCount <= 0
+                    ? OutdoorProbeMaximumDistance
+                    : totalHitDistance / hitCount;
+                float averageReflectivity = hitCount <= 0
+                    ? 1f
+                    : totalSurfaceReflectivity / hitCount;
+                float enclosure = 1f - openness;
+                float diffuseAmount = Mathf.Clamp01(
+                    configuredAmount
+                    * Mathf.Lerp(0.12f, 1.35f, enclosure)
+                    * Mathf.Lerp(
+                        0.65f,
+                        1f,
+                        averageReflectivity));
+
+                profile = new BattlecryAcousticProfile
+                {
+                    Origin = origin,
+                    Environment = "outdoor",
+                    Openness = openness,
+                    AverageHitDistance = averageDistance,
+                    AverageReflectivity = averageReflectivity,
+                    DiffuseReverbAmount = diffuseAmount
+                };
+
+                candidates.Sort(
+                    delegate(
+                        AcousticReflectionCandidate left,
+                        AcousticReflectionCandidate right)
+                    {
+                        return right.Score.CompareTo(left.Score);
+                    });
+                int tapLimit = openness > 0.75f
+                    ? 1
+                    : openness > 0.4f
+                        ? 2
+                        : MaximumOutdoorReflectionTaps;
+                for (int candidateIndex = 0;
+                    candidateIndex < candidates.Count
+                        && profile.Reflections.Count < tapLimit;
+                    candidateIndex++)
+                {
+                    AcousticReflectionCandidate candidate =
+                        candidates[candidateIndex];
+                    bool duplicatesDirection = false;
+                    for (int selectedIndex = 0;
+                        selectedIndex < profile.Reflections.Count;
+                        selectedIndex++)
+                    {
+                        if (Vector3.Dot(
+                            candidate.Direction,
+                            profile.Reflections[selectedIndex].Direction)
+                            > OutdoorReflectionDirectionSeparation)
+                        {
+                            duplicatesDirection = true;
+                            break;
+                        }
+                    }
+                    if (duplicatesDirection)
+                    {
+                        continue;
+                    }
+
+                    float distanceRatio = Mathf.Clamp01(
+                        candidate.Distance
+                            / OutdoorProbeMaximumDistance);
+                    profile.Reflections.Add(
+                        new AcousticReflectionTap
+                        {
+                            Direction = candidate.Direction,
+                            Position = candidate.Position,
+                            Distance = candidate.Distance,
+                            DelaySeconds = Mathf.Clamp(
+                                2f * candidate.Distance
+                                    / OutdoorReflectionSpeedOfSound,
+                                0.018f,
+                                0.65f),
+                            Gain = Mathf.Clamp(
+                                configuredAmount
+                                    * candidate.Reflectivity
+                                    * candidate.Facing
+                                    * Mathf.Lerp(
+                                        0.9f,
+                                        0.45f,
+                                        distanceRatio),
+                                0f,
+                                0.35f),
+                            LowPassGain = Mathf.Clamp(
+                                0.35f
+                                    + 0.55f
+                                        * candidate.Reflectivity
+                                    - 0.25f * distanceRatio,
+                                0.2f,
+                                0.9f)
+                        });
+                }
+
+                LogDiagnostic(
+                    "Outdoor battlecry acoustics: openness="
+                    + openness.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+                    + "; hits="
+                    + hitCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + "/"
+                    + OutdoorProbeDirections.Length.ToString(
+                        CultureInfo.InvariantCulture)
+                    + "; averageDistance="
+                    + averageDistance.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                    + "m; diffuse="
+                    + diffuseAmount.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+                    + "; reflections="
+                    + profile.Reflections.Count.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "Outdoor acoustic probe failed; using the fixed outdoor reverb fallback. "
+                    + exception.GetBaseException().Message);
+                profile = null;
+                return false;
+            }
+        }
+
+        private bool TryProbeInteriorAcoustics(
+            Hero hero,
+            float configuredAmount,
+            string environment,
+            out BattlecryAcousticProfile profile)
+        {
+            profile = null;
+            if (hero == null
+                || hero.HasBeenDiscarded
+                || InteriorProbeDirections.Length
+                    != InteriorProbeDirectionCount)
+            {
+                return false;
+            }
+
+            try
+            {
+                Vector3 origin = hero.Coords
+                    + Vector3.up * InteriorProbeHeight;
+                List<AcousticReflectionCandidate> candidates =
+                    new List<AcousticReflectionCandidate>();
+                int hitCount = 0;
+                int roughSurfaceHitCount = 0;
+                int horizontalHitCount = 0;
+                float totalHitDistance = 0f;
+                float totalSquaredHitDistance = 0f;
+                float totalSurfaceReflectivity = 0f;
+                float minimumHorizontalDistance =
+                    InteriorProbeMaximumDistance;
+                float maximumHorizontalDistance = 0f;
+                float ceilingDistance =
+                    InteriorProbeMaximumDistance;
+
+                for (int index = 0;
+                    index < InteriorProbeDirections.Length;
+                    index++)
+                {
+                    Vector3 direction =
+                        InteriorProbeDirections[index];
+                    RaycastHit hit;
+                    if (!Physics.Raycast(
+                        origin,
+                        direction,
+                        out hit,
+                        InteriorProbeMaximumDistance,
+                        OutdoorAcousticLayerMask,
+                        QueryTriggerInteraction.Ignore))
+                    {
+                        continue;
+                    }
+
+                    float reflectivity = GetAcousticSurfaceReflectivity(
+                        hit.collider);
+                    float facing = Mathf.Clamp01(
+                        Vector3.Dot(hit.normal, -direction));
+                    hitCount++;
+                    totalHitDistance += hit.distance;
+                    totalSquaredHitDistance +=
+                        hit.distance * hit.distance;
+                    totalSurfaceReflectivity += reflectivity;
+                    if (reflectivity <= 0.61f)
+                    {
+                        roughSurfaceHitCount++;
+                    }
+                    if (index < 12)
+                    {
+                        horizontalHitCount++;
+                        minimumHorizontalDistance = Math.Min(
+                            minimumHorizontalDistance,
+                            hit.distance);
+                        maximumHorizontalDistance = Math.Max(
+                            maximumHorizontalDistance,
+                            hit.distance);
+                    }
+                    if (index == InteriorProbeDirectionCount - 2)
+                    {
+                        ceilingDistance = hit.distance;
+                    }
+                    if (facing <= 0.1f || reflectivity <= 0.1f)
+                    {
+                        continue;
+                    }
+
+                    candidates.Add(
+                        new AcousticReflectionCandidate
+                        {
+                            Direction = direction,
+                            Position = hit.point
+                                + hit.normal * 0.15f,
+                            Distance = hit.distance,
+                            Facing = facing,
+                            Reflectivity = reflectivity,
+                            Score = reflectivity
+                                * facing
+                                * Mathf.Lerp(
+                                    0.7f,
+                                    1f,
+                                    Mathf.Clamp01(
+                                        hit.distance
+                                            / InteriorProbeMaximumDistance))
+                        });
+                }
+
+                int minimumUsefulHits = String.Equals(
+                    environment,
+                    "interior",
+                    StringComparison.Ordinal)
+                        ? 6
+                        : 3;
+                if (hitCount < minimumUsefulHits)
+                {
+                    LogDiagnostic(
+                        "Interior acoustic probe found only "
+                        + hitCount.ToString(
+                            CultureInfo.InvariantCulture)
+                        + " useful surface(s); using the fixed "
+                        + environment
+                        + " reverb fallback.");
+                    return false;
+                }
+
+                float openness = 1f
+                    - hitCount
+                        / (float)InteriorProbeDirections.Length;
+                float averageDistance =
+                    totalHitDistance / hitCount;
+                float averageReflectivity =
+                    totalSurfaceReflectivity / hitCount;
+                float distanceVariance = Mathf.Sqrt(
+                    Math.Max(
+                        0f,
+                        totalSquaredHitDistance / hitCount
+                            - averageDistance * averageDistance));
+                float horizontalAnisotropy =
+                    horizontalHitCount < 2
+                        || minimumHorizontalDistance <= 0.1f
+                            ? 1f
+                            : maximumHorizontalDistance
+                                / minimumHorizontalDistance;
+                float roughSurfaceRatio =
+                    roughSurfaceHitCount / (float)hitCount;
+                string spaceKind;
+                if (String.Equals(
+                    environment,
+                    "roofed",
+                    StringComparison.Ordinal)
+                    && openness >= 0.35f)
+                {
+                    spaceKind = "open-roof";
+                }
+                else if (horizontalAnisotropy >= 3f
+                    && maximumHorizontalDistance >= 14f)
+                {
+                    spaceKind = "corridor";
+                }
+                else if (averageDistance >= 18f
+                    || ceilingDistance >= 14f)
+                {
+                    spaceKind = roughSurfaceRatio >= 0.4f
+                        ? "large-cavern"
+                        : "large-hall";
+                }
+                else if (averageDistance <= 6f
+                    && ceilingDistance <= 6f)
+                {
+                    spaceKind = "small-room";
+                }
+                else
+                {
+                    spaceKind = roughSurfaceRatio >= 0.45f
+                        ? "cave"
+                        : "medium-room";
+                }
+
+                float enclosure = 1f - openness;
+                float roomScale = Mathf.Clamp01(
+                    averageDistance / 25f);
+                float diffuseAmount = Mathf.Clamp01(
+                    configuredAmount
+                    * Mathf.Lerp(0.55f, 1.1f, roomScale)
+                    * Mathf.Lerp(0.7f, 1.15f, enclosure)
+                    * Mathf.Lerp(
+                        0.85f,
+                        1.05f,
+                        averageReflectivity));
+                if (String.Equals(
+                    spaceKind,
+                    "open-roof",
+                    StringComparison.Ordinal))
+                {
+                    diffuseAmount *= 0.8f;
+                }
+
+                profile = new BattlecryAcousticProfile
+                {
+                    Origin = origin,
+                    Environment = environment,
+                    SpaceKind = spaceKind,
+                    IsInterior = true,
+                    Openness = openness,
+                    AverageHitDistance = averageDistance,
+                    AverageReflectivity = averageReflectivity,
+                    CeilingDistance = ceilingDistance,
+                    DistanceVariance = distanceVariance,
+                    HorizontalAnisotropy = horizontalAnisotropy,
+                    DiffuseReverbAmount = diffuseAmount
+                };
+
+                candidates.Sort(
+                    delegate(
+                        AcousticReflectionCandidate left,
+                        AcousticReflectionCandidate right)
+                    {
+                        return right.Score.CompareTo(left.Score);
+                    });
+                int tapLimit = String.Equals(
+                    spaceKind,
+                    "small-room",
+                    StringComparison.Ordinal)
+                        ? 0
+                        : String.Equals(
+                            spaceKind,
+                            "medium-room",
+                            StringComparison.Ordinal)
+                            || String.Equals(
+                                spaceKind,
+                                "open-roof",
+                                StringComparison.Ordinal)
+                                ? 2
+                                : MaximumOutdoorReflectionTaps;
+                for (int candidateIndex = 0;
+                    candidateIndex < candidates.Count
+                        && profile.Reflections.Count < tapLimit;
+                    candidateIndex++)
+                {
+                    AcousticReflectionCandidate candidate =
+                        candidates[candidateIndex];
+                    float delaySeconds =
+                        2f * candidate.Distance
+                            / OutdoorReflectionSpeedOfSound;
+                    if (delaySeconds
+                        < InteriorDiscreteReflectionMinimumDelay)
+                    {
+                        continue;
+                    }
+
+                    bool duplicatesDirection = false;
+                    for (int selectedIndex = 0;
+                        selectedIndex < profile.Reflections.Count;
+                        selectedIndex++)
+                    {
+                        if (Vector3.Dot(
+                            candidate.Direction,
+                            profile.Reflections[selectedIndex].Direction)
+                            > OutdoorReflectionDirectionSeparation)
+                        {
+                            duplicatesDirection = true;
+                            break;
+                        }
+                    }
+                    if (duplicatesDirection)
+                    {
+                        continue;
+                    }
+
+                    float distanceRatio = Mathf.Clamp01(
+                        candidate.Distance
+                            / InteriorProbeMaximumDistance);
+                    profile.Reflections.Add(
+                        new AcousticReflectionTap
+                        {
+                            Direction = candidate.Direction,
+                            Position = candidate.Position,
+                            Distance = candidate.Distance,
+                            DelaySeconds = Mathf.Clamp(
+                                delaySeconds,
+                                InteriorDiscreteReflectionMinimumDelay,
+                                0.5f),
+                            Gain = Mathf.Clamp(
+                                configuredAmount
+                                    * candidate.Reflectivity
+                                    * candidate.Facing
+                                    * Mathf.Lerp(
+                                        0.22f,
+                                        0.14f,
+                                        distanceRatio),
+                                0f,
+                                0.22f),
+                            LowPassGain = Mathf.Clamp(
+                                0.3f
+                                    + 0.6f
+                                        * candidate.Reflectivity
+                                    - 0.2f * distanceRatio,
+                                0.2f,
+                                0.9f)
+                        });
+                }
+
+                LogDiagnostic(
+                    "Interior battlecry acoustics: environment="
+                    + environment
+                    + "; space="
+                    + spaceKind
+                    + "; openness="
+                    + openness.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+                    + "; hits="
+                    + hitCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + "/"
+                    + InteriorProbeDirections.Length.ToString(
+                        CultureInfo.InvariantCulture)
+                    + "; averageDistance="
+                    + averageDistance.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                    + "m; ceiling="
+                    + ceilingDistance.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                    + "m; spread="
+                    + distanceVariance.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                    + "m; anisotropy="
+                    + horizontalAnisotropy.ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                    + "; diffuse="
+                    + diffuseAmount.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+                    + "; reflections="
+                    + profile.Reflections.Count.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "Interior acoustic probe failed; using the fixed "
+                    + environment
+                    + " reverb fallback. "
+                    + exception.GetBaseException().Message);
+                profile = null;
+                return false;
+            }
+        }
+
+        private static float GetAcousticSurfaceReflectivity(
+            Collider collider)
+        {
+            if (collider == null)
+            {
+                return 0.5f;
+            }
+
+            int layer = collider.gameObject.layer;
+            if (layer == RenderLayers.Vegetation)
+            {
+                return 0.3f;
+            }
+            if (layer == RenderLayers.Terrain
+                || layer == RenderLayers.Walkable)
+            {
+                return 0.6f;
+            }
+
+            return 0.9f;
+        }
+
+        private void ScheduleAcousticReflections(
+            FMOD.Sound sound,
+            float pitch,
+            float directVolumeScale,
+            BattlecryAcousticProfile profile)
+        {
+            if (profile.Reflections.Count == 0
+                || !_battlecrySfxChannelGroup.hasHandle())
+            {
+                return;
+            }
+
+            int sampleRate;
+            SPEAKERMODE speakerMode;
+            int rawSpeakerCount;
+            RESULT formatResult =
+                RuntimeManager.CoreSystem.getSoftwareFormat(
+                    out sampleRate,
+                    out speakerMode,
+                    out rawSpeakerCount);
+            if (formatResult != RESULT.OK || sampleRate <= 0)
+            {
+                LogDiagnostic(
+                    "Battlecry reflections skipped because FMOD's output sample rate was unavailable. Result="
+                    + formatResult
+                    + ".");
+                return;
+            }
+
+            int scheduled = 0;
+            for (int index = 0;
+                index < profile.Reflections.Count;
+                index++)
+            {
+                AcousticReflectionTap tap =
+                    profile.Reflections[index];
+                if (tap.Gain <= 0.001f)
+                {
+                    continue;
+                }
+
+                FMOD.Channel reflectionChannel;
+                RESULT playResult =
+                    RuntimeManager.CoreSystem.playSound(
+                        sound,
+                        _battlecrySfxChannelGroup,
+                        true,
+                        out reflectionChannel);
+                if (playResult != RESULT.OK)
+                {
+                    continue;
+                }
+
+                FMOD.VECTOR position =
+                    tap.Position.ToFMODVector();
+                FMOD.VECTOR velocity =
+                    Vector3.zero.ToFMODVector();
+                ulong channelClock = 0UL;
+                ulong parentClock = 0UL;
+                RESULT result = reflectionChannel.setMode(
+                    MODE._3D
+                        | MODE._3D_WORLDRELATIVE
+                        | MODE._3D_LINEARROLLOFF);
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.set3DAttributes(
+                        ref position,
+                        ref velocity);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.set3DMinMaxDistance(
+                        2f,
+                        (profile.IsInterior
+                            ? InteriorProbeMaximumDistance
+                            : OutdoorProbeMaximumDistance)
+                            * 1.5f);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.setVolume(
+                        directVolumeScale * tap.Gain);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.setPitch(
+                        Math.Max(0.01f, pitch));
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.setLowPassGain(
+                        tap.LowPassGain);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.getDSPClock(
+                        out channelClock,
+                        out parentClock);
+                }
+                if (result == RESULT.OK)
+                {
+                    ulong delaySamples = (ulong)Math.Max(
+                        1d,
+                        tap.DelaySeconds * sampleRate);
+                    result = reflectionChannel.setDelay(
+                        parentClock + delaySamples,
+                        0UL,
+                        true);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = reflectionChannel.setPaused(false);
+                }
+
+                if (result == RESULT.OK)
+                {
+                    scheduled++;
+                    LogDiagnostic(
+                        "Scheduled "
+                        + profile.Environment
+                        + " "
+                        + (String.IsNullOrEmpty(profile.SpaceKind)
+                            ? String.Empty
+                            : profile.SpaceKind + " ")
+                        + "reflection: distance="
+                        + tap.Distance.ToString(
+                            "0.0",
+                            CultureInfo.InvariantCulture)
+                        + "m; delay="
+                        + (tap.DelaySeconds * 1000f).ToString(
+                            "0",
+                            CultureInfo.InvariantCulture)
+                        + "ms; gain="
+                        + tap.Gain.ToString(
+                            "0.00",
+                            CultureInfo.InvariantCulture)
+                        + "; lowPass="
+                        + tap.LowPassGain.ToString(
+                            "0.00",
+                            CultureInfo.InvariantCulture)
+                        + ".");
+                }
+                else
+                {
+                    reflectionChannel.stop();
+                    LogDiagnostic(
+                        "Battlecry reflection setup failed. Result="
+                        + result
+                        + ".");
+                }
+            }
+
+            LogDiagnostic(
+                "Scheduled "
+                + scheduled.ToString(CultureInfo.InvariantCulture)
+                + " "
+                + profile.Environment
+                + " battlecry reflection tap(s).");
         }
 
         private bool TryGetBattlecrySfxChannelGroup(
@@ -1652,26 +2449,147 @@ namespace BattlecryVoiceTuner
 
         private bool TryConfigureBattlecryReverb(
             FMOD.DSP reverb,
-            float amount)
+            float amount,
+            BattlecryAcousticProfile acousticProfile)
         {
             if (!reverb.hasHandle())
             {
                 return false;
             }
 
-            float decayMilliseconds = 600f
-                + 2400f * amount;
-            float earlyDelayMilliseconds = 2f
-                + 18f * amount;
-            float lateDelayMilliseconds = 8f
-                + 42f * amount;
-            float highFrequencyDecayRatio = 80f
-                - 25f * amount;
-            float diffusion = 60f + 40f * amount;
-            float density = 55f + 45f * amount;
-            float highCutHertz = 14000f
-                - 7000f * amount;
-            float earlyLateMix = 25f + 50f * amount;
+            float decayMilliseconds;
+            float earlyDelayMilliseconds;
+            float lateDelayMilliseconds;
+            float highFrequencyDecayRatio;
+            float diffusion;
+            float density;
+            float highCutHertz;
+            float earlyLateMix;
+            if (acousticProfile == null)
+            {
+                decayMilliseconds = 600f
+                    + 2400f * amount;
+                earlyDelayMilliseconds = 2f
+                    + 18f * amount;
+                lateDelayMilliseconds = 8f
+                    + 42f * amount;
+                highFrequencyDecayRatio = 80f
+                    - 25f * amount;
+                diffusion = 60f + 40f * amount;
+                density = 55f + 45f * amount;
+                highCutHertz = 14000f
+                    - 7000f * amount;
+                earlyLateMix = 25f + 50f * amount;
+            }
+            else if (acousticProfile.IsInterior)
+            {
+                float enclosure = 1f
+                    - acousticProfile.Openness;
+                float roomScale = Mathf.Clamp01(
+                    acousticProfile.AverageHitDistance / 25f);
+                float ceilingScale = Mathf.Clamp01(
+                    acousticProfile.CeilingDistance / 20f);
+                bool cavern = String.Equals(
+                    acousticProfile.SpaceKind,
+                    "cave",
+                    StringComparison.Ordinal)
+                    || String.Equals(
+                        acousticProfile.SpaceKind,
+                        "large-cavern",
+                        StringComparison.Ordinal);
+                decayMilliseconds = Mathf.Clamp(
+                    (500f
+                        + 2600f * roomScale
+                        + 800f * ceilingScale)
+                        * Mathf.Lerp(0.75f, 1f, enclosure)
+                        + (cavern ? 350f : 0f),
+                    450f,
+                    4800f);
+                earlyDelayMilliseconds = Mathf.Clamp(
+                    1f
+                        + acousticProfile.AverageHitDistance
+                            * 0.45f,
+                    2f,
+                    30f);
+                lateDelayMilliseconds = Mathf.Clamp(
+                    4f
+                        + acousticProfile.AverageHitDistance
+                            * 1.5f,
+                    8f,
+                    100f);
+                highFrequencyDecayRatio = Mathf.Lerp(
+                    cavern ? 45f : 55f,
+                    88f,
+                    acousticProfile.AverageReflectivity);
+                diffusion = Mathf.Clamp(
+                    Mathf.Lerp(72f, 98f, enclosure)
+                        - (cavern ? 10f : 0f),
+                    45f,
+                    98f);
+                density = Mathf.Clamp(
+                    Mathf.Lerp(65f, 100f, enclosure)
+                        - (cavern ? 8f : 0f),
+                    45f,
+                    100f);
+                highCutHertz = Mathf.Lerp(
+                    cavern ? 4500f : 6000f,
+                    13500f,
+                    acousticProfile.AverageReflectivity);
+                earlyLateMix = Mathf.Clamp(
+                    Mathf.Lerp(35f, 75f, roomScale)
+                        + Mathf.Clamp(
+                            acousticProfile.HorizontalAnisotropy
+                                - 2f,
+                            0f,
+                            3f)
+                            * 3f,
+                    30f,
+                    85f);
+            }
+            else
+            {
+                float enclosure = 1f
+                    - acousticProfile.Openness;
+                float distanceRatio = Mathf.Clamp01(
+                    acousticProfile.AverageHitDistance
+                        / OutdoorProbeMaximumDistance);
+                decayMilliseconds = 350f
+                    + 1800f
+                        * enclosure
+                        * Mathf.Sqrt(distanceRatio);
+                earlyDelayMilliseconds = Mathf.Clamp(
+                    2f
+                        + acousticProfile.AverageHitDistance
+                            * 0.35f,
+                    2f,
+                    25f);
+                lateDelayMilliseconds = Mathf.Clamp(
+                    10f
+                        + acousticProfile.AverageHitDistance
+                            * 0.8f,
+                    10f,
+                    80f);
+                highFrequencyDecayRatio = Mathf.Lerp(
+                    55f,
+                    85f,
+                    acousticProfile.AverageReflectivity);
+                diffusion = Mathf.Lerp(
+                    45f,
+                    90f,
+                    enclosure);
+                density = Mathf.Lerp(
+                    40f,
+                    92f,
+                    enclosure);
+                highCutHertz = Mathf.Lerp(
+                    6500f,
+                    14000f,
+                    acousticProfile.AverageReflectivity);
+                earlyLateMix = Mathf.Lerp(
+                    35f,
+                    65f,
+                    enclosure);
+            }
             float wetLevelDecibels = -24f
                 + 24f * amount;
 
@@ -2136,6 +3054,141 @@ namespace BattlecryVoiceTuner
                     instance._heroUnderRoof = false;
                 }
             }
+        }
+
+        private static Vector3[] BuildOutdoorProbeDirections()
+        {
+            Vector3[] directions =
+                new Vector3[OutdoorProbeDirectionCount];
+            const int horizontalDirectionCount = 16;
+            for (int index = 0;
+                index < horizontalDirectionCount;
+                index++)
+            {
+                float angle = 2f
+                    * Mathf.PI
+                    * index
+                    / horizontalDirectionCount;
+                directions[index] = new Vector3(
+                    Mathf.Cos(angle),
+                    0.04f,
+                    Mathf.Sin(angle)).normalized;
+            }
+
+            for (int index = horizontalDirectionCount;
+                index < directions.Length;
+                index++)
+            {
+                int elevatedIndex =
+                    index - horizontalDirectionCount;
+                float angle = 2f
+                    * Mathf.PI
+                    * elevatedIndex
+                    / (directions.Length
+                        - horizontalDirectionCount);
+                directions[index] = new Vector3(
+                    Mathf.Cos(angle),
+                    0.4f,
+                    Mathf.Sin(angle)).normalized;
+            }
+
+            return directions;
+        }
+
+        private static Vector3[] BuildInteriorProbeDirections()
+        {
+            Vector3[] directions =
+                new Vector3[InteriorProbeDirectionCount];
+            const int horizontalDirectionCount = 12;
+            const int elevatedDirectionCount = 8;
+            const int loweredDirectionCount = 8;
+            for (int index = 0;
+                index < horizontalDirectionCount;
+                index++)
+            {
+                float angle = 2f
+                    * Mathf.PI
+                    * index
+                    / horizontalDirectionCount;
+                directions[index] = new Vector3(
+                    Mathf.Cos(angle),
+                    0f,
+                    Mathf.Sin(angle));
+            }
+
+            for (int index = 0;
+                index < elevatedDirectionCount;
+                index++)
+            {
+                float angle = 2f
+                    * Mathf.PI
+                    * index
+                    / elevatedDirectionCount;
+                directions[horizontalDirectionCount + index] =
+                    new Vector3(
+                        Mathf.Cos(angle),
+                        0.55f,
+                        Mathf.Sin(angle)).normalized;
+            }
+
+            for (int index = 0;
+                index < loweredDirectionCount;
+                index++)
+            {
+                float angle = 2f
+                    * Mathf.PI
+                    * (index + 0.5f)
+                    / loweredDirectionCount;
+                directions[horizontalDirectionCount
+                    + elevatedDirectionCount
+                    + index] = new Vector3(
+                        Mathf.Cos(angle),
+                        -0.4f,
+                        Mathf.Sin(angle)).normalized;
+            }
+
+            directions[InteriorProbeDirectionCount - 2] =
+                Vector3.up;
+            directions[InteriorProbeDirectionCount - 1] =
+                Vector3.down;
+            return directions;
+        }
+
+        private sealed class BattlecryAcousticProfile
+        {
+            internal Vector3 Origin;
+            internal string Environment;
+            internal string SpaceKind;
+            internal bool IsInterior;
+            internal float Openness;
+            internal float AverageHitDistance;
+            internal float AverageReflectivity;
+            internal float CeilingDistance;
+            internal float DistanceVariance;
+            internal float HorizontalAnisotropy;
+            internal float DiffuseReverbAmount;
+            internal readonly List<AcousticReflectionTap> Reflections =
+                new List<AcousticReflectionTap>();
+        }
+
+        private sealed class AcousticReflectionCandidate
+        {
+            internal Vector3 Direction;
+            internal Vector3 Position;
+            internal float Distance;
+            internal float Facing;
+            internal float Reflectivity;
+            internal float Score;
+        }
+
+        private sealed class AcousticReflectionTap
+        {
+            internal Vector3 Direction;
+            internal Vector3 Position;
+            internal float Distance;
+            internal float DelaySeconds;
+            internal float Gain;
+            internal float LowPassGain;
         }
 
         private sealed class SupportedVoiceEvent

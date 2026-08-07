@@ -6,7 +6,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw | Conv
 
 if ($manifest.id -ne "BattlecryVoiceTuner" -or
     $manifest.displayName -ne "Battlecry Voice Tuner" -or
-    $manifest.version -ne "1.0.7" -or
+    $manifest.version -ne "1.1.0" -or
     $manifest.pluginGuid -ne "ks.tgfoa.battlecry-voice-tuner" -or
     $manifest.dll -ne "BattlecryVoiceTuner.dll") {
     throw "Battlecry Voice Tuner manifest identity is inconsistent."
@@ -34,6 +34,26 @@ foreach ($required in @(
     'createChannelGroup(',
     'DSP_TYPE.SFXREVERB',
     'DSP_SFXREVERB.WETLEVEL',
+    'OutdoorProbeDirectionCount = 24',
+    'OutdoorReflectionSpeedOfSound = 343f',
+    'TryProbeOutdoorAcoustics(',
+    'Physics.Raycast(',
+    'QueryTriggerInteraction.Ignore',
+    'MODE._3D',
+    'set3DAttributes(',
+    'setLowPassGain(',
+    'setDelay(',
+    'MaximumOutdoorReflectionTaps = 3',
+    'InteriorProbeDirectionCount = 30',
+    'InteriorDiscreteReflectionMinimumDelay = 0.06f',
+    'TryProbeInteriorAcoustics(',
+    'BuildInteriorProbeDirections()',
+    '"open-roof"',
+    '"corridor"',
+    '"small-room"',
+    '"medium-room"',
+    '"large-hall"',
+    '"large-cavern"',
     'ReleaseBattlecryReverbPaths()',
     'channel.setPitch(',
     'channel.setVolume(',
@@ -52,6 +72,10 @@ if ($source -notmatch '(?s)"PitchSemitones",\s*0\.0f') {
     throw "Overall pitch must default to a neutral 0 semitones."
 }
 
+if ($source -notmatch '(?s)"RandomPitchSemitones",\s*0\.15f') {
+    throw "Random pitch variation must default to 0.15 semitones."
+}
+
 if ($source -notmatch '(?s)"BattlecryVolumeMultiplier",\s*0\.5f') {
     throw "Battlecry volume scaling must have an independent 0.5 default."
 }
@@ -62,9 +86,17 @@ if ($source -notmatch '(?s)"BattlecryReverbEnabled",\s*true' -or
     throw "Dynamic battlecry reverb must default to enabled with light 0.15 outdoor and heavy 0.70 indoor amounts."
 }
 
-if ($source.Contains('Physics.Raycast') -or
-    $source.Contains('"OnStay"')) {
-    throw "Dynamic battlecry reverb must use game state transitions without continuous polling or physics raycasts."
+if ($source.Contains('"OnStay"')) {
+    throw "Dynamic battlecry reverb must not use continuous volume polling."
+}
+
+if ($source -notmatch '(?s)TryPlayBattlecrySound\(.+TryGetBattlecryChannelGroup\(.+TryProbeOutdoorAcoustics\(') {
+    throw "Outdoor acoustic sampling must remain on the battlecry playback path rather than a continuous update loop."
+}
+
+if ($source -notmatch '(?s)TryGetBattlecryChannelGroup\(.+TryProbeInteriorAcoustics\(' -or
+    $source -notmatch '(?s)"small-room".+\? 0') {
+    throw "Interior acoustic sampling must remain event-driven and must suppress discrete echoes in small rooms."
 }
 
 foreach ($displaySection in @(
@@ -114,10 +146,14 @@ if ($source -notmatch '(?s)"BattlecryCooldownSeconds",\s*1\.5f') {
     throw "Battlecry action cooldown must default to 1.5 seconds."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 3' -or
+if ($source -notmatch '(?s)"BattlecryAggroRangeMultiplier",\s*3\.0f') {
+    throw "Battlecry hearing range multiplier must default to 3.0."
+}
+
+if ($source -notmatch 'CurrentConfigSchemaVersion = 5' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 3."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 5."
 }
 
 foreach ($required in @(

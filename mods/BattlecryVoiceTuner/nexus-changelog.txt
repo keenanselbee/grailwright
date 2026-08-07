@@ -1,10 +1,7 @@
-TargetVersion=1.0.7
-BaselineVersion=0.2.2
-Renamed Player Voice Tuner to Battlecry Voice Tuner with a new plugin, config, package, and release identity; the renamed mod starts with a fresh config.
-Added gender-aware custom battlecries with 15 male and 15 female pool slots, including 15 packaged male sounds and 12 packaged female sounds while retaining open slots for custom WAVs.
-Added tap-or-hold Toggle Weapon input, an optional separate hotkey, configurable cooldowns, and a hostile-NPC challenge that uses each enemy's hearing range.
-Added optional Eyes in the Dark integration with diminishing Wyrd Threat gains and throttled atmospheric responses during exposed Wyrdnights.
-Routed custom battlecries through the game's SFX mixer and added configurable indoor and outdoor FMOD reverb with dry-audio fallback.
-Changed fresh-config defaults to neutral pitch offsets, 0.5 battlecry volume, and a 1.5-second cooldown; compatible customized values remain recoverable across the schema reset.
-Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
-Reduced the fresh-config Eyes in the Dark threat request from 20 to 10 per successful battlecry; compatible customized values remain recoverable across the schema reset.
+TargetVersion=1.1.0
+BaselineVersion=1.0.8
+Reduced the fresh-config random pitch variation from 0.25 to 0.15 semitones and advanced the config schema so the new default applies while compatible customized values remain recoverable.
+Replaced the fixed outdoor response with event-time 24-direction geometry sampling, an openness-driven diffuse tail, and up to three filtered 3D reflections timed from measured round-trip distance.
+Extended geometry sampling to interiors and roofed spaces with 30-direction room-shape analysis that drives decay, density, filtering, and early/late balance across cabins, corridors, caves, halls, caverns, and open shelter.
+Reserved discrete interior echoes for genuinely large reflection distances, so compact rooms receive dense early reverb without replaying the full cry.
+Kept sampling limited to successful battlecries, retained the game's authoritative interior and roof state, and preserved fixed-response fallbacks when geometry is sparse or sampling fails.

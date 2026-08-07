@@ -27,6 +27,11 @@ times BattlecryVolumeMultiplier. The defaults are 1.0 overall and 0.5 for
 battlecries, producing a final per-sound scale of 0.5 before the game mixer.
 
 Dynamic reverb uses two reusable battlecry-only paths beneath the SFX bus.
-OutdoorBattlecryReverbAmount defaults to a light 0.15. Interior scenes, caves,
-and the game's roof volumes use the heavier IndoorBattlecryReverbAmount default
-of 0.70. BattlecryReverbEnabled disables both effects without changing routing.
+Outdoors, each cry performs one 24-direction geometry sample and uses the
+result to shape its diffuse tail plus up to three distance-timed 3D reflections.
+OutdoorBattlecryReverbAmount defaults to a light 0.15 and scales the complete
+measured response. Interior scenes, caves, and the game's roof volumes use a
+30-direction room probe with dedicated floor and ceiling measurements. The
+IndoorBattlecryReverbAmount default of 0.70 scales geometry-driven room decay,
+density, filtering, and only the long reflections suitable for larger spaces.
+BattlecryReverbEnabled disables both effects without changing routing.

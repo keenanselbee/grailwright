@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.0.7
+Battlecry Voice Tuner 1.1.0
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -19,11 +19,18 @@ They use the overall pitch, random pitch, and volume tuning plus independent
 gender pitch offsets and a battlecry-only volume multiplier. Overall pitch and
 both gender offsets default to a neutral 0, before random variation. Custom cries play through the
 game's SFX mixer category and follow its SFX volume and mute state. Reusable
-battlecry-only reverb paths add a light outdoor tail and a heavier indoor tail;
 the game classifies full interior scenes and already tracks roof volumes for
-caves and covered structures. During the default three-second challenge,
+caves and covered structures. Interiors and roofed spaces sample horizontal,
+upward, downward, floor, and ceiling geometry to distinguish small rooms,
+corridors, halls, caves, and open-sided shelter. Small rooms receive dense
+early reverb without a repeated full cry, while large spaces can return up to
+three distance-timed reflections. Outdoors, each cry samples nearby terrain,
+vegetation, walls, and overhead surfaces once, then derives a diffuse tail and
+up to three distance-timed, directional reflections. Open terrain stays nearly
+dry while forests, structures, cliffs, and partially enclosed spaces respond
+according to their measured geometry. During the default three-second challenge,
 hostile NPCs within
-twice their individual hearing range react once: unaware enemies become strongly
+three times their individual hearing range react once: unaware enemies become strongly
 alert, while enemies that were already alert attempt to enter combat with the
 Hero. Walls and the game's normal combat restrictions remain authoritative.
 
@@ -51,7 +58,7 @@ BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg
 Defaults:
 Enabled = true
 PitchSemitones = 0.0
-RandomPitchSemitones = 0.25
+RandomPitchSemitones = 0.15
 VolumeMultiplier = 1.0
 IncludeAttackGrunts = true
 IncludeHurtGrunts = true
@@ -70,7 +77,7 @@ HoldToggleWeaponForBattlecry = true
 BattlecryHoldSeconds = 0.45
 BattlecryHotkey = None
 BattlecryCooldownSeconds = 1.5
-BattlecryAggroRangeMultiplier = 2.0
+BattlecryAggroRangeMultiplier = 3.0
 BattlecryAggroDurationSeconds = 3.0
 EyesInTheDarkThreat = 10.0
 PlayRandomTestSound = false

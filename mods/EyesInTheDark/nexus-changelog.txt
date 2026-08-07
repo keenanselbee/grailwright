@@ -1,9 +1,12 @@
-TargetVersion=1.2.8
+TargetVersion=1.3.1
 BaselineVersion=1.2.1
+Moved rest-clock layout and time formatting to Glorious UI's independently toggleable Sensible Rest Menu while Eyes retains the Wyrdnight REST-button state and gameplay safety.
+Renamed the remaining presentation toggle to ShowWyrdnightRestAvailability and advanced ConfigSchemaVersion to 21 because the former rest-menu and time-format settings were removed or narrowed.
 Added configurable visual-only threat smoothing with a two-active-second default half-life, keeping authoritative threat, hunts, notifications, the HUD meter, and dynamic Wyrdnight duration immediate.
 Prevented daylight-only state changes such as pausing and loading from replaying dawn GFT atmosphere; natural dawn still announces once.
 Consolidated the former Purple exposure, EV, and indirect-diffuse controls into one palette-aware Wyrdnight Brightness setting, left native indirect diffuse lighting untouched, renamed the Orange palette choice, and added automatically selected Purple and Orange threat-meter colors.
 Preserved the vanilla Hero-bar shader animation direction on the mirrored Wyrd Threat meter through a private material that is cleaned up with the HUD.
 Added separate Purple and Orange threat-meter brightness controls on a 0-to-3 range; each point applies 3x RGB before threat scaling, so the default 1 means 3x and the maximum reaches 9x.
 Replaced the meter's blue mana-bar tint with the game's neutral white artwork and material color, then added separate Purple and Orange red targets so both palettes remain clear across the full threat transition.
-Advanced ConfigSchemaVersion from 15 to 18 for the removed and redefined lighting settings, the changed threat-meter brightness scale and defaults, and the separation of world and meter red targets; incompatible retired or same-name brightness values adopt current defaults while unrelated durable settings remain eligible for conservative recovery.
+Separated the world's threat-driven brightness, color shift, and master visual toggle from the HUD meter, with dedicated world controls plus independent meter low/high brightness scales and Purple/Orange color-shift strengths.
+Advanced ConfigSchemaVersion from 15 to 20 for the removed and redefined lighting settings, changed threat-meter brightness meaning, fully separated world and meter response controls, and narrowed the world visual toggle; incompatible or renamed values adopt current defaults while unrelated durable settings remain eligible for conservative recovery.

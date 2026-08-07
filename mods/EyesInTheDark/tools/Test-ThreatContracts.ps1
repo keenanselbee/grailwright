@@ -303,7 +303,15 @@ foreach ($required in @(
     'OrangeThreatMeterRedColor',
     'PurpleThreatMeterBrightness',
     'OrangeThreatMeterBrightness',
+    'PurpleThreatMeterColorShift',
+    'OrangeThreatMeterColorShift',
+    'MinimumThreatMeterBrightnessScale',
+    'MaximumThreatMeterBrightnessScale',
     'CurrentThreatMeterRedColor()',
+    'CurrentThreatMeterColorShift()',
+    'DefaultMinimumThreatMeterBrightnessScale = 0.8f;',
+    'DefaultMaximumThreatMeterBrightnessScale = 1.2f;',
+    'DefaultThreatMeterColorShift = 0.8f;',
     'CurrentThreatMeterBrightness()',
     'ThreatMeterController.DefaultPurpleColorText',
     'ThreatMeterController.DefaultOrangeColorText',
@@ -313,6 +321,20 @@ foreach ($required in @(
     if (!$pluginSource.Contains($required)) {
         throw "Configurable threat-meter color is missing: $required"
     }
+}
+$meterUpdateStart = $pluginSource.IndexOf(
+    '_meter.Update(',
+    [StringComparison]::Ordinal)
+$meterUpdateEnd = $pluginSource.IndexOf(
+    'catch (Exception exception)',
+    $meterUpdateStart,
+    [StringComparison]::Ordinal)
+if ($meterUpdateStart -lt 0 -or $meterUpdateEnd -le $meterUpdateStart -or
+    $pluginSource.Substring(
+        $meterUpdateStart,
+        $meterUpdateEnd - $meterUpdateStart).Contains(
+            'WyrdVisualResponseEnabled()')) {
+    throw "Threat-meter response must not depend on the world visual master toggle."
 }
 foreach ($required in @(
     'public const string DefaultPurpleColorText = "#8032FF";',

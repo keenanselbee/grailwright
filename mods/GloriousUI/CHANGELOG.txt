@@ -1,3 +1,12 @@
+Version 1.7.3
+Formats quick-menu time directly after the native refresh without retaining discarded menu views.
+Activates Sensible Rest Menu runtime patches only after Glorious UI's required core hook succeeds.
+
+Version 1.7.2
+Added the toggleable Sensible Rest Menu with a noon-at-top clock, matching radial input, clear 12-hour or 24-hour labels, popup time formatting, and an independently toggleable quick-menu time format.
+Restores the native rest-clock layout and time text when disabled, and leaves gameplay rest availability and interruption rules to their owning systems.
+Kept ConfigSchemaVersion at 1 because the new settings are additive.
+
 Version 1.7.1
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

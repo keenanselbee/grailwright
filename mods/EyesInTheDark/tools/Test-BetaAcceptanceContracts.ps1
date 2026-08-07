@@ -68,22 +68,22 @@ $gftModJson = Get-Content -LiteralPath (
 $repoReadme = Get-Content -LiteralPath (
     Join-Path $repoRoot "README.md") -Raw
 
-Assert-Contract ($modJson.version -eq "1.2.8") "mod.json version is not 1.2.8."
+Assert-Contract ($modJson.version -eq "1.3.1") "mod.json version is not 1.3.1."
 Assert-Contract ($modJson.displayName -eq "Eyes in the Dark - Wyrdnight Overhaul") "mod.json display name is stale."
 Assert-Contract ($pluginSource.Contains('public const string PluginName = "Eyes in the Dark";')) "config/plugin title is not Eyes in the Dark."
-Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "1.2.8";')) "plugin version is not 1.2.8."
-Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("1.2.8.0")]')) "assembly version is not 1.2.8.0."
+Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "1.3.1";')) "plugin version is not 1.3.1."
+Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("1.3.1.0")]')) "assembly version is not 1.3.1.0."
 Assert-Contract ($pluginSource.Contains('[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Overhaul")]')) "assembly title is stale."
-Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 18;')) "config schema is not 18."
+Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 21;')) "config schema is not 21."
 Assert-Contract ($pluginSource -match '(?s)"AllowUnprotectedWyrdnightRest",\s*true,\s*UiDescription') "unprotected Wyrdnight rest does not default to enabled for Watchful tuning."
-Assert-Contract ($pluginSource -match '(?s)"OwnRestMenu",\s*true,\s*UiDescription') "rest-menu ownership does not default to enabled."
+Assert-Contract ($pluginSource -match '(?s)"ShowWyrdnightRestAvailability",\s*true,\s*UiDescription') "Wyrdnight rest availability does not default to enabled."
 Assert-Contract ($pluginSource.Contains('"The new visual baseline deliberately replaces prior customized pulse amounts with the tested 0.8 default."')) "schema-7 pulse recovery rule is missing."
 Assert-Contract ($pluginSource.Contains('"The new visual baseline deliberately returns diagnostics to its safe off default after regeneration."')) "schema-7 diagnostics recovery rule is missing."
 Assert-Contract ($pluginSource.Contains('"The recalibrated brightness control gives 1.0 a new 3x RGB meaning, so older same-name values are unsafe to preserve."')) "schema-17 meter brightness recovery rules are missing."
-Assert-Contract ($readme.Contains('Version: 1.2.8')) "installed README version is stale."
+Assert-Contract ($readme.Contains('Version: 1.3.1')) "installed README version is stale."
 Assert-Contract ($readme.StartsWith('Eyes in the Dark - Wyrdnight Overhaul')) "installed README title is stale."
-Assert-Contract ($changelog.StartsWith('Version 1.2.8')) "changelog does not start with 1.2.8."
-Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.2.8 |')) "top-level README row is stale."
+Assert-Contract ($changelog.StartsWith('Version 1.3.1')) "changelog does not start with 1.3.1."
+Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.1 |')) "top-level README row is stale."
 Assert-Contract ($gftModJson.version -eq "1.10.0") "GFT mod.json version is not 1.10.0."
 Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 24;')) "GFT config schema is not 24."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleWyrdness'))) "retired Purple Wyrdness package remains in the repository."
@@ -100,7 +100,6 @@ foreach ($requiredSource in @(
     'src/PacingState.cs',
     'src/WorldTimescale.cs',
     'src/RestRisk.cs',
-    'src/RestClockOverlay.cs',
     'src/Atmosphere.cs',
     'src/GrailFloatingTextBridge.cs',
     'src/BoundaryController.cs',
@@ -221,7 +220,15 @@ foreach ($required in @(
     '"PurpleThreatMeterRedColor"',
     '"OrangeThreatMeterRedColor"',
     '"PurpleThreatMeterBrightness"',
-    '"OrangeThreatMeterBrightness"')) {
+    '"OrangeThreatMeterBrightness"',
+    '"PurpleThreatMeterColorShift"',
+    '"OrangeThreatMeterColorShift"',
+    '"MinimumThreatMeterBrightnessScale"',
+    '"MaximumThreatMeterBrightnessScale"',
+    '"MinimumWorldThreatBrightnessScale"',
+    '"MaximumWorldThreatBrightnessScale"',
+    '"WorldThreatTargetColor"',
+    '"MaximumWorldThreatColorShift"')) {
     Assert-Contract ($pluginSource.Contains($required)) "environment-impact threat or meter color config is missing $required."
 }
 foreach ($required in @(
@@ -269,8 +276,8 @@ foreach ($required in @(
 }
 Assert-Contract ($pluginSource -match '(?s)"Enable Ambient Stalkers",\s*0,\s*30') "ambient-stalker toggle is not in the primary General flow."
 Assert-Contract ($pluginSource -match '(?s)"Allow Elite Enemies",\s*0,\s*40') "elite toggle is not in the primary General flow."
+Assert-Contract ($pluginSource -match '(?s)"Show Wyrdnight Rest Availability",\s*0,\s*45') "Wyrdnight rest availability is not ordered in the primary General flow."
 Assert-Contract ($pluginSource -match '(?s)"Allow Unprotected Wyrdnight Rest",\s*0,\s*50') "rest toggle is not ordered in the primary General flow."
-Assert-Contract ($pluginSource -match '(?s)"Time Display",\s*0,\s*60') "time display is not ordered in the primary General flow."
 
 foreach ($required in @(
     'GftNotificationPreset.Minimal',
@@ -306,7 +313,7 @@ foreach ($required in @(
     'CanUseNativeRest',
     'ApplyRestInterruptionRisk',
     'ShouldSuppressNativeWyrdnightSurprise',
-    'OwnRestMenu',
+    'ShowWyrdnightRestAvailability',
     'RestInterruptionChanceAtZeroThreat',
     'RestInterruptionChanceAtMaximumThreat',
     '"AllowUnprotectedWyrdnightRest"',
@@ -399,7 +406,7 @@ Assert-Contract ($nexusFull.Contains('BaseNightMinutes 6')) "Nexus zero-threat n
 Assert-Contract ($nexusFull.Contains('MaximumThreatNightMinutes 12')) "Nexus maximum-threat night target is missing."
 Assert-Contract ($nexusFull.Contains('inspired by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url]')) "Nexus copy omits the inspiration statement."
 Assert-Contract ($nexusFull.Contains('Diagnostics is enabled')) "Nexus copy omits diagnostic GFT behavior."
-Assert-Contract ($roadmap.Contains('Begin this pass only after the `1.2.8` implementation')) "roadmap does not defer consolidated in-game testing until implementation completion."
+Assert-Contract ($roadmap.Contains('after the implementation is complete')) "roadmap does not defer consolidated in-game testing until implementation completion."
 
 if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     Assert-Contract (Test-Path -LiteralPath $PackagePath -PathType Leaf) "package path does not exist."
@@ -423,4 +430,4 @@ if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     }
 }
 
-Write-Host "Eyes in the Dark 1.2.8 acceptance contracts passed."
+Write-Host "Eyes in the Dark 1.3.1 acceptance contracts passed."

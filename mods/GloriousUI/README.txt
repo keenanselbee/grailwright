@@ -1,10 +1,11 @@
-Glorious UI 1.7.1
+Glorious UI 1.7.3
 
 Platforms: Windows and Linux through Proton.
 
 Glorious UI provides a centered, resolution-independent gameplay HUD with
 smart quick slots, immersive compass visibility, quieter notifications, and
-automatic quick-use wheel cleanup.
+automatic quick-use wheel cleanup. Its optional Sensible Rest Menu places noon
+at the top of the rest clock and provides consistent time formatting.
 
 DEFAULT LAYOUT
 --------------
@@ -52,6 +53,20 @@ IMMERSIVE HUD DEFAULTS
   displayed key and the action itself.
 - When Interact is F, Settings Restore Defaults moves to E so holding F cannot
   trigger both actions.
+
+SENSIBLE REST MENU
+------------------
+
+- Enabled by default and independently toggleable.
+- Places noon and the sun at the top of the rest clock, 6 PM at the right,
+  midnight and the moon at the bottom, and 6 AM at the left.
+- Rotates the native hand, fill, and radial input mapping together while
+  retaining the game's rest calculations and controls.
+- Defaults to 12-hour labels and AM/PM popup times; 24-hour labels are optional.
+- Formats the quick-menu clock consistently by default. That part can be
+  disabled independently.
+- Disabling the feature restores the native rest-clock layout and text. The
+  quick-menu clock uses the selected format the next time that menu opens.
 
 SMART QUICK SLOTS
 -----------------
@@ -144,7 +159,7 @@ CONFIGURATION
 Config path:
 BepInEx/config/ks.tgfoa.glorious-ui.cfg
 
-FoA Mod Manager presents General, Hero HUD, Quick Slot HUD, Arrow HUD,
+FoA Mod Manager presents General, Rest Menu, Hero HUD, Quick Slot HUD, Arrow HUD,
 Wyrd Power HUD, Buffs and Debuffs, Compass, Notifications, Hotkeys, Bag
 Category Hotkeys, Smart Selection, Equipment Panel, One-Menu Equipping,
 diagnostics, and Import Previous Settings sections.
@@ -176,7 +191,8 @@ conflict.
 Eyes in the Dark is an optional soft dependency. Glorious uses its versioned
 HUD placement contract without creating or controlling the Wyrd Threat meter.
 When Eyes is absent or the contract is unavailable, Glorious makes no meter
-changes.
+changes. Eyes can update the Wyrdnight REST-button state while Glorious
+controls only the clock and time presentation.
 
 Do not load owrocc.ModifyHeroHUD.dll, owrocc.ModifyQuickSlotsHud.dll,
 owrocc.HideLevelUp.dll, owrocc.MoreWeaponSlots.dll, owrocc.OneMenuEquip.dll,

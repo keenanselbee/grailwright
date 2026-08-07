@@ -1,14 +1,14 @@
-# Eyes in the Dark 1.2.8 Implementation Roadmap
+# Eyes in the Dark 1.3.0 Implementation Roadmap
 
 ## Objective
 
-Reach a hardened, user-testable `1.2.8` release candidate of **Eyes in the Dark -
+Reach a hardened, user-testable `1.3.0` release candidate of **Eyes in the Dark -
 Wyrdnight Overhaul** without expanding beyond the product rules in
 [DESIGN.md](DESIGN.md).
 
 The roadmap advances through narrow vertical slices. Each milestone must compile
 and satisfy its automated contracts before the next begins. Consolidated
-in-game acceptance begins only after the `1.2.8` implementation is complete.
+in-game acceptance begins only after the `1.3.0` implementation is complete.
 Patch releases may fix a milestone, but authored patch versions must remain
 below 10; roll to the next minor version instead of using an `X.Y.10` version.
 
@@ -83,6 +83,8 @@ below 10; roll to the next minor version instead of using an `X.Y.10` version.
 | 1.2.6 | Palette-specific meter brightness | Purple and Orange threat meters expose independent brightness multipliers while retaining the prior 1.5 default. |
 | 1.2.7 | Recalibrated meter brightness | Purple and Orange meter brightness controls retain a 0-to-3 range while each point applies 3x RGB. |
 | 1.2.8 | Neutral palette-owned meter colors | The meter removes inherited mana blue, and Purple and Orange each own separate base and red target colors. |
+| 1.2.9 | Independent world and meter response | World and HUD brightness ranges, target colors, and maximum color shifts are configured independently. |
+| 1.3.0 | Complete HUD response independence | The world visual master toggle no longer suppresses independently configured meter behavior. |
 
 ## 0.1.0 - Scaffold
 
@@ -506,7 +508,7 @@ Reliability:
 
 ### Consolidated in-game test pass
 
-Begin this pass only after the `1.2.8` implementation, automated contracts, and
+Begin this pass only after the `1.3.0` implementation, automated contracts, and
 clean build are complete. Execute every accumulated milestone Verification
 matrix against the same candidate build, recording failures and fixes. Rebuild
 and repeat affected scenarios after a fix; do not mark the goal complete merely
@@ -1132,7 +1134,23 @@ Implemented scope:
 - Test the optional battlecry integration against Battlecry Voice Tuner 1.0.7.
 - Keep schema `15` because no configuration setting or meaning changed.
 
-## Explicitly deferred beyond 1.2.8
+## 1.3.1 - Glorious UI rest presentation split
+
+Status: implementation and documentation complete. Automated contracts, clean
+packaging, Vortex staging, and focused in-game acceptance remain required.
+
+Implemented scope:
+
+- Move the noon-at-top rest clock, dial labels, popup time formatting, and
+  quick-menu time formatting into Glorious UI's toggleable Sensible Rest Menu.
+- Keep Eyes responsible for Wyrdnight REST-button availability, final gameplay
+  rest enforcement, cumulative interruption risk, and post-interruption hunts.
+- Replace OwnRestMenu with ShowWyrdnightRestAvailability and remove
+  RestClockLabelFormat from Eyes.
+- Advance Eyes config schema to `21`; keep Glorious UI schema `1` because its
+  three rest-presentation settings are additive.
+
+## Explicitly deferred beyond 1.3.1
 
 - Custom save persistence for threat or active encounters.
 - Indoor hunts.
@@ -1145,10 +1163,10 @@ Implemented scope:
 
 ## Goal execution rule
 
-When this roadmap is used as the 1.2.8 development goal, execute one
+When this roadmap is used as the current development goal, execute one
 implementation milestone at a time with automated contracts and clean builds,
-then run the consolidated in-game pass after the `1.2.8` implementation is
-complete. Do not mark the goal complete until every `1.2.8` acceptance criterion
+then run the consolidated in-game pass after the implementation is complete.
+Do not mark the goal complete until every applicable acceptance criterion
 is either verified or explicitly removed from scope by the user. Failures found
 in the consolidated pass require a fix and focused retest; they are not a reason
 to omit the affected scenario.

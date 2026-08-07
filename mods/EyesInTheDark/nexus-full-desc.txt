@@ -115,14 +115,14 @@ Eyes in the Dark owns the meter. It is visible outdoors throughout a valid Wyrdn
 
 Standalone placement is above the health bar. When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] is installed and enabled, Glorious UI requests below-resource-bars placement while Eyes retains creation, updates, visibility, and cleanup. No duplicate meter is created.
 
-The artwork is mirrored horizontally and vertically while its animated textures retain the movement direction of the vanilla Hero bars. The meter uses the game's neutral white bar artwork and material color, giving both palettes a clear base without an inherited blue tint. Purple and Orange Wyrdness each have independently configurable base colors, red target colors, and brightness controls from 0 to 3. The color smoothly approaches the active palette's red target as threat rises. Every brightness point applies 3x RGB before the shared threat scale: both default to 1 for 3x RGB, while 3 reaches 9x RGB. Exact value display and layout offsets remain configurable. Standalone vanilla-HUD placement uses an internal +9, -9 baseline while both visible offset adjustments default to 0; Glorious UI placement does not use that standalone baseline.
+The artwork is mirrored horizontally and vertically while its animated textures retain the movement direction of the vanilla Hero bars. The meter uses the game's neutral white bar artwork and material color, giving both palettes a clear base without an inherited blue tint. Purple and Orange Wyrdness each have independently configurable base colors, target colors, constant brightness, and maximum color-shift strengths. Dedicated low- and high-threat meter brightness scales control how strongly it brightens as danger rises without changing world visuals. Every constant-brightness point applies 3x RGB before that meter-specific scale: both default to 1 for 3x RGB, while 3 reaches 9x RGB. Exact value display and layout offsets remain configurable. Standalone vanilla-HUD placement uses an internal +9, -9 baseline while both visible offset adjustments default to 0; Glorious UI placement does not use that standalone baseline.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Wyrdnight Visuals And Atmosphere[/size][/color][/heading]
 Eyes fully integrates its former Purple Moon Test. The configurable presentation covers the visible moon disc, HDR corona, directional and volumetric moonlight, full visible-sky tint, fueled protection-bubble body and border, Wyrd boundary, and threat meter. Purple Wyrdness is the default palette. Orange Wyrdness instead derives each base hue from the current region's game-owned values.
 
-One shared visual-strength range scales brightness from 0.8 at zero threat to 1.2 at 100 threat without weakening the configured palette tint. Moon, moonlight, protection bubble, and boundary colors smoothly move toward a configurable #FF3028 red with a default maximum blend of 0.8. The meter automatically selects its separately configurable Purple or Orange base and red target colors with the active palette. Threat-driven world lighting and palette changes use a configurable two-active-second half-life, preventing battlecries and other sudden gains from snapping the scene to a new color. Gameplay threat, the meter, hunts, notifications, and dynamic Wyrdnight duration remain immediate. The full-sky tint deliberately retains its selected purple or native hue and never participates in the red shift. One palette-aware Wyrdnight Brightness setting follows the natural visual fade and remains independent of threat. At its default value of 1, Purple Wyrdness applies a 1.75 exposure multiplier plus +0.35 EV, while Orange Wyrdness leaves native exposure unchanged at 1x and 0 EV. Other setting values scale those palette-specific targets proportionally. Automatic and physical-camera exposure add EV, while fixed exposure subtracts it. Eyes runs after Light Control and does not modify HDRP post-exposure, gamma, colors, indirect diffuse lighting, direct moonlight, reflections, or global volumes.
+The world threat-brightness range scales the moon, moonlight, protection bubble, boundary, and Wyrdnight sky from 0.8 at zero threat to 1.2 at 100 threat by default. A separate world color-shift control moves the moon, moonlight, protection bubble, and boundary toward the configurable #FF3028 target with a default maximum blend of 0.8; the sky retains its selected hue. These world controls and the Enable Wyrdnight Visuals toggle do not affect the HUD meter, which has its own brightness range, palette targets, and color-shift strengths. Threat-driven world lighting and palette changes use a configurable two-active-second half-life, preventing battlecries and other sudden gains from snapping the scene to a new color. Gameplay threat, the meter, hunts, notifications, and dynamic Wyrdnight duration remain immediate. One palette-aware Wyrdnight Brightness setting follows the natural visual fade and remains independent of threat. At its default value of 1, Purple Wyrdness applies a 1.75 exposure multiplier plus +0.35 EV, while Orange Wyrdness leaves native exposure unchanged at 1x and 0 EV. Other setting values scale those palette-specific targets proportionally. Automatic and physical-camera exposure add EV, while fixed exposure subtracts it. Eyes runs after Light Control and does not modify HDRP post-exposure, gamma, colors, indirect diffuse lighting, direct moonlight, reflections, or global volumes.
 
 At natural dusk, the integrated environment and fueled protection-bubble palette uses a 60-active-second transition centered on nightfall by default: it begins 30 seconds before the boundary and finishes 30 seconds after. The dawn fade begins when 60 real seconds remain at the current world-clock rate and finishes at dawn, avoiding a late post-dawn Wyrd palette. This is presentation only: Wyrdnight gameplay, world-clock phase changes, threat-meter visibility, and protection state remain immediate. Pausing freezes the fade. Rest and short loading transitions hold the last confirmed presentation, while confirmed daylight, interiors, title screen, disablement, teardown, or an isolated visual failure restores safely. Loaded threat color is introduced over 10 active seconds after the first stable rendered frame instead of snapping immediately toward red.
 
@@ -130,7 +130,7 @@ The visual target is recalculated five times per second for responsive fades and
 
 Eyes atmosphere and GFT's built-in Wyrdnight and Wyrd-safety text follow the same palette. Purple Wyrdness uses GFT's configurable Purple color group; Orange Wyrdness switches Wyrd messages to its configurable Orange group without changing priority, duration, or icon behavior.
 
-The Wyrd boundary uses three independently configurable visual rings: a faint near edge, a middle edge, and an outer edge at the native radius. Each ring smoothly ebbs and swells. The shared visual scale replaces the former boundary-only response; threat no longer changes boundary thickness. A native-style single-ring mode remains available. Protection, native mask intensity, gameplay detection, thickness, and ring radii are never altered dynamically by threat.
+The Wyrd boundary uses three independently configurable visual rings: a faint near edge, a middle edge, and an outer edge at the native radius. Each ring smoothly ebbs and swells. The world threat-brightness scale affects every ring, while threat never changes boundary thickness. A native-style single-ring mode remains available. Protection, native mask intensity, gameplay detection, thickness, and ring radii are never altered dynamically by threat.
 
 Optional Grail Floating Text integration provides randomized atmospheric text with immediate-repeat prevention:
 
@@ -150,13 +150,13 @@ When Diagnostics is enabled, separate concise low-priority System notifications 
 
 [line]
 
-[heading][color=#C94A4A][size=5]Protection, Rest, And Time Display[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Protection And Rest[/size][/color][/heading]
 
 Protected outdoor Wyrdnight areas slowly drain Wyrd Threat at the configured active-real-time rate, and a fueled protective boundary always permits safe rest. Watchful Night allows unprotected rest with a configurable added interruption chance that rises from 45 percent at zero threat to 75 percent at maximum threat. Uneasy adds no Eyes risk. Cursed uses 80 to 100 percent risk and prevents starting new exposed rest once Wyrdnight is already active, but rest begun before nightfall can still cross into it.
 
 Eyes uses the game's native sleep-interruption result first. If native logic does not wake the Hero, Eyes evaluates one hidden chance roll and one cumulative exposure threshold for the whole Wyrdnight. Repeated short rests therefore cannot farm fresh rolls. An interruption during unprotected Wyrdnight exposure locks further exposed rest until dawn. An Eyes-driven interruption uses the native wake presentation and commits one official hunt under the usual region, level, elite, budget, placement, and zero-cost failure rules. Native interruptions never receive a duplicate Eyes hunt.
 
-The rest selector places noon and the sun at the top, 6 PM at the right, midnight and the moon at the bottom, and 6 AM at the left. Its hand, fill, mouse, and controller radial mapping receive the same half-day rotation. TwelveHour shows AM/PM on the dial, Current time, Resting until, and the quick-use weather clock. TwentyFourHour leaves the game's native time text untouched. Own Rest Menu is enabled by default; disabling it removes every Eyes change to rest controls, clock rotation, clock labels, and popup time formatting while keeping gameplay rest rules as a silent final guard.
+Show Wyrdnight Rest Availability is enabled by default. It greys out the fireplace REST button when Eyes' Wyrdnight rules temporarily prevent rest. Disabling that presentation setting leaves the button native while the final accepted-rest guard and interruption rules remain active. Glorious UI can independently provide a noon-at-top rest clock and matching time formatting.
 
 [line]
 
@@ -183,10 +183,9 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b]. Common choice
 | Maximum official group     | 2                   |
 | Extra hunter chance        | Up to 0.55          |
 | Elites / stalkers          | Off / On            |
-| Own rest menu              | On                  |
+| Wyrdnight rest availability | On                 |
 | Unprotected rest           | Allowed             |
 | Added rest risk            | 45% to 75%          |
-| Time display               | 12 hour (AM/PM)     |
 [/code]
 
 [b]Presentation defaults[/b]
@@ -197,8 +196,10 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b]. Common choice
 | Palette                  | Purple              |
 | Wyrdnight brightness     | 1                   |
 | Threat lighting smoothing | 2-second half-life  |
-| Visual strength          | 0.8 to 1.2          |
-| Red target / shift       | #FF3028 / 0.8       |
+| World brightness         | 0.8 to 1.2          |
+| World target / shift     | #FF3028 / 0.8       |
+| Meter brightness scale   | 0.8 to 1.2          |
+| Meter color shift        | 0.8 per palette     |
 | Dusk / dawn transition   | 60 seconds          |
 | Protective boundary      | Purple, three rings |
 | Boundary brightness      | 1.0                 |
@@ -227,7 +228,7 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
-Automatically preserved: Enabled; OwnRestMenu; AllowUnprotectedWyrdnightRest; RestClockLabelFormat; rest-interruption chances; dynamic world-clock duration settings; all Wyrd Threat, official encounter, and ambient-stalker tuning; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action plus diagnostic threat and timescale override controls are permanently excluded from recovery/import.
+Automatically preserved: Enabled; ShowWyrdnightRestAvailability; AllowUnprotectedWyrdnightRest; rest-interruption chances; dynamic world-clock duration settings; all Wyrd Threat, official encounter, and ambient-stalker tuning; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action plus diagnostic threat and timescale override controls are permanently excluded from recovery/import.
 
 When a visual-default reset is required, compatible durable customizations are restored conservatively. The tested pulse amount and Diagnostics-off state deliberately adopt their new defaults instead of restoring those two older customized values.
 
@@ -248,7 +249,7 @@ When a visual-default reset is required, compatible durable customizations are r
 [*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/76]Custom Timescale[/url] is incompatible with Eyes in the Dark.[/b] Both plugins control the GameRealTime weather rate. GFT shows one compatibility notice when both are loaded but does not disable or reconfigure either plugin.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] provides optional atmospheric messages and concise diagnostic summaries. It is not required for threat calculation or encounter behavior.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] can add diminishing exposed-Wyrdnight threat and unlock restrained battlecry-response atmosphere. It remains fully optional.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] provides optional below-resource-bars placement for the Eyes-owned Wyrd Threat meter. It is not required for threat calculation or encounter behavior.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] provides optional below-resource-bars placement for the Eyes-owned Wyrd Threat meter plus an independently toggleable rest clock and time display. It is not required for threat calculation, rest safety, or encounter behavior.[/*]
 [*]Purple Moon Test is fully integrated and retired. Do not install its standalone DLL alongside Eyes.[/*]
 [*]Other mods that replace outdoor Wyrdnight encounter direction or spawn the same kinds of hunters may conflict.[/*]
 [/list]

@@ -95,7 +95,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedConfigValues('
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
-        Tokens = @('PassiveThreatPerNight', 'CombatResponseSeconds', 'ProtectedDecayPerMinute', 'PurpleThreatMeterColor', 'OrangeThreatMeterColor', 'PurpleThreatMeterRedColor', 'OrangeThreatMeterRedColor', 'PurpleThreatMeterBrightness', 'OrangeThreatMeterBrightness', 'ShowExactThreatValue', 'MeterOffsetX', 'BoundaryRenderMode', 'BoundaryBrightness', 'NearRingRadius', 'OuterRingIntensityMultiplier', 'BoundaryPulseAmount', 'WyrdnightBrightness')
+        Tokens = @('PassiveThreatPerNight', 'CombatResponseSeconds', 'ProtectedDecayPerMinute', 'PurpleThreatMeterColor', 'OrangeThreatMeterColor', 'PurpleThreatMeterRedColor', 'OrangeThreatMeterRedColor', 'PurpleThreatMeterBrightness', 'OrangeThreatMeterBrightness', 'PurpleThreatMeterColorShift', 'OrangeThreatMeterColorShift', 'MinimumThreatMeterBrightnessScale', 'MaximumThreatMeterBrightnessScale', 'ShowExactThreatValue', 'MeterOffsetX', 'BoundaryRenderMode', 'BoundaryBrightness', 'NearRingRadius', 'OuterRingIntensityMultiplier', 'BoundaryPulseAmount', 'WyrdnightBrightness', 'MinimumWorldThreatBrightnessScale', 'MaximumWorldThreatBrightnessScale', 'WorldThreatTargetColor', 'MaximumWorldThreatColorShift')
     },
     [pscustomobject]@{
         Name = 'KS Better Movement Addon'

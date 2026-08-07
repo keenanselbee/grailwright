@@ -1,3 +1,18 @@
+Version 1.3.1
+Moved rest-clock rotation, dial labels, popup time formatting, and quick-menu time formatting to Glorious UI's independently toggleable Sensible Rest Menu.
+Kept Wyrdnight fireplace REST-button availability in Eyes and renamed its setting to ShowWyrdnightRestAvailability so it controls only that presentation.
+Incremented ConfigSchemaVersion from 20 to 21 because OwnRestMenu and RestClockLabelFormat were removed and the replacement availability setting has a narrower meaning. Compatible gameplay, threat, encounter, HUD, visual, and notification settings remain eligible for conservative recovery.
+
+Version 1.3.0
+Made EnableWyrdnightVisuals control world presentation only, leaving the independently configured threat-meter palette, brightness response, and color shift active.
+Incremented ConfigSchemaVersion from 19 to 20 because EnableWyrdnightVisuals now has a narrower world-only meaning. Compatible same-name settings remain eligible for conservative recovery.
+
+Version 1.2.9
+Separated world and threat-meter threat response settings so HUD brightness and color changes no longer depend on the world visual controls or the EnableWyrdnightVisuals toggle.
+Added independent low- and high-threat meter brightness scales plus separate Purple and Orange maximum meter color-shift strengths. Constant palette brightness remains independently configurable.
+Renamed the world response settings to MinimumWorldThreatBrightnessScale, MaximumWorldThreatBrightnessScale, WorldThreatTargetColor, and MaximumWorldThreatColorShift so each control has one explicit purpose.
+Incremented ConfigSchemaVersion from 18 to 19 because the four shared world settings were renamed and narrowed to world-only behavior. Schema recovery adopts the current defaults for the renamed world controls and new meter-response controls while preserving compatible same-name palette, gameplay, HUD, and other durable settings.
+
 Version 1.2.8
 Replaced the cloned mana bar's blue-tinted fill, glow, and mask artwork with its game-owned neutral white variant and set the Eyes-owned animated material color to white, keeping configured Purple and Orange threat-meter colors clear while preserving the corrected animation direction.
 Added separate Purple and Orange threat-meter red target settings, each defaulting to #FF3028, so every palette now owns both ends of its threat color transition.

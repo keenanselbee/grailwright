@@ -26,19 +26,19 @@ function Assert-VisualContract {
 
 foreach ($required in @(
     'src/WyrdVisualRuntime.cs',
-    '"version": "1.2.8"')) {
+    '"version": "1.3.1"')) {
     Assert-VisualContract ($manifest.Contains($required)) "manifest omits $required"
 }
 
 foreach ($required in @(
-    'private const int ConfigSchemaVersion = 18;',
-    'DefaultMinimumThreatVisualScale = 0.8f;',
-    'DefaultMaximumThreatVisualScale = 1.2f;',
+    'private const int ConfigSchemaVersion = 21;',
+    'DefaultMinimumWorldThreatBrightnessScale = 0.8f;',
+    'DefaultMaximumWorldThreatBrightnessScale = 1.2f;',
     'DefaultWyrdnightBrightness = 1.0f;',
     'DefaultThreatVisualSmoothingSeconds = 2.0f;',
     'DefaultThreatMeterBrightness = 1.0f;',
-    'DefaultThreatRedColor = "#FF3028";',
-    'DefaultMaximumThreatRedBlend = 0.8f;',
+    'DefaultWorldThreatTargetColor = "#FF3028";',
+    'DefaultMaximumWorldThreatColorShift = 0.8f;',
     'DefaultMoonSurfaceColor = "#3200FF";',
     'DefaultMoonSurfaceTintStrength = 0.75f;',
     'DefaultMoonSurfaceIntensity = 2.0f;',
@@ -61,10 +61,10 @@ foreach ($required in @(
     '"PurpleThreatMeterBrightness"',
     '"OrangeThreatMeterBrightness"',
     '"ThreatVisualSmoothingSeconds"',
-    '"MinimumThreatVisualScale"',
-    '"MaximumThreatVisualScale"',
-    '"ThreatRedColor"',
-    '"MaximumThreatRedBlend"')) {
+    '"MinimumWorldThreatBrightnessScale"',
+    '"MaximumWorldThreatBrightnessScale"',
+    '"WorldThreatTargetColor"',
+    '"MaximumWorldThreatColorShift"')) {
     Assert-VisualContract ($plugin.Contains($required)) "plugin omits $required"
 }
 
@@ -75,6 +75,22 @@ foreach ($removed in @(
     'MaximumThreatThicknessMultiplier')) {
     Assert-VisualContract (!$plugin.Contains($removed)) "removed boundary threat setting remains: $removed"
     Assert-VisualContract (!$boundary.Contains($removed)) "boundary runtime retains: $removed"
+}
+
+foreach ($removedConfigKey in @(
+    '"MinimumThreatVisualScale"',
+    '"MaximumThreatVisualScale"',
+    '"ThreatRedColor"',
+    '"MaximumThreatRedBlend"')) {
+    Assert-VisualContract (!$plugin.Contains($removedConfigKey)) "retired shared world/meter setting remains: $removedConfigKey"
+}
+
+foreach ($required in @(
+    'MinimumWorldThreatBrightnessScale',
+    'MaximumWorldThreatBrightnessScale',
+    'WorldThreatTargetColor',
+    'MaximumWorldThreatColorShift')) {
+    Assert-VisualContract ($visual.Contains($required)) "world visual runtime omits $required"
 }
 
 foreach ($required in @(

@@ -15,7 +15,6 @@ using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.General.Configs;
 using Awaken.TG.Main.Heroes;
-using Awaken.TG.Main.Heroes.CharacterSheet.QuickUseWheels;
 using Awaken.TG.Main.Heroes.Development;
 using Awaken.TG.Main.Heroes.HUD;
 using Awaken.TG.Main.Heroes.Items;
@@ -34,16 +33,15 @@ using Awaken.Utility;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
-using TMPro;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Overhaul")]
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.2.8.0")]
-[assembly: AssemblyFileVersion("1.2.8.0")]
-[assembly: AssemblyInformationalVersion("1.2.8")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyInformationalVersion("1.3.1")]
 
 namespace EyesInTheDark
 {
@@ -101,7 +99,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.2.8";
+        public const string PluginVersion = "1.3.1";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -110,14 +108,10 @@ namespace EyesInTheDark
                 : AccessTools.Property(
                     FireplaceRestControlField.FieldType,
                     "Button");
-        private static readonly FieldInfo QuickWeatherTimeTextField =
-            AccessTools.Field(
-                typeof(VCQuickWeatherTime),
-                "gameWeatherTimeText");
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 18;
+        private const int ConfigSchemaVersion = 21;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -253,13 +247,16 @@ namespace EyesInTheDark
         private const float DefaultGftCooldownSeconds = 8.0f;
         private const float DefaultBattlecryResponseCooldownSeconds = 15.0f;
         private const float DefaultDiagnosticGftCooldownSeconds = 1.0f;
-        private const float DefaultMinimumThreatVisualScale = 0.8f;
-        private const float DefaultMaximumThreatVisualScale = 1.2f;
+        private const float DefaultMinimumWorldThreatBrightnessScale = 0.8f;
+        private const float DefaultMaximumWorldThreatBrightnessScale = 1.2f;
         private const float DefaultWyrdnightBrightness = 1.0f;
         private const float DefaultThreatVisualSmoothingSeconds = 2.0f;
         private const float DefaultThreatMeterBrightness = 1.0f;
-        private const string DefaultThreatRedColor = "#FF3028";
-        private const float DefaultMaximumThreatRedBlend = 0.8f;
+        private const float DefaultMinimumThreatMeterBrightnessScale = 0.8f;
+        private const float DefaultMaximumThreatMeterBrightnessScale = 1.2f;
+        private const float DefaultThreatMeterColorShift = 0.8f;
+        private const string DefaultWorldThreatTargetColor = "#FF3028";
+        private const float DefaultMaximumWorldThreatColorShift = 0.8f;
         private const string DefaultMoonSurfaceColor = "#3200FF";
         private const float DefaultMoonSurfaceTintStrength = 0.75f;
         private const float DefaultMoonSurfaceIntensity = 2.0f;
@@ -308,9 +305,8 @@ namespace EyesInTheDark
                 new Dictionary<ConfigDefinition, object>();
 
         private ConfigEntry<bool> _featureEnabled;
-        private ConfigEntry<bool> _ownRestMenu;
+        private ConfigEntry<bool> _showWyrdnightRestAvailability;
         private ConfigEntry<bool> _allowUnprotectedWyrdnightRest;
-        private ConfigEntry<RestClockLabelFormat> _restClockLabelFormat;
         private ConfigEntry<float> _restInterruptionChanceAtZeroThreat;
         private ConfigEntry<float> _restInterruptionChanceAtMaximumThreat;
         private ConfigEntry<bool> _enableDynamicTimescale;
@@ -333,6 +329,10 @@ namespace EyesInTheDark
         private ConfigEntry<string> _orangeThreatMeterRedColor;
         private ConfigEntry<float> _purpleThreatMeterBrightness;
         private ConfigEntry<float> _orangeThreatMeterBrightness;
+        private ConfigEntry<float> _purpleThreatMeterColorShift;
+        private ConfigEntry<float> _orangeThreatMeterColorShift;
+        private ConfigEntry<float> _minimumThreatMeterBrightnessScale;
+        private ConfigEntry<float> _maximumThreatMeterBrightnessScale;
         private ConfigEntry<bool> _showExactThreat;
         private ConfigEntry<float> _meterOffsetX;
         private ConfigEntry<float> _meterOffsetY;
@@ -388,10 +388,10 @@ namespace EyesInTheDark
         private ConfigEntry<WyrdnessPalette> _wyrdnessPalette;
         private ConfigEntry<float> _wyrdnightBrightness;
         private ConfigEntry<float> _threatVisualSmoothingSeconds;
-        private ConfigEntry<float> _minimumThreatVisualScale;
-        private ConfigEntry<float> _maximumThreatVisualScale;
-        private ConfigEntry<string> _threatRedColor;
-        private ConfigEntry<float> _maximumThreatRedBlend;
+        private ConfigEntry<float> _minimumWorldThreatBrightnessScale;
+        private ConfigEntry<float> _maximumWorldThreatBrightnessScale;
+        private ConfigEntry<string> _worldThreatTargetColor;
+        private ConfigEntry<float> _maximumWorldThreatColorShift;
         private ConfigEntry<string> _moonSurfaceColor;
         private ConfigEntry<float> _moonSurfaceTintStrength;
         private ConfigEntry<float> _moonSurfaceIntensity;
@@ -458,10 +458,10 @@ namespace EyesInTheDark
         private string _parsedBoundaryColorText;
         private Color _parsedBoundaryColor;
         private bool _hasParsedBoundaryColor;
-        private string _lastInvalidThreatRedColor;
-        private string _parsedThreatRedColorText;
-        private Color _parsedThreatRedColor;
-        private bool _hasParsedThreatRedColor;
+        private string _lastInvalidWorldThreatTargetColor;
+        private string _parsedWorldThreatTargetColorText;
+        private Color _parsedWorldThreatTargetColor;
+        private bool _hasParsedWorldThreatTargetColor;
         private bool _meterFailureLogged;
         private bool _boundaryFailureLogged;
         private bool _worldTimescaleFailureLogged;
@@ -485,8 +485,6 @@ namespace EyesInTheDark
         private bool _hasActiveRestRiskWindow;
         private bool _restRiskPreparedForUpcomingNight;
         private bool _pendingRestHunt;
-        private bool _restClockFailureLogged;
-        private bool _quickWeatherTimeFailureLogged;
         private bool _restAvailabilityFailureLogged;
         private VFireplaceUI _activeFireplaceView;
         private bool _visualLoadContinuityPending;
@@ -1761,21 +1759,13 @@ namespace EyesInTheDark
                             ? ThreatMeterController.DefaultOrangeRedColorText
                             : ThreatMeterController.DefaultPurpleRedColorText,
                     CurrentThreatMeterBrightness(),
-                    WyrdVisualResponseEnabled()
-                        ? ValueOrDefault(
-                            _minimumThreatVisualScale,
-                            DefaultMinimumThreatVisualScale)
-                        : 1f,
-                    WyrdVisualResponseEnabled()
-                        ? ValueOrDefault(
-                            _maximumThreatVisualScale,
-                            DefaultMaximumThreatVisualScale)
-                        : 1f,
-                    WyrdVisualResponseEnabled()
-                        ? ValueOrDefault(
-                            _maximumThreatRedBlend,
-                            DefaultMaximumThreatRedBlend)
-                        : 0f,
+                    ValueOrDefault(
+                        _minimumThreatMeterBrightnessScale,
+                        DefaultMinimumThreatMeterBrightnessScale),
+                    ValueOrDefault(
+                        _maximumThreatMeterBrightnessScale,
+                        DefaultMaximumThreatMeterBrightnessScale),
+                    CurrentThreatMeterColorShift(),
                     _showExactThreat != null
                         && _showExactThreat.Value,
                     meterOffsetX,
@@ -3157,6 +3147,16 @@ namespace EyesInTheDark
                 : ThreatMeterController.DefaultPurpleRedColorText;
         }
 
+        private float CurrentThreatMeterColorShift()
+        {
+            bool orange = CurrentWyrdnessPalette()
+                == WyrdnessPalette.NativeOrange;
+            ConfigEntry<float> entry = orange
+                ? _orangeThreatMeterColorShift
+                : _purpleThreatMeterColorShift;
+            return ValueOrDefault(entry, DefaultThreatMeterColorShift);
+        }
+
         private void ShowDiagnosticSystem(string text)
         {
             if (_gft == null
@@ -3479,18 +3479,18 @@ namespace EyesInTheDark
                 ThreatSmoothingHalfLifeSeconds = ValueOrDefault(
                     _threatVisualSmoothingSeconds,
                     DefaultThreatVisualSmoothingSeconds),
-                MinimumThreatScale = ValueOrDefault(
-                    _minimumThreatVisualScale,
-                    DefaultMinimumThreatVisualScale),
-                MaximumThreatScale = ValueOrDefault(
-                    _maximumThreatVisualScale,
-                    DefaultMaximumThreatVisualScale),
-                ThreatRedColor = _threatRedColor == null
-                    ? DefaultThreatRedColor
-                    : _threatRedColor.Value,
-                MaximumRedBlend = ValueOrDefault(
-                    _maximumThreatRedBlend,
-                    DefaultMaximumThreatRedBlend),
+                MinimumWorldThreatBrightnessScale = ValueOrDefault(
+                    _minimumWorldThreatBrightnessScale,
+                    DefaultMinimumWorldThreatBrightnessScale),
+                MaximumWorldThreatBrightnessScale = ValueOrDefault(
+                    _maximumWorldThreatBrightnessScale,
+                    DefaultMaximumWorldThreatBrightnessScale),
+                WorldThreatTargetColor = _worldThreatTargetColor == null
+                    ? DefaultWorldThreatTargetColor
+                    : _worldThreatTargetColor.Value,
+                MaximumWorldThreatColorShift = ValueOrDefault(
+                    _maximumWorldThreatColorShift,
+                    DefaultMaximumWorldThreatColorShift),
                 MoonSurfaceColor = _moonSurfaceColor == null
                     ? DefaultMoonSurfaceColor
                     : _moonSurfaceColor.Value,
@@ -3632,23 +3632,23 @@ namespace EyesInTheDark
                         ? _wyrdnessPalette.Value
                         : WyrdnessPalette.Purple,
                 Color = _parsedBoundaryColor,
-                ThreatRedColor = ParsedThreatRedColor(),
+                ThreatRedColor = ParsedWorldThreatTargetColor(),
                 MaximumRedBlend = WyrdVisualResponseEnabled()
                     ? ValueOrDefault(
-                        _maximumThreatRedBlend,
-                        DefaultMaximumThreatRedBlend)
+                        _maximumWorldThreatColorShift,
+                        DefaultMaximumWorldThreatColorShift)
                     : 0f,
                 ThreatVisualScale = WyrdVisualMath.ThreatScale(
                     _threat.Value,
                     WyrdVisualResponseEnabled()
                         ? ValueOrDefault(
-                            _minimumThreatVisualScale,
-                            DefaultMinimumThreatVisualScale)
+                            _minimumWorldThreatBrightnessScale,
+                            DefaultMinimumWorldThreatBrightnessScale)
                         : 1f,
                     WyrdVisualResponseEnabled()
                         ? ValueOrDefault(
-                            _maximumThreatVisualScale,
-                            DefaultMaximumThreatVisualScale)
+                            _maximumWorldThreatBrightnessScale,
+                            DefaultMaximumWorldThreatBrightnessScale)
                         : 1f),
                 HdrIntensity = ValueOrDefault(
                     _boundaryBrightness,
@@ -3695,45 +3695,45 @@ namespace EyesInTheDark
             };
         }
 
-        private Color ParsedThreatRedColor()
+        private Color ParsedWorldThreatTargetColor()
         {
-            string configured = _threatRedColor == null
-                ? DefaultThreatRedColor
-                : _threatRedColor.Value;
-            if (!_hasParsedThreatRedColor
+            string configured = _worldThreatTargetColor == null
+                ? DefaultWorldThreatTargetColor
+                : _worldThreatTargetColor.Value;
+            if (!_hasParsedWorldThreatTargetColor
                 || !string.Equals(
                     configured,
-                    _parsedThreatRedColorText,
+                    _parsedWorldThreatTargetColorText,
                     StringComparison.Ordinal))
             {
                 Color color;
                 if (!ColorUtility.TryParseHtmlString(configured, out color))
                 {
                     ColorUtility.TryParseHtmlString(
-                        DefaultThreatRedColor,
+                        DefaultWorldThreatTargetColor,
                         out color);
                     if (!string.Equals(
                         configured,
-                        _lastInvalidThreatRedColor,
+                        _lastInvalidWorldThreatTargetColor,
                         StringComparison.Ordinal))
                     {
-                        _lastInvalidThreatRedColor = configured;
+                        _lastInvalidWorldThreatTargetColor = configured;
                         Logger.LogWarning(
-                            "ThreatRedColor is invalid; using "
-                            + DefaultThreatRedColor
+                            "WorldThreatTargetColor is invalid; using "
+                            + DefaultWorldThreatTargetColor
                             + ".");
                     }
                 }
                 else
                 {
-                    _lastInvalidThreatRedColor = null;
+                    _lastInvalidWorldThreatTargetColor = null;
                 }
 
-                _parsedThreatRedColorText = configured;
-                _parsedThreatRedColor = color;
-                _hasParsedThreatRedColor = true;
+                _parsedWorldThreatTargetColorText = configured;
+                _parsedWorldThreatTargetColor = color;
+                _hasParsedWorldThreatTargetColor = true;
             }
-            return _parsedThreatRedColor;
+            return _parsedWorldThreatTargetColor;
         }
 
         internal bool SetExternalMeterPlacement(
@@ -3766,8 +3766,6 @@ namespace EyesInTheDark
             PatchHeroHud();
             PatchGameplayLoad();
             PatchRest();
-            PatchRestClock();
-            PatchQuickWeatherTime();
         }
 
         private void PatchWyrdVisuals()
@@ -3897,196 +3895,6 @@ namespace EyesInTheDark
                 Logger.LogWarning(
                     "Could not attach Wyrdnight rest safety; native rest behavior remains available: "
                     + exception.GetBaseException().Message);
-            }
-        }
-
-        private void PatchRestClock()
-        {
-            try
-            {
-                MethodInfo initialize = AccessTools.Method(
-                    typeof(VRestPopupUI),
-                    "OnInitialize",
-                    Type.EmptyTypes);
-                MethodInfo refresh = AccessTools.Method(
-                    typeof(VRestPopupUI),
-                    "Refresh",
-                    Type.EmptyTypes);
-                MethodInfo setHourFromAngle = AccessTools.Method(
-                    typeof(VRestPopupUI),
-                    "SetHourChangeBasedOnAngle",
-                    new[] { typeof(float) });
-                MethodInfo initializePostfix = AccessTools.Method(
-                    typeof(RestClockPatch),
-                    nameof(RestClockPatch.AfterInitialize));
-                MethodInfo refreshPostfix = AccessTools.Method(
-                    typeof(RestClockPatch),
-                    nameof(RestClockPatch.AfterRefresh));
-                MethodInfo anglePrefix = AccessTools.Method(
-                    typeof(RestClockPatch),
-                    nameof(RestClockPatch.BeforeSetHourChangeBasedOnAngle));
-                if (initialize == null
-                    || refresh == null
-                    || setHourFromAngle == null
-                    || initializePostfix == null
-                    || refreshPostfix == null
-                    || anglePrefix == null)
-                {
-                    throw new MissingMethodException(
-                        "the native rest-clock initialization target was not found");
-                }
-
-                _harmony.Patch(
-                    initialize,
-                    postfix: new HarmonyMethod(initializePostfix));
-                _harmony.Patch(
-                    refresh,
-                    postfix: new HarmonyMethod(refreshPostfix));
-                _harmony.Patch(
-                    setHourFromAngle,
-                    prefix: new HarmonyMethod(anglePrefix));
-            }
-            catch (Exception exception)
-            {
-                Logger.LogWarning(
-                    "Could not attach the Wyrdnight rest-clock presentation; the native rest clock remains available: "
-                    + exception.GetBaseException().Message);
-            }
-        }
-
-        internal void AttachRestClock(VRestPopupUI view)
-        {
-            if (!OwnsRestMenu())
-            {
-                RestClockOverlay.Detach(view);
-                return;
-            }
-
-            try
-            {
-                RestClockOverlay.Attach(
-                    view,
-                    _restClockLabelFormat == null
-                        ? RestClockLabelFormat.TwelveHour
-                        : _restClockLabelFormat.Value);
-                _restClockFailureLogged = false;
-            }
-            catch (Exception exception)
-            {
-                if (!_restClockFailureLogged)
-                {
-                    _restClockFailureLogged = true;
-                    Logger.LogWarning(
-                        "The optional Wyrdnight rest-clock presentation failed; the native clock remains usable: "
-                        + exception.GetBaseException().Message);
-                    ShowDiagnosticSystem(
-                        "EITD - Rest clock overlay unavailable; native clock retained");
-                }
-            }
-        }
-
-        internal void RefreshRestClock(VRestPopupUI view)
-        {
-            if (!OwnsRestMenu())
-            {
-                RestClockOverlay.Detach(view);
-                return;
-            }
-
-            RestClockOverlay.RefreshAfterNative(
-                view,
-                _restClockLabelFormat == null
-                    ? RestClockLabelFormat.TwelveHour
-                    : _restClockLabelFormat.Value);
-        }
-
-        internal bool UsesNoonAtTopRestClock(VRestPopupUI view)
-        {
-            return OwnsRestMenu()
-                && RestClockOverlay.UsesNoonAtTop(view);
-        }
-
-        private bool OwnsRestMenu()
-        {
-            return IsFeatureEnabled()
-                && (_ownRestMenu == null || _ownRestMenu.Value);
-        }
-
-        private void PatchQuickWeatherTime()
-        {
-            try
-            {
-                MethodInfo attach = AccessTools.Method(
-                    typeof(VCQuickWeatherTime),
-                    "OnAttach",
-                    Type.EmptyTypes);
-                MethodInfo postfix = AccessTools.Method(
-                    typeof(QuickWeatherTimePatch),
-                    nameof(QuickWeatherTimePatch.AfterAttach));
-                if (attach == null
-                    || postfix == null
-                    || QuickWeatherTimeTextField == null)
-                {
-                    throw new MissingMethodException(
-                        "the native quick-use weather-time target was not found");
-                }
-
-                _harmony.Patch(
-                    attach,
-                    postfix: new HarmonyMethod(postfix));
-            }
-            catch (Exception exception)
-            {
-                Logger.LogWarning(
-                    "Could not attach the optional 12-hour quick-use time format; the native 24-hour time remains active: "
-                    + exception.GetBaseException().Message);
-            }
-        }
-
-        internal void FormatQuickWeatherTime(VCQuickWeatherTime view)
-        {
-            if (!IsFeatureEnabled()
-                || view == null
-                || (_restClockLabelFormat != null
-                    && _restClockLabelFormat.Value
-                        == RestClockLabelFormat.TwentyFourHour))
-            {
-                return;
-            }
-
-            try
-            {
-                GameRealTime clock = World.Any<GameRealTime>();
-                TextMeshProUGUI timeText = QuickWeatherTimeTextField.GetValue(
-                    view) as TextMeshProUGUI;
-                if (clock == null || timeText == null)
-                {
-                    return;
-                }
-
-                int hour = clock.WeatherTime.Hour;
-                int minute = clock.WeatherTime.Minutes;
-                int twelveHour = hour % 12;
-                if (twelveHour == 0)
-                {
-                    twelveHour = 12;
-                }
-                timeText.SetText(
-                    twelveHour.ToString(CultureInfo.InvariantCulture)
-                    + ":"
-                    + minute.ToString("00", CultureInfo.InvariantCulture)
-                    + (hour < 12 ? " AM" : " PM"));
-                _quickWeatherTimeFailureLogged = false;
-            }
-            catch (Exception exception)
-            {
-                if (!_quickWeatherTimeFailureLogged)
-                {
-                    _quickWeatherTimeFailureLogged = true;
-                    Logger.LogWarning(
-                        "Could not format the quick-use time; its native 24-hour text remains usable: "
-                        + exception.GetBaseException().Message);
-                }
             }
         }
 
@@ -4353,7 +4161,7 @@ namespace EyesInTheDark
             {
                 return nativeCanRest;
             }
-            if (!OwnsRestMenu())
+            if (!ShowsWyrdnightRestAvailability())
             {
                 return nativeCanRest;
             }
@@ -4417,6 +4225,13 @@ namespace EyesInTheDark
                     && !_restRisk.Disturbed,
                 context.Observation,
                 insideProtectiveBoundary);
+        }
+
+        private bool ShowsWyrdnightRestAvailability()
+        {
+            return IsFeatureEnabled()
+                && (_showWyrdnightRestAvailability == null
+                    || _showWyrdnightRestAvailability.Value);
         }
 
         internal bool ShouldSuppressNativeWyrdnightSurprise(
@@ -5208,16 +5023,16 @@ namespace EyesInTheDark
                     "Enable Eyes in the Dark",
                     0,
                     10));
-            _ownRestMenu = Config.Bind(
+            _showWyrdnightRestAvailability = Config.Bind(
                 "1. Core",
-                "OwnRestMenu",
+                "ShowWyrdnightRestAvailability",
                 true,
                 UiDescription(
-                    "Let Eyes present rest availability, rotate and relabel the rest clock, and format rest-popup times. Disable this to leave every rest-menu visual and control untouched; gameplay rest safety and interruption rules still apply silently when rest is accepted.",
+                    "Update the fireplace REST button when Wyrdnight rules temporarily prevent resting. Gameplay rest safety and interruption rules still apply when this presentation setting is disabled.",
                     "General",
-                    "Own Rest Menu",
+                    "Show Wyrdnight Rest Availability",
                     0,
-                    40));
+                    45));
             _allowUnprotectedWyrdnightRest = Config.Bind(
                 "1. Core",
                 "AllowUnprotectedWyrdnightRest",
@@ -5228,18 +5043,6 @@ namespace EyesInTheDark
                     "Allow Unprotected Wyrdnight Rest",
                     0,
                     50));
-            _restClockLabelFormat = Config.Bind(
-                "1. Core",
-                "RestClockLabelFormat",
-                RestClockLabelFormat.TwelveHour,
-                UiDescription(
-                    "Choose the time format used by Eyes for the native rest clock labels and quick-use-wheel time. 12 Hour shows AM/PM; 24 Hour leaves the quick-use time untouched and labels the rest clock 00, 06, 12, and 18.",
-                    "General",
-                    "Time Display",
-                    0,
-                    60,
-                    choiceLabels: "TwelveHour=12 Hour (AM/PM);TwentyFourHour=24 Hour"));
-
             _restInterruptionChanceAtZeroThreat = Config.Bind(
                 "6. Rest",
                 "RestInterruptionChanceAtZeroThreat",
@@ -5706,36 +5509,68 @@ namespace EyesInTheDark
                 ThreatMeterController.DefaultOrangeColorText,
                 UiDescription(
                     "HTML RGB base color used by the Wyrd Threat meter when Orange Wyrdness is active.",
-                    "HUD - Threat Meter", "Orange Threat Meter Color", 70, 20));
+                    "HUD - Threat Meter", "Orange Threat Meter Color", 70, 50));
             _purpleThreatMeterRedColor = Config.Bind(
                 "7. Threat Meter",
                 "PurpleThreatMeterRedColor",
                 ThreatMeterController.DefaultPurpleRedColorText,
                 UiDescription(
                     "HTML RGB target color approached by the Wyrd Threat meter as threat rises during Purple Wyrdness.",
-                    "HUD - Threat Meter", "Purple Threat Meter Red Color", 70, 30));
+                    "HUD - Threat Meter", "Purple Threat Meter Red Color", 70, 20));
             _orangeThreatMeterRedColor = Config.Bind(
                 "7. Threat Meter",
                 "OrangeThreatMeterRedColor",
                 ThreatMeterController.DefaultOrangeRedColorText,
                 UiDescription(
                     "HTML RGB target color approached by the Wyrd Threat meter as threat rises during Orange Wyrdness.",
-                    "HUD - Threat Meter", "Orange Threat Meter Red Color", 70, 40));
+                    "HUD - Threat Meter", "Orange Threat Meter Red Color", 70, 60));
             _purpleThreatMeterBrightness = Config.Bind(
                 "7. Threat Meter",
                 "PurpleThreatMeterBrightness",
                 DefaultThreatMeterBrightness,
                 UiDescription(
-                    "Wyrd Threat meter brightness for Purple Wyrdness. Each point applies a 3x RGB multiplier before the shared threat scale, so 1.0 means 3x and 3.0 means 9x.",
-                    "HUD - Threat Meter", "Purple Threat Meter Brightness", 70, 50,
+                    "Constant Wyrd Threat meter brightness for Purple Wyrdness. Each point applies a 3x RGB multiplier before the meter's threat-brightness scale, so 1.0 means 3x and 3.0 means 9x.",
+                    "HUD - Threat Meter", "Purple Threat Meter Brightness", 70, 30,
                     new AcceptableValueRange<float>(0f, 3f)));
             _orangeThreatMeterBrightness = Config.Bind(
                 "7. Threat Meter",
                 "OrangeThreatMeterBrightness",
                 DefaultThreatMeterBrightness,
                 UiDescription(
-                    "Wyrd Threat meter brightness for Orange Wyrdness. Each point applies a 3x RGB multiplier before the shared threat scale, so 1.0 means 3x and 3.0 means 9x.",
-                    "HUD - Threat Meter", "Orange Threat Meter Brightness", 70, 60,
+                    "Constant Wyrd Threat meter brightness for Orange Wyrdness. Each point applies a 3x RGB multiplier before the meter's threat-brightness scale, so 1.0 means 3x and 3.0 means 9x.",
+                    "HUD - Threat Meter", "Orange Threat Meter Brightness", 70, 70,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _purpleThreatMeterColorShift = Config.Bind(
+                "7. Threat Meter",
+                "PurpleThreatMeterColorShift",
+                DefaultThreatMeterColorShift,
+                UiDescription(
+                    "Maximum blend from the Purple base color toward its target color at 100 Wyrd Threat. 0 keeps the base color and 1 reaches the target color.",
+                    "HUD - Threat Meter", "Purple Threat Meter Color Shift", 70, 40,
+                    new AcceptableValueRange<float>(0f, 1f)));
+            _orangeThreatMeterColorShift = Config.Bind(
+                "7. Threat Meter",
+                "OrangeThreatMeterColorShift",
+                DefaultThreatMeterColorShift,
+                UiDescription(
+                    "Maximum blend from the Orange base color toward its target color at 100 Wyrd Threat. 0 keeps the base color and 1 reaches the target color.",
+                    "HUD - Threat Meter", "Orange Threat Meter Color Shift", 70, 80,
+                    new AcceptableValueRange<float>(0f, 1f)));
+            _minimumThreatMeterBrightnessScale = Config.Bind(
+                "7. Threat Meter",
+                "MinimumThreatMeterBrightnessScale",
+                DefaultMinimumThreatMeterBrightnessScale,
+                UiDescription(
+                    "Additional meter brightness multiplier at zero Wyrd Threat. This affects only the HUD meter.",
+                    "HUD - Threat Meter", "Meter Brightness at No Threat", 70, 90,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _maximumThreatMeterBrightnessScale = Config.Bind(
+                "7. Threat Meter",
+                "MaximumThreatMeterBrightnessScale",
+                DefaultMaximumThreatMeterBrightnessScale,
+                UiDescription(
+                    "Additional meter brightness multiplier at 100 Wyrd Threat. This affects only the HUD meter.",
+                    "HUD - Threat Meter", "Meter Brightness at Maximum Threat", 70, 100,
                     new AcceptableValueRange<float>(0f, 3f)));
             _showExactThreat = Config.Bind(
                 "7. Threat Meter",
@@ -5743,14 +5578,14 @@ namespace EyesInTheDark
                 false,
                 UiDescription(
                     "Show the rounded 0-100 Wyrd Threat value beside the meter.",
-                    "HUD - Threat Meter", "Show Exact Threat", 70, 70));
+                    "HUD - Threat Meter", "Show Exact Threat", 70, 110));
             _meterOffsetX = Config.Bind(
                 "7. Threat Meter",
                 "MeterOffsetX",
                 0f,
                 UiDescription(
                     "Horizontal adjustment from the automatic placement baseline in local Hero HUD pixels.",
-                    "HUD - Threat Meter", "Horizontal Offset", 70, 80,
+                    "HUD - Threat Meter", "Horizontal Offset", 70, 120,
                     new AcceptableValueRange<float>(-500f, 500f)));
             _meterOffsetY = Config.Bind(
                 "7. Threat Meter",
@@ -5758,7 +5593,7 @@ namespace EyesInTheDark
                 0f,
                 UiDescription(
                     "Vertical adjustment from the automatic placement baseline in local Hero HUD pixels. Positive values move it upward.",
-                    "HUD - Threat Meter", "Vertical Offset", 70, 90,
+                    "HUD - Threat Meter", "Vertical Offset", 70, 130,
                     new AcceptableValueRange<float>(-500f, 500f)));
 
             _boundaryEnabled = Config.Bind(
@@ -5951,7 +5786,7 @@ namespace EyesInTheDark
                 "EnableWyrdnightVisuals",
                 true,
                 UiDescription(
-                    "Enable the threat-reactive Wyrdnight palette for the environment, protection bubbles, boundary, and threat meter without changing gameplay. The meter and optional boundary remain available in their base presentation when disabled.",
+                    "Enable the threat-reactive Wyrdnight palette for the environment, protection bubbles, and boundary without changing gameplay. This does not affect the independently configured HUD meter.",
                     "Wyrdnight Appearance",
                     "Enable Wyrdnight Visuals",
                     90,
@@ -6000,46 +5835,46 @@ namespace EyesInTheDark
                     90,
                     38,
                     new AcceptableValueRange<float>(0f, 10f)));
-            _minimumThreatVisualScale = Config.Bind(
+            _minimumWorldThreatBrightnessScale = Config.Bind(
                 "8. Wyrd Visuals",
-                "MinimumThreatVisualScale",
-                DefaultMinimumThreatVisualScale,
+                "MinimumWorldThreatBrightnessScale",
+                DefaultMinimumWorldThreatBrightnessScale,
                 UiDescription(
-                    "Shared brightness and effect-strength multiplier at zero Wyrd Threat. This replaces the former boundary-only threat response.",
+                    "Brightness and effect-strength multiplier for the moon, moonlight, protection bubble, Wyrd boundary, and Wyrdnight sky at zero Wyrd Threat. This does not affect the HUD meter.",
                     "Wyrdnight Appearance",
-                    "Visual Strength at No Threat",
+                    "World Brightness at No Threat",
                     90,
                     40,
                     new AcceptableValueRange<float>(0f, 3f)));
-            _maximumThreatVisualScale = Config.Bind(
+            _maximumWorldThreatBrightnessScale = Config.Bind(
                 "8. Wyrd Visuals",
-                "MaximumThreatVisualScale",
-                DefaultMaximumThreatVisualScale,
+                "MaximumWorldThreatBrightnessScale",
+                DefaultMaximumWorldThreatBrightnessScale,
                 UiDescription(
-                    "Shared brightness and effect-strength multiplier at 100 Wyrd Threat.",
+                    "Brightness and effect-strength multiplier for world Wyrdnight visuals at 100 Wyrd Threat. This does not affect the HUD meter.",
                     "Wyrdnight Appearance",
-                    "Visual Strength at Maximum Threat",
+                    "World Brightness at Maximum Threat",
                     90,
                     50,
                     new AcceptableValueRange<float>(0f, 3f)));
-            _threatRedColor = Config.Bind(
+            _worldThreatTargetColor = Config.Bind(
                 "8. Wyrd Visuals",
-                "ThreatRedColor",
-                DefaultThreatRedColor,
+                "WorldThreatTargetColor",
+                DefaultWorldThreatTargetColor,
                 UiDescription(
                     "Target HTML RGB color approached by the moon, moonlight, protection bubble, and Wyrd boundary as threat rises. Wyrdnight sky color is excluded.",
                     "Wyrdnight Appearance",
-                    "Threat Red Color",
+                    "World Threat Target Color",
                     90,
                     60));
-            _maximumThreatRedBlend = Config.Bind(
+            _maximumWorldThreatColorShift = Config.Bind(
                 "8. Wyrd Visuals",
-                "MaximumThreatRedBlend",
-                DefaultMaximumThreatRedBlend,
+                "MaximumWorldThreatColorShift",
+                DefaultMaximumWorldThreatColorShift,
                 UiDescription(
-                    "Maximum smooth blend toward Threat Red Color at 100 Wyrd Threat.",
+                    "Maximum smooth blend toward World Threat Target Color at 100 Wyrd Threat. This does not affect the HUD meter.",
                     "Wyrdnight Appearance",
-                    "Maximum Red Shift",
+                    "Maximum World Threat Color Shift",
                     90,
                     70,
                     new AcceptableValueRange<float>(0f, 1f)));
@@ -6069,7 +5904,7 @@ namespace EyesInTheDark
                 "MoonSurfaceIntensity",
                 DefaultMoonSurfaceIntensity,
                 UiDescription(
-                    "HDR brightness multiplier for the moon disc before the shared threat scale.",
+                    "HDR brightness multiplier for the moon disc before the world threat-brightness scale.",
                     "Advanced - Visual Layers",
                     "Moon Surface Intensity",
                     260,
@@ -6100,7 +5935,7 @@ namespace EyesInTheDark
                 "MoonCoronaIntensity",
                 DefaultMoonCoronaIntensity,
                 UiDescription(
-                    "Multiplier for the region's original moon-corona brightness before the shared threat scale.",
+                    "Multiplier for the region's original moon-corona brightness before the world threat-brightness scale.",
                     "Advanced - Visual Layers",
                     "Moon Corona Intensity",
                     260,
@@ -6183,7 +6018,7 @@ namespace EyesInTheDark
                 "ProtectionBubbleIntensity",
                 DefaultProtectionBubbleIntensity,
                 UiDescription(
-                    "Multiplier for the bubble body's preserved HDR brightness before the shared threat scale.",
+                    "Multiplier for the bubble body's preserved HDR brightness before the world threat-brightness scale.",
                     "Advanced - Visual Layers",
                     "Bubble Intensity",
                     260,
@@ -6194,7 +6029,7 @@ namespace EyesInTheDark
                 "ProtectionBubbleBorderIntensity",
                 DefaultProtectionBubbleBorderIntensity,
                 UiDescription(
-                    "Multiplier for the bubble border's preserved HDR brightness before the shared threat scale.",
+                    "Multiplier for the bubble border's preserved HDR brightness before the world threat-brightness scale.",
                     "Advanced - Visual Layers",
                     "Bubble Border Intensity",
                     260,
@@ -6469,9 +6304,8 @@ namespace EyesInTheDark
                         ConfigRecoveryPermanentExclusions);
 
             CapturePreservedValue<bool>(profile, "1. Core", "Enabled");
-            CapturePreservedValue<bool>(profile, "1. Core", "OwnRestMenu");
+            CapturePreservedValue<bool>(profile, "1. Core", "ShowWyrdnightRestAvailability");
             CapturePreservedValue<bool>(profile, "1. Core", "AllowUnprotectedWyrdnightRest");
-            CapturePreservedValue<RestClockLabelFormat>(profile, "1. Core", "RestClockLabelFormat");
             CapturePreservedValue<float>(profile, "6. Rest", "RestInterruptionChanceAtZeroThreat");
             CapturePreservedValue<float>(profile, "6. Rest", "RestInterruptionChanceAtMaximumThreat");
             CapturePreservedValue<bool>(profile, "2. World Timescale", "EnableDynamicTimescale");
@@ -6524,6 +6358,10 @@ namespace EyesInTheDark
             CapturePreservedValue<string>(profile, "7. Threat Meter", "OrangeThreatMeterRedColor");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "PurpleThreatMeterBrightness");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "OrangeThreatMeterBrightness");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "PurpleThreatMeterColorShift");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "OrangeThreatMeterColorShift");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "MinimumThreatMeterBrightnessScale");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "MaximumThreatMeterBrightnessScale");
             CapturePreservedValue<bool>(profile, "7. Threat Meter", "ShowExactThreatValue");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetX");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetY");
@@ -6549,10 +6387,10 @@ namespace EyesInTheDark
             CapturePreservedValue<WyrdnessPalette>(profile, "8. Wyrd Visuals", "WyrdnessPalette");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "WyrdnightBrightness");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "ThreatVisualSmoothingSeconds");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MinimumThreatVisualScale");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumThreatVisualScale");
-            CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "ThreatRedColor");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumThreatRedBlend");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MinimumWorldThreatBrightnessScale");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumWorldThreatBrightnessScale");
+            CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "WorldThreatTargetColor");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumWorldThreatColorShift");
             CapturePreservedValue<string>(profile, "8. Wyrd Visuals", "MoonSurfaceColor");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MoonSurfaceTintStrength");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MoonSurfaceIntensity");
@@ -6604,9 +6442,8 @@ namespace EyesInTheDark
             int clamped = 0;
             int invalid = 0;
             RestorePreservedValue(_featureEnabled, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_ownRestMenu, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_showWyrdnightRestAvailability, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_allowUnprotectedWyrdnightRest, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_restClockLabelFormat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_restInterruptionChanceAtZeroThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_restInterruptionChanceAtMaximumThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_enableDynamicTimescale, ref restored, ref clamped, ref invalid);
@@ -6659,6 +6496,10 @@ namespace EyesInTheDark
             RestorePreservedValue(_orangeThreatMeterRedColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_purpleThreatMeterBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_orangeThreatMeterBrightness, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleThreatMeterColorShift, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_orangeThreatMeterColorShift, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_minimumThreatMeterBrightnessScale, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_maximumThreatMeterBrightnessScale, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_showExactThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetX, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetY, ref restored, ref clamped, ref invalid);
@@ -6672,10 +6513,10 @@ namespace EyesInTheDark
             RestorePreservedValue(_wyrdnessPalette, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdnightBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_threatVisualSmoothingSeconds, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_minimumThreatVisualScale, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_maximumThreatVisualScale, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_threatRedColor, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_maximumThreatRedBlend, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_minimumWorldThreatBrightnessScale, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_maximumWorldThreatBrightnessScale, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_worldThreatTargetColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_maximumWorldThreatColorShift, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_moonSurfaceColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_moonSurfaceTintStrength, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_moonSurfaceIntensity, ref restored, ref clamped, ref invalid);
@@ -6902,50 +6743,5 @@ namespace EyesInTheDark
             }
         }
 
-        private static class RestClockPatch
-        {
-            internal static void AfterInitialize(VRestPopupUI __instance)
-            {
-                EyesInTheDarkPlugin instance = Instance;
-                if (instance != null)
-                {
-                    instance.AttachRestClock(__instance);
-                }
-            }
-
-            internal static void AfterRefresh(VRestPopupUI __instance)
-            {
-                EyesInTheDarkPlugin instance = Instance;
-                if (instance != null)
-                {
-                    instance.RefreshRestClock(__instance);
-                }
-            }
-
-            internal static void BeforeSetHourChangeBasedOnAngle(
-                VRestPopupUI __instance,
-                ref float angle)
-            {
-                EyesInTheDarkPlugin instance = Instance;
-                if (instance != null
-                    && instance.UsesNoonAtTopRestClock(__instance))
-                {
-                    angle += 180f;
-                }
-            }
-        }
-
-        private static class QuickWeatherTimePatch
-        {
-            internal static void AfterAttach(
-                VCQuickWeatherTime __instance)
-            {
-                EyesInTheDarkPlugin instance = Instance;
-                if (instance != null)
-                {
-                    instance.FormatQuickWeatherTime(__instance);
-                }
-            }
-        }
     }
 }

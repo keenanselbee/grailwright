@@ -52,9 +52,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Immersive HUD and expanded Equipment-panel controls for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Glorious UI")]
-[assembly: AssemblyVersion("1.7.1.0")]
-[assembly: AssemblyFileVersion("1.7.1.0")]
-[assembly: AssemblyInformationalVersion("1.7.1")]
+[assembly: AssemblyVersion("1.7.3.0")]
+[assembly: AssemblyFileVersion("1.7.3.0")]
+[assembly: AssemblyInformationalVersion("1.7.3")]
 
 namespace GloriousUI
 {
@@ -136,7 +136,7 @@ namespace GloriousUI
     {
         public const string PluginGuid = "ks.tgfoa.glorious-ui";
         public const string PluginName = "Glorious UI";
-        public const string PluginVersion = "1.7.1";
+        public const string PluginVersion = "1.7.3";
 
         private const int ConfigSchemaVersion = 1;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -237,6 +237,9 @@ namespace GloriousUI
         internal static ManualLogSource Log { get; private set; }
 
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<bool> _enableSensibleRestMenu;
+        private ConfigEntry<RestTimeDisplayFormat> _restTimeDisplayFormat;
+        private ConfigEntry<bool> _formatQuickMenuTime;
         private ConfigEntry<bool> _pinHudToFoodSlot;
         private ConfigEntry<bool> _replaceSmallHudSlots;
         private ConfigEntry<bool> _renderUtilityHudBehindHeroBars;
@@ -320,6 +323,7 @@ namespace GloriousUI
         private ConfigEntry<bool> _logPatchWarnings;
 
         private Harmony _harmony;
+        private SensibleRestMenuController _sensibleRestMenu;
         private bool _forceSelectingFood;
         private bool _refreshingFoodSlot;
         private bool _accessorsReady;
@@ -520,6 +524,12 @@ namespace GloriousUI
                         "owrocc.BagHotkeys is loaded alongside Glorious UI. Both plugins poll the same physical keys, so the external plugin can reopen the Bag after Glorious closes it. Remove or disable owrocc.BagHotkeys; its category hotkeys are included in Glorious UI.");
                 }
                 ResolveEyesInTheDarkIntegration();
+                _sensibleRestMenu = new SensibleRestMenuController(
+                    Logger,
+                    _enabled,
+                    _enableSensibleRestMenu,
+                    _restTimeDisplayFormat,
+                    _formatQuickMenuTime);
                 CacheGameAccessors();
                 if (!PatchGame())
                 {
@@ -1266,6 +1276,11 @@ namespace GloriousUI
             RestoreQuickSlotUsePromptVisibility(_activeSelectedQuickSlotView);
             ReleaseAllHudTransforms();
             ReleaseAllSmartIcons();
+            if (_sensibleRestMenu != null)
+            {
+                _sensibleRestMenu.Release();
+                _sensibleRestMenu = null;
+            }
 
             if (_harmony != null)
             {
@@ -1301,6 +1316,37 @@ namespace GloriousUI
                     "Configuration layout version. Older layouts are backed up and regenerated.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
+            _enableSensibleRestMenu = Config.Bind(
+                "3. Rest Menu",
+                "EnableSensibleRestMenu",
+                true,
+                UiDescription(
+                    "Use a noon-at-top rest clock with clear quarter-day labels and matching popup time formatting.",
+                    "Rest Menu",
+                    "Enable Sensible Rest Menu",
+                    35,
+                    10));
+            _restTimeDisplayFormat = Config.Bind(
+                "3. Rest Menu",
+                "RestTimeDisplayFormat",
+                RestTimeDisplayFormat.TwelveHour,
+                UiDescription(
+                    "Choose the time format for the rest clock labels and rest-popup times.",
+                    "Rest Menu",
+                    "Time Display",
+                    35,
+                    20,
+                    choiceLabels: "TwelveHour=12 Hour (AM/PM);TwentyFourHour=24 Hour"));
+            _formatQuickMenuTime = Config.Bind(
+                "3. Rest Menu",
+                "FormatQuickMenuTime",
+                true,
+                UiDescription(
+                    "Apply the selected time format to the quick-menu clock.",
+                    "Rest Menu",
+                    "Format Quick-Menu Time",
+                    35,
+                    30));
             _pinHudToFoodSlot = Config.Bind(
                 "2. HUD",
                 "PinHudToFoodSlot",
@@ -3442,6 +3488,10 @@ namespace GloriousUI
                 true);
 
             PatchEquipmentPersistenceHooks();
+            if (requiredPatched && _sensibleRestMenu != null)
+            {
+                _sensibleRestMenu.Patch(_harmony);
+            }
             return requiredPatched;
         }
 

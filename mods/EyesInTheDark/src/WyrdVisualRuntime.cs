@@ -20,10 +20,10 @@ namespace EyesInTheDark
         public WyrdnessPalette Palette;
         public float WyrdnightBrightness;
         public float ThreatSmoothingHalfLifeSeconds;
-        public float MinimumThreatScale;
-        public float MaximumThreatScale;
-        public string ThreatRedColor;
-        public float MaximumRedBlend;
+        public float MinimumWorldThreatBrightnessScale;
+        public float MaximumWorldThreatBrightnessScale;
+        public string WorldThreatTargetColor;
+        public float MaximumWorldThreatColorShift;
         public string MoonSurfaceColor;
         public float MoonSurfaceTintStrength;
         public float MoonSurfaceIntensity;
@@ -228,7 +228,7 @@ namespace EyesInTheDark
             "Awaken.TG.Graphics.DayNightSystem.WyrdnightSphereRepeller";
         private const string BonfireRepellerMaterialToken =
             "Repeller_Bonfire";
-        private const string DefaultThreatRedColor = "#FF3028";
+        private const string DefaultWorldThreatTargetColor = "#FF3028";
         private const string DefaultMoonSurfaceColor = "#3200FF";
         private const string DefaultMoonCoronaColor = "#8000FF";
         private const string DefaultMoonlightColor = "#7E47FF";
@@ -519,17 +519,17 @@ namespace EyesInTheDark
                     settings.ThreatSmoothingHalfLifeSeconds
                         - _lastReportedThreatSmoothingSeconds) <= 0.0001f
                 && Mathf.Abs(
-                    settings.MinimumThreatScale
+                    settings.MinimumWorldThreatBrightnessScale
                         - _lastReportedMinimumThreatScale) <= 0.0001f
                 && Mathf.Abs(
-                    settings.MaximumThreatScale
+                    settings.MaximumWorldThreatBrightnessScale
                         - _lastReportedMaximumThreatScale) <= 0.0001f
                 && string.Equals(
-                    settings.ThreatRedColor ?? string.Empty,
+                    settings.WorldThreatTargetColor ?? string.Empty,
                     _lastReportedThreatRedColor,
                     StringComparison.Ordinal)
                 && Mathf.Abs(
-                    settings.MaximumRedBlend
+                    settings.MaximumWorldThreatColorShift
                         - _lastReportedMaximumRedBlend) <= 0.0001f
                 && Mathf.Abs(
                     settings.TransitionSeconds
@@ -544,8 +544,8 @@ namespace EyesInTheDark
                 {
                     float scale = WyrdVisualMath.ThreatScale(
                         threat,
-                        settings.MinimumThreatScale,
-                        settings.MaximumThreatScale);
+                        settings.MinimumWorldThreatBrightnessScale,
+                        settings.MaximumWorldThreatBrightnessScale);
                     _diagnosticFailure(
                         "EITD - Wyrd visuals "
                         + settings.Palette
@@ -590,12 +590,13 @@ namespace EyesInTheDark
             _lastReportedThreatSmoothingSeconds =
                 settings.ThreatSmoothingHalfLifeSeconds;
             _lastReportedMinimumThreatScale =
-                settings.MinimumThreatScale;
+                settings.MinimumWorldThreatBrightnessScale;
             _lastReportedMaximumThreatScale =
-                settings.MaximumThreatScale;
+                settings.MaximumWorldThreatBrightnessScale;
             _lastReportedThreatRedColor =
-                settings.ThreatRedColor ?? string.Empty;
-            _lastReportedMaximumRedBlend = settings.MaximumRedBlend;
+                settings.WorldThreatTargetColor ?? string.Empty;
+            _lastReportedMaximumRedBlend =
+                settings.MaximumWorldThreatColorShift;
             _lastReportedTransitionSeconds = settings.TransitionSeconds;
         }
 
@@ -772,12 +773,12 @@ namespace EyesInTheDark
 
             float scale = WyrdVisualMath.ThreatScale(
                 _threat,
-                _settings.MinimumThreatScale,
-                _settings.MaximumThreatScale);
+                _settings.MinimumWorldThreatBrightnessScale,
+                _settings.MaximumWorldThreatBrightnessScale);
             Color red = ReadColor(
-                _settings.ThreatRedColor,
-                DefaultThreatRedColor,
-                "ThreatRedColor");
+                _settings.WorldThreatTargetColor,
+                DefaultWorldThreatTargetColor,
+                "WorldThreatTargetColor");
             Color surfaceBase = PaletteColor(
                 state.OriginalSurface,
                 _settings.MoonSurfaceColor,
@@ -789,7 +790,7 @@ namespace EyesInTheDark
                     surfaceBase,
                     red,
                     _threat,
-                    _settings.MaximumRedBlend),
+                    _settings.MaximumWorldThreatColorShift),
                 Mathf.Clamp01(_settings.MoonSurfaceTintStrength));
             fullSurface = WyrdVisualMath.ScaleRgbLinear(
                 fullSurface,
@@ -817,7 +818,7 @@ namespace EyesInTheDark
                     moonlightBase,
                     red,
                     _threat,
-                    _settings.MaximumRedBlend);
+                    _settings.MaximumWorldThreatColorShift);
                 shiftedMoonlight = WyrdVisualMath.ScaleRgbLinear(
                     shiftedMoonlight,
                     scale);
@@ -905,7 +906,7 @@ namespace EyesInTheDark
                     baseColor,
                     red,
                     _threat,
-                    _settings.MaximumRedBlend);
+                    _settings.MaximumWorldThreatColorShift);
                 desiredTint = ApplyHdrHue(
                     state.OriginalCorona,
                     shifted,
@@ -1051,12 +1052,12 @@ namespace EyesInTheDark
                 && _settings.TintBonfireProtectionBubble;
             float scale = WyrdVisualMath.ThreatScale(
                 _threat,
-                _settings.MinimumThreatScale,
-                _settings.MaximumThreatScale);
+                _settings.MinimumWorldThreatBrightnessScale,
+                _settings.MaximumWorldThreatBrightnessScale);
             Color red = ReadColor(
-                _settings.ThreatRedColor,
-                DefaultThreatRedColor,
-                "ThreatRedColor");
+                _settings.WorldThreatTargetColor,
+                DefaultWorldThreatTargetColor,
+                "WorldThreatTargetColor");
 
             if (state.HasTint)
             {
@@ -1086,7 +1087,7 @@ namespace EyesInTheDark
                             baseColor,
                             red,
                             _threat,
-                            _settings.MaximumRedBlend),
+                            _settings.MaximumWorldThreatColorShift),
                         Mathf.Clamp(
                             _settings.ProtectionBubbleIntensity,
                             0f,
@@ -1132,7 +1133,7 @@ namespace EyesInTheDark
                             baseColor,
                             red,
                             _threat,
-                            _settings.MaximumRedBlend),
+                            _settings.MaximumWorldThreatColorShift),
                         Mathf.Clamp(
                             _settings.ProtectionBubbleBorderIntensity,
                             0f,

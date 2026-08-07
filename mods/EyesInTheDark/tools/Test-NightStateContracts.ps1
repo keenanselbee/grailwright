@@ -224,7 +224,7 @@ foreach ($required in @(
     "CanUseNativeRest",
     "ApplyRestInterruptionRisk",
     "ShouldSuppressNativeWyrdnightSurprise",
-    '"OwnRestMenu"',
+    '"ShowWyrdnightRestAvailability"',
     '"RestInterruptionChanceAtZeroThreat"',
     '"RestInterruptionChanceAtMaximumThreat"',
     "typeof(VFireplaceUI)",

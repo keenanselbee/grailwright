@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `1.2.8` is the
+This is the living design document for `EyesInTheDark`. Version `1.3.0` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -119,26 +119,17 @@ Do not use one clock for every system. Assign time intentionally:
 Read actual game world time and Wyrdnight progress. Do not infer night length
 from Unity `Time.timeScale` and do not inspect another mod's config.
 
-### Rest-clock presentation
+### Rest presentation boundary
 
-The native rest selector remains a 24-hour clock, presented with noon at the
-top, 6 PM at the right, midnight at the bottom, and 6 AM at the left. Eyes
-applies the same half-day rotation to the hand, fill, mouse-angle, and
-controller radial mapping. Keyboard stepping, rest calculations, and
-interruption behavior remain native. An isolated neutral overlay places the
-sun and moon just inside the dial, hides the generic 12/12 half-circle, and
-labels the four cardinal hours. The default `TwelveHour` format reads `12 PM`,
-`6 PM`, `12 AM`, and `6 AM` clockwise from the top; optional `TwentyFourHour`
-reads `12`, `18`, `00`, and `06`.
+Eyes owns Wyrdnight rest availability and gameplay safety, not the rest-clock
+layout or time formatting. `ShowWyrdnightRestAvailability` controls whether the
+fireplace REST button reflects Eyes' active-night restrictions. The final
+accepted-rest guard and interruption policy remain authoritative even when
+that presentation setting is disabled.
 
-The same preference governs Current time and Resting until in the rest popup
-and the quick-use weather clock. `TwelveHour` formats native values as
-`12:05 AM` or `9:49 PM`; `TwentyFourHour` does not replace or reformat the
-game's native text.
-
-The popup adds no Wyrdnight caption, palette-colored arc, glow, or phase
-markers. Missing UI children or rendering failures fail open to the untouched,
-usable native clock and warn once per failure episode.
+Glorious UI can independently provide its toggleable noon-at-top rest clock,
+popup time format, and quick-menu time format. Neither mod calls into the other
+for this behavior, and their UI ownership does not overlap.
 
 Eyes owns the `GameRealTime` world-weather rate when both its master switch and
 `EnableDynamicTimescale` are enabled:
@@ -696,7 +687,7 @@ Settings include:
 EITD inserts its owned custom pass beside the native edge only after all three
 materials are ready, then disables rather than destroys the native pass. Any
 failure or feature shutdown removes the owned pass, releases its materials,
-and restores the original native values and enabled state. The shared threat
+and restores the original native values and enabled state. The world threat
 scale and red-shift curve affect ring brightness and hue; organic pulse remains
 independent. Threat never changes ring thickness or radius. Boundary settings
 never change protection, native mask intensity, or other gameplay rules.
@@ -731,24 +722,25 @@ Light Control continues to own its settings and runs before Eyes. Eyes does not
 modify HDRP post-exposure, gamma, colors, indirect diffuse lighting, direct
 moonlight, reflections, or global volumes.
 
-One global visual-strength multiplier replaces the former boundary-only threat
-response. It interpolates linearly from configurable `0.8` at zero threat to
-`1.2` at 100 threat. A smooth threat curve blends the moon surface, corona,
-moonlight, protection bubble, and boundary toward configurable world red
-`#FF3028`, reaching a default maximum blend of `0.8`. Configured palette
-tint strengths remain independent of that scale, so zero threat retains the
-intended base hue rather than blending back toward the original game color.
-The full-sky color is explicitly excluded from red shifting; its selected color
-brightness, not its tint strength, follows the shared scale. It uses the sky
+The world threat-brightness range interpolates linearly from configurable `0.8`
+at zero threat to `1.2` at 100 threat. A separate world color-shift control
+blends the moon surface, corona, moonlight, protection bubble, and boundary
+toward configurable world target `#FF3028`, reaching a default maximum blend
+of `0.8`. Configured palette tint strengths remain independent of the
+brightness range, so zero threat retains the intended base hue. The full-sky
+color is explicitly excluded from color shifting; its selected-color
+brightness, not its tint strength, follows the world brightness range. It uses
+the sky
 material's `_SkyTint` property and does not directly own fog, clouds, terrain
 lighting, or reflections.
 
-The threat meter has separately configurable Purple and Orange base and red
-target colors, automatically selects the active palette's pair, and uses the
-game-owned neutral white mana-bar artwork as its tintable source. Each palette
-also has a `0`-to-`3` brightness setting; every point applies `3` times RGB
-before the shared threat multiplier. It uses the same blend curve and maximum
-red blend as the world presentation while keeping its target colors separate.
+The threat meter has separately configurable Purple and Orange base and target
+colors, constant brightness, and maximum color-shift strengths. It
+automatically selects the active palette's settings and uses the game-owned
+neutral white mana-bar artwork as its tintable source. Every constant-brightness
+point applies `3` times RGB before independent configurable `0.8`-to-`1.2`
+meter brightness scaling. The meter and world use the same threat curve but
+have separate brightness ranges, target colors, and maximum color shifts.
 
 The authoritative threat value remains immediate for gameplay, the meter,
 hunts, notifications, and dynamic Wyrdnight duration. World lighting and the
@@ -892,11 +884,10 @@ rest remains available. Rest begun during daylight may cross nightfall on every
 preset. Cursed makes that attempt highly likely, but not absolutely guaranteed,
 to be interrupted before dawn.
 
-`OwnRestMenu` is a presentation boundary and is enabled by default. When
-enabled, Eyes can apply native greyed-out button availability, its noon-first
-clock, and selected popup time format. When disabled, the CanRest presentation
-filter returns the native result and the clock overlay is detached and restored.
-The final `RestPopupUI.Rest` guard still enforces gameplay policy silently.
+`ShowWyrdnightRestAvailability` is enabled by default. When enabled, Eyes
+applies its native greyed-out REST-button availability. When disabled, the
+CanRest presentation filter returns the native result. The final
+`RestPopupUI.Rest` guard still enforces gameplay policy silently.
 
 Once allowed rest begins, atmosphere is suppressed until the first stable
 post-rest context. Eyes then adopts the final daylight or Wyrdnight phase and
@@ -997,7 +988,7 @@ schema change explicitly replaces an unsafe or unreadable setting.
 Primary sections appear first:
 
 1. General: master switch, one-shot gameplay preset, ambient and elite toggles,
-   rest rule, and time display.
+   Wyrdnight REST-button presentation, and rest rule.
 2. World Clock: dynamic ownership plus day, quiet-night, and maximum-threat
    durations in real minutes.
 3. HUD, Boundary Appearance, Wyrdnight Appearance, and Notifications.

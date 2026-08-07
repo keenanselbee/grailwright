@@ -21,7 +21,7 @@ Each major area has its own ownership switch. Disable an area to return that par
 [*]Controls the Wyrd Power HUD with a built-in -2 X, -5 Y, and 0.9 scale while hiding its use prompt without disabling the input.[/*]
 [/list]
 
-When [b]Eyes in the Dark[/b] is installed, Glorious UI requests that its Eyes-owned Wyrd Threat meter sit below the vanilla resource bars. Eyes remains responsible for creating, updating, hiding, and destroying the meter; Glorious UI never creates a duplicate.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] is installed, Glorious UI requests that its Eyes-owned Wyrd Threat meter sit below the vanilla resource bars. Eyes remains responsible for creating, updating, hiding, and destroying the meter; Glorious UI never creates a duplicate.
 
 [line]
 
@@ -51,6 +51,17 @@ When [b]Eyes in the Dark[/b] is installed, Glorious UI requests that its Eyes-ow
 [/list]
 
 Held Apply Changes prompts use the current Interact binding for both the displayed key and the hold action. When Interact is F, Restore Defaults moves to E so one held input cannot trigger both actions.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Sensible Rest Menu[/size][/color][/heading]
+[list]
+[*]Places noon and the sun at the top of the rest clock, 6 PM at the right, midnight and the moon at the bottom, and 6 AM at the left.[/*]
+[*]Rotates the native hand, fill, and radial input mapping together while retaining the game's rest calculations and controls.[/*]
+[*]Offers 12-hour AM/PM or 24-hour labels and matching Current time and Resting until text.[/*]
+[*]Can apply the selected format to the quick-menu clock through a separate toggle.[/*]
+[*]Restores the native rest-clock layout and text when the feature is disabled. Quick-menu formatting is applied when that menu opens.[/*]
+[/list]
 
 [line]
 
@@ -123,7 +134,7 @@ Start the game once to generate:
 BepInEx/config/ks.tgfoa.glorious-ui.cfg
 [/code]
 
-FoA Mod Manager organizes the options into General, Hero HUD, Quick Slot HUD, Arrow HUD, Wyrd Power HUD, Buffs and Debuffs, Compass, Notifications, Hotkeys, Bag Category Hotkeys, Smart Selection, Equipment Panel, One-Menu Equipping, Diagnostics, and Import Previous Settings sections.
+FoA Mod Manager organizes the options into General, Rest Menu, Hero HUD, Quick Slot HUD, Arrow HUD, Wyrd Power HUD, Buffs and Debuffs, Compass, Notifications, Hotkeys, Bag Category Hotkeys, Smart Selection, Equipment Panel, One-Menu Equipping, Diagnostics, and Import Previous Settings sections.
 
 [code]
 | Area                         | Default                                      |
@@ -137,6 +148,8 @@ FoA Mod Manager organizes the options into General, Hero HUD, Quick Slot HUD, Ar
 | Compass                      | Controlled and hidden                        |
 | Level and point reminders    | Disabled                                     |
 | Quest and objective duration | 10 seconds                                   |
+| Sensible Rest Menu           | Enabled; 12 hour (AM/PM)                     |
+| Quick-menu time formatting   | Enabled                                      |
 | Smart Bag / All hotkey       | Tab                                          |
 | Extended loadout hotkeys     | 5 / 6                                        |
 | Equipment and wheel control  | Enabled                                      |
@@ -180,7 +193,7 @@ Eyes in the Dark and Grail Floating Text integrations are optional. Neither is r
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
-[b]Eyes in the Dark:[/b] Optional soft dependency. Eyes creates and controls its Wyrd Threat meter. Glorious UI only requests its below-resource-bars placement and makes no meter changes when Eyes or its placement contract is unavailable.
+[b]Eyes in the Dark:[/b] Optional soft dependency. Eyes creates and controls its Wyrd Threat meter and Wyrdnight rest availability. Glorious UI requests below-resource-bars meter placement and independently controls only the rest clock and time presentation.
 
 Do not load these older plugins alongside Glorious UI:
 

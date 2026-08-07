@@ -1,1 +1,1 @@
-Centered HUD, Eyes in the Dark placement support, and expanded Equipment controls.
+Centered HUD, sensible rest menu, and expanded Equipment and quick-use controls.

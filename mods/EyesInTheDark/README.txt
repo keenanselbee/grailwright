@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.2.8
+Version: 1.3.1
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
@@ -35,9 +35,10 @@ Current Features
   HUD. It remains visible outdoors throughout a valid Wyrdnight, including
   protected areas, and hides during daylight, interiors, loading, and
   missing-Hero states.
-- Purple and Orange Wyrdness each have separate threat-meter base colors, red
-  target colors, and RGB brightness multipliers. The meter smoothly shifts
-  between the active palette's colors as threat rises.
+- Purple and Orange Wyrdness each have separate threat-meter base colors,
+  target colors, constant RGB brightness, and maximum color-shift strengths.
+  Independent low- and high-threat brightness scales control how strongly the
+  meter brightens with threat without changing world visuals.
 - The meter uses the game's neutral white bar artwork so configured Purple and
   Orange colors remain clear instead of mixing with the mana bar's blue tint.
   The artwork is mirrored horizontally and vertically. When Glorious
@@ -56,8 +57,9 @@ Current Features
   applies after Light Control and does not modify HDRP post-exposure, gamma,
   colors, indirect diffuse lighting, or global volumes.
 - Moon, moonlight, bubble, and boundary colors smoothly move toward a shared
-  configurable red as threat rises. The meter uses its active palette's own
-  red target. The night-sky color deliberately
+  configurable world target as threat rises. Their low- and high-threat
+  brightness scales and maximum color shift are independent of the meter. The
+  night-sky color deliberately
   retains its selected base hue. One shared 0.8-to-1.2 threat scale controls
   visual strength across the integrated presentation.
 - World lighting and palette changes caused by threat use a configurable
@@ -65,7 +67,7 @@ Current Features
   notifications, and dynamic Wyrdnight length still react immediately.
 - Configurable three-ring Wyrd boundary with near, middle, and outer visual
   distances, independent brightness and thickness, and a native-style single
-  ring fallback. Smooth bounded pulses remain independent of the shared threat
+  ring fallback. Smooth bounded pulses remain independent of the world threat
   scale; protection, native mask intensity, gameplay detection, thickness, and
   configured radii are never changed dynamically by threat.
 - Optional Grail Floating Text notifications with Minimal, Atmospheric, and
@@ -141,20 +143,10 @@ Current Features
   level, budget, and placement rules, and locks further exposed rest until
   dawn. GFT reconciles directly to the final waking phase instead of announcing
   transitions slept through.
-- The rest clock presents noon at the top, 6 PM at the right, midnight at the
-  bottom, and 6 AM at the left. Its native hand, fill, mouse, keyboard, and
-  controller behavior use the same half-day rotation. Neutral labels default
-  to 12 PM, 6 PM, 12 AM, and 6 AM around the dial; an optional 24-hour format
-  uses 12, 18, 00, and 06. No palette-colored arc or Wyrdnight caption is
-  added.
-- TwelveHour also formats the popup's Current time and Resting until values
-  with AM/PM. TwentyFourHour leaves both native values untouched.
-- Own Rest Menu is enabled by default. Disabling it removes every Eyes change
-  to rest controls, the rest clock, and popup time labels. Gameplay rest and
-  interruption rules still apply silently when the player accepts rest.
-- The quick-use weather clock follows the same format preference: TwelveHour
-  shows native game time as 12-hour AM/PM text, while TwentyFourHour leaves
-  the native quick-use label untouched.
+- Show Wyrdnight Rest Availability is enabled by default. It greys out the
+  fireplace REST button when Eyes' Wyrdnight rules temporarily prevent rest.
+  Disabling this presentation setting leaves the button native while the final
+  accepted-rest guard and interruption rules remain active.
 - Every spawned member must enter combat and acquire the exact Hero before the
   atomic composition is confirmed. A nearby disengaged official hunter may
   receive at most three native combat reacquisition requests, two active
@@ -193,11 +185,10 @@ and diagnostic controls are clearly labeled Advanced.
 Defaults:
 
 - Enabled: true
-- Own Rest Menu: true
+- Show Wyrdnight rest availability: true
 - Allow unprotected Wyrdnight rest: true
 - Added unprotected-rest interruption chance: 45 percent at zero threat to
   75 percent at maximum threat
-- Rest clock labels: 12 Hour; optional 24 Hour
 - Dynamic timescale: enabled
 - Day length: approximately 60 real minutes
 - Quiet zero-threat night length: approximately 6 real minutes
@@ -219,7 +210,9 @@ Defaults:
   the active Wyrdness palette
 - Purple / Orange threat meter red target colors: #FF3028 / #FF3028
 - Purple / Orange threat meter brightness: 1.0 / 1.0 on a 0-to-3 range; each
-  point applies 3 times the configured RGB before the shared visual threat scale
+  point applies 3 times the configured RGB before the meter threat scale
+- Purple / Orange maximum meter color shift: 0.8 / 0.8
+- Meter brightness at zero / maximum threat: 0.8 / 1.2
 - Meter offset adjustments: 0, 0 (standalone vanilla-HUD baseline: +9, -9)
 - Base nightly encounter budget: 30
 - Long-night bonus scale: 0.35
@@ -267,15 +260,15 @@ Defaults:
 - Wyrdness palette: Purple Wyrdness; Orange Wyrdness is available
 - Wyrdnight brightness: 1; configurable from 0 to 2. At 1, Purple uses 1.75x
   exposure plus +0.35 EV and Orange retains native 1x exposure with 0 EV
-- Shared minimum/maximum threat visual scale: 0.8, 1.2
+- World brightness at zero / maximum threat: 0.8 / 1.2
 - Threat lighting smoothing half-life: 2 active real-time seconds
-- Threat red color / maximum smooth red blend: #FF3028 / 0.8
+- World threat target color / maximum world color shift: #FF3028 / 0.8
 - Moon surface color / tint / HDR intensity: #3200FF / 0.75 / 2
 - Moon corona: enabled; color / intensity: #8000FF / 2
 - Directional and volumetric moonlight color / tint: #7E47FF / 0.9
 - Full Wyrdnight sky tint: enabled; #401C63 / 1.0. This layer uses the sky
   material's _SkyTint property, keeps its configured tint strength while its
-  brightness follows the shared threat scale, and never shifts
+  brightness follows the world threat-brightness scale, and never shifts
   toward red. It does not directly alter fog, clouds, terrain lighting, or
   reflections.
 - Fueled protection-bubble tint: enabled; #B050FF; body/border intensity 1 / 1
@@ -293,6 +286,12 @@ Defaults:
 
 The final Import Previous Settings tab reports compatible config backups and
 provides a conservative one-shot import action.
+
+Version 1.3.1 regenerates configuration because OwnRestMenu and
+RestClockLabelFormat were removed when clock and time presentation moved to
+Glorious UI, and ShowWyrdnightRestAvailability now controls only the fireplace
+REST-button state. Other compatible durable customizations remain eligible for
+conservative recovery.
 
 Version 1.1.4 regenerates configuration because PurpleWyrdnessBrightness was
 removed and the existing diagnostic GFT System cooldown default changed from
@@ -355,7 +354,8 @@ Compatibility
   Detailed adds sightings, retreats, and escalation flavor without revealing
   a stalker's hidden aggression value.
 - Glorious UI is optional. Eyes remains the sole Wyrd Threat meter owner;
-  Glorious requests only the below-resource-bars layout.
+  Glorious requests its below-resource-bars layout and can independently
+  provide a noon-at-top rest clock with matching time formatting.
 - Wyrd Hunt is flagged as incompatible with Eyes in the Dark. Do not run both
   night directors together.
 - Custom Timescale (Nexus mod 76) is flagged as incompatible because it and

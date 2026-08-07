@@ -42,15 +42,15 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("1.10.0.0")]
-[assembly: AssemblyFileVersion("1.10.0.0")]
-[assembly: AssemblyInformationalVersion("1.10.0")]
+[assembly: AssemblyVersion("1.11.1.0")]
+[assembly: AssemblyFileVersion("1.11.1.0")]
+[assembly: AssemblyInformationalVersion("1.11.1")]
 
 namespace GrailFloatingText
 {
     public static class NotificationApi
     {
-        public const int ApiVersion = 8;
+        public const int ApiVersion = 9;
 
         public static bool SupportsFeature(string feature)
         {
@@ -214,11 +214,11 @@ namespace GrailFloatingText
     }
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-    public sealed class GrailFloatingTextPlugin : BaseUnityPlugin, IListenerOwner
+    public sealed partial class GrailFloatingTextPlugin : BaseUnityPlugin, IListenerOwner
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "1.10.0";
+        public const string PluginVersion = "1.11.1";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -588,6 +588,9 @@ namespace GrailFloatingText
                 string.Equals(feature, "ApiVersion6", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion7", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion8", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion9", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "QuickWheelPanels", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "quick-wheel-panels-v1", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Categories", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Priority", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "CollapseKey", StringComparison.OrdinalIgnoreCase) ||
@@ -3003,6 +3006,7 @@ namespace GrailFloatingText
             if (_enabled == null || !_enabled.Value)
             {
                 SetNotificationViewsActive(0);
+                SetQuickWheelPanelActive(false);
                 return;
             }
 
@@ -3010,6 +3014,7 @@ namespace GrailFloatingText
             ReleaseReadyDeferredNotifications();
 
             float now = Time.unscaledTime;
+            UpdateQuickWheelPanel(now);
             PruneExpired(now);
             AdvanceXpQueue();
             if (_notifications.Count == 0)
@@ -3415,6 +3420,7 @@ namespace GrailFloatingText
 
         private void ReleaseNotificationViews()
         {
+            ReleaseQuickWheelPanelView();
             if (_overlayRoot != null)
             {
                 Destroy(_overlayRoot.gameObject);
@@ -5537,10 +5543,12 @@ namespace GrailFloatingText
                 File.WriteAllLines(temporaryPath, lines, Encoding.UTF8);
                 if (File.Exists(path))
                 {
-                    File.Delete(path);
+                    File.Replace(temporaryPath, path, null);
                 }
-
-                File.Move(temporaryPath, path);
+                else
+                {
+                    File.Move(temporaryPath, path);
+                }
             }
             catch (Exception exception)
             {

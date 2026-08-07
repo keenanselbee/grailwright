@@ -1,3 +1,13 @@
+Version 1.11.1
+Added safe fallback-font recovery to quick-wheel panels when the configured game font cannot be resolved.
+
+Version 1.11.0
+Added the reflection-friendly QuickWheelPanelApi for right-anchored two-column quick-wheel panels using Grail Floating Text fonts, colors, and built-in icons.
+Added caller-controlled normal opacity, tooltip-active opacity, fade duration, position, scale, rows, and panel cleanup for Deeds of Avalon and future integrations.
+
+Version 1.10.1
+Safely replaces the saved deferred-notification queue without deleting the active file first.
+
 Version 1.10.0
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

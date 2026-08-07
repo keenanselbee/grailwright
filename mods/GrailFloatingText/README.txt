@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 1.10.0
+Version 1.11.1
 
 Platforms: Windows and Linux through Proton.
 
@@ -10,7 +10,9 @@ It stacks active messages instead of letting multiple mod messages draw on top
 of each other. Callers can send style, category, priority, icon, and collapse-key
 intent so status messages update cleanly while reward and event messages still
 stack normally. New messages use a short pop-in scale animation, and stacked
-messages glide into their new positions when pushed.
+messages glide into their new positions when pushed. API v9 also provides a
+right-anchored, two-column quick-wheel panel surface with GFT fonts, colors,
+and built-in icons for integrations such as Deeds of Avalon.
 
 When Eyes in the Dark is loaded, built-in Wyrd notifications follow its live
 Purple Wyrdness or Native Orange palette through GFT's corresponding color
@@ -182,7 +184,9 @@ When Eyes in the Dark is loaded, GFT flags Wyrd Hunt and Custom Timescale as
 incompatible counterparts using this same one-notice convention. It does not
 disable, unload, or reconfigure any of the detected plugins.
 
-Mods can integrate with Grail Floating Text as an optional dependency. API v8
+Mods can integrate with Grail Floating Text as an optional dependency. API v9
+adds QuickWheelPanelApi for persistent two-column quick-wheel panels with
+tooltip-aware opacity. API v8
 adds source-isolated XP batching through TryClaimConsolidatedXpGain. API v7
 adds Immediate, OnMainMenu, and OnLoad delivery paths. Deferred messages persist
 until their first eligible visible frame, and their duration starts only when

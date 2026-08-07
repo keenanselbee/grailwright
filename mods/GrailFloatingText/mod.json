@@ -2,11 +2,12 @@
   "id": "GrailFloatingText",
   "displayName": "Grail Floating Text",
   "packageName": "GrailFloatingText",
-  "version": "1.10.0",
+  "version": "1.11.1",
   "pluginGuid": "ks.tgfoa.grail-floating-text",
   "dll": "GrailFloatingText.dll",
   "sourceFiles": [
     "src/GrailFloatingText.cs",
+    "src/QuickWheelPanel.cs",
     "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
     "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],

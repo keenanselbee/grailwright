@@ -1,1 +1,1 @@
-Icon-capable floating text overlay with XP takeover and event-driven notices.
+Icon-capable floating text and two-column quick-wheel panel APIs with XP takeover.

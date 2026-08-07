@@ -18,6 +18,7 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [*][b]Detailed player control:[/b] Configure message categories, position, scale, width, spacing, timing, opacity, animation, icons, and the maximum visible stack.[/*]
 [*][b]Source-aware behavior:[/b] Control enabled state, throttling, duration, and diagnostics per integration while keeping XP consolidation isolated by source.[/*]
 [*][b]Mod-author API:[/b] Send immediate or deferred reflection-friendly messages with stable event IDs, styles, categories, priorities, collapse keys, and optional icons.[/*]
+[*][b]Quick-wheel panels:[/b] Give integrations a reusable right-anchored two-column surface with GFT fonts, colors, icons, and tooltip-aware opacity.[/*]
 [/list]
 
 [line]
@@ -34,6 +35,7 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [*][b]Compatibility detection[/b] flags documented incompatible DLLs at the main menu with restrained System notices. Grailwright mods are treated as the preferred implementations, but GFT never unloads another plugin automatically.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234]Killing Blow Mastery[/url] uses Grail Floating Text for skill-icon reward messages such as [b]Killing blow: +8 Two-Handed[/b].[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] keeps corpse-quality and live-drain XP in separate red, source-isolated batches.[/*]
+[*][b]Deeds of Avalon[/b] uses the API v9 quick-wheel surface for save-bounded character and foe statistics.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225]KS Wyrd Hunt Addon[/url] uses Grail Floating Text's Wyrd icon for Wyrd Scent status text such as [b]Wyrd Scent: Hunted[/b], [b]Safe from Wyrdness[/b], and [b]Exposed to Wyrdness[/b].[/*]
 [/list]
 
@@ -294,6 +296,17 @@ Resolve the API by reflection:
 [code]
 GrailFloatingText.NotificationApi
 [/code]
+
+API v9 adds a separate persistent panel surface:
+
+[code]
+GrailFloatingText.QuickWheelPanelApi
+TrySet(sourceId, leftTitle, leftSubtitle, leftTexts, leftIconIds, leftStyles, rightTitle, rightSubtitle, rightTexts, rightIconIds, rightStyles, opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale)
+SetTooltipActive(sourceId, active)
+Clear(sourceId)
+[/code]
+
+The caller owns panel lifetime and row limits. GFT owns rendering, font resolution, style colors, built-in icons, position, and the configured fade between normal and tooltip-active opacity.
 
 [b]Adding a compatibility detection:[/b] verify the exact loaded DLL or enabled setting in your own mod, then submit one concise [b]System[/b]/[b]Critical[/b] event with the [b]warning[/b] icon and [b]OnMainMenu[/b] delivery. Use a stable event ID, log the exact evidence to [b]BepInEx/LogOutput.log[/b], and do not guess or change the other mod automatically.
 

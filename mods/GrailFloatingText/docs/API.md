@@ -151,6 +151,20 @@ private bool TryResolveGrailFloatingText()
 }
 ```
 
+API v9 also exposes `GrailFloatingText.QuickWheelPanelApi` for a persistent
+right-anchored two-column surface. Call `TrySet` while your quick-wheel owner is
+active, `SetTooltipActive` when its normal item tooltip opens or closes, and
+`Clear` when the wheel closes. The caller owns the rows and limits; GFT owns
+font resolution, configured style colors, built-in icons, layout, and fading.
+
+```text
+TrySet(sourceId, leftTitle, leftSubtitle, leftTexts, leftIconIds, leftStyles,
+       rightTitle, rightSubtitle, rightTexts, rightIconIds, rightStyles,
+       opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale)
+SetTooltipActive(sourceId, active)
+Clear(sourceId)
+```
+
 API v7 deferred event call shape:
 
 ```csharp
@@ -224,6 +238,7 @@ Built-in icon IDs:
 
 Feature probes:
 
+- `ApiVersion9` and `quick-wheel-panels-v1`: provider supports persistent two-column quick-wheel panels through `QuickWheelPanelApi`.
 - `ApiVersion8`: provider supports source-isolated XP consolidation through `TryClaimConsolidatedXpGain`.
 - `XpConsolidation`: provider can queue XP and consolidate compatible generic or opted-in claimed gains.
 - `ApiVersion7`: provider supports deferred delivery through the API v7 `TryShowEvent` overload.

@@ -1,3 +1,33 @@
+Version 3.2.1
+Kept the configured player-arrow gravity multiplier consistent during local slow-time effects instead of over-correcting arrow drop.
+
+Version 3.2.0
+Added preset-independent player-arrow gravity control, defaulting to 0.75x gravity for a flatter trajectory without tilting the native launch direction.
+Kept native bow animations, draw strength, projectile offsets, collision, elemental payloads, and damage intact while excluding hostile arrows, thrown items, and other projectiles.
+Added conditional Flat Arrows compatibility detection and guidance for its overlapping player-arrow modifications.
+
+Version 3.1.9
+Made Blunt damage neutral against exposed humanoid flesh instead of showing a negligible 2% resistance.
+
+Version 3.1.8
+Excluded scripted Critters, non-pathing actors, bears, constructs, flora, and metadata-identified bosses from enemy movement bonuses.
+Capped Elite, Beholder, and Slugholder movement bonuses at half strength and honored equipped Heavy armor on special humanoids such as undead and drowned enemies.
+Kept the existing lightweight one-second reconciliation and the full preset bonus for ordinary agile enemies, wolves, and swarms.
+
+Version 3.1.7
+Added preset-scaled combat movement for hostile common enemies, reaching 5% on Hardened and 10% on Crucible while Tempered remains neutral.
+Applied the full bonus to exposed, Light-armored, and ordinary mobile enemies; applied half strength to Medium-armored or clearly large enemies; and preserved vanilla movement for Heavy-armored, massive, boss, and miniboss targets.
+Used one temporary native movement-stat tweak per qualifying combatant and maintained it through the existing one-second loaded-NPC reconciliation pass.
+
+Version 3.1.6
+Added MeleeDamageNumberDurationMultiplier, defaulting to 2x, so direct melee damage numbers remain readable while the camera follows a swing.
+Excluded arrows, thrown projectiles, spells, and damage-over-time ticks from the longer melee timing.
+
+Version 3.1.5
+Added passive front-facing physical protection from equipped and readied shields, scaling continuously from the shield's effective vanilla Block rating at 8%, 10%, or 12% strength by preset.
+Used the shield's vanilla BlockAngle for coverage, capped at the forward 180 degrees, while leaving rear attacks, magic, status effects, damage over time, and sheathed shields unaffected.
+Preserved vanilla active blocking without double reduction, extra block events, stamina effects, proficiency gains, physics queries, or continuous polling.
+
 Version 3.1.4
 Reworked mixed-damage processing so vanilla amplification and Steel and Bone rules are weighted by each damage part's post-vanilla contribution instead of modifying the whole hit.
 Kept physical, elemental, and status payloads independent on arrows, enchanted weapons, and multi-element spells, while updating runtime damage-part shares for downstream systems.

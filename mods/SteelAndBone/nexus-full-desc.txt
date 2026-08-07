@@ -8,9 +8,23 @@
 
 Its defining feature is a material weakness and resistance system. Bone does not fight like flesh. Stone does not react like an armored human. Spirits, drowned corpses, infected bodies, sea creatures, and living flora each reward different physical or magical answers.
 
-Vanilla-authored weaknesses, resistances, and immunities remain first in the damage pipeline. Steel and Bone reads the enemy and the incoming damage, respects what Tainted Grail already decided, and adds a focused rule only where it improves the matchup. Mixed hits are resolved by damage part, so physical, elemental, and status payloads keep their own reactions. Reactive damage numbers make the result immediately readable.
+Vanilla weaknesses, resistances, and immunities remain first in the damage pipeline. Steel and Bone reads the enemy and the incoming damage, respects what Tainted Grail already decided, and adds a focused rule only where it improves the matchup. Mixed hits are resolved by damage part, so physical, elemental, and status payloads keep their own reactions. Reactive damage numbers make the result immediately readable.
 
-The wider difficulty layer grows outward from that same idea: preparation should matter. Enemies notice sooner, groups apply steadier pressure, arrows move with conviction, armor creates clearer roles, and resources and advancement demand more commitment. These systems reinforce the matchup game without replacing enemy AI, rewriting encounters, or inflating health bars.
+The wider difficulty layer grows outward from that same idea: preparation should matter. Enemies notice sooner, groups apply steadier pressure, arrows travel faster and flatter, armor creates clearer roles, and resources and advancement demand more commitment. These systems reinforce the matchup game without replacing enemy AI, rewriting encounters, or inflating health bars.
+
+[line]
+
+[center][img width=500,height=500]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1786004558-146176661.png[/img][/center]
+
+[center][b]Arrows pierce exposed flesh. Magic overwhelms plate armor. Armor turns aside arrows.[/b][/center]
+
+[heading][color=#C94A4A][size=5]Combat Philosophy[/size][/color][/heading]
+
+Steel and Bone follows one central rule: no combat style should answer every opponent. Arrows are deadly against exposed flesh and lightly protected casters, elemental magic turns armor's material against it through effects such as heated plate and electrified metal, and heavy armor and shields resist archery.
+
+This triangle is the clearest expression of a wider material system rather than a rigid class restriction. Blunt weapons shatter bone and rigid constructs, blades and fire tear through flora, electricity shocks drowned and sea-dwelling enemies, and spirits resist ordinary weapons and biological effects. Good matchups provide a meaningful advantage, but player skill, equipment, and build choices still matter.
+
+This philosophy is inspired by [url=https://www.nexusmods.com/skyrimspecialedition/mods/60888]Requiem - The Roleplaying Overhaul's[/url] lethal emphasis on coherent rules, preparation, and intelligent tactical play. Steel and Bone translates those ideas into Tainted Grail's native combat systems; it is not an attempt to reproduce the scope of a total conversion. It aims to be lightweight and modular above all.
 
 [line]
 
@@ -19,22 +33,22 @@ The wider difficulty layer grows outward from that same idea: preparation should
 Steel and Bone classifies enemies through reachable runtime and template evidence before using editable name terms as fallback. Stronger and more specific families take precedence over broad categories, and elite enemies soften custom extremes without losing their identity.
 
 [code]
-| Enemy family      | Better answers          | Poor answers                               |
+| Enemy family      | Better answers          | Poor answers                               |
 |-------------------|-------------------------|--------------------------------------------|
-| Bone undead       | Blunt                   | Blood, bleed, slash, pierce                |
-| Constructs/stone  | Blunt                   | Blood, bleed, poison, edges                |
+| Bone undead       | Blunt                   | Blood, bleed, slash, pierce                |
+| Constructs/stone  | Blunt                   | Blood, bleed, poison, edges                |
 | Armored humanoids | Blunt, spells           | Slash, untyped physical, arrows vs Heavy   |
-| Ordinary flesh    | Blood, poison, edges    | Mostly neutral; deliberately mild rules    |
-| Flesh undead      | Fire, blunt             | Blood, bleed, poison, pierce               |
-| Wyrd creatures    | Non-Wyrdness tools      | Wyrdness                                   |
-| Drowned corpses   | Electric, blunt         | Blood, bleed, pierce                       |
-| Infected flesh    | Fire, slash, arrows     | Poison                                     |
-| Sea creatures     | Electric, slash, arrows | Cold                                       |
-| Spirits           | Wyrdness                | Biological and ordinary physical attacks   |
-| Flora and fungus  | Fire, slash             | Poison, bleed, pierce, arrows              |
-| Swarms            | Area and elemental hits | Individual arrow impacts                   |[/code]
+| Ordinary flesh    | Blood, poison, edges    | Mostly neutral; deliberately mild rules    |
+| Flesh undead      | Fire, blunt             | Blood, bleed, poison, pierce               |
+| Wyrd creatures    | Non-Wyrdness tools      | Wyrdness                                   |
+| Drowned corpses   | Electric, blunt         | Blood, bleed, pierce                       |
+| Infected flesh    | Fire, slash, arrows     | Poison                                     |
+| Sea creatures     | Electric, slash, arrows | Cold                                       |
+| Spirits           | Wyrdness                | Biological and ordinary physical attacks   |
+| Flora and fungus  | Fire, slash             | Poison, bleed, pierce, arrows              |
+| Swarms            | Area and elemental hits | Individual arrow impacts                   |[/code]
 
-Exact strength depends on the preset and on the enemy's vanilla data. A hand-authored vanilla reaction can be preserved or amplified instead of receiving a duplicate overlay. True immunities stay intact.
+Exact strength depends on the preset and on the enemy's vanilla data. A specific vanilla reaction can be preserved or amplified instead of receiving a duplicate overlay. True immunities stay intact.
 
 Generic physical attacks can use Tainted Grail's weapon identity as evidence: swords and axes lean slashing, daggers, polearms, and bows lean piercing, and blunt weapons remain bludgeoning. This keeps weapon choice legible even when a hit arrives without a specific physical subtype.
 
@@ -43,13 +57,13 @@ Generic physical attacks can use Tainted Grail's weapon identity as evidence: sw
 Equipped armor creates a consistent physical matchup curve on Hardened:
 
 [code]
-| Attack type      | Exposed | Light | Medium | Heavy |
+| Attack type      | Exposed | Light | Medium | Heavy |
 |------------------|---------|-------|--------|-------|
-| Arrows           | x1.20   | x1.08 | x1.00  | x0.75 |
-| Pierce           | x1.06   | x1.03 | x1.00  | x0.90 |
-| Slash            | x1.04   | x0.98 | x0.92  | x0.82 |
-| Blunt            | x0.98   | x1.00 | x1.08  | x1.15 |
-| Generic physical | x1.00   | x0.98 | x0.94  | x0.88 |[/code]
+| Arrows           | x1.20   | x1.08 | x1.00  | x0.75 |
+| Pierce           | x1.06   | x1.03 | x1.00  | x0.90 |
+| Slash            | x1.04   | x0.98 | x0.92  | x0.82 |
+| Blunt            | x1.00   | x1.00 | x1.08  | x1.15 |
+| Generic physical | x1.00   | x0.98 | x0.94  | x0.88 |[/code]
 
 Slash loses effectiveness faster than Pierce, while maces and other blunt weapons become better answers as armor gets heavier. If vanilla numerical armor is already reducing a hit, Steel and Bone softens its added resistance so the two systems do not compound into impractical damage.
 
@@ -58,15 +72,15 @@ Slash loses effectiveness faster than Pierce, while maces and other blunt weapon
 Direct player arrows are evaluated as arrows rather than generic Pierce.
 
 [code]
-| Other Hardened target   | Physical arrow damage |
+| Other Hardened target   | Physical arrow damage |
 |-------------------------|-----------------------|
-| Other favorable flesh   | x1.10 to x1.15        |
-| Flesh undead / drowned  | x0.85                 |
-| Flora / wood body       | x0.60                 |
-| Spirits                 | x0.55                 |
-| Constructs / stone body | x0.50                 |
-| Swarms                  | x0.35                 |
-| Confirmed skeletons     | x0.20                 |[/code]
+| Other favorable flesh   | x1.10 to x1.15        |
+| Flesh undead / drowned  | x0.85                 |
+| Flora / wood body       | x0.60                 |
+| Spirits                 | x0.55                 |
+| Constructs / stone body | x0.50                 |
+| Swarms                  | x0.35                 |
+| Confirmed skeletons     | x0.20                 |[/code]
 
 Ordinary humanoid armor is read from equipped native item data. Tempered and Crucible apply the same identities at 55% and 135% rule intensity. Only the physical share receives the arrow matchup, so a Fire or Electric payload keeps its own material reaction.
 
@@ -77,11 +91,11 @@ Magic follows material identity rather than acting as universal armor penetratio
 [code]
 | Armor tier | Direct spell base on Hardened |
 |------------|-------------------------------|
-| Light      | x1.02                         |
-| Medium     | x1.07                         |
-| Heavy      | x1.12                         |[/code]
+| Light      | x1.02                         |
+| Medium     | x1.07                         |
+| Heavy      | x1.12                         |[/code]
 
-Steel and Bone also reads the equipped armor's native Fabric, Leather, or Metal surface. Fire remains useful against all three, Electricity is strongest against Metal, and Cold gains a small edge against Metal. Blood, Wyrdness, biological effects, and spells that already ignore armor do not receive a duplicate armor-tier bonus. Vanilla-authored subtype reactions still take priority.
+Steel and Bone also reads the equipped armor's native Fabric, Leather, or Metal surface. Fire remains useful against all three, Electricity is strongest against Metal, and Cold gains a small edge against Metal. Blood, Wyrdness, biological effects, and spells that already ignore armor do not receive a duplicate armor-tier bonus. Vanilla subtype reactions still take priority.
 
 [line]
 
@@ -101,34 +115,57 @@ Size, color contrast, font, duration, drift, damage-over-time height, and maximu
 
 [line]
 
-[heading][color=#C94A4A][size=5]Difficulty That Supports the Matchup Game[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Expanded Combat Systems[/size][/color][/heading]
 
 [b]Enemy awareness and pressure[/b]
 [list]
 [*]Hostile sight distance rises by preset while native line of sight, visibility, hearing, alert buildup, and pursuit remain in control.[/*]
 [*]Higher presets add simultaneous enemy attack slots and shorten recovery before those slots return.[/*]
+[*]In combat, ordinary agile enemies gain up to 5% movement on Hardened or 10% on Crucible. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed.[/*]
 [*]Friendly actors, summons, allies, inactive AI, and dead actors are excluded from sight tuning.[/*]
 [/list]
 
 [b]Projectile combat[/b]
 [list]
 [*]Player and hostile arrows travel at x1.10 / x1.30 / x1.50 speed by preset.[/*]
+[*]Player arrows use x0.75 gravity by default on every preset. The value is independently configurable from x0.25 to x1.00 and never tilts the launch direction.[/*]
 [*]Hostile velocity is applied before native movement prediction and ballistic aiming.[/*]
 [*]Direct player arrows receive a material matchup on their physical share; hostile arrow damage remains native.[/*]
-[*]Collision, draw-strength scaling, elemental payloads, and other projectile behavior remain native.[/*]
+[*]Native aim, projectile offsets, collision, draw-strength scaling, elemental payloads, and bow animations remain unchanged.[/*]
 [/list]
 
 [b]Armor roles[/b]
 
 [code]
-| Player armor state | Role                        | Tempered / Hardened / Crucible |
+| Player armor state | Role                        | Tempered / Hardened / Crucible |
 |--------------------|-----------------------------|--------------------------------|
-| Light              | Movement                    | x1.00 / x1.025 / x1.05         |
-| Medium             | Physical protection         | x1.00 / x1.05 / x1.10          |
-| Heavy / Overload   | Strong physical protection  | x1.00 / x1.10 / x1.20          |
-| Native penalties   | Weight and resource burden  | x1.00 / x1.05 / x1.10          |[/code]
+| Light              | Movement                    | x1.00 / x1.025 / x1.05         |
+| Medium             | Physical protection         | x1.00 / x1.05 / x1.10          |
+| Heavy / Overload   | Strong physical protection  | x1.00 / x1.10 / x1.20          |
+| Native penalties   | Weight and resource burden  | x1.00 / x1.05 / x1.10          |[/code]
 
 Armor proficiency, native tier thresholds, individual penalty rules, and Overload behavior remain authoritative. Magical armor checks are unchanged.
+
+[b]Passive shield protection[/b]
+
+An equipped and readied shield provides modest passive protection against direct physical attacks from the front even when it is not actively raised. The shield's effective vanilla Block rating determines the reduction, while its BlockAngle determines the forward arc and is capped at 180 degrees total coverage.
+
+[code]
+| Effective Block | Tempered | Hardened | Crucible |
+|-----------------|----------|----------|----------|
+| 0               | 0.0%     | 0.0%     | 0.0%     |
+| 10              | 0.8%     | 1.0%     | 1.2%     |
+| 20              | 1.6%     | 2.0%     | 2.4%     |
+| 30              | 2.4%     | 3.0%     | 3.6%     |
+| 40              | 3.2%     | 4.0%     | 4.8%     |
+| 50              | 4.0%     | 5.0%     | 6.0%     |
+| 60              | 4.8%     | 6.0%     | 7.2%     |
+| 70              | 5.6%     | 7.0%     | 8.4%     |
+| 80              | 6.4%     | 8.0%     | 9.6%     |
+| 90              | 7.2%     | 9.0%     | 10.8%    |
+| 100             | 8.0%     | 10.0%    | 12.0%    |[/code]
+
+Effective Block includes the game's normal requirement penalty. Rear attacks, direct magic, status effects, damage over time, falls, traps, and environmental damage receive no passive protection. Active blocking remains fully vanilla and never receives the passive reduction a second time.
 
 [b]Player and progression pressure[/b]
 [list]
@@ -144,35 +181,27 @@ Armor proficiency, native tier thresholds, individual penalty rules, and Overloa
 [heading][color=#C94A4A][size=5]Presets[/size][/color][/heading]
 
 [code]
-| Modifier                         | Tempered | Hardened | Crucible |
-|----------------------------------|----------|----------|----------|
-| Material-rule intensity          | 55%      | 100%     | 135%     |
-| Player and hostile arrow speed   | x1.10    | x1.30    | x1.50    |
-| Hostile enemy sight distance     | x1.10    | x1.30    | x1.50    |
-| Incoming health damage           | x1.00    | x1.05    | x1.10    |
-| Stamina and mana usage           | x1.00    | x1.05    | x1.10    |
-| Native armor-weight penalties    | x1.00    | x1.05    | x1.10    |
-| Light armor movement             | x1.00    | x1.025   | x1.05    |
-| Medium physical armor            | x1.00    | x1.05    | x1.10    |
-| Heavy/Overload physical armor    | x1.00    | x1.10    | x1.20    |
-| Enemy attack slots               | +0       | +1       | +2       |
-| Enemy attack recovery time       | x1.00    | x0.95    | x0.90    |
-| Player poise damage dealt        | x1.00    | x0.95    | x0.90    |
-| Kill, quest, and proficiency XP  | x1.00    | x0.95    | x0.90    |[/code]
+| Modifier                        | Tempered | Hardened    | Crucible    |
+|---------------------------------|----------|-------------|-------------|
+| Material-rule intensity         | 55%      | 100%        | 135%        |
+| Player and hostile arrow speed  | x1.10    | x1.30       | x1.50       |
+| Player arrow gravity            | x0.75    | x0.75       | x0.75       |
+| Hostile enemy sight distance    | x1.10    | x1.30       | x1.50       |
+| Light/agile enemy movement      | x1.00    | Up to x1.05 | Up to x1.10 |
+| Incoming health damage          | x1.00    | x1.05       | x1.10       |
+| Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
+| Native armor-weight penalties   | x1.00    | x1.05       | x1.10       |
+| Light armor movement            | x1.00    | x1.025      | x1.05       |
+| Medium physical armor           | x1.00    | x1.05       | x1.10       |
+| Heavy/Overload physical armor   | x1.00    | x1.10       | x1.20       |
+| Enemy attack slots              | +0       | +1          | +2          |
+| Enemy attack recovery time      | x1.00    | x0.95       | x0.90       |
+| Player poise damage dealt       | x1.00    | x0.95       | x0.90       |
+| Kill, quest, and proficiency XP | x1.00    | x0.95       | x0.90       |[/code]
 
 [b]Tempered[/b] stays close to vanilla pressure while retaining lighter material rules and improved projectile speed. [b]Hardened[/b] is the intended default. [b]Crucible[/b] makes enemy knowledge, preparation, and armor roles matter most.
 
-[b]PlayerDamageDealtMultiplier[/b] is independent from presets and defaults to 1. Every global modifier has its own toggle, and [b]DifficultyModifiersEnabled=false[/b] disables the complete supporting difficulty layer without disabling material combat or damage feedback.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Inspired by Requiem's Philosophy[/size][/color][/heading]
-
-Steel and Bone draws inspiration from [url=https://www.nexusmods.com/skyrimspecialedition/mods/60888]Requiem - The Roleplaying Overhaul[/url]'s emphasis on coherent rules, preparation, and intelligent tactical play.
-
-An enemy's nature matters. The wrong weapon can struggle against armor, bone, or stone, while the right physical or magical damage type creates a meaningful advantage. Combat becomes more dangerous because its rules matter, not because every opponent becomes a health sponge.
-
-Steel and Bone translates that philosophy into Tainted Grail's combat systems. It is not a Requiem port, dependency, or attempt to reproduce the scope of a total conversion. Material matchups define this mod; its broader difficulty settings exist to make those choices carry more weight.
+[b]PlayerDamageDealtMultiplier[/b] is independent from presets and defaults to 1. [b]PlayerArrowGravityMultiplier[/b] is also independent from presets and defaults to 0.75. Every global modifier has its own toggle, and [b]DifficultyModifiersEnabled=false[/b] disables the complete supporting difficulty layer without disabling material combat or damage feedback.
 
 [line]
 
@@ -186,7 +215,7 @@ Steel and Bone creates difficulty through small adjustments to systems Tainted G
 [*]No global replacement of enemy templates.[/*]
 [*]No permanent NPC stat changes stored in saves.[/*]
 [*]Temporary model-owned stat tweaks are removed when actors or settings stop qualifying.[/*]
-[*]Hostile awareness uses lightweight reconciliation of loaded NPCs rather than a hand-maintained runtime template database.[/*]
+[*]Hostile awareness and combat movement share one lightweight reconciliation of loaded NPCs rather than continuous scanning.[/*]
 [*]Every supporting modifier can be disabled independently.[/*]
 [/list]
 
@@ -214,12 +243,15 @@ ModifyStaminaUsage = true
 ModifyManaUsage = true
 ModifyPlayerPoiseDamageDealt = true
 ModifyPlayerArrowVelocity = true
+ModifyPlayerArrowDrop = true
+PlayerArrowGravityMultiplier = 0.75
 ModifyArmorWeightPenalties = true
 ModifyLightArmorMobility = true
 ModifyArmorPhysicalProtection = true
 ModifyEnemyAttackSlots = true
 EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true
+ModifyEnemyMovementSpeed = true
 ModifyHostileArrowVelocity = true
 ModifyEnemySightRange = true
 ModifyKillExperience = true
@@ -233,6 +265,7 @@ ModifyProficiencyExperience = true[/code]
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] is compatible. Its movement multipliers stack with the optional Light armor bonus; disable either modifier if the combined speed is not desired.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/57]Custom Difficulty[/url] is incompatible because it changes many of the same difficulty systems. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/105]Flat Arrows[/url] is conditionally compatible. Its bow pull, release, and instant-fire options do not directly overlap, but its arrow modifications stack with Steel and Bone's player velocity and gravity changes. Disable Flat Arrows' [b]EnableArrowModifications[/b] or disable both [b]ModifyPlayerArrowVelocity[/b] and [b]ModifyPlayerArrowDrop[/b] in Steel and Bone.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/219]Tainted Instincts[/url] is incompatible because it can modify enemy sight, damage, cooldown, pursuit, and combat-slot behavior. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]

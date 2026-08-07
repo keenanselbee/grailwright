@@ -20,7 +20,7 @@ This is the living implementation and tuning spec. Keep detailed enemy facts in 
 
 ## Game-File Ground Truth
 
-These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.1.4 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
+These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.2.1 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 | Evidence | Confirmed finding | Design consequence |
 |---|---|---|
@@ -61,6 +61,10 @@ Version 3.1.0 treats a direct Arrow projectile as a delivery tag layered onto th
 Tempered and Crucible apply the shared 55% and 135% rule-intensity scaling. Elite clamps remain authoritative. Wyrd creatures receive no special Arrow overlay until their body evidence supports a clearer rule.
 
 Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/Medium/Heavy armor. Fire, Electric, and Cold also react to the equipped cuirass's native Fabric, Leather, or Metal surface. Blood, Wyrdness, biological effects, and armor-ignoring spells do not receive the generic tier bonus, and vanilla-authored subtype reactions still take priority. Arrow and spell rules retain independent Core toggles.
+
+## Passive Shield Protection
+
+Readied player shields turn a small share of their effective vanilla Block value into passive protection from frontal direct physical hits: 8% on Tempered, 10% on Hardened, and 12% on Crucible. Coverage uses vanilla BlockAngle capped to a centered forward 180-degree arc. The check runs only on incoming damage, performs no physics query or continuous polling, and skips active blocks, rear hits, magic, statuses, damage over time, and sheathed weapons.
 
 ## Non-Goals
 
@@ -207,6 +211,7 @@ True vanilla immunities remain true vanilla immunities. Non-immune amplified res
 |---|---|---|
 | `DamageNumbersEnabled` | Shows built-in floating damage numbers for outgoing player hits. Neutral hits use the base color, while resistance and weakness hits still scale color/size from the applied multiplier. | Keep. This replaces the older reason-text feedback route. |
 | `DamageNumberFontMode` | Follows the game's Accessibility font choice by default and can force the simple Sans, stylized Serif, or Unity IMGUI fallback font. | Keep in parity with Grail Floating Text's font support. |
+| `MeleeDamageNumberDurationMultiplier` | Multiplies the final duration of direct melee numbers after normal resistance, weakness, immunity, and critical timing is resolved. Defaults to `2`; projectiles, spells, and damage-over-time ticks are excluded. | Keep. Camera movement during weapon swings makes the ordinary timing easier to miss. |
 | `DamageNumberHorizontalDrift` and `DamageNumberVerticalDrift` | Independently scale each motion axis from `0` (off) through `1` (default) to `3` (exaggerated) while preserving the relative motion profiles for criticals, weaknesses, resistances, and immunities. | Keep. This supports stationary, straight-rise, wide-spray, and exaggerated feedback styles without separate animation modes. |
 | `DamageOverTimeNumberHeightMultiplier` | Multiplies the initial world-space height for Bleed, Poison, Burn, and Breath status-tick numbers. The `1.25` default starts them 25% higher than ordinary damage numbers. | Keep. Status ticks often report a lower target position than direct hits, so they need a separate baseline without changing their motion. |
 | `DamageNumberSizeContrast` and `DamageNumberColorContrast` | Independently scale weakness/resistance size and color differences from `0` (neutral) through `1` (default) to `3` (dramatic). Critical and weak-spot pop remain independent, and immunity styling is unchanged. | Keep. Players can emphasize color without oversized text, emphasize size without color dependence, or neutralize either channel. |
@@ -218,7 +223,8 @@ True vanilla immunities remain true vanilla immunities. Non-immune amplified res
 | Physical weapon hints | Generic physical hits can infer slash, pierce, or blunt from TG item identity when no specific physical subtype is present. | Keep. This is a release-readiness fix, not a new combat system. |
 | Preset config | `Tempered`, `Hardened`, and `Crucible` scale the same rule table. | Keep. No preset-exclusive matchups. |
 | Target-family term config | Lets users edit BoneUndead, Construct, ArmoredHumanoid, Flesh, FleshUndead, Wyrd, DrownedZombie, InfectedFlesh, SeaFlesh, Spirit, and Flora terms. | Keep. Add new families only when they ship. |
-| Config schema reset | Backs up stale configs and regenerates defaults when schema changes. | Keep. Any new settings require a schema bump. |
+| Player arrow gravity | Applies a preset-independent `0.75` gravity multiplier to player-owned arrows while preserving native launch direction, offsets, draw strength, collision, payloads, and damage. Hostile arrows, thrown items, and other projectiles are excluded. | Keep. The `0.25` to `1.00` range supports flatter trajectories without adding an upward aiming bias. |
+| Config schema reset | Backs up stale configs and regenerates defaults when incompatible settings change. | Keep. Additive settings with safe defaults do not require a schema bump. |
 | Diagnostics | Logs damage checks, detected target families, elite-class target flags, family evidence, damage tags, physical weapon-type hints, no-match reasons, selected rules, elite-clamp adjustments, amplified vanilla multipliers, and skipped vanilla multiplier cases. | Keep through the 0.9.0 atlas validation pass. |
 
 ## Not Implemented

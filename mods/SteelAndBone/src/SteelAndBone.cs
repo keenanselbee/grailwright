@@ -12,6 +12,7 @@ using Awaken.TG.MVC.Events;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
 using Awaken.TG.Main.Heroes.Items.Attachments.Audio;
 using Awaken.TG.Main.Settings.Accessibility;
@@ -28,9 +29,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.1.4.0")]
-[assembly: AssemblyFileVersion("3.1.4.0")]
-[assembly: AssemblyInformationalVersion("3.1.4")]
+[assembly: AssemblyVersion("3.2.1.0")]
+[assembly: AssemblyFileVersion("3.2.1.0")]
+[assembly: AssemblyInformationalVersion("3.2.1")]
 
 namespace SteelAndBone
 {
@@ -40,7 +41,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.1.4";
+        public const string PluginVersion = "3.2.1";
 
         private const int ConfigSchemaVersion = 15;
         private const int ConfigRecoveryBaselineSchema = 14;
@@ -137,6 +138,7 @@ namespace SteelAndBone
         private static readonly string[] MetadataFleshUndeadTerms = { "Zombie", "Bloody" };
         private static readonly string[] MetadataFleshTerms = { "Animal", "Animal_Prey", "Bandit", "Cultist", "Human", "Humanoid" };
         private static readonly string[] MetadataEliteTerms = { "Elite", "MiniBoss", "Boss", "Type:Elite" };
+        private static readonly string[] MetadataBossTerms = { "MiniBoss", "Boss" };
         private static readonly string[] MetadataConfirmedSkeletonTerms = { "Skeleton" };
         private static readonly string[] MetadataStoneBodyTerms = { "HitStone" };
         private static readonly string[] MetadataWoodBodyTerms = { "HitWood" };
@@ -144,6 +146,8 @@ namespace SteelAndBone
         private static readonly string[] ConfirmedSkeletonTerms = { "Skeleton", "JollySkeleton", "Keeper Of The Barrow", "KeeperOfTheBarrow" };
         private static readonly string[] HumanoidFleshTerms = { "Human", "Humanoid", "Bandit", "Outlaw", "Cultist" };
         private static readonly string[] SwarmTerms = { "Swarm", "Bee Swarm", "BeeSwarm" };
+        private static readonly string[] EnemyMovementBearTerms = { "AnimalBear", "Forlorn Bear" };
+        private static readonly string[] EnemyMovementBulkyMonsterTerms = { "Beholder", "Slugholder" };
 
         internal static SteelAndBonePlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
@@ -174,6 +178,7 @@ namespace SteelAndBone
         private ConfigEntry<DamageNumberFontMode> _damageNumberFontMode;
         private ConfigEntry<float> _damageNumberDurationSeconds;
         private ConfigEntry<float> _damageNumberCriticalDurationSeconds;
+        private ConfigEntry<float> _meleeDamageNumberDurationMultiplier;
         private ConfigEntry<float> _damageNumberHorizontalDrift;
         private ConfigEntry<float> _damageNumberVerticalDrift;
         private ConfigEntry<float> _damageOverTimeNumberHeightMultiplier;
@@ -317,6 +322,7 @@ namespace SteelAndBone
             _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, "Font used by Steel and Bone damage numbers. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
             _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, "Seconds a normal Steel and Bone damage number remains visible.");
             _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, "Seconds a critical Steel and Bone damage number remains visible.");
+            _meleeDamageNumberDurationMultiplier = Config.Bind("3. Feedback", "MeleeDamageNumberDurationMultiplier", 2.0f, new ConfigDescription("Multiplier applied to the final duration of direct melee damage numbers so they remain readable while the camera follows a swing. 1 uses the same duration as other damage numbers.", new AcceptableValueRange<float>(1.0f, 3.0f)));
             _damageNumberHorizontalDrift = Config.Bind("3. Feedback", "DamageNumberHorizontalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
             _damageNumberVerticalDrift = Config.Bind("3. Feedback", "DamageNumberVerticalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
             _damageOverTimeNumberHeightMultiplier = Config.Bind("3. Feedback", "DamageOverTimeNumberHeightMultiplier", 1.25f, new ConfigDescription("Multiplier for the initial world-space height of Bleed, Poison, Burn, and Breath status-tick damage numbers. 1 uses the ordinary damage-number height, while 1.25 starts damage-over-time numbers 25% higher.", new AcceptableValueRange<float>(0.0f, 3.0f)));
@@ -507,6 +513,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _respectVanillaMultipliers, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _arrowMaterialRulesEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _armoredSpellWeaknessEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _passiveShieldProtectionEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteRuleClampsEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteWeaknessBonusReduction, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteMinimumResistanceMultiplier, ref restoredCount, ref clampedCount);
@@ -522,6 +529,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _damageNumberFontMode, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberDurationSeconds, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberCriticalDurationSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _meleeDamageNumberDurationMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberHorizontalDrift, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberVerticalDrift, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageOverTimeNumberHeightMultiplier, ref restoredCount, ref clampedCount);
@@ -550,12 +558,15 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerPoiseDamageDealt, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowVelocity, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPlayerArrowDrop, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _playerArrowGravityMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorWeightPenalties, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemyMovementSpeed, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyHostileArrowVelocity, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemySightRange, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyKillExperience, ref restoredCount, ref clampedCount);
@@ -686,6 +697,7 @@ namespace SteelAndBone
             if (targetIsHero)
             {
                 ApplyIncomingHealthDamageModifier(ref damageModifier);
+                ApplyPassiveShieldProtection(hero as Hero, damage as Damage, ref damageModifier);
                 return;
             }
 
@@ -764,6 +776,7 @@ namespace SteelAndBone
             if (!matchedRule && !appliedVanillaAmplification)
             {
                 LogNoRuleDiagnostic(target ?? healthElement, targetClass, damageClass, skippedForVanilla, skippedForEliteClamp);
+                RememberDamageFeedback(damage, 1.0f, "Neutral", "Neutral");
                 return;
             }
 
@@ -1548,7 +1561,7 @@ namespace SteelAndBone
             {
                 case DamageTag.Bludgeoning:
                     baseMultiplier = armorTier == EnemyArmorTier.Exposed
-                        ? 0.98f
+                        ? 1.00f
                         : armorTier == EnemyArmorTier.Light
                             ? 1.00f
                             : armorTier == EnemyArmorTier.Medium ? 1.08f : 1.15f;
@@ -1910,6 +1923,10 @@ namespace SteelAndBone
             classification.IsHumanoidFlesh = ContainsAnyTerm(metadataText, MetadataHumanoidTerms)
                 || ContainsAnyTerm(text, HumanoidFleshTerms);
             classification.IsSwarm = ContainsAnyTerm(text, SwarmTerms);
+            classification.IsBossClass = ContainsAnyTerm(metadataText, MetadataBossTerms)
+                || ContainsAnyTerm(text, MetadataBossTerms);
+            classification.IsBear = ContainsAnyTerm(text, EnemyMovementBearTerms);
+            classification.IsBulkyMonster = ContainsAnyTerm(text, EnemyMovementBulkyMonsterTerms);
             ApplyMetadataTargetClassification(classification, metadataText);
             if (!classification.HasMetadataFamily())
             {
@@ -2295,6 +2312,19 @@ namespace SteelAndBone
                 || ValueNameContains(statusDamageType, "Poison")
                 || ValueNameContains(statusDamageType, "Burn")
                 || ValueNameContains(statusDamageType, "Breath");
+        }
+
+        private bool IsMeleeDamage(object damage)
+        {
+            if (damage == null
+                || IsDamageOverTime(damage)
+                || !ValueNameContains(GetOptionalPropertyValue(damage, "Type"), "PhysicalHitSource"))
+            {
+                return false;
+            }
+
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            return projectile == null;
         }
 
         private bool DamageHasSubtype(object damage, string subtypeName)
@@ -2978,6 +3008,7 @@ namespace SteelAndBone
                 Multiplier = multiplier,
                 TargetLabel = targetLabel,
                 DamageLabel = damageLabel,
+                IsMelee = IsMeleeDamage(damage),
                 CreatedAt = now
             };
 
@@ -3037,7 +3068,8 @@ namespace SteelAndBone
                 critical,
                 weakSpot,
                 immune,
-                IsDamageOverTime(damage));
+                IsDamageOverTime(damage),
+                feedback == null ? IsMeleeDamage(damage) : feedback.IsMelee);
             _damageNumberRenderer.ShowDamageNumber(position, visual);
         }
 
@@ -3156,7 +3188,8 @@ namespace SteelAndBone
             bool critical,
             bool weakSpot,
             bool immune,
-            bool damageOverTime)
+            bool damageOverTime,
+            bool meleeDamage)
         {
             float multiplier = feedback == null ? 1.0f : feedback.Multiplier;
             float resistance = multiplier < 0.999f ? Mathf.Clamp01((1.0f - multiplier) / 0.95f) : 0.0f;
@@ -3223,6 +3256,11 @@ namespace SteelAndBone
             {
                 scale += 0.08f;
                 verticalRise += 8.0f;
+            }
+
+            if (meleeDamage)
+            {
+                duration *= GetMeleeDamageNumberDurationMultiplier();
             }
 
             return new DamageNumberVisual
@@ -3392,6 +3430,12 @@ namespace SteelAndBone
         {
             float value = _damageNumberCriticalDurationSeconds == null ? 1.10f : _damageNumberCriticalDurationSeconds.Value;
             return Clamp(value, 0.45f, 3.00f);
+        }
+
+        private float GetMeleeDamageNumberDurationMultiplier()
+        {
+            float value = _meleeDamageNumberDurationMultiplier == null ? 2.0f : _meleeDamageNumberDurationMultiplier.Value;
+            return Clamp(value, 1.0f, 3.0f);
         }
 
         private float GetDamageNumberHorizontalDrift()
@@ -4162,6 +4206,9 @@ namespace SteelAndBone
             public bool IsSpirit;
             public bool IsFlora;
             public bool IsEliteClass;
+            public bool IsBossClass;
+            public bool IsBear;
+            public bool IsBulkyMonster;
             public bool IsConfirmedSkeleton;
             public bool HasStoneBody;
             public bool HasWoodBody;
@@ -4230,6 +4277,7 @@ namespace SteelAndBone
             public float Multiplier;
             public string TargetLabel;
             public string DamageLabel;
+            public bool IsMelee;
             public float CreatedAt;
         }
 

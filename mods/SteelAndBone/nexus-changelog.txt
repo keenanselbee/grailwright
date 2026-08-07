@@ -1,0 +1,4 @@
+TargetVersion=3.2.1
+BaselineVersion=3.2.0
+
+Kept the configured player-arrow gravity multiplier consistent during local slow-time effects instead of over-correcting arrow drop.

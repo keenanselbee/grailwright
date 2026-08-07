@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using Awaken.TG.Main.AI.Combat.Utils;
+using Awaken.TG.Main.AI.Fights.Projectiles;
 using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.MVC;
 using Awaken.TG.Main.Animations.FSM.Npc.Machines;
@@ -12,6 +13,7 @@ using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Grounds;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
 using Awaken.TG.Main.Heroes.Stats;
@@ -32,6 +34,7 @@ namespace SteelAndBone
     public sealed partial class SteelAndBonePlugin
     {
         private const string CustomDifficultyPluginGuid = "jonanoj.CustomDifficulty";
+        private const string FlatArrowsPluginGuid = "RedJohn260.FlatArrows";
         private const string TaintedCombatPluginGuid = "kane.tgfoa.tainted-combat";
         private const string TaintedInstinctsPluginGuid = "kane.tgfoa.tainted-instincts";
         private const float NeutralTolerance = 0.0001f;
@@ -41,16 +44,20 @@ namespace SteelAndBone
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
         private ConfigEntry<float> _playerDamageDealtMultiplier;
         private ConfigEntry<bool> _modifyPlayerDamageTaken;
+        private ConfigEntry<bool> _passiveShieldProtectionEnabled;
         private ConfigEntry<bool> _modifyStaminaUsage;
         private ConfigEntry<bool> _modifyManaUsage;
         private ConfigEntry<bool> _modifyPlayerPoiseDamageDealt;
         private ConfigEntry<bool> _modifyPlayerArrowVelocity;
+        private ConfigEntry<bool> _modifyPlayerArrowDrop;
+        private ConfigEntry<float> _playerArrowGravityMultiplier;
         private ConfigEntry<bool> _modifyArmorWeightPenalties;
         private ConfigEntry<bool> _modifyLightArmorMobility;
         private ConfigEntry<bool> _modifyArmorPhysicalProtection;
         private ConfigEntry<bool> _modifyEnemyAttackSlots;
         private ConfigEntry<int> _enemyAttackSlotCap;
         private ConfigEntry<bool> _modifyEnemyAttackRecovery;
+        private ConfigEntry<bool> _modifyEnemyMovementSpeed;
         private ConfigEntry<bool> _modifyHostileArrowVelocity;
         private ConfigEntry<bool> _modifyEnemySightRange;
         private ConfigEntry<bool> _modifyKillExperience;
@@ -62,7 +69,7 @@ namespace SteelAndBone
         private Hero _difficultyTweakHero;
         private float _nextDifficultyRefreshAt;
         private bool _resourceStatsPatchAvailable;
-        private bool _reportedEnemySightRefreshFailure;
+        private bool _reportedEnemyRuntimeRefreshFailure;
 
         private enum DifficultyStatTarget
         {
@@ -103,6 +110,20 @@ namespace SteelAndBone
             }
         }
 
+        private sealed class EnemyMovementSpeedTweak : StatTweak
+        {
+            public override bool IsNotSaved
+            {
+                get { return true; }
+            }
+
+            internal EnemyMovementSpeedTweak(Stat stat, float multiplier)
+                : base(stat, multiplier, TweakPriority.Multiply, OperationType.Multi, null)
+            {
+                MarkedNotSaved = true;
+            }
+        }
+
         private sealed class PoisePatchState
         {
             internal Damage Damage;
@@ -134,6 +155,11 @@ namespace SteelAndBone
                 "ModifyPlayerDamageTaken",
                 true,
                 "Increase health damage taken from all routed damage sources by 0%, 5%, or 10% according to the preset.");
+            _passiveShieldProtectionEnabled = Config.Bind(
+                "6. Difficulty - Player",
+                "PassiveShieldProtectionEnabled",
+                true,
+                "Grant an equipped and readied shield modest passive protection against direct physical attacks from within its forward BlockAngle. Active blocks, rear attacks, magic, status effects, and damage over time are unaffected.");
             _modifyStaminaUsage = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyStaminaUsage",
@@ -154,6 +180,18 @@ namespace SteelAndBone
                 "ModifyPlayerArrowVelocity",
                 true,
                 "Multiply player-fired arrow velocity by 1.10, 1.30, or 1.50 according to the preset. This velocity setting does not alter damage; ArrowMaterialRulesEnabled controls the separate material matchup.");
+            _modifyPlayerArrowDrop = Config.Bind(
+                "6. Difficulty - Player",
+                "ModifyPlayerArrowDrop",
+                true,
+                "Apply PlayerArrowGravityMultiplier to player-fired arrows. This reduces arrow drop without tilting the launch direction and is independent from the preset.");
+            _playerArrowGravityMultiplier = Config.Bind(
+                "6. Difficulty - Player",
+                "PlayerArrowGravityMultiplier",
+                0.75f,
+                new ConfigDescription(
+                    "Gravity multiplier for player-fired arrows. 1 is vanilla gravity and 0.75 applies 25% less gravity. Arrow velocity remains controlled separately by the preset.",
+                    new AcceptableValueRange<float>(0.25f, 1.0f)));
             _modifyArmorWeightPenalties = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyArmorWeightPenalties",
@@ -187,6 +225,11 @@ namespace SteelAndBone
                 "ModifyEnemyAttackRecovery",
                 true,
                 "Shorten the delay before enemies release attack slots by 0%, 5%, or 10% according to the preset.");
+            _modifyEnemyMovementSpeed = Config.Bind(
+                "7. Difficulty - Enemies",
+                "ModifyEnemyMovementSpeed",
+                true,
+                "Increase combat movement speed by up to 0%, 5%, or 10% according to the preset. Ordinary agile enemies receive the full bonus; Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half; Heavy-armored, massive, boss, and scripted enemies retain their vanilla speed.");
             _modifyHostileArrowVelocity = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyHostileArrowVelocity",
@@ -219,7 +262,7 @@ namespace SteelAndBone
         {
             Config.SettingChanged += OnDifficultySettingChanged;
             ReapplyDifficultyStatTweaks();
-            RefreshEnemySightRangeTweaks();
+            RefreshEnemyRuntimeTweaks();
             EvaluateCompatibilityOverlaps();
         }
 
@@ -228,6 +271,7 @@ namespace SteelAndBone
             Config.SettingChanged -= OnDifficultySettingChanged;
             RemoveDifficultyStatTweaks(Hero.Current);
             RemoveAllEnemySightRangeTweaks();
+            RemoveAllEnemyMovementSpeedTweaks();
             _difficultyTweakHero = null;
         }
 
@@ -245,7 +289,7 @@ namespace SteelAndBone
                 RemoveDifficultyStatTweaks(_difficultyTweakHero);
             }
             ReapplyDifficultyStatTweaks();
-            RefreshEnemySightRangeTweaks();
+            RefreshEnemyRuntimeTweaks();
 
             EvaluateCompatibilityOverlaps();
         }
@@ -253,7 +297,7 @@ namespace SteelAndBone
         private void OnDifficultySettingChanged(object sender, SettingChangedEventArgs args)
         {
             ReapplyDifficultyStatTweaks();
-            RefreshEnemySightRangeTweaks();
+            RefreshEnemyRuntimeTweaks();
             EvaluateCompatibilityOverlaps();
         }
 
@@ -307,6 +351,12 @@ namespace SteelAndBone
                 nameof(PlayerArrowVelocityPatch.Prefix),
                 "BowFSM.FireProjectileInternal",
                 "player arrow-velocity modifier");
+            PatchOptionalPostfix(
+                AccessTools.Method(typeof(DamageDealingProjectile), "ProcessFixedUpdate"),
+                typeof(PlayerArrowGravityPatch),
+                nameof(PlayerArrowGravityPatch.Postfix),
+                "DamageDealingProjectile.ProcessFixedUpdate",
+                "player arrow-drop modifier");
             PatchOptionalPostfix(
                 AccessTools.Method(typeof(Hero), "TotalArmor", new[] { typeof(DamageSubType) }),
                 typeof(HeroPhysicalArmorPatch),
@@ -512,6 +562,64 @@ namespace SteelAndBone
             }
         }
 
+        private float PresetEnemyMovementSpeedMultiplier(NpcElement npc)
+        {
+            float mobilityShare = EnemyMovementMobilityShare(npc);
+            return 1.0f + PresetPenaltyAmount() * mobilityShare;
+        }
+
+        private float EnemyMovementMobilityShare(NpcElement npc)
+        {
+            if (npc == null || npc.Template == null)
+            {
+                return 0.0f;
+            }
+
+            NpcType npcType = npc.Template.NpcType;
+            if (npcType == NpcType.Boss
+                || npcType == NpcType.MiniBoss
+                || npcType == NpcType.Critter
+                || !npc.Template.requiresPathToTarget)
+            {
+                return 0.0f;
+            }
+
+            TargetClassification targetClass = GetTargetClassification(npc, npc.HealthElement);
+            if (targetClass.IsBossClass
+                || targetClass.IsBear
+                || targetClass.IsConstruct
+                || targetClass.IsFlora)
+            {
+                return 0.0f;
+            }
+
+            int weight = npc.Template.npcWeight;
+            float mobilityShare = weight >= 250 ? 0.0f : weight >= 150 ? 0.5f : 1.0f;
+            if (npcType == NpcType.Elite || targetClass.IsBulkyMonster)
+            {
+                mobilityShare = Math.Min(mobilityShare, 0.5f);
+            }
+
+            EnemyArmorTier armorTier = targetClass.ArmorProfile == null
+                ? EnemyArmorTier.Unknown
+                : targetClass.ArmorProfile.Tier;
+            string armorEvidence;
+            if (armorTier != EnemyArmorTier.Unknown
+                || TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence))
+            {
+                if (armorTier == EnemyArmorTier.Heavy)
+                {
+                    return 0.0f;
+                }
+                if (armorTier == EnemyArmorTier.Medium)
+                {
+                    mobilityShare = Math.Min(mobilityShare, 0.5f);
+                }
+            }
+
+            return mobilityShare;
+        }
+
         private float PresetLightArmorMovementMultiplier()
         {
             if (_preset == null)
@@ -612,6 +720,85 @@ namespace SteelAndBone
             LogDifficultyDiagnostic("PlayerDamageTaken", before, damageModifier, multiplier);
         }
 
+        private void ApplyPassiveShieldProtection(Hero hero, Damage damage, ref float damageModifier)
+        {
+            if (!DifficultyModifierIsEnabled(_passiveShieldProtectionEnabled)
+                || hero == null
+                || damage == null
+                || !hero.WeaponsVisible
+                || hero.IsBlocking
+                || damage.IsBlocked
+                || damage.IsParried
+                || !damage.CanBeBlocked
+                || damage.Type != DamageType.PhysicalHitSource)
+            {
+                return;
+            }
+
+            Item shield = hero.Inventory.EquippedItem(EquipmentSlotType.OffHand);
+            if (shield == null || !shield.IsShield)
+            {
+                shield = hero.Inventory.EquippedItem(EquipmentSlotType.MainHand);
+            }
+
+            if (shield == null || !shield.IsShield || shield.ItemStats == null)
+            {
+                return;
+            }
+
+            ICharacter damageDealer = damage.DamageDealer;
+            if (damageDealer == null)
+            {
+                return;
+            }
+
+            Vector3 incomingDirection = damageDealer.Coords - hero.Coords;
+            incomingDirection.y = 0.0f;
+            Vector3 heroForward = hero.Forward();
+            heroForward.y = 0.0f;
+            if (incomingDirection.sqrMagnitude <= NeutralTolerance
+                || heroForward.sqrMagnitude <= NeutralTolerance)
+            {
+                return;
+            }
+
+            float blockHalfAngle = Mathf.Clamp(shield.ItemStats.BlockAngle.ModifiedValue, 0.0f, 90.0f);
+            float minimumForwardDot = Mathf.Cos(blockHalfAngle * Mathf.Deg2Rad);
+            if (Vector3.Dot(heroForward.normalized, incomingDirection.normalized) <= minimumForwardDot)
+            {
+                return;
+            }
+
+            float effectiveBlock = shield.ItemStats.Block.ModifiedValue
+                * ItemRequirementsUtils.GetBlockDamageReductionMultiplier(hero, shield);
+            effectiveBlock = Mathf.Clamp(effectiveBlock, 0.0f, 100.0f);
+
+            float presetShare = 0.10f;
+            if (_preset != null)
+            {
+                switch (_preset.Value)
+                {
+                    case Preset.Tempered:
+                        presetShare = 0.08f;
+                        break;
+                    case Preset.Crucible:
+                        presetShare = 0.12f;
+                        break;
+                }
+            }
+
+            float passiveReduction = effectiveBlock * 0.01f * presetShare;
+            if (passiveReduction <= 0.0f)
+            {
+                return;
+            }
+
+            float multiplier = 1.0f - passiveReduction;
+            float before = damageModifier;
+            damageModifier *= multiplier;
+            LogDifficultyDiagnostic("PassiveShieldProtection", before, damageModifier, multiplier);
+        }
+
         private void ApplyPlayerArrowVelocity(ref Vector3 arrowVelocity)
         {
             if (!DifficultyModifierIsEnabled(_modifyPlayerArrowVelocity))
@@ -623,6 +810,36 @@ namespace SteelAndBone
             float before = arrowVelocity.magnitude;
             arrowVelocity *= multiplier;
             LogDifficultyDiagnostic("PlayerArrowVelocity", before, arrowVelocity.magnitude, multiplier);
+        }
+
+        private void ApplyPlayerArrowGravity(DamageDealingProjectile projectile, float deltaTime)
+        {
+            if (!PlayerArrowDropModifierIsEffective()
+                || projectile == null
+                || !(projectile is Arrow)
+                || Hero.Current == null
+                || !ReferenceEquals(projectile.Owner, Hero.Current)
+                || deltaTime <= 0.0f)
+            {
+                return;
+            }
+
+            Rigidbody body = projectile.GetComponentInChildren<Rigidbody>(true);
+            if (body == null || body.isKinematic || !body.useGravity)
+            {
+                return;
+            }
+
+            float fixedDeltaTime = Time.fixedDeltaTime;
+            if (fixedDeltaTime <= 0.0f)
+            {
+                return;
+            }
+
+            float gravityMultiplier = Clamp(_playerArrowGravityMultiplier.Value, 0.25f, 1.0f);
+            float localTimeScale = deltaTime / fixedDeltaTime;
+            float cancellationScale = (1.0f - gravityMultiplier) * localTimeScale * localTimeScale;
+            body.AddForce(-Physics.gravity * cancellationScale, ForceMode.Acceleration);
         }
 
         private void ApplyPhysicalArmorProtection(Hero hero, DamageSubType damageType, ref float armor)
@@ -947,22 +1164,23 @@ namespace SteelAndBone
             }
         }
 
-        private void RefreshEnemySightRangeTweaks()
+        private void RefreshEnemyRuntimeTweaks()
         {
             try
             {
                 foreach (NpcElement npc in World.All<NpcElement>())
                 {
                     ApplyEnemySightRangeTweak(npc);
+                    ApplyEnemyMovementSpeedTweak(npc);
                 }
-                _reportedEnemySightRefreshFailure = false;
+                _reportedEnemyRuntimeRefreshFailure = false;
             }
             catch (Exception ex)
             {
-                if (!_reportedEnemySightRefreshFailure)
+                if (!_reportedEnemyRuntimeRefreshFailure)
                 {
-                    _reportedEnemySightRefreshFailure = true;
-                    Warn("Could not refresh enemy sight-range modifiers: " + ex.GetBaseException().Message);
+                    _reportedEnemyRuntimeRefreshFailure = true;
+                    Warn("Could not refresh enemy runtime modifiers: " + ex.GetBaseException().Message);
                 }
             }
         }
@@ -1046,6 +1264,81 @@ namespace SteelAndBone
                 && WithFactionUtils.IsHostileToHero(npc);
         }
 
+        private void ApplyEnemyMovementSpeedTweak(NpcElement npc)
+        {
+            if (npc == null || npc.HasBeenDiscarded)
+            {
+                return;
+            }
+
+            EnemyMovementSpeedTweak current = null;
+            List<EnemyMovementSpeedTweak> duplicateTweaks = null;
+            foreach (EnemyMovementSpeedTweak tweak in npc.Elements<EnemyMovementSpeedTweak>())
+            {
+                if (current == null)
+                {
+                    current = tweak;
+                }
+                else
+                {
+                    if (duplicateTweaks == null)
+                    {
+                        duplicateTweaks = new List<EnemyMovementSpeedTweak>();
+                    }
+                    duplicateTweaks.Add(tweak);
+                }
+            }
+
+            if (duplicateTweaks != null)
+            {
+                for (int i = 0; i < duplicateTweaks.Count; i++)
+                {
+                    duplicateTweaks[i].Discard();
+                }
+            }
+
+            float multiplier = EnemyMovementSpeedTargetIsEligible(npc)
+                ? PresetEnemyMovementSpeedMultiplier(npc)
+                : 1.0f;
+            Stat movementSpeed = npc.CharacterStats == null
+                ? null
+                : npc.CharacterStats.MovementSpeedMultiplier;
+            if (movementSpeed == null || ApproximatelyNeutral(multiplier))
+            {
+                if (current != null)
+                {
+                    current.Discard();
+                }
+                return;
+            }
+
+            if (current == null)
+            {
+                npc.AddElement(new EnemyMovementSpeedTweak(movementSpeed, multiplier));
+                LogDifficultyDiagnostic("EnemyMovementSpeed", 1.0f, multiplier, multiplier);
+                return;
+            }
+
+            if (Math.Abs(current.Modifier - multiplier) > NeutralTolerance)
+            {
+                float before = current.Modifier;
+                current.SetModifier(multiplier);
+                LogDifficultyDiagnostic("EnemyMovementSpeed", before, multiplier, multiplier);
+            }
+        }
+
+        private bool EnemyMovementSpeedTargetIsEligible(NpcElement npc)
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemyMovementSpeed)
+                && Hero.Current != null
+                && npc.IsAlive
+                && !npc.IsSummonOrAlly
+                && npc.NpcAI != null
+                && npc.NpcAI.Working
+                && npc.IsInCombat()
+                && WithFactionUtils.IsHostileToHero(npc);
+        }
+
         private void RemoveAllEnemySightRangeTweaks()
         {
             try
@@ -1082,6 +1375,42 @@ namespace SteelAndBone
             }
         }
 
+        private void RemoveAllEnemyMovementSpeedTweaks()
+        {
+            try
+            {
+                foreach (NpcElement npc in World.All<NpcElement>())
+                {
+                    if (npc == null || npc.HasBeenDiscarded)
+                    {
+                        continue;
+                    }
+
+                    List<EnemyMovementSpeedTweak> tweaks = null;
+                    foreach (EnemyMovementSpeedTweak tweak in npc.Elements<EnemyMovementSpeedTweak>())
+                    {
+                        if (tweaks == null)
+                        {
+                            tweaks = new List<EnemyMovementSpeedTweak>();
+                        }
+                        tweaks.Add(tweak);
+                    }
+                    if (tweaks == null)
+                    {
+                        continue;
+                    }
+                    for (int i = 0; i < tweaks.Count; i++)
+                    {
+                        tweaks[i].Discard();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Warn("Could not remove all enemy movement-speed modifiers during shutdown: " + ex.GetBaseException().Message);
+            }
+        }
+
         private static bool ApproximatelyNeutral(float value)
         {
             return Math.Abs(value - 1.0f) <= NeutralTolerance;
@@ -1113,6 +1442,7 @@ namespace SteelAndBone
             try
             {
                 EvaluateCustomDifficultyOverlap();
+                EvaluateFlatArrowsOverlap();
                 EvaluateTaintedCombatOverlap();
                 EvaluateTaintedInstinctsOverlap();
             }
@@ -1175,6 +1505,28 @@ namespace SteelAndBone
                     && CustomDifficultyChangesProficiencyExperience(plugin),
                 "ModifyProficiencyExperience");
             ReportCompatibilityOverlap("Custom Difficulty", conflicts);
+        }
+
+        private void EvaluateFlatArrowsOverlap()
+        {
+            BaseUnityPlugin plugin;
+            if (!TryGetEnabledPlugin(FlatArrowsPluginGuid, out plugin)
+                || !ReadExternalBool(plugin, "General", "EnableFlatArrows", true)
+                || !ReadExternalBool(plugin, "AMOD", "EnableArrowModifications", true))
+            {
+                return;
+            }
+
+            List<string> conflicts = new List<string>();
+            AddConflictIf(
+                conflicts,
+                DifficultyModifierIsEnabled(_modifyPlayerArrowVelocity),
+                "ModifyPlayerArrowVelocity");
+            AddConflictIf(
+                conflicts,
+                PlayerArrowDropModifierIsEffective(),
+                "ModifyPlayerArrowDrop");
+            ReportCompatibilityOverlap("Flat Arrows", conflicts);
         }
 
         private void EvaluateTaintedCombatOverlap()
@@ -1313,6 +1665,13 @@ namespace SteelAndBone
             return DifficultyModifierIsEnabled(setting) && PresetPenaltyAmount() > NeutralTolerance;
         }
 
+        private bool PlayerArrowDropModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyPlayerArrowDrop)
+                && _playerArrowGravityMultiplier != null
+                && _playerArrowGravityMultiplier.Value < 1.0f - NeutralTolerance;
+        }
+
         private bool AttackSlotsModifierIsEffective()
         {
             return DifficultyModifierIsEnabled(_modifyEnemyAttackSlots) && PresetAttackSlotBonus() > 0;
@@ -1360,6 +1719,10 @@ namespace SteelAndBone
             if (string.Equals(pluginName, "Tainted Combat", StringComparison.Ordinal))
             {
                 message = "Overlapping combat modifiers are active with Tainted Combat. See the BepInEx log for the settings to disable.";
+            }
+            else if (string.Equals(pluginName, "Flat Arrows", StringComparison.Ordinal))
+            {
+                message = "Overlapping player-arrow modifiers are active with Flat Arrows. See the BepInEx log for the settings to disable.";
             }
             else if (string.Equals(pluginName, "Tainted Instincts", StringComparison.Ordinal))
             {
@@ -1517,6 +1880,18 @@ namespace SteelAndBone
                 if (plugin != null)
                 {
                     plugin.ApplyPlayerArrowVelocity(ref arrowVelocity);
+                }
+            }
+        }
+
+        private static class PlayerArrowGravityPatch
+        {
+            public static void Postfix(DamageDealingProjectile __instance, float deltaTime)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyPlayerArrowGravity(__instance, deltaTime);
                 }
             }
         }

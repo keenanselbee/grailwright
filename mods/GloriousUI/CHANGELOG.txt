@@ -1,3 +1,10 @@
+Version 1.7.5
+Fails closed before releasing partial startup state so installed callbacks cannot observe an active Glorious UI during cleanup.
+
+Version 1.7.4
+Rolls back installed hooks and optional integrations when Glorious UI cannot complete its required startup patch, preventing partially active features.
+Keeps quick-menu time-format changes independent from the open rest-clock overlay.
+
 Version 1.7.3
 Formats quick-menu time directly after the native refresh without retaining discarded menu views.
 Activates Sensible Rest Menu runtime patches only after Glorious UI's required core hook succeeds.

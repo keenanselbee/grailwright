@@ -52,9 +52,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Immersive HUD and expanded Equipment-panel controls for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Glorious UI")]
-[assembly: AssemblyVersion("1.7.3.0")]
-[assembly: AssemblyFileVersion("1.7.3.0")]
-[assembly: AssemblyInformationalVersion("1.7.3")]
+[assembly: AssemblyVersion("1.7.5.0")]
+[assembly: AssemblyFileVersion("1.7.5.0")]
+[assembly: AssemblyInformationalVersion("1.7.5")]
 
 namespace GloriousUI
 {
@@ -136,7 +136,7 @@ namespace GloriousUI
     {
         public const string PluginGuid = "ks.tgfoa.glorious-ui";
         public const string PluginName = "Glorious UI";
-        public const string PluginVersion = "1.7.3";
+        public const string PluginVersion = "1.7.5";
 
         private const int ConfigSchemaVersion = 1;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -533,7 +533,7 @@ namespace GloriousUI
                 CacheGameAccessors();
                 if (!PatchGame())
                 {
-                    enabled = false;
+                    AbortStartup();
                     return;
                 }
 
@@ -546,7 +546,29 @@ namespace GloriousUI
             {
                 Logger.LogError(PluginName + " failed to initialize: " + exception);
                 Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, exception);
-                enabled = false;
+                AbortStartup();
+            }
+        }
+
+        private void AbortStartup()
+        {
+            _accessorsReady = false;
+            if (ReferenceEquals(Instance, this))
+            {
+                Instance = null;
+            }
+            enabled = false;
+
+            ReleaseEyesInTheDarkPlacementRequest();
+            if (_sensibleRestMenu != null)
+            {
+                _sensibleRestMenu.Release();
+                _sensibleRestMenu = null;
+            }
+            if (_harmony != null)
+            {
+                _harmony.UnpatchSelf();
+                _harmony = null;
             }
         }
 

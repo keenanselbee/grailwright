@@ -22,7 +22,7 @@ function Assert-SensibleRestMenuContract {
 foreach ($required in @(
     'src/SensibleRestMenu.cs',
     'UnityEngine.TextRenderingModule.dll',
-    '"version": "1.7.3"')) {
+    '"version": "1.7.5"')) {
     Assert-SensibleRestMenuContract ($manifest.Contains($required)) "manifest omits $required"
 }
 
@@ -35,6 +35,9 @@ foreach ($required in @(
     'new SensibleRestMenuController(',
     'if (requiredPatched && _sensibleRestMenu != null)',
     '_sensibleRestMenu.Patch(_harmony);',
+    'private void AbortStartup()',
+    '_harmony.UnpatchSelf();',
+    'Instance = null;',
     '_sensibleRestMenu.Release();')) {
     Assert-SensibleRestMenuContract ($plugin.Contains($required)) "plugin omits $required"
 }
@@ -64,9 +67,30 @@ foreach ($required in @(
 foreach ($retired in @(
     'Chainloader.PluginInfos',
     'QuickWeatherTimeSnapshot',
-    '_quickWeatherTimeSnapshots')) {
+    '_quickWeatherTimeSnapshots',
+    '_formatQuickMenuTime.SettingChanged +=')) {
     Assert-SensibleRestMenuContract (!$restMenu.Contains($retired)) "runtime retains $retired"
 }
+
+Assert-SensibleRestMenuContract (
+    ([regex]::Matches($plugin, 'AbortStartup\(\);')).Count -eq 2) (
+    "startup failure paths do not share the complete rollback")
+
+$abortStart = $plugin.IndexOf('private void AbortStartup()')
+$startMethod = $plugin.IndexOf('private void Start()', $abortStart)
+Assert-SensibleRestMenuContract (
+    $abortStart -ge 0 -and $startMethod -gt $abortStart) (
+    "startup rollback method could not be isolated")
+$abortBody = $plugin.Substring($abortStart, $startMethod - $abortStart)
+$instanceClearIndex = $abortBody.IndexOf('Instance = null;')
+$integrationReleaseIndex = $abortBody.IndexOf(
+    'ReleaseEyesInTheDarkPlacementRequest();')
+$unpatchIndex = $abortBody.IndexOf('_harmony.UnpatchSelf();')
+Assert-SensibleRestMenuContract (
+    ($instanceClearIndex -ge 0) -and
+    ($integrationReleaseIndex -gt $instanceClearIndex) -and
+    ($unpatchIndex -gt $instanceClearIndex)) (
+    "startup rollback does not fail closed before cleanup")
 
 $requiredPatchIndex = $plugin.IndexOf('bool requiredPatched = PatchMethod(')
 $restMenuPatchIndex = $plugin.IndexOf('_sensibleRestMenu.Patch(_harmony);')

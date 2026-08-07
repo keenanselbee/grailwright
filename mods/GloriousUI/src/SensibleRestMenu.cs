@@ -51,8 +51,6 @@ namespace GloriousUI
             _gloriousUiEnabled.SettingChanged += OnPresentationSettingChanged;
             _enabled.SettingChanged += OnPresentationSettingChanged;
             _timeFormat.SettingChanged += OnPresentationSettingChanged;
-            _formatQuickMenuTime.SettingChanged +=
-                OnPresentationSettingChanged;
         }
 
         internal void Patch(Harmony harmony)
@@ -67,8 +65,6 @@ namespace GloriousUI
             _gloriousUiEnabled.SettingChanged -= OnPresentationSettingChanged;
             _enabled.SettingChanged -= OnPresentationSettingChanged;
             _timeFormat.SettingChanged -= OnPresentationSettingChanged;
-            _formatQuickMenuTime.SettingChanged -=
-                OnPresentationSettingChanged;
             RestClockOverlay.DetachAll();
             if (ReferenceEquals(Instance, this))
             {

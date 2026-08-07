@@ -18,9 +18,13 @@ This is not a broad magic overhaul. It is a blood-magic expansion built around c
 [*][b]Restrained progression:[/b] Gain vanilla-scaled corpse XP and small capped live-drain ticks without turning blood magic into an unlimited leveling engine.[/*]
 [*][b]Distinct ritual identities:[/b] Blood Rite, Desecration, and Soul Feast shape ritual timing, rewards, live-drain pacing, and spell behavior, while Custom exposes the underlying tuning.[/*]
 [*][b]Corpse quality and filtering:[/b] Enemy health and kill XP scale healing and Abhartach effects, while configurable terms reject stone, spirits, skeletons, Wyrd variants, and other bloodless targets.[/*]
-[*][b]Blood-magic presentation:[/b] Quality-matched ritual audio, a configurable red spell light, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] compatibility reinforce the theme.[/*]
+[*][b]Blood-magic presentation:[/b] Quality-matched ritual audio, independent red lights that follow each raised blood-spell hand, configurable per-spell and interior intensity, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] alignment, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] compatibility reinforce the theme.[/*]
 [*][b]Optional hitch mitigation:[/b] An isolated, enabled-by-default preload moves the vanilla Bleed graph's cold deserialization into gameplay loading and can be disabled independently.[/*]
 [/list]
+
+Each hand light turns off immediately only when that same hand changes from a blood spell to non-blood equipment. Switching the opposite weapon or replacing one supported blood spell with another retains the configured fade behavior.
+
+The shared light intensity defaults to 0.5. Blood Transfusion applies a 0.8x multiplier, Life Transfusion 1.0x, and Abhartach's Calling 1.2x; each value is independently configurable and still combines with interior and temporary casting multipliers.
 
 [line]
 
@@ -169,6 +173,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for source-isolated corpse-quality and live-drain XP text; version 1.9.0+ enables consolidation.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] 0.3.5+ is an optional soft integration that keeps the unparented blood-spell lights aligned with presentation-only arm offsets.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]
 [/list]
@@ -176,4 +181,4 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Performance[/size][/color][/heading]
-Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red inner light is one cached no-shadow point light, enabled only while a matching blood spell is equipped and the magic hands are raised. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Spirituality is cached briefly before spell tuning reads it. Noisy diagnostics default to off; startup and patch-warning logs remain enabled.
+Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red hand lights are two cached no-shadow point lights, each enabled only while its hand has a matching blood spell equipped and raised. Their active positions use one cached optional-integration call and at most two transform assignments per frame; reflection is resolved only once. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Spirituality is cached briefly before spell tuning reads it. Noisy diagnostics default to off; startup and patch-warning logs remain enabled.

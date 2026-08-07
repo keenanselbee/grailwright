@@ -1,3 +1,20 @@
+Version 2.4.5
+Changed the shared Blood Spell Inner Light intensity default from 1.0 to 0.5 and added configurable per-spell multipliers defaulting to 0.8 for Blood Transfusion, 1.0 for Life Transfusion, and 1.2 for Abhartach's Calling.
+Incremented ConfigSchemaVersion from 10 to 11 because the shared intensity default materially changed. Untouched old defaults regenerate at 0.5, while customized compatible intensity, light calibration, matching, and audio values remain eligible for conservative recovery.
+
+Version 2.4.4
+Made a hand's blood light turn off instantly when that same hand changes from a blood spell to non-blood equipment.
+Kept the configured fade when the blood spell remains equipped, including loadout changes that replace only the opposite hand's weapon and transitions between supported blood spells.
+
+Version 2.4.3
+Moved each blood-spell light from its wrist socket to the semantic animated hand marker, with the wrist retained as a compatibility fallback.
+Added optional First Person Arms Adjuster 0.3.5 integration so unparented world-space hand lights follow its presentation-only visual offset without per-frame reflection, hierarchy searches, or raycasts.
+
+Version 2.4.1
+Moved the blood spell light from the player camera to independent main-hand and off-hand wrist anchors that follow the animated hands.
+Enabled each hand light only while that hand has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped and raised, with cast brightness boosts isolated to the casting hand.
+Added InteriorIntensityMultiplier for full interior scenes, defaulting to 1.0 so existing brightness is unchanged until configured.
+
 Version 2.4.0
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

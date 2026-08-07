@@ -27,7 +27,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.4.0
+Version: 2.4.5
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -102,8 +102,8 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-Version 2.3.1 and newer enforce ConfigSchemaVersion 10 because the default
-Blood Spell Inner Light intensity changed to 1.0. If the schema marker is
+Version 2.4.5 and newer enforce ConfigSchemaVersion 11 because the default
+Blood Spell Inner Light intensity changed from 1.0 to 0.5. If the schema marker is
 missing or outdated, the old config is backed up beside the active file and
 fresh defaults are generated. Carefully tuned inner-light and corpse-leech
 audio values, blood whitelist terms, and exact spell template GUID overrides
@@ -127,26 +127,41 @@ ClaimGrailFloatingTextLiveDrainXP = true
 ## Blood Spell Inner Light
 
 Equipping Blood Transfusion, Life Transfusion, or Abhartach's Calling and
-raising the magic hands can cast a red no-shadow point light from the player
-camera. Sheathing or lowering hands disables it. Actual blood spell casting
-temporarily triples the light brightness 0.3 seconds after cast start, then
-fades back down when the cast performs, ends, or cancels.
-The light is separate from the vanilla HeroLight, so No Player Light can stay
-installed while BME provides only the blood-spell glow. The configured
+raising a magic hand casts a red no-shadow point light from that hand's
+animated hand marker, with its wrist used only as a compatibility fallback.
+Each hand is independent: lowering or changing one hand
+disables only its light, while dual blood spells can illuminate from both
+hands. Casting temporarily triples only the casting hand's brightness 0.3
+seconds after cast start, then fades it back down when the cast performs, ends,
+or cancels.
+Changing that same hand from a blood spell to non-blood equipment turns its
+light off immediately. Switching only the opposite weapon, or replacing one
+supported blood spell with another, retains the configured fade behavior.
+The hand lights are separate from the vanilla HeroLight, so No Player Light can
+stay installed while BME provides only the blood-spell glow. The configured
 brightness is scaled internally for the game's HDRP renderer so small config
-values remain human-friendly.
+values remain human-friendly. Full interior scenes can apply an additional
+multiplier; its default of 1.0 preserves the configured brightness.
+Blood Transfusion defaults to 0.8x the shared base, Life Transfusion to 1.0x,
+and Abhartach's Calling to 1.2x. With the default base of 0.5, their normal
+pre-cast brightness values are therefore 0.4, 0.5, and 0.6 respectively.
 
 ```text
 Enabled = true
-Intensity = 1.0
+Intensity = 0.5
+BloodTransfusionIntensityMultiplier = 0.8
+LifeTransfusionIntensityMultiplier = 1.0
+AbhartachCallingIntensityMultiplier = 1.2
+InteriorIntensityMultiplier = 1.0
 Range = 5.0
 FadeSeconds = 0.12
 LogBloodSpellInnerLight = true
 ```
 
-Lower intensity or range for a subtler effect. Set Enabled to false, or
-Intensity to zero, for no visual light. Diagnostics are limited and can be
-disabled after confirming readiness and visibility.
+Lower the shared intensity, a spell multiplier, or range for a subtler effect. Raise
+InteriorIntensityMultiplier to strengthen the lights only in full interiors.
+Set Enabled to false, or Intensity to zero, for no visual light. Diagnostics
+are limited and can be disabled after confirming readiness and visibility.
 
 ## Corpse Leech Audio
 
@@ -275,6 +290,10 @@ the public IL2CPP branch or an IL2CPP BepInEx installation.
 Dishonored Dynamic Crosshair 2.8.1+ can use
 `BloodMagicExpansion.BloodMagicApi` v4 for focused corpse reticle feedback.
 
+First Person Arms Adjuster 0.3.5+ is an optional soft integration. When present,
+each unparented world-space blood light follows FPA's presentation-only visual
+offset so the light remains centered on the rendered hand after arm adjustment.
+
 Avoid running older Blood Mage or other Blood/Life Transfusion reward mods at
 the same time unless you intentionally want overlapping XP systems.
 
@@ -282,8 +301,10 @@ the same time unless you intentionally want overlapping XP systems.
 
 Corpse rituals use lightweight held-state checks and camera raycasts only while
 Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active.
-The red inner light is one cached no-shadow point light, enabled only while a
-matching blood spell is equipped and the magic hands are raised. Live draining
+The red inner lights are two cached no-shadow point lights, each enabled only
+while its hand has a matching blood spell equipped and raised. Their active
+positions require one cached optional-integration call and at most two transform
+assignments per frame; reflection is resolved only once. Live draining
 and Abhartach tuning are event-driven from real damage, status, and spell
 events. Spirituality is cached
 briefly before spell tuning reads it. Noisy diagnostics default to off; startup

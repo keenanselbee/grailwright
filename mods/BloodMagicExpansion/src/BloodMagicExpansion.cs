@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -19,8 +21,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.4.0.0")]
-[assembly: AssemblyFileVersion("2.4.0.0")]
+[assembly: AssemblyVersion("2.4.5.0")]
+[assembly: AssemblyFileVersion("2.4.5.0")]
 
 namespace BloodMagicExpansion
 {
@@ -35,12 +37,13 @@ namespace BloodMagicExpansion
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(FirstPersonArmsAdjusterPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class BloodMagicExpansionPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.4.0";
-        private const int ConfigSchemaVersion = 10;
+        public const string PluginVersion = "2.4.5";
+        private const int ConfigSchemaVersion = 11;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -51,12 +54,15 @@ namespace BloodMagicExpansion
         private const float CompletedCorpseRetentionSeconds = 120f;
         private const float ExpiredStrongCastRetentionSeconds = 5f;
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
+        private const string FirstPersonArmsAdjusterPluginGuid = "ks.tgfoa.first-person-arms-adjuster";
+        private const string FirstPersonArmsAdjusterApiTypeName = "FirstPersonArmsAdjuster.FirstPersonArmsAdjusterApi";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
         private const string GrailFloatingTextCorpseXpEventId = "blood-magic-corpse-xp";
         private const string GrailFloatingTextLiveDrainXpEventId = "blood-magic-live-drain-xp";
         private const string GrailFloatingTextShortDurationBucket = "Short";
-        private const string BloodSpellInnerLightObjectName = "BloodMagicExpansionInnerLight";
-        private const float BloodSpellInnerLightCameraRetryIntervalSeconds = 0.5f;
+        private const string BloodSpellInnerLightMainHandObjectName = "BloodMagicExpansionMainHandLight";
+        private const string BloodSpellInnerLightOffHandObjectName = "BloodMagicExpansionOffHandLight";
+        private const float BloodSpellInnerLightAnchorRetryIntervalSeconds = 0.5f;
         private const float BloodSpellInnerLightDiagnosticIntervalSeconds = 2.0f;
         private const float BloodSpellInnerLightMinimumIntensity = 0.001f;
         private const float BloodSpellInnerLightHdrpIntensityMultiplier = 50000.0f;
@@ -161,6 +167,10 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _bloodSpellTuningEnabled;
         private ConfigEntry<bool> _bloodSpellInnerLightEnabled;
         private ConfigEntry<float> _bloodSpellInnerLightIntensity;
+        private ConfigEntry<float> _bloodSpellInnerLightBloodTransfusionIntensityMultiplier;
+        private ConfigEntry<float> _bloodSpellInnerLightLifeTransfusionIntensityMultiplier;
+        private ConfigEntry<float> _bloodSpellInnerLightAbhartachCallingIntensityMultiplier;
+        private ConfigEntry<float> _bloodSpellInnerLightInteriorIntensityMultiplier;
         private ConfigEntry<float> _bloodSpellInnerLightRange;
         private ConfigEntry<float> _bloodSpellInnerLightFadeSeconds;
         private ConfigEntry<bool> _bloodSpellScaleProjectileTravel;
@@ -232,8 +242,6 @@ namespace BloodMagicExpansion
         private int _pendingPreservedInvalidValueCount;
 
         private static readonly Color BloodSpellInnerLightColor = new Color(1.0f, 0.02f, 0.0f, 1.0f);
-        private static readonly Vector3 BloodSpellInnerLightLocalPosition = new Vector3(0.0f, -0.35f, 0.0f);
-
         private readonly Dictionary<object, CorpseState> _corpseStates =
             new Dictionary<object, CorpseState>(ReferenceEqualityComparer.Instance);
         private readonly Dictionary<object, CorpseState> _corpseRaycastCache =
@@ -323,23 +331,26 @@ namespace BloodMagicExpansion
         private float _cachedHeroSpiritualityValue;
         private float _nextHeroSpiritualityRefreshTime;
         private float _abhartachHeldHealingActiveUntil;
-        private readonly BloodSpellInnerLightCastBoostState _bloodSpellInnerLightCastBoostState =
-            new BloodSpellInnerLightCastBoostState();
-        private float _bloodSpellInnerLightCastBoostFactor = 1.0f;
-        private float _nextBloodSpellInnerLightCameraProbeTime;
+        private readonly BloodSpellInnerLightHandState _bloodSpellInnerLightMainHandState =
+            new BloodSpellInnerLightHandState(
+                BloodSpellInnerLightHand.MainHand,
+                BloodSpellInnerLightMainHandObjectName);
+        private readonly BloodSpellInnerLightHandState _bloodSpellInnerLightOffHandState =
+            new BloodSpellInnerLightHandState(
+                BloodSpellInnerLightHand.OffHand,
+                BloodSpellInnerLightOffHandObjectName);
         private float _nextBloodSpellInnerLightDiagnosticTime;
-            private int _bloodSpellInnerLightActivationLogsRemaining = 32;
+        private int _bloodSpellInnerLightActivationLogsRemaining = 32;
         private bool _corpseLeechSoundPathsResolved;
         private bool _loggedMissingCorpseLeechSounds;
-        private bool _loggedBloodSpellInnerLightCreated;
         private bool _loggedBloodSpellInnerLightHdrpUnavailable;
         private bool _loggedVanillaXpFalloffUnavailable;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextUnavailableLogged;
-        private bool _lastBloodSpellInnerLightVisible;
-        private GameObject _bloodSpellInnerLightObject;
-        private Light _bloodSpellInnerLight;
-        private Transform _bloodSpellInnerLightCamera;
+        private bool _firstPersonArmsAdjusterBridgeResolved;
+        private bool _firstPersonArmsAdjusterUnavailableLogged;
+        private TryGetFirstPersonArmsVisualWorldOffsetDelegate
+            _tryGetFirstPersonArmsVisualWorldOffset;
         private Type _hdAdditionalLightDataType;
         private bool _hdAdditionalLightDataResolved;
         private MethodInfo _heroGetter;
@@ -451,6 +462,27 @@ namespace BloodMagicExpansion
             CleanupCachedStates();
         }
 
+        private void LateUpdate()
+        {
+            if (_enabled == null
+                || (!ShouldUpdateBloodSpellInnerLightPosition(
+                        _bloodSpellInnerLightMainHandState)
+                    && !ShouldUpdateBloodSpellInnerLightPosition(
+                        _bloodSpellInnerLightOffHandState)))
+            {
+                return;
+            }
+
+            Vector3 visualWorldOffset = Vector3.zero;
+            TryGetFirstPersonArmsVisualWorldOffset(out visualWorldOffset);
+            UpdateBloodSpellInnerLightPosition(
+                _bloodSpellInnerLightMainHandState,
+                visualWorldOffset);
+            UpdateBloodSpellInnerLightPosition(
+                _bloodSpellInnerLightOffHandState,
+                visualWorldOffset);
+        }
+
         private void BindConfig()
         {
             ConfigFile config = ResolveConfigFile();
@@ -480,8 +512,12 @@ namespace BloodMagicExpansion
             _bloodSpellTuningEnabled = config.Bind("2. Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Spirituality.");
             _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Spirituality.");
 
-            _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow inner player light while Blood Transfusion, Life Transfusion, or Abhartach's Calling is equipped and the magic hands are raised.");
-            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 1.0f, new ConfigDescription("Brightness of the red inner player light while a blood spell is readied. Actual casting temporarily triples this value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow light from each raised hand that has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped.");
+            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.5f, new ConfigDescription("Shared base brightness of each red hand light while its blood spell is readied, before the per-spell and interior multipliers. Actual casting temporarily triples that hand's final value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightBloodTransfusionIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "BloodTransfusionIntensityMultiplier", 0.8f, new ConfigDescription("Brightness multiplier applied when Blood Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightLifeTransfusionIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "LifeTransfusionIntensityMultiplier", 1.0f, new ConfigDescription("Brightness multiplier applied when Life Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightAbhartachCallingIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "AbhartachCallingIntensityMultiplier", 1.2f, new ConfigDescription("Brightness multiplier applied when Abhartach's Calling is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightInteriorIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "InteriorIntensityMultiplier", 1.0f, new ConfigDescription("Additional blood hand-light intensity multiplier in full interior scenes. One preserves the configured intensity, two doubles it, and zero disables the visible hand lights only while indoors.", new AcceptableValueRange<float>(0.0f, 8.0f)));
             _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 5.0f, new ConfigDescription("Range in meters for the red inner player light. Smaller ranges are cheaper and subtler.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightFadeSeconds = config.Bind("2. Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -587,7 +623,7 @@ namespace BloodMagicExpansion
             _logHealingResolution = config.Bind("13. Diagnostics", "LogHealingResolution", false, "Log the first hero health path used, or why healing could not resolve.");
             _logPatchWarnings = config.Bind("13. Diagnostics", "LogPatchWarnings", true, "Log warnings if optional patches or reflection paths are unavailable.");
             _logCorpseQuality = config.Bind("13. Diagnostics", "LogCorpseQuality", false, "Log throttled focused-corpse quality samples for reticle tuning.");
-            _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", true, "Log limited diagnostics for blood spell inner light readiness, cast boost, camera resolution, and visibility transitions.");
+            _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", true, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
             _corpseQualityLogIntervalSeconds = config.Bind("13. Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
             _claimGrailFloatingTextCorpseXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
             _claimGrailFloatingTextLiveDrainXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
@@ -599,6 +635,14 @@ namespace BloodMagicExpansion
                     + _bloodSpellInnerLightEnabled.Value
                     + ", intensity="
                     + FormatFloat(_bloodSpellInnerLightIntensity.Value)
+                    + ", bloodTransfusionMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightBloodTransfusionIntensityMultiplier.Value)
+                    + ", lifeTransfusionMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightLifeTransfusionIntensityMultiplier.Value)
+                    + ", abhartachCallingMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightAbhartachCallingIntensityMultiplier.Value)
+                    + ", interiorIntensityMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightInteriorIntensityMultiplier.Value)
                     + ", range="
                     + FormatFloat(_bloodSpellInnerLightRange.Value)
                     + ", fadeSeconds="
@@ -627,57 +671,70 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            float targetBrightness = GetBloodSpellInnerLightTargetBrightness();
-            float targetIntensity = GetBloodSpellInnerLightRenderIntensity(targetBrightness);
+            ObserveBloodSpellInnerLightEquippedItems();
+            UpdateBloodSpellInnerLight(_bloodSpellInnerLightMainHandState);
+            UpdateBloodSpellInnerLight(_bloodSpellInnerLightOffHandState);
+        }
 
-            if (_bloodSpellInnerLight == null && targetIntensity <= BloodSpellInnerLightMinimumIntensity)
+        private void UpdateBloodSpellInnerLight(BloodSpellInnerLightHandState handState)
+        {
+            float targetBrightness = GetBloodSpellInnerLightTargetBrightness(handState);
+            float targetIntensity = GetBloodSpellInnerLightRenderIntensity(targetBrightness);
+            bool immediateFadeOut = handState.ImmediateFadeOutRequested;
+            handState.ImmediateFadeOutRequested = false;
+
+            if (handState.Light == null && targetIntensity <= BloodSpellInnerLightMinimumIntensity)
             {
                 return;
             }
 
-            if (!EnsureBloodSpellInnerLight())
+            if (!EnsureBloodSpellInnerLight(handState))
             {
                 if (targetIntensity > BloodSpellInnerLightMinimumIntensity)
                 {
                     LogBloodSpellInnerLightDiagnosticThrottled(
-                        "wanted visible light but could not resolve a camera transform.");
+                        "wanted visible "
+                        + handState.Hand
+                        + " light but could not resolve its wrist transform.");
                 }
 
                 return;
             }
 
-            if (_bloodSpellInnerLightObject == null || _bloodSpellInnerLight == null)
+            if (handState.LightObject == null || handState.Light == null)
             {
                 return;
             }
 
-            if (!_bloodSpellInnerLightObject.activeSelf)
+            if (!handState.LightObject.activeSelf)
             {
-                _bloodSpellInnerLightObject.SetActive(true);
+                handState.LightObject.SetActive(true);
             }
 
-            ConfigureBloodSpellInnerLight();
+            ConfigureBloodSpellInnerLight(handState);
 
             float nextIntensity = targetIntensity;
             float fadeSeconds = GetBloodSpellInnerLightFadeSeconds();
-            if (fadeSeconds > 0.0f)
+            if (!immediateFadeOut && fadeSeconds > 0.0f)
             {
-                float maxReference = Math.Max(1.0f, Math.Max(_bloodSpellInnerLight.intensity, targetIntensity));
+                float maxReference = Math.Max(1.0f, Math.Max(handState.Light.intensity, targetIntensity));
                 float maxDelta = Time.unscaledDeltaTime * maxReference / fadeSeconds;
-                nextIntensity = Mathf.MoveTowards(_bloodSpellInnerLight.intensity, targetIntensity, maxDelta);
+                nextIntensity = Mathf.MoveTowards(handState.Light.intensity, targetIntensity, maxDelta);
             }
 
-            _bloodSpellInnerLight.intensity = nextIntensity;
-            ConfigureBloodSpellInnerLightHdrpData(nextIntensity);
+            handState.Light.intensity = nextIntensity;
+            ConfigureBloodSpellInnerLightHdrpData(handState, nextIntensity);
 
             bool visible = targetBrightness > BloodSpellInnerLightMinimumIntensity ||
                 nextIntensity > BloodSpellInnerLightMinimumIntensity;
-            _bloodSpellInnerLight.enabled = visible;
-            if (visible != _lastBloodSpellInnerLightVisible)
+            handState.Light.enabled = visible;
+            if (visible != handState.LastVisible)
             {
-                _lastBloodSpellInnerLightVisible = visible;
+                handState.LastVisible = visible;
                 LogBloodSpellInnerLightDiagnostic(
-                    "visibility="
+                    "hand="
+                    + handState.Hand
+                    + ", visibility="
                     + visible
                     + ", configuredBrightness="
                     + FormatFloat(targetBrightness)
@@ -686,205 +743,399 @@ namespace BloodMagicExpansion
                     + ", currentIntensity="
                     + FormatFloat(nextIntensity)
                     + ", range="
-                    + FormatFloat(_bloodSpellInnerLight.range)
+                    + FormatFloat(handState.Light.range)
+                    + ", interior="
+                    + IsBloodSpellInnerLightInterior()
                     + ", parent="
-                    + DescribeTransform(_bloodSpellInnerLightObject.transform.parent)
+                    + DescribeTransform(handState.LightObject.transform.parent)
                     + ".");
             }
 
             if (!visible)
             {
-                _bloodSpellInnerLightObject.SetActive(false);
+                handState.LightObject.SetActive(false);
             }
         }
 
-        private bool ShouldShowBloodSpellInnerLight()
+        private bool ShouldShowBloodSpellInnerLight(BloodSpellInnerLightHandState handState)
         {
             return _enabled != null &&
                 _enabled.Value &&
                 _bloodSpellInnerLightEnabled != null &&
                 _bloodSpellInnerLightEnabled.Value &&
-                HasBloodSpellInnerLightReadiedState() &&
+                !handState.SuppressForNonBloodEquipment &&
+                HasBloodSpellInnerLightReadiedState(handState) &&
                 GetBloodSpellInnerLightIntensity() > BloodSpellInnerLightMinimumIntensity;
         }
 
-        private float GetBloodSpellInnerLightTargetBrightness()
+        private void ObserveBloodSpellInnerLightEquippedItems()
         {
-            float boostFactor = UpdateBloodSpellInnerLightCastBoostFactor();
-            if (!ShouldShowBloodSpellInnerLight())
+            object hero = GetHero();
+            if (hero == null)
+            {
+                return;
+            }
+
+            ObserveBloodSpellInnerLightEquippedItem(
+                _bloodSpellInnerLightMainHandState,
+                GetPropertyValue(hero, "MainHandItem"));
+            ObserveBloodSpellInnerLightEquippedItem(
+                _bloodSpellInnerLightOffHandState,
+                GetPropertyValue(hero, "OffHandItem"));
+        }
+
+        private void ObserveBloodSpellInnerLightEquippedItem(
+            BloodSpellInnerLightHandState handState,
+            object equippedItem)
+        {
+            if (handState.EquipmentObservationInitialized
+                && ReferenceEquals(handState.ObservedEquippedItem, equippedItem))
+            {
+                return;
+            }
+
+            handState.EquipmentObservationInitialized = true;
+            handState.ObservedEquippedItem = equippedItem;
+            if (equippedItem == null)
+            {
+                return;
+            }
+
+            BloodSpellInnerLightSpellKind spellKind =
+                ClassifyBloodSpellInnerLightItem(equippedItem);
+            bool supportsLight = spellKind != BloodSpellInnerLightSpellKind.None;
+            bool switchedFromBloodToNonBlood =
+                handState.HasObservedNonNullEquippedItem
+                && handState.LastNonNullEquippedSpellKind
+                    != BloodSpellInnerLightSpellKind.None
+                && !supportsLight;
+
+            handState.HasObservedNonNullEquippedItem = true;
+            handState.LastNonNullEquippedSpellKind = spellKind;
+            handState.SuppressForNonBloodEquipment = !supportsLight;
+            if (!switchedFromBloodToNonBlood)
+            {
+                return;
+            }
+
+            handState.ImmediateFadeOutRequested = true;
+            LogBloodSpellInnerLightDiagnostic(
+                "hand="
+                + handState.Hand
+                + " switched from a blood spell to non-blood equipment; fading its light instantly.");
+        }
+
+        private float GetBloodSpellInnerLightTargetBrightness(BloodSpellInnerLightHandState handState)
+        {
+            float boostFactor = UpdateBloodSpellInnerLightCastBoostFactor(handState);
+            if (!ShouldShowBloodSpellInnerLight(handState))
             {
                 return 0.0f;
             }
 
             float brightness = GetBloodSpellInnerLightIntensity();
+            brightness *= GetBloodSpellInnerLightSpellIntensityMultiplier(handState);
+            if (IsBloodSpellInnerLightInterior())
+            {
+                brightness *= GetBloodSpellInnerLightInteriorIntensityMultiplier();
+            }
+
             return brightness * boostFactor;
         }
 
-        private float UpdateBloodSpellInnerLightCastBoostFactor()
+        private float UpdateBloodSpellInnerLightCastBoostFactor(BloodSpellInnerLightHandState handState)
         {
             float now = Now;
-            bool boostActive = _bloodSpellInnerLightCastBoostState.HasWindow &&
-                now >= _bloodSpellInnerLightCastBoostState.StartAt &&
-                now <= _bloodSpellInnerLightCastBoostState.ActiveUntil;
+            BloodSpellInnerLightCastBoostState boostState = handState.CastBoostState;
+            bool boostActive = boostState.HasWindow &&
+                now >= boostState.StartAt &&
+                now <= boostState.ActiveUntil;
             float target = boostActive
                 ? BloodSpellInnerLightCastBoostMultiplier
                 : 1.0f;
-            float rampSeconds = target > _bloodSpellInnerLightCastBoostFactor
+            float rampSeconds = target > handState.CastBoostFactor
                 ? Math.Max(0.01f, BloodSpellInnerLightCastBoostRampUpSeconds)
                 : Math.Max(0.01f, BloodSpellInnerLightCastBoostRampDownSeconds);
             float maxDelta = Time.unscaledDeltaTime *
                 (BloodSpellInnerLightCastBoostMultiplier - 1.0f) /
                 rampSeconds;
-            _bloodSpellInnerLightCastBoostFactor = Mathf.MoveTowards(
-                _bloodSpellInnerLightCastBoostFactor,
+            handState.CastBoostFactor = Mathf.MoveTowards(
+                handState.CastBoostFactor,
                 target,
                 maxDelta);
 
             if (!boostActive &&
-                _bloodSpellInnerLightCastBoostState.HasWindow &&
+                boostState.HasWindow &&
                 now > Math.Max(
-                    _bloodSpellInnerLightCastBoostState.ActiveUntil,
-                    _bloodSpellInnerLightCastBoostState.FinishedSuppressionUntil) + rampSeconds &&
-                _bloodSpellInnerLightCastBoostFactor <= 1.0001f)
+                    boostState.ActiveUntil,
+                    boostState.FinishedSuppressionUntil) + rampSeconds &&
+                handState.CastBoostFactor <= 1.0001f)
             {
-                _bloodSpellInnerLightCastBoostState.Clear();
+                boostState.Clear();
             }
 
-            return _bloodSpellInnerLightCastBoostFactor;
+            return handState.CastBoostFactor;
         }
 
-        private bool EnsureBloodSpellInnerLight()
+        private bool EnsureBloodSpellInnerLight(BloodSpellInnerLightHandState handState)
         {
-            Transform cameraTransform = GetBloodSpellInnerLightCameraTransform();
-            if (_bloodSpellInnerLightObject == null)
+            Transform handTransform = GetBloodSpellInnerLightHandTransform(handState);
+            if (handState.LightObject == null)
             {
-                if (cameraTransform == null)
+                if (handTransform == null)
                 {
                     return false;
                 }
 
-                _bloodSpellInnerLightObject = new GameObject(BloodSpellInnerLightObjectName);
-                _bloodSpellInnerLightObject.SetActive(false);
-                _bloodSpellInnerLight = _bloodSpellInnerLightObject.AddComponent<Light>();
-                if (!_loggedBloodSpellInnerLightCreated)
+                handState.LightObject = new GameObject(handState.ObjectName);
+                handState.LightObject.SetActive(false);
+                handState.LightObject.transform.position = handTransform.position;
+                handState.Light = handState.LightObject.AddComponent<Light>();
+                if (!handState.LoggedCreated)
                 {
-                    _loggedBloodSpellInnerLightCreated = true;
+                    handState.LoggedCreated = true;
                     LogBloodSpellInnerLightDiagnostic(
-                        "created custom Light object; vanilla HeroLight is not modified.");
+                        "created custom "
+                        + handState.Hand
+                        + " Light object; vanilla HeroLight is not modified.");
                 }
             }
-            else if (_bloodSpellInnerLight == null)
+            else if (handState.Light == null)
             {
-                _bloodSpellInnerLight = _bloodSpellInnerLightObject.GetComponent<Light>();
-                if (_bloodSpellInnerLight == null)
+                handState.Light = handState.LightObject.GetComponent<Light>();
+                if (handState.Light == null)
                 {
-                    _bloodSpellInnerLight = _bloodSpellInnerLightObject.AddComponent<Light>();
+                    handState.Light = handState.LightObject.AddComponent<Light>();
                 }
             }
 
-            if (cameraTransform != null && _bloodSpellInnerLightObject.transform.parent != cameraTransform)
+            if (handState.LightObject.transform.parent != null)
             {
-                _bloodSpellInnerLightObject.transform.SetParent(cameraTransform, false);
-                _bloodSpellInnerLightObject.transform.localPosition = BloodSpellInnerLightLocalPosition;
-                _bloodSpellInnerLightObject.transform.localRotation = Quaternion.identity;
+                handState.LightObject.transform.SetParent(null, true);
                 LogBloodSpellInnerLightDiagnostic(
-                    "attached light to camera transform "
-                    + DescribeTransform(cameraTransform)
-                    + " at localPosition="
-                    + FormatVector(BloodSpellInnerLightLocalPosition)
-                    + ".");
+                    "detached "
+                    + handState.Hand
+                    + " light for world-space hand following.");
             }
 
-            ConfigureBloodSpellInnerLight();
+            ConfigureBloodSpellInnerLight(handState);
             return true;
         }
 
-        private Transform GetBloodSpellInnerLightCameraTransform()
+        private Transform GetBloodSpellInnerLightHandTransform(BloodSpellInnerLightHandState handState)
         {
-            if (_bloodSpellInnerLightCamera != null)
+            if (handState.Anchor != null)
             {
-                return _bloodSpellInnerLightCamera;
+                return handState.Anchor;
             }
 
             float now = Now;
-            if (now < _nextBloodSpellInnerLightCameraProbeTime)
+            if (now < handState.NextAnchorProbeTime)
             {
                 return null;
             }
 
-            _nextBloodSpellInnerLightCameraProbeTime = now + BloodSpellInnerLightCameraRetryIntervalSeconds;
-            Camera camera = Camera.main;
-            if (camera == null)
+            handState.NextAnchorProbeTime = now + BloodSpellInnerLightAnchorRetryIntervalSeconds;
+            object hero = GetHero();
+            string handPropertyName = handState.Hand == BloodSpellInnerLightHand.MainHand
+                ? "MainHand"
+                : "OffHand";
+            handState.Anchor = GetPropertyValue(hero, handPropertyName) as Transform;
+            handState.AnchorPropertyName = handPropertyName;
+            if (handState.Anchor == null)
             {
-                camera = GetFallbackCamera();
+                object controller = GetPropertyValue(hero, "VHeroController");
+                string wristPropertyName = handState.Hand == BloodSpellInnerLightHand.MainHand
+                ? "MainHandWrist"
+                : "OffHandWrist";
+                handState.Anchor = GetPropertyValue(
+                    controller,
+                    wristPropertyName) as Transform;
+                handState.AnchorPropertyName = wristPropertyName;
             }
 
-            if (camera == null)
+            if (handState.Anchor == null)
             {
+                handState.AnchorPropertyName = null;
                 return null;
             }
 
-            _bloodSpellInnerLightCamera = camera.transform;
             LogBloodSpellInnerLightDiagnostic(
-                "resolved camera "
-                + DescribeTransform(_bloodSpellInnerLightCamera)
-                + ", mainCamera="
-                + (Camera.main != null)
+                "resolved "
+                + handState.Hand
+                + " "
+                + handState.AnchorPropertyName
+                + " marker "
+                + DescribeTransform(handState.Anchor)
                 + ".");
-            return _bloodSpellInnerLightCamera;
+            return handState.Anchor;
         }
 
-        private Camera GetFallbackCamera()
+        private static bool ShouldUpdateBloodSpellInnerLightPosition(
+            BloodSpellInnerLightHandState handState)
         {
-            Camera[] cameras = Camera.allCameras;
-            Camera best = null;
-            for (int i = 0; i < cameras.Length; i++)
-            {
-                Camera camera = cameras[i];
-                if (camera == null ||
-                    !camera.enabled ||
-                    camera.gameObject == null ||
-                    !camera.gameObject.activeInHierarchy)
-                {
-                    continue;
-                }
-
-                if (best == null || camera.depth > best.depth)
-                {
-                    best = camera;
-                }
-            }
-
-            if (best != null)
-            {
-                LogBloodSpellInnerLightDiagnosticThrottled(
-                    "Camera.main was null; using active camera fallback "
-                    + DescribeTransform(best.transform)
-                    + ".");
-            }
-
-            return best;
+            return handState.LightObject != null
+                && handState.LightObject.activeSelf;
         }
 
-        private void ConfigureBloodSpellInnerLight()
+        private void UpdateBloodSpellInnerLightPosition(
+            BloodSpellInnerLightHandState handState,
+            Vector3 visualWorldOffset)
         {
-            if (_bloodSpellInnerLight == null)
+            if (!ShouldUpdateBloodSpellInnerLightPosition(handState))
             {
                 return;
             }
 
-            _bloodSpellInnerLight.type = LightType.Point;
-            _bloodSpellInnerLight.color = BloodSpellInnerLightColor;
-            _bloodSpellInnerLight.range = GetBloodSpellInnerLightRange();
-            _bloodSpellInnerLight.shadows = LightShadows.None;
-            _bloodSpellInnerLight.bounceIntensity = 0.0f;
-            _bloodSpellInnerLight.cullingMask = ~0;
-            _bloodSpellInnerLight.renderMode = LightRenderMode.Auto;
+            Transform handTransform =
+                GetBloodSpellInnerLightHandTransform(handState);
+            if (handTransform == null)
+            {
+                return;
+            }
+
+            Transform lightTransform = handState.LightObject.transform;
+            if (lightTransform.parent != null)
+            {
+                lightTransform.SetParent(null, true);
+            }
+
+            lightTransform.position = handTransform.position + visualWorldOffset;
         }
 
-        private void ConfigureBloodSpellInnerLightHdrpData(float renderIntensity)
+        private bool TryGetFirstPersonArmsVisualWorldOffset(
+            out Vector3 visualWorldOffset)
         {
-            if (_bloodSpellInnerLight == null || _bloodSpellInnerLightObject == null)
+            visualWorldOffset = Vector3.zero;
+            if (!TryResolveFirstPersonArmsAdjusterBridge())
+            {
+                return false;
+            }
+
+            try
+            {
+                return _tryGetFirstPersonArmsVisualWorldOffset(
+                    out visualWorldOffset);
+            }
+            catch (Exception exception)
+            {
+                _tryGetFirstPersonArmsVisualWorldOffset = null;
+                LogFirstPersonArmsAdjusterUnavailableOnce(
+                    "First Person Arms Adjuster visual-offset API failed: "
+                    + exception.GetBaseException().Message
+                    + ".");
+                visualWorldOffset = Vector3.zero;
+                return false;
+            }
+        }
+
+        private bool TryResolveFirstPersonArmsAdjusterBridge()
+        {
+            if (_firstPersonArmsAdjusterBridgeResolved)
+            {
+                return _tryGetFirstPersonArmsVisualWorldOffset != null;
+            }
+
+            _firstPersonArmsAdjusterBridgeResolved = true;
+
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    FirstPersonArmsAdjusterPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                FirstPersonArmsAdjusterApiTypeName,
+                false);
+            MethodInfo method = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "TryGetCurrentVisualWorldOffset",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(Vector3).MakeByRefType() },
+                    null);
+            if (method == null || method.ReturnType != typeof(bool))
+            {
+                LogFirstPersonArmsAdjusterUnavailableOnce(
+                    "First Person Arms Adjuster is loaded, but its visual-offset API could not be found.");
+                return false;
+            }
+
+            try
+            {
+                _tryGetFirstPersonArmsVisualWorldOffset =
+                    (TryGetFirstPersonArmsVisualWorldOffsetDelegate)
+                        Delegate.CreateDelegate(
+                            typeof(TryGetFirstPersonArmsVisualWorldOffsetDelegate),
+                            method);
+                LogBloodSpellInnerLightDiagnostic(
+                    "connected to the First Person Arms Adjuster visual-offset API.");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogFirstPersonArmsAdjusterUnavailableOnce(
+                    "First Person Arms Adjuster visual-offset API binding failed: "
+                    + exception.GetBaseException().Message
+                    + ".");
+                return false;
+            }
+        }
+
+        private void LogFirstPersonArmsAdjusterUnavailableOnce(string message)
+        {
+            if (_firstPersonArmsAdjusterUnavailableLogged)
+            {
+                return;
+            }
+
+            _firstPersonArmsAdjusterUnavailableLogged = true;
+            Warn(message);
+        }
+
+        private bool IsBloodSpellInnerLightInterior()
+        {
+            try
+            {
+                SceneService sceneService = World.Services.TryGet<SceneService>();
+                return sceneService != null && !sceneService.IsOpenWorld;
+            }
+            catch (Exception exception)
+            {
+                LogBloodSpellInnerLightDiagnosticThrottled(
+                    "could not resolve interior state: "
+                    + exception.Message
+                    + ".");
+                return false;
+            }
+        }
+
+        private void ConfigureBloodSpellInnerLight(BloodSpellInnerLightHandState handState)
+        {
+            if (handState.Light == null)
+            {
+                return;
+            }
+
+            handState.Light.type = LightType.Point;
+            handState.Light.color = BloodSpellInnerLightColor;
+            handState.Light.range = GetBloodSpellInnerLightRange();
+            handState.Light.shadows = LightShadows.None;
+            handState.Light.bounceIntensity = 0.0f;
+            handState.Light.cullingMask = ~0;
+            handState.Light.renderMode = LightRenderMode.Auto;
+        }
+
+        private void ConfigureBloodSpellInnerLightHdrpData(
+            BloodSpellInnerLightHandState handState,
+            float renderIntensity)
+        {
+            if (handState.Light == null || handState.LightObject == null)
             {
                 return;
             }
@@ -904,12 +1155,14 @@ namespace BloodMagicExpansion
 
             try
             {
-                Component hdData = _bloodSpellInnerLight.GetComponent(hdType);
+                Component hdData = handState.Light.GetComponent(hdType);
                 if (hdData == null)
                 {
-                    hdData = _bloodSpellInnerLightObject.AddComponent(hdType);
+                    hdData = handState.LightObject.AddComponent(hdType);
                     LogBloodSpellInnerLightDiagnostic(
-                        "added HDRP additional light data to custom Light object.");
+                        "added HDRP additional light data to "
+                        + handState.Hand
+                        + " Light object.");
                 }
 
                 TrySetFirstFloatMember(
@@ -1029,14 +1282,31 @@ namespace BloodMagicExpansion
 
         private void DestroyBloodSpellInnerLight()
         {
-            if (_bloodSpellInnerLightObject != null)
+            DestroyBloodSpellInnerLight(_bloodSpellInnerLightMainHandState);
+            DestroyBloodSpellInnerLight(_bloodSpellInnerLightOffHandState);
+        }
+
+        private static void DestroyBloodSpellInnerLight(BloodSpellInnerLightHandState handState)
+        {
+            if (handState.LightObject != null)
             {
-                UnityEngine.Object.Destroy(_bloodSpellInnerLightObject);
+                UnityEngine.Object.Destroy(handState.LightObject);
             }
 
-            _bloodSpellInnerLightObject = null;
-            _bloodSpellInnerLight = null;
-            _bloodSpellInnerLightCamera = null;
+            handState.LightObject = null;
+            handState.Light = null;
+            handState.Anchor = null;
+            handState.AnchorPropertyName = null;
+            handState.NextAnchorProbeTime = 0.0f;
+            handState.LastVisible = false;
+            handState.EquipmentObservationInitialized = false;
+            handState.ObservedEquippedItem = null;
+            handState.HasObservedNonNullEquippedItem = false;
+            handState.LastNonNullEquippedSpellKind = BloodSpellInnerLightSpellKind.None;
+            handState.SuppressForNonBloodEquipment = false;
+            handState.ImmediateFadeOutRequested = false;
+            handState.CastBoostState.Clear();
+            handState.CastBoostFactor = 1.0f;
         }
 
         internal void RegisterBloodSpellWeaponsShown(object magicFsm, bool instant)
@@ -1131,10 +1401,7 @@ namespace BloodMagicExpansion
             }
 
             _bloodSpellInnerLightReadyStates.Remove(magicFsm);
-            if (!HasBloodSpellInnerLightReadiedState())
-            {
-                _bloodSpellInnerLightCastBoostState.Clear();
-            }
+            ClearUnusedBloodSpellInnerLightCastBoostStates();
 
             if (log)
             {
@@ -1164,12 +1431,13 @@ namespace BloodMagicExpansion
 
             if (boostEvent == BloodSpellInnerLightCastBoostEvent.Finished)
             {
-                FinishBloodSpellInnerLightCastBoostWindow(magicFsm, now);
+                FinishBloodSpellInnerLightCastBoostWindow(magicFsm, hand, now);
             }
             else
             {
                 RefreshBloodSpellInnerLightCastBoostWindow(
                     magicFsm,
+                    hand,
                     now,
                     boostEvent == BloodSpellInnerLightCastBoostEvent.Started);
             }
@@ -1200,58 +1468,116 @@ namespace BloodMagicExpansion
                 + wasReadied
                 + ", hand="
                 + hand
-                + ", boostStartAt="
-                + FormatFloat(_bloodSpellInnerLightCastBoostState.StartAt)
-                + ", boostActiveUntil="
-                + FormatFloat(_bloodSpellInnerLightCastBoostState.ActiveUntil)
+                + ", boostWindows="
+                + DescribeBloodSpellInnerLightCastBoostWindows(hand)
                 + ".");
         }
 
-        private void RefreshBloodSpellInnerLightCastBoostWindow(object magicFsm, float now, bool restartWindow)
+        private void RefreshBloodSpellInnerLightCastBoostWindow(
+            object magicFsm,
+            string hand,
+            float now,
+            bool restartWindow)
         {
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(hand, out mainHand, out offHand);
+            if (mainHand)
+            {
+                RefreshBloodSpellInnerLightCastBoostWindow(
+                    _bloodSpellInnerLightMainHandState,
+                    magicFsm,
+                    now,
+                    restartWindow);
+            }
+            if (offHand)
+            {
+                RefreshBloodSpellInnerLightCastBoostWindow(
+                    _bloodSpellInnerLightOffHandState,
+                    magicFsm,
+                    now,
+                    restartWindow);
+            }
+        }
+
+        private void RefreshBloodSpellInnerLightCastBoostWindow(
+            BloodSpellInnerLightHandState handState,
+            object magicFsm,
+            float now,
+            bool restartWindow)
+        {
+            BloodSpellInnerLightCastBoostState boostState = handState.CastBoostState;
             if (restartWindow)
             {
-                _bloodSpellInnerLightCastBoostState.ClearFinishedSuppression();
+                boostState.ClearFinishedSuppression();
             }
-            else if (IsBloodSpellInnerLightCastBoostFinishedSuppressed(magicFsm, now))
+            else if (IsBloodSpellInnerLightCastBoostFinishedSuppressed(handState, now))
             {
                 return;
             }
 
             if (restartWindow ||
-                !_bloodSpellInnerLightCastBoostState.HasWindow ||
-                now > _bloodSpellInnerLightCastBoostState.ActiveUntil + BloodSpellInnerLightCastBoostRampDownSeconds)
+                !boostState.HasWindow ||
+                now > boostState.ActiveUntil + BloodSpellInnerLightCastBoostRampDownSeconds)
             {
-                _bloodSpellInnerLightCastBoostState.HasWindow = true;
-                _bloodSpellInnerLightCastBoostState.StartAt =
+                boostState.HasWindow = true;
+                boostState.StartAt =
                     now + Math.Max(0.0f, BloodSpellInnerLightCastBoostStartDelaySeconds);
-                _bloodSpellInnerLightCastBoostState.ActiveUntil =
-                    _bloodSpellInnerLightCastBoostState.StartAt;
+                boostState.ActiveUntil = boostState.StartAt;
             }
 
             float evidenceGrace = GetBloodSpellInnerLightCastBoostEvidenceGraceSeconds();
             float activeUntil = Math.Max(
                 now + evidenceGrace,
-                _bloodSpellInnerLightCastBoostState.StartAt + evidenceGrace);
-            _bloodSpellInnerLightCastBoostState.ActiveUntil = Math.Max(
-                _bloodSpellInnerLightCastBoostState.ActiveUntil,
+                boostState.StartAt + evidenceGrace);
+            boostState.ActiveUntil = Math.Max(
+                boostState.ActiveUntil,
                 activeUntil);
         }
 
-        private void FinishBloodSpellInnerLightCastBoostWindow(object magicFsm, float now)
+        private void FinishBloodSpellInnerLightCastBoostWindow(
+            object magicFsm,
+            string hand,
+            float now)
         {
-            if (!_bloodSpellInnerLightCastBoostState.HasWindow)
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(hand, out mainHand, out offHand);
+            if (mainHand)
             {
-                _bloodSpellInnerLightCastBoostState.HasWindow = true;
-                _bloodSpellInnerLightCastBoostState.StartAt =
-                    now;
+                FinishBloodSpellInnerLightCastBoostWindow(
+                    _bloodSpellInnerLightMainHandState,
+                    magicFsm,
+                    now);
+            }
+            if (offHand)
+            {
+                FinishBloodSpellInnerLightCastBoostWindow(
+                    _bloodSpellInnerLightOffHandState,
+                    magicFsm,
+                    now);
+            }
+        }
+
+        private static void FinishBloodSpellInnerLightCastBoostWindow(
+            BloodSpellInnerLightHandState handState,
+            object magicFsm,
+            float now)
+        {
+            BloodSpellInnerLightCastBoostState boostState = handState.CastBoostState;
+            if (!boostState.HasWindow)
+            {
+                boostState.HasWindow = true;
+                boostState.StartAt = now;
+                boostState.ActiveUntil = now;
+            }
+            else
+            {
+                boostState.ActiveUntil = Math.Min(boostState.ActiveUntil, now);
             }
 
-            _bloodSpellInnerLightCastBoostState.ActiveUntil = Math.Min(
-                _bloodSpellInnerLightCastBoostState.ActiveUntil,
-                now);
-            _bloodSpellInnerLightCastBoostState.FinishedMagicFsm = magicFsm;
-            _bloodSpellInnerLightCastBoostState.FinishedSuppressionUntil =
+            boostState.FinishedMagicFsm = magicFsm;
+            boostState.FinishedSuppressionUntil =
                 now + GetBloodSpellInnerLightCastBoostFinishedSuppressionSeconds();
         }
 
@@ -1279,18 +1605,84 @@ namespace BloodMagicExpansion
 
         private bool IsBloodSpellInnerLightCastBoostFinishedSuppressed(object magicFsm, float now)
         {
-            if (_bloodSpellInnerLightCastBoostState.FinishedSuppressionUntil <= 0.0f)
+            string hand = GetHandKey(magicFsm);
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(hand, out mainHand, out offHand);
+            bool found = mainHand || offHand;
+            bool allSuppressed = true;
+            if (mainHand)
+            {
+                allSuppressed &= IsBloodSpellInnerLightCastBoostFinishedSuppressed(
+                    _bloodSpellInnerLightMainHandState,
+                    now);
+            }
+            if (offHand)
+            {
+                allSuppressed &= IsBloodSpellInnerLightCastBoostFinishedSuppressed(
+                    _bloodSpellInnerLightOffHandState,
+                    now);
+            }
+
+            return found && allSuppressed;
+        }
+
+        private static bool IsBloodSpellInnerLightCastBoostFinishedSuppressed(
+            BloodSpellInnerLightHandState handState,
+            float now)
+        {
+            BloodSpellInnerLightCastBoostState boostState = handState.CastBoostState;
+            if (boostState.FinishedSuppressionUntil <= 0.0f)
             {
                 return false;
             }
 
-            if (_bloodSpellInnerLightCastBoostState.FinishedSuppressionUntil < now)
+            if (boostState.FinishedSuppressionUntil < now)
             {
-                _bloodSpellInnerLightCastBoostState.ClearFinishedSuppression();
+                boostState.ClearFinishedSuppression();
                 return false;
             }
 
             return true;
+        }
+
+        private string DescribeBloodSpellInnerLightCastBoostWindows(string hand)
+        {
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(hand, out mainHand, out offHand);
+            StringBuilder builder = new StringBuilder();
+            if (mainHand)
+            {
+                AppendBloodSpellInnerLightCastBoostWindow(
+                    builder,
+                    _bloodSpellInnerLightMainHandState);
+            }
+            if (offHand)
+            {
+                AppendBloodSpellInnerLightCastBoostWindow(
+                    builder,
+                    _bloodSpellInnerLightOffHandState);
+            }
+
+            return builder.Length == 0 ? "<unknown>" : builder.ToString();
+        }
+
+        private void AppendBloodSpellInnerLightCastBoostWindow(
+            StringBuilder builder,
+            BloodSpellInnerLightHandState handState)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(handState.Hand)
+                .Append('(')
+                .Append(FormatFloat(handState.CastBoostState.StartAt))
+                .Append("-")
+                .Append(FormatFloat(handState.CastBoostState.ActiveUntil))
+                .Append(')');
         }
 
         private void LogBloodSpellInnerLightTransition(
@@ -1359,8 +1751,80 @@ namespace BloodMagicExpansion
 
             state.Summary = summary;
             state.Hand = GetHandKey(magicFsm);
+            state.SpellKind = ClassifyBloodSpellInnerLightMagicFsm(
+                magicFsm,
+                summary);
+            state.UpdatedAt = Now;
             state.Until = Math.Max(state.Until, Now + Math.Max(0.01f, graceSeconds));
             return state.Hand;
+        }
+
+        private BloodSpellInnerLightSpellKind ClassifyBloodSpellInnerLightMagicFsm(
+            object magicFsm,
+            string summary)
+        {
+            if (ContainsBloodSpellInnerLightName(summary, "Abhartach"))
+            {
+                return BloodSpellInnerLightSpellKind.AbhartachCalling;
+            }
+
+            if (IsLifeTransfusionText(summary))
+            {
+                return BloodSpellInnerLightSpellKind.LifeTransfusion;
+            }
+
+            object item = GetPropertyValue(magicFsm, "Item");
+            BloodSpellInnerLightSpellKind itemKind =
+                ClassifyBloodSpellInnerLightItem(item);
+            if (itemKind != BloodSpellInnerLightSpellKind.None)
+            {
+                return itemKind;
+            }
+
+            object skill = GetPropertyValue(magicFsm, "Skill");
+            string skillText = BuildObjectSearchText(skill);
+            if (ContainsBloodSpellInnerLightName(skillText, "Abhartach"))
+            {
+                return BloodSpellInnerLightSpellKind.AbhartachCalling;
+            }
+
+            return IsLifeTransfusionText(skillText)
+                ? BloodSpellInnerLightSpellKind.LifeTransfusion
+                : BloodSpellInnerLightSpellKind.BloodTransfusion;
+        }
+
+        private BloodSpellInnerLightSpellKind ClassifyBloodSpellInnerLightItem(
+            object item)
+        {
+            string summary;
+            if (IsAbhartachItem(item, out summary))
+            {
+                return BloodSpellInnerLightSpellKind.AbhartachCalling;
+            }
+
+            if (!IsBloodTransfusionItem(item, out summary))
+            {
+                return BloodSpellInnerLightSpellKind.None;
+            }
+
+            return IsLifeTransfusionText(summary)
+                || IsLifeTransfusionText(BuildObjectSearchText(item))
+                ? BloodSpellInnerLightSpellKind.LifeTransfusion
+                : BloodSpellInnerLightSpellKind.BloodTransfusion;
+        }
+
+        private static bool IsLifeTransfusionText(string text)
+        {
+            return ContainsBloodSpellInnerLightName(text, "LifeTransfusion")
+                || ContainsBloodSpellInnerLightName(text, "Life Transfusion");
+        }
+
+        private static bool ContainsBloodSpellInnerLightName(
+            string text,
+            string name)
+        {
+            return !string.IsNullOrEmpty(text)
+                && text.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private bool HasBloodSpellInnerLightReadiedState()
@@ -1391,6 +1855,65 @@ namespace BloodMagicExpansion
                 state != null &&
                 state.Until >= Now &&
                 !IsDestroyedUnityObject(magicFsm);
+        }
+
+        private bool HasBloodSpellInnerLightReadiedState(
+            BloodSpellInnerLightHandState handState)
+        {
+            foreach (KeyValuePair<object, BloodSpellInnerLightReadyState> pair in _bloodSpellInnerLightReadyStates)
+            {
+                if (pair.Value != null &&
+                    pair.Value.Until >= Now &&
+                    !IsDestroyedUnityObject(pair.Key) &&
+                    BloodSpellInnerLightReadyStateMatchesHand(pair.Value, handState.Hand))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool BloodSpellInnerLightReadyStateMatchesHand(
+            BloodSpellInnerLightReadyState readyState,
+            BloodSpellInnerLightHand hand)
+        {
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(
+                readyState == null ? null : readyState.Hand,
+                out mainHand,
+                out offHand);
+            return hand == BloodSpellInnerLightHand.MainHand
+                ? mainHand
+                : offHand;
+        }
+
+        private void ClearUnusedBloodSpellInnerLightCastBoostStates()
+        {
+            if (!HasBloodSpellInnerLightReadiedState(_bloodSpellInnerLightMainHandState))
+            {
+                _bloodSpellInnerLightMainHandState.CastBoostState.Clear();
+            }
+            if (!HasBloodSpellInnerLightReadiedState(_bloodSpellInnerLightOffHandState))
+            {
+                _bloodSpellInnerLightOffHandState.CastBoostState.Clear();
+            }
+        }
+
+        private static void GetBloodSpellInnerLightHandFlags(
+            string hand,
+            out bool mainHand,
+            out bool offHand)
+        {
+            string value = hand ?? string.Empty;
+            bool both = value.IndexOf("Both", StringComparison.OrdinalIgnoreCase) >= 0;
+            mainHand = both ||
+                value.IndexOf("Main", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                value.IndexOf("Right", StringComparison.OrdinalIgnoreCase) >= 0;
+            offHand = both ||
+                value.IndexOf("Off", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                value.IndexOf("Left", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private bool IsBloodSpellInnerLightMagicLayerReadied(
@@ -1511,6 +2034,64 @@ namespace BloodMagicExpansion
             return _bloodSpellInnerLightIntensity == null
                 ? 0.0f
                 : Math.Max(0.0f, _bloodSpellInnerLightIntensity.Value);
+        }
+
+        private float GetBloodSpellInnerLightSpellIntensityMultiplier(
+            BloodSpellInnerLightHandState handState)
+        {
+            BloodSpellInnerLightSpellKind spellKind =
+                handState.LastNonNullEquippedSpellKind;
+            if (spellKind == BloodSpellInnerLightSpellKind.None)
+            {
+                float newestUpdate = float.MinValue;
+                foreach (KeyValuePair<object, BloodSpellInnerLightReadyState> pair
+                    in _bloodSpellInnerLightReadyStates)
+                {
+                    BloodSpellInnerLightReadyState readyState = pair.Value;
+                    if (readyState != null
+                        && readyState.Until >= Now
+                        && readyState.UpdatedAt >= newestUpdate
+                        && !IsDestroyedUnityObject(pair.Key)
+                        && BloodSpellInnerLightReadyStateMatchesHand(
+                            readyState,
+                            handState.Hand))
+                    {
+                        spellKind = readyState.SpellKind;
+                        newestUpdate = readyState.UpdatedAt;
+                    }
+                }
+            }
+
+            if (spellKind == BloodSpellInnerLightSpellKind.LifeTransfusion)
+            {
+                return _bloodSpellInnerLightLifeTransfusionIntensityMultiplier == null
+                    ? 1.0f
+                    : Math.Max(
+                        0.0f,
+                        _bloodSpellInnerLightLifeTransfusionIntensityMultiplier.Value);
+            }
+
+            if (spellKind == BloodSpellInnerLightSpellKind.AbhartachCalling)
+            {
+                return _bloodSpellInnerLightAbhartachCallingIntensityMultiplier == null
+                    ? 1.2f
+                    : Math.Max(
+                        0.0f,
+                        _bloodSpellInnerLightAbhartachCallingIntensityMultiplier.Value);
+            }
+
+            return _bloodSpellInnerLightBloodTransfusionIntensityMultiplier == null
+                ? 0.8f
+                : Math.Max(
+                    0.0f,
+                    _bloodSpellInnerLightBloodTransfusionIntensityMultiplier.Value);
+        }
+
+        private float GetBloodSpellInnerLightInteriorIntensityMultiplier()
+        {
+            return _bloodSpellInnerLightInteriorIntensityMultiplier == null
+                ? 1.0f
+                : Math.Max(0.0f, _bloodSpellInnerLightInteriorIntensityMultiplier.Value);
         }
 
         private static float GetBloodSpellInnerLightRenderIntensity(float configuredIntensity)
@@ -1697,6 +2278,10 @@ namespace BloodMagicExpansion
         private static bool IsPreservedCalibrationFloat(string settingId)
         {
             return string.Equals(settingId, "2. Blood Spell Inner Light\nIntensity", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "2. Blood Spell Inner Light\nInteriorIntensityMultiplier", StringComparison.Ordinal)
                 || string.Equals(settingId, "2. Blood Spell Inner Light\nRange", StringComparison.Ordinal)
                 || string.Equals(settingId, "2. Blood Spell Inner Light\nFadeSeconds", StringComparison.Ordinal)
                 || string.Equals(settingId, "12. Audio\nCorpseLeechSoundVolume", StringComparison.Ordinal)
@@ -1722,6 +2307,10 @@ namespace BloodMagicExpansion
             int restoredCount = 0;
             int clampedCount = 0;
             RestorePreservedFloat("2. Blood Spell Inner Light\nIntensity", _bloodSpellInnerLightIntensity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", _bloodSpellInnerLightBloodTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", _bloodSpellInnerLightLifeTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", _bloodSpellInnerLightAbhartachCallingIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("2. Blood Spell Inner Light\nInteriorIntensityMultiplier", _bloodSpellInnerLightInteriorIntensityMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("2. Blood Spell Inner Light\nRange", _bloodSpellInnerLightRange, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("2. Blood Spell Inner Light\nFadeSeconds", _bloodSpellInnerLightFadeSeconds, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("12. Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
@@ -3636,10 +4225,7 @@ namespace BloodMagicExpansion
                 _bloodSpellInnerLightReadyStates.Remove(remove[i]);
             }
 
-            if (_bloodSpellInnerLightReadyStates.Count == 0)
-            {
-                _bloodSpellInnerLightCastBoostState.Clear();
-            }
+            ClearUnusedBloodSpellInnerLightCastBoostStates();
         }
 
         private void CleanupStrongCastStates(float now)
@@ -6910,7 +7496,10 @@ namespace BloodMagicExpansion
                     magicFsm,
                     context + " ended or canceled casting",
                     true);
-                FinishBloodSpellInnerLightCastBoostWindow(magicFsm, Now);
+                FinishBloodSpellInnerLightCastBoostWindow(
+                    magicFsm,
+                    GetHandKey(magicFsm),
+                    Now);
                 return;
             }
 
@@ -9189,6 +9778,20 @@ namespace BloodMagicExpansion
             Finished
         }
 
+        private enum BloodSpellInnerLightHand
+        {
+            MainHand,
+            OffHand
+        }
+
+        private enum BloodSpellInnerLightSpellKind
+        {
+            None,
+            BloodTransfusion,
+            LifeTransfusion,
+            AbhartachCalling
+        }
+
         private enum HealingPowerScalingMode
         {
             Off,
@@ -9237,8 +9840,43 @@ namespace BloodMagicExpansion
         {
             public string Hand;
             public string Summary;
+            public BloodSpellInnerLightSpellKind SpellKind;
+            public float UpdatedAt;
             public float Until;
         }
+
+        private sealed class BloodSpellInnerLightHandState
+        {
+            public readonly BloodSpellInnerLightHand Hand;
+            public readonly string ObjectName;
+            public readonly BloodSpellInnerLightCastBoostState CastBoostState =
+                new BloodSpellInnerLightCastBoostState();
+            public float CastBoostFactor = 1.0f;
+            public float NextAnchorProbeTime;
+            public bool LastVisible;
+            public bool LoggedCreated;
+            public bool EquipmentObservationInitialized;
+            public object ObservedEquippedItem;
+            public bool HasObservedNonNullEquippedItem;
+            public BloodSpellInnerLightSpellKind LastNonNullEquippedSpellKind;
+            public bool SuppressForNonBloodEquipment;
+            public bool ImmediateFadeOutRequested;
+            public GameObject LightObject;
+            public Light Light;
+            public Transform Anchor;
+            public string AnchorPropertyName;
+
+            public BloodSpellInnerLightHandState(
+                BloodSpellInnerLightHand hand,
+                string objectName)
+            {
+                Hand = hand;
+                ObjectName = objectName;
+            }
+        }
+
+        private delegate bool TryGetFirstPersonArmsVisualWorldOffsetDelegate(
+            out Vector3 visualWorldOffset);
 
         private sealed class BloodSpellInnerLightCastBoostState
         {

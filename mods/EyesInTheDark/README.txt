@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.2.2
+Version: 1.2.8
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
@@ -35,28 +35,29 @@ Current Features
   HUD. It remains visible outdoors throughout a valid Wyrdnight, including
   protected areas, and hides during daylight, interiors, loading, and
   missing-Hero states.
-- The meter hue smoothly shifts from its configured base toward the shared
-  Wyrd red as threat rises. Its RGB output is 1.5 times brighter before the
-  shared threat scale is applied.
-- The meter artwork is mirrored horizontally and vertically. When Glorious
+- Purple and Orange Wyrdness each have separate threat-meter base colors, red
+  target colors, and RGB brightness multipliers. The meter smoothly shifts
+  between the active palette's colors as threat rises.
+- The meter uses the game's neutral white bar artwork so configured Purple and
+  Orange colors remain clear instead of mixing with the mana bar's blue tint.
+  The artwork is mirrored horizontally and vertically. When Glorious
   UI requests its versioned layout contract, Eyes remains the meter owner and
-  moves the meter below the resource bars.
+  moves the meter below the resource bars. Its private animated material
+  preserves the vanilla Hero-bar shader movement direction despite the mirror.
 - A complete configurable Wyrdnight palette for the moon disc, HDR corona,
   directional and volumetric moonlight, full visible-sky tint, fueled
   protection bubble, Wyrd boundary, and threat meter. Purple Wyrdness is the
-  default; Native Orange preserves the game's regional base hues.
-- Purple Wyrdness applies a configurable 1.2 exposure multiplier plus
-  mode-aware +0.35 EV brightness compensation through the natural visual
-  fade. Automatic and physical-camera exposure add the EV value, while fixed
-  exposure subtracts it. Native Orange does not change exposure. Eyes applies
-  after Light Control and does not modify HDRP post-exposure, gamma, colors,
-  or global volumes.
-- Purple Wyrdness also applies a configurable 1.10 indirect diffuse lighting
-  multiplier through the same natural fade. It uses the game's existing
-  Indirect Lighting Controller and does not alter direct moonlight or
-  reflections. Native Orange leaves indirect diffuse lighting unchanged.
-- Moon, moonlight, bubble, boundary, and meter colors smoothly move toward a
-  configurable red as threat rises. The night-sky color deliberately
+  default; Orange Wyrdness preserves the game's regional base hues.
+- One palette-aware Wyrdnight Brightness setting follows the natural visual
+  fade and remains independent of threat. Its default value of 1 maps Purple
+  Wyrdness to a 1.75 exposure multiplier plus +0.35 EV, while Orange Wyrdness
+  leaves exposure at the native 1 multiplier and 0 EV. Automatic and
+  physical-camera exposure add EV, while fixed exposure subtracts it. Eyes
+  applies after Light Control and does not modify HDRP post-exposure, gamma,
+  colors, indirect diffuse lighting, or global volumes.
+- Moon, moonlight, bubble, and boundary colors smoothly move toward a shared
+  configurable red as threat rises. The meter uses its active palette's own
+  red target. The night-sky color deliberately
   retains its selected base hue. One shared 0.8-to-1.2 threat scale controls
   visual strength across the integrated presentation.
 - World lighting and palette changes caused by threat use a configurable
@@ -69,7 +70,8 @@ Current Features
   configured radii are never changed dynamically by threat.
 - Optional Grail Floating Text notifications with Minimal, Atmospheric, and
   Detailed presets, randomized text pools, immediate-repeat prevention, and
-  pause-aware per-lane cooldowns. Atmospheric and Detailed react after two or
+  pause-aware per-lane cooldowns. Dawn text requires a confirmed transition
+  from Wyrdnight into daylight. Atmospheric and Detailed react after two or
   three accepted battlecries with a separate, longer response cooldown.
 - Optional Battlecry Voice Tuner integration adds exposed-Wyrdnight threat.
   Repeated cries grant full, half, quarter, and then diminishing threat down to
@@ -213,9 +215,11 @@ Defaults:
 - Maximum load reconstruction by dawn: 8
 - Load and interior-exit grace: 15 active real-time seconds
 - Show exact threat value: false
-- Threat meter color: #8032FF
-- Threat meter brightness: 1.5 times its configured RGB, then the shared visual
-  threat scale
+- Purple / Orange threat meter base colors: #8032FF / #FFB87A; selected by
+  the active Wyrdness palette
+- Purple / Orange threat meter red target colors: #FF3028 / #FF3028
+- Purple / Orange threat meter brightness: 1.0 / 1.0 on a 0-to-3 range; each
+  point applies 3 times the configured RGB before the shared visual threat scale
 - Meter offset adjustments: 0, 0 (standalone vanilla-HUD baseline: +9, -9)
 - Base nightly encounter budget: 30
 - Long-night bonus scale: 0.35
@@ -260,10 +264,9 @@ Defaults:
   dawn fading begins during the final 60 real seconds of the Wyrdnight and
   finishes at dawn. Gameplay, world-clock phase, meter visibility, and
   protection state remain immediate.
-- Wyrdness palette: Purple Wyrdness; Native Orange is available
-- Purple Wyrdness exposure multiplier: 1.2; configurable from 0 to 3
-- Purple night brightness compensation: +0.35 EV; configurable from -2 to +2
-- Purple indirect diffuse multiplier: 1.10; configurable from 0 to 3
+- Wyrdness palette: Purple Wyrdness; Orange Wyrdness is available
+- Wyrdnight brightness: 1; configurable from 0 to 2. At 1, Purple uses 1.75x
+  exposure plus +0.35 EV and Orange retains native 1x exposure with 0 EV
 - Shared minimum/maximum threat visual scale: 0.8, 1.2
 - Threat lighting smoothing half-life: 2 active real-time seconds
 - Threat red color / maximum smooth red blend: #FF3028 / 0.8
@@ -278,7 +281,7 @@ Defaults:
 - Fueled protection-bubble tint: enabled; #B050FF; body/border intensity 1 / 1
 - GFT notifications: enabled
 - GFT Wyrd color group: Purple by default; switches live to Orange with the
-  Native Orange Wyrdness palette
+  Orange Wyrdness palette
 - GFT notification preset: Atmospheric
 - Detailed exact threat: false
 - GFT atmospheric cooldown: 8 active real-time seconds

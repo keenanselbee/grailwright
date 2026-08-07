@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `1.2.2` is the
+This is the living design document for `EyesInTheDark`. Version `1.2.8` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -648,19 +648,24 @@ Threat meter.
 - Hidden during daylight, indoors, loading, title screens, and when no playable
   hero exists.
 - Default placement is above the vanilla Hero HUD.
-- Default presentation is a `#8032FF` bar without an exact number.
-- RGB color, exact value display, and layout offsets are configurable. Standalone vanilla-HUD
+- Default presentation is a `#8032FF` bar that approaches `#FF3028` as threat
+  rises, without an exact number.
+- Purple and Orange base colors, red targets, brightness, exact value display,
+  and layout offsets are configurable. Standalone vanilla-HUD
   placement adds an internal +9, -9 baseline while the exposed adjustments
   remain 0, 0; Glorious UI placement does not use the standalone baseline.
 - Glorious UI may request placement below its bars through a small versioned
   Eyes in the Dark HUD API. Eyes in the Dark remains the sole meter owner.
 - If the Glorious layout request disappears or fails, the meter returns to its
   default position.
-- The meter artwork remains mirrored horizontally and vertically to match the
-  intended Hero HUD layout. The current implementation does not claim to
-  reverse shader-driven animation. The previous TextureScroller correction was
-  removed after runtime evidence showed that no eligible scroller existed in
-  the cloned mana-bar hierarchy.
+- The meter replaces inherited blue mana artwork with the game-owned neutral
+  `MP_Bar_white` sprite and sets its private animated material color to white,
+  so the configured palette remains visible without redistributing an asset.
+  The artwork remains mirrored horizontally and vertically to match the
+  intended Hero HUD layout. The private material reverses the known animated
+  shader's speed axes affected by that mirror so its visible movement retains
+  the vanilla Hero-bar direction without modifying shared resource-bar
+  materials. The private material is destroyed with the meter.
 
 The existing Wyrd Threat meter implementation should be removed from Glorious
 UI when this integration replaces it.
@@ -706,7 +711,7 @@ Wyrdnight sky tint, and fueled-bonfire protection-bubble body and border.
 Two independent palette choices are available:
 
 - **Purple Wyrdness**, the default, uses the configured purple values;
-- **Native Orange** derives each low-threat hue from the active region's
+- **Orange Wyrdness** derives each low-threat hue from the active region's
   original game-owned value instead of hard-coding one orange.
 
 The promoted Purple defaults are moon surface `#3200FF`, tint `0.75`, intensity
@@ -714,30 +719,23 @@ The promoted Purple defaults are moon surface `#3200FF`, tint `0.75`, intensity
 tint `#401C63`, strength `1`; and protection bubble `#B050FF`, body/border
 intensity `1 / 1`.
 
-Purple Wyrdness applies a configurable multiplier, default `1.2`, plus mode-aware
-exposure compensation to the native Wyrdnight exposure result. The compensation
-defaults to `+0.35 EV` and supports `-2` through `+2 EV`. Both effects are
-independent of threat and interpolate through the same visual blend used by
-natural dusk, dawn, load, and disable transitions. Automatic and physical-camera
+One palette-aware `WyrdnightBrightness` control defaults to `1`, supports `0`
+through `2`, remains independent of threat, and interpolates through the same
+visual blend used by natural dusk, dawn, load, and disable transitions. At
+`1`, Purple Wyrdness maps to a `1.75` exposure multiplier plus `+0.35 EV`;
+Orange Wyrdness maps to the native `1` multiplier and `0 EV`. Other values
+scale those palette-specific targets linearly. Automatic and physical-camera
 exposure use `compensation * multiplier + EV`; fixed exposure uses
 `fixedExposure * multiplier - EV`, matching the active mode's sign convention.
-Native Orange does not alter exposure. Light Control continues to own its
-settings and runs before Eyes. Eyes does not modify HDRP post-exposure, gamma,
-colors, or global volumes. The exposure multiplier supports `0` through `3`
-and remains separate from EV compensation and indirect diffuse lighting.
-
-Purple Wyrdness also multiplies the game-owned Indirect Lighting Controller's
-native indirect diffuse value. The setting defaults to `1.10`, supports `0`
-through `3`, and interpolates from `1.0` through the same natural presentation
-blend. Native Orange leaves indirect diffuse lighting unchanged. Direct
-moonlight, reflection lighting, reflection-probe intensity, exposure, gamma,
-colors, and global-volume ownership remain outside this setting.
+Light Control continues to own its settings and runs before Eyes. Eyes does not
+modify HDRP post-exposure, gamma, colors, indirect diffuse lighting, direct
+moonlight, reflections, or global volumes.
 
 One global visual-strength multiplier replaces the former boundary-only threat
 response. It interpolates linearly from configurable `0.8` at zero threat to
 `1.2` at 100 threat. A smooth threat curve blends the moon surface, corona,
-moonlight, protection bubble, boundary, and threat meter toward configurable
-red `#FF3028`, reaching a default maximum blend of `0.8`. Configured palette
+moonlight, protection bubble, and boundary toward configurable world red
+`#FF3028`, reaching a default maximum blend of `0.8`. Configured palette
 tint strengths remain independent of that scale, so zero threat retains the
 intended base hue rather than blending back toward the original game color.
 The full-sky color is explicitly excluded from red shifting; its selected color
@@ -745,9 +743,12 @@ brightness, not its tint strength, follows the shared scale. It uses the sky
 material's `_SkyTint` property and does not directly own fog, clouds, terrain
 lighting, or reflections.
 
-The threat meter retains its configurable base color and is rendered at `1.5`
-times RGB brightness before applying the shared threat multiplier. It uses the
-same red-shift curve as the world presentation.
+The threat meter has separately configurable Purple and Orange base and red
+target colors, automatically selects the active palette's pair, and uses the
+game-owned neutral white mana-bar artwork as its tintable source. Each palette
+also has a `0`-to-`3` brightness setting; every point applies `3` times RGB
+before the shared threat multiplier. It uses the same blend curve and maximum
+red blend as the world presentation while keeping its target colors separate.
 
 The authoritative threat value remains immediate for gameplay, the meter,
 hunts, notifications, and dynamic Wyrdnight duration. World lighting and the
@@ -834,7 +835,7 @@ Use the shared Wyrd icon and separate collapse lanes:
 - `eyes-in-the-dark-stalker`
 
 All atmospheric Wyrd messages use GFT's Purple color group under Purple
-Wyrdness and its Orange group under Native Orange. This includes committed
+Wyrdness and its Orange group under Orange Wyrdness. This includes committed
 hunt warnings; urgency remains represented independently by High priority.
 GFT's built-in Wyrdnight and Wyrd-safety messages follow the same live palette.
 Text such as "Something has found you" appears only after an encounter is

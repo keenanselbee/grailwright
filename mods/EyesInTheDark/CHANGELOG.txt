@@ -1,3 +1,30 @@
+Version 1.2.8
+Replaced the cloned mana bar's blue-tinted fill, glow, and mask artwork with its game-owned neutral white variant and set the Eyes-owned animated material color to white, keeping configured Purple and Orange threat-meter colors clear while preserving the corrected animation direction.
+Added separate Purple and Orange threat-meter red target settings, each defaulting to #FF3028, so every palette now owns both ends of its threat color transition.
+Incremented ConfigSchemaVersion from 17 to 18 because the existing ThreatRedColor setting now applies only to world visuals instead of also controlling the meter. Compatible customized world and meter settings remain eligible for recovery, while the new palette-specific meter targets adopt their current defaults.
+
+Version 1.2.7
+Recalibrated the separate Purple and Orange threat-meter brightness controls so every setting point applies 3x RGB before the shared threat scale. Both retain a 0-to-3 range, the new 1.0 default matches the old 3.0 result, and the new 3.0 maximum reaches 9x RGB.
+Incremented ConfigSchemaVersion from 16 to 17 because both same-name brightness settings now have a different scale and default. Schema recovery adopts the new 1.0 baseline for both controls instead of preserving incompatible older values, while unrelated durable settings remain eligible for recovery.
+
+Version 1.2.6
+Added separate Purple and Orange threat-meter brightness settings with the existing 1.5 multiplier as both defaults and a 0-to-3 range.
+Applied the active palette's brightness before the shared threat scale so live palette and brightness changes update the meter without affecting threat, fill, or world lighting. ConfigSchemaVersion remains 16 because both settings are additive.
+
+Version 1.2.5
+Preserved the vanilla Hero-bar shader animation direction on the horizontally and vertically mirrored Wyrd Threat meter by reversing the known VFX_UI speed axes only on a private meter material.
+Destroyed the private material with the meter during HUD release and rebuilds, leaving the shared health, mana, and stamina materials unchanged. ConfigSchemaVersion remains 16 because no setting changed.
+
+Version 1.2.4
+Replaced the separate Purple exposure multiplier and night-brightness controls with one palette-aware Wyrdnight Brightness setting directly below Wyrdness Palette. Its default value of 1 maps Purple Wyrdness to 1.75x exposure plus 0.35 EV while leaving Orange Wyrdness at native 1x exposure and 0 EV.
+Removed the Purple Indirect Diffuse Multiplier setting and stopped patching the game's indirect diffuse lighting, leaving its native value untouched.
+Renamed the Native Orange display choice to Orange Wyrdness and added separate Purple and Orange threat-meter base colors selected automatically by the active palette.
+Incremented ConfigSchemaVersion from 15 to 16 because the Purple exposure, EV compensation, indirect-diffuse, and single threat-meter color settings were removed or replaced. Compatible durable settings remain eligible for conservative recovery; retired values are intentionally skipped.
+
+Version 1.2.3
+Fixed daylight state changes such as pausing, unpausing, and loading from replaying randomized dawn GFT notifications; dawn atmosphere now requires a confirmed Wyrdnight-to-daylight transition.
+ConfigSchemaVersion remains 15 because no configuration setting or meaning changed.
+
 Version 1.2.2
 Added configurable visual-only threat smoothing with a two-active-second default half-life, preventing battlecries and other brief threat jumps from abruptly recoloring world lighting.
 Kept authoritative threat, the HUD meter, hunts, notifications, and dynamic Wyrdnight duration immediate while reusing the existing five-times-per-second visual update.

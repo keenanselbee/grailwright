@@ -1,14 +1,14 @@
-# Eyes in the Dark 1.2.2 Implementation Roadmap
+# Eyes in the Dark 1.2.8 Implementation Roadmap
 
 ## Objective
 
-Reach a hardened, user-testable `1.2.2` release candidate of **Eyes in the Dark -
+Reach a hardened, user-testable `1.2.8` release candidate of **Eyes in the Dark -
 Wyrdnight Overhaul** without expanding beyond the product rules in
 [DESIGN.md](DESIGN.md).
 
 The roadmap advances through narrow vertical slices. Each milestone must compile
 and satisfy its automated contracts before the next begins. Consolidated
-in-game acceptance begins only after the `1.2.2` implementation is complete.
+in-game acceptance begins only after the `1.2.8` implementation is complete.
 Patch releases may fix a milestone, but authored patch versions must remain
 below 10; roll to the next minor version instead of using an `X.Y.10` version.
 
@@ -78,6 +78,11 @@ below 10; roll to the next minor version instead of using an `X.Y.10` version.
 | 1.2.0 | Diagnostic hardening candidate | Purple lighting controls refresh the concise diagnostic state, and the acceptance matrix targets the current Battlecry integration. |
 | 1.2.1 | Portable packaging | Release archives install correctly through Windows, Vortex, and Linux/Proton paths. |
 | 1.2.2 | Threat lighting smoothing | Sudden threat changes ease into world lighting at the existing bounded visual cadence while gameplay and HUD threat remain immediate. |
+| 1.2.4 | Palette-aware brightness | One brightness setting maps Purple to 1.75x/+0.35 EV and Orange to native exposure at 1, indirect diffuse stays native, and the meter selects a palette-specific base color. |
+| 1.2.5 | Mirrored shader animation correction | The mirrored threat meter preserves the vanilla Hero-bar shader movement direction through an Eyes-owned private material. |
+| 1.2.6 | Palette-specific meter brightness | Purple and Orange threat meters expose independent brightness multipliers while retaining the prior 1.5 default. |
+| 1.2.7 | Recalibrated meter brightness | Purple and Orange meter brightness controls retain a 0-to-3 range while each point applies 3x RGB. |
+| 1.2.8 | Neutral palette-owned meter colors | The meter removes inherited mana blue, and Purple and Orange each own separate base and red target colors. |
 
 ## 0.1.0 - Scaffold
 
@@ -501,7 +506,7 @@ Reliability:
 
 ### Consolidated in-game test pass
 
-Begin this pass only after the `1.2.2` implementation, automated contracts, and
+Begin this pass only after the `1.2.8` implementation, automated contracts, and
 clean build are complete. Execute every accumulated milestone Verification
 matrix against the same candidate build, recording failures and fixes. Rebuild
 and repeat affected scenarios after a fix; do not mark the goal complete merely
@@ -1127,7 +1132,7 @@ Implemented scope:
 - Test the optional battlecry integration against Battlecry Voice Tuner 1.0.7.
 - Keep schema `15` because no configuration setting or meaning changed.
 
-## Explicitly deferred beyond 1.2.2
+## Explicitly deferred beyond 1.2.8
 
 - Custom save persistence for threat or active encounters.
 - Indoor hunts.
@@ -1140,10 +1145,10 @@ Implemented scope:
 
 ## Goal execution rule
 
-When this roadmap is used as the 1.2.2 development goal, execute one
+When this roadmap is used as the 1.2.8 development goal, execute one
 implementation milestone at a time with automated contracts and clean builds,
-then run the consolidated in-game pass after the `1.2.2` implementation is
-complete. Do not mark the goal complete until every `1.2.2` acceptance criterion
+then run the consolidated in-game pass after the `1.2.8` implementation is
+complete. Do not mark the goal complete until every `1.2.8` acceptance criterion
 is either verified or explicitly removed from scope by the user. Failures found
 in the consolidated pass require a fix and focused retest; they are not a reason
 to omit the affected scenario.

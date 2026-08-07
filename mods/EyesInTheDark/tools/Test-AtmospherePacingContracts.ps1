@@ -21,6 +21,19 @@ namespace EyesInTheDark
     {
         public static void Run()
         {
+            Ensure(AtmospherePolicy.IsConfirmedNightEndTransition(
+                true,
+                true),
+                "A confirmed Wyrdnight-to-daylight edge announces dawn");
+            Ensure(!AtmospherePolicy.IsConfirmedNightEndTransition(
+                false,
+                true),
+                "Initial and daylight-only context changes do not announce dawn");
+            Ensure(!AtmospherePolicy.IsConfirmedNightEndTransition(
+                true,
+                false),
+                "Wyrdnight pause and protection changes do not announce dawn");
+
             NightPacingState pacing = new NightPacingState();
             PacingTuning tuning = new PacingTuning
             {
@@ -212,6 +225,18 @@ $layeredBoundarySource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\LayeredBoundaryPass.cs") -Raw
 $gftSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\GrailFloatingTextBridge.cs") -Raw
+
+foreach ($required in @(
+    "ObserveContextTransition(",
+    "hadContext,",
+    "previousContext);",
+    "bool previousWasKnownWyrdnight = hadPreviousContext",
+    "bool currentIsKnownDaylight = IsKnownDaylight(context);",
+    "AtmospherePolicy.IsConfirmedNightEndTransition(")) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Confirmed dawn edge routing is missing source token: $required"
+    }
+}
 
 foreach ($required in @(
     "WeatherSecondsPerRealSecond",

@@ -41,9 +41,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.2.2.0")]
-[assembly: AssemblyFileVersion("1.2.2.0")]
-[assembly: AssemblyInformationalVersion("1.2.2")]
+[assembly: AssemblyVersion("1.2.8.0")]
+[assembly: AssemblyFileVersion("1.2.8.0")]
+[assembly: AssemblyInformationalVersion("1.2.8")]
 
 namespace EyesInTheDark
 {
@@ -101,7 +101,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.2.2";
+        public const string PluginVersion = "1.2.8";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -117,7 +117,7 @@ namespace EyesInTheDark
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 15;
+        private const int ConfigSchemaVersion = 18;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -142,7 +142,17 @@ namespace EyesInTheDark
                         7,
                         "10. Diagnostics",
                         "Diagnostics",
-                        "The new visual baseline deliberately returns diagnostics to its safe off default after regeneration.")
+                        "The new visual baseline deliberately returns diagnostics to its safe off default after regeneration."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        17,
+                        "7. Threat Meter",
+                        "PurpleThreatMeterBrightness",
+                        "The recalibrated brightness control gives 1.0 a new 3x RGB meaning, so older same-name values are unsafe to preserve."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        17,
+                        "7. Threat Meter",
+                        "OrangeThreatMeterBrightness",
+                        "The recalibrated brightness control gives 1.0 a new 3x RGB meaning, so older same-name values are unsafe to preserve.")
                 };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
@@ -245,10 +255,9 @@ namespace EyesInTheDark
         private const float DefaultDiagnosticGftCooldownSeconds = 1.0f;
         private const float DefaultMinimumThreatVisualScale = 0.8f;
         private const float DefaultMaximumThreatVisualScale = 1.2f;
-        private const float DefaultPurpleExposureMultiplier = 1.2f;
-        private const float DefaultPurpleExposureCompensation = 0.35f;
-        private const float DefaultPurpleIndirectDiffuseMultiplier = 1.10f;
+        private const float DefaultWyrdnightBrightness = 1.0f;
         private const float DefaultThreatVisualSmoothingSeconds = 2.0f;
+        private const float DefaultThreatMeterBrightness = 1.0f;
         private const string DefaultThreatRedColor = "#FF3028";
         private const float DefaultMaximumThreatRedBlend = 0.8f;
         private const string DefaultMoonSurfaceColor = "#3200FF";
@@ -318,7 +327,12 @@ namespace EyesInTheDark
         private ConfigEntry<float> _interiorDecayPerMinute;
         private ConfigEntry<float> _loadReconstructionAtDawn;
         private ConfigEntry<float> _graceSeconds;
-        private ConfigEntry<string> _threatMeterColor;
+        private ConfigEntry<string> _purpleThreatMeterColor;
+        private ConfigEntry<string> _orangeThreatMeterColor;
+        private ConfigEntry<string> _purpleThreatMeterRedColor;
+        private ConfigEntry<string> _orangeThreatMeterRedColor;
+        private ConfigEntry<float> _purpleThreatMeterBrightness;
+        private ConfigEntry<float> _orangeThreatMeterBrightness;
         private ConfigEntry<bool> _showExactThreat;
         private ConfigEntry<float> _meterOffsetX;
         private ConfigEntry<float> _meterOffsetY;
@@ -372,9 +386,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _boundaryPulseMaximumSeconds;
         private ConfigEntry<bool> _wyrdVisualsEnabled;
         private ConfigEntry<WyrdnessPalette> _wyrdnessPalette;
-        private ConfigEntry<float> _purpleExposureMultiplier;
-        private ConfigEntry<float> _purpleExposureCompensation;
-        private ConfigEntry<float> _purpleIndirectDiffuseMultiplier;
+        private ConfigEntry<float> _wyrdnightBrightness;
         private ConfigEntry<float> _threatVisualSmoothingSeconds;
         private ConfigEntry<float> _minimumThreatVisualScale;
         private ConfigEntry<float> _maximumThreatVisualScale;
@@ -642,7 +654,10 @@ namespace EyesInTheDark
                 LogTransition(nextContext);
                 if (!reconciledAfterRest)
                 {
-                    ObserveContextTransition(nextContext);
+                    ObserveContextTransition(
+                        nextContext,
+                        hadContext,
+                        previousContext);
                 }
             }
 
@@ -1735,12 +1750,17 @@ namespace EyesInTheDark
                 _meter.Update(
                     _threat.Value,
                     visible,
-                    _threatMeterColor == null
-                        ? ThreatMeterController.DefaultColorText
-                        : _threatMeterColor.Value,
-                    _threatRedColor == null
-                        ? DefaultThreatRedColor
-                        : _threatRedColor.Value,
+                    CurrentThreatMeterColor(),
+                    CurrentWyrdnessPalette()
+                        == WyrdnessPalette.NativeOrange
+                            ? ThreatMeterController.DefaultOrangeColorText
+                            : ThreatMeterController.DefaultPurpleColorText,
+                    CurrentThreatMeterRedColor(),
+                    CurrentWyrdnessPalette()
+                        == WyrdnessPalette.NativeOrange
+                            ? ThreatMeterController.DefaultOrangeRedColorText
+                            : ThreatMeterController.DefaultPurpleRedColorText,
+                    CurrentThreatMeterBrightness(),
                     WyrdVisualResponseEnabled()
                         ? ValueOrDefault(
                             _minimumThreatVisualScale,
@@ -2910,7 +2930,10 @@ namespace EyesInTheDark
             ClearAmbientStalkerTracking();
         }
 
-        private void ObserveContextTransition(RuntimeContext context)
+        private void ObserveContextTransition(
+            RuntimeContext context,
+            bool hadPreviousContext,
+            RuntimeContext previousContext)
         {
             FlushContinuousThreatDiagnostics(true);
             NightObservation observation = context.Observation;
@@ -2941,12 +2964,20 @@ namespace EyesInTheDark
                         CultureInfo.InvariantCulture));
             }
 
-            if (IsKnownDaylight(context))
+            bool previousWasKnownWyrdnight = hadPreviousContext
+                && IsKnownValidWyrdNight(previousContext);
+            bool currentIsKnownDaylight = IsKnownDaylight(context);
+            if (currentIsKnownDaylight)
             {
-                ShowAtmosphere(
-                    AtmosphereEventKind.NightEnd,
-                    _threat.Stage,
-                    "eyes-in-the-dark-night-end");
+                if (AtmospherePolicy.IsConfirmedNightEndTransition(
+                    previousWasKnownWyrdnight,
+                    currentIsKnownDaylight))
+                {
+                    ShowAtmosphere(
+                        AtmosphereEventKind.NightEnd,
+                        _threat.Stage,
+                        "eyes-in-the-dark-night-end");
+                }
                 _hasKnownProtectionState = false;
                 return;
             }
@@ -3082,6 +3113,48 @@ namespace EyesInTheDark
             return _wyrdnessPalette == null
                 ? WyrdnessPalette.Purple
                 : _wyrdnessPalette.Value;
+        }
+
+        private string CurrentThreatMeterColor()
+        {
+            bool orange = CurrentWyrdnessPalette()
+                == WyrdnessPalette.NativeOrange;
+            ConfigEntry<string> entry = orange
+                ? _orangeThreatMeterColor
+                : _purpleThreatMeterColor;
+            if (entry != null)
+            {
+                return entry.Value;
+            }
+            return orange
+                ? ThreatMeterController.DefaultOrangeColorText
+                : ThreatMeterController.DefaultPurpleColorText;
+        }
+
+        private float CurrentThreatMeterBrightness()
+        {
+            bool orange = CurrentWyrdnessPalette()
+                == WyrdnessPalette.NativeOrange;
+            ConfigEntry<float> entry = orange
+                ? _orangeThreatMeterBrightness
+                : _purpleThreatMeterBrightness;
+            return ValueOrDefault(entry, DefaultThreatMeterBrightness);
+        }
+
+        private string CurrentThreatMeterRedColor()
+        {
+            bool orange = CurrentWyrdnessPalette()
+                == WyrdnessPalette.NativeOrange;
+            ConfigEntry<string> entry = orange
+                ? _orangeThreatMeterRedColor
+                : _purpleThreatMeterRedColor;
+            if (entry != null)
+            {
+                return entry.Value;
+            }
+            return orange
+                ? ThreatMeterController.DefaultOrangeRedColorText
+                : ThreatMeterController.DefaultPurpleRedColorText;
         }
 
         private void ShowDiagnosticSystem(string text)
@@ -3400,15 +3473,9 @@ namespace EyesInTheDark
                     && _wyrdnessPalette != null
                         ? _wyrdnessPalette.Value
                         : WyrdnessPalette.Purple,
-                PurpleExposureMultiplier = ValueOrDefault(
-                    _purpleExposureMultiplier,
-                    DefaultPurpleExposureMultiplier),
-                PurpleExposureCompensation = ValueOrDefault(
-                    _purpleExposureCompensation,
-                    DefaultPurpleExposureCompensation),
-                PurpleIndirectDiffuseMultiplier = ValueOrDefault(
-                    _purpleIndirectDiffuseMultiplier,
-                    DefaultPurpleIndirectDiffuseMultiplier),
+                WyrdnightBrightness = ValueOrDefault(
+                    _wyrdnightBrightness,
+                    DefaultWyrdnightBrightness),
                 ThreatSmoothingHalfLifeSeconds = ValueOrDefault(
                     _threatVisualSmoothingSeconds,
                     DefaultThreatVisualSmoothingSeconds),
@@ -5626,27 +5693,64 @@ namespace EyesInTheDark
                     80,
                     new AcceptableValueRange<float>(0.5f, 15f)));
 
-            _threatMeterColor = Config.Bind(
+            _purpleThreatMeterColor = Config.Bind(
                 "7. Threat Meter",
-                "ThreatMeterColor",
-                ThreatMeterController.DefaultColorText,
+                "PurpleThreatMeterColor",
+                ThreatMeterController.DefaultPurpleColorText,
                 UiDescription(
-                    "HTML RGB color for the Wyrd Threat meter, such as #8032FF.",
-                    "HUD - Threat Meter", "Meter Color", 70, 10));
+                    "HTML RGB base color used by the Wyrd Threat meter when Purple Wyrdness is active.",
+                    "HUD - Threat Meter", "Purple Threat Meter Color", 70, 10));
+            _orangeThreatMeterColor = Config.Bind(
+                "7. Threat Meter",
+                "OrangeThreatMeterColor",
+                ThreatMeterController.DefaultOrangeColorText,
+                UiDescription(
+                    "HTML RGB base color used by the Wyrd Threat meter when Orange Wyrdness is active.",
+                    "HUD - Threat Meter", "Orange Threat Meter Color", 70, 20));
+            _purpleThreatMeterRedColor = Config.Bind(
+                "7. Threat Meter",
+                "PurpleThreatMeterRedColor",
+                ThreatMeterController.DefaultPurpleRedColorText,
+                UiDescription(
+                    "HTML RGB target color approached by the Wyrd Threat meter as threat rises during Purple Wyrdness.",
+                    "HUD - Threat Meter", "Purple Threat Meter Red Color", 70, 30));
+            _orangeThreatMeterRedColor = Config.Bind(
+                "7. Threat Meter",
+                "OrangeThreatMeterRedColor",
+                ThreatMeterController.DefaultOrangeRedColorText,
+                UiDescription(
+                    "HTML RGB target color approached by the Wyrd Threat meter as threat rises during Orange Wyrdness.",
+                    "HUD - Threat Meter", "Orange Threat Meter Red Color", 70, 40));
+            _purpleThreatMeterBrightness = Config.Bind(
+                "7. Threat Meter",
+                "PurpleThreatMeterBrightness",
+                DefaultThreatMeterBrightness,
+                UiDescription(
+                    "Wyrd Threat meter brightness for Purple Wyrdness. Each point applies a 3x RGB multiplier before the shared threat scale, so 1.0 means 3x and 3.0 means 9x.",
+                    "HUD - Threat Meter", "Purple Threat Meter Brightness", 70, 50,
+                    new AcceptableValueRange<float>(0f, 3f)));
+            _orangeThreatMeterBrightness = Config.Bind(
+                "7. Threat Meter",
+                "OrangeThreatMeterBrightness",
+                DefaultThreatMeterBrightness,
+                UiDescription(
+                    "Wyrd Threat meter brightness for Orange Wyrdness. Each point applies a 3x RGB multiplier before the shared threat scale, so 1.0 means 3x and 3.0 means 9x.",
+                    "HUD - Threat Meter", "Orange Threat Meter Brightness", 70, 60,
+                    new AcceptableValueRange<float>(0f, 3f)));
             _showExactThreat = Config.Bind(
                 "7. Threat Meter",
                 "ShowExactThreatValue",
                 false,
                 UiDescription(
                     "Show the rounded 0-100 Wyrd Threat value beside the meter.",
-                    "HUD - Threat Meter", "Show Exact Threat", 70, 20));
+                    "HUD - Threat Meter", "Show Exact Threat", 70, 70));
             _meterOffsetX = Config.Bind(
                 "7. Threat Meter",
                 "MeterOffsetX",
                 0f,
                 UiDescription(
                     "Horizontal adjustment from the automatic placement baseline in local Hero HUD pixels.",
-                    "HUD - Threat Meter", "Horizontal Offset", 70, 30,
+                    "HUD - Threat Meter", "Horizontal Offset", 70, 80,
                     new AcceptableValueRange<float>(-500f, 500f)));
             _meterOffsetY = Config.Bind(
                 "7. Threat Meter",
@@ -5654,7 +5758,7 @@ namespace EyesInTheDark
                 0f,
                 UiDescription(
                     "Vertical adjustment from the automatic placement baseline in local Hero HUD pixels. Positive values move it upward.",
-                    "HUD - Threat Meter", "Vertical Offset", 70, 40,
+                    "HUD - Threat Meter", "Vertical Offset", 70, 90,
                     new AcceptableValueRange<float>(-500f, 500f)));
 
             _boundaryEnabled = Config.Bind(
@@ -5868,45 +5972,23 @@ namespace EyesInTheDark
                 "WyrdnessPalette",
                 WyrdnessPalette.Purple,
                 UiDescription(
-                    "Purple uses the configured Wyrd palette and GFT Purple text group. Native Orange preserves each region's game-owned low-threat hues and uses GFT's Orange group for Wyrd messages. Both visual palettes shift toward red as threat rises, except the night sky.",
+                    "Purple uses the configured Wyrd palette and GFT Purple text group. Orange Wyrdness preserves each region's game-owned low-threat hues and uses GFT's Orange group for Wyrd messages. Both visual palettes shift toward red as threat rises, except the night sky.",
                     "Wyrdnight Appearance",
                     "Wyrdness Palette",
                     90,
                     20,
-                    choiceLabels: "Purple=Purple Wyrdness;NativeOrange=Native Orange"));
-            _purpleExposureMultiplier = Config.Bind(
+                    choiceLabels: "Purple=Purple Wyrdness;NativeOrange=Orange Wyrdness"));
+            _wyrdnightBrightness = Config.Bind(
                 "8. Wyrd Visuals",
-                "PurpleExposureMultiplier",
-                DefaultPurpleExposureMultiplier,
+                "WyrdnightBrightness",
+                DefaultWyrdnightBrightness,
                 UiDescription(
-                    "Purple-only multiplier applied to the game's native exposure result before Purple Night Brightness EV compensation. 1.0 leaves the native value unchanged. The effect follows the natural presentation fade and remains independent of threat.",
+                    "Palette-aware Wyrdnight exposure brightness. At 1.0, Purple Wyrdness applies a 1.75 exposure multiplier plus 0.35 EV, while Orange Wyrdness leaves the game's native exposure unchanged. Other values scale the active palette's targets proportionally. The effect follows the natural presentation fade and remains independent of threat.",
                     "Wyrdnight Appearance",
-                    "Purple Exposure Multiplier",
+                    "Wyrdnight Brightness",
                     90,
                     25,
-                    new AcceptableValueRange<float>(0f, 3f)));
-            _purpleExposureCompensation = Config.Bind(
-                "8. Wyrd Visuals",
-                "PurpleExposureCompensation",
-                DefaultPurpleExposureCompensation,
-                UiDescription(
-                    "Purple-only, mode-aware night brightness compensation in exposure values (EV). Positive values brighten and negative values darken. Eyes applies this after Light Control without changing HDRP post-exposure, gamma, colors, or global volumes. Automatic and physical-camera exposure add the value; fixed exposure subtracts it.",
-                    "Wyrdnight Appearance",
-                    "Purple Night Brightness (EV)",
-                    90,
-                    30,
-                    new AcceptableValueRange<float>(-2f, 2f)));
-            _purpleIndirectDiffuseMultiplier = Config.Bind(
-                "8. Wyrd Visuals",
-                "PurpleIndirectDiffuseMultiplier",
-                DefaultPurpleIndirectDiffuseMultiplier,
-                UiDescription(
-                    "Purple-only multiplier for the game's indirect diffuse lighting during a Wyrdnight. 1.0 leaves the native value unchanged. The effect follows the natural presentation fade and does not alter direct moonlight, reflections, exposure, gamma, colors, or global volumes.",
-                    "Wyrdnight Appearance",
-                    "Purple Indirect Diffuse Multiplier",
-                    90,
-                    35,
-                    new AcceptableValueRange<float>(0f, 3f)));
+                    new AcceptableValueRange<float>(0f, 2f)));
             _threatVisualSmoothingSeconds = Config.Bind(
                 "8. Wyrd Visuals",
                 "ThreatVisualSmoothingSeconds",
@@ -5945,7 +6027,7 @@ namespace EyesInTheDark
                 "ThreatRedColor",
                 DefaultThreatRedColor,
                 UiDescription(
-                    "Target HTML RGB color approached by the moon, moonlight, bubble, boundary, and threat meter as threat rises. Wyrdnight sky color is excluded.",
+                    "Target HTML RGB color approached by the moon, moonlight, protection bubble, and Wyrd boundary as threat rises. Wyrdnight sky color is excluded.",
                     "Wyrdnight Appearance",
                     "Threat Red Color",
                     90,
@@ -6436,7 +6518,12 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "5. Ambient Stalkers", "MaximumSpawnDistanceMeters");
             CapturePreservedValue<float>(profile, "5. Ambient Stalkers", "PassiveDespawnDistanceMeters");
             CapturePreservedValue<float>(profile, "5. Ambient Stalkers", "OffCameraDespawnSeconds");
-            CapturePreservedValue<string>(profile, "7. Threat Meter", "ThreatMeterColor");
+            CapturePreservedValue<string>(profile, "7. Threat Meter", "PurpleThreatMeterColor");
+            CapturePreservedValue<string>(profile, "7. Threat Meter", "OrangeThreatMeterColor");
+            CapturePreservedValue<string>(profile, "7. Threat Meter", "PurpleThreatMeterRedColor");
+            CapturePreservedValue<string>(profile, "7. Threat Meter", "OrangeThreatMeterRedColor");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "PurpleThreatMeterBrightness");
+            CapturePreservedValue<float>(profile, "7. Threat Meter", "OrangeThreatMeterBrightness");
             CapturePreservedValue<bool>(profile, "7. Threat Meter", "ShowExactThreatValue");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetX");
             CapturePreservedValue<float>(profile, "7. Threat Meter", "MeterOffsetY");
@@ -6460,9 +6547,7 @@ namespace EyesInTheDark
             CapturePreservedValue<bool>(profile, "8. Wyrd Visuals", "EnableWyrdnightVisuals");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "WyrdVisualTransitionSeconds");
             CapturePreservedValue<WyrdnessPalette>(profile, "8. Wyrd Visuals", "WyrdnessPalette");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleExposureMultiplier");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleExposureCompensation");
-            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "PurpleIndirectDiffuseMultiplier");
+            CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "WyrdnightBrightness");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "ThreatVisualSmoothingSeconds");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MinimumThreatVisualScale");
             CapturePreservedValue<float>(profile, "8. Wyrd Visuals", "MaximumThreatVisualScale");
@@ -6568,7 +6653,12 @@ namespace EyesInTheDark
             RestorePreservedValue(_stalkerMaximumSpawnDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_stalkerPassiveDespawnDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_stalkerOffCameraDespawnSeconds, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_threatMeterColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleThreatMeterColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_orangeThreatMeterColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleThreatMeterRedColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_orangeThreatMeterRedColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_purpleThreatMeterBrightness, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_orangeThreatMeterBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_showExactThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetX, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_meterOffsetY, ref restored, ref clamped, ref invalid);
@@ -6580,9 +6670,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_wyrdVisualsEnabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdVisualTransitionSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdnessPalette, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_purpleExposureMultiplier, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_purpleExposureCompensation, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(_purpleIndirectDiffuseMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_wyrdnightBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_threatVisualSmoothingSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_minimumThreatVisualScale, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_maximumThreatVisualScale, ref restored, ref clamped, ref invalid);

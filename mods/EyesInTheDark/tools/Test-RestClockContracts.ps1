@@ -20,7 +20,7 @@ function Assert-RestClockContract {
 foreach ($required in @(
     'src/RestClockOverlay.cs',
     'UnityEngine.TextRenderingModule.dll',
-    '"version": "1.2.2"')) {
+    '"version": "1.2.8"')) {
     Assert-RestClockContract ($manifest.Contains($required)) "manifest omits $required"
 }
 

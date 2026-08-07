@@ -18,9 +18,7 @@ namespace EyesInTheDark
     internal struct WyrdVisualSettings
     {
         public WyrdnessPalette Palette;
-        public float PurpleExposureMultiplier;
-        public float PurpleExposureCompensation;
-        public float PurpleIndirectDiffuseMultiplier;
+        public float WyrdnightBrightness;
         public float ThreatSmoothingHalfLifeSeconds;
         public float MinimumThreatScale;
         public float MaximumThreatScale;
@@ -261,7 +259,6 @@ namespace EyesInTheDark
 
         private FieldInfo _moonLightField;
         private FieldInfo _exposureField;
-        private FieldInfo _indirectLightingControllerField;
         private FieldInfo _shadowCasterLightField;
         private FieldInfo _shadowCasterOwnerLightField;
         private PropertyInfo _lightColorProperty;
@@ -287,9 +284,7 @@ namespace EyesInTheDark
         private bool _hasReportedState;
         private bool _lastReportedActive;
         private WyrdnessPalette _lastReportedPalette;
-        private float _lastReportedPurpleExposureMultiplier;
-        private float _lastReportedPurpleExposureCompensation;
-        private float _lastReportedPurpleIndirectDiffuseMultiplier;
+        private float _lastReportedWyrdnightBrightness;
         private float _lastReportedThreatSmoothingSeconds;
         private float _lastReportedMinimumThreatScale;
         private float _lastReportedMaximumThreatScale;
@@ -376,15 +371,11 @@ namespace EyesInTheDark
             MethodInfo handleExposure = AccessTools.Method(
                 _moonLightField.DeclaringType,
                 "HandleExposure");
-            MethodInfo handleIndirectLighting = AccessTools.Method(
-                _moonLightField.DeclaringType,
-                "HandleIndirectLighting");
             MethodInfo repellerInitialize = AccessTools.Method(
                 _repellerMaterialInstanceField.DeclaringType,
                 "OnInitialize");
             if (dayNightUpdate == null
                 || handleExposure == null
-                || handleIndirectLighting == null
                 || repellerInitialize == null)
             {
                 throw new MissingMethodException(
@@ -406,11 +397,6 @@ namespace EyesInTheDark
             harmony.Patch(
                 handleExposure,
                 postfix: exposurePostfix);
-            harmony.Patch(
-                handleIndirectLighting,
-                postfix: new HarmonyMethod(
-                    typeof(WyrdVisualRuntime),
-                    nameof(DayNightSystemHandleIndirectLightingPostfix)));
             harmony.Patch(
                 repellerInitialize,
                 postfix: new HarmonyMethod(
@@ -527,14 +513,8 @@ namespace EyesInTheDark
                 && active == _lastReportedActive
                 && settings.Palette == _lastReportedPalette
                 && Mathf.Abs(
-                    settings.PurpleExposureMultiplier
-                        - _lastReportedPurpleExposureMultiplier) <= 0.0001f
-                && Mathf.Abs(
-                    settings.PurpleExposureCompensation
-                        - _lastReportedPurpleExposureCompensation) <= 0.0001f
-                && Mathf.Abs(
-                    settings.PurpleIndirectDiffuseMultiplier
-                        - _lastReportedPurpleIndirectDiffuseMultiplier) <= 0.0001f
+                    settings.WyrdnightBrightness
+                        - _lastReportedWyrdnightBrightness) <= 0.0001f
                 && Mathf.Abs(
                     settings.ThreatSmoothingHalfLifeSeconds
                         - _lastReportedThreatSmoothingSeconds) <= 0.0001f
@@ -576,21 +556,19 @@ namespace EyesInTheDark
                         + scale.ToString(
                             "0.00",
                             CultureInfo.InvariantCulture)
-                        + (settings.Palette == WyrdnessPalette.Purple
-                            ? "; exposure="
-                                + settings.PurpleExposureMultiplier.ToString(
-                                    "0.00",
-                                    CultureInfo.InvariantCulture)
-                                + "x/"
-                                + settings.PurpleExposureCompensation.ToString(
-                                    "+0.00;-0.00;0.00",
-                                    CultureInfo.InvariantCulture)
-                                + " EV; indirect="
-                                + settings.PurpleIndirectDiffuseMultiplier.ToString(
-                                    "0.00",
-                                    CultureInfo.InvariantCulture)
-                                + "x"
-                            : string.Empty)
+                        + "; brightness="
+                        + settings.WyrdnightBrightness.ToString(
+                            "0.00",
+                            CultureInfo.InvariantCulture)
+                        + "; exposure="
+                        + ExposureMultiplier(settings).ToString(
+                            "0.00",
+                            CultureInfo.InvariantCulture)
+                        + "x/"
+                        + ExposureCompensation(settings).ToString(
+                            "+0.00;-0.00;0.00",
+                            CultureInfo.InvariantCulture)
+                        + " EV"
                         + "; smoothing="
                         + settings.ThreatSmoothingHalfLifeSeconds.ToString(
                             "0.0",
@@ -607,12 +585,8 @@ namespace EyesInTheDark
             _hasReportedState = true;
             _lastReportedActive = active;
             _lastReportedPalette = settings.Palette;
-            _lastReportedPurpleExposureMultiplier =
-                settings.PurpleExposureMultiplier;
-            _lastReportedPurpleExposureCompensation =
-                settings.PurpleExposureCompensation;
-            _lastReportedPurpleIndirectDiffuseMultiplier =
-                settings.PurpleIndirectDiffuseMultiplier;
+            _lastReportedWyrdnightBrightness =
+                settings.WyrdnightBrightness;
             _lastReportedThreatSmoothingSeconds =
                 settings.ThreatSmoothingHalfLifeSeconds;
             _lastReportedMinimumThreatScale =
@@ -661,9 +635,6 @@ namespace EyesInTheDark
             _exposureField = AccessTools.Field(
                 dayNightSystemType,
                 "_exposure");
-            _indirectLightingControllerField = AccessTools.Field(
-                dayNightSystemType,
-                "_indirectLightingController");
             _shadowCasterLightField = AccessTools.Field(
                 dayNightSystemType,
                 "_shadowCasterLight");
@@ -678,7 +649,6 @@ namespace EyesInTheDark
                 "_materialInstance");
             if (_moonLightField == null
                 || _exposureField == null
-                || _indirectLightingControllerField == null
                 || _shadowCasterLightField == null
                 || _shadowCasterOwnerLightField == null
                 || _skyboxInstanceProperty == null
@@ -1479,20 +1449,19 @@ namespace EyesInTheDark
             }
             try
             {
-                runtime.ApplyPurpleExposure(__instance);
+                runtime.ApplyWyrdnightBrightness(__instance);
             }
             catch (Exception exception)
             {
                 runtime.Fail(
-                    "Purple Wyrdness exposure could not be applied",
+                    "Wyrdnight brightness could not be applied",
                     exception);
             }
         }
 
-        private void ApplyPurpleExposure(object system)
+        private void ApplyWyrdnightBrightness(object system)
         {
             if (!_active
-                || _settings.Palette != WyrdnessPalette.Purple
                 || _visualBlend <= 0.00001f)
             {
                 return;
@@ -1507,65 +1476,43 @@ namespace EyesInTheDark
             float multiplier = Mathf.Lerp(
                 1f,
                 Mathf.Clamp(
-                    _settings.PurpleExposureMultiplier,
+                    ExposureMultiplier(_settings),
                     0f,
-                    3f),
+                    3.5f),
                 _visualBlend);
             float compensation = Mathf.Clamp(
-                _settings.PurpleExposureCompensation,
-                -2f,
-                2f) * _visualBlend;
+                ExposureCompensation(_settings),
+                0f,
+                0.7f) * _visualBlend;
             exposure.compensation.value =
                 exposure.compensation.value * multiplier + compensation;
             exposure.fixedExposure.value =
                 exposure.fixedExposure.value * multiplier - compensation;
         }
 
-        private static void DayNightSystemHandleIndirectLightingPostfix(
-            object __instance)
+        private static float ExposureMultiplier(WyrdVisualSettings settings)
         {
-            WyrdVisualRuntime runtime = _instance;
-            if (runtime == null)
+            float brightness = Mathf.Clamp(
+                settings.WyrdnightBrightness,
+                0f,
+                2f);
+            if (settings.Palette == WyrdnessPalette.Purple)
             {
-                return;
+                return brightness * 1.75f;
             }
-            try
-            {
-                runtime.ApplyPurpleIndirectDiffuse(__instance);
-            }
-            catch (Exception exception)
-            {
-                runtime.Fail(
-                    "Purple Wyrdness indirect diffuse lighting could not be applied",
-                    exception);
-            }
+            return brightness;
         }
 
-        private void ApplyPurpleIndirectDiffuse(object system)
+        private static float ExposureCompensation(WyrdVisualSettings settings)
         {
-            if (!_active
-                || _settings.Palette != WyrdnessPalette.Purple
-                || _visualBlend <= 0.00001f)
+            if (settings.Palette != WyrdnessPalette.Purple)
             {
-                return;
+                return 0f;
             }
-
-            IndirectLightingController controller =
-                _indirectLightingControllerField.GetValue(system)
-                    as IndirectLightingController;
-            if (controller == null)
-            {
-                return;
-            }
-
-            float multiplier = Mathf.Lerp(
-                1f,
-                Mathf.Clamp(
-                    _settings.PurpleIndirectDiffuseMultiplier,
-                    0f,
-                    3f),
-                _visualBlend);
-            controller.indirectDiffuseLightingMultiplier.value *= multiplier;
+            return Mathf.Clamp(
+                settings.WyrdnightBrightness,
+                0f,
+                2f) * 0.35f;
         }
 
         private static void WyrdnightSphereRepellerOnInitializePostfix(

@@ -485,7 +485,7 @@ foreach ($required in @(
 if (!$threatSource.Contains("StalkerProvoked")) {
     throw "Threat causes do not include StalkerProvoked"
 }
-if (!$pluginSource.Contains("private const int ConfigSchemaVersion = 15;")) {
+if (!$pluginSource.Contains("private const int ConfigSchemaVersion = 18;")) {
     throw "Eyes config schema is not at the clock-and-config UX reset boundary"
 }
 foreach ($required in @(

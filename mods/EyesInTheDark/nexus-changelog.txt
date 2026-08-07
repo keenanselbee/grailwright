@@ -1,14 +1,9 @@
-TargetVersion=1.2.2
-BaselineVersion=0.8.2
-Expanded the curated native encounter director to 50 reviewed regional profiles with level gates, danger costs, repetition limits, elite controls, and fail-closed placement and combat confirmation.
-Added 33 ambient-stalker profiles with passive observation, pursuit-aware retreat, hidden aggression thresholds, native navigation checks, and threat-adaptive pacing outside the official hunt budget.
-Added configurable dynamic world-clock pacing with a final 60-minute day and 6-to-12-minute threat-scaled Wyrdnight range without changing gameplay Time.timeScale.
-Expanded threat input to confirmed scenery impacts, projectile releases, completed spell casts, and optional Battlecry Voice Tuner integration with diminishing returns and atmospheric responses.
-Added a three-ring protective-boundary presentation, Purple Wyrdness and Native Orange palettes, threat-responsive color and intensity, and configurable moon, sky, exposure, indirect-lighting, and boundary controls.
-Improved the Wyrd Threat meter's standalone and Glorious UI placement, color response, update efficiency, and cleanup while removing an ineffective mirrored-animation correction.
-Reworked exposed Wyrdnight rest around native interruption rules, protective boundaries, threat-scaled cumulative risk, official hunt commitment, and an optional Eyes-owned 12- or 24-hour rest-clock presentation.
-Reduced Wyrdnight presentation overhead through cached lighting and stalker data, bounded update cadences, coalesced illumination refreshes, and fewer unchanged HUD writes.
-Renamed the release to Eyes in the Dark - Wyrdnight Overhaul and standardized Wyrdnight terminology throughout the UI and documentation.
-Advanced configuration schemas for removed, renamed, or redefined settings and changed defaults; stale configs are backed up while compatible durable customizations remain eligible for conservative recovery.
-Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
-Smoothed threat-driven world lighting and palette changes with a configurable two-active-second default half-life while keeping gameplay threat and the HUD immediate.
+TargetVersion=1.2.8
+BaselineVersion=1.2.1
+Added configurable visual-only threat smoothing with a two-active-second default half-life, keeping authoritative threat, hunts, notifications, the HUD meter, and dynamic Wyrdnight duration immediate.
+Prevented daylight-only state changes such as pausing and loading from replaying dawn GFT atmosphere; natural dawn still announces once.
+Consolidated the former Purple exposure, EV, and indirect-diffuse controls into one palette-aware Wyrdnight Brightness setting, left native indirect diffuse lighting untouched, renamed the Orange palette choice, and added automatically selected Purple and Orange threat-meter colors.
+Preserved the vanilla Hero-bar shader animation direction on the mirrored Wyrd Threat meter through a private material that is cleaned up with the HUD.
+Added separate Purple and Orange threat-meter brightness controls on a 0-to-3 range; each point applies 3x RGB before threat scaling, so the default 1 means 3x and the maximum reaches 9x.
+Replaced the meter's blue mana-bar tint with the game's neutral white artwork and material color, then added separate Purple and Orange red targets so both palettes remain clear across the full threat transition.
+Advanced ConfigSchemaVersion from 15 to 18 for the removed and redefined lighting settings, the changed threat-meter brightness scale and defaults, and the separation of world and meter red targets; incompatible retired or same-name brightness values adopt current defaults while unrelated durable settings remain eligible for conservative recovery.

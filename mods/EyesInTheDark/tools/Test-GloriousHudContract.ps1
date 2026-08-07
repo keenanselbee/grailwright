@@ -94,4 +94,22 @@ foreach ($removed in @(
     }
 }
 
+foreach ($required in @(
+    'Shader.PropertyToID("_Speed")',
+    '"Shader Graphs/VFX_UI"',
+    'PreserveShaderAnimationDirection(',
+    'new Material(sourceMaterial)',
+    'speed.x = mirrorHorizontally',
+    'speed.y = mirrorVertically',
+    '_ownedAnimationMaterials.Add(ownedMaterial)',
+    '_ownedAnimationMaterials.Clear()')) {
+    if (!$meterSource.Contains($required)) {
+        throw "Eyes in the Dark is missing mirrored shader-animation correction token: $required"
+    }
+}
+
+if ($meterSource.Contains('sourceMaterial.SetVector(')) {
+    throw "Eyes in the Dark modifies a shared source material while correcting mirrored animation."
+}
+
 Write-Host "Eyes in the Dark ownership and Glorious placement contracts passed."

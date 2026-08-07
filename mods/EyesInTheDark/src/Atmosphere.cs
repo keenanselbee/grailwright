@@ -32,6 +32,13 @@ namespace EyesInTheDark
 
     internal static class AtmospherePolicy
     {
+        public static bool IsConfirmedNightEndTransition(
+            bool previousWasKnownWyrdnight,
+            bool currentIsKnownDaylight)
+        {
+            return previousWasKnownWyrdnight && currentIsKnownDaylight;
+        }
+
         public static bool ShouldNotify(
             GftNotificationPreset preset,
             AtmosphereEventKind eventKind)

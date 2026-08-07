@@ -297,8 +297,16 @@ if ($attackStart -lt 0 -or $environmentHit -le $attackStart -or
     throw "Melee attack start must not add threat before a confirmed hit."
 }
 foreach ($required in @(
-    'ThreatMeterColor',
-    'ThreatMeterController.DefaultColorText',
+    'PurpleThreatMeterColor',
+    'OrangeThreatMeterColor',
+    'PurpleThreatMeterRedColor',
+    'OrangeThreatMeterRedColor',
+    'PurpleThreatMeterBrightness',
+    'OrangeThreatMeterBrightness',
+    'CurrentThreatMeterRedColor()',
+    'CurrentThreatMeterBrightness()',
+    'ThreatMeterController.DefaultPurpleColorText',
+    'ThreatMeterController.DefaultOrangeColorText',
     '"EnableThreatOverride"',
     '"ThreatOverrideValue"',
     'SetDiagnosticOverride(')) {
@@ -307,12 +315,28 @@ foreach ($required in @(
     }
 }
 foreach ($required in @(
-    'public const string DefaultColorText = "#8032FF";',
+    'public const string DefaultPurpleColorText = "#8032FF";',
+    'public const string DefaultOrangeColorText = "#FFB87A";',
+    'public const string DefaultPurpleRedColorText = "#FF3028";',
+    'public const string DefaultOrangeRedColorText = "#FF3028";',
     'ColorUtility.TryParseHtmlString(',
-    'BrightnessMultiplier = 1.5f;',
+    'Mathf.Max(0f, brightness)',
+    'BrightnessScale = 3.0f;',
     'WyrdVisualMath.ShiftTowardRed(')) {
     if (!$meterSource.Contains($required)) {
         throw "Threat-meter color application is missing: $required"
+    }
+}
+foreach ($required in @(
+    'NeutralBarSpriteName = "MP_Bar_white";',
+    'NeutralizeManaBarArtwork(_root);',
+    'image.sprite = neutralSprite;',
+    'image.overrideSprite = neutralSprite;',
+    '"MP_Bar_empty"',
+    'AnimatedBarColorId',
+    'Color.white')) {
+    if (!$meterSource.Contains($required)) {
+        throw "Threat-meter mana-artwork neutralization is missing: $required"
     }
 }
 

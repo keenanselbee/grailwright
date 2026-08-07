@@ -15,11 +15,23 @@ namespace EyesInTheDark
 {
     internal sealed class ThreatMeterController
     {
-        public const string DefaultColorText = "#8032FF";
-        private const string DefaultThreatRedColor = "#FF3028";
-        private const float BrightnessMultiplier = 1.5f;
+        public const string DefaultPurpleColorText = "#8032FF";
+        public const string DefaultOrangeColorText = "#FFB87A";
+        public const string DefaultPurpleRedColorText = "#FF3028";
+        public const string DefaultOrangeRedColorText = "#FF3028";
+        private const float BrightnessScale = 3.0f;
+        private const string AnimatedBarShaderName =
+            "Shader Graphs/VFX_UI";
+        private const string NeutralBarSpriteName = "MP_Bar_white";
+        private const string ManaBarSpritePrefix = "MP_Bar";
+        private static readonly int AnimatedBarSpeedId =
+            Shader.PropertyToID("_Speed");
+        private static readonly int AnimatedBarColorId =
+            Shader.PropertyToID("_Color");
 
         private readonly ManualLogSource _log;
+        private readonly List<Material> _ownedAnimationMaterials =
+            new List<Material>();
         private readonly FieldInfo _barField = AccessTools.Field(
             typeof(VCHeroHUDBar),
             "bar");
@@ -32,11 +44,14 @@ namespace EyesInTheDark
         private Bar[] _bars;
         private TextMeshProUGUI _exactValue;
         private string _appliedColorText;
+        private string _appliedFallbackColorText;
         private string _appliedRedColorText;
+        private string _appliedFallbackRedColorText;
         private string _lastInvalidColorText;
         private string _lastInvalidRedColorText;
         private Color _appliedColor;
         private float _lastColorThreat = -1f;
+        private float _lastBrightness = -1f;
         private float _lastMinimumVisualScale = -1f;
         private float _lastMaximumVisualScale = -1f;
         private float _lastMaximumRedBlend = -1f;
@@ -126,9 +141,13 @@ namespace EyesInTheDark
                     bar.SetPrediction(0f);
                     bar.SetPercentInstant(0f);
                 }
+                NeutralizeManaBarArtwork(_root);
                 ApplyColor(
-                    DefaultColorText,
-                    DefaultThreatRedColor,
+                    DefaultPurpleColorText,
+                    DefaultPurpleColorText,
+                    DefaultPurpleRedColorText,
+                    DefaultPurpleRedColorText,
+                    1.0f,
                     0f,
                     0.8f,
                     1.2f,
@@ -182,7 +201,10 @@ namespace EyesInTheDark
             float threat,
             bool visible,
             string colorText,
+            string fallbackColorText,
             string redColorText,
+            string fallbackRedColorText,
+            float brightness,
             float minimumVisualScale,
             float maximumVisualScale,
             float maximumRedBlend,
@@ -198,7 +220,10 @@ namespace EyesInTheDark
 
             ApplyColor(
                 colorText,
+                fallbackColorText,
                 redColorText,
+                fallbackRedColorText,
+                brightness,
                 threat,
                 minimumVisualScale,
                 maximumVisualScale,
@@ -266,6 +291,17 @@ namespace EyesInTheDark
             {
                 UnityEngine.Object.Destroy(_root);
             }
+            for (int index = 0;
+                index < _ownedAnimationMaterials.Count;
+                index++)
+            {
+                Material material = _ownedAnimationMaterials[index];
+                if (material != null)
+                {
+                    UnityEngine.Object.Destroy(material);
+                }
+            }
+            _ownedAnimationMaterials.Clear();
             _heroHud = null;
             _sourceHealth = null;
             _sourceMana = null;
@@ -276,9 +312,11 @@ namespace EyesInTheDark
             _exactValue = null;
             _appliedColorText = null;
             _appliedRedColorText = null;
+            _appliedFallbackRedColorText = null;
             _lastInvalidColorText = null;
             _lastInvalidRedColorText = null;
             _lastColorThreat = -1f;
+            _lastBrightness = -1f;
             _lastMinimumVisualScale = -1f;
             _lastMaximumVisualScale = -1f;
             _lastMaximumRedBlend = -1f;
@@ -399,23 +437,38 @@ namespace EyesInTheDark
 
         private void ApplyColor(
             string colorText,
+            string fallbackColorText,
             string redColorText,
+            string fallbackRedColorText,
+            float brightness,
             float threat,
             float minimumVisualScale,
             float maximumVisualScale,
             float maximumRedBlend)
         {
             string configuredColor = colorText ?? string.Empty;
+            string fallbackColor = fallbackColorText ?? DefaultPurpleColorText;
             string configuredRed = redColorText ?? string.Empty;
+            string fallbackRed = fallbackRedColorText
+                ?? DefaultPurpleRedColorText;
             if (string.Equals(
                 configuredColor,
                 _appliedColorText,
                 StringComparison.Ordinal)
                 && string.Equals(
+                    fallbackColor,
+                    _appliedFallbackColorText,
+                    StringComparison.Ordinal)
+                && string.Equals(
                     configuredRed,
                     _appliedRedColorText,
                     StringComparison.Ordinal)
+                && string.Equals(
+                    fallbackRed,
+                    _appliedFallbackRedColorText,
+                    StringComparison.Ordinal)
                 && Math.Abs(threat - _lastColorThreat) <= 0.0001f
+                && Math.Abs(brightness - _lastBrightness) <= 0.0001f
                 && Math.Abs(minimumVisualScale - _lastMinimumVisualScale)
                     <= 0.0001f
                 && Math.Abs(maximumVisualScale - _lastMaximumVisualScale)
@@ -432,7 +485,7 @@ namespace EyesInTheDark
                 out color))
             {
                 ColorUtility.TryParseHtmlString(
-                    DefaultColorText,
+                    fallbackColor,
                     out color);
                 if (!string.Equals(
                     configuredColor,
@@ -441,8 +494,8 @@ namespace EyesInTheDark
                 {
                     _lastInvalidColorText = configuredColor;
                     _log.LogWarning(
-                        "ThreatMeterColor is invalid; using "
-                        + DefaultColorText
+                        "The active threat meter base color is invalid; using "
+                        + fallbackColor
                         + ".");
                 }
             }
@@ -457,7 +510,7 @@ namespace EyesInTheDark
                 out redColor))
             {
                 ColorUtility.TryParseHtmlString(
-                    DefaultThreatRedColor,
+                    fallbackRed,
                     out redColor);
                 if (!string.Equals(
                     configuredRed,
@@ -466,8 +519,8 @@ namespace EyesInTheDark
                 {
                     _lastInvalidRedColorText = configuredRed;
                     _log.LogWarning(
-                        "ThreatRedColor is invalid; using "
-                        + DefaultThreatRedColor
+                        "The active threat meter target color is invalid; using "
+                        + fallbackRed
                         + ".");
                 }
             }
@@ -483,7 +536,8 @@ namespace EyesInTheDark
                 maximumRedBlend);
             color = WyrdVisualMath.ScaleRgb(
                 color,
-                BrightnessMultiplier
+                Mathf.Max(0f, brightness)
+                    * BrightnessScale
                     * WyrdVisualMath.ThreatScale(
                         threat,
                         minimumVisualScale,
@@ -519,11 +573,71 @@ namespace EyesInTheDark
             }
 
             _appliedColorText = configuredColor;
+            _appliedFallbackColorText = fallbackColor;
             _appliedRedColorText = configuredRed;
+            _appliedFallbackRedColorText = fallbackRed;
             _lastColorThreat = threat;
+            _lastBrightness = brightness;
             _lastMinimumVisualScale = minimumVisualScale;
             _lastMaximumVisualScale = maximumVisualScale;
             _lastMaximumRedBlend = maximumRedBlend;
+        }
+
+        private void NeutralizeManaBarArtwork(GameObject root)
+        {
+            Image[] images = root == null
+                ? new Image[0]
+                : root.GetComponentsInChildren<Image>(true);
+            Sprite neutralSprite = null;
+            for (int index = 0; index < images.Length; index++)
+            {
+                Sprite sprite = images[index] == null
+                    ? null
+                    : images[index].sprite;
+                if (sprite != null
+                    && string.Equals(
+                        sprite.name,
+                        NeutralBarSpriteName,
+                        StringComparison.Ordinal))
+                {
+                    neutralSprite = sprite;
+                    break;
+                }
+            }
+
+            if (neutralSprite == null)
+            {
+                _log.LogWarning(
+                    "Could not neutralize the Wyrd Threat meter artwork because its white mana-bar sprite was unavailable.");
+                return;
+            }
+
+            int neutralizedCount = 0;
+            for (int index = 0; index < images.Length; index++)
+            {
+                Image image = images[index];
+                Sprite sprite = image == null ? null : image.sprite;
+                if (sprite == null
+                    || !sprite.name.StartsWith(
+                        ManaBarSpritePrefix,
+                        StringComparison.Ordinal)
+                    || string.Equals(
+                        sprite.name,
+                        "MP_Bar_empty",
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                image.sprite = neutralSprite;
+                image.overrideSprite = neutralSprite;
+                neutralizedCount++;
+            }
+
+            _log.LogInfo(
+                "Neutralized "
+                + neutralizedCount
+                + " Wyrd Threat meter mana-bar image(s) with the game-owned white sprite.");
         }
 
         private void Position(
@@ -853,6 +967,10 @@ namespace EyesInTheDark
                     mirrorHorizontally ? -1f : 1f,
                     mirrorVertically ? -1f : 1f,
                     1f);
+                PreserveShaderAnimationDirection(
+                    root,
+                    mirrorHorizontally,
+                    mirrorVertically);
                 return true;
             }
             catch (Exception exception)
@@ -922,6 +1040,79 @@ namespace EyesInTheDark
                     "Could not mirror the Wyrd Threat meter; the normal artwork remains active: "
                     + exception.GetBaseException().Message);
                 return false;
+            }
+        }
+
+        private void PreserveShaderAnimationDirection(
+            GameObject root,
+            bool mirrorHorizontally,
+            bool mirrorVertically)
+        {
+            Graphic[] graphics =
+                root.GetComponentsInChildren<Graphic>(true);
+            int correctedCount = 0;
+            for (int index = 0; index < graphics.Length; index++)
+            {
+                Graphic graphic = graphics[index];
+                Material sourceMaterial = graphic == null
+                    ? null
+                    : graphic.material;
+                if (sourceMaterial == null
+                    || sourceMaterial.shader == null
+                    || !string.Equals(
+                        sourceMaterial.shader.name,
+                        AnimatedBarShaderName,
+                        StringComparison.Ordinal)
+                    || !sourceMaterial.HasProperty(AnimatedBarSpeedId))
+                {
+                    continue;
+                }
+
+                Material ownedMaterial = null;
+                try
+                {
+                    Vector4 speed = sourceMaterial.GetVector(
+                        AnimatedBarSpeedId);
+                    speed.x = mirrorHorizontally
+                        ? -speed.x
+                        : speed.x;
+                    speed.y = mirrorVertically
+                        ? -speed.y
+                        : speed.y;
+
+                    ownedMaterial = new Material(sourceMaterial);
+                    ownedMaterial.name = sourceMaterial.name
+                        + " (Eyes Threat Meter Animation)";
+                    ownedMaterial.hideFlags = HideFlags.DontSave;
+                    ownedMaterial.SetVector(
+                        AnimatedBarSpeedId,
+                        speed);
+                    if (ownedMaterial.HasProperty(AnimatedBarColorId))
+                    {
+                        ownedMaterial.SetColor(
+                            AnimatedBarColorId,
+                            Color.white);
+                    }
+                    graphic.material = ownedMaterial;
+                    _ownedAnimationMaterials.Add(ownedMaterial);
+                    correctedCount++;
+                }
+                catch (Exception exception)
+                {
+                    if (ownedMaterial != null)
+                    {
+                        UnityEngine.Object.Destroy(ownedMaterial);
+                    }
+                    _log.LogWarning(
+                        "Could not preserve a mirrored Wyrd Threat meter shader animation direction: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+
+            if (correctedCount == 0)
+            {
+                _log.LogWarning(
+                    "Could not preserve the Wyrd Threat meter shader animation direction because its expected animated material was unavailable.");
             }
         }
 

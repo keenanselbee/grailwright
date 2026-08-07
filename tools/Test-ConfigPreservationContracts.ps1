@@ -95,7 +95,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedConfigValues('
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
-        Tokens = @('PassiveThreatPerNight', 'CombatResponseSeconds', 'ProtectedDecayPerMinute', 'ThreatMeterColor', 'ShowExactThreatValue', 'MeterOffsetX', 'BoundaryRenderMode', 'BoundaryBrightness', 'NearRingRadius', 'OuterRingIntensityMultiplier', 'BoundaryPulseAmount')
+        Tokens = @('PassiveThreatPerNight', 'CombatResponseSeconds', 'ProtectedDecayPerMinute', 'PurpleThreatMeterColor', 'OrangeThreatMeterColor', 'PurpleThreatMeterRedColor', 'OrangeThreatMeterRedColor', 'PurpleThreatMeterBrightness', 'OrangeThreatMeterBrightness', 'ShowExactThreatValue', 'MeterOffsetX', 'BoundaryRenderMode', 'BoundaryBrightness', 'NearRingRadius', 'OuterRingIntensityMultiplier', 'BoundaryPulseAmount', 'WyrdnightBrightness')
     },
     [pscustomobject]@{
         Name = 'TG All Lights Cast Shadows Addon'

@@ -1,1 +1,1 @@
-Smooths restored ragdolls and safely simplifies loaded corpses after long bonfire rests while preserving loot.
+Limits loaded full corpses, smooths restored ragdolls, and safely simplifies excess or long-rest bodies while preserving visible loot.

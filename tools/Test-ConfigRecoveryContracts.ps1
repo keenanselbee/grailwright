@@ -119,7 +119,7 @@ $modContracts = @(
     @{ Mod = 'KillingBlowMastery'; Source = 'src\KillingBlowMastery.cs'; Schema = 13; AutoPreserves = $true },
     @{ Mod = 'KingsElegyMainMenuMusic'; Source = 'src\MainMenuMusic.cs'; Schema = 16; AutoPreserves = $false },
     @{ Mod = 'KSAddons\KSBetterMovementAddon'; Source = 'src\BetterMovementAddon.cs'; Schema = 1; AutoPreserves = $true },
-    @{ Mod = 'KSAddons\KSPersistentCorpsesAddon'; Source = 'src\PersistentCorpsesAddon.cs'; Schema = 1; AutoPreserves = $false },
+    @{ Mod = 'KSAddons\KSPersistentCorpsesAddon'; Source = 'src\PersistentCorpsesAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSTGAllLightsCastShadowsAddon'; Source = 'src\TGAllLightsCastShadowsAddon.cs'; Schema = 2; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSWyrdSightAddon'; Source = 'src\WyrdSightAddon.cs'; Schema = 2; AutoPreserves = $false },
     @{ Mod = 'BattlecryVoiceTuner'; Source = 'src\BattlecryVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },

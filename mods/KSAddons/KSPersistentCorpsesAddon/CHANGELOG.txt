@@ -1,3 +1,10 @@
+Version 1.0.9
+Added All, Limited, and Vanilla corpse-retention modes; Limited is the new default and keeps at most 10 loaded full corpses.
+Lets excess distant corpses use the game's native simplification path, removing empty bodies and preserving visible loot in lightweight replacements.
+Counts only until the configured limit is exceeded and performs cleanup only when vanilla already considers a corpse distant enough, avoiding recurring full-world scans.
+Changed the default bonfire-cleanup threshold from three to six actual hours.
+Reset the config schema because the bonfire-cleanup default changed; compatible customized settings are restored automatically.
+
 Version 1.0.8
 Added configurable cleanup after bonfire rests lasting at least three actual hours by default.
 Uses the game's native corpse simplification so empty loaded corpses are removed while visible loot remains in lightweight replacement bodies.

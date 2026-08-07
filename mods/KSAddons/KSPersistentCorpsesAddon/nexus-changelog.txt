@@ -1,0 +1,6 @@
+TargetVersion=1.0.9
+BaselineVersion=1.0.8
+Added Limited corpse retention as the new default, keeping at most 10 loaded full corpses and letting excess distant bodies use native cleanup while preserving visible loot in lightweight replacements.
+Added configurable All, Limited, and Vanilla retention modes plus a 0-100 full-corpse limit.
+Changed the default bonfire-cleanup threshold from three to six actual hours.
+Reset the config schema because the bonfire-cleanup default changed; compatible customized settings are restored automatically.

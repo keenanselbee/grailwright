@@ -16,14 +16,21 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Persistent Corpses Addon")]
-[assembly: AssemblyDescription("Improves restored Persistent Corpses ragdolls and cleans them up after long bonfire rests")]
+[assembly: AssemblyDescription("Improves restored Persistent Corpses ragdolls and limits loaded full corpses")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Persistent Corpses Addon")]
-[assembly: AssemblyVersion("1.0.8.0")]
-[assembly: AssemblyFileVersion("1.0.8.0")]
+[assembly: AssemblyVersion("1.0.9.0")]
+[assembly: AssemblyFileVersion("1.0.9.0")]
 
 namespace Keenan.TGFoA.PersistentCorpsesAddon
 {
+    public enum CorpseRetentionMode
+    {
+        All,
+        Limited,
+        Vanilla
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         ParentPluginGuid,
@@ -36,11 +43,11 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         public const string PluginGuid =
             "ks.tgfoa.persistent-corpses-addon";
         public const string PluginName = "Persistent Corpses Addon";
-        public const string PluginVersion = "1.0.8";
+        public const string PluginVersion = "1.0.9";
         public const string ParentPluginGuid =
             "VirusAlex.PersistentCorpses";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -51,7 +58,10 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         private const float DefaultMaximumSettleSeconds = 2.0f;
         private const float MinimumAllowedSettleSeconds = 0.1f;
         private const float MaximumAllowedSettleSeconds = 10.0f;
-        private const int DefaultMinimumRestHoursForCleanup = 3;
+        private const int DefaultMaximumLoadedFullCorpses = 10;
+        private const int MinimumAllowedLoadedFullCorpses = 0;
+        private const int MaximumAllowedLoadedFullCorpses = 100;
+        private const int DefaultMinimumRestHoursForCleanup = 6;
         private const int MinimumAllowedRestHoursForCleanup = 1;
         private const int MaximumAllowedRestHoursForCleanup = 24;
 
@@ -63,9 +73,25 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<float> _minimumSettleSeconds;
         private ConfigEntry<float> _maximumSettleSeconds;
+        private ConfigEntry<CorpseRetentionMode> _retentionMode;
+        private ConfigEntry<int> _maximumLoadedFullCorpses;
         private ConfigEntry<bool> _cleanupAfterLongBonfireRest;
         private ConfigEntry<int> _minimumRestHoursForCleanup;
         private ConfigEntry<bool> _diagnostics;
+
+        private bool _hasPendingEnabled;
+        private bool _pendingEnabled;
+        private bool _hasPendingMinimumSettleSeconds;
+        private float _pendingMinimumSettleSeconds;
+        private bool _hasPendingMaximumSettleSeconds;
+        private float _pendingMaximumSettleSeconds;
+        private bool _hasPendingCleanupAfterLongBonfireRest;
+        private bool _pendingCleanupAfterLongBonfireRest;
+        private bool _hasPendingMinimumRestHoursForCleanup;
+        private int _pendingMinimumRestHoursForCleanup;
+        private bool _hasPendingDiagnostics;
+        private bool _pendingDiagnostics;
+
         private FieldInfo _isRestoringField;
         private FieldInfo _fromAttachmentField;
         private MethodInfo _tryCreateReplacementDeadBodyMethod;
@@ -100,6 +126,10 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     typeof(NpcDummy),
                     "AfterVisualLoaded",
                     new[] { typeof(Transform) });
+                MethodInfo tryReplaceWithSimplifiedLocationMethod =
+                    AccessTools.Method(
+                        typeof(NpcDummy),
+                        nameof(NpcDummy.TryReplaceWithSimplifiedLocation));
                 _tryCreateReplacementDeadBodyMethod = AccessTools.Method(
                     typeof(NpcDummy),
                     "TryCreateReplacementDeadBody");
@@ -113,6 +143,7 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                 if (_isRestoringField == null
                     || _fromAttachmentField == null
                     || afterVisualLoadedMethod == null
+                    || tryReplaceWithSimplifiedLocationMethod == null
                     || _tryCreateReplacementDeadBodyMethod == null
                     || restMethod == null
                     || skipWeatherTimeMethod == null)
@@ -127,6 +158,11 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     prefix: new HarmonyMethod(
                         typeof(NpcDummyRestorePatch),
                         nameof(NpcDummyRestorePatch.BeforeAfterVisualLoaded)));
+                _harmony.Patch(
+                    tryReplaceWithSimplifiedLocationMethod,
+                    postfix: new HarmonyMethod(
+                        typeof(NpcDummySimplificationPatch),
+                        nameof(NpcDummySimplificationPatch.AfterTryReplaceWithSimplifiedLocation)));
                 _harmony.Patch(
                     restMethod,
                     prefix: new HarmonyMethod(
@@ -151,7 +187,9 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     + GetMaximumSettleSeconds().ToString(
                         "0.###",
                         CultureInfo.InvariantCulture)
-                    + " seconds of physics simulation.");
+                    + " seconds of physics simulation. Retention mode: "
+                    + GetRetentionMode().ToString()
+                    + ".");
             }
             catch (Exception exception)
             {
@@ -230,6 +268,20 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     new AcceptableValueRange<float>(
                         MinimumAllowedSettleSeconds,
                         MaximumAllowedSettleSeconds)));
+            _retentionMode = Config.Bind(
+                "3. Corpse Retention",
+                "RetentionMode",
+                CorpseRetentionMode.Limited,
+                "All keeps every corpse through Persistent Corpses. Limited keeps up to MaximumLoadedFullCorpses and lets excess distant corpses use vanilla cleanup. Vanilla lets every eligible distant corpse use vanilla cleanup.");
+            _maximumLoadedFullCorpses = Config.Bind(
+                "3. Corpse Retention",
+                "MaximumLoadedFullCorpses",
+                DefaultMaximumLoadedFullCorpses,
+                new ConfigDescription(
+                    "Maximum number of full loaded corpses retained in Limited mode. Excess bodies simplify only when the game already considers them distant enough for vanilla ragdoll cleanup.",
+                    new AcceptableValueRange<int>(
+                        MinimumAllowedLoadedFullCorpses,
+                        MaximumAllowedLoadedFullCorpses)));
             _cleanupAfterLongBonfireRest = Config.Bind(
                 "3. Bonfire Cleanup",
                 "CleanupAfterLongBonfireRest",
@@ -249,6 +301,8 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                 "Diagnostics",
                 false,
                 "Log restored-corpse concealment and reveal details.");
+
+            RestorePreservedSettings();
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -284,6 +338,10 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             {
                 return;
             }
+
+            CapturePreservedSettings(
+                configPath,
+                storedSchemaVersion);
 
             string backupPath = configPath
                 + ".pre-schema-"
@@ -338,6 +396,127 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             }
         }
 
+        private void CapturePreservedSettings(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            _hasPendingEnabled = profile.TryGetCustomizedValue(
+                "1. Core", "Enabled", out _pendingEnabled);
+            _hasPendingMinimumSettleSeconds =
+                profile.TryGetCustomizedValue(
+                    "2. Settle Timing",
+                    "MinimumSettleSeconds",
+                    out _pendingMinimumSettleSeconds);
+            _hasPendingMaximumSettleSeconds =
+                profile.TryGetCustomizedValue(
+                    "2. Settle Timing",
+                    "MaximumSettleSeconds",
+                    out _pendingMaximumSettleSeconds);
+            _hasPendingCleanupAfterLongBonfireRest =
+                profile.TryGetCustomizedValue(
+                    "3. Bonfire Cleanup",
+                    "CleanupAfterLongBonfireRest",
+                    out _pendingCleanupAfterLongBonfireRest);
+            _hasPendingMinimumRestHoursForCleanup =
+                profile.TryGetCustomizedValue(
+                    "3. Bonfire Cleanup",
+                    "MinimumRestHoursForCleanup",
+                    out _pendingMinimumRestHoursForCleanup);
+            _hasPendingDiagnostics = profile.TryGetCustomizedValue(
+                "Diagnostics", "Diagnostics", out _pendingDiagnostics);
+        }
+
+        private void RestorePreservedSettings()
+        {
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreserved(
+                _hasPendingEnabled,
+                _enabled,
+                _pendingEnabled,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMinimumSettleSeconds,
+                _minimumSettleSeconds,
+                _pendingMinimumSettleSeconds,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMaximumSettleSeconds,
+                _maximumSettleSeconds,
+                _pendingMaximumSettleSeconds,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingCleanupAfterLongBonfireRest,
+                _cleanupAfterLongBonfireRest,
+                _pendingCleanupAfterLongBonfireRest,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMinimumRestHoursForCleanup,
+                _minimumRestHoursForCleanup,
+                _pendingMinimumRestHoursForCleanup,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingDiagnostics,
+                _diagnostics,
+                _pendingDiagnostics,
+                ref restoredCount,
+                ref clampedCount);
+
+            if (restoredCount > 0)
+            {
+                Logger.LogInfo(
+                    "Preserved "
+                    + restoredCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + " customized corpse setting(s) across the config schema reset; clamped="
+                    + clampedCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+            }
+        }
+
+        private static void RestorePreserved<T>(
+            bool hasPendingValue,
+            ConfigEntry<T> entry,
+            T pendingValue,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            if (!hasPendingValue)
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    entry,
+                    pendingValue,
+                    out clamped))
+            {
+                return;
+            }
+
+            restoredCount++;
+            if (clamped)
+            {
+                clampedCount++;
+            }
+        }
+
         internal bool IsFeatureEnabled
         {
             get
@@ -370,6 +549,106 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             return Mathf.Max(
                 GetMinimumSettleSeconds(),
                 configuredMaximum);
+        }
+
+        private CorpseRetentionMode GetRetentionMode()
+        {
+            return _retentionMode == null
+                ? CorpseRetentionMode.Limited
+                : _retentionMode.Value;
+        }
+
+        private int GetMaximumLoadedFullCorpses()
+        {
+            if (_maximumLoadedFullCorpses == null)
+            {
+                return DefaultMaximumLoadedFullCorpses;
+            }
+
+            return Mathf.Clamp(
+                _maximumLoadedFullCorpses.Value,
+                MinimumAllowedLoadedFullCorpses,
+                MaximumAllowedLoadedFullCorpses);
+        }
+
+        internal void ApplyRetentionPolicyAfterVanillaAttempt(
+            NpcDummy dummy,
+            ref bool simplified)
+        {
+            if (simplified
+                || !IsFeatureEnabled
+                || dummy == null
+                || dummy.HasBeenDiscarded
+                || !dummy.HasDied
+                || dummy.ParentTransform == null)
+            {
+                return;
+            }
+
+            CorpseRetentionMode mode = GetRetentionMode();
+            if (mode == CorpseRetentionMode.All)
+            {
+                return;
+            }
+
+            int maximumLoadedFullCorpses = GetMaximumLoadedFullCorpses();
+            if (mode == CorpseRetentionMode.Limited
+                && !LoadedFullCorpseLimitExceeded(
+                    maximumLoadedFullCorpses))
+            {
+                return;
+            }
+
+            bool failed;
+            simplified = TrySimplifyCorpse(
+                dummy,
+                "for the " + mode.ToString() + " retention policy",
+                out failed);
+            if (failed)
+            {
+                return;
+            }
+
+            if (simplified)
+            {
+                string detail = mode == CorpseRetentionMode.Limited
+                    ? "; the configured loaded full-corpse limit is "
+                        + maximumLoadedFullCorpses.ToString(
+                            CultureInfo.InvariantCulture)
+                    : string.Empty;
+                LogDiagnostic(
+                    "Simplified a distant corpse for the "
+                    + mode.ToString()
+                    + " retention policy"
+                    + detail
+                    + ".");
+            }
+        }
+
+        private bool LoadedFullCorpseLimitExceeded(int maximumCount)
+        {
+            int count = 0;
+            ModelsSet<NpcDummy>.ReverseEnumerator enumerator =
+                World.All<NpcDummy>().Reverse().GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                NpcDummy dummy = enumerator.Current;
+                if (dummy == null
+                    || dummy.HasBeenDiscarded
+                    || !dummy.HasDied
+                    || dummy.ParentTransform == null)
+                {
+                    continue;
+                }
+
+                count++;
+                if (count > maximumCount)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         internal void TryBeginCorpseRestore(
@@ -525,30 +804,21 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     continue;
                 }
 
-                try
+                bool failedToSimplify;
+                if (TrySimplifyCorpse(
+                    dummy,
+                    "after bonfire rest",
+                    out failedToSimplify))
                 {
-                    bool canDiscardOriginal =
-                        (bool)_tryCreateReplacementDeadBodyMethod.Invoke(
-                            dummy,
-                            null);
-                    if (canDiscardOriginal
-                        && dummy.ParentModel != null
-                        && !dummy.ParentModel.HasBeenDiscarded)
-                    {
-                        dummy.ParentModel.Discard();
-                        simplified++;
-                    }
-                    else
-                    {
-                        retained++;
-                    }
+                    simplified++;
                 }
-                catch (Exception exception)
+                else if (failedToSimplify)
                 {
                     failed++;
-                    Logger.LogWarning(
-                        "Could not simplify a loaded corpse after bonfire rest: "
-                        + exception.GetBaseException().Message);
+                }
+                else
+                {
+                    retained++;
                 }
 
                 yield return null;
@@ -569,6 +839,48 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             _cleanupCoroutine = null;
         }
 
+        private bool TrySimplifyCorpse(
+            NpcDummy dummy,
+            string context,
+            out bool failed)
+        {
+            failed = false;
+            if (dummy == null
+                || dummy.HasBeenDiscarded
+                || !dummy.HasDied
+                || dummy.ParentTransform == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                bool canDiscardOriginal =
+                    (bool)_tryCreateReplacementDeadBodyMethod.Invoke(
+                        dummy,
+                        null);
+                if (!canDiscardOriginal
+                    || dummy.ParentModel == null
+                    || dummy.ParentModel.HasBeenDiscarded)
+                {
+                    return false;
+                }
+
+                dummy.ParentModel.Discard();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                failed = true;
+                Logger.LogWarning(
+                    "Could not simplify a loaded corpse "
+                    + context
+                    + ": "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
         private static class NpcDummyRestorePatch
         {
             public static void BeforeAfterVisualLoaded(
@@ -581,6 +893,22 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     instance.TryBeginCorpseRestore(
                         __instance,
                         parentTransform);
+                }
+            }
+        }
+
+        private static class NpcDummySimplificationPatch
+        {
+            public static void AfterTryReplaceWithSimplifiedLocation(
+                NpcDummy __instance,
+                ref bool __result)
+            {
+                PersistentCorpsesAddonPlugin instance = Instance;
+                if (instance != null)
+                {
+                    instance.ApplyRetentionPolicyAfterVanillaAttempt(
+                        __instance,
+                        ref __result);
                 }
             }
         }

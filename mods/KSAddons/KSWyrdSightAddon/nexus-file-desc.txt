@@ -1,1 +1,1 @@
-Turns Wyrd Sight's highlight key into a safe timed pulse.
+Turns Wyrd Sight's highlight key into a safe timed pulse and reveals untaken quest givers with Balanced story-lock filtering.

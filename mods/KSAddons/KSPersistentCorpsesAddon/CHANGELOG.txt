@@ -1,3 +1,9 @@
+Version 1.0.8
+Added configurable cleanup after bonfire rests lasting at least three actual hours by default.
+Uses the game's native corpse simplification so empty loaded corpses are removed while visible loot remains in lightweight replacement bodies.
+Processes cleanup gradually to avoid a rest-transition performance spike and leaves bodies that cannot be simplified safely untouched.
+Stops repeated renderer and rigidbody hierarchy scans after each restored corpse finishes initializing.
+
 Version 1.0.7
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.

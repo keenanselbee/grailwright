@@ -1,3 +1,37 @@
+Version 1.2.6
+Made the Enabled master switch disable both pulse handling and quest-giver highlighting.
+Kept an in-progress story archive load attached across temporary detector shutdowns so re-enabling cannot start a duplicate parse; an already-started read may finish before its resources are released.
+Stopped abandoning archive tasks at the scan timeout while retaining the existing wall-clock limit for frame-sliced graph analysis.
+
+Version 1.2.5
+Applied the quest-template frame budget while traversing both quest and non-quest templates.
+Bound the background story archive wait to the scan's existing wall-clock timeout.
+
+Version 1.2.4
+Moved story archive parsing off the Unity game thread and split quest-template catalogue work across frame-budgeted slices.
+Capped animated golden-outline pose refreshes at a configurable 30 updates per second by default, reducing CPU mesh-baking work at high game frame rates without changing the outline style.
+Added QuestOutlineRefreshRate tuning from 10 to 60 updates per second.
+
+Version 1.2.3
+Made HighlightQuestGivers=false a dormant teardown path with no Wyrd-state reflection, repeated cleanup allocations, scanning, listeners, or render resources.
+Refreshed quest availability at each new pulse and on a configurable low-frequency interval only while Wyrd Sight remains continuously active.
+Re-evaluated highlighted NPCs directly when consciousness, hostility, or death state changes instead of restoring periodic full NPC sweeps.
+Required a fresh animated pose before each cached golden outline mesh can draw, preventing stale silhouettes at pulse start.
+Kept the golden outline pass and material cached between pulses while disabling HDRP execution, avoiding repeated shader, material, and pass registration work.
+Clarified that scan and outline frame budgets are targets checked between indivisible work units rather than hard ceilings.
+
+Version 1.2.2
+Integrated quest detection and the golden quest-giver outline directly into WyrdSightAddon.dll; AvalonUntold.dll is no longer shipped or required.
+Replaced periodic NPC sweeps and quest-index rebuilds with event-driven refreshes and activation-time work.
+Spread save scans and outline mesh preparation across configurable small frame budgets, and skipped unused audit and NPC-report work.
+Suspended the outline render pass while Wyrd Sight is off, reused prepared outlines between pulses, and reduced the default outline distance to 20 metres.
+
+Version 1.2.0
+Added quest-giver outlines while Wyrd Sight is actively on, with Balanced story-lock filtering as the default.
+Added Thorough and Precise quest-giver selection alternatives alongside the Balanced preset.
+Bundled the read-only quest detector needed by the integration; quest-giver discovery is inspired by Avalon Untold.
+Updated compatibility for Wyrd Sight plugin version 1.2.0.
+
 Version 1.1.1
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.

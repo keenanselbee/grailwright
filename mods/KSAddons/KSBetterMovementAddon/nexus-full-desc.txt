@@ -3,7 +3,7 @@
 
 [b]Overview[/b]
 
-KS Better Movement Addon gives [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] slides a positional surface layer. Dirt scrapes like dirt, gravel scatters like gravel, puddles splash, and long downhill slides can change sound as the player crosses onto another terrain.
+KS Better Movement Addon gives [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] slides a positional surface layer. Dirt scrapes like dirt, gravel scatters like gravel, puddles blend ground friction with shallow water, and long downhill slides can change sound as the player crosses onto another terrain.
 
 The addon follows the game's real slide lifecycle. It starts with the slide, continues for Better Movement's extended downhill slides, crossfades between surfaces, and stops when the slide ends or is cancelled.
 
@@ -44,6 +44,8 @@ Settings are generated at:
 [code]BepInEx/config/ks.tgfoa.better-movement-addon.cfg[/code]
 
 Volume, speed response, pitch response, crossfade timing, positional distance, terrain polling, and diagnostics are configurable.
+
+When the config schema changes, the addon backs up the old file, regenerates current defaults, and conservatively restores compatible customized settings. FoA Mod Manager also keeps a final Import Previous Settings tab for supported backups.
 
 [b]Custom audio[/b]
 

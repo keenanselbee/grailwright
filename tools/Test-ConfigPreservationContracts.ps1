@@ -98,6 +98,14 @@ $sourceContracts = @(
         Tokens = @('PassiveThreatPerNight', 'CombatResponseSeconds', 'ProtectedDecayPerMinute', 'PurpleThreatMeterColor', 'OrangeThreatMeterColor', 'PurpleThreatMeterRedColor', 'OrangeThreatMeterRedColor', 'PurpleThreatMeterBrightness', 'OrangeThreatMeterBrightness', 'ShowExactThreatValue', 'MeterOffsetX', 'BoundaryRenderMode', 'BoundaryBrightness', 'NearRingRadius', 'OuterRingIntensityMultiplier', 'BoundaryPulseAmount', 'WyrdnightBrightness')
     },
     [pscustomobject]@{
+        Name = 'KS Better Movement Addon'
+        Source = 'mods\KSAddons\KSBetterMovementAddon\src\BetterMovementAddon.cs'
+        Capture = 'CapturePreservedSettings('
+        Restore = 'RestorePreservedSettings();'
+        Save = 'Config.Save();'
+        Tokens = @('Volume', 'MinimumSpeedVolumeScale', 'SurfaceCheckIntervalSeconds')
+    },
+    [pscustomobject]@{
         Name = 'TG All Lights Cast Shadows Addon'
         Source = 'mods\KSAddons\KSTGAllLightsCastShadowsAddon\src\TGAllLightsCastShadowsAddon.cs'
         Capture = 'CapturePreservedAdditionalExcludedLightPathFragments('

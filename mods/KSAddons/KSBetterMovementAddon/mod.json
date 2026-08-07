@@ -2,7 +2,7 @@
   "id": "BetterMovementAddon",
   "displayName": "KS Better Movement Addon",
   "packageName": "BetterMovementAddon",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "pluginGuid": "ks.tgfoa.better-movement-addon",
   "dll": "BetterMovementAddon.dll",
   "sourceFiles": [

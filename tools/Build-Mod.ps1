@@ -413,6 +413,9 @@ if (-not $SkipCompile) {
     )
 
     $compilerArgs += "/langversion:$($compiler.LanguageVersion)"
+    if ($Manifest.PSObject.Properties.Name -contains "allowUnsafe" -and [bool]$Manifest.allowUnsafe) {
+        $compilerArgs += "/unsafe+"
+    }
     Write-Host "Compiler: .NET SDK $($compiler.SdkVersion) Roslyn (C# $($compiler.LanguageVersion))"
     Write-Host "Compiler path: $($compiler.Compiler)"
 

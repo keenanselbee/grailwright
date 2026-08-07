@@ -13,7 +13,7 @@ grass: OneShots/Scuffs/Grass - In Field, with Grass - Astroturf support
 gravel: OneShots/Scuffs/Gravel - Dry
 ground: OneShots/Scuffs/Dirt - In Field, with Dirt support
 mud: OneShots/Scuffs/Mud, with Water support
-puddle: OneShots/Scuffs/Water
+puddle: 70 percent Dirt - In Field and 30 percent Water, mixed after RMS matching
 snow: OneShots/Scuffs/Snow - Real, with Snow - Cornstarch support
 stone: OneShots/Scuffs/Brick
 sand: OneShots/Scuffs/Sand

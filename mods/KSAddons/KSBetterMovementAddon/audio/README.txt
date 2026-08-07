@@ -24,6 +24,6 @@ wood
 cloth
 metal
 
-The included set provides two loop, start, and stop variants for every surface. Runtime files are mono 48 kHz 16-bit PCM WAVs. They were prepared from Footsteps: Full Bundle by Sound Armoury / Matt J Hart.
+The included set provides two loop, start, and stop variants for every surface. Puddle assets use a level-matched 70 percent ground and 30 percent water mix. Runtime files are mono 48 kHz 16-bit PCM WAVs. They were prepared from Footsteps: Full Bundle by Sound Armoury / Matt J Hart.
 
 When editing, begin from the 32-bit float review masters when available. Preserve the filename marker, export mono 48 kHz PCM WAV, leave at least 3 dB of peak headroom, and verify loop files across the end-to-start boundary. Keep at least one _loop_ file in every surface folder you want to support. A missing surface falls back to ground.

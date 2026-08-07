@@ -12,10 +12,42 @@ Each addon has its own folder and README. Install only the addons whose original
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]Wyrd Sight Addon 1.1.0[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.1.1.[/*]
+[*][b]KS Better Movement Addon 0.1.4[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
+[*][b]Wyrd Sight Addon 1.2.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.2.0.[/*]
 [*][b]TG All Lights Cast Shadows Addon 1.1.9[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]Persistent Corpses Addon 1.0.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
+[*][b]Persistent Corpses Addon 1.0.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
 [/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]KS Better Movement Addon[/size][/color][/heading]
+Companion addon for Better Movement 1.3.0 or newer.
+
+[list]
+[*]Adds continuous terrain-aware audio to the original mod's slides, including extended downhill slides.[/*]
+[*]Detects native terrain splatmaps, explicit mesh surfaces, and shallow water across eleven surface families.[/*]
+[*]Crossfades when a slide moves onto another surface and responds to sliding speed with configurable volume and pitch.[/*]
+[*]Includes two loop, start, and stop variations for every supported surface.[/*]
+[*]Uses positional 3D FMOD playback and replaceable custom WAV folders.[/*]
+[*]Remains compatible with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/257]Immersive Footsteps[/url]; ordinary steps and continuous slide audio use separate playback routes.[/*]
+[/list]
+
+[b]Audio source:[/b] Edited material from [url=https://www.asoundeffect.com/sound-library/footsteps-full-bundle/]Footsteps: Full Bundle[/url] by Sound Armoury / Matt J Hart, used under license.
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.better-movement-addon.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+Volume = 0.4
+MinimumSpeedVolumeScale = 0.55
+PitchBySpeed = 0.12
+CrossfadeSeconds = 0.1
+Diagnostics = false[/code]
 
 [line]
 
@@ -24,10 +56,15 @@ Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/m
 
 [list]
 [*]Turns Wyrd Sight's configured Highlight Key from a toggle into a timed pulse.[/*]
+[*]Adds [b]Highlight Quest Givers[/b] with a performance-friendly implementation inspired by Avalon Untold; Avalon Untold is not required.[/*]
+[*]Uses conservative quest-giver filtering by default, hiding progression-locked offers without treating temporary conditions as permanent blockers.[/*]
 [*]Only turns off pulses the addon started, so externally enabled Wyrd Sight stays alone.[/*]
 [*]Lets repeated key presses extend the current addon-owned pulse.[/*]
 [*]Keeps pulse duration, state-check cadence, off-retry delay, and retry cap configurable in the addon's own config.[/*]
 [*]For the clean pulse look, Wyrd Sight is best used with [b]Enable Glow Shape = true[/b] and [b]Enable Wyrd Sight Particles = false[/b].[/*]
+[*]Parses the story archive off the game thread, uses event-driven NPC refreshes and frame-sliced scan work, and caps animated outline refreshes at 30 per second by default.[/*]
+[*]Refreshes quest availability at each pulse and every 15 seconds only while Wyrd Sight remains continuously active.[/*]
+[*]Setting Enabled or HighlightQuestGivers to false removes listeners, cached outlines, and render resources immediately. An already-started archive read may finish in the background and is retained so re-enabling cannot start a duplicate parse.[/*]
 [/list]
 
 Config file:
@@ -43,6 +80,17 @@ PulseDurationSeconds = 3
 PulseStateCheckIntervalSeconds = 0.25
 OffRetryDelaySeconds = 0.25
 MaximumOffAttempts = 3[/code]
+
+Quest-giver entries:
+
+[code]
+HighlightQuestGivers = true
+QuestGiverMode = Balanced
+QuestGiverMaxDistance = 20
+QuestScanFrameBudgetMilliseconds = 5
+QuestOutlineBakeFrameBudgetMilliseconds = 1.5
+QuestOutlineRefreshRate = 30
+QuestAvailabilityRefreshSeconds = 15[/code]
 
 [line]
 
@@ -77,7 +125,9 @@ Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/m
 [*]This addon fixes that visible transition by concealing restored corpse renderers while ragdoll physics settles, then revealing each body in a natural resting pose.[/*]
 [*]Counts only active physics time, so loading screens and paused gameplay do not consume the settle window.[/*]
 [*]Uses a maximum timeout for bodies that continue moving on slopes.[/*]
-[*]Does not change corpse replacement rules, loot, colliders, or save data.[/*]
+[*]After a bonfire rest of at least three actual hours, gradually removes empty loaded corpses and converts loot-bearing ones to the game's lightweight replacement bodies.[/*]
+[*]Preserves visible loot, leaves bodies that cannot be simplified safely untouched, and does not modify save data.[/*]
+[*]Stops repeated hierarchy scans once each restored corpse finishes initializing.[/*]
 [/list]
 
 Config file:
@@ -91,6 +141,8 @@ Common entries:
 Enabled = true
 MinimumSettleSeconds = 0.75
 MaximumSettleSeconds = 2
+CleanupAfterLongBonfireRest = true
+MinimumRestHoursForCleanup = 3
 Diagnostics = false[/code]
 
 [line]
@@ -101,9 +153,10 @@ Install with Vortex as [b]BepInEx plugins[/b], or place the selected addon folde
 [code]
 BepInEx/plugins/WyrdSightAddon/WyrdSightAddon.dll
 BepInEx/plugins/TGAllLightsCastShadowsAddon/TGAllLightsCastShadowsAddon.dll
-BepInEx/plugins/PersistentCorpsesAddon/PersistentCorpsesAddon.dll[/code]
+BepInEx/plugins/PersistentCorpsesAddon/PersistentCorpsesAddon.dll
+BepInEx/plugins/BetterMovementAddon/BetterMovementAddon.dll[/code]
 
-Keep each addon's original mod installed. All three addons declare hard dependencies, so they will not run without their original mods.
+Keep each addon's original mod installed. All four addons declare hard dependencies, so they will not run without their original mods.
 
 [line]
 
@@ -136,4 +189,4 @@ Later original mod updates may make an addon unnecessary, partially incompatible
 [line]
 
 [heading][color=#C94A4A][size=5]Note To Mod Authors[/size][/color][/heading]
-If one of these addons touches your mod, you are welcome to incorporate the behavior upstream if you wish. These companion addons exist to solve local compatibility and tuning issues quickly, not to compete with or replace the original mods.
+Mod authors are welcome to incorporate these addons' functionality upstream. The Better Movement audio uses [url=https://www.asoundeffect.com/sound-library/footsteps-full-bundle/]Footsteps: Full Bundle[/url]. If you purchase your own valid license for that library, you also have my permission to use the edited audio files included with this addon, subject to the library's license terms.

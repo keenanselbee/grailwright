@@ -9,11 +9,11 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Wyrd Sight Addon")]
-[assembly: AssemblyDescription("Pulse-key companion addon for Wyrd Sight")]
+[assembly: AssemblyDescription("Pulse-key and quest-giver companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.2.6.0")]
+[assembly: AssemblyFileVersion("1.2.6.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
@@ -24,7 +24,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.2.6";
         public const string ParentPluginGuid = "WyrdSight";
 
         private const int ConfigSchemaVersion = 2;
@@ -54,6 +54,13 @@ namespace Keenan.TGFoA.WyrdSightAddon
         private ConfigEntry<float> _pulseStateCheckIntervalSeconds;
         private ConfigEntry<float> _offRetryDelaySeconds;
         private ConfigEntry<int> _maximumOffAttempts;
+        private ConfigEntry<bool> _highlightQuestGivers;
+        private ConfigEntry<QuestGiverMode> _questGiverMode;
+        private ConfigEntry<float> _questGiverMaxDistance;
+        private ConfigEntry<int> _questScanFrameBudgetMilliseconds;
+        private ConfigEntry<float> _questOutlineBakeFrameBudgetMilliseconds;
+        private ConfigEntry<int> _questOutlineRefreshRate;
+        private ConfigEntry<float> _questAvailabilityRefreshSeconds;
         private ConfigEntry<bool> _diagnostics;
 
         private Harmony _harmony;
@@ -63,8 +70,11 @@ namespace Keenan.TGFoA.WyrdSightAddon
         private KeyCode _highlightKey = KeyCode.None;
         private MethodInfo _toggleWyrdSightMethod;
         private MethodInfo _isToggledOnGetter;
+        private MethodInfo _isToggleTargetOnGetter;
         private bool _parentReady;
         private bool _reportedParentFailure;
+
+        private AvalonUntold.GlowController _questGiverRuntime;
 
         private bool _ownsPulse;
         private float _pulseEndsAt;
@@ -115,6 +125,8 @@ namespace Keenan.TGFoA.WyrdSightAddon
                         typeof(WyrdSightInputPatch),
                         nameof(WyrdSightInputPatch.BeforeHandleInput)));
 
+                _questGiverRuntime = new AvalonUntold.GlowController(Logger);
+
                 Config.Save();
                 Logger.LogInfo(
                     PluginName
@@ -124,7 +136,10 @@ namespace Keenan.TGFoA.WyrdSightAddon
                     + GetPulseDurationSeconds().ToString("0.###", CultureInfo.InvariantCulture)
                     + " seconds; state checks every "
                     + GetPulseStateCheckIntervalSeconds().ToString("0.###", CultureInfo.InvariantCulture)
-                    + " seconds.");
+                    + " seconds. Quest-giver highlights are "
+                    + (_highlightQuestGivers.Value
+                        ? ("enabled in " + _questGiverMode.Value + " mode.")
+                        : "disabled."));
             }
             catch (Exception exception)
             {
@@ -135,6 +150,33 @@ namespace Keenan.TGFoA.WyrdSightAddon
         }
 
         private void Update()
+        {
+            UpdateOwnedPulse();
+
+            if (_questGiverRuntime != null
+                && _enabled != null
+                && _enabled.Value
+                && _highlightQuestGivers != null
+                && _highlightQuestGivers.Value)
+            {
+                bool wyrdSightActive;
+                bool hasState = TryGetParentToggleTargetOn(out wyrdSightActive);
+                _questGiverRuntime.Tick(
+                    hasState && wyrdSightActive,
+                    ToIntegratedGlowMode(),
+                    _questGiverMaxDistance == null ? 20f : _questGiverMaxDistance.Value,
+                    _questScanFrameBudgetMilliseconds == null ? 5 : _questScanFrameBudgetMilliseconds.Value,
+                    _questOutlineBakeFrameBudgetMilliseconds == null
+                        ? 1.5f
+                        : _questOutlineBakeFrameBudgetMilliseconds.Value,
+                    _questOutlineRefreshRate == null ? 30 : _questOutlineRefreshRate.Value,
+                    _questAvailabilityRefreshSeconds == null
+                        ? 15f
+                        : _questAvailabilityRefreshSeconds.Value);
+            }
+        }
+
+        private void UpdateOwnedPulse()
         {
             if (!_ownsPulse)
             {
@@ -178,6 +220,27 @@ namespace Keenan.TGFoA.WyrdSightAddon
             {
                 _parentConfig.SettingChanged -= ParentConfigSettingChanged;
                 _parentConfig = null;
+            }
+
+            if (_highlightQuestGivers != null)
+            {
+                _highlightQuestGivers.SettingChanged -= QuestGiverSettingChanged;
+            }
+
+            if (_enabled != null)
+            {
+                _enabled.SettingChanged -= QuestGiverSettingChanged;
+            }
+
+            if (_questGiverMode != null)
+            {
+                _questGiverMode.SettingChanged -= QuestGiverSettingChanged;
+            }
+
+            if (_questGiverRuntime != null)
+            {
+                _questGiverRuntime.Dispose();
+                _questGiverRuntime = null;
             }
 
             if (_harmony != null)
@@ -227,7 +290,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 "1. Core",
                 "Enabled",
                 true,
-                "Master switch. When disabled, Wyrd Sight keeps its original highlight-key toggle behavior.");
+                "Master switch. When disabled, Wyrd Sight keeps its original highlight-key toggle behavior and quest-giver highlighting is inactive.");
             _pulseDurationSeconds = Config.Bind(
                 "2. Pulse Timing",
                 "PulseDurationSeconds",
@@ -256,6 +319,54 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 new ConfigDescription(
                     "How many off-toggle attempts the addon may make before it clears pulse ownership and leaves Wyrd Sight alone.",
                     new AcceptableValueRange<int>(MinimumOffAttemptCount, MaximumOffAttemptCount)));
+            _highlightQuestGivers = Config.Bind(
+                "3. Quest Givers",
+                "HighlightQuestGivers",
+                true,
+                "Show outlines on NPCs with untaken quests while Wyrd Sight is actively on.");
+            _questGiverMode = Config.Bind(
+                "3. Quest Givers",
+                "QuestGiverMode",
+                QuestGiverMode.Balanced,
+                "Quest selection preset. Thorough hides nothing, Balanced hides grants blocked by durable story progress, and Precise shows only grants confirmed available now.");
+            _questGiverMaxDistance = Config.Bind(
+                "3. Quest Givers",
+                "QuestGiverMaxDistance",
+                20f,
+                new ConfigDescription(
+                    "Maximum distance in metres for drawing quest-giver outlines. Lower values reduce outline work.",
+                    new AcceptableValueRange<float>(5f, 100f)));
+            _questScanFrameBudgetMilliseconds = Config.Bind(
+                "3. Quest Givers",
+                "QuestScanFrameBudgetMilliseconds",
+                5,
+                new ConfigDescription(
+                    "Target frame slice for the background story scan. Individual graph or setup operations can exceed it; lower values are usually smoother but finish more slowly.",
+                    new AcceptableValueRange<int>(1, 10)));
+            _questOutlineBakeFrameBudgetMilliseconds = Config.Bind(
+                "3. Quest Givers",
+                "QuestOutlineBakeFrameBudgetMilliseconds",
+                1.5f,
+                new ConfigDescription(
+                    "Target frame slice for preparing golden outline meshes while Wyrd Sight is active. One NPC mesh operation can exceed it.",
+                    new AcceptableValueRange<float>(0.25f, 4f)));
+            _questOutlineRefreshRate = Config.Bind(
+                "3. Quest Givers",
+                "QuestOutlineRefreshRate",
+                30,
+                new ConfigDescription(
+                    "Maximum animated-pose refresh rate for golden quest-giver outlines. Lower values reduce CPU mesh-baking work without changing the render style.",
+                    new AcceptableValueRange<int>(10, 60)));
+            _questAvailabilityRefreshSeconds = Config.Bind(
+                "3. Quest Givers",
+                "QuestAvailabilityRefreshSeconds",
+                15f,
+                new ConfigDescription(
+                    "How often quest availability is refreshed while Wyrd Sight remains continuously active. Every new pulse also requests a refresh.",
+                    new AcceptableValueRange<float>(5f, 60f)));
+            _enabled.SettingChanged += QuestGiverSettingChanged;
+            _highlightQuestGivers.SettingChanged += QuestGiverSettingChanged;
+            _questGiverMode.SettingChanged += QuestGiverSettingChanged;
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
@@ -384,6 +495,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 "ToggleWyrdSight",
                 Type.EmptyTypes);
             _isToggledOnGetter = AccessTools.PropertyGetter(parentType, "IsToggledOn");
+            _isToggleTargetOnGetter = AccessTools.PropertyGetter(parentType, "IsToggleTargetOn");
 
             if (_toggleWyrdSightMethod == null)
             {
@@ -405,6 +517,19 @@ namespace Keenan.TGFoA.WyrdSightAddon
             }
 
             return _parentReady;
+        }
+
+        private void QuestGiverSettingChanged(object sender, EventArgs args)
+        {
+            if (_questGiverRuntime != null
+                && ((_enabled != null && !_enabled.Value)
+                    || (_highlightQuestGivers != null
+                        && !_highlightQuestGivers.Value)))
+            {
+                _questGiverRuntime.Disable();
+            }
+
+            LogDiagnostic("Quest-giver settings changed; the integrated detector will refresh on its next frame.");
         }
 
         private bool TryRefreshHighlightKey()
@@ -609,6 +734,53 @@ namespace Keenan.TGFoA.WyrdSightAddon
             }
         }
 
+        private bool TryGetParentToggleTargetOn(out bool targetOn)
+        {
+            targetOn = false;
+            if (_parentPlugin == null || _isToggleTargetOnGetter == null)
+            {
+                return TryGetParentToggledOn(out targetOn);
+            }
+
+            try
+            {
+                object value = _isToggleTargetOnGetter.Invoke(_parentPlugin, null);
+                if (value is bool)
+                {
+                    targetOn = (bool)value;
+                    return true;
+                }
+
+                ReportParentFailure("Wyrd Sight IsToggleTargetOn did not return a Boolean value.");
+                return false;
+            }
+            catch (Exception exception)
+            {
+                ReportParentFailure(
+                    "Could not read Wyrd Sight target state: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private AvalonUntold.GlowMode ToIntegratedGlowMode()
+        {
+            if (_questGiverMode == null)
+            {
+                return AvalonUntold.GlowMode.Balanced;
+            }
+
+            switch (_questGiverMode.Value)
+            {
+                case QuestGiverMode.Thorough:
+                    return AvalonUntold.GlowMode.Thorough;
+                case QuestGiverMode.Precise:
+                    return AvalonUntold.GlowMode.Precise;
+                default:
+                    return AvalonUntold.GlowMode.Balanced;
+            }
+        }
+
         private bool TryToggleParent(string reason)
         {
             if (_parentPlugin == null || _toggleWyrdSightMethod == null)
@@ -727,6 +899,13 @@ namespace Keenan.TGFoA.WyrdSightAddon
 
                 return instance.BeforeWyrdSightHandleInput(__instance);
             }
+        }
+
+        private enum QuestGiverMode
+        {
+            Thorough,
+            Balanced,
+            Precise
         }
     }
 }

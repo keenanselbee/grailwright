@@ -13,8 +13,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Terrain-aware slide audio companion for Better Movement")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Better Movement Addon")]
-[assembly: AssemblyVersion("0.1.1.0")]
-[assembly: AssemblyFileVersion("0.1.1.0")]
+[assembly: AssemblyVersion("0.1.4.0")]
+[assembly: AssemblyFileVersion("0.1.4.0")]
 
 namespace Keenan.TGFoA.BetterMovementAddon
 {
@@ -25,10 +25,10 @@ namespace Keenan.TGFoA.BetterMovementAddon
     {
         public const string PluginGuid = "ks.tgfoa.better-movement-addon";
         public const string PluginName = "KS Better Movement Addon";
-        public const string PluginVersion = "0.1.1";
+        public const string PluginVersion = "0.1.4";
         public const string ParentPluginGuid = "BetterMovement";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -51,6 +51,25 @@ namespace Keenan.TGFoA.BetterMovementAddon
         private ConfigEntry<float> _maximumDistance;
         private ConfigEntry<bool> _diagnostics;
 
+        private bool _hasPendingEnabled;
+        private bool _pendingEnabled;
+        private bool _hasPendingVolume;
+        private float _pendingVolume;
+        private bool _hasPendingMinimumSpeedVolumeScale;
+        private float _pendingMinimumSpeedVolumeScale;
+        private bool _hasPendingPitchBySpeed;
+        private float _pendingPitchBySpeed;
+        private bool _hasPendingCrossfadeSeconds;
+        private float _pendingCrossfadeSeconds;
+        private bool _hasPendingMinimumDistance;
+        private float _pendingMinimumDistance;
+        private bool _hasPendingMaximumDistance;
+        private float _pendingMaximumDistance;
+        private bool _hasPendingSurfaceCheckInterval;
+        private float _pendingSurfaceCheckInterval;
+        private bool _hasPendingDiagnostics;
+        private bool _pendingDiagnostics;
+
         private Harmony _harmony;
         private SlideSurfaceDetector _surfaceDetector;
         private SlideAudioRuntime _audioRuntime;
@@ -63,7 +82,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
 
         internal float Volume
         {
-            get { return Mathf.Clamp01(_volume == null ? 0.45f : _volume.Value); }
+            get { return Mathf.Clamp01(_volume == null ? 0.40f : _volume.Value); }
         }
 
         internal float MinimumSpeedVolumeScale
@@ -136,7 +155,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
                     PluginName
                     + " "
                     + PluginVersion
-                    + " loaded with terrain-aware slide audio. Placeholder WAVs can be replaced under audio\\slide.");
+                    + " loaded with terrain-aware slide audio. Custom WAVs can be replaced under audio\\slide.");
             }
             catch (Exception exception)
             {
@@ -367,7 +386,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
             _volume = Config.Bind(
                 "2. Audio",
                 "Volume",
-                0.45f,
+                0.40f,
                 new ConfigDescription(
                     "Overall slide-audio volume.",
                     new AcceptableValueRange<float>(0f, 1f)));
@@ -418,6 +437,8 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 "Diagnostics",
                 false,
                 "Log surface transitions and audio fallback details.");
+
+            RestorePreservedSettings();
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -450,6 +471,8 @@ namespace Keenan.TGFoA.BetterMovementAddon
             {
                 return;
             }
+
+            CapturePreservedSettings(configPath, storedSchemaVersion);
 
             string backupPath = configPath
                 + ".pre-schema-"
@@ -499,6 +522,143 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 throw new InvalidOperationException(
                     "Failed to reset Better Movement Addon config schema. Original config was left in place when possible.",
                     exception);
+            }
+        }
+
+        private void CapturePreservedSettings(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            _hasPendingEnabled = profile.TryGetCustomizedValue(
+                "1. Core", "Enabled", out _pendingEnabled);
+            _hasPendingVolume = profile.TryGetCustomizedValue(
+                "2. Audio", "Volume", out _pendingVolume);
+            _hasPendingMinimumSpeedVolumeScale = profile.TryGetCustomizedValue(
+                "2. Audio",
+                "MinimumSpeedVolumeScale",
+                out _pendingMinimumSpeedVolumeScale);
+            _hasPendingPitchBySpeed = profile.TryGetCustomizedValue(
+                "2. Audio", "PitchBySpeed", out _pendingPitchBySpeed);
+            _hasPendingCrossfadeSeconds = profile.TryGetCustomizedValue(
+                "2. Audio",
+                "SurfaceCrossfadeSeconds",
+                out _pendingCrossfadeSeconds);
+            _hasPendingMinimumDistance = profile.TryGetCustomizedValue(
+                "2. Audio", "MinimumDistance", out _pendingMinimumDistance);
+            _hasPendingMaximumDistance = profile.TryGetCustomizedValue(
+                "2. Audio", "MaximumDistance", out _pendingMaximumDistance);
+            _hasPendingSurfaceCheckInterval = profile.TryGetCustomizedValue(
+                "3. Terrain",
+                "SurfaceCheckIntervalSeconds",
+                out _pendingSurfaceCheckInterval);
+            _hasPendingDiagnostics = profile.TryGetCustomizedValue(
+                "4. Diagnostics", "Diagnostics", out _pendingDiagnostics);
+        }
+
+        private void RestorePreservedSettings()
+        {
+            int restoredCount = 0;
+            int clampedCount = 0;
+            RestorePreserved(
+                _hasPendingEnabled,
+                _enabled,
+                _pendingEnabled,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingVolume,
+                _volume,
+                _pendingVolume,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMinimumSpeedVolumeScale,
+                _minimumSpeedVolumeScale,
+                _pendingMinimumSpeedVolumeScale,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingPitchBySpeed,
+                _pitchBySpeed,
+                _pendingPitchBySpeed,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingCrossfadeSeconds,
+                _crossfadeSeconds,
+                _pendingCrossfadeSeconds,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMinimumDistance,
+                _minimumDistance,
+                _pendingMinimumDistance,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingMaximumDistance,
+                _maximumDistance,
+                _pendingMaximumDistance,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingSurfaceCheckInterval,
+                _surfaceCheckInterval,
+                _pendingSurfaceCheckInterval,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingDiagnostics,
+                _diagnostics,
+                _pendingDiagnostics,
+                ref restoredCount,
+                ref clampedCount);
+
+            if (restoredCount > 0)
+            {
+                Logger.LogInfo(
+                    "Preserved "
+                    + restoredCount.ToString(CultureInfo.InvariantCulture)
+                    + " customized slide-audio setting(s) across the config schema reset; clamped="
+                    + clampedCount.ToString(CultureInfo.InvariantCulture)
+                    + ".");
+            }
+        }
+
+        private static void RestorePreserved<T>(
+            bool hasPendingValue,
+            ConfigEntry<T> entry,
+            T pendingValue,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            if (!hasPendingValue)
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    entry,
+                    pendingValue,
+                    out clamped))
+            {
+                return;
+            }
+
+            restoredCount++;
+            if (clamped)
+            {
+                clampedCount++;
             }
         }
 

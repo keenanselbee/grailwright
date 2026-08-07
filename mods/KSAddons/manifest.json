@@ -7,10 +7,10 @@
       "id": "WyrdSightAddon",
       "displayName": "KS Wyrd Sight Addon",
       "importedVersion": "1.0.3",
-      "listedSuiteVersion": "1.1.0",
+      "listedSuiteVersion": "1.2.6",
       "targetMod": "Wyrd Sight",
       "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94",
-      "targetPluginVersion": "1.1.1"
+      "targetPluginVersion": "1.2.0"
     },
     {
       "id": "TGAllLightsCastShadowsAddon",

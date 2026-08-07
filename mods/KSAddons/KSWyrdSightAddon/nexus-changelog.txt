@@ -1,0 +1,10 @@
+TargetVersion=1.2.6
+BaselineVersion=1.1.1
+Made the Enabled master switch disable both pulse handling and quest-giver highlighting.
+Retained an in-progress story archive load across temporary detector shutdowns so re-enabling cannot start a duplicate parse; an already-started read may finish before its resources are released.
+Added golden outlines for NPCs with untaken quests while Wyrd Sight is active, with Balanced story-lock filtering by default and optional Thorough and Precise modes.
+Integrated the read-only quest detector directly into WyrdSightAddon.dll so no additional plugin is required.
+Moved story archive parsing off the Unity game thread and spread quest scanning, template catalogue work, NPC evaluation, and outline preparation across small frame-budgeted slices.
+Made quest availability refreshes and NPC reevaluation event-driven, with a configurable low-frequency refresh only while Wyrd Sight remains continuously active.
+Capped animated golden-outline pose refreshes at a configurable 30 updates per second by default to reduce CPU mesh-baking work at high game frame rates.
+Kept the golden outline pass cached but disabled between pulses, with listeners, cached outlines, and render resources removed immediately when the master switch or HighlightQuestGivers is off.

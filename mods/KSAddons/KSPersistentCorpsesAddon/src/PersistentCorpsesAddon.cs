@@ -1,21 +1,26 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using Awaken.Kandra;
+using Awaken.TG.MVC;
+using Awaken.TG.MVC.Elements;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Heroes.Resting;
+using Awaken.TG.Main.Locations;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Persistent Corpses Addon")]
-[assembly: AssemblyDescription("Conceals restored Persistent Corpses ragdolls until they settle")]
+[assembly: AssemblyDescription("Improves restored Persistent Corpses ragdolls and cleans them up after long bonfire rests")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Persistent Corpses Addon")]
-[assembly: AssemblyVersion("1.0.7.0")]
-[assembly: AssemblyFileVersion("1.0.7.0")]
+[assembly: AssemblyVersion("1.0.8.0")]
+[assembly: AssemblyFileVersion("1.0.8.0")]
 
 namespace Keenan.TGFoA.PersistentCorpsesAddon
 {
@@ -31,7 +36,7 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         public const string PluginGuid =
             "ks.tgfoa.persistent-corpses-addon";
         public const string PluginName = "Persistent Corpses Addon";
-        public const string PluginVersion = "1.0.7";
+        public const string PluginVersion = "1.0.8";
         public const string ParentPluginGuid =
             "VirusAlex.PersistentCorpses";
 
@@ -46,6 +51,9 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         private const float DefaultMaximumSettleSeconds = 2.0f;
         private const float MinimumAllowedSettleSeconds = 0.1f;
         private const float MaximumAllowedSettleSeconds = 10.0f;
+        private const int DefaultMinimumRestHoursForCleanup = 3;
+        private const int MinimumAllowedRestHoursForCleanup = 1;
+        private const int MaximumAllowedRestHoursForCleanup = 24;
 
         internal static PersistentCorpsesAddonPlugin Instance { get; private set; }
 
@@ -55,9 +63,14 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<float> _minimumSettleSeconds;
         private ConfigEntry<float> _maximumSettleSeconds;
+        private ConfigEntry<bool> _cleanupAfterLongBonfireRest;
+        private ConfigEntry<int> _minimumRestHoursForCleanup;
         private ConfigEntry<bool> _diagnostics;
         private FieldInfo _isRestoringField;
         private FieldInfo _fromAttachmentField;
+        private MethodInfo _tryCreateReplacementDeadBodyMethod;
+        private Coroutine _cleanupCoroutine;
+        private bool _pendingBonfireRest;
         private Harmony _harmony;
 
         private void Awake()
@@ -87,13 +100,25 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     typeof(NpcDummy),
                     "AfterVisualLoaded",
                     new[] { typeof(Transform) });
+                _tryCreateReplacementDeadBodyMethod = AccessTools.Method(
+                    typeof(NpcDummy),
+                    "TryCreateReplacementDeadBody");
+                MethodInfo restMethod = AccessTools.Method(
+                    typeof(RestPopupUI),
+                    nameof(RestPopupUI.Rest));
+                MethodInfo skipWeatherTimeMethod = AccessTools.Method(
+                    typeof(RestPopupUI),
+                    "SkipWeatherTime");
 
                 if (_isRestoringField == null
                     || _fromAttachmentField == null
-                    || afterVisualLoadedMethod == null)
+                    || afterVisualLoadedMethod == null
+                    || _tryCreateReplacementDeadBodyMethod == null
+                    || restMethod == null
+                    || skipWeatherTimeMethod == null)
                 {
                     throw new MissingMemberException(
-                        "Could not resolve the NpcDummy corpse-restoration members.");
+                        "Could not resolve the corpse-restoration or rest members.");
                 }
 
                 _harmony = new Harmony(PluginGuid);
@@ -102,6 +127,16 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     prefix: new HarmonyMethod(
                         typeof(NpcDummyRestorePatch),
                         nameof(NpcDummyRestorePatch.BeforeAfterVisualLoaded)));
+                _harmony.Patch(
+                    restMethod,
+                    prefix: new HarmonyMethod(
+                        typeof(RestPopupPatch),
+                        nameof(RestPopupPatch.BeforeRest)));
+                _harmony.Patch(
+                    skipWeatherTimeMethod,
+                    postfix: new HarmonyMethod(
+                        typeof(RestPopupPatch),
+                        nameof(RestPopupPatch.AfterSkipWeatherTime)));
 
                 Config.Save();
                 Logger.LogInfo(
@@ -137,6 +172,12 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             {
                 _harmony.UnpatchSelf();
                 _harmony = null;
+            }
+
+            if (_cleanupCoroutine != null)
+            {
+                StopCoroutine(_cleanupCoroutine);
+                _cleanupCoroutine = null;
             }
 
             List<CorpseSettleController> controllers =
@@ -189,6 +230,20 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     new AcceptableValueRange<float>(
                         MinimumAllowedSettleSeconds,
                         MaximumAllowedSettleSeconds)));
+            _cleanupAfterLongBonfireRest = Config.Bind(
+                "3. Bonfire Cleanup",
+                "CleanupAfterLongBonfireRest",
+                true,
+                "Replace loaded full corpses with the game's lightweight loot-preserving bodies after a sufficiently long bonfire rest. Empty corpses are removed.");
+            _minimumRestHoursForCleanup = Config.Bind(
+                "3. Bonfire Cleanup",
+                "MinimumRestHoursForCleanup",
+                DefaultMinimumRestHoursForCleanup,
+                new ConfigDescription(
+                    "Minimum actual bonfire-rest duration required to clean up loaded corpses.",
+                    new AcceptableValueRange<int>(
+                        MinimumAllowedRestHoursForCleanup,
+                        MaximumAllowedRestHoursForCleanup)));
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
@@ -384,6 +439,136 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             }
         }
 
+        internal void BeginRest(RestPopupUI restPopup)
+        {
+            _pendingBonfireRest = restPopup != null
+                && restPopup.ViewParent != null;
+        }
+
+        internal void CompleteRest(float actualHoursRested)
+        {
+            bool wasBonfireRest = _pendingBonfireRest;
+            _pendingBonfireRest = false;
+
+            if (!wasBonfireRest
+                || !IsFeatureEnabled
+                || _cleanupAfterLongBonfireRest == null
+                || !_cleanupAfterLongBonfireRest.Value)
+            {
+                return;
+            }
+
+            int minimumHours = _minimumRestHoursForCleanup == null
+                ? DefaultMinimumRestHoursForCleanup
+                : Mathf.Clamp(
+                    _minimumRestHoursForCleanup.Value,
+                    MinimumAllowedRestHoursForCleanup,
+                    MaximumAllowedRestHoursForCleanup);
+            if (actualHoursRested * 60.0f + 0.01f < minimumHours * 60)
+            {
+                LogDiagnostic(
+                    "Skipped bonfire corpse cleanup after "
+                    + actualHoursRested.ToString(
+                        "0.###",
+                        CultureInfo.InvariantCulture)
+                    + " actual rest hours; the configured minimum is "
+                    + minimumHours.ToString(CultureInfo.InvariantCulture)
+                    + ".");
+                return;
+            }
+
+            if (_cleanupCoroutine != null)
+            {
+                StopCoroutine(_cleanupCoroutine);
+            }
+
+            _cleanupCoroutine = StartCoroutine(
+                CleanupLoadedCorpses(actualHoursRested));
+        }
+
+        private IEnumerator CleanupLoadedCorpses(float actualHoursRested)
+        {
+            List<NpcDummy> candidates = new List<NpcDummy>();
+            int inspected = 0;
+            ModelsSet<NpcDummy>.ReverseEnumerator enumerator =
+                World.All<NpcDummy>().Reverse().GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                NpcDummy dummy = enumerator.Current;
+                if (dummy != null
+                    && !dummy.HasBeenDiscarded
+                    && dummy.HasDied
+                    && dummy.ParentTransform != null)
+                {
+                    candidates.Add(dummy);
+                }
+
+                inspected++;
+                if (inspected % 32 == 0)
+                {
+                    yield return null;
+                }
+            }
+
+            int simplified = 0;
+            int retained = 0;
+            int failed = 0;
+            foreach (NpcDummy dummy in candidates)
+            {
+                if (dummy == null
+                    || dummy.HasBeenDiscarded
+                    || !dummy.HasDied
+                    || dummy.ParentTransform == null)
+                {
+                    retained++;
+                    yield return null;
+                    continue;
+                }
+
+                try
+                {
+                    bool canDiscardOriginal =
+                        (bool)_tryCreateReplacementDeadBodyMethod.Invoke(
+                            dummy,
+                            null);
+                    if (canDiscardOriginal
+                        && dummy.ParentModel != null
+                        && !dummy.ParentModel.HasBeenDiscarded)
+                    {
+                        dummy.ParentModel.Discard();
+                        simplified++;
+                    }
+                    else
+                    {
+                        retained++;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    failed++;
+                    Logger.LogWarning(
+                        "Could not simplify a loaded corpse after bonfire rest: "
+                        + exception.GetBaseException().Message);
+                }
+
+                yield return null;
+            }
+
+            Logger.LogInfo(
+                "Bonfire cleanup after "
+                + actualHoursRested.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + " actual rest hours simplified or removed "
+                + simplified.ToString(CultureInfo.InvariantCulture)
+                + " loaded corpses; "
+                + retained.ToString(CultureInfo.InvariantCulture)
+                + " were retained and "
+                + failed.ToString(CultureInfo.InvariantCulture)
+                + " failed.");
+            _cleanupCoroutine = null;
+        }
+
         private static class NpcDummyRestorePatch
         {
             public static void BeforeAfterVisualLoaded(
@@ -396,6 +581,27 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     instance.TryBeginCorpseRestore(
                         __instance,
                         parentTransform);
+                }
+            }
+        }
+
+        private static class RestPopupPatch
+        {
+            public static void BeforeRest(RestPopupUI __instance)
+            {
+                PersistentCorpsesAddonPlugin instance = Instance;
+                if (instance != null)
+                {
+                    instance.BeginRest(__instance);
+                }
+            }
+
+            public static void AfterSkipWeatherTime(float hourValue)
+            {
+                PersistentCorpsesAddonPlugin instance = Instance;
+                if (instance != null)
+                {
+                    instance.CompleteRest(hourValue);
                 }
             }
         }
@@ -450,6 +656,7 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             }
 
             _dummyInitialized = true;
+            HideNewRenderers();
             RefreshRigidbodies();
         }
 
@@ -477,12 +684,6 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
             int liveRigidbodyCount;
             bool settled = AreRigidbodyTransformsSettled(
                 out liveRigidbodyCount);
-            if (liveRigidbodyCount < 2)
-            {
-                RefreshRigidbodies();
-                settled = AreRigidbodyTransformsSettled(
-                    out liveRigidbodyCount);
-            }
 
             if (_physicsElapsed >= maximumSettleSeconds)
             {
@@ -525,7 +726,10 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                 return;
             }
 
-            HideNewRenderers();
+            if (!_dummyInitialized)
+            {
+                HideNewRenderers();
+            }
             if (_revealPending)
             {
                 string reason = _stablePhysicsSteps

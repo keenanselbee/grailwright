@@ -1,4 +1,4 @@
-KS Better Movement Addon 0.1.1
+KS Better Movement Addon 0.1.4
 
 Adds terrain-aware sliding sounds to Better Movement 1.3.0. Slide audio begins with the game's slide, follows long downhill slides, changes when the player crosses onto another surface, and fades when sliding ends or is cancelled.
 
@@ -12,13 +12,19 @@ Configuration
 
 BepInEx/config/ks.tgfoa.better-movement-addon.cfg
 
+Version 0.1.4 advances ConfigSchemaVersion to 2 for the lower 0.40 volume
+default. The old config is backed up, untouched old defaults regenerate at
+0.40, and compatible customized settings are restored conservatively.
+FoA Mod Manager keeps a final Import Previous Settings tab for supported
+backups.
+
 Default behavior
 
-The addon is enabled with 45 percent overall volume, speed-responsive volume and pitch, 0.10-second surface crossfades, and terrain checks every 0.15 seconds. Audio is positional and normally routes through the game's SFX mixer.
+The addon is enabled with 40 percent overall volume, speed-responsive volume and pitch, 0.10-second surface crossfades, and terrain checks every 0.15 seconds. Audio is positional and normally routes through the game's SFX mixer.
 
 Included audio
 
-Version 0.1.1 contains a first-pass edited Foley set for grass, gravel, ground, mud, puddles, snow, stone, sand, wood, cloth, and metal. Each surface has two loop, start, and stop variants. The sounds were prepared from the licensed Footsteps: Full Bundle by Sound Armoury / Matt J Hart and are ready for in-game review.
+Version 0.1.4 contains an edited Foley set for grass, gravel, ground, mud, puddles, snow, stone, sand, wood, cloth, and metal. Each surface has two loop, start, and stop variants. Puddle sounds blend 70 percent ground friction with 30 percent water. The sounds were prepared from the licensed Footsteps: Full Bundle by Sound Armoury / Matt J Hart.
 
 Replace files under:
 

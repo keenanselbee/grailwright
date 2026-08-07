@@ -1,3 +1,13 @@
+Version 0.1.4
+Raised ConfigSchemaVersion from 1 to 2 because the default Volume changed from 0.45 to 0.40; untouched old defaults now regenerate at 0.40 while compatible customized settings remain eligible for conservative recovery.
+
+Version 0.1.3
+Updated the successful startup message to describe replaceable custom slide audio instead of referring to the included Foley as placeholders.
+
+Version 0.1.2
+Reworked puddle loops and transients as a 70 percent ground and 30 percent water blend so wet slides retain clear ground friction instead of sounding like stream wading.
+Lowered the default overall slide-audio volume from 0.45 to 0.40. Existing saved configurations retain their current value.
+
 Version 0.1.1
 Replaced the synthetic development placeholders with 66 edited terrain Foley assets from the licensed Footsteps: Full Bundle.
 Added two seamless loop, start, and stop variants for each of the eleven supported terrain categories.

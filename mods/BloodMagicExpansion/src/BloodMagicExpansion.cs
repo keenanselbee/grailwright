@@ -21,8 +21,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.4.5.0")]
-[assembly: AssemblyFileVersion("2.4.5.0")]
+[assembly: AssemblyVersion("2.4.6.0")]
+[assembly: AssemblyFileVersion("2.4.6.0")]
 
 namespace BloodMagicExpansion
 {
@@ -38,11 +38,12 @@ namespace BloodMagicExpansion
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(FirstPersonArmsAdjusterPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(DeedsOfAvalonPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class BloodMagicExpansionPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.4.5";
+        public const string PluginVersion = "2.4.6";
         private const int ConfigSchemaVersion = 11;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -54,6 +55,8 @@ namespace BloodMagicExpansion
         private const float CompletedCorpseRetentionSeconds = 120f;
         private const float ExpiredStrongCastRetentionSeconds = 5f;
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
+        private const string DeedsOfAvalonPluginGuid = "ks.tgfoa.deeds-of-avalon";
+        private const string DeedsOfAvalonApiTypeName = "DeedsOfAvalon.StatisticsApi";
         private const string FirstPersonArmsAdjusterPluginGuid = "ks.tgfoa.first-person-arms-adjuster";
         private const string FirstPersonArmsAdjusterApiTypeName = "FirstPersonArmsAdjuster.FirstPersonArmsAdjusterApi";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -112,6 +115,9 @@ namespace BloodMagicExpansion
         private ConfigFile _resolvedConfig;
         private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
         private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
+        private MethodInfo _deedsOfAvalonRecordCorpseDrainMethod;
+        private bool _deedsOfAvalonBridgeResolved;
+        private bool _deedsOfAvalonFailureLogged;
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<bool> _preloadBleedSkillGraphs;
@@ -3593,7 +3599,46 @@ namespace BloodMagicExpansion
             _focusedCorpse = null;
 
             PlayCorpseLeechSound(corpseSoundQuality);
+            ReportCorpseDrained(corpseSoundQuality);
             state.LoggedReject = false;
+        }
+
+        private void ReportCorpseDrained(float quality)
+        {
+            if (!_deedsOfAvalonBridgeResolved)
+            {
+                _deedsOfAvalonBridgeResolved = true;
+                PluginInfo pluginInfo;
+                if (Chainloader.PluginInfos.TryGetValue(DeedsOfAvalonPluginGuid, out pluginInfo)
+                    && pluginInfo != null
+                    && pluginInfo.Instance != null)
+                {
+                    Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(DeedsOfAvalonApiTypeName, false);
+                    _deedsOfAvalonRecordCorpseDrainMethod = apiType == null
+                        ? null
+                        : apiType.GetMethod("TryRecordCorpseDrain", BindingFlags.Public | BindingFlags.Static);
+                }
+            }
+
+            if (_deedsOfAvalonRecordCorpseDrainMethod == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _deedsOfAvalonRecordCorpseDrainMethod.Invoke(
+                    null,
+                    new object[] { PluginGuid, GetCorpseQualityLabel(quality), quality });
+            }
+            catch (Exception ex)
+            {
+                if (!_deedsOfAvalonFailureLogged)
+                {
+                    _deedsOfAvalonFailureLogged = true;
+                    Log.LogWarning("Deeds of Avalon corpse-drain reporting failed: " + ex.GetBaseException().Message);
+                }
+            }
         }
 
         private void PlayCorpseLeechSound(float corpseQuality)

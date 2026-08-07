@@ -27,7 +27,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v4
-Version: 2.4.5
+Version: 2.4.6
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -123,6 +123,13 @@ The normal character XP stat path, multipliers, and level-up behavior are unchan
 ClaimGrailFloatingTextCorpseXP = true
 ClaimGrailFloatingTextLiveDrainXP = true
 ```
+
+## Deeds of Avalon
+
+When Deeds of Avalon is installed, Blood Magic Expansion reports a statistic
+only after a corpse ritual completes successfully. The display wording is
+Corpses Drained, separated into Meager, Worthy, Potent, and Prime tiers.
+Interrupted, rejected, or incomplete rituals do not count.
 
 ## Blood Spell Inner Light
 

@@ -1,7 +1,4 @@
-TargetVersion=2.4.5
-BaselineVersion=2.4.0
-Moved blood-spell lighting to independent main-hand and off-hand semantic hand anchors, with wrist fallbacks, per-hand readiness, and cast boosts isolated to the casting hand.
-Added configurable interior intensity and per-spell intensity multipliers, defaulting to 0.8 for Blood Transfusion, 1.0 for Life Transfusion, and 1.2 for Abhartach's Calling.
-Added First Person Arms Adjuster 0.3.5 integration so hand lights follow its presentation-only visual offset without per-frame reflection, hierarchy searches, or raycasts.
-Made a hand's blood light turn off immediately when that hand changes to non-blood equipment while retaining configured fades for supported blood-spell and opposite-hand transitions.
-Changed the shared Blood Spell Inner Light intensity default from 1.0 to 0.5 and advanced ConfigSchemaVersion from 10 to 11; untouched old defaults regenerate at 0.5 while compatible customized light, calibration, matching, and audio values remain eligible for conservative recovery.
+TargetVersion=2.4.6
+BaselineVersion=2.4.5
+Added optional Deeds of Avalon integration that records completed corpse rituals as Corpses Drained, separated into Meager, Worthy, Potent, and Prime quality tiers.
+Failed, interrupted, or incomplete corpse rituals are not reported.

@@ -1,3 +1,7 @@
+Version 2.4.6
+Added optional Deeds of Avalon integration that records each successfully completed corpse ritual as Corpses Drained, separated into Meager, Worthy, Potent, and Prime quality tiers.
+Failed, interrupted, or incomplete corpse rituals are not reported.
+
 Version 2.4.5
 Changed the shared Blood Spell Inner Light intensity default from 1.0 to 0.5 and added configurable per-spell multipliers defaulting to 0.8 for Blood Transfusion, 1.0 for Life Transfusion, and 1.2 for Abhartach's Calling.
 Incremented ConfigSchemaVersion from 10 to 11 because the shared intensity default materially changed. Untouched old defaults regenerate at 0.5, while customized compatible intensity, light calibration, matching, and audio values remain eligible for conservative recovery.

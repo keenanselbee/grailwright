@@ -69,6 +69,8 @@ Corpse leech audio is enabled by default. Completed corpse drains choose from lo
 
 When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is installed, corpse-leech and live-drain XP use red source-specific messages with corpse and magic icons. GFT 1.9.0+ consolidates queued live-drain ticks together and corpse rewards only within the same [b]Meager[/b], [b]Worthy[/b], [b]Potent[/b], or [b]Prime[/b] tier. Blood Magic XP never merges with generic XP or another mod. Older GFT versions keep the styled gains separate. XP still uses the normal character stat path, so multipliers and level-up behavior are unchanged.
 
+When [b]Deeds of Avalon[/b] is installed, each successfully completed corpse ritual is reported as [b]Corpses Drained[/b] in the same Meager, Worthy, Potent, and Prime tiers. Failed, interrupted, and incomplete rituals are not reported.
+
 Corpse leech sounds use the same quality bands: [b]<=0.25 Meager/low[/b], [b]<=0.50 Worthy/medium[/b], [b]<=0.75 Potent/high[/b], and [b]>0.75 Prime/max[/b].
 
 [code]
@@ -173,6 +175,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 2.8.1+ is supported for optional corpse-reticle feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for source-isolated corpse-quality and live-drain XP text; version 1.9.0+ enables consolidation.[/*]
+[*][b]Deeds of Avalon[/b] is an optional soft integration for completed Corpses Drained totals and quality tiers.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] 0.3.5+ is an optional soft integration that keeps the unparented blood-spell lights aligned with presentation-only arm offsets.[/*]
 [*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v4.[/*]
 [*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]

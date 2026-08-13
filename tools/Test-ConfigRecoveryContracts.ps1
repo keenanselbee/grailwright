@@ -109,7 +109,7 @@ function Get-ArrayInitializer {
 $modContracts = @(
     @{ Mod = 'GloriousUI'; Source = 'src\GloriousUI.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'BloodMagicExpansion'; Source = 'src\BloodMagicExpansion.cs'; Schema = 10; AutoPreserves = $true },
-    @{ Mod = 'DeedsOfAvalon'; Source = 'src\DeedsOfAvalon.cs'; Schema = 1; AutoPreserves = $false },
+    @{ Mod = 'DeedsOfAvalon'; Source = 'src\DeedsOfAvalon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'DishonoredDynamicCrosshair'; Source = 'src\Plugin.cs'; Schema = 3; AutoPreserves = $true },
     @{ Mod = 'EnemyRespawnControl'; Source = 'src\EnemyRespawnControl.cs'; Schema = 4; AutoPreserves = $true },
     @{ Mod = 'EyesInTheDark'; Source = 'src\EyesInTheDark.cs'; Schema = 1; AutoPreserves = $true },
@@ -121,17 +121,25 @@ $modContracts = @(
     @{ Mod = 'KSAddons\KSBetterMovementAddon'; Source = 'src\BetterMovementAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSPersistentCorpsesAddon'; Source = 'src\PersistentCorpsesAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSTGAllLightsCastShadowsAddon'; Source = 'src\TGAllLightsCastShadowsAddon.cs'; Schema = 2; AutoPreserves = $true },
+    @{ Mod = 'KSAddons\KSTGContactShadowsAddon'; Source = 'src\TGContactShadowsAddon.cs'; Schema = 1; AutoPreserves = $true },
+    @{ Mod = 'KSAddons\KSTGGlobalIlluminationAddon'; Source = 'src\TGGlobalIlluminationAddon.cs'; Schema = 1; AutoPreserves = $true },
+    @{ Mod = 'KSAddons\KSTGVolumetricFixAddon'; Source = 'src\TGVolumetricFixAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSWyrdSightAddon'; Source = 'src\WyrdSightAddon.cs'; Schema = 2; AutoPreserves = $false },
     @{ Mod = 'BattlecryVoiceTuner'; Source = 'src\BattlecryVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'SteelAndBone'; Source = 'src\SteelAndBone.cs'; Schema = 14; AutoPreserves = $true },
-    @{ Mod = 'TorchlightRekindled'; Source = 'src\TorchlightRekindled.cs'; Schema = 1; AutoPreserves = $false },
+    @{ Mod = 'TorchlightRekindled'; Source = 'src\TorchlightRekindled.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'UltrawideFixes'; Source = 'src\UltrawideFixes.cs'; Schema = 1; AutoPreserves = $true },
+    @{ Mod = 'VersatileWeapons'; Source = 'src\VersatileWeapons.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'WyrdsoulReserve'; Source = 'src\WyrdsoulReserve.cs'; Schema = 1; AutoPreserves = $true }
 )
 
 $expectedPermanentExclusions = @{
     'GloriousUI' = @(
         @{ Section = 'Diagnostics'; Key = 'BuffDebuffLayoutTestMode' }
+    )
+    'BloodMagicExpansion' = @(
+        @{ Section = '13. Diagnostics'; Key = 'OverrideBloodEssence' },
+        @{ Section = '13. Diagnostics'; Key = 'BloodEssenceOverrideValue' }
     )
     'EyesInTheDark' = @(
         @{ Section = '2. Gameplay Preset'; Key = 'ApplyPreset' },

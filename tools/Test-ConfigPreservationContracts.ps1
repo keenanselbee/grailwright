@@ -106,12 +106,36 @@ $sourceContracts = @(
         Tokens = @('Volume', 'MinimumSpeedVolumeScale', 'SurfaceCheckIntervalSeconds')
     },
     [pscustomobject]@{
-        Name = 'TG All Lights Cast Shadows Addon'
+        Name = 'All Lights Cast Shadows Addon'
         Source = 'mods\KSAddons\KSTGAllLightsCastShadowsAddon\src\TGAllLightsCastShadowsAddon.cs'
-        Capture = 'CapturePreservedAdditionalExcludedLightPathFragments('
-        Restore = 'RestorePreservedAdditionalExcludedLightPathFragments();'
+        Capture = 'CapturePreservedSettings('
+        Restore = 'RestorePreservedSettings();'
         Save = 'Config.Save();'
-        Tokens = @('BuiltInExcludedLightPathFragments', 'AdditionalExcludedLightPathFragments')
+        Tokens = @('ProtectBonfireLights', 'BuiltInExcludedLightPathFragments', 'AdditionalExcludedLightPathFragments', 'VerboseExclusionLogging', 'ProtectShadowAtlas', 'PromotedShadowResolution', 'CombatPerformanceEnabled', 'OutdoorCombatOnly', 'CombatReduceAtlasResolution', 'CombatShadowResolution', 'CombatLimitLightBudget', 'CombatMaximumUpgradedLights', 'CombatLimitDistance', 'CombatMaximumDistanceMeters', 'Diagnostics')
+    },
+    [pscustomobject]@{
+        Name = 'KS Contact Shadows Addon'
+        Source = 'mods\KSAddons\KSTGContactShadowsAddon\src\TGContactShadowsAddon.cs'
+        Capture = 'CapturePreservedSettings('
+        Restore = 'RestorePreservedSettings();'
+        Save = 'Config.Save();'
+        Tokens = @('Enabled', 'InteriorsOnly', 'MaximumLightDistanceMeters', 'MinimumLightHoldSeconds', 'SwitchAdvantagePercent', 'CandidateRefreshSeconds', 'ContactShadowMaxDistance', 'SampleCount', 'Length', 'Opacity', 'Diagnostics')
+    },
+    [pscustomobject]@{
+        Name = 'KS Global Illumination Addon'
+        Source = 'mods\KSAddons\KSTGGlobalIlluminationAddon\src\TGGlobalIlluminationAddon.cs'
+        Capture = 'CapturePreservedSettings('
+        Restore = 'RestorePreservedSettings();'
+        Save = 'Config.Save();'
+        Tokens = @('Mode', 'TargetFps', 'InteriorPreset', 'ExteriorPreset', 'RememberSceneTier', 'DowngradeMarginFps', 'UpgradeHoldSeconds')
+    },
+    [pscustomobject]@{
+        Name = 'KS Better Volumetric Fog Addon'
+        Source = 'mods\KSAddons\KSTGVolumetricFixAddon\src\TGVolumetricFixAddon.cs'
+        Capture = 'CapturePreservedSettings('
+        Restore = 'RestorePreservedSettings();'
+        Save = 'Config.Save();'
+        Tokens = @('Enabled', 'InteriorsOnly', 'Quality', 'OptimizeFogDiscovery', 'Diagnostics')
     },
     [pscustomobject]@{
         Name = 'Wyrdsoul Reserve'
@@ -120,6 +144,14 @@ $sourceContracts = @(
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
         Tokens = @('ActivationCostPercent', 'PassiveFullRechargeMinutes', 'ReserveGainEfficiencyPercent', 'ReserveOffsetX')
+    },
+    [pscustomobject]@{
+        Name = 'Versatile Weapons'
+        Source = 'mods\VersatileWeapons\src\VersatileWeapons.cs'
+        Capture = 'CapturePreservedConfigValues('
+        Restore = 'RestorePreservedConfigValues();'
+        Save = 'Config.Save();'
+        Tokens = @('FullPotencyStrengthMultiplier', 'DamageAtWeaponRequirement', 'AttackSpeedAtWeaponRequirement', 'PoiseAtWeaponRequirement', 'ForceAtWeaponRequirement', 'DamageMultiplier', 'GripHoldSeconds')
     }
 )
 

@@ -1,3 +1,10 @@
+Version 1.1.0
+Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so in-game summaries can be disabled without losing detailed BepInEx logging.
+
+Version 1.0.9
+Added low-priority Grail Floating Text diagnostics for the first adjusted or dry-run kill and each configured periodic summary interval while Diagnostics is enabled.
+Reports cumulative adjusted kills, estimated restored XP, and the latest multiplier in one collapsed lane instead of repeating every kill.
+
 Version 1.0.8
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.

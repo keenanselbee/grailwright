@@ -21,7 +21,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
-| [Full Enemy XP](mods/FullEnemyXP) | 1.0.8 | Unpublished |
+| [Full Enemy XP](mods/FullEnemyXP) | 1.1.0 | Unpublished |
 | [Grail Floating Text](mods/GrailFloatingText) | 2.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
 | [Killing Blow Mastery](mods/KillingBlowMastery) | 1.6.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |

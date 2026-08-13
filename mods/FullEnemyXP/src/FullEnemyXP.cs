@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("Removes the enemy overlevel kill XP penalty in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Full Enemy XP")]
-[assembly: AssemblyVersion("1.0.8.0")]
-[assembly: AssemblyFileVersion("1.0.8.0")]
-[assembly: AssemblyInformationalVersion("1.0.8")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyInformationalVersion("1.1.0")]
 
 namespace FullEnemyXP
 {
@@ -25,7 +25,7 @@ namespace FullEnemyXP
     {
         public const string PluginGuid = "ks.tgfoa.full-enemy-xp";
         public const string PluginName = "Full Enemy XP";
-        public const string PluginVersion = "1.0.8";
+        public const string PluginVersion = "1.1.0";
         private const int ConfigSchemaVersion = 1;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -49,6 +49,7 @@ namespace FullEnemyXP
         private ConfigEntry<float> _minimumOverlevelXpMultiplier;
         private ConfigEntry<bool> _dryRun;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<bool> _logAdjustedKills;
         private ConfigEntry<bool> _logUnchangedEligibleKills;
         private ConfigEntry<bool> _logSkippedDeathChecks;
@@ -139,6 +140,7 @@ namespace FullEnemyXP
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _dryRun = Config.Bind("2. Diagnostics", "DryRun", false, "Log overlevel XP adjustments without changing the vanilla XP multiplier.");
             _diagnostics = Config.Bind("2. Diagnostics", "Diagnostics", false, "Log patch setup, adjusted kill XP, optional unchanged checks, and session summaries.");
+            _showGrailFloatingTextDiagnostics = Config.Bind("2. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When Diagnostics is enabled and Grail Floating Text is installed, show concise in-game adjustment summaries. Detailed BepInEx logging remains active when this is disabled.");
             _logAdjustedKills = Config.Bind("2. Diagnostics", "LogAdjustedKills", true, "When Diagnostics is enabled, log each kill whose overlevel XP multiplier is raised or would be raised in DryRun.");
             _logUnchangedEligibleKills = Config.Bind("2. Diagnostics", "LogUnchangedEligibleKills", false, "When Diagnostics is enabled, log eligible kill XP awards that do not need adjustment.");
             _logSkippedDeathChecks = Config.Bind("2. Diagnostics", "LogSkippedDeathChecks", false, "When Diagnostics is enabled, log adjustment checks skipped because the mod is disabled or context was incomplete.");
@@ -322,6 +324,13 @@ namespace FullEnemyXP
                     _dryRunAdjustments++;
                     _dryRunEstimatedExtraXpBeforeGlobal += extraAward;
                     LogAdjustedKill(context, vanillaLevelMultiplier, appliedLevelMultiplier, vanillaAward, appliedAward, true);
+                    ShowAdjustmentDiagnostic(
+                        context,
+                        vanillaLevelMultiplier,
+                        appliedLevelMultiplier,
+                        extraAward,
+                        true,
+                        _dryRunAdjustments);
                     LogPeriodicSummaryIfNeeded(_dryRunAdjustments);
                     return vanillaLevelMultiplier;
                 }
@@ -329,6 +338,13 @@ namespace FullEnemyXP
                 _adjustedKillXpAwards++;
                 _estimatedExtraXpBeforeGlobal += extraAward;
                 LogAdjustedKill(context, vanillaLevelMultiplier, appliedLevelMultiplier, vanillaAward, appliedAward, false);
+                ShowAdjustmentDiagnostic(
+                    context,
+                    vanillaLevelMultiplier,
+                    appliedLevelMultiplier,
+                    extraAward,
+                    false,
+                    _adjustedKillXpAwards);
                 LogPeriodicSummaryIfNeeded(_adjustedKillXpAwards);
                 return appliedLevelMultiplier;
             }
@@ -417,6 +433,71 @@ namespace FullEnemyXP
             }
 
             LogSummary("periodic");
+        }
+
+        private void ShowAdjustmentDiagnostic(
+            in XpRewardContext context,
+            float vanillaLevelMultiplier,
+            float appliedLevelMultiplier,
+            float extraAward,
+            bool dryRun,
+            long adjustedCount)
+        {
+            if (_diagnostics == null
+                || !_diagnostics.Value
+                || _showGrailFloatingTextDiagnostics == null
+                || !_showGrailFloatingTextDiagnostics.Value)
+            {
+                return;
+            }
+
+            int interval = Math.Max(0, _summaryEveryAdjustedKills.Value);
+            if (adjustedCount != 1
+                && (interval <= 0 || adjustedCount % interval != 0))
+            {
+                return;
+            }
+
+            string prefix = dryRun
+                ? "Full Enemy XP dry run: "
+                : "Full Enemy XP: ";
+            string text;
+            if (adjustedCount == 1)
+            {
+                text = prefix
+                    + (dryRun ? "would adjust " : "adjusted ")
+                    + context.EnemyName
+                    + "; "
+                    + FormatFloat(vanillaLevelMultiplier)
+                    + "x -> "
+                    + FormatFloat(appliedLevelMultiplier)
+                    + "x; +"
+                    + FormatFloat(extraAward)
+                    + " XP estimated.";
+            }
+            else
+            {
+                double totalExtra = dryRun
+                    ? _dryRunEstimatedExtraXpBeforeGlobal
+                    : _estimatedExtraXpBeforeGlobal;
+                text = prefix
+                    + adjustedCount.ToString(CultureInfo.InvariantCulture)
+                    + (dryRun ? " would adjust" : " adjusted")
+                    + "; +"
+                    + FormatDouble(totalExtra)
+                    + " XP estimated; latest "
+                    + FormatFloat(vanillaLevelMultiplier)
+                    + "x -> "
+                    + FormatFloat(appliedLevelMultiplier)
+                    + "x.";
+            }
+
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowDiagnosticNotification(
+                    PluginGuid,
+                    "full-enemy-xp-adjustment",
+                    text,
+                    "full-enemy-xp-diagnostics");
         }
 
         private void LogSummary(string reason)

@@ -1,5 +1,5 @@
 Full Enemy XP - No Overlevel Penalty
-Version 1.0.8
+Version 1.1.0
 
 Platforms: Windows and Linux through Proton.
 
@@ -50,6 +50,11 @@ Use this while testing if you want before/after diagnostics without altering XP.
 Diagnostics = false
 Enables diagnostic logging.
 
+ShowGrailFloatingTextDiagnostics = true
+While Diagnostics is enabled, controls the collapsed Grail Floating Text
+summary for the first adjusted or dry-run kill and each configured periodic
+summary interval. Disabling it does not disable detailed logging.
+
 LogAdjustedKills = true
 Logs each kill whose overlevel XP multiplier is raised, or would be raised in
 DryRun.
@@ -71,6 +76,7 @@ Diagnostics testing
 For first-run testing, set:
 
 Diagnostics = true
+ShowGrailFloatingTextDiagnostics = true
 DryRun = true
 
 Kill an enemy below your level. The log should show the enemy name, hero level,

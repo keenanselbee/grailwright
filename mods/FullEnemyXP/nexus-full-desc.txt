@@ -1,10 +1,12 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Full Enemy XP - No Overlevel Penalty[/size][/color]
 [i]Keep enemy kill XP steady when you outlevel the fight.[/i][/center]
 
 [line]
 
 [b]Full Enemy XP[/b] removes the vanilla enemy overlevel XP penalty in [b]Tainted Grail: The Fall of Avalon[/b]. Enemies below your level keep giving their normal enemy kill XP instead of being reduced by the level gap.
+
+[line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
@@ -37,6 +39,7 @@ For testing, enable:
 
 [code]
 Diagnostics = true
+ShowGrailFloatingTextDiagnostics = true
 DryRun = true
 [/code]
 
@@ -70,4 +73,4 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 Full Enemy XP patches the enemy death XP calculation. It should be compatible with mods that add separate bonus XP after kills, but may overlap with mods that replace or heavily transpile enemy death XP rewards.
 
-[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.
+[b]Optional diagnostics:[/b] ShowGrailFloatingTextDiagnostics defaults on but remains inactive until Diagnostics is enabled. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] then shows one low-priority collapsed summary for the first adjusted or dry-run kill and each SummaryEveryAdjustedKills interval. It reports cumulative adjustments, estimated restored XP, and the latest multiplier, while disabling the GFT switch leaves full BepInEx logging active.

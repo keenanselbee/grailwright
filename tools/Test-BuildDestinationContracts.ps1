@@ -4,6 +4,8 @@ param()
 $ErrorActionPreference = "Stop"
 $script = Get-Content -LiteralPath (
     Join-Path $PSScriptRoot "Build-Mod.ps1") -Raw
+$publishScript = Get-Content -LiteralPath (
+    Join-Path $PSScriptRoot "Publish-NexusMod.ps1") -Raw
 
 function Assert-BuildDestinationContract {
     param([bool]$Condition, [string]$Message)
@@ -28,5 +30,22 @@ foreach ($required in @(
     'Get-DesktopDirectory')) {
     Assert-BuildDestinationContract ($defaultBlock.Contains($required)) "default block omits $required"
 }
+
+$publishBuildStart = $publishScript.IndexOf('function Build-Archive')
+$publishBuildEnd = $publishScript.IndexOf('function Wait-NexusUploadAvailable', $publishBuildStart)
+if ($publishBuildStart -lt 0 -or $publishBuildEnd -le $publishBuildStart) {
+    throw "Build destination contract failed: publisher build block was not found"
+}
+
+$publishBuildBlock = $publishScript.Substring(
+    $publishBuildStart,
+    $publishBuildEnd - $publishBuildStart)
+foreach ($required in @(
+    'if ([string]::IsNullOrWhiteSpace($Destination))',
+    'Join-Path $RepoRoot ".codex-temp\builds"',
+    '$buildArgs.DestinationDirectory = $Destination')) {
+    Assert-BuildDestinationContract ($publishBuildBlock.Contains($required)) "publisher build block omits $required"
+}
+Assert-BuildDestinationContract (-not $publishBuildBlock.Contains('Get-DesktopDirectory')) "publisher build block defaults to Desktop"
 
 Write-Host "Build destination contracts passed."

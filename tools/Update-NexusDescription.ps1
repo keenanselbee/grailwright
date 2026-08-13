@@ -565,6 +565,8 @@ $request = [pscustomobject]@{
 }
 
 $requestPath = Join-Path $RequestRoot ("nexus-description-request-{0}.json" -f $timestamp)
+$resultPath = Join-Path $RequestRoot ("nexus-description-result-{0}.json" -f $timestamp)
+$request | Add-Member -NotePropertyName resultPath -NotePropertyValue $resultPath
 $request | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $requestPath -Encoding UTF8
 
 Ensure-PlaywrightTooling
@@ -579,6 +581,23 @@ try {
     & node $ScriptPath --request $requestPath
     if ($LASTEXITCODE -ne 0) {
         throw "Nexus description updater failed with exit code $LASTEXITCODE."
+    }
+
+    if (-not $LoginOnly) {
+        . (Join-Path $PSScriptRoot "NexusLiveState.ps1")
+        $result = Read-NexusDescriptionResult -ResultPath $resultPath -ExpectedStatuses @('reviewed', 'already-current', 'saved-and-verified')
+        $source = if ($result.status -eq 'saved-and-verified') { 'nexus-browser-save-verified' } else { 'nexus-browser-review' }
+        $observedAt = (Get-Date).ToUniversalTime().ToString('o')
+        try {
+            Set-NexusLivePageSurfaces -RepoRoot $RepoRoot -NexusUrl $resolvedNexusUrl -Updates @(
+                [pscustomobject]@{ Surface='shortDescription'; Content=$result.observedShortDescription; ObservedAt=$observedAt; Source=$source; Status='verified-read' },
+                [pscustomobject]@{ Surface='fullDescription'; Content=$result.observedFullDescription; ObservedAt=$observedAt; Source=$source; Status='verified-read' }
+            )
+        }
+        catch {
+            $operationKind = if ($result.status -eq 'saved-and-verified') { 'save' } else { 'read' }
+            throw "Nexus description $operationKind completed and was verified remotely, but writing the local live-state snapshot failed: $($_.Exception.Message). Do not retry a remote save; refresh the local state separately."
+        }
     }
 }
 finally {

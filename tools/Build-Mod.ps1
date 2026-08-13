@@ -147,7 +147,13 @@ function Read-ModManifest {
         throw "Missing mod manifest: $manifestPath"
     }
 
-    return Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $version = [string]$manifest.version
+    if ($version -notmatch '^[0-9]+\.[0-9]\.[0-9]$') {
+        throw "Invalid authored mod version '$version' in $manifestPath. Use MAJOR.MINOR.PATCH with single-digit MINOR and PATCH components."
+    }
+
+    return $manifest
 }
 
 function Resolve-ModRoot {

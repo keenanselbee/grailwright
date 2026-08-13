@@ -650,7 +650,7 @@ async function clickSave(page, timeoutMs) {
     const buttons = await getButtons(page);
     const saveButton = buttons
       .filter((button) => button.text === "Save" && !button.disabled)
-      .sort((a, b) => a.top - b.top)[0];
+      .sort((a, b) => b.top - a.top)[0];
 
     if (saveButton) {
       await delay(500);
@@ -717,6 +717,19 @@ async function createBackup(request, previous, desired, action) {
   return backupPath;
 }
 
+async function emitResult(request, payload) {
+  if (request.resultPath) {
+    await writeJson(request.resultPath, payload);
+  }
+  const summary = { status: payload.status };
+  for (const [key, value] of Object.entries(payload)) {
+    if (/(Length|Changed)$/.test(key) || /Path$/.test(key)) {
+      summary[key] = value;
+    }
+  }
+  console.log(JSON.stringify(summary, null, 2));
+}
+
 function getDesiredFromBackup(backup) {
   if (!backup.previous) {
     throw new Error("Backup JSON does not contain a previous description payload.");
@@ -735,6 +748,9 @@ async function main() {
   }
 
   const request = await readJson(args.request);
+  if (request.action !== "login" && (!request.resultPath || typeof request.resultPath !== "string")) {
+    throw new Error("Non-login Nexus description requests require a resultPath.");
+  }
   const timeoutMs = Math.max(30, Number(request.timeoutSeconds || 180)) * 1000;
   const toolRoot = process.env.NEXUS_DESCRIPTION_TOOL_ROOT;
   if (!toolRoot) {
@@ -785,11 +801,11 @@ async function main() {
       }
 
       await recordProgress(request, page, "logged-in");
-      console.log(JSON.stringify({
+      await emitResult(request, {
         status: "logged-in",
         profileRoot: request.profileRoot,
         currentUrl: page.url()
-      }, null, 2));
+      });
       return;
     }
 
@@ -823,7 +839,7 @@ async function main() {
         shortDescriptionChanged,
         fullDescriptionChanged
       });
-      console.log(JSON.stringify({
+      await emitResult(request, {
         status: "reviewed",
         action: request.action,
         nexusUrl: request.nexusUrl,
@@ -834,22 +850,26 @@ async function main() {
         desiredShortLength: normalizeText(desired.shortDescription).length,
         desiredFullLength: normalizeText(desired.fullDescription).length,
         shortDescriptionChanged,
-        fullDescriptionChanged
-      }, null, 2));
+        fullDescriptionChanged,
+        observedShortDescription: previous.shortDescription,
+        observedFullDescription: previous.fullDescription
+      });
       return;
     }
 
     if (!shortDescriptionChanged && !fullDescriptionChanged && !request.forceSave) {
       await recordProgress(request, page, "already-current", { backupPath });
-      console.log(JSON.stringify({
+      await emitResult(request, {
         status: "already-current",
         action: request.action,
         nexusUrl: request.nexusUrl,
         backupPath,
         restoreBackupPath: request.restoreBackupPath || null,
         shortLength: normalizeText(previous.shortDescription).length,
-        fullLength: normalizeText(previous.fullDescription).length
-      }, null, 2));
+        fullLength: normalizeText(previous.fullDescription).length,
+        observedShortDescription: previous.shortDescription,
+        observedFullDescription: previous.fullDescription
+      });
       return;
     }
 
@@ -870,15 +890,17 @@ async function main() {
       fullLength: normalizeText(verified.fullDescription).length
     });
 
-    console.log(JSON.stringify({
+    await emitResult(request, {
       status: "saved-and-verified",
       action: request.action,
       nexusUrl: request.nexusUrl,
       backupPath,
       restoreBackupPath: request.restoreBackupPath || null,
       shortLength: normalizeText(verified.shortDescription).length,
-      fullLength: normalizeText(verified.fullDescription).length
-    }, null, 2));
+      fullLength: normalizeText(verified.fullDescription).length,
+      observedShortDescription: verified.shortDescription,
+      observedFullDescription: verified.fullDescription
+    });
   } catch (error) {
     await recordProgress(request, page, "failed", {
       error: error && error.message ? error.message : String(error)

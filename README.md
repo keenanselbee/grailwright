@@ -169,7 +169,31 @@ rereads the mod manifest, changelog, and Nexus metadata while it owns the lock
 before uploading. `Update-NexusDescription.ps1` takes the same lock before
 reading description files or launching browser automation. The same
 `-LockWaitSeconds` and `-ForceStaleLock` options are available for explicit
-waiting or stale-lock recovery.
+waiting or stale-lock recovery. Publisher-built archives default to
+`.codex-temp\builds`; pass `-DestinationDirectory` only when a different output
+location is intentional.
+
+Verified remote observations are recorded in the ignored
+`nexus-live-state.local.json` file. The snapshot keeps shared Nexus pages
+separate from their file groups, stores normalized hashes and evidence
+timestamps for each surface, and atomically records related description or
+file-group surfaces together after successful browser reads or verified writes.
+Publisher rereads correlate the exact version ID returned by the version POST,
+not just its label. Live-state reporting resolves each mod's current `API.txt`
+`GroupId`; a changed or unrecorded group is reported as `unknown`. It is a local
+audit cache, not a replacement for the fresh remote file-version check performed
+immediately before publishing.
+
+Compare authored Nexus metadata with the latest recorded live state:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Get-NexusLiveState.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Get-NexusLiveState.ps1 -Mod BloodMagicExpansion
+```
+
+Observations older than seven days are reported as `stale` by default. Use
+`-MaxAgeHours` to select a different freshness window. `unknown` means that a
+surface has not yet been read from Nexus or confirmed by a successful write.
 
 Keep the Nexus API key out of repo files. Set it only in your shell environment:
 
@@ -229,6 +253,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publish-NexusMod.ps1
   -AddChangelog
 ```
 
+Reuse the exact archive that was just built, inspected, and approved instead of
+rebuilding it during publication:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Publish-NexusMod.ps1 `
+  -Mod EnemyRespawnControl `
+  -ArchivePath ".\.codex-temp\builds\Enemy Respawn Control 1.0.0.zip" `
+  -SkipBuild `
+  -NexusUrl "https://www.nexusmods.com/skyrimspecialedition/mods/27633" `
+  -GroupId 4970635 `
+  -AddChangelog
+```
+
+Use archive reuse only when the zip matches the current manifest version and is
+the same artifact already validated for this release. Otherwise omit
+`-ArchivePath -SkipBuild` and let the publisher create a fresh archive.
+
 ## Mod Manifests
 
 Each mod has a `mod.json` file describing the package name, plugin version,
@@ -285,11 +326,12 @@ notes there; changelog entries remain separate and are posted only with
 `-AddChangelog`.
 
 When a Nexus upload spans several local versions, `Publish-NexusMod.ps1`
-generates a flattened candidate under `.codex-temp` and requires a reviewed
-`nexus-changelog.txt`. Its first two nonblank lines identify the target and
-current Nexus baseline; the remaining lines describe the final cumulative
-release without intermediate version headings or superseded repeated changes.
-The complete per-version history remains in `CHANGELOG.txt`.
+uses a valid reviewed `nexus-changelog.txt` directly. If that file is missing or
+stale, the publisher generates a fresh flattened candidate under `.codex-temp`
+and stops for review. The reviewed file's first two nonblank lines identify the
+target and current Nexus baseline; the remaining lines describe the final
+cumulative release without intermediate version headings or superseded repeated
+changes. The complete per-version history remains in `CHANGELOG.txt`.
 
 Validate Nexus metadata before publishing:
 

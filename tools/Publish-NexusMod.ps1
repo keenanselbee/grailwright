@@ -49,6 +49,7 @@ if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
 }
 
 . $LockScript
+. (Join-Path $PSScriptRoot 'NexusLiveState.ps1')
 
 function Test-JsonProperty {
     param(
@@ -589,14 +590,14 @@ function Get-NexusChangelogPlan {
         $resolvedReviewedPath = Join-Path $Root "nexus-changelog.txt"
     }
 
-    $candidatePath = ""
-    if ($selection.Sections.Count -gt 1) {
-        $candidatePath = Write-ConsolidatedChangelogCandidate -PackageName $PackageName -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion -Entries $rawEntries
-    }
-
     try {
         $reviewed = Read-ConsolidatedChangelog -Path $resolvedReviewedPath -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion
     } catch {
+        $candidatePath = ""
+        if ($selection.Sections.Count -gt 1) {
+            $candidatePath = Write-ConsolidatedChangelogCandidate -PackageName $PackageName -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion -Entries $rawEntries
+        }
+
         $candidateNote = if ([string]::IsNullOrWhiteSpace($candidatePath)) { "" } else { " Fresh raw candidate: '$candidatePath'." }
         throw "$($_.Exception.Message)$candidateNote"
     }
@@ -607,11 +608,12 @@ function Get-NexusChangelogPlan {
             RawEntryCount = $rawEntries.Count
             Source = "reviewed-consolidation"
             ReviewedPath = $reviewed.Path
-            CandidatePath = $candidatePath
+            CandidatePath = ""
         }
     }
 
     if ($selection.Sections.Count -gt 1) {
+        $candidatePath = Write-ConsolidatedChangelogCandidate -PackageName $PackageName -TargetVersion $TargetVersion -PublishedVersion $PublishedVersion -Entries $rawEntries
         throw "Nexus upload spans $($selection.Sections.Count) local versions ($($includedVersions -join ', ')). Review and lightly consolidate repeated or superseded changes in '$candidatePath', then save the reviewed text as '$(Join-Path $Root 'nexus-changelog.txt')' or pass -ConsolidatedChangelogPath."
     }
 
@@ -695,6 +697,61 @@ function Get-CurrentRemoteFileVersion {
     return [pscustomobject]@{
         Version = [string]$current[0].version
         VersionId = if (Test-JsonProperty -Object $current[0] -Name "id") { [string]$current[0].id } else { "" }
+    }
+}
+
+function Get-NexusCreatedVersionId {
+    param([object]$CreatedVersion)
+    if ($CreatedVersion -ne $null -and $CreatedVersion.data -ne $null -and
+        (Test-JsonProperty -Object $CreatedVersion.data -Name 'version') -and
+        $CreatedVersion.data.version -ne $null -and
+        (Test-JsonProperty -Object $CreatedVersion.data.version -Name 'id') -and
+        -not [string]::IsNullOrWhiteSpace([string]$CreatedVersion.data.version.id)) {
+        return [string]$CreatedVersion.data.version.id
+    }
+    return ''
+}
+
+function Test-NexusUploadedVersionMatch {
+    param([object]$Version, [string]$ExpectedVersionId)
+    return Test-NexusLiveVersionIdMatch -Version $Version -ExpectedVersionId $ExpectedVersionId
+}
+
+function Confirm-NexusUploadedFileVersion {
+    param(
+        [string]$ExpectedVersion,
+        [string]$ExpectedDescription,
+        [string]$ExpectedVersionId,
+        [int]$TimeoutSeconds = 120
+    )
+
+    $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $response = Invoke-NexusApi -Method GET -Path ("/mod-files/{0}/versions" -f $script:ModFileId)
+        $versions = if ($response -ne $null -and $response.data -ne $null -and (Test-JsonProperty -Object $response.data -Name "versions")) { @($response.data.versions) } else { @() }
+        $match = @($versions | Where-Object { Test-NexusUploadedVersionMatch -Version $_ -ExpectedVersionId $ExpectedVersionId } | Select-Object -First 1)
+        if ($match.Count -gt 0) { break }
+        Start-Sleep -Seconds 2
+    } while ([datetime]::UtcNow -lt $deadline)
+    if ($match.Count -eq 0) { throw "The bounded reread did not report exact version id $ExpectedVersionId for file group $script:ModFileId within $TimeoutSeconds seconds." }
+
+    $descriptionVerified = $false
+    $descriptionMismatch = $false
+    foreach ($name in @('description', 'file_description')) {
+        if ((Test-JsonProperty -Object $match[0] -Name $name) -and -not [string]::IsNullOrWhiteSpace([string]$match[0].$name)) {
+            $descriptionVerified = [string]$match[0].$name -eq $ExpectedDescription
+            $descriptionMismatch = -not $descriptionVerified
+            break
+        }
+    }
+
+    return [pscustomobject]@{
+        Version = [string]$match[0].version
+        VersionId = [string]$match[0].id
+        LabelMatches = [string]$match[0].version -eq $ExpectedVersion
+        FileDescriptionVerified = $descriptionVerified
+        FileDescriptionMismatch = $descriptionMismatch
+        ReadVerified = $true
     }
 }
 
@@ -788,9 +845,10 @@ function Build-Archive {
         $buildArgs.SkipCompile = $true
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($Destination)) {
-        $buildArgs.DestinationDirectory = $Destination
+    if ([string]::IsNullOrWhiteSpace($Destination)) {
+        $Destination = Join-Path $RepoRoot ".codex-temp\builds"
     }
+    $buildArgs.DestinationDirectory = $Destination
 
     $buildArgs.LockWaitSeconds = $script:LockWaitSeconds
     $buildArgs.LockStaleAfterMinutes = $script:LockStaleAfterMinutes
@@ -1201,8 +1259,6 @@ try {
         $versionRequest.previous_version_id = $PreviousVersionId
     }
 
-    $createdVersion = Invoke-NexusApi -Method POST -Path ("/mod-files/{0}/versions" -f $ModFileId) -Body $versionRequest
-
     if ($AddChangelog) {
         if ([string]::IsNullOrWhiteSpace($ModId)) {
             throw "Cannot add changelog without ModId. Provide -ModId or -NexusUrl so it can be resolved."
@@ -1211,13 +1267,70 @@ try {
         if ($changelogEntries.Count -eq 0) {
             throw "Cannot add changelog: no entries found for version $FileVersion."
         }
+    }
 
+    $createdVersion = Invoke-NexusApi -Method POST -Path ("/mod-files/{0}/versions" -f $ModFileId) -Body $versionRequest
+    $createdVersionId = Get-NexusCreatedVersionId -CreatedVersion $createdVersion
+
+    if ($AddChangelog) {
         $changelogRequest = @{
             version = $FileVersion
             changelog = ($changelogEntries -join "`n")
         }
 
-        Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
+        try {
+            Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
+        }
+        catch {
+            $partialStateError = ''
+            try {
+                $partialUpdates = New-NexusUploadStateUpdates -Version $FileVersion -FileDescription $FileDescription -ObservedAt ((Get-Date).ToUniversalTime().ToString('o'))
+                Set-NexusLiveFileGroupSurfaces -RepoRoot $RepoRoot -NexusUrl $NexusUrl -GroupId $ModFileId -PackageName ([string]$manifest.packageName) -Updates $partialUpdates
+            }
+            catch {
+                $partialStateError = " Local live-state recording also failed: $($_.Exception.Message)"
+            }
+            throw "Nexus version upload succeeded for $FileVersion, but posting its changelog failed: $($_.Exception.Message). Do not retry the upload; reconcile the changelog separately.$partialStateError"
+        }
+    }
+
+    $verifiedUpload = $null
+    $verificationWarning = ''
+    if ([string]::IsNullOrWhiteSpace($createdVersionId)) {
+        $verificationWarning = 'Nexus accepted the version POST but did not return data.version.id, so the upload is recorded as a verified write without an exact reread.'
+    }
+    else {
+        try {
+            $verifiedUpload = Confirm-NexusUploadedFileVersion -ExpectedVersion $FileVersion -ExpectedDescription $FileDescription -ExpectedVersionId $createdVersionId
+            if (-not $verifiedUpload.LabelMatches) {
+                $verificationWarning = "Nexus reread matched created version id $createdVersionId but reported label '$($verifiedUpload.Version)' instead of '$FileVersion'."
+            }
+            elseif ($verifiedUpload.FileDescriptionMismatch) {
+                $verificationWarning = "Nexus reread matched created version id $createdVersionId but reported a different file description."
+            }
+        }
+        catch {
+            $verificationWarning = "Nexus accepted version $FileVersion (id $createdVersionId), but exact reread verification did not complete: $($_.Exception.Message)"
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($verificationWarning)) {
+        Write-Warning "$verificationWarning Do not retry the upload."
+    }
+    $statePackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
+    $stateObservedAt = (Get-Date).ToUniversalTime().ToString('o')
+    $snapshotUpdates = New-NexusUploadStateUpdates `
+        -Version $(if ($verifiedUpload -ne $null) { $verifiedUpload.Version } else { $FileVersion }) `
+        -FileDescription $FileDescription `
+        -ChangelogEntries $changelogEntries `
+        -ObservedAt $stateObservedAt `
+        -VersionReadVerified:($verifiedUpload -ne $null) `
+        -FileDescriptionReadVerified:($verifiedUpload -ne $null -and $verifiedUpload.FileDescriptionVerified) `
+        -IncludeChangelog:$AddChangelog
+    try {
+        Set-NexusLiveFileGroupSurfaces -RepoRoot $RepoRoot -NexusUrl $NexusUrl -GroupId $ModFileId -PackageName $statePackageName -Updates $snapshotUpdates
+    }
+    catch {
+        throw "Nexus upload succeeded for version $FileVersion (created version id $createdVersionId), but writing the local live-state snapshot failed: $($_.Exception.Message). The upload was not retried."
     }
 
     [pscustomobject]@{
@@ -1225,9 +1338,11 @@ try {
         UploadId = $uploadId
         ModFileId = $ModFileId
         CreatedFileId = if ($createdVersion.data.file -ne $null) { [string]$createdVersion.data.file.id } else { "" }
-        CreatedVersionId = if ($createdVersion.data.version -ne $null) { [string]$createdVersion.data.version.id } else { "" }
+        CreatedVersionId = $createdVersionId
         Version = $FileVersion
         ChangelogAdded = [bool]$AddChangelog
+        ReadVerification = if ($verifiedUpload -ne $null) { 'exact-version-id' } else { 'verified-write-only' }
+        VerificationWarning = $verificationWarning
         DescriptionUpdate = "Manual/browser step: v3 API does not expose a main mod description update endpoint."
     }
 } finally {

@@ -1,0 +1,166 @@
+Version 0.4.0
+Added two enabled-by-default Reverse Hands compatibility settings that keep normal hand input while a paired spell is stowed by a two-handed grip and whenever exactly one spell is equipped.
+Kept the game's Reverse Hands option as the master switch; two-spell loadouts can still use reversed input.
+
+Version 0.3.9
+Allowed a native one-handed weapon's post-loadout animation refresh to settle beside a spell or other non-melee hand, preventing the weapon model from remaining invisible after switching from a converted weapon and shield.
+
+Version 0.3.8
+Preserved the hero-wide drawn-weapon state when hiding a paired spell or other offhand item, so drawing after sheathing a two-handed grip no longer immediately returns the controls to the sheathed state.
+
+Version 0.3.7
+Stopped grip-FSM reconciliation while weapons are sheathed, preventing a two-handed grip from repeatedly reactivating its equip animation after a normal sheathe.
+
+Version 0.3.6
+Fixed equipment-menu weapon changes sometimes leaving both the one-handed and two-handed melee animation FSMs active, which could lock the first-person weapon model in its equip pose.
+Extended native one-handed weapon refresh detection beyond loadout-index switches and added ongoing FSM reconciliation after the replacement animator becomes ready.
+
+Version 0.3.5
+Changed the default first-person Y alignment for native one-handed swords used with both hands from 0 to 0.02 meters.
+Raised ConfigSchemaVersion from 10 to 11 because the sword-alignment default changed. Untouched old defaults receive the new alignment while compatible customized values remain eligible for recovery.
+
+Version 0.3.4
+Reorganized the generated config into six uniquely numbered sections with explicit native weapon and active grip directions.
+Renamed the four base-potency settings from AtBaseStrength to AtWeaponRequirement so they cannot be confused with the character's unmodified Strength stat.
+Renamed the diagnostics-only BasePotency simulation to WeaponRequirement for the same clearer endpoint terminology.
+Raised ConfigSchemaVersion from 9 to 10 because every setting moved to a newly named or renumbered section and five settings were renamed. The previous config is backed up and clean current defaults are generated; retired section and setting names are intentionally skipped by previous-settings recovery.
+
+Version 0.3.3
+Removed Versatile Weapons' extra Strength lock so supported native two-handed weapons can occupy one hand as soon as the game's normal weapon requirement allows them.
+Changed one-handed greatweapon scaling to begin at the weapon's base Strength requirement and reach full potency at FullPotencyStrengthMultiplier, which remains 2x by default.
+Widened the default handling curve: base Strength now gives 75 percent damage, 50 percent attack speed, 60 percent poise, and 65 percent force; 2x Strength gives 100 percent damage, 75 percent attack speed, 95 percent poise, and 100 percent force.
+Renamed the four minimum-Strength potency settings to BaseStrength and renamed the diagnostic MinimumPotency test endpoint to BasePotency for clearer config UX.
+Raised ConfigSchemaVersion from 8 to 9 because the eligibility settings were removed, the base-potency settings and diagnostic enum value were renamed, and several potency defaults changed. Compatible same-name custom settings remain eligible for recovery while retired and renamed keys are skipped.
+
+Version 0.3.2
+Renamed ShowGrailFloatingTextNotifications to ShowGrailFloatingTextDiagnostics so the default-on subordinate switch matches other Grailwright diagnostic integrations.
+Kept Diagnostics as the required master gate and retained detailed BepInEx logging when Grail Floating Text diagnostic summaries are disabled.
+Raised ConfigSchemaVersion from 7 to 8 because the setting was renamed; compatible customized settings remain eligible for recovery while the retired key is skipped.
+
+Version 0.3.1
+Changed the default two-handed melee-range multipliers for native one-handed axes and blunt weapons from 1.3x to 1.5x.
+Incremented the config schema because both melee-range defaults changed; untouched old defaults receive 1.5x while compatible customized values remain eligible for recovery.
+Removed ShowGripNotifications and made ShowGrailFloatingTextNotifications the single master switch for every VW System message, including completed grip changes.
+Changed ShowGrailFloatingTextNotifications to default on while retaining Diagnostics as the required master gate for all GFT messages.
+Included the notification-setting consolidation and new notification default in the version's config reset.
+Added one bounded native one-handed animator refresh after a real loadout change, fixing maces and other supported one-handed weapons that could report visible while their rendered model remained absent until a grip change.
+Waited for the new weapon's animator to settle and cleared the refresh after one use so ordinary play does not repeatedly reload the weapon.
+
+Version 0.3.0
+Expanded VersatileWeaponsApi to v2 with current two-handed grip and effective proficiency queries while retaining the existing hand-suppression contract.
+Routed both item-based game proficiency resolvers through the active grip so compatible reward and equipment systems receive One-Handed or Two-Handed consistently.
+Added coordinated compatibility with Killing Blow Mastery 1.6.3, Steel and Bone 3.3.2, and Blood Magic Expansion 2.7.2 for grip-aware rewards, passive shields, and hidden blood-spell UI state.
+
+Version 0.2.9
+Added ProficiencyFollowsGrip, enabled by default, so one-handed grips use One-Handed proficiency damage scaling and XP while two-handed grips use Two-Handed proficiency damage scaling and XP.
+Kept weapon requirements, stamina costs, and template-filtered item effects native instead of mutating weapon templates or rebuilding cached item effects.
+Added native and effective proficiency to detailed diagnostics and effective proficiency to grip confirmations.
+Completed previous-settings restoration coverage for the newer grip, diagnostics, alignment, and melee-range settings.
+Kept the new proficiency setting compatible with existing configs, so no schema reset is required.
+
+Version 0.2.8
+Added the effective melee-range multiplier to detailed diagnostic state lines so reach tests can confirm whether each grip is using 1x or the configured family multiplier.
+
+Version 0.2.7
+Added separate AxeMeleeRangeMultiplier and MaceMeleeRangeMultiplier settings, both defaulting to 1.3, for native one-handed weapons used with both hands.
+Extended only the eligible hero weapon's forward melee box-cast length without resizing or moving its visible model, changing damage, or affecting other families and grips.
+Added the effective melee-range multiplier to diagnostic grip confirmations.
+Kept the new range settings compatible with existing configs, so no schema reset is required.
+
+Version 0.2.6
+Added a diagnostics-only StrengthTestMode with Actual, MinimumPotency, and FullPotency choices for testing both ends of native two-handed weapon one-handed scaling without changing character Strength or save data.
+Expanded diagnostic state summaries to report the selected test mode plus actual and effective Strength ratios.
+Kept the new diagnostic setting compatible with existing configs, so no schema reset is required.
+
+Version 0.2.5
+Added OneHandedSwordPositionY with a neutral default of 0 for optional first-person sword alignment while using both hands.
+Kept the new sword setting compatible with existing configs, so no schema reset is required.
+
+Version 0.2.4
+Prevented attacks and blocks from interrupting the new grip's EquipWeapon animation before it reaches a stable idle or movement state.
+Fixed native two-handed swords becoming visible only during attacks and disappearing again at idle until a full loadout switch.
+Added a three-second fail-safe that restores normal melee input and reports a diagnostic warning if a grip equip animation cannot settle.
+
+Version 0.2.3
+Simplified first-person alignment to two Y-position sliders: one for native one-handed maces and other blunt weapons, and one for native one-handed axes used with both hands.
+Changed both alignment defaults to -0.35 meters and made 0 disable the correction for that weapon family.
+Reset the config schema because the temporary enable, X/Z position, and rotation settings were removed and the mace Y setting was renamed into the final family-specific layout.
+
+Version 0.2.2
+Added an adjustable first-person position and rotation correction for native one-handed blunt weapons used with both hands.
+The default moves the weapon 0.12 meters down its local Y axis so short mace handles sit closer to the support hand.
+Captured and restored the exact original local transform across grip, weapon, sheathe, perspective, config, and plugin state changes without affecting third person.
+
+Version 0.2.1
+Added diagnostic-only Grail Floating Text System confirmations for completed grip changes, including offhand state and effective damage, speed, poise, and force values.
+Added opt-in, deduplicated GFT summaries for supported-weapon detection, Strength lockouts, unsupported pairings, blocked transitions, and automatic recovery events.
+Kept internal input, animator, reload-stage, and combat-FSM details in the BepInEx log so in-game diagnostics remain readable.
+
+Version 0.2.0
+Recognized the game's automatic offhand fists item as an empty-hand placeholder, matching how the loadout UI displays that slot.
+Allowed supported native two-handed weapons paired with either mirrored weapon data or invisible default fists to default to two-handed grip and switch freely to one-handed grip.
+Expanded Diagnostics to distinguish empty mirrored slots from empty fist-placeholder slots while continuing to reject genuine offhand weapons.
+
+Version 0.1.9
+Prevented converted native two-handed weapons with mirrored empty-hand slots from being treated as dual wielding, so one-handed attacks no longer alternate with an invisible duplicate weapon.
+Made effective grip explicitly own its matching combat FSM: OneHandedFSM for the optional one-handed grip and TwoHandedFSM for the native two-handed grip, with DualHandedFSM disabled in both.
+Added post-reload FSM validation and recovery for visible weapon states using the wrong combat FSM, plus active-FSM details in Diagnostics.
+
+Version 0.1.8
+Fixed native two-handed weapons equipped in both hand slots by the game's TwoHandedEquipping policy being mistaken for a distinct unsupported offhand item.
+Treats the same weapon mirrored across both equipment slots as a logically empty opposite hand, allowing held Toggle Weapon to change it to a one-handed grip while preserving native two-handed defaults and potency.
+Expanded Diagnostics with raw paired-item identity, same-item mirroring, and shared-hand-object state while keeping genuine distinct offhand items blocked.
+
+Version 0.1.7
+Fixed supported native two-handed weapons with an empty offhand being rejected by held Toggle Weapon because runtime grip recognition incorrectly depended on the patched equipment classification.
+Made empty-offhand native two-handed weapons default deterministically to their native grip before explicit state initialization, keeping attack speed, damage, poise, and force completely vanilla in that grip.
+Applied Strength-scaled penalties only when the authoritative effective grip is one-handed, and reused that state for animations, combat FSMs, blocking, input, and the hand-suppression API.
+Reset explicit grip selection to the correct default when the opposite-hand pairing changes.
+Expanded Diagnostics with effective versus explicit grip state, supported-family status, Strength eligibility, and current Strength ratio.
+
+Version 0.1.6
+Reorganized the generated config into clearly separated Two-Handed Weapons in One Hand, One-Handed Weapons in Two Hands, Grip Switching, and Diagnostics sections.
+Replaced directionally ambiguous setting names with contextual names such as DamageAtMinimumStrength, DamageAtFullPotency, and DamageMultiplier.
+Expanded setting descriptions with plain-language grip context and examples translating multipliers into percentages.
+Incremented the config schema because settings were renamed and moved into the new directional sections; the old config is backed up, current defaults are regenerated, and exact compatible settings remain eligible for recovery.
+
+Version 0.1.5
+Lowered the default Strength threshold for using a supported native two-handed weapon in one hand from 2x to 1.5x its normal requirement.
+Added continuous Strength scaling from the one-handed threshold through 2x Strength: defaults rise from 85 to 100 percent damage, 50 to 70 percent attack speed, 70 to 90 percent poise, and 75 to 95 percent force.
+Added configurable full-potency Strength and minimum and maximum multipliers for every scaled one-handed two-handed-weapon property; benefits cap at the configured full-potency threshold.
+Incremented the config schema because RequiredStrengthMultiplier changed default and the fixed one-handed two-handed-weapon speed, poise, and force settings were replaced by Strength-scaled ranges; the old config is backed up, current defaults are regenerated, and compatible customized settings remain eligible for recovery.
+
+Version 0.1.4
+Extended grip switching to native one-handed and two-handed spears, and extended converted two-handed one-hand support to axes and hammers using verified first-person and third-person controller families.
+Corrected two-handed hammer grips to use the controller set referenced by the game's live hammer prefab.
+Restricted automatic one-handed conversion and grip switching to swords, axes, hammers or other blunt weapons, and spears or other polearms; daggers, rods, staves, tools, bows, and other ranged weapons remain unchanged.
+Incremented the config schema because AllowOneHandedTools was removed when tools were excluded from the supported weapon families; the old config is backed up, current defaults are regenerated, and compatible customized settings remain eligible for recovery.
+
+Version 0.1.3
+Added two-handed grip switching for native one-handed axes and blunt weapons using the game's verified two-handed axe and hammer animation profiles in first person and the matching third-person profiles.
+Changed the default two-handed attack-animation speed for native one-handed weapons from 90 to 120 percent and the default one-handed attack-animation speed for native two-handed weapons from 90 to 65 percent.
+Incremented the config schema because both stance attack-speed defaults changed; the old config is backed up, current defaults are regenerated, and compatible customized settings remain eligible for recovery.
+Generalized paired-hand hiding to include spell hands, disabled the suppressed magic combat state, and blocked new casts until the weapon returns to a one-handed grip.
+Added a public hand-suppression API for integrations and Blood Magic Expansion 2.6.9 compatibility with offhand blood-spell lights and cast tracking.
+Promoted Versatile Weapons to the standalone replacement for Dual Two-Handed and KS Dual Two-Handed Addon while retaining hard incompatibility guards against both older plugins.
+
+Version 0.1.2
+Added grip switching for converted native two-handed swords with an empty opposite hand. They default to their native two-handed grip and can switch to one-handed sword animations without requiring a shield.
+Added a drawn-weapon visibility watchdog that restores a supported sword if an interrupted draw leaves it hidden after weapon loading and Hero actions have settled.
+Added a four-second recovery timeout for ordered sword-and-shield animator reloads so an interrupted controller transition cannot wait indefinitely with either model hidden.
+Expanded Diagnostics with input claiming, hold completion, grip, pairing, perspective, visibility, animator-loading, and ordered-reload stage details.
+Changed failed or unsafe grip holds to forward the normal sheathe or draw action on release, matching the established tap-or-hold fallback behavior.
+
+Version 0.1.1
+Added grip switching for native one-handed swords in the main hand, using verified first-person and third-person two-handed sword controllers while stowing the offhand item.
+Added a configurable 150 percent melee-damage bonus, 90 percent attack-animation speed, 120 percent poise damage, and 110 percent force damage for native one-handed swords used with both hands.
+Added configurable 90 percent attack-animation speed, 85 percent poise damage, and 90 percent force damage for native two-handed melee weapons used in one hand while retaining their native per-hit damage.
+Kept native two-handed weapons completely unchanged while they use their proper two-handed grip.
+Routed blocking to the gripped sword while two-handing so a hidden shield cannot provide block stats or the blocking weapon.
+
+Version 0.1.0
+Added standalone, Strength-gated one-handed equipping for native two-handed melee weapons, including the original tool exclusion option.
+Added the proven one-handed sword and shield controllers, FSM reconciliation, perspective handling, and direct-loadout-switch recovery for converted native two-handed swords.
+Added a hold Toggle Weapon grip change for a drawn converted greatsword and shield: two-handed grip stows the shield and restores native greatsword animations, while another hold restores one-handed grip and the shield.
+Kept short Toggle Weapon presses assigned to the game's normal sheathe and draw behavior.
+Retained each weapon's native damage, stamina costs, requirements, and proficiency family.

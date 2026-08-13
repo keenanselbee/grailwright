@@ -1,0 +1,4 @@
+TargetVersion=0.4.0
+BaselineVersion=0.3.9
+Added two enabled-by-default Reverse Hands compatibility settings that keep normal hand input while a paired spell is stowed by a two-handed grip and whenever exactly one spell is equipped.
+Kept the game's Reverse Hands option as the master switch; two-spell loadouts can still use reversed input.

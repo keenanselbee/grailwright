@@ -34,6 +34,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Steel and Bone](mods/SteelAndBone) | 3.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.1.7 | Unpublished |
 | [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |
 | [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
 
 ## Layout

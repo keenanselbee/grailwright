@@ -1,0 +1,1 @@
+Switch between one-handed and two-handed grips for supported weapons. Wield 2H weapons in one hand, with handling improving to full potency at 2x the strength requirement, or brace one-handed weapons with both hands for harder hits.

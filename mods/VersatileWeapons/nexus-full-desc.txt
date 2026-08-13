@@ -1,0 +1,201 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][color=#C94A4A][size=6]Versatile Weapons - Dynamic Grip[/size][/color]
+[i]Change your grip. Turn strength into versatility. Adapt to whatever the fight demands.[/i][/center]
+
+[line]
+
+[b]Versatile Weapons - Dynamic Grip[/b] lets supported melee weapons move naturally between one-handed and two-handed use.
+
+Characters who meet a weapon's normal requirements can wield native two-handed swords, axes, hammers, and spears in one hand, with handling that improves as Strength rises. Native one-handed weapons from the same families can be gripped with both hands for stronger, faster attacks. Hold the normal Toggle Weapon action to change grip; tap it to sheathe or draw as usual.
+
+Each weapon keeps its native requirements, stamina behavior, enchantments, and effects that explicitly require a particular weapon type. By default, the active grip selects One-Handed or Two-Handed proficiency damage scaling and XP. Proper native grips remain unchanged.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*][b]Dynamic grip switching:[/b] Hold Toggle Weapon to change grip; tap it to sheathe or draw normally.[/*]
+[*][b]Strength-scaled greatweapons:[/b] Wield a supported two-handed weapon in one hand as soon as you meet its normal Strength requirement, but expect slow, unwieldy handling at first. Its handling improves continuously with Strength and reaches the configured maximum at 2x the requirement by default.[/*]
+[*][b]Two-handed power:[/b] Grip native one-handed weapons with both hands for greater damage, speed, poise, and force.[/*]
+[*][b]Complete animation support:[/b] Matching sword, axe, hammer, and spear animations keep weapons and offhands synchronized across grip, equipment, loadout, and perspective changes.[/*]
+[*][b]True offhand suspension:[/b] Shields, weapons, and spells become hidden and inactive while both hands hold the main weapon, then return with the one-handed grip.[/*]
+[*][b]Sensible spell-hand controls:[/b] Optional defaults keep normal hand input for one-spell loadouts and while a two-handed grip stows its paired spell, while leaving the game's Reverse Hands option in control of two-spell loadouts.[/*]
+[*][b]Grip-based proficiency:[/b] One-handed grips use One-Handed proficiency and earn One-Handed XP; two-handed grips use Two-Handed proficiency and earn Two-Handed XP. Native requirements, stamina costs, enchantments, and weapon effects remain unchanged. Optional alignment and reach settings refine shorter weapons.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Supported Weapons[/size][/color][/heading]
+
+Both grip directions support:
+[list]
+[*]Swords.[/*]
+[*]Axes.[/*]
+[*]Hammers and other blunt weapons.[/*]
+[*]Spears and other polearms.[/*]
+[/list]
+
+Daggers, rods, staves, tools, bows, and other ranged weapons are intentionally unchanged.
+
+Converted native two-handed weapons support a shield or an empty opposite hand. Native one-handed weapons can enter the two-handed grip with a shield, melee weapon, spell, or empty offhand; any equipped offhand is suspended until the one-handed grip returns.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Grip Behavior[/size][/color][/heading]
+
+[b]Native two-handed weapon with a shield[/b]
+[list]
+[*]Defaults to the matching one-handed animation profile with the shield available.[/*]
+[*]Hold Toggle Weapon to restore the weapon's native two-handed grip and stow the shield.[/*]
+[*]Hold again to return to one-handed use and restore the shield.[/*]
+[/list]
+
+[b]Native two-handed weapon with an empty opposite hand[/b]
+[list]
+[*]Defaults to its native two-handed grip.[/*]
+[*]Hold Toggle Weapon to use the matching one-handed profile without equipping an offhand item.[/*]
+[*]Hold again to restore its native two-handed grip.[/*]
+[/list]
+
+[b]Native one-handed weapon[/b]
+[list]
+[*]Defaults to its ordinary one-handed behavior.[/*]
+[*]Hold Toggle Weapon to use both hands and suspend the equipped offhand.[/*]
+[*]Hold again to restore the native one-handed grip and offhand.[/*]
+[/list]
+
+Grip changes are rejected during unsafe action states such as attacks, interactions, loading, or paused play. If a held change cannot complete, releasing the action falls back to the normal sheathe or draw behavior.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Two-Handed Weapons in a One-Handed Grip[/size][/color][/heading]
+
+Supported native two-handed weapons can be equipped in one hand as soon as you meet the game's normal weapon requirements. Wielding one at its normal Strength requirement carries steep one-handed penalties: 75 percent damage, 50 percent attack speed, 60 percent poise, and 65 percent force.
+
+These penalties ease continuously as Strength rises. At 2x the requirement by default, the damage and force penalties are gone, poise is nearly restored, and attack speed reaches 75 percent.
+
+[code]| Strength vs. Requirement | Damage | Attack Speed | Poise | Force |
+|--------------------------|--------|--------------|-------|-------|
+| 1x                       | 75%    | 50%          | 60%   | 65%   |
+| 1.5x                     | 87.5%  | 62.5%        | 77.5% | 82.5% |
+| 2x or higher             | 100%   | 75%          | 95%   | 100%  |[/code]
+
+Values between these points interpolate continuously. Once a native two-handed weapon held in one hand reaches the full-potency threshold, its Versatile Weapons penalties improve no further, but the game's normal Strength-based damage scaling continues. Returning to its proper two-handed grip restores completely vanilla combat values.
+
+[line]
+
+[heading][color=#C94A4A][size=5]One-Handed Weapons in a Two-Handed Grip[/size][/color][/heading]
+
+A supported native one-handed weapon used with both hands has fixed defaults of 150 percent damage, 120 percent attack-animation speed, 120 percent poise damage, and 110 percent force. Native one-handed axes, maces, and other blunt weapons also receive 150 percent forward melee hit-detection range by default without resizing or moving the visible weapon. With grip-based proficiency enabled, it uses Two-Handed proficiency damage scaling and earns Two-Handed XP.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+
+The generated config is organized by grip direction so each multiplier has an unambiguous context:
+
+[code]
+BepInEx/config/ks.tgfoa.versatile-weapons.cfg[/code]
+
+[b]1. General[/b]
+
+[b]Enabled = true[/b] is the master switch.
+
+[b]2. Native Two-Handed Weapon - One-Handed Grip[/b]
+
+[list]
+[*][b]FullPotencyStrengthMultiplier = 2[/b] sets where the maximum combat values apply and scaling stops.[/*]
+[*][b]DamageAtWeaponRequirement, AttackSpeedAtWeaponRequirement, PoiseAtWeaponRequirement, and ForceAtWeaponRequirement[/b] set the lower endpoints at the weapon's normal requirement.[/*]
+[*][b]The matching AtFullPotency settings[/b] set the upper endpoints. Defaults match the Strength table above.[/*]
+[/list]
+
+[b]3. Native One-Handed Weapon - Two-Handed Grip[/b]
+
+[list]
+[*][b]DamageMultiplier = 1.5[/b] gives 150 percent melee damage.[/*]
+[*][b]AttackSpeedMultiplier = 1.2[/b] gives 120 percent attack-animation speed.[/*]
+[*][b]PoiseMultiplier = 1.2[/b] gives 120 percent poise damage.[/*]
+[*][b]ForceMultiplier = 1.1[/b] gives 110 percent impact force.[/*]
+[*][b]AxeMeleeRangeMultiplier = 1.5[/b] gives native one-handed axes 150 percent melee hit-detection range while used with both hands.[/*]
+[*][b]MaceMeleeRangeMultiplier = 1.5[/b] gives native one-handed maces and other blunt weapons 150 percent melee hit-detection range while used with both hands.[/*]
+[/list]
+
+[b]4. Grip Switching[/b]
+
+[b]GripHoldSeconds = 0.45[/b] sets how long Toggle Weapon must be held to change grip.
+
+[b]ProficiencyFollowsGrip = true[/b] makes one-handed grips use and advance One-Handed proficiency and two-handed grips use and advance Two-Handed proficiency. Requirements, stamina costs, and effects that explicitly require a particular weapon type remain native.
+
+[b]5. Advanced First-Person Alignment[/b]
+
+[b]OneHandedSwordPositionY = 0.02[/b], [b]OneHandedMacePositionY = -0.35[/b], and [b]OneHandedAxePositionY = -0.35[/b] separately adjust those native one-handed weapon families along their local Y axes while used with both hands in first person. Set any value to 0 to disable that family's correction. Third person and every other grip or weapon family remain unchanged.
+
+[b]6. Diagnostics[/b] contains a separate [b]Enabled[/b] toggle for detailed grip, pairing, visibility, animator, input, and recovery logging. [b]StrengthTestMode = Actual[/b] can temporarily simulate [b]WeaponRequirement[/b] or [b]FullPotency[/b] for native two-handed weapons used in one hand without changing character Strength or save data. [b]ShowGrailFloatingTextDiagnostics = true[/b] is the subordinate switch for every VW System message, including completed grip changes, recognition, blocked-transition, pairing, and recovery summaries. It remains inactive while Diagnostics is disabled.
+
+[b]7. Reverse Hands Compatibility[/b]
+
+[list]
+[*][b]TwoHandedGripUsesNormalHands = true[/b] restores normal hand input while a supported weapon uses both hands and its paired spell is stowed.[/*]
+[*][b]SingleSpellUsesNormalHands = true[/b] restores normal hand input whenever exactly one equipped hand is a spell, leaving reversed input available for two-spell loadouts.[/*]
+[/list]
+
+Both settings are exceptions beneath the game's own [b]Reverse Hands[/b] option. They do nothing when that vanilla option is disabled, and either exception can be disabled independently.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+
+Install with Vortex as a [b]BepInEx plugin[/b], or place the included folder at:
+
+[code]
+BepInEx/plugins/VersatileWeapons/VersatileWeapons.dll[/code]
+
+Remove or disable Dual Two-Handed before starting the game.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+
+Incompatible config updates create a backup and generate current defaults. Some supported settings are automatically carried over.
+
+FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
+[*][b]BepInEx 5 for the Mono build[/b].[/*]
+[*]Supports Windows and Linux.[/*]
+[/list]
+
+This plugin uses the game's managed Mono assemblies. It is not compatible with the normal public IL2CPP branch or an IL2CPP BepInEx installation.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/59]Dual Two-Handed[/url] is incompatible.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.7.2 or newer suspends a hidden blood spell's presentation, casting, held state, and relevant-spell UI feedback while a weapon uses both hands.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234]Killing Blow Mastery[/url] 1.6.3 or newer awards killing-blow proficiency, notification identity, icons, and finisher sounds from the current grip.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] 3.3.2 or newer ignores passive shield protection while that shield is hidden by a two-handed grip, then restores it with the active hand.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show grip changes and important recovery messages in-game. Full diagnostics remain in the BepInEx log.[/*]
+[/list]
+
+VersatileWeaponsApi v2 exposes suppressed-hand state, current two-handed grip state, and effective One-Handed or Two-Handed proficiency. Compatible mods can follow the active grip without duplicating equipment or animation inference.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
+[list]
+[*][b]A two-handed weapon cannot occupy one hand:[/b] Confirm that the game allows it to be equipped and that it is a supported sword, axe, hammer, or spear.[/*]
+[*][b]Holding Toggle Weapon sheathes the weapon:[/b] Draw a supported weapon first and hold until GripHoldSeconds is reached. Unsafe combat or interaction states reject the grip change and retain normal sheathe behavior.[/*]
+[*][b]An offhand mod remains active while hidden:[/b] That mod may need to consume the Versatile Weapons hand-suppression API.[/*]
+[*][b]A transition remains incorrect:[/b] Enable Diagnostics, reproduce it once, and share the newest BepInEx log with the weapon family, grip direction, perspective, and offhand pairing used.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Version Safety[/size][/color][/heading]
+
+Versatile Weapons uses specific game equipment, animator-controller, combat-FSM, and input internals from the Mono build. A later game update may change those systems or their controller addresses. After a game update, keep backups and disable the mod if supported weapons begin using incorrect animations, disappear, or enter a T-pose.

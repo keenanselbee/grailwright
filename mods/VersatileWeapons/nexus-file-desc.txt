@@ -1,0 +1,1 @@
+Dynamic grips and Strength-scaled handling for supported weapons.

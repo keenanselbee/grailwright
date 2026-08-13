@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Ultrawide Fixes[/size][/color]
 [i]Cleaner title and loading screens for wider displays.[/i][/center]
 
@@ -7,6 +7,8 @@
 [b]Ultrawide Fixes[/b] improves the title-screen and loading-screen presentation in [b]Tainted Grail: The Fall of Avalon[/b] on wider displays. It patches the title video, title-screen black bars, loading background, and loading blur background at runtime.
 
 By default, the plugin fills your current screen aspect to reduce leftover side bars. It uses configurable crop/stretch behavior because the original title video and loading paintings are native 16:9-style assets; the mod cannot reveal real extra artwork that is not present in the source image.
+
+[line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]

@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]King's Elegy - Main Menu Music[/size][/color]
 [i]Layered, configurable title-screen music with fire, wind, and custom WAV support.[/i][/center]
 
@@ -9,6 +9,8 @@
 By default, it now builds a layered version of the Tainted Grail title music from separate music, fire, and wind WAV files. The main music layer is lowered and treated with a subtle demonic FMOD DSP chain, while the fire and wind ambience stay unpitched so they keep their natural crackle and movement.
 
 [b]main_menu_music.wav[/b] is included as a small silent placeholder for the raw custom-track option. Replace it with your own WAV if you use [b]MusicMode = CustomFile[/b]. CustomFile still uses loop start, end trim, and crossfade settings, but it is not affected by pitch, demonic effects, fire ambience, wind ambience, or layered title music settings.
+
+[line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]

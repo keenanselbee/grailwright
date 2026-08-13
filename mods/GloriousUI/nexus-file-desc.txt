@@ -1,1 +1,1 @@
-Centered HUD, sensible rest menu, and expanded Equipment and quick-use controls.
+Interface overhaul covering HUD placement, rest scheduling, Equipment workflows, and six customizable quick-use loadouts.

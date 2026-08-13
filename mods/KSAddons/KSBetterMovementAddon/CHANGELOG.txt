@@ -1,3 +1,9 @@
+Version 0.1.6
+Changed the FoA Mod Manager config-menu title to BetterMovement Addon so it groups with the parent mod.
+
+Version 0.1.5
+Removed the KS prefix from the FoA Mod Manager config-menu title.
+
 Version 0.1.4
 Raised ConfigSchemaVersion from 1 to 2 because the default Volume changed from 0.45 to 0.40; untouched old defaults now regenerate at 0.40 while compatible customized settings remain eligible for conservative recovery.
 

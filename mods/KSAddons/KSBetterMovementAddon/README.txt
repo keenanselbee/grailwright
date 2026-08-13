@@ -1,4 +1,4 @@
-KS Better Movement Addon 0.1.4
+KS Better Movement Addon 0.1.6
 
 Adds terrain-aware sliding sounds to Better Movement 1.3.0. Slide audio begins with the game's slide, follows long downhill slides, changes when the player crosses onto another surface, and fades when sliding ends or is cancelled.
 

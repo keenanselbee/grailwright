@@ -13,8 +13,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Terrain-aware slide audio companion for Better Movement")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Better Movement Addon")]
-[assembly: AssemblyVersion("0.1.4.0")]
-[assembly: AssemblyFileVersion("0.1.4.0")]
+[assembly: AssemblyVersion("0.1.6.0")]
+[assembly: AssemblyFileVersion("0.1.6.0")]
 
 namespace Keenan.TGFoA.BetterMovementAddon
 {
@@ -24,8 +24,8 @@ namespace Keenan.TGFoA.BetterMovementAddon
     public sealed class BetterMovementAddonPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.better-movement-addon";
-        public const string PluginName = "KS Better Movement Addon";
-        public const string PluginVersion = "0.1.4";
+        public const string PluginName = "BetterMovement Addon";
+        public const string PluginVersion = "0.1.6";
         public const string ParentPluginGuid = "BetterMovement";
 
         private const int ConfigSchemaVersion = 2;

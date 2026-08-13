@@ -145,7 +145,7 @@ The marker uses the same final color and duration information as the damage-numb
 [list]
 [*]Player and hostile arrows travel at x1.10 / x1.30 / x1.50 speed by preset.[/*]
 [*]Player arrows use x0.75 gravity by default on every preset. The value is independently configurable from x0.25 to x1.00 and never tilts the launch direction.[/*]
-[*]Hostile archers receive 0.75 / 0.50 / 0.25 meters of minimum native aim-point scatter by preset. The single value remains adjustable afterward, and 0 restores native accuracy.[/*]
+[*]Hostile archers receive 1.50 / 1.25 / 1.00 meters of minimum native aim-point scatter by preset. The single value remains adjustable afterward, and 0 restores native accuracy.[/*]
 [*]Hostile scatter and velocity are applied before native movement prediction and ballistic aiming. Larger authored scatter is preserved.[/*]
 [*]Direct player arrows receive a material matchup on their physical share; hostile arrow damage remains native.[/*]
 [*]Native gravity, projectile offsets, collision, draw-strength scaling, elemental payloads, and bow animations remain unchanged.[/*]
@@ -208,7 +208,7 @@ Effective Block includes the game's normal requirement penalty. Rear attacks, di
 | Added weak-spot base damage     | +10%     | +20%        | +30%        |
 | Player and hostile arrow speed  | x1.10    | x1.30       | x1.50       |
 | Player arrow gravity            | x0.75    | x0.75       | x0.75       |
-| Hostile archer aim scatter      | 0.75 m   | 0.50 m      | 0.25 m      |
+| Hostile archer aim scatter      | 1.50 m   | 1.25 m      | 1.00 m      |
 | Hostile enemy sight distance    | x1.10    | x1.30       | x1.50       |
 | Hero footstep hearing range     | x1.10    | x1.20       | x1.30       |
 | Native combat aggro persistence | x1.00    | x1.10       | x1.20       |

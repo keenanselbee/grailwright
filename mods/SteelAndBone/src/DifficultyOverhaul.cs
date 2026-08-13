@@ -279,7 +279,7 @@ namespace SteelAndBone
                 "HostileArcherAimScatter",
                 GetPresetHostileArcherAimScatter(_preset.Value),
                 ConfigUi(
-                    "Minimum random aim-point scatter in meters for hostile NPC arrows when Difficulty Modifiers is enabled. Changing Preset sets this to 0.75 for Tempered, 0.50 for Hardened, or 0.25 for Crucible; customize it afterward or set it to 0 for native accuracy.",
+                    "Minimum random aim-point scatter in meters for hostile NPC arrows when Difficulty Modifiers is enabled. Changing Preset sets this to 1.50 for Tempered, 1.25 for Hardened, or 1.00 for Crucible; customize it afterward or set it to 0 for native accuracy.",
                     "Difficulty - Enemies",
                     "Hostile Archer Aim Scatter (Meters)",
                     70,
@@ -694,12 +694,12 @@ namespace SteelAndBone
             switch (preset)
             {
                 case Preset.Tempered:
-                    return 0.75f;
+                    return 1.50f;
                 case Preset.Crucible:
-                    return 0.25f;
+                    return 1.00f;
                 case Preset.Hardened:
                 default:
-                    return 0.50f;
+                    return 1.25f;
             }
         }
 

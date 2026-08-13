@@ -1,4 +1,5 @@
-TargetVersion=3.4.4
+TargetVersion=3.4.5
 BaselineVersion=3.4.3
-Added preset-scaled hostile archer aim scatter: 0.75 meters on Tempered, 0.50 meters on Hardened, and 0.25 meters on Crucible, with a freely adjustable setting and 0 restoring native accuracy.
+Added preset-scaled hostile archer aim scatter: 1.50 meters on Tempered, 1.25 meters on Hardened, and 1.00 meter on Crucible, with a freely adjustable setting and 0 restoring native accuracy.
 Applied scatter through the game's native target-point inaccuracy before movement prediction and ballistic solving while preserving larger authored scatter, native gravity, arrow damage, and non-hostile projectiles.
+Regenerated configuration defaults for the stronger preset scatter values while preserving compatible customized settings.

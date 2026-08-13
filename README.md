@@ -34,7 +34,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
-| [Steel and Bone](mods/SteelAndBone) | 3.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
+| [Steel and Bone](mods/SteelAndBone) | 3.4.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
 | [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
 | [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |

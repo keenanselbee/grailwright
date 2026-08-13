@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 3.4.4.
+Current release: 3.4.5.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -14,7 +14,7 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Stamina and mana usage | 1.00 | 1.05 | 1.10 | Separate resource toggles |
 | Player and hostile arrow velocity | 1.10 | 1.30 | 1.50 | Separate projectile toggles |
 | Player arrow gravity | 0.75 | 0.75 | 0.75 | `ModifyPlayerArrowDrop` plus independent multiplier |
-| Hostile archer aim scatter (meters) | 0.75 | 0.50 | 0.25 | `HostileArcherAimScatter`; 0 restores native accuracy |
+| Hostile archer aim scatter (meters) | 1.50 | 1.25 | 1.00 | `HostileArcherAimScatter`; 0 restores native accuracy |
 | Hostile enemy sight distance | 1.10 | 1.30 | 1.50 | `ModifyEnemySightRange` |
 | Hero footstep hearing range | 1.10 | 1.20 | 1.30 | `ModifyEnemyHearingRange` |
 | Native combat aggro persistence | 1.00 | 1.10 | 1.20 | `ModifyEnemyAggroPersistence` |
@@ -129,4 +129,4 @@ Normal operation is silent. A confirmed overlap produces one short native notifi
 | Schema reset from a supported backup | Restore compatible customized values automatically, retain the current Preset default through its schema-16 meaning-change rule, skip removed settings, and clamp restored values to current ranges. |
 | Package | One top-level `SteelAndBone` folder with DLL and installed-user docs only. |
 
-Config schema is 18 because 3.4.0 changed the default and supported range of DamageOverTimeNumberHeightMultiplier. HostileArcherAimScatter is additive configuration and does not require a schema increment. The fixed recovery baseline remains 14.
+Config schema is 19 because 3.4.5 materially raised the preset defaults for HostileArcherAimScatter. Untouched old defaults regenerate at the stronger values while compatible custom values remain recoverable. The fixed recovery baseline remains 14.

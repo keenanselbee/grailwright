@@ -1,5 +1,5 @@
 Steel and Bone
-Version 3.4.4
+Version 3.4.5
 
 Platforms: Windows and Linux through Proton.
 
@@ -37,7 +37,7 @@ Crucible increases incoming health damage by 15%, reduces outgoing health damage
 
 PlayerArrowGravityMultiplier also remains independent from presets and defaults to 0.75, reducing player-arrow gravity by 25% on every preset without tilting the native launch direction.
 
-HostileArcherAimScatter changes to 0.75, 0.50, or 0.25 meters with Tempered, Hardened, or Crucible. It remains freely adjustable afterward, and 0 restores native accuracy.
+HostileArcherAimScatter changes to 1.50, 1.25, or 1.00 meters with Tempered, Hardened, or Crucible. It remains freely adjustable afterward, and 0 restores native accuracy.
 
 Every global modifier has its own control. Set WeakSpotDamageBonus=0 to disable only the added weak-spot reward, or set DifficultyModifiersEnabled=false to retain material combat and damage feedback while disabling the complete preset-driven layer.
 
@@ -83,7 +83,7 @@ EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true
 ModifyEnemyMovementSpeed = true
 ModifyHostileArrowVelocity = true
-HostileArcherAimScatter = 0.50
+HostileArcherAimScatter = 1.25
 ModifyEnemySightRange = true
 ModifyEnemyHearingRange = true
 ModifyEnemyAggroPersistence = true

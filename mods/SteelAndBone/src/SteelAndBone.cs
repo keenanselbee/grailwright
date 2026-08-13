@@ -30,9 +30,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.4.4.0")]
-[assembly: AssemblyFileVersion("3.4.4.0")]
-[assembly: AssemblyInformationalVersion("3.4.4")]
+[assembly: AssemblyVersion("3.4.5.0")]
+[assembly: AssemblyFileVersion("3.4.5.0")]
+[assembly: AssemblyInformationalVersion("3.4.5")]
 
 namespace SteelAndBone
 {
@@ -134,11 +134,11 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.4.4";
+        public const string PluginVersion = "3.4.5";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
-        private const int ConfigSchemaVersion = 18;
+        private const int ConfigSchemaVersion = 19;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =

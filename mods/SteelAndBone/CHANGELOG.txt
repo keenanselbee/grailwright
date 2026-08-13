@@ -1,3 +1,7 @@
+Version 3.4.5
+Raised HostileArcherAimScatter to 1.50 meters on Tempered, 1.25 meters on Hardened, and 1.00 meter on Crucible so hostile archers retain meaningful inaccuracy across every preset.
+Advanced ConfigSchemaVersion from 18 to 19 because HostileArcherAimScatter now has materially higher preset defaults; untouched old defaults receive the new values while compatible customized settings remain recoverable.
+
 Version 3.4.4
 Added HostileArcherAimScatter, set by Preset to 0.75 meters on Tempered, 0.50 meters on Hardened, or 0.25 meters on Crucible and freely adjustable afterward; 0 restores native accuracy.
 Applied hostile archer scatter through the game's native target-point inaccuracy before movement prediction and ballistic solving while preserving larger authored scatter, native gravity, arrow damage, and non-hostile projectiles.

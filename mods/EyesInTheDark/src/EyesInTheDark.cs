@@ -39,9 +39,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
-[assembly: AssemblyInformationalVersion("1.3.1")]
+[assembly: AssemblyVersion("1.3.4.0")]
+[assembly: AssemblyFileVersion("1.3.4.0")]
+[assembly: AssemblyInformationalVersion("1.3.4")]
 
 namespace EyesInTheDark
 {
@@ -91,6 +91,22 @@ namespace EyesInTheDark
         }
     }
 
+    public static class EyesInTheDarkCorpseDrainApi
+    {
+        public static int ContractVersion
+        {
+            get { return 1; }
+        }
+
+        public static bool TryRegisterCorpseDrain(float quality)
+        {
+            EyesInTheDarkPlugin plugin =
+                EyesInTheDarkPlugin.Instance;
+            return plugin != null
+                && plugin.TryRegisterCorpseDrain(quality);
+        }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
@@ -99,7 +115,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.3.1";
+        public const string PluginVersion = "1.3.4";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -194,6 +210,7 @@ namespace EyesInTheDark
         private const float DefaultCombatResponseSeconds = 1.5f;
         private const float DefaultWyrdKillThreat = 5.0f;
         private const float DefaultAcquisitionThreatPerItem = 0.75f;
+        private const float DefaultCorpseDrainThreatAtAverageQuality = 8.0f;
         private const float DefaultProtectedDecayPerMinute = 4.0f;
         private const float DefaultInteriorDecayPerMinute = 1.0f;
         private const float DefaultLoadReconstructionAtDawn = 8.0f;
@@ -319,6 +336,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _combatResponseSeconds;
         private ConfigEntry<float> _wyrdKillThreat;
         private ConfigEntry<float> _acquisitionThreatPerItem;
+        private ConfigEntry<float> _corpseDrainThreatAtAverageQuality;
         private ConfigEntry<float> _protectedDecayPerMinute;
         private ConfigEntry<float> _interiorDecayPerMinute;
         private ConfigEntry<float> _loadReconstructionAtDawn;
@@ -415,6 +433,7 @@ namespace EyesInTheDark
         private ConfigEntry<float> _battlecryResponseCooldownSeconds;
         private ConfigEntry<float> _diagnosticGftCooldownSeconds;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<bool> _enableThreatOverride;
         private ConfigEntry<float> _threatOverrideValue;
         private ConfigEntry<bool> _enableTimescaleOverride;
@@ -531,6 +550,7 @@ namespace EyesInTheDark
                     unchecked(Environment.TickCount * 1013));
                 _worldTimescale = new WorldTimescaleController(Logger);
                 PatchGame();
+                BindGftBuiltInEventClaims();
                 _wasFeatureEnabled = IsFeatureEnabled();
                 Logger.LogInfo(
                     PluginName
@@ -680,6 +700,7 @@ namespace EyesInTheDark
                 _gameplayPreset.SettingChanged -=
                     OnGameplayPresetChanged;
             }
+            UnbindGftBuiltInEventClaims();
             DisposeGameListeners();
             if (_worldTimescale != null)
             {
@@ -1018,6 +1039,45 @@ namespace EyesInTheDark
                     CultureInfo.InvariantCulture)
                 + "; recentCry="
                 + _recentBattlecryCount.ToString(
+                    CultureInfo.InvariantCulture)
+                + ".");
+            return true;
+        }
+
+        internal bool TryRegisterCorpseDrain(float quality)
+        {
+            if (!IsFeatureEnabled()
+                || !_hasContext
+                || !IsKnownValidWyrdNight(_currentContext)
+                || _currentContext.IsPaused
+                || !_threat.CanAcceptActivity)
+            {
+                LogDiagnostic(
+                    "Corpse drain ignored because the hero was not exposed during an active Wyrdnight.");
+                return false;
+            }
+
+            float appliedThreat = ThreatState.CalculateCorpseDrainThreat(
+                ValueOrDefault(
+                    _corpseDrainThreatAtAverageQuality,
+                    DefaultCorpseDrainThreatAtAverageQuality),
+                quality);
+            if (appliedThreat <= 0f)
+            {
+                LogDiagnostic(
+                    "Corpse drain ignored because its quality or configured threat was invalid.");
+                return false;
+            }
+
+            ApplyActivity(appliedThreat, ThreatChangeCause.CorpseDrain);
+            LogDiagnostic(
+                "Corpse drain accepted: quality="
+                + Math.Max(0f, Math.Min(1f, quality)).ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + "; requestedThreat="
+                + appliedThreat.ToString(
+                    "0.###",
                     CultureInfo.InvariantCulture)
                 + ".");
             return true;
@@ -3098,6 +3158,77 @@ namespace EyesInTheDark
             }
         }
 
+        private void BindGftBuiltInEventClaims()
+        {
+            if (_featureEnabled != null)
+            {
+                _featureEnabled.SettingChanged +=
+                    OnGftNotificationOwnershipChanged;
+            }
+            if (_gftEnabled != null)
+            {
+                _gftEnabled.SettingChanged +=
+                    OnGftNotificationOwnershipChanged;
+            }
+            if (_gftPreset != null)
+            {
+                _gftPreset.SettingChanged +=
+                    OnGftNotificationOwnershipChanged;
+            }
+
+            RefreshGftBuiltInEventClaims();
+        }
+
+        private void UnbindGftBuiltInEventClaims()
+        {
+            if (_featureEnabled != null)
+            {
+                _featureEnabled.SettingChanged -=
+                    OnGftNotificationOwnershipChanged;
+            }
+            if (_gftEnabled != null)
+            {
+                _gftEnabled.SettingChanged -=
+                    OnGftNotificationOwnershipChanged;
+            }
+            if (_gftPreset != null)
+            {
+                _gftPreset.SettingChanged -=
+                    OnGftNotificationOwnershipChanged;
+            }
+        }
+
+        private void OnGftNotificationOwnershipChanged(
+            object sender,
+            EventArgs args)
+        {
+            RefreshGftBuiltInEventClaims();
+        }
+
+        private void RefreshGftBuiltInEventClaims()
+        {
+            if (_gft == null)
+            {
+                return;
+            }
+
+            GftNotificationPreset preset = _gftPreset == null
+                ? GftNotificationPreset.Atmospheric
+                : _gftPreset.Value;
+            bool ownsNightTransitions = IsFeatureEnabled()
+                && _gftEnabled != null
+                && _gftEnabled.Value
+                && AtmospherePolicy.ShouldNotify(
+                    preset,
+                    AtmosphereEventKind.NightBegin)
+                && AtmospherePolicy.ShouldNotify(
+                    preset,
+                    AtmosphereEventKind.NightEnd);
+            _gft.TrySetBuiltInEventClaim(
+                "vanilla-wyrd-night",
+                ownsNightTransitions);
+        }
+
         private WyrdnessPalette CurrentWyrdnessPalette()
         {
             return _wyrdnessPalette == null
@@ -3162,6 +3293,8 @@ namespace EyesInTheDark
             if (_gft == null
                 || _diagnostics == null
                 || !_diagnostics.Value
+                || _showGrailFloatingTextDiagnostics == null
+                || !_showGrailFloatingTextDiagnostics.Value
                 || !CanShowGameplayDiagnostic())
             {
                 return;
@@ -4792,6 +4925,8 @@ namespace EyesInTheDark
                     return "movement";
                 case ThreatChangeCause.WyrdKill:
                     return "Wyrd kill";
+                case ThreatChangeCause.CorpseDrain:
+                    return "corpse drain";
                 case ThreatChangeCause.Battlecry:
                     return "battlecry";
                 case ThreatChangeCause.DiagnosticOverride:
@@ -4841,6 +4976,7 @@ namespace EyesInTheDark
                         _sprintThreatPerMinute.Value = 3f;
                         _combatThreatPerWindow.Value = 1.5f;
                         _wyrdKillThreat.Value = 3f;
+                        _corpseDrainThreatAtAverageQuality.Value = 6f;
                         _baseDangerBudget.Value = 22f;
                         _longNightBonusScale.Value = 0.25f;
                         _maximumLongNightBonus.Value = 0.5f;
@@ -4874,6 +5010,8 @@ namespace EyesInTheDark
                             DefaultCombatThreatPerWindow;
                         _wyrdKillThreat.Value =
                             DefaultWyrdKillThreat;
+                        _corpseDrainThreatAtAverageQuality.Value =
+                            DefaultCorpseDrainThreatAtAverageQuality;
                         _baseDangerBudget.Value =
                             DefaultBaseDangerBudget;
                         _longNightBonusScale.Value =
@@ -4921,6 +5059,7 @@ namespace EyesInTheDark
                         _sprintThreatPerMinute.Value = 5.5f;
                         _combatThreatPerWindow.Value = 3f;
                         _wyrdKillThreat.Value = 7f;
+                        _corpseDrainThreatAtAverageQuality.Value = 11f;
                         _baseDangerBudget.Value = 42f;
                         _longNightBonusScale.Value = 0.45f;
                         _maximumLongNightBonus.Value = 1f;
@@ -5188,6 +5327,16 @@ namespace EyesInTheDark
                 "Item Acquisition Threat",
                 200,
                 60);
+            _corpseDrainThreatAtAverageQuality = BindThreatValue(
+                "CorpseDrainThreatAtAverageQuality",
+                DefaultCorpseDrainThreatAtAverageQuality,
+                0f,
+                40f,
+                "Threat from a successful Blood Magic Expansion corpse ritual at 0.5 quality. Actual threat scales linearly from 0.5x at zero quality to 1.5x at maximum quality and follows normal exposed-activity rules.",
+                "Advanced - Threat Tuning",
+                "Corpse Drain Threat at Average Quality",
+                200,
+                65);
             _protectedDecayPerMinute = BindThreatValue(
                 "ProtectedDecayPerMinute",
                 DefaultProtectedDecayPerMinute,
@@ -6089,6 +6238,13 @@ namespace EyesInTheDark
                 UiDescription(
                     "Log accepted and rejected threat inputs, pacing, and presentation details. When GFT is available, also show concise low-priority System summaries of meaningful behind-the-scenes state changes.",
                     "Advanced - Diagnostics", "Enable Diagnostics", 270, 10));
+            _showGrailFloatingTextDiagnostics = Config.Bind(
+                "10. Diagnostics",
+                "ShowGrailFloatingTextDiagnostics",
+                true,
+                UiDescription(
+                    "When Diagnostics is enabled and Grail Floating Text is available, show concise low-priority System summaries. Detailed BepInEx logging remains active when this is disabled.",
+                    "Advanced - Diagnostics", "Show Grail Floating Text Diagnostics", 270, 15));
             _enableThreatOverride = Config.Bind(
                 "10. Diagnostics",
                 "EnableThreatOverride",
@@ -6318,6 +6474,7 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "CombatResponseSeconds");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "WyrdKillThreat");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "AcquisitionThreatPerItem");
+            CapturePreservedValue<float>(profile, "3. Wyrd Threat", "CorpseDrainThreatAtAverageQuality");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "ProtectedDecayPerMinute");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "InteriorDecayPerMinute");
             CapturePreservedValue<float>(profile, "3. Wyrd Threat", "LoadReconstructionAtDawn");
@@ -6413,6 +6570,7 @@ namespace EyesInTheDark
             CapturePreservedValue<float>(profile, "9. Grail Floating Text", "BattlecryResponseCooldownSeconds");
             CapturePreservedValue<float>(profile, "10. Diagnostics", "GftSystemCooldownSeconds");
             CapturePreservedValue<bool>(profile, "10. Diagnostics", "Diagnostics");
+            CapturePreservedValue<bool>(profile, "10. Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
 
         private void CapturePreservedValue<T>(
@@ -6456,6 +6614,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_combatResponseSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_wyrdKillThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_acquisitionThreatPerItem, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_corpseDrainThreatAtAverageQuality, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_protectedDecayPerMinute, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_interiorDecayPerMinute, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_loadReconstructionAtDawn, ref restored, ref clamped, ref invalid);
@@ -6539,6 +6698,7 @@ namespace EyesInTheDark
             RestorePreservedValue(_battlecryResponseCooldownSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_diagnosticGftCooldownSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_diagnostics, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_showGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
 
             Logger.LogInfo(
                 "Preserved "

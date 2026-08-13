@@ -15,6 +15,7 @@ namespace EyesInTheDark
             TestInteriorExitGraceAndDawnReset();
             TestSuppressedProgressDoesNotCatchUp();
             TestStages();
+            TestCorpseDrainThreatScaling();
             TestDiagnosticThreatOverride();
             TestSourceThrottlesAndRepeatProtection();
         }
@@ -119,6 +120,22 @@ namespace EyesInTheDark
             Ensure(ThreatState.GetStage(50f) == ThreatStage.Hunted, "hunted lower bound");
             Ensure(ThreatState.GetStage(75f) == ThreatStage.Marked, "marked lower bound");
             Ensure(ThreatState.GetStage(100f) == ThreatStage.Marked, "marked upper bound");
+        }
+
+        private static void TestCorpseDrainThreatScaling()
+        {
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, 0f), 4f, 0.001f,
+                "zero-quality corpse drain threat");
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, 0.5f), 8f, 0.001f,
+                "average-quality corpse drain threat");
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, 1f), 12f, 0.001f,
+                "maximum-quality corpse drain threat");
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, -1f), 4f, 0.001f,
+                "corpse quality lower clamp");
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, 2f), 12f, 0.001f,
+                "corpse quality upper clamp");
+            EnsureNear(ThreatState.CalculateCorpseDrainThreat(8f, float.NaN), 0f, 0.001f,
+                "invalid corpse quality rejection");
         }
 
         private static void TestSuppressedProgressDoesNotCatchUp()

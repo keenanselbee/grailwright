@@ -1,1 +1,1 @@
-A dynamic world clock and Wyrd Threat drive stalkers, regional hunts, protected rest, and escalating visuals.
+Makes Wyrdnights respond to player activity through timed darkness, regional pursuit, safe-rest rules, and escalating presentation.

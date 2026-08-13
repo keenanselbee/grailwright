@@ -1,14 +1,15 @@
-# Eyes in the Dark 1.3.1 in-game matrix
+# Eyes in the Dark 1.3.2 in-game matrix
 
 Candidate:
 
-- Eyes in the Dark `1.3.1`
+- Eyes in the Dark `1.3.2`
+- Blood Magic Expansion `2.6.5` when the corpse-drain cases call for it
 - Battlecry Voice Tuner `1.1.0` when the battlecry cases call for it
 - Glorious UI `1.7.5` when the integration case calls for it
 - Grail Floating Text `1.10.1` when the notification case calls for it
 - Tainted Grail Mono patch `1.25`
 
-Run the release smoke gate first against the staged `1.3.1` candidate. Keep
+Run the release smoke gate first against the staged `1.3.2` candidate. Keep
 Wyrd Hunt,
 Custom Timescale, and KS Wyrd Hunt Addon absent except for isolated
 incompatibility-notice cases.
@@ -20,7 +21,7 @@ output; the BepInEx log remains the authoritative detailed record.
 
 ## Release smoke gate
 
-These twelve checks are the practical release gate. The complete extended
+These checks are the practical release gate. The complete extended
 matrix remains below for deeper feature and soak coverage.
 
 | ID | Detailed cases | Release check | Status |
@@ -83,7 +84,7 @@ matrix remains below for deeper feature and soak coverage.
 | B27 | Pause halfway through a natural presentation transition, then resume | The visual blend freezes while paused and completes over the remaining active real time without a visible jump | Pending |
 | B28 | Load between scenes, enter an interior, disable Eyes, and set transition duration to 0 in isolated checks | Short loads hold the last confirmed presentation; confirmed interiors/disablement restore immediately; zero duration snaps at the natural phase boundary without stale materials or ownership | Pending |
 | B29 | During active Cursed Wyrdnight exposure, compare Show Wyrdnight Rest Availability enabled and disabled at the same unprotected fireplace | Enabled greys out REST; disabled leaves the native button state; neither setting changes the final accepted-rest guard or interruption policy | Pending |
-| B30 | Install Glorious UI 1.7.5 with Eyes 1.3.1 and use mouse, keyboard, and controller in its Sensible Rest Menu | Glorious alone rotates and labels the clock, Eyes alone updates Wyrdnight REST-button availability, and all input and gameplay rules remain aligned | Pending |
+| B30 | Install Glorious UI 1.7.5 with Eyes 1.3.2 and use mouse, keyboard, and controller in its Sensible Rest Menu | Glorious alone rotates and labels the clock, Eyes alone updates Wyrdnight REST-button availability, and all input and gameplay rules remain aligned | Pending |
 | B31 | Disable Glorious UI's Sensible Rest Menu while Eyes remains enabled | The native clock layout and time text return while Eyes continues to show Wyrdnight REST-button availability | Pending |
 | B32 | Use an exposed rest point during active Watchful Night | REST remains available if the game otherwise permits it; native interruption is checked first and Eyes then applies 45-to-75-percent threat-scaled cumulative risk | Pending |
 | B33 | Load directly into an exterior Wyrdnight from the title screen and through a same-night fast travel | The first visible rendered frame retains/applies the Wyrdnight palette without a brighter vanilla flash; no stale purple survives a confirmed daylight or interior destination | Pending |
@@ -130,14 +131,15 @@ matrix remains below for deeper feature and soak coverage.
 | C10 | Swing melee weapons into empty space, then hit scenery and a damageable target | Empty melee swings add nothing; confirmed scenery contact and damage add combat-window threat | Pending |
 | C11 | With Battlecry Voice Tuner installed, cry repeatedly while exposed outdoors during a Wyrdnight | Accepted threat follows full, half, quarter, 12.5 percent, then the 10 percent floor | Pending |
 | C12 | Wait at least 30 active seconds after the last accepted cry, then cry again | Battlecry threat returns to the full configured amount; paused time does not advance the reset | Pending |
+| C13 | With Blood Magic Expansion installed, complete corpse rituals across its quality range while exposed, then repeat in rejected activity contexts | Each successful exposed ritual adds `CorpseDrainThreatAtAverageQuality * (0.5 + quality)` once; incomplete, daytime, indoor, protected, paused, and loading-grace rituals add none | Pending |
 
 ## D. Presets and world timescales
 
 | ID | Setup and action | Expected result | Status |
 | --- | --- | --- | --- |
-| D1 | Apply Uneasy Night in FoA Mod Manager | Gameplay values plus 75/210/105 stalker cooldown and 4 provocation threat are written, elites are disabled, selector returns to Custom, and presentation/diagnostics stay unchanged | Pending |
-| D2 | Apply Watchful Night | Recommended defaults plus 55/165/70 stalker cooldown and 6 provocation threat are written, elites are disabled, and selector returns to Custom | Pending |
-| D3 | Apply Cursed Night | Higher-pressure values, 40/125/55 stalker cooldown, 8 provocation threat, and elite/high-pressure permission are written; selector returns to Custom without changing presentation | Pending |
+| D1 | Apply Uneasy Night in FoA Mod Manager | Gameplay values plus 6 average-quality corpse-drain threat, 75/210/105 stalker cooldown, and 4 provocation threat are written, elites are disabled, selector returns to Custom, and presentation/diagnostics stay unchanged | Pending |
+| D2 | Apply Watchful Night | Recommended defaults plus 8 average-quality corpse-drain threat, 55/165/70 stalker cooldown, and 6 provocation threat are written, elites are disabled, and selector returns to Custom | Pending |
+| D3 | Apply Cursed Night | Higher-pressure values, 11 average-quality corpse-drain threat, 40/125/55 stalker cooldown, 8 provocation threat, and elite/high-pressure permission are written; selector returns to Custom without changing presentation | Pending |
 | D4 | Apply each gameplay preset after customizing all three clock durations | Presets leave DayMinutes, BaseNightMinutes, and MaximumThreatNightMinutes unchanged | Pending |
 | D5 | Measure one default day | Daylight lasts 60 real minutes within +/-0.5 minute | Pending |
 | D6 | Hold threat at 0 for a complete default night | Night lasts 6 real minutes within +/-0.5 minute, close to the game's approximately 6.2-minute Wyrdnight | Pending |
@@ -229,6 +231,8 @@ matrix remains below for deeper feature and soak coverage.
 | G14 | Enable threat override and test 0, 25, 50, 75, and 100, then disable it | Meter, stage, visuals, night duration, ambient eligibility, and hunts follow the forced value; natural gain/relief is suppressed until disable; dawn resets and natural behavior resumes | Pending |
 | G15 | Enable Diagnostics and remain at the title screen, enter loading, then load a playable Hero | Eyes emits no diagnostic System message at title/loading/no-Hero; normal diagnostics resume only in playable state, while GFT compatibility notices remain unaffected | Pending |
 | G16 | During stable daylight, open and close pause, map, and inventory screens, then load an exterior daylight save; afterward cross dawn naturally | Daylight-only state changes emit no night-end atmosphere; the confirmed Wyrdnight-to-daylight edge emits exactly one randomized dawn line | Pending |
+| G17 | With Blood Magic Expansion installed, complete zero-, average-, and maximum-quality corpse rituals while exposed outdoors during a Wyrdnight | Completed rituals add approximately 4, 8, and 12 threat; failed, interrupted, indoor, protected, paused, daytime, and loading-grace rituals add none | Pending |
+| G18 | Enable Diagnostics with ShowGrailFloatingTextDiagnostics true, trigger several diagnostic state changes, then disable only ShowGrailFloatingTextDiagnostics and repeat while atmospheric notifications remain enabled | Concise diagnostic System summaries appear only while both diagnostic settings are enabled; detailed log diagnostics and atmospheric messages continue after the subordinate GFT switch is disabled | Pending |
 
 ## H. Soak and final log review
 
@@ -236,7 +240,7 @@ matrix remains below for deeper feature and soak coverage.
 | --- | --- | --- | --- |
 | H1 | Complete a 12-minute maximum-threat night with Diagnostics off | No repeated exceptions, per-poll log spam, duplicate meter, uninterrupted chain of hunts, or ambient/official lane overlap | Pending |
 | H2 | Review the full session log | No startup, placement, transition, ambient listener, movement, HUD, boundary, or GFT exception loop; every spent cost has a confirmed official composition | Pending |
-| H3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `1.3.1.0`; no standalone Purple Moon Test package or config remains | Pending |
+| H3 | Inspect the staged archive and live candidate version | One top-level folder; only DLL, README, and changelog; assembly reports `1.3.2.0`; no standalone Purple Moon Test package or config remains | Pending |
 | H4 | Complete a long diagnostics-on default-cycle soak | No per-frame warnings, passive-threat log flood, repeated clock setters, movement transition flood, or stale GFT diagnostics | Pending |
 | H5 | Profile an active Wyrdnight with stable threat and no transition | Visual calculations run about five times per second; environment refreshes do not exceed four per second; the per-frame native-lighting postfix only reapplies cached values | Pending |
 | H6 | Compare an absent boundary, an inactive boundary, Native single ring, and active layered rings | The custom layered pass performs no fullscreen draws at zero native intensity; active boundaries still animate and respond within 0.2 seconds | Pending |

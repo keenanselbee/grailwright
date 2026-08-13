@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
@@ -18,6 +19,9 @@ namespace EyesInTheDark
         private bool _failureLogged;
         private MethodInfo _tryShowImmediateEvent;
         private MethodInfo _tryShowEvent;
+        private MethodInfo _trySetBuiltInEventClaim;
+        private readonly HashSet<string> _activeBuiltInEventClaims =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public GrailFloatingTextBridge(ManualLogSource log)
         {
@@ -59,10 +63,55 @@ namespace EyesInTheDark
                 "Short");
         }
 
+        public bool TrySetBuiltInEventClaim(
+            string eventId,
+            bool active)
+        {
+            if (string.IsNullOrWhiteSpace(eventId)
+                || !TryResolve()
+                || _trySetBuiltInEventClaim == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _trySetBuiltInEventClaim.Invoke(
+                    null,
+                    new object[]
+                    {
+                        EyesInTheDarkPlugin.PluginGuid,
+                        eventId,
+                        active
+                    });
+                bool accepted = result is bool && (bool)result;
+                if (accepted)
+                {
+                    if (active)
+                    {
+                        _activeBuiltInEventClaims.Add(eventId);
+                    }
+                    else
+                    {
+                        _activeBuiltInEventClaims.Remove(eventId);
+                    }
+                }
+
+                return accepted;
+            }
+            catch (Exception exception)
+            {
+                Disable(exception);
+                return false;
+            }
+        }
+
         public void Release()
         {
+            ReleaseBuiltInEventClaims();
             _tryShowImmediateEvent = null;
             _tryShowEvent = null;
+            _trySetBuiltInEventClaim = null;
         }
 
         private bool TryShow(
@@ -138,7 +187,8 @@ namespace EyesInTheDark
             if (_resolutionAttempted)
             {
                 return _tryShowImmediateEvent != null
-                    || _tryShowEvent != null;
+                    || _tryShowEvent != null
+                    || _trySetBuiltInEventClaim != null;
             }
 
             _resolutionAttempted = true;
@@ -197,8 +247,18 @@ namespace EyesInTheDark
                         typeof(float),
                         typeof(float)
                     });
+                _trySetBuiltInEventClaim = AccessTools.Method(
+                    apiType,
+                    "TrySetBuiltInEventClaim",
+                    new[]
+                    {
+                        typeof(string),
+                        typeof(string),
+                        typeof(bool)
+                    });
                 if (_tryShowImmediateEvent == null
-                    && _tryShowEvent == null)
+                    && _tryShowEvent == null
+                    && _trySetBuiltInEventClaim == null)
                 {
                     throw new MissingMethodException(
                         ApiTypeName,
@@ -216,8 +276,10 @@ namespace EyesInTheDark
 
         private void Disable(Exception exception)
         {
+            ReleaseBuiltInEventClaims();
             _tryShowImmediateEvent = null;
             _tryShowEvent = null;
+            _trySetBuiltInEventClaim = null;
             if (_failureLogged)
             {
                 return;
@@ -227,6 +289,35 @@ namespace EyesInTheDark
             _log.LogWarning(
                 "Grail Floating Text integration is unavailable; Eyes gameplay and presentation remain active: "
                 + exception.GetBaseException().Message);
+        }
+
+        private void ReleaseBuiltInEventClaims()
+        {
+            if (_trySetBuiltInEventClaim != null)
+            {
+                string[] eventIds = new string[
+                    _activeBuiltInEventClaims.Count];
+                _activeBuiltInEventClaims.CopyTo(eventIds);
+                for (int i = 0; i < eventIds.Length; i++)
+                {
+                    try
+                    {
+                        _trySetBuiltInEventClaim.Invoke(
+                            null,
+                            new object[]
+                            {
+                                EyesInTheDarkPlugin.PluginGuid,
+                                eventIds[i],
+                                false
+                            });
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+
+            _activeBuiltInEventClaims.Clear();
         }
     }
 }

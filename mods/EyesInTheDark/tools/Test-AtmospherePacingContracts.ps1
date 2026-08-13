@@ -292,8 +292,10 @@ foreach ($required in @(
     }
 }
 if (!$pluginSource.Contains("_diagnostics.Value") -or
+    !$pluginSource.Contains('"ShowGrailFloatingTextDiagnostics"') -or
+    !$pluginSource.Contains("_showGrailFloatingTextDiagnostics.Value") -or
     !$pluginSource.Contains("ShowDiagnosticSystem(")) {
-    throw "Diagnostics must gate concise GFT System summaries."
+    throw "Diagnostics and ShowGrailFloatingTextDiagnostics must gate concise GFT System summaries."
 }
 
 Write-Host "Eyes in the Dark atmosphere, pacing, boundary, and GFT contracts passed."

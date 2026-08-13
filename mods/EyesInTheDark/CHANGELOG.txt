@@ -1,3 +1,14 @@
+Version 1.3.4
+Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so concise in-game summaries can be disabled without losing detailed BepInEx logging.
+Kept atmospheric Grail Floating Text notifications independent under their existing EnableNotifications and preset controls.
+
+Version 1.3.3
+Claimed GFT's built-in Wyrdnight transition event while Atmospheric or Detailed notifications are active, preventing duplicate nightfall and dawn messages while preserving automatic GFT fallback when Eyes notifications are inactive.
+
+Version 1.3.2
+Added optional Blood Magic Expansion integration that raises Wyrd Threat only after a corpse ritual completes successfully while the Hero is exposed outdoors during an active Wyrdnight.
+Added CorpseDrainThreatAtAverageQuality with an 8-threat default and linear corpse-quality scaling from 4 threat at zero quality to 12 at maximum quality.
+
 Version 1.3.1
 Moved rest-clock rotation, dial labels, popup time formatting, and quick-menu time formatting to Glorious UI's independently toggleable Sensible Rest Menu.
 Kept Wyrdnight fireplace REST-button availability in Eyes and renamed its setting to ShowWyrdnightRestAvailability so it controls only that presentation.

@@ -216,6 +216,8 @@ most additional pressure. Candidate sources for the first implementation are:
 - killing Wyrd creatures;
 - looting corpses or containers while exposed;
 - direct world pickup or stealing while exposed;
+- completing a Blood Magic Expansion corpse ritual while exposed, scaled by
+  the consumed corpse's normalized quality;
 - powerful or noisy magic through the confirmed successful-cast event.
 
 Every repeatable source requires a cooldown, aggregation window, or diminishing
@@ -619,6 +621,7 @@ The 0.6.0 one-shot values are:
 | Sprint threat/minute | 3 | 4 | 5.5 |
 | Combat threat/window | 1.5 | 2 | 3 |
 | Wyrd kill threat | 3 | 5 | 7 |
+| Corpse-drain threat at average quality | 6 | 8 | 11 |
 | Base danger budget | 22 | 30 | 42 |
 | Long-night scale/cap | 0.25 / 0.5 | 0.35 / 0.75 | 0.45 / 1.0 |
 | Base/threat/progress hazard | 0.005 / 0.28 / 0.05 | 0.01 / 0.42 / 0.08 | 0.02 / 0.58 / 0.12 |
@@ -850,6 +853,19 @@ immediate-repeat prevention. The response lane has its own configurable
 15-active-second default cooldown and does not change the battlecry action
 cooldown. Minimal remains silent. The integration stays optional and must not
 create a hard dependency in either direction.
+
+### Optional corpse-drain integration
+
+Blood Magic Expansion may call Eyes' versioned soft API after a corpse ritual
+completes successfully. It reports only normalized corpse quality; Eyes remains
+authoritative for activity eligibility and threat tuning. The default Watchful
+Night value is 8 threat at average quality, with a linear 0.5x-to-1.5x quality
+multiplier producing 4 to 12 threat. Uneasy uses 6 at average quality and
+Cursed uses 11.
+
+Daytime, indoor, protected, paused, loading-grace, interrupted, and failed
+rituals add no threat. The one-shot consumed-corpse boundary prevents repeated
+farming, so this source has no additional diminishing-return window.
 
 ### Rest and slept-through transitions
 

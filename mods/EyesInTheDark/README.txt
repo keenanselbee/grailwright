@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.3.1
+Version: 1.3.4
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
@@ -73,11 +73,16 @@ Current Features
 - Optional Grail Floating Text notifications with Minimal, Atmospheric, and
   Detailed presets, randomized text pools, immediate-repeat prevention, and
   pause-aware per-lane cooldowns. Dawn text requires a confirmed transition
-  from Wyrdnight into daylight. Atmospheric and Detailed react after two or
-  three accepted battlecries with a separate, longer response cooldown.
+  from Wyrdnight into daylight. Atmospheric and Detailed claim GFT's built-in
+  night-transition event so only Eyes' nightfall and dawn text is shown. They
+  also react after two or three accepted battlecries with a separate, longer
+  response cooldown.
 - Optional Battlecry Voice Tuner integration adds exposed-Wyrdnight threat.
   Repeated cries grant full, half, quarter, and then diminishing threat down to
   a 10 percent floor; 30 active seconds without a cry restores the full gain.
+- Optional Blood Magic Expansion integration adds threat only after a corpse
+  ritual completes successfully while exposed outdoors during a Wyrdnight.
+  Its default 8 threat at average quality scales linearly from 4 to 12.
 - A separate ambient-stalker lane between official hunts. One reviewed native
   creature can appear outside the camera, watch from a distance, follow when
   the Hero moves away, and use native Flee movement when deliberately pursued.
@@ -201,6 +206,8 @@ Defaults:
 - Combat response delay: 1.5 active real-time seconds
 - Eligible Wyrd kill threat: 5
 - Unique acquisition threat per item: 0.75
+- Successful Blood Magic corpse ritual threat: 8 at average quality, scaling
+  linearly from 4 at zero quality to 12 at maximum quality
 - Protected decay per active real-time minute: 4
 - Interior decay per active real-time minute: 1
 - Maximum load reconstruction by dawn: 8
@@ -281,6 +288,7 @@ Defaults:
 - GFT battlecry-response cooldown: 15 active real-time seconds
 - GFT diagnostic System cooldown: 1 active real-time second
 - Diagnostics: false
+- Show GFT diagnostics: true; inactive while Diagnostics is false
 - Diagnostic threat override: disabled; override value 0
 - Diagnostic timescale override: disabled; multiplier 1.0
 
@@ -349,13 +357,18 @@ Compatibility
 
 - Grail Floating Text is optional. It provides atmospheric notifications,
   diagnostics-only System summaries, and the soft main-menu notice when Wyrd
-  Hunt and Eyes in the Dark are both loaded. Minimal remains focused on
-  official hunts; Atmospheric adds only witnessed stalker disappearances;
-  Detailed adds sightings, retreats, and escalation flavor without revealing
-  a stalker's hidden aggression value.
+  Hunt and Eyes in the Dark are both loaded. Atmospheric and Detailed replace
+  GFT's built-in Wyrdnight falls/fades text while active; Minimal and disabled
+  Eyes notifications leave GFT's default messages available. Minimal remains
+  focused on official hunts; Atmospheric adds only witnessed stalker
+  disappearances; Detailed adds sightings, retreats, and escalation flavor
+  without revealing a stalker's hidden aggression value.
 - Glorious UI is optional. Eyes remains the sole Wyrd Threat meter owner;
   Glorious requests its below-resource-bars layout and can independently
   provide a noon-at-top rest clock with matching time formatting.
+- Blood Magic Expansion is optional. Successfully completed exposed-Wyrdnight
+  corpse rituals add quality-scaled threat; incomplete or rejected rituals do
+  not report completion.
 - Wyrd Hunt is flagged as incompatible with Eyes in the Dark. Do not run both
   night directors together.
 - Custom Timescale (Nexus mod 76) is flagged as incompatible because it and

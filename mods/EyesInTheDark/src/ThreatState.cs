@@ -24,6 +24,7 @@ namespace EyesInTheDark
         Combat,
         WyrdKill,
         Acquisition,
+        CorpseDrain,
         Battlecry,
         StalkerProvoked,
         OfficialHunterKilled,
@@ -357,6 +358,21 @@ namespace EyesInTheDark
             return value >= 25f
                 ? ThreatStage.Watched
                 : ThreatStage.Unnoticed;
+        }
+
+        public static float CalculateCorpseDrainThreat(
+            float averageQualityThreat,
+            float quality)
+        {
+            if (!IsFinitePositive(averageQualityThreat)
+                || float.IsNaN(quality)
+                || float.IsInfinity(quality))
+            {
+                return 0f;
+            }
+
+            float safeQuality = Math.Max(0f, Math.Min(1f, quality));
+            return averageQualityThreat * (0.5f + safeQuality);
         }
 
         private ThreatUpdateResult Result(

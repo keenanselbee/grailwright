@@ -14,8 +14,11 @@ using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.Factions.Crimes;
+using Awaken.TG.Main.General.StatTypes;
 using Awaken.TG.Main.Heroes;
+using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Heroes.Development;
+using Awaken.TG.Main.Heroes.Development.Talents;
 using Awaken.TG.Main.Heroes.Development.WyrdPowers;
 using Awaken.TG.Main.Heroes.Items;
 using Awaken.TG.Main.Heroes.Resting;
@@ -24,6 +27,7 @@ using Awaken.TG.Main.Locations;
 using Awaken.TG.Main.Scenes;
 using Awaken.TG.Main.Scenes.SceneConstructors;
 using Awaken.TG.Main.Settings.Accessibility;
+using Awaken.TG.Main.Skills.Passives;
 using Awaken.TG.Main.UI.TitleScreen;
 using Awaken.TG.Main.UI.TitleScreen.Loading;
 using Awaken.TG.Main.Utility.Video;
@@ -42,15 +46,15 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("1.11.1.0")]
-[assembly: AssemblyFileVersion("1.11.1.0")]
-[assembly: AssemblyInformationalVersion("1.11.1")]
+[assembly: AssemblyVersion("2.4.6.0")]
+[assembly: AssemblyFileVersion("2.4.6.0")]
+[assembly: AssemblyInformationalVersion("2.4.6")]
 
 namespace GrailFloatingText
 {
     public static class NotificationApi
     {
-        public const int ApiVersion = 9;
+        public const int ApiVersion = 12;
 
         public static bool SupportsFeature(string feature)
         {
@@ -207,6 +211,45 @@ namespace GrailFloatingText
                 opacity);
         }
 
+        public static bool TryCancelXpGainClaim(
+            string sourceId,
+            string eventId,
+            float expectedAmount)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null
+                && plugin.TryCancelXpGainClaim(sourceId, eventId, expectedAmount);
+        }
+
+        public static bool TrySetBuiltInEventClaim(
+            string sourceId,
+            string eventId,
+            bool active)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null
+                && plugin.TrySetBuiltInEventClaim(sourceId, eventId, active);
+        }
+
+        public static bool TrySetBuiltInEventPresentationClaim(
+            string sourceId,
+            string eventId,
+            string presentationEventId,
+            string style,
+            string iconId,
+            bool active)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null
+                && plugin.TrySetBuiltInEventPresentationClaim(
+                    sourceId,
+                    eventId,
+                    presentationEventId,
+                    style,
+                    iconId,
+                    active);
+        }
+
         public static string[] GetBuiltInIconIds()
         {
             return GrailFloatingTextPlugin.GetBuiltInIconIds();
@@ -218,7 +261,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "1.11.1";
+        public const string PluginVersion = "2.4.6";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -241,7 +284,7 @@ namespace GrailFloatingText
             "ks.tgfoa.dishonored-dynamic-crosshair";
         private const string DynamicCrosshairAssemblyName =
             "DishonoredDynamicCrosshair";
-        private const int ConfigSchemaVersion = 24;
+        private const int ConfigSchemaVersion = 25;
         private const int ConfigRecoveryBaselineSchema = 15;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -255,6 +298,7 @@ namespace GrailFloatingText
         private const float DefaultLongDurationSeconds = 4.5f;
         private const float DefaultVeryLongDurationSeconds = 5.0f;
         private const float DefaultSystemDurationSeconds = 10.0f;
+        private const float RestNotificationDelaySeconds = 1.5f;
         private const float XpClaimLifetimeSeconds = 2.0f;
         private const float XpClaimImmediateFallbackSeconds = 0.25f;
         private const float XpClaimAmountTolerance = 0.01f;
@@ -264,6 +308,9 @@ namespace GrailFloatingText
         private const int DeferredNotificationStoreVersion = 1;
         private const int DeferredNotificationMaximumAgeDays = 30;
         private const string DefaultXpGainEventId = "default-xp-gain";
+        private const string DefaultHealingEventId = "default-healed";
+        private const string VanillaWyrdNightEventId =
+            "vanilla-wyrd-night";
         private const string KillingBlowEventId = "killing-blow";
         private const string ConfigResetEventId = "config-reset";
         private const string LoadTimeErrorEventId = "load-time-error";
@@ -280,6 +327,11 @@ namespace GrailFloatingText
             "status",
             "wyrd",
             "reward",
+            "gold_earned_very_low",
+            "gold_earned_low",
+            "gold_earned_medium",
+            "gold_earned_high",
+            "gold_earned_very_high",
             "combat",
             "warning",
             "critical",
@@ -287,17 +339,45 @@ namespace GrailFloatingText
             "rest",
             "location",
             "one_handed",
+            "one_handed_sword",
+            "one_handed_axe",
+            "one_handed_blunt",
+            "one_handed_dagger",
+            "one_handed_spear",
             "two_handed",
+            "two_handed_sword",
+            "two_handed_axe",
+            "two_handed_blunt",
+            "two_handed_spear",
             "archery",
             "shield",
             "parry",
             "unarmed",
             "magic",
+            "magic_blood",
+            "magic_fire",
+            "magic_cold",
+            "magic_poison",
+            "magic_electric",
+            "magic_pure",
+            "magic_wet",
             "crime",
             "pickpocket",
+            "lock",
+            "craft",
+            "food",
+            "potion",
+            "healing",
+            "fish",
+            "recipe",
             "weight",
             "experience",
-            "corpse"
+            "corpse_meager",
+            "corpse_worthy",
+            "corpse_potent",
+            "corpse_prime",
+            "summon",
+            "skull"
         };
 
         private static readonly string[] GloriousUiIncompatibleAssemblyNames =
@@ -350,6 +430,18 @@ namespace GrailFloatingText
             new List<DeferredNotificationEntry>();
         private readonly List<XpDisplayClaim> _xpDisplayClaims = new List<XpDisplayClaim>();
         private readonly List<XpNotificationBatch> _pendingXpBatches = new List<XpNotificationBatch>();
+        private readonly List<HealingNotificationBatch> _bufferedHealingBatches =
+            new List<HealingNotificationBatch>();
+        private readonly List<HealingNotificationBatch> _pendingHealingBatches =
+            new List<HealingNotificationBatch>();
+        private readonly Dictionary<string, HashSet<string>>
+            _builtInEventClaimSourcesByEventId =
+                new Dictionary<string, HashSet<string>>(
+                    StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Dictionary<string, BuiltInEventPresentationClaim>>
+            _builtInEventPresentationClaimsByEventId =
+                new Dictionary<string, Dictionary<string, BuiltInEventPresentationClaim>>(
+                    StringComparer.OrdinalIgnoreCase);
 
         private Harmony _harmony;
         private ConfigEntry<bool> _enabled;
@@ -397,6 +489,9 @@ namespace GrailFloatingText
         private ConfigEntry<float> _combatDefenseMinimumDamage;
         private ConfigEntry<float> _combatDefenseCooldownSeconds;
         private ConfigEntry<bool> _notifyEncumbranceChanged;
+        private ConfigEntry<bool> _notifyNearEncumbranceLimit;
+        private ConfigEntry<int> _encumbranceWarningPercent;
+        private ConfigEntry<bool> _notifyProgressionPointsGained;
         private ConfigEntry<bool> _notifyLocationCleared;
         private ConfigEntry<bool> _notifyPickpocketSuccess;
         private ConfigEntry<bool> _notifyPickpocketFail;
@@ -420,6 +515,12 @@ namespace GrailFloatingText
         private ConfigEntry<string> _xpTextFormat;
         private ConfigEntry<string> _xpDurationBucket;
         private ConfigEntry<bool> _consolidateXpGains;
+        private ConfigEntry<bool> _notifyHealing;
+        private ConfigEntry<bool> _notifyHealingOverTime;
+        private ConfigEntry<bool> _consolidateHealing;
+        private ConfigEntry<float> _healingMinimumAmount;
+        private ConfigEntry<string> _healingTextFormat;
+        private ConfigEntry<string> _healingDurationBucket;
         private bool _showConfigResetNotification;
         private int _previousConfigSchemaVersion;
 
@@ -459,6 +560,8 @@ namespace GrailFloatingText
         private FontAsset _imguiDefaultFontAsset;
         private string _lastFontDiagnosticKey = string.Empty;
         private Coroutine _defaultGameEventBindingCoroutine;
+        private Coroutine _restNotificationCoroutine;
+        private Coroutine _progressionPointsNotificationCoroutine;
         private IEventListener _restingInitiatedListener;
         private IEventListener _restingInterruptedListener;
         private IEventListener _encumberedChangedListener;
@@ -476,6 +579,16 @@ namespace GrailFloatingText
         private IEventListener _bountyClearedListener;
         private IEventListener _weakspotHitListener;
         private IEventListener _sneakAttackListener;
+        private IEventListener _heroItemsChangedListener;
+        private IEventListener _ownedItemAttachedListener;
+        private IEventListener _ownedItemDetachedListener;
+        private IEventListener _encumbranceLimitChangedListener;
+        private IEventListener _attributePointsChangedListener;
+        private IEventListener _skillPointsChangedListener;
+        private IEventListener _catalystPointsChangedListener;
+        private IEventListener _arthurPointsChangedListener;
+        private IEventListener _wyrdWhispersChangedListener;
+        private IEventListener _healthChangedListener;
         private Hero _vanillaWyrdHero;
         private float _lastWyrdNightNotificationTime = -9999.0f;
         private readonly Dictionary<string, float> _lastDefaultGameEventTimeByKey =
@@ -487,10 +600,20 @@ namespace GrailFloatingText
         private bool _lastObservedWyrdNight;
         private bool _hasObservedWyrdSafety;
         private bool _lastObservedWyrdSafety;
+        private bool _nearEncumbranceWarningActive;
+        private bool _pendingAttributePointGain;
+        private bool _pendingSkillPointGain;
+        private bool _pendingCatalystPointGain;
+        private bool _pendingArthurPointGain;
+        private bool _pendingWyrdWhisperGain;
         private long _nextSequence;
         private long _nextXpClaimSequence;
         private long _nextXpEntrySequence;
         private NotificationEntry _activeXpNotification;
+        private long _nextBuiltInEventPresentationClaimSequence;
+        private long _nextHealingEntrySequence;
+        private NotificationEntry _activeHealingNotification;
+        private static int _healingOverTimeScopeDepth;
         private bool _passThroughNextXpFloatAnnounce;
         private float _passThroughNextXpFloatAmount;
         private float _passThroughNextXpFloatTime = -9999.0f;
@@ -525,6 +648,7 @@ namespace GrailFloatingText
                 LoadIconTextures();
                 ShowPendingConfigResetNotification();
                 PatchXpNotifications();
+                PatchHealingOverTimeSources();
                 StartDefaultGameEventBinding();
                 Config.Save();
                 Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
@@ -560,6 +684,8 @@ namespace GrailFloatingText
             }
 
             StopDefaultGameEventBinding();
+            _builtInEventClaimSourcesByEventId.Clear();
+            _builtInEventPresentationClaimsByEventId.Clear();
             ReleaseIconTextures();
             ReleaseNotificationViews();
 
@@ -573,6 +699,8 @@ namespace GrailFloatingText
             {
                 Instance = null;
             }
+
+            _healingOverTimeScopeDepth = 0;
         }
 
         internal static bool SupportsFeature(string feature)
@@ -589,6 +717,9 @@ namespace GrailFloatingText
                 string.Equals(feature, "ApiVersion7", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion8", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion9", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion10", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion11", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion12", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "QuickWheelPanels", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "quick-wheel-panels-v1", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Categories", StringComparison.OrdinalIgnoreCase) ||
@@ -602,6 +733,9 @@ namespace GrailFloatingText
                 string.Equals(feature, "OnLoadDelivery", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ColorGroups", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "XpGainClaims", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "XpClaimCancellation", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "BuiltInEventClaims", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "BuiltInEventPresentationClaims", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "XpConsolidation", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "XpNotifications", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Icons", StringComparison.OrdinalIgnoreCase) ||
@@ -615,6 +749,7 @@ namespace GrailFloatingText
                 string.Equals(feature, "LocationClearEvents", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "CrimeEvents", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "CombatHitEvents", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "HealingNotifications", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "VanillaWyrdEvents", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -623,6 +758,140 @@ namespace GrailFloatingText
             string[] copy = new string[BuiltInIconIds.Length];
             Array.Copy(BuiltInIconIds, copy, BuiltInIconIds.Length);
             return copy;
+        }
+
+        internal bool TrySetBuiltInEventClaim(
+            string sourceId,
+            string eventId,
+            bool active)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId)
+                || string.IsNullOrWhiteSpace(eventId))
+            {
+                return false;
+            }
+
+            sourceId = sourceId.Trim();
+            eventId = eventId.Trim();
+            HashSet<string> sources;
+            if (active)
+            {
+                if (!_builtInEventClaimSourcesByEventId.TryGetValue(
+                        eventId,
+                        out sources))
+                {
+                    sources = new HashSet<string>(
+                        StringComparer.OrdinalIgnoreCase);
+                    _builtInEventClaimSourcesByEventId[eventId] = sources;
+                }
+
+                sources.Add(sourceId);
+                return true;
+            }
+
+            if (_builtInEventClaimSourcesByEventId.TryGetValue(
+                    eventId,
+                    out sources))
+            {
+                sources.Remove(sourceId);
+                if (sources.Count == 0)
+                {
+                    _builtInEventClaimSourcesByEventId.Remove(eventId);
+                }
+            }
+
+            return true;
+        }
+
+        internal bool TrySetBuiltInEventPresentationClaim(
+            string sourceId,
+            string eventId,
+            string presentationEventId,
+            string style,
+            string iconId,
+            bool active)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId)
+                || string.IsNullOrWhiteSpace(eventId))
+            {
+                return false;
+            }
+
+            sourceId = sourceId.Trim();
+            eventId = eventId.Trim();
+            Dictionary<string, BuiltInEventPresentationClaim> claimsBySource;
+            if (active)
+            {
+                if (!_builtInEventPresentationClaimsByEventId.TryGetValue(
+                        eventId,
+                        out claimsBySource))
+                {
+                    claimsBySource = new Dictionary<string, BuiltInEventPresentationClaim>(
+                        StringComparer.OrdinalIgnoreCase);
+                    _builtInEventPresentationClaimsByEventId[eventId] = claimsBySource;
+                }
+
+                claimsBySource[sourceId] = new BuiltInEventPresentationClaim
+                {
+                    SourceId = sourceId,
+                    EventId = string.IsNullOrWhiteSpace(presentationEventId)
+                        ? eventId
+                        : presentationEventId.Trim(),
+                    Style = string.IsNullOrWhiteSpace(style) ? string.Empty : style.Trim(),
+                    IconId = string.IsNullOrWhiteSpace(iconId) ? string.Empty : iconId.Trim(),
+                    Sequence = ++_nextBuiltInEventPresentationClaimSequence
+                };
+                return true;
+            }
+
+            if (_builtInEventPresentationClaimsByEventId.TryGetValue(
+                    eventId,
+                    out claimsBySource))
+            {
+                claimsBySource.Remove(sourceId);
+                if (claimsBySource.Count == 0)
+                {
+                    _builtInEventPresentationClaimsByEventId.Remove(eventId);
+                }
+            }
+
+            return true;
+        }
+
+        private bool IsBuiltInEventClaimed(string eventId)
+        {
+            HashSet<string> sources;
+            return !string.IsNullOrWhiteSpace(eventId)
+                && _builtInEventClaimSourcesByEventId.TryGetValue(
+                    eventId,
+                    out sources)
+                && sources.Count > 0;
+        }
+
+        private bool TryResolveBuiltInEventPresentationClaim(
+            string eventId,
+            out BuiltInEventPresentationClaim resolved)
+        {
+            resolved = null;
+            Dictionary<string, BuiltInEventPresentationClaim> claimsBySource;
+            if (string.IsNullOrWhiteSpace(eventId)
+                || !_builtInEventPresentationClaimsByEventId.TryGetValue(
+                    eventId,
+                    out claimsBySource))
+            {
+                return false;
+            }
+
+            foreach (BuiltInEventPresentationClaim candidate in claimsBySource.Values)
+            {
+                if (candidate != null
+                    && (resolved == null || candidate.Sequence > resolved.Sequence))
+                {
+                    resolved = candidate;
+                }
+            }
+
+            return resolved != null;
         }
 
         private void PatchXpNotifications()
@@ -659,6 +928,63 @@ namespace GrailFloatingText
             catch (Exception exception)
             {
                 Logger.LogWarning(PluginName + " could not patch vanilla XP notifications: " + exception.GetBaseException().Message);
+            }
+        }
+
+        private void PatchHealingOverTimeSources()
+        {
+            try
+            {
+                if (_harmony == null)
+                {
+                    _harmony = new Harmony(PluginGuid);
+                }
+
+                MethodInfo heroStatsOriginal = AccessTools.Method(
+                    typeof(VHeroController),
+                    "UpdateStats",
+                    new[] { typeof(float) });
+                MethodInfo heroStatsPrefix = AccessTools.Method(
+                    typeof(VHeroControllerUpdateStatsPatch),
+                    nameof(VHeroControllerUpdateStatsPatch.Prefix));
+                MethodInfo heroStatsFinalizer = AccessTools.Method(
+                    typeof(VHeroControllerUpdateStatsPatch),
+                    nameof(VHeroControllerUpdateStatsPatch.Finalizer));
+
+                MethodInfo passiveStatOriginal = AccessTools.Method(
+                    typeof(PassiveStatOverTime),
+                    "ChangeStatValue",
+                    new[] { typeof(float) });
+                MethodInfo passiveStatPrefix = AccessTools.Method(
+                    typeof(PassiveStatOverTimePatch),
+                    nameof(PassiveStatOverTimePatch.Prefix));
+                MethodInfo passiveStatFinalizer = AccessTools.Method(
+                    typeof(PassiveStatOverTimePatch),
+                    nameof(PassiveStatOverTimePatch.Finalizer));
+
+                if (heroStatsOriginal == null
+                    || heroStatsPrefix == null
+                    || heroStatsFinalizer == null
+                    || passiveStatOriginal == null
+                    || passiveStatPrefix == null
+                    || passiveStatFinalizer == null)
+                {
+                    Logger.LogWarning(PluginName + " could not identify every healing-over-time source. Periodic healing filtering may be incomplete.");
+                    return;
+                }
+
+                _harmony.Patch(
+                    heroStatsOriginal,
+                    prefix: new HarmonyMethod(heroStatsPrefix),
+                    finalizer: new HarmonyMethod(heroStatsFinalizer));
+                _harmony.Patch(
+                    passiveStatOriginal,
+                    prefix: new HarmonyMethod(passiveStatPrefix),
+                    finalizer: new HarmonyMethod(passiveStatFinalizer));
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(PluginName + " could not patch healing-over-time sources: " + exception.GetBaseException().Message);
             }
         }
 
@@ -833,6 +1159,29 @@ namespace GrailFloatingText
                     _sneakAttackListener = ListenToHealthElementEvent(hero, "OnSneakDamageDealt", typeof(DamageOutcome), "OnSneakAttack");
                 }
             }
+
+            if (IsNearEncumbranceNotificationEnabled())
+            {
+                CaptureInitialNearEncumbranceState(hero);
+                _heroItemsChangedListener = ModelExtensions.ListenTo(hero.HeroItems, Model.Events.AfterChanged, OnCarryWeightChanged, this);
+                _ownedItemAttachedListener = ModelExtensions.ListenTo(hero, IItemOwner.Relations.Owns.Events.AfterAttached, OnCarryWeightChanged, this);
+                _ownedItemDetachedListener = ModelExtensions.ListenTo(hero, IItemOwner.Relations.Owns.Events.AfterDetached, OnCarryWeightChanged, this);
+                _encumbranceLimitChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChanged(HeroStatType.EncumbranceLimit), OnCarryWeightChanged, this);
+            }
+
+            if (IsProgressionPointsNotificationEnabled())
+            {
+                _attributePointsChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(HeroStatType.BaseStatPoints), OnProgressionPointChanged, this);
+                _skillPointsChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(HeroStatType.TalentPoints), OnProgressionPointChanged, this);
+                _catalystPointsChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(HeroStatType.CatalystTalentPoints), OnProgressionPointChanged, this);
+                _arthurPointsChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(HeroStatType.WyrdMemoryShards), OnProgressionPointChanged, this);
+                _wyrdWhispersChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(HeroStatType.WyrdWhispers), OnProgressionPointChanged, this);
+            }
+
+            if (IsHealingNotificationEnabled())
+            {
+                _healthChangedListener = ModelExtensions.ListenTo(hero, Stat.Events.StatChangedBy(AliveStatType.Health), OnHeroHealthChanged, this);
+            }
         }
 
         private IEventListener ListenToHealthElementEvent(Hero hero, string eventName, Type payloadType, string callbackMethodName)
@@ -933,6 +1282,12 @@ namespace GrailFloatingText
                 _defaultGameEventBindingCoroutine = null;
             }
 
+            if (_restNotificationCoroutine != null)
+            {
+                StopCoroutine(_restNotificationCoroutine);
+                _restNotificationCoroutine = null;
+            }
+
             DisposeDefaultGameHeroListeners();
             if (World.EventSystem != null)
             {
@@ -970,6 +1325,16 @@ namespace GrailFloatingText
                 World.EventSystem.TryDisposeListener(ref _bountyClearedListener);
                 World.EventSystem.TryDisposeListener(ref _weakspotHitListener);
                 World.EventSystem.TryDisposeListener(ref _sneakAttackListener);
+                World.EventSystem.TryDisposeListener(ref _heroItemsChangedListener);
+                World.EventSystem.TryDisposeListener(ref _ownedItemAttachedListener);
+                World.EventSystem.TryDisposeListener(ref _ownedItemDetachedListener);
+                World.EventSystem.TryDisposeListener(ref _encumbranceLimitChangedListener);
+                World.EventSystem.TryDisposeListener(ref _attributePointsChangedListener);
+                World.EventSystem.TryDisposeListener(ref _skillPointsChangedListener);
+                World.EventSystem.TryDisposeListener(ref _catalystPointsChangedListener);
+                World.EventSystem.TryDisposeListener(ref _arthurPointsChangedListener);
+                World.EventSystem.TryDisposeListener(ref _wyrdWhispersChangedListener);
+                World.EventSystem.TryDisposeListener(ref _healthChangedListener);
             }
             else
             {
@@ -986,7 +1351,27 @@ namespace GrailFloatingText
                 _bountyClearedListener = null;
                 _weakspotHitListener = null;
                 _sneakAttackListener = null;
+                _heroItemsChangedListener = null;
+                _ownedItemAttachedListener = null;
+                _ownedItemDetachedListener = null;
+                _encumbranceLimitChangedListener = null;
+                _attributePointsChangedListener = null;
+                _skillPointsChangedListener = null;
+                _catalystPointsChangedListener = null;
+                _arthurPointsChangedListener = null;
+                _wyrdWhispersChangedListener = null;
+                _healthChangedListener = null;
             }
+
+            if (_progressionPointsNotificationCoroutine != null)
+            {
+                StopCoroutine(_progressionPointsNotificationCoroutine);
+                _progressionPointsNotificationCoroutine = null;
+            }
+
+            ClearPendingProgressionPointGains();
+            ClearPendingHealing();
+            _nearEncumbranceWarningActive = false;
         }
 
         private void ClearDefaultGameHero()
@@ -1038,6 +1423,19 @@ namespace GrailFloatingText
                 : "Rested " + durationText;
             string text = ApplyDurationFormat(format, durationText, fallback);
 
+            if (_restNotificationCoroutine != null)
+            {
+                StopCoroutine(_restNotificationCoroutine);
+            }
+
+            _restNotificationCoroutine = StartCoroutine(ShowRestNotificationAfterDelay(interrupted, text));
+        }
+
+        private IEnumerator ShowRestNotificationAfterDelay(bool interrupted, string text)
+        {
+            yield return new WaitForSecondsRealtime(RestNotificationDelaySeconds);
+            _restNotificationCoroutine = null;
+
             ShowDefaultGameNotification(
                 interrupted ? "default-rest-interrupted" : "default-rest-duration",
                 text,
@@ -1071,6 +1469,432 @@ namespace GrailFloatingText
                 0.9f,
                 "default-encumbrance",
                 0.25f);
+        }
+
+        private void CaptureInitialNearEncumbranceState(Hero hero)
+        {
+            float currentWeight;
+            float weightLimit;
+            _nearEncumbranceWarningActive = TryGetCarryWeight(hero, out currentWeight, out weightLimit)
+                && currentWeight / weightLimit >= GetEncumbranceWarningRatio();
+        }
+
+        private void OnCarryWeightChanged()
+        {
+            if (!IsNearEncumbranceNotificationEnabled())
+            {
+                return;
+            }
+
+            Hero hero = _vanillaWyrdHero;
+            float currentWeight;
+            float weightLimit;
+            if (!TryGetCarryWeight(hero, out currentWeight, out weightLimit))
+            {
+                _nearEncumbranceWarningActive = false;
+                return;
+            }
+
+            float ratio = currentWeight / weightLimit;
+            float warningRatio = GetEncumbranceWarningRatio();
+            float resetRatio = Math.Max(0.0f, warningRatio - 0.05f);
+            if (ratio <= resetRatio)
+            {
+                _nearEncumbranceWarningActive = false;
+                return;
+            }
+
+            if (_nearEncumbranceWarningActive || ratio < warningRatio)
+            {
+                return;
+            }
+
+            _nearEncumbranceWarningActive = true;
+            if (ratio > 1.0f || !IsGameLoadedReadyForNotifications())
+            {
+                return;
+            }
+
+            string text = "Near carry limit: "
+                + Mathf.CeilToInt(currentWeight).ToString(CultureInfo.InvariantCulture)
+                + "/"
+                + Mathf.CeilToInt(weightLimit).ToString(CultureInfo.InvariantCulture)
+                + " kg";
+            ShowDefaultGameNotification(
+                "default-near-encumbrance",
+                text,
+                "Warning",
+                "Status",
+                "Normal",
+                "default-encumbrance",
+                "weight",
+                DurationBucket.Medium,
+                0.9f,
+                "default-near-encumbrance",
+                0.25f);
+        }
+
+        private static bool TryGetCarryWeight(Hero hero, out float currentWeight, out float weightLimit)
+        {
+            currentWeight = 0.0f;
+            weightLimit = 0.0f;
+            if (hero == null || hero.HeroItems == null || hero.HeroStats == null)
+            {
+                return false;
+            }
+
+            currentWeight = Math.Max(0.0f, hero.HeroItems.CurrentWeight);
+            weightLimit = Math.Max(0.0f, hero.HeroStats.EncumbranceLimit.ModifiedValue);
+            return weightLimit > 0.0f;
+        }
+
+        private float GetEncumbranceWarningRatio()
+        {
+            int percent = _encumbranceWarningPercent == null ? 90 : _encumbranceWarningPercent.Value;
+            return Mathf.Clamp(percent, 50, 100) / 100.0f;
+        }
+
+        private void OnProgressionPointChanged(Stat.StatChange change)
+        {
+            if (!IsProgressionPointsNotificationEnabled() || change.value <= 0.0f || change.stat == null)
+            {
+                return;
+            }
+
+            if (change.stat.Type == HeroStatType.BaseStatPoints)
+            {
+                _pendingAttributePointGain = true;
+            }
+            else if (change.stat.Type == HeroStatType.TalentPoints)
+            {
+                _pendingSkillPointGain = true;
+            }
+            else if (change.stat.Type == HeroStatType.CatalystTalentPoints)
+            {
+                _pendingCatalystPointGain = true;
+            }
+            else if (change.stat.Type == HeroStatType.WyrdMemoryShards)
+            {
+                _pendingArthurPointGain = true;
+            }
+            else if (change.stat.Type == HeroStatType.WyrdWhispers)
+            {
+                _pendingWyrdWhisperGain = true;
+            }
+
+            if (_progressionPointsNotificationCoroutine == null)
+            {
+                _progressionPointsNotificationCoroutine = StartCoroutine(ShowProgressionPointsAfterChanges());
+            }
+        }
+
+        private IEnumerator ShowProgressionPointsAfterChanges()
+        {
+            yield return null;
+            _progressionPointsNotificationCoroutine = null;
+
+            Hero hero = _vanillaWyrdHero;
+            if (hero == null || hero.HasBeenDiscarded || !IsGameLoadedReadyForNotifications())
+            {
+                ClearPendingProgressionPointGains();
+                yield break;
+            }
+
+            List<string> availablePoints = new List<string>(5);
+            try
+            {
+                AddAvailableProgressionPoint(availablePoints, _pendingAttributePointGain, "Attribute", hero.Stat(HeroStatType.BaseStatPoints), true);
+                AddAvailableProgressionPoint(availablePoints, _pendingSkillPointGain, "Skill", hero.Stat(HeroStatType.TalentPoints), HeroPointsHelper.CanSpendAnyPoints(HeroStatType.TalentPoints));
+                AddAvailableProgressionPoint(availablePoints, _pendingCatalystPointGain, "Catalyst", hero.Stat(HeroStatType.CatalystTalentPoints), HeroPointsHelper.CanSpendAnyPoints(HeroStatType.CatalystTalentPoints));
+                AddAvailableProgressionPoint(availablePoints, _pendingArthurPointGain, "Arthur", hero.Stat(HeroStatType.WyrdMemoryShards), HeroPointsHelper.CanSpendAnyPoints(HeroStatType.WyrdMemoryShards));
+                AddAvailableProgressionPoint(availablePoints, _pendingWyrdWhisperGain, "Wyrd Whisper", hero.Stat(HeroStatType.WyrdWhispers), true);
+            }
+            catch (Exception exception)
+            {
+                LogDefaultGameEventBindingFailureOnce(exception);
+            }
+
+            ClearPendingProgressionPointGains();
+            if (availablePoints.Count == 0)
+            {
+                yield break;
+            }
+
+            ShowDefaultGameNotification(
+                "default-progression-points",
+                "Points available: " + string.Join(" | ", availablePoints.ToArray()),
+                "Reward",
+                "Reward",
+                "High",
+                "default-progression-points",
+                "reward",
+                DurationBucket.Long,
+                0.9f,
+                "default-progression-points",
+                0.25f);
+        }
+
+        private static void AddAvailableProgressionPoint(
+            List<string> availablePoints,
+            bool wasGained,
+            string label,
+            Stat points,
+            bool canSpend)
+        {
+            if (!wasGained || !canSpend || points == null || points.ModifiedInt <= 0)
+            {
+                return;
+            }
+
+            availablePoints.Add(label + " " + points.ModifiedInt.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private void ClearPendingProgressionPointGains()
+        {
+            _pendingAttributePointGain = false;
+            _pendingSkillPointGain = false;
+            _pendingCatalystPointGain = false;
+            _pendingArthurPointGain = false;
+            _pendingWyrdWhisperGain = false;
+        }
+
+        private void OnHeroHealthChanged(Stat.StatChange change)
+        {
+            if (!IsHealingNotificationEnabled()
+                || IsBuiltInEventClaimed(DefaultHealingEventId)
+                || (!IsHealingOverTimeNotificationEnabled()
+                    && _healingOverTimeScopeDepth > 0)
+                || change.value <= 0.0f
+                || change.stat == null
+                || !IsGameLoadedReadyForNotifications())
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            for (int i = _bufferedHealingBatches.Count - 1; i >= 0; i--)
+            {
+                if (now - _bufferedHealingBatches[i].LastChangeTime > 2.0f)
+                {
+                    _bufferedHealingBatches.RemoveAt(i);
+                }
+            }
+
+            BuiltInEventPresentationClaim presentationClaim;
+            HealingNotificationBatch incoming = new HealingNotificationBatch
+            {
+                EventId = DefaultHealingEventId,
+                Style = "Green",
+                IconId = "healing",
+                Amount = change.value,
+                LastChangeTime = now
+            };
+            if (TryResolveBuiltInEventPresentationClaim(
+                    DefaultHealingEventId,
+                    out presentationClaim))
+            {
+                incoming.EventId = presentationClaim.EventId;
+                incoming.Style = string.IsNullOrEmpty(presentationClaim.Style)
+                    ? incoming.Style
+                    : presentationClaim.Style;
+                incoming.IconId = string.IsNullOrEmpty(presentationClaim.IconId)
+                    ? incoming.IconId
+                    : presentationClaim.IconId;
+            }
+
+            HealingNotificationBatch buffered = FindMatchingHealingBatch(
+                _bufferedHealingBatches,
+                incoming);
+            if (buffered == null)
+            {
+                buffered = incoming;
+                _bufferedHealingBatches.Add(buffered);
+            }
+            else
+            {
+                buffered.Amount += incoming.Amount;
+                buffered.LastChangeTime = now;
+            }
+
+            if (buffered.Amount + 0.001f < GetHealingMinimumAmount())
+            {
+                return;
+            }
+
+            _bufferedHealingBatches.Remove(buffered);
+            ShowHealingNotification(buffered);
+        }
+
+        private bool ShowHealingNotification(HealingNotificationBatch batch)
+        {
+            if (batch == null || batch.Amount <= 0.0f)
+            {
+                return false;
+            }
+
+            if (!IsHealingConsolidationEnabled())
+            {
+                return TryShowHealingBatch(batch, false);
+            }
+
+            PruneExpired(Time.unscaledTime);
+            AdvanceHealingQueue();
+            if (_activeHealingNotification == null)
+            {
+                return TryShowHealingBatch(batch, true);
+            }
+
+            HealingNotificationBatch pending = FindMatchingHealingBatch(
+                _pendingHealingBatches,
+                batch);
+            if (pending == null)
+            {
+                _pendingHealingBatches.Add(batch);
+            }
+            else
+            {
+                pending.Amount += batch.Amount;
+                pending.LastChangeTime = batch.LastChangeTime;
+            }
+            return true;
+        }
+
+        private bool TryShowHealingBatch(
+            HealingNotificationBatch batch,
+            bool trackAsActive)
+        {
+            string collapseKey = batch.EventId
+                + "-entry-"
+                + (++_nextHealingEntrySequence).ToString(CultureInfo.InvariantCulture);
+            bool shown = TryShowCore(
+                PluginGuid,
+                batch.EventId,
+                FormatHealingText(batch.Amount, GetConfiguredHealingTextFormat()),
+                batch.Style,
+                "Status",
+                "Normal",
+                collapseKey,
+                batch.IconId,
+                GetDurationBucketSeconds(ParseDurationBucket(
+                    _healingDurationBucket == null ? "Short" : _healingDurationBucket.Value)),
+                0.25f,
+                0.9f);
+            if (!shown || !trackAsActive)
+            {
+                return shown;
+            }
+
+            _activeHealingNotification = FindCollapsibleEntry(PluginGuid, collapseKey);
+            return _activeHealingNotification != null;
+        }
+
+        private void AdvanceHealingQueue()
+        {
+            if (!IsHealingConsolidationEnabled())
+            {
+                _activeHealingNotification = null;
+                while (_pendingHealingBatches.Count > 0)
+                {
+                    HealingNotificationBatch pending = _pendingHealingBatches[0];
+                    _pendingHealingBatches.RemoveAt(0);
+                    TryShowHealingBatch(pending, false);
+                }
+                return;
+            }
+
+            if (_activeHealingNotification != null && _notifications.Contains(_activeHealingNotification))
+            {
+                return;
+            }
+
+            _activeHealingNotification = null;
+            if (_pendingHealingBatches.Count == 0)
+            {
+                return;
+            }
+
+            HealingNotificationBatch next = _pendingHealingBatches[0];
+            _pendingHealingBatches.RemoveAt(0);
+            TryShowHealingBatch(next, true);
+        }
+
+        private static HealingNotificationBatch FindMatchingHealingBatch(
+            List<HealingNotificationBatch> batches,
+            HealingNotificationBatch expected)
+        {
+            for (int i = 0; i < batches.Count; i++)
+            {
+                HealingNotificationBatch candidate = batches[i];
+                if (candidate != null
+                    && string.Equals(
+                        candidate.EventId,
+                        expected.EventId,
+                        StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        candidate.Style,
+                        expected.Style,
+                        StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        candidate.IconId,
+                        expected.IconId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private string GetConfiguredHealingTextFormat()
+        {
+            string format = _healingTextFormat == null ? string.Empty : _healingTextFormat.Value;
+            return string.IsNullOrWhiteSpace(format) ? "Healed {health}" : format;
+        }
+
+        private static string FormatHealingText(float amount, string format)
+        {
+            string formattedAmount = Math.Round(amount, MidpointRounding.AwayFromZero)
+                .ToString("0", CultureInfo.InvariantCulture);
+            return format
+                .Replace("{health}", formattedAmount)
+                .Replace("{amount}", formattedAmount);
+        }
+
+        private float GetHealingMinimumAmount()
+        {
+            return _healingMinimumAmount == null
+                ? 1.0f
+                : Math.Max(0.0f, _healingMinimumAmount.Value);
+        }
+
+        private bool IsHealingConsolidationEnabled()
+        {
+            return _consolidateHealing != null && _consolidateHealing.Value;
+        }
+
+        private bool IsHealingOverTimeNotificationEnabled()
+        {
+            return _notifyHealingOverTime != null && _notifyHealingOverTime.Value;
+        }
+
+        private static void BeginHealingOverTimeScope()
+        {
+            _healingOverTimeScopeDepth++;
+        }
+
+        private static void EndHealingOverTimeScope()
+        {
+            if (_healingOverTimeScopeDepth > 0)
+            {
+                _healingOverTimeScopeDepth--;
+            }
+        }
+
+        private void ClearPendingHealing()
+        {
+            _pendingHealingBatches.Clear();
+            _bufferedHealingBatches.Clear();
         }
 
         private void OnLocationCleared(Location location)
@@ -1196,7 +2020,8 @@ namespace GrailFloatingText
             }
 
             float delta;
-            if (!TryGetBountyDelta(crimeData, out delta))
+            float total;
+            if (!TryGetBountyChange(crimeData, out delta, out total))
             {
                 return;
             }
@@ -1212,6 +2037,8 @@ namespace GrailFloatingText
             {
                 text += ": " + crimeType;
             }
+
+            text += " | Total " + Mathf.Max(0, Mathf.RoundToInt(total)).ToString(CultureInfo.InvariantCulture);
 
             ShowDefaultGameNotification(
                 "default-bounty-changed",
@@ -1349,13 +2176,18 @@ namespace GrailFloatingText
             _lastObservedWyrdNight = isNight;
             _lastWyrdNightNotificationTime = Time.unscaledTime;
 
+            if (IsBuiltInEventClaimed(VanillaWyrdNightEventId))
+            {
+                return;
+            }
+
             ShowVanillaWyrdNotification(
-                "vanilla-wyrd-night",
+                VanillaWyrdNightEventId,
                 isNight ? "Wyrdnight falls" : "Wyrdnight fades",
                 "Status",
                 "High",
-                "vanilla-wyrd-night",
-                "vanilla-wyrd-night");
+                VanillaWyrdNightEventId,
+                VanillaWyrdNightEventId);
         }
 
         private void OnWyrdStatusChanged(bool exposed)
@@ -1438,10 +2270,12 @@ namespace GrailFloatingText
             return IsVanillaWyrdEventsEnabled() ||
                 IsRestDurationNotificationEnabled() ||
                 IsCombatDefenseNotificationEnabled() ||
-                IsEncumbranceNotificationEnabled() ||
+                IsAnyEncumbranceNotificationEnabled() ||
+                IsProgressionPointsNotificationEnabled() ||
                 IsLocationClearedNotificationEnabled() ||
                 IsCrimeNotificationEnabled() ||
-                IsCombatHitNotificationEnabled();
+                IsCombatHitNotificationEnabled() ||
+                IsHealingNotificationEnabled();
         }
 
         private bool IsRestDurationNotificationEnabled()
@@ -1465,6 +2299,21 @@ namespace GrailFloatingText
             return _notifyEncumbranceChanged != null && _notifyEncumbranceChanged.Value;
         }
 
+        private bool IsNearEncumbranceNotificationEnabled()
+        {
+            return _notifyNearEncumbranceLimit != null && _notifyNearEncumbranceLimit.Value;
+        }
+
+        private bool IsAnyEncumbranceNotificationEnabled()
+        {
+            return IsEncumbranceNotificationEnabled() || IsNearEncumbranceNotificationEnabled();
+        }
+
+        private bool IsProgressionPointsNotificationEnabled()
+        {
+            return _notifyProgressionPointsGained != null && _notifyProgressionPointsGained.Value;
+        }
+
         private bool IsLocationClearedNotificationEnabled()
         {
             return _notifyLocationCleared != null && _notifyLocationCleared.Value;
@@ -1483,6 +2332,11 @@ namespace GrailFloatingText
         {
             return (_notifyWeakspotHit != null && _notifyWeakspotHit.Value) ||
                 (_notifySneakAttack != null && _notifySneakAttack.Value);
+        }
+
+        private bool IsHealingNotificationEnabled()
+        {
+            return _notifyHealing != null && _notifyHealing.Value;
         }
 
         private bool ShouldShowVanillaWyrdSafetyChange()
@@ -1703,9 +2557,10 @@ namespace GrailFloatingText
             }
         }
 
-        private static bool TryGetBountyDelta(CrimeChangeData crimeData, out float delta)
+        private static bool TryGetBountyChange(CrimeChangeData crimeData, out float delta, out float total)
         {
             delta = 0.0f;
+            total = 0.0f;
 
             try
             {
@@ -1727,6 +2582,7 @@ namespace GrailFloatingText
                 float from = Convert.ToSingle(fromField.GetValue(bountyChange), CultureInfo.InvariantCulture);
                 float to = Convert.ToSingle(toField.GetValue(bountyChange), CultureInfo.InvariantCulture);
                 delta = to - from;
+                total = to;
                 return true;
             }
             catch
@@ -2240,6 +3096,45 @@ namespace GrailFloatingText
             });
 
             return true;
+        }
+
+        internal bool TryCancelXpGainClaim(
+            string sourceId,
+            string eventId,
+            float expectedAmount)
+        {
+            if (expectedAmount <= 0.0f)
+            {
+                return false;
+            }
+
+            float now = Time.unscaledTime;
+            PruneExpiredXpClaims(now);
+            string normalizedSourceId = NormalizeSourceId(sourceId);
+            string normalizedEventId = NormalizeEventId(eventId);
+            for (int i = _xpDisplayClaims.Count - 1; i >= 0; i--)
+            {
+                XpDisplayClaim claim = _xpDisplayClaims[i];
+                if (claim == null
+                    || !string.Equals(claim.SourceId, normalizedSourceId, StringComparison.Ordinal)
+                    || !string.Equals(claim.EventId, normalizedEventId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                float tolerance = Math.Max(
+                    XpClaimAmountTolerance,
+                    Math.Abs(claim.ExpectedAmount) * 0.001f);
+                if (Math.Abs(claim.ExpectedAmount - expectedAmount) > tolerance)
+                {
+                    continue;
+                }
+
+                _xpDisplayClaims.RemoveAt(i);
+                return true;
+            }
+
+            return false;
         }
 
         private bool HandleXpChangedFromStatHook(HookResult<IWithStats, Stat.StatChange> hookResult)
@@ -3017,6 +3912,7 @@ namespace GrailFloatingText
             UpdateQuickWheelPanel(now);
             PruneExpired(now);
             AdvanceXpQueue();
+            AdvanceHealingQueue();
             if (_notifications.Count == 0)
             {
                 SetNotificationViewsActive(0);
@@ -3848,11 +4744,11 @@ namespace GrailFloatingText
                 PluginGuid,
                 eventId,
                 text,
-                "System",
+                "Warning",
                 "System",
                 "High",
                 eventId,
-                "system",
+                "warning",
                 "System",
                 "OnMainMenu",
                 -1.0f,
@@ -4290,9 +5186,17 @@ namespace GrailFloatingText
             {
                 normalized = "one_handed";
             }
+            else if (normalized == "one_handed_polearm")
+            {
+                normalized = "one_handed_spear";
+            }
             else if (normalized == "twohanded" || normalized == "two_handed_weapon")
             {
                 normalized = "two_handed";
+            }
+            else if (normalized == "two_handed_polearm")
+            {
+                normalized = "two_handed_spear";
             }
             else if (normalized == "bow" || normalized == "bow_arrow")
             {
@@ -4527,7 +5431,7 @@ namespace GrailFloatingText
                 "1. Core",
                 "NotifyModCompatibility",
                 true,
-                "Show soft system notices when a loaded Grailwright mod has documented incompatible DLLs loaded alongside it. Detection treats the Grailwright mod as the preferred implementation but never disables another plugin automatically.");
+                "Show warning-styled system notices when a loaded Grailwright mod has documented incompatible DLLs loaded alongside it. Detection treats the Grailwright mod as the preferred implementation but never disables another plugin automatically.");
             Config.Bind(
                 "1. Core",
                 "ConfigSchemaVersion",
@@ -4582,7 +5486,7 @@ namespace GrailFloatingText
             _iconShadowEnabled = Config.Bind("8. Icons", "IconShadowEnabled", true, "Draw a black offset shadow behind icons. Text shadows are controlled separately and remain enabled.");
             _iconShadowOpacity = Config.Bind("8. Icons", "IconShadowOpacity", 0.75f, new ConfigDescription("Opacity multiplier applied to icon shadows.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            _notifyRestDuration = Config.Bind("9. Default Game Events", "NotifyRestDuration", true, "Show how long the hero actually rested after sleep is started.");
+            _notifyRestDuration = Config.Bind("9. Default Game Events", "NotifyRestDuration", true, "Show how long the hero actually rested as the sleep transition ends.");
             _notifyInterruptedRestDuration = Config.Bind("9. Default Game Events", "NotifyInterruptedRestDuration", true, "Use interrupted wording when rest ends early due to a Wyrd interruption.");
             _restDurationTextFormat = Config.Bind("9. Default Game Events", "RestDurationTextFormat", "Rested {duration}", "Floating text for completed rest. Tokens: {duration}.");
             _restInterruptedTextFormat = Config.Bind("9. Default Game Events", "RestInterruptedTextFormat", "Rest interrupted: {duration} slept", "Floating text for interrupted rest. Tokens: {duration}.");
@@ -4592,6 +5496,9 @@ namespace GrailFloatingText
             _combatDefenseMinimumDamage = Config.Bind("9. Default Game Events", "CombatDefenseMinimumDamage", 1.0f, new ConfigDescription("Minimum blocked/parried damage required before showing combat defense text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
             _combatDefenseCooldownSeconds = Config.Bind("9. Default Game Events", "CombatDefenseCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated block or parry messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
             _notifyEncumbranceChanged = Config.Bind("9. Default Game Events", "NotifyEncumbranceChanged", true, "Show Over-encumbered and Burden lifted text when the encumbrance state changes.");
+            _notifyNearEncumbranceLimit = Config.Bind("9. Default Game Events", "NotifyNearEncumbranceLimit", true, "Show one warning when carried weight crosses the configured percentage of the hero's limit. The warning rearms after weight falls five percentage points below the threshold.");
+            _encumbranceWarningPercent = Config.Bind("9. Default Game Events", "EncumbranceWarningPercent", 90, new ConfigDescription("Carry-weight percentage that triggers the near-limit warning.", new AcceptableValueRange<int>(50, 100)));
+            _notifyProgressionPointsGained = Config.Bind("9. Default Game Events", "NotifyProgressionPointsGained", true, "Show one consolidated message when spendable Attribute, Skill, Catalyst, Arthur, or Wyrd Whisper points increase.");
             _notifyLocationCleared = Config.Bind("9. Default Game Events", "NotifyLocationCleared", true, "Show a reward-style message when a location is cleared.");
             _notifyPickpocketSuccess = Config.Bind("9. Default Game Events", "NotifyPickpocketSuccess", true, "Show pickpocket text when a pickpocket succeeds.");
             _notifyPickpocketFail = Config.Bind("9. Default Game Events", "NotifyPickpocketFail", true, "Show pickpocket warning text when a pickpocket fails.");
@@ -4608,6 +5515,12 @@ namespace GrailFloatingText
             _consolidateXpGains = Config.Bind("9. Default Game Events", "ConsolidateXpGains", true, "Show one XP entry at a time and combine queued compatible gains. Generic XP combines only with generic XP; mod claims require the same source-specific consolidation key.");
             _xpTextFormat = Config.Bind("9. Default Game Events", "XpTextFormat", "+{xp} XP", "Floating text for XP gains. Tokens: {xp}, {amount}.");
             _xpDurationBucket = Config.Bind("9. Default Game Events", "XpDurationBucket", "Short", "Named duration bucket used for XP gain floating text.");
+            _notifyHealing = Config.Bind("9. Default Game Events", "NotifyHealing", true, "Show actual increases to the hero's health through Grail Floating Text.");
+            _notifyHealingOverTime = Config.Bind("9. Default Game Events", "NotifyHealingOverTime", false, "Show periodic healing from health regeneration and timed status effects. Immediate healing still follows NotifyHealing.");
+            _consolidateHealing = Config.Bind("9. Default Game Events", "ConsolidateHealing", true, "Show one healing entry at a time and combine healing received while it is visible into the next entry.");
+            _healingMinimumAmount = Config.Bind("9. Default Game Events", "HealingMinimumAmount", 1.0f, new ConfigDescription("Minimum accumulated healing required before showing a notification. Smaller rapid gains are buffered for up to two seconds.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
+            _healingTextFormat = Config.Bind("9. Default Game Events", "HealingTextFormat", "Healed {health}", "Floating text for healing received. Tokens: {health}, {amount}.");
+            _healingDurationBucket = Config.Bind("9. Default Game Events", "HealingDurationBucket", "Short", "Named duration bucket used for healing floating text.");
             _vanillaWyrdEventsEnabled = Config.Bind("9. Default Game Events", "VanillaWyrdEventsEnabled", true, "Show built-in Grail Floating Text messages for vanilla Wyrd game events.");
             _notifyWyrdNightChange = Config.Bind("9. Default Game Events", "NotifyWyrdNightChange", true, "Show Wyrdnight falls/fades messages when the vanilla Wyrdnight state changes.");
             _notifyWyrdSafetyChange = Config.Bind("9. Default Game Events", "NotifyWyrdSafetyChange", true, "Show Safe from Wyrdness and Exposed to Wyrdness messages for vanilla Wyrd safety changes.");
@@ -4629,11 +5542,11 @@ namespace GrailFloatingText
             BindColorGroup(
                 "Red",
                 "#FF3D2E",
-                "killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack",
+                "killing-blow; blood-magic-corpse-xp; blood-magic-healed; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack",
                 "High-impact success or danger events.");
             BindColorGroup(
                 "Gold",
-                "#FFDB47",
+                "#FFC03A",
                 "default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment",
                 "Reward and progress events.");
             BindColorGroup(
@@ -4642,13 +5555,23 @@ namespace GrailFloatingText
                 "default-burden-lifted",
                 "Clean status-change events.");
             BindColorGroup(
+                "Green",
+                "#8FD36B",
+                "",
+                "Nature, poison, and restorative events.");
+            BindColorGroup(
                 "Purple",
                 "#C294FF",
                 "wyrd-hunt-status; vanilla-wyrd-night; vanilla-wyrd-safety; vanilla-wyrd-skill",
                 "Wyrd and mystical status events.");
             BindColorGroup(
+                "Pink",
+                "#E06AAE",
+                "",
+                "Summon and magical companion events.");
+            BindColorGroup(
                 "Orange",
-                "#FFB87A",
+                "#FF9A35",
                 "default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed",
                 "Warnings and combat feedback events.");
             BindColorGroup(
@@ -5674,6 +6597,10 @@ namespace GrailFloatingText
                     {
                         _activeXpNotification = null;
                     }
+                    if (ReferenceEquals(entry, _activeHealingNotification))
+                    {
+                        _activeHealingNotification = null;
+                    }
                 }
             }
         }
@@ -5688,6 +6615,10 @@ namespace GrailFloatingText
                 if (ReferenceEquals(removed, _activeXpNotification))
                 {
                     _activeXpNotification = null;
+                }
+                if (ReferenceEquals(removed, _activeHealingNotification))
+                {
+                    _activeHealingNotification = null;
                 }
             }
         }
@@ -5946,7 +6877,7 @@ namespace GrailFloatingText
             }
             else if (StyleEquals(style, "Wyrd"))
             {
-                groupName = "Purple";
+                groupName = ResolveEyesWyrdStyle();
             }
             else if (StyleEquals(style, "Combat")
                 || StyleEquals(style, "Resistance")
@@ -6041,14 +6972,15 @@ namespace GrailFloatingText
 
             if (StyleEquals(style, "Wyrd"))
             {
-                return ResolveNamedGroupOrFallback(
-                    "Purple",
-                    new Color(
+                string groupName = ResolveEyesWyrdStyle();
+                Color fallback = StyleEquals(groupName, "Orange")
+                    ? new Color(1.0f, 0.72f, 0.18f, alpha)
+                    : new Color(
                         152.0f / 255.0f,
                         112.0f / 255.0f,
                         1.0f,
-                        alpha),
-                    alpha);
+                        alpha);
+                return ResolveNamedGroupOrFallback(groupName, fallback, alpha);
             }
 
             if (StyleEquals(style, "Discovery"))
@@ -6152,6 +7084,15 @@ namespace GrailFloatingText
                     1.0f);
             }
 
+            if (StyleEquals(groupName, "Pink"))
+            {
+                return new Color(
+                    224.0f / 255.0f,
+                    106.0f / 255.0f,
+                    174.0f / 255.0f,
+                    1.0f);
+            }
+
             if (StyleEquals(groupName, "Orange"))
             {
                 return new Color(1.0f, 0.72f, 0.18f, 1.0f);
@@ -6213,6 +7154,56 @@ namespace GrailFloatingText
             }
         }
 
+        private sealed class VHeroControllerUpdateStatsPatch
+        {
+            internal static void Prefix()
+            {
+                BeginHealingOverTimeScope();
+            }
+
+            internal static Exception Finalizer(Exception __exception)
+            {
+                EndHealingOverTimeScope();
+                return __exception;
+            }
+        }
+
+        private sealed class PassiveStatOverTimePatch
+        {
+            private static readonly FieldInfo StatField = AccessTools.Field(
+                typeof(PassiveStatOverTime),
+                "_stat");
+
+            internal static void Prefix(
+                PassiveStatOverTime __instance,
+                float valueToIncrease,
+                out bool __state)
+            {
+                Stat stat = StatField == null || __instance == null
+                    ? null
+                    : StatField.GetValue(__instance) as Stat;
+                __state = valueToIncrease > 0.0f
+                    && stat != null
+                    && stat.Type == AliveStatType.Health;
+                if (__state)
+                {
+                    BeginHealingOverTimeScope();
+                }
+            }
+
+            internal static Exception Finalizer(
+                Exception __exception,
+                bool __state)
+            {
+                if (__state)
+                {
+                    EndHealingOverTimeScope();
+                }
+
+                return __exception;
+            }
+        }
+
         private sealed class XpDisplayClaim
         {
             internal string SourceId;
@@ -6247,6 +7238,24 @@ namespace GrailFloatingText
             internal float Amount;
             internal float FadeSeconds;
             internal float Opacity;
+        }
+
+        private sealed class BuiltInEventPresentationClaim
+        {
+            internal string SourceId;
+            internal string EventId;
+            internal string Style;
+            internal string IconId;
+            internal long Sequence;
+        }
+
+        private sealed class HealingNotificationBatch
+        {
+            internal string EventId;
+            internal string Style;
+            internal string IconId;
+            internal float Amount;
+            internal float LastChangeTime;
         }
 
         private struct NotificationLayout

@@ -27,7 +27,7 @@ if ($groupLookup -gt $htmlParse) {
     throw "Literal HTML colors are resolved before configured color groups. Named colors such as Purple would bypass their settings."
 }
 
-$requiredGroups = @("Red", "Gold", "Blue", "Purple", "Orange", "Pale", "Gray", "White", "Default")
+$requiredGroups = @("Red", "Gold", "Blue", "Green", "Purple", "Pink", "Orange", "Pale", "Gray", "White", "Default")
 $bindingsStart = $source.IndexOf("private void BindColorGroups()", [StringComparison]::Ordinal)
 $bindingsEnd = $source.IndexOf("private void BindColorGroup(", $bindingsStart, [StringComparison]::Ordinal)
 if ($bindingsStart -lt 0 -or $bindingsEnd -le $bindingsStart) {
@@ -43,6 +43,15 @@ foreach ($groupName in $requiredGroups) {
 
 if (-not [regex]::IsMatch($bindings, '"Purple"\s*,\s*"#C294FF"')) {
     throw "Purple must bind with the authored #C294FF default."
+}
+if (-not [regex]::IsMatch($bindings, '"Pink"\s*,\s*"#E06AAE"')) {
+    throw "Pink must bind with the authored #E06AAE default."
+}
+if (-not [regex]::IsMatch($bindings, '"Orange"\s*,\s*"#FF9A35"')) {
+    throw "Orange must bind with the authored #FF9A35 default."
+}
+if (-not [regex]::IsMatch($bindings, '"Gold"\s*,\s*"#FFC03A"')) {
+    throw "Gold must bind with the authored #FFC03A default."
 }
 
 Write-Output "Color-group resolution contract passed."

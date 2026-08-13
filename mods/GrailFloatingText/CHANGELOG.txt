@@ -1,3 +1,158 @@
+Version 2.4.6
+Added API v12 source-scoped built-in event presentation claims so integrations can restyle an exact synchronous event without bypassing GFT healing settings.
+Separated buffered and queued healing by event, style, and icon so Blood Magic healing cannot merge into ordinary green healing.
+Integrated Blood Magic Expansion 2.8.1 healing with the configurable Red group and Blood Magic icon while retaining default suppression of frequent held-channel ticks.
+
+Version 2.4.5
+Updated the bundled Meager, Worthy, Potent, and Prime corpse icon artwork.
+
+Version 2.4.4
+Replaced the generic corpse icon with built-in Meager, Worthy, Potent, and Prime corpse icons for quality-aware Blood Magic Expansion and Deeds of Avalon presentation.
+
+Version 2.4.3
+Extended API v11 built-in event claims to the default Healed event so integrations can suppress their own scoped healing presentation without disabling other healing notifications.
+Integrated Blood Magic Expansion 2.7.4 held-channel healing ticks with that scoped default-event ownership.
+
+Version 2.4.2
+Excluded periodic health regeneration and timed healing effects from Healed notifications by default while keeping immediate healing visible.
+Added the default-off NotifyHealingOverTime setting so players can include periodic healing without changing the existing config schema.
+
+Version 2.4.1
+Added API v11 built-in event claims so integrations can replace a GFT default event without changing the user's notification settings.
+Suppressed GFT's Wyrdnight falls/fades text while Eyes in the Dark owns Atmospheric or Detailed night-transition notifications, with automatic fallback when that ownership is inactive.
+
+Version 2.4.0
+Delayed rest-duration notifications by 1.5 seconds so they appear as the rest transition ends instead of when resting begins.
+Changed confirmed main-menu compatibility conflicts to orange Warning presentation with the warning icon while retaining the System category, High priority, and System duration.
+
+Version 2.3.8
+Added green Healed notifications for actual hero health gains, with a new heart-and-spark healing icon.
+Added XP-style healing consolidation so rapid regeneration and repeated healing combine into one queued follow-up entry without restarting the visible timer.
+Added settings for healing enablement, consolidation, minimum accumulated amount, text format, and duration bucket without changing the config schema.
+
+Version 2.3.7
+Added a configurable Pink color group and matching icon-color override with a #E06AAE default for summon and magical companion integrations.
+
+Version 2.3.6
+Refreshed the built-in icon artwork.
+
+Version 2.3.5
+Added the built-in summon icon for summon-kill statistics and other integrations.
+
+Version 2.3.4
+Added an event-driven near-capacity warning at 90 percent carry weight by default, with five-percent hysteresis so it does not repeat around the threshold.
+Added one-frame consolidation for newly gained spendable Attribute, Skill, Catalyst, Arthur, and Wyrd Whisper points.
+Added the resulting current bounty total to existing bounty-change messages.
+
+Version 2.3.2
+Refreshed the specific handed-weapon icon artwork with finalized designs matching the established icon set.
+
+Version 2.3.1
+Removed the single-item One-Handed Sickle icon ID; integrations classify sickles with One-Handed Axe instead.
+
+Version 2.3.0
+Added ten specific handed-weapon icon IDs for sword, axe, blunt, dagger, spear, and sickle integrations while retaining the broad One-Handed and Two-Handed compatibility icons.
+Kept the established Two-Handed icon artwork as the new Two-Handed Sword icon and added polearm aliases for both spear icons.
+
+Version 2.2.9
+Added QuickWheelPanelApi version 15 with caller-controlled spacing between the two panel columns.
+
+Version 2.2.8
+Replaced the single Gold Earned symbol with five properly framed built-in coin-pile icons for Very Low, Low, Medium, High, and Very High cumulative wealth tiers.
+
+Version 2.2.7
+Added the built-in gold_earned icon for cumulative-currency statistics and other integrations, with the established runtime tinting, mipmaps, and filtering.
+
+Version 2.2.6
+Added QuickWheelPanelApi version 14 with a caller-declared left summary boundary and a fixed six-reference-pixel gap before the first ordinary statistic.
+Changed procedural backplates to subtractive black alpha masks so they retain their bright-scene contrast without becoming gray rectangles over very dark scenes.
+Stopped repeating the full quick-wheel panel layout every rendered frame; providers now mark layout dirty only when panel content or settings are republished.
+
+Version 2.2.5
+Slightly rounded procedural backplate corners with a localized smooth edge blend while preserving their dimensions, separately seeded irregular silhouettes, feathering, and surface detail.
+
+Version 2.2.4
+Removed hard rectangular backplate cutoffs with guaranteed transparent outer gutters, broader irregular feathering, and additional texture bleed outside panel content.
+Raised procedural backplate quality with 128x256 multi-scale charcoal grain and fine fibers, and gave each column a separately seeded texture so the two panels have related but distinct silhouettes and surface variation.
+
+Version 2.2.3
+Added QuickWheelPanelApi version 13 with caller-controlled 160 through 400 reference-pixel column width.
+Replaced the flat backplate fill with one shared procedural charcoal texture using subtle mottling and softly irregular feathered edges while retaining two reusable UI quads.
+
+Version 2.2.2
+Added QuickWheelPanelApi version 12 with two caller-controlled black column backplates sized to their content and rendered behind panel text and icons.
+Kept the backplates to two reusable UI quads with configurable opacity and padding.
+
+Version 2.2.1
+Added QuickWheelPanelApi version 11 with caller-controlled SDF underlay softness for a blurred-looking text backing without copied text geometry.
+Kept the bounded one-copy shadow fallback for unsupported non-SDF materials.
+
+Version 2.2.0
+Added QuickWheelPanelApi version 10 with a caller-controlled 0.5x through 2.0x outline-strength multiplier for semantic White text.
+Kept icons, Pale text, and other styles at the caller's configured outline strength.
+
+Version 2.1.9
+Added QuickWheelPanelApi version 9 with native TextMesh Pro SDF outlines and underlay shadows, outline and shadow ranges up to 16, and strength ranges up to 8.
+Replaced the normal 21-copy quick-wheel text mesh with one cached material-backed glyph mesh; unsupported non-SDF fonts use a bounded six-copy fallback.
+Stopped dirtying quick-wheel text geometry every panel refresh when its font and effect settings are unchanged.
+Safely rebuilds each owned effect material from the newly selected font when GFT's font mode changes at runtime.
+Applied a 1.5x outline-strength multiplier to semantic White quick-wheel text without thickening Pale or other bright color groups.
+Kept ConfigSchemaVersion 25 because the renderer and caller-controlled API ranges changed without changing any Grail Floating Text config setting.
+
+Version 2.1.6
+Added QuickWheelPanelApi version 8 with independent outline strength and support for caller-controlled outline widths up to 8 pixels.
+Replaced stacked Unity outline and shadow components with one bounded layered text effect so stronger outlines do not multiply panel mesh geometry exponentially.
+Changed the default Orange color group to #FF9A35 and Gold to #FFC03A.
+Raised ConfigSchemaVersion to 25 because the OrangeColor and GoldColor defaults changed; untouched old defaults receive the new palette while valid customized colors remain preserved.
+
+Version 2.1.5
+Repackaged the refreshed built-in magic icon artwork while retaining the established generic Magic and Wyrd icons for Other and Wyrdness magic.
+
+Version 2.1.4
+Kept Wyrdness magic on the established Wyrd icon and Other magic on the established generic Magic icon instead of adding redundant built-in assets.
+
+Version 2.1.3
+Added nine weathered built-in magic-type icons for Blood, Fire, Cold, Poison, Electric, Wyrdness, Pure, Wet, and Other magic, with the existing mipmap and trilinear-filtering path.
+
+Version 2.1.2
+Added NotificationApi v10 XP claim cancellation so integrations can remove a reserved one-shot or consolidated XP line when their matching XP mutation fails.
+
+Version 2.1.1
+Replaced the backpack weight icon with a hanging scale-weight design matching Deeds of Avalon's Encumbrance resource icon.
+
+Version 2.1.0
+Replaced the placeholder fish, lock, and craft quick-wheel icons with finished hand-painted symbols that remain readable at panel scale.
+
+Version 2.0.9
+Added the configurable Green color group and matching icon-color override for nature, poison, and restorative integrations.
+
+Version 2.0.8
+Added QuickWheelPanelApi version 7 with a three-item resource strip beneath the first left-column row and source-provided quick-wheel icons.
+Added built-in food, potion, lock, pickpocket, crafting, fish, and recipe icons for character-statistics integrations.
+Applied the existing transparent-edge dilation, runtime mipmaps, trilinear filtering, and cleanup rules to source-provided quick-wheel icons.
+
+Version 2.0.7
+Added the built-in skull icon for death statistics and other integrations.
+Added QuickWheelPanelApi version 6 with caller-controlled layered text-shadow strength.
+
+Version 2.0.5
+Made the semantic Wyrd style follow Eyes in the Dark's live Purple Wyrdness or Native Orange palette for both text and icon tint, including quick-wheel panel API rows.
+
+Version 2.0.4
+Replaced the quick-wheel panel API with version 5 and replaced layered shadows with a configurable four-direction outline plus one conventional drop shadow.
+
+Version 2.0.3
+Replaced the quick-wheel panel API with version 4 and added caller-controlled shadow strength using up to four progressively wider text-shadow layers.
+
+Version 2.0.2
+Replaced the quick-wheel panel API with version 3, adding caller-controlled shared header and subheader colors.
+
+Version 2.0.1
+Replaced the quick-wheel panel API with version 2, adding caller-controlled text-shadow enablement, opacity, and offset without retaining the version 1 call signature.
+
+Version 2.0.0
+Corrected the release version after the invalid 1.11.x sequence so minor and patch components stay single-digit.
+
 Version 1.11.1
 Added safe fallback-font recovery to quick-wheel panels when the configured game font cannot be resolved.
 

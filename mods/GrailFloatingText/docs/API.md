@@ -14,6 +14,8 @@ private const string GrailFloatingTextApiTypeName = "GrailFloatingText.Notificat
 
 private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
 private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
+private MethodInfo _grailFloatingTextTryCancelXpGainClaimMethod;
+private MethodInfo _grailFloatingTextTrySetBuiltInEventClaimMethod;
 private MethodInfo _grailFloatingTextTryShowDeferredEventMethod;
 private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
 private MethodInfo _grailFloatingTextTryShowWithIconMethod;
@@ -70,6 +72,26 @@ private bool TryResolveGrailFloatingText()
             typeof(float),
             typeof(float),
             typeof(float)
+        });
+
+    _grailFloatingTextTryCancelXpGainClaimMethod = AccessTools.Method(
+        apiType,
+        "TryCancelXpGainClaim",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(float)
+        });
+
+    _grailFloatingTextTrySetBuiltInEventClaimMethod = AccessTools.Method(
+        apiType,
+        "TrySetBuiltInEventClaim",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(bool)
         });
 
     _grailFloatingTextTryShowDeferredEventMethod = AccessTools.Method(
@@ -144,6 +166,7 @@ private bool TryResolveGrailFloatingText()
 
     return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
         _grailFloatingTextTryClaimXpGainMethod != null ||
+        _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
         _grailFloatingTextTryShowDeferredEventMethod != null ||
         _grailFloatingTextTryShowEventWithIconMethod != null ||
         _grailFloatingTextTryShowWithIconMethod != null ||
@@ -151,7 +174,7 @@ private bool TryResolveGrailFloatingText()
 }
 ```
 
-API v9 also exposes `GrailFloatingText.QuickWheelPanelApi` for a persistent
+QuickWheelPanelApi v15 exposes `GrailFloatingText.QuickWheelPanelApi` for a persistent
 right-anchored two-column surface. Call `TrySet` while your quick-wheel owner is
 active, `SetTooltipActive` when its normal item tooltip opens or closes, and
 `Clear` when the wheel closes. The caller owns the rows and limits; GFT owns
@@ -159,11 +182,47 @@ font resolution, configured style colors, built-in icons, layout, and fading.
 
 ```text
 TrySet(sourceId, leftTitle, leftSubtitle, leftTexts, leftIconIds, leftStyles,
+       leftResourceTexts, leftResourceIconIds, leftResourceStyles,
+       leftSummaryRowCount,
        rightTitle, rightSubtitle, rightTexts, rightIconIds, rightStyles,
-       opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale)
+       opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale,
+       panelColumnWidth, columnGap,
+       panelBackgroundOpacity, panelBackgroundPadding,
+       textShadowEnabled, textShadowOpacity, textShadowOffset, textShadowSoftness,
+       textShadowStrength,
+       textOutlineEnabled, textOutlineColor, textOutlineOpacity, textOutlineWidth,
+       textOutlineStrength, whiteTextOutlineStrengthMultiplier,
+       headerColor, subheaderColor)
 SetTooltipActive(sourceId, active)
 Clear(sourceId)
 ```
+
+`panelColumnWidth` accepts 160 through 400 reference pixels. `columnGap` accepts
+0 through 200 reference pixels and controls the space between the two columns.
+`leftSummaryRowCount` declares how many leading entries in `leftTexts` belong to
+the character summary. When ordinary rows follow, GFT adds a fixed six-reference-
+pixel break before the first one. The optional resource strip remains part of the
+summary between its first and later text rows.
+`panelBackgroundOpacity` accepts 0 through 1; zero disables the two charcoal
+column backplates. `panelBackgroundPadding` accepts 0 through 32 reference pixels.
+GFT sizes one simple quad to each column's content and keeps both behind the text
+and icons. Each quad receives a separately seeded small procedural texture with
+multi-scale mottling, fine fibers, a transparent outer gutter, and softly
+irregular feathered edges. Their procedural variation is encoded into a black
+alpha mask, so black scenes remain black instead of revealing a lifted gray fill.
+
+`textOutlineWidth` and `textShadowOffset` accept 0 through 16,
+`textShadowSoftness` accepts 0 through 1, and both strength values accept 1
+through 8. An offset of 0 centers the underlay behind the glyphs so softness and
+opacity form a blurred-looking text backing; higher offsets produce a conventional
+drop shadow. Supported TextMesh Pro SDF fonts render the outline and underlay
+from one cached material-backed glyph mesh. Width and offset are approximate
+visual ranges because each font atlas has its own SDF gradient scale. Unsupported
+materials use a bounded four-direction outline plus one shadow copy rather than
+layered geometry.
+`whiteTextOutlineStrengthMultiplier` accepts 0.5 through 2.0 and applies only to
+text resolved through the semantic `White` style. Icons, explicit `Pale`, gray,
+and other styles retain the caller's configured strength.
 
 API v7 deferred event call shape:
 
@@ -186,6 +245,36 @@ TryClaimConsolidatedXpGain(sourceId, eventId, consolidationKey, textFormat, styl
 ```
 
 Call it immediately before changing the hero XP stat. GFT batches only claims with the same `sourceId`, `consolidationKey`, and presentation, then replaces `{xp}` or `{amount}` in `textFormat` with the summed amount. Use distinct keys for meanings that must remain separate. If API v8 is unavailable, fall back to the API v6 one-shot claim.
+
+NotificationApi v10 XP claim cancellation:
+
+```csharp
+TryCancelXpGainClaim(sourceId, eventId, expectedAmount)
+```
+
+If the XP mutation fails after reserving an API v6 or v8 claim, call this immediately with the same source, event, and expected amount. GFT removes the newest matching unconsumed claim so it cannot later describe a reward that was not granted.
+
+NotificationApi v12 built-in event presentation claims:
+
+```csharp
+TrySetBuiltInEventPresentationClaim(
+    sourceId,
+    eventId,
+    presentationEventId,
+    style,
+    iconId,
+    active)
+```
+
+Set `active` to `true` immediately before an exact synchronous built-in event and release it from a `finally` block or Harmony finalizer. While active, the newest source-scoped presentation claim changes that event's event ID, style, and icon without bypassing its enablement, minimum amount, text format, duration, or consolidation settings. Healing batches with different event IDs, styles, or icons remain separate. Suppression through `TrySetBuiltInEventClaim` takes priority when both claim types are active. The Blood Magic healing integration claims `default-healed` as `blood-magic-healed` with the `Red` style and `magic_blood` icon.
+
+NotificationApi v11 built-in event claims:
+
+```csharp
+TrySetBuiltInEventClaim(sourceId, eventId, active)
+```
+
+Set `active` to `true` while your integration provides a replacement for a GFT built-in event, then set it to `false` when that replacement becomes inactive or your plugin shuts down. GFT suppresses its own presentation while any source claims the event but continues tracking the underlying game state. The Wyrdnight transition event ID is `vanilla-wyrd-night` and covers both nightfall and dawn. The healing event ID is `default-healed`; claim it only around the exact synchronous health mutation your integration replaces or intentionally keeps quiet, and release it from a `finally` block or Harmony finalizer. Claims do not change user configuration.
 
 API v6 one-shot XP claim call shape:
 
@@ -217,7 +306,7 @@ Recommended values:
 
 - `sourceId`: your plugin GUID.
 - `eventId`: stable event token, such as `killing-blow` or `wyrd-hunt-status`, used for configurable color-group routing.
-- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, a configured color-group name, or a hex color. Configured group names take priority over HTML named colors, so values such as `Purple`, `Red`, and `Blue` use their matching settings.
+- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, a configured color-group name, or a hex color. Configured group names take priority over HTML named colors, so values such as `Purple`, `Pink`, `Red`, and `Blue` use their matching settings.
 - `category`: `General`, `Combat`, `Reward`, `Status`, `System`, or `Debug`.
 - `priority`: `Low`, `Normal`, `High`, or `Critical`.
 - `collapseKey`: leave blank for stacking event messages; set a stable key for status messages that should update in place.
@@ -233,12 +322,19 @@ Recommended values:
 Built-in icon IDs:
 
 - Core: `general`, `system`, `status`, `wyrd`, `reward`, `combat`, `warning`, `critical`, `debug`.
-- Game events: `rest`, `location`, `parry`, `crime`, `pickpocket`, `weight`, `experience`, `corpse`.
+- Game events: `rest`, `location`, `parry`, `crime`, `pickpocket`, `weight`, `experience`, `healing`, `corpse_meager`, `corpse_worthy`, `corpse_potent`, `corpse_prime`, `summon`.
+- Currency: `gold_earned_very_low`, `gold_earned_low`, `gold_earned_medium`, `gold_earned_high`, `gold_earned_very_high`.
 - Skills: `one_handed`, `two_handed`, `archery`, `shield`, `unarmed`, `magic`.
+- Specific weapons: `one_handed_sword`, `one_handed_axe`, `one_handed_blunt`, `one_handed_dagger`, `one_handed_spear`, `two_handed_sword`, `two_handed_axe`, `two_handed_blunt`, `two_handed_spear`. `one_handed_polearm` and `two_handed_polearm` are accepted aliases for the matching spear icons. Sickle integrations use `one_handed_axe`.
+- Magic types: `magic_blood`, `magic_fire`, `magic_cold`, `magic_poison`, `magic_electric`, `magic_pure`, `magic_wet`. Wyrdness uses `wyrd`; Other and unknown magic use `magic`.
 
 Feature probes:
 
-- `ApiVersion9` and `quick-wheel-panels-v1`: provider supports persistent two-column quick-wheel panels through `QuickWheelPanelApi`.
+- `ApiVersion12` and `BuiltInEventPresentationClaims`: provider supports source-scoped restyling of exact built-in events through `TrySetBuiltInEventPresentationClaim`.
+- `ApiVersion11` and `BuiltInEventClaims`: provider supports source-isolated ownership of built-in event presentation through `TrySetBuiltInEventClaim`.
+- `ApiVersion10` and `XpClaimCancellation`: provider supports canceling an unconsumed XP claim through `TryCancelXpGainClaim`.
+- `quick-wheel-panels-v1`: provider supports persistent two-column quick-wheel panels through `QuickWheelPanelApi`.
+- `ApiVersion9`: provider includes the NotificationApi surface released alongside the persistent quick-wheel integration.
 - `ApiVersion8`: provider supports source-isolated XP consolidation through `TryClaimConsolidatedXpGain`.
 - `XpConsolidation`: provider can queue XP and consolidate compatible generic or opted-in claimed gains.
 - `ApiVersion7`: provider supports deferred delivery through the API v7 `TryShowEvent` overload.
@@ -260,6 +356,7 @@ Feature probes:
 - `LocationClearEvents`: provider can show built-in location-cleared notifications.
 - `CrimeEvents`: provider can show built-in crime, bounty, and pickpocket notifications.
 - `CombatHitEvents`: provider can show built-in weak spot and sneak attack notifications.
+- `HealingNotifications`: provider can show and consolidate eligible hero health gains, with periodic healing controlled separately.
 - `VanillaWyrdEvents`: provider can show built-in vanilla Wyrd notifications.
 
 You can also query the installed provider:
@@ -274,8 +371,8 @@ Examples:
 // Show a startup message only after loaded gameplay is fully visible.
 InvokeTryShowDeferredEvent(PluginGuid, "startup-ready", text, "System", "System", "High", "", "system", "System", "OnLoad", 0.25f, 0.9f);
 
-// Show a critical compatibility warning once the main menu can be used.
-InvokeTryShowDeferredEvent(PluginGuid, "compatibility-warning", text, "Warning", "System", "Critical", "", "warning", "System", "OnMainMenu", 0.25f, 1.0f);
+// Show a confirmed compatibility warning once the main menu can be used.
+InvokeTryShowDeferredEvent(PluginGuid, "compatibility-warning", text, "Warning", "System", "High", "compatibility-warning", "warning", "System", "OnMainMenu", -1.0f, 1.0f);
 
 // Stack killing-blow reward messages with a skill icon. The default RedEvents config colors this event red.
 InvokeTryShowEvent(PluginGuid, "killing-blow", text, "Reward", "Reward", "Normal", "", "archery", "Medium", 0.25f, 0.9f);

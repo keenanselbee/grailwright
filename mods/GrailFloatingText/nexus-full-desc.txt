@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Grail Floating Text[/size][/color]
 [i]A shared floating text overlay for events and mod messages.[/i][/center]
 
@@ -10,10 +10,12 @@ It gives mod authors one standard place to send short reward, status, event, sys
 
 For players, that means less overlapping HUD text. For mod authors, it means a small reflection-friendly API that can be used as an optional dependency without forcing a hard install requirement.
 
+[line]
+
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]One shared message stack:[/b] Keep active mod text organized with smooth pop-in, upward movement, priority sorting, duplicate suppression, and in-place status updates.[/*]
-[*][b]Useful game-event notices:[/b] Optionally show rest duration, block and parry feedback, encumbrance, cleared locations, pickpocket results, bounties, weak spots, sneak attacks, and Wyrd events.[/*]
+[*][b]Useful game-event notices:[/b] Optionally show rest duration, block and parry feedback, encumbrance and near-capacity warnings, newly available progression points, cleared locations, pickpocket results, bounty changes with their current total, weak spots, sneak attacks, hero healing, and Wyrd events.[/*]
 [*][b]Readable built-in presentation:[/b] Use painterly icons, protected texture filtering, configurable colors and shadows, and font modes that can follow the game's Accessibility choice.[/*]
 [*][b]Detailed player control:[/b] Configure message categories, position, scale, width, spacing, timing, opacity, animation, icons, and the maximum visible stack.[/*]
 [*][b]Source-aware behavior:[/b] Control enabled state, throttling, duration, and diagnostics per integration while keeping XP consolidation isolated by source.[/*]
@@ -29,17 +31,23 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [*][b]Built-in combat defense[/b] can show throttled [b]Blocked 12 damage[/b] and [b]Parried 12 damage[/b] messages without polling combat state.[/*]
 [*][b]Built-in state and crime events[/b] can show [b]Over-encumbered[/b], [b]Burden lifted[/b], [b]Location cleared[/b] with the Location icon, [b]Pickpocketed Item[/b], [b]Bounty +25: Theft[/b], [b]Bounty cleared[/b], and [b]Unforgivable crime[/b] messages from explicit game callbacks.[/*]
 [*][b]Optional combat hit events[/b] can show throttled [b]Weak spot hit[/b] and [b]Sneak attack: 32 damage[/b] messages using the Critical icon.[/*]
+[*][b]Built-in healing notifications[/b] show immediate hero health gains as green [b]Healed 25[/b] entries with a dedicated heart-and-spark icon. Periodic health regeneration and timed healing effects stay quiet by default and can be enabled separately. Integrations can suppress or restyle only their own scoped healing presentation. Presentation-aware batches keep different event colors and icons separate while rapid compatible healing combines into one queued follow-up without restarting the current timer.[/*]
 [*][b]Built-in XP gain takeover[/b] shows one XP entry at a time and combines compatible gains queued behind it, while suppressing the vanilla popup only when GFT accepts the gain.[/*]
-[*][b]Built-in vanilla Wyrd events[/b] use the Wyrd icon for [b]Wyrdnight falls[/b], [b]Wyrdnight fades[/b], [b]Wyrd power unlocked[/b], and optional vanilla Safe/Exposed state text. When Eyes in the Dark is loaded, these messages follow its live Purple Wyrdness or Native Orange selection through GFT's matching configurable color group.[/*]
+[*][b]Palette-aware Wyrd style[/b] uses the Wyrd icon for built-in [b]Wyrdnight falls[/b], [b]Wyrdnight fades[/b], [b]Wyrd power unlocked[/b], and optional vanilla Safe/Exposed state text. When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] provides Atmospheric or Detailed night-transition text, GFT suppresses its redundant built-in falls/fades message without changing user settings. Wyrd events and API callers follow Eyes' live Purple Wyrdness or Native Orange selection for both text and icon tint through GFT's matching configurable color group.[/*]
 [*][b]Startup diagnostics[/b] defer config reset messages until fully visible loaded gameplay and load-time errors until the usable main menu, where errors remain visible for 10 seconds.[/*]
-[*][b]Compatibility detection[/b] flags documented incompatible DLLs at the main menu with restrained System notices. Grailwright mods are treated as the preferred implementations, but GFT never unloads another plugin automatically.[/*]
+[*][b]Compatibility detection[/b] flags documented incompatible DLLs at the main menu with restrained Warning-styled System notices. Grailwright mods are treated as the preferred implementations, but GFT never unloads another plugin automatically.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234]Killing Blow Mastery[/url] uses Grail Floating Text for skill-icon reward messages such as [b]Killing blow: +8 Two-Handed[/b].[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] keeps corpse-quality and live-drain XP in separate red, source-isolated batches.[/*]
-[*][b]Deeds of Avalon[/b] uses the API v9 quick-wheel surface for save-bounded character and foe statistics.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225]KS Wyrd Hunt Addon[/url] uses Grail Floating Text's Wyrd icon for Wyrd Scent status text such as [b]Wyrd Scent: Hunted[/b], [b]Safe from Wyrdness[/b], and [b]Exposed to Wyrdness[/b].[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] keeps each transactional corpse-quality XP and Blood Essence line separate with a matching Meager, Worthy, Potent, or Prime corpse icon, while frequent live-drain XP consolidates only with matching red, source-isolated live-drain gains. Version 2.8.1 marks corpse-ritual, Blood/Life Transfusion, and Abhartach healing at the exact mutation so visible blood healing uses the configurable Red group and Blood Magic icon without merging into ordinary green healing. Its frequent held-channel healing ticks remain quiet by default without hiding other immediate healing. Its default-on GFT diagnostic option can show collapsed corpse rejection, quality changes, and inner-light visibility while the matching granular log option is enabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] uses the QuickWheelPanelApi v15 surface for save-bounded character and foe statistics, including quality-matched corpse-tier icons.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240]Enemy Respawn Control[/url] uses its Diagnostics setting for one collapsed stream of lock registration, first blocked attempts, expiry, and special-spawn bypass summaries.[/*]
+[*][b]Eyes in the Dark[/b] sends optional palette-aware atmospheric Wyrdnight text and, while its Diagnostics setting is enabled, throttled System summaries for threat, encounters, stalkers, spawning, HUD failures, and visual state.[/*]
+[*][b]Full Enemy XP[/b] uses its Diagnostics setting for the first adjusted or dry-run kill and each configured periodic aggregate, including estimated restored XP and the latest multiplier.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] uses diagnostic-only System messages for completed grip changes, supported-weapon detection, Strength lockouts, unsupported pairings, blocked transitions, and automatic recoveries while retaining detailed FSM and animator context in the BepInEx log.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225]KS Addons[/url] groups GFT feedback from its graphics companions into one integration: All Lights Cast Shadows, Better Volumetric Fog, Contact Shadows, and Global Illumination can confirm actual parent toggle changes; Diagnostics also enables collapsed shadow combat and atlas summaries plus adaptive GI tier changes with smoothed FPS.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] uses Diagnostics for deduplicated final target, damage, multiplier, vanilla-preservation, elite-clamp, and weighted-composition decisions in one collapsed lane.[/*]
 [/list]
 
-Grail Floating Text itself listens only to low-frequency or explicitly fired game events plus the vanilla XP gain announcer. XP batching never changes the visible entry or restarts its timer: queued compatible gains receive a fresh full display cycle when their turn begins. Generic XP never merges with mod-claimed XP, and claimed XP requires the same source-specific key and presentation. GFT still avoids duplicating native advanced notification buffers such as items, proficiency, quests, objectives, recipes, fish, journal unlocks, location discovery, and hero level-up. KS Wyrd Hunt Addon remains responsible for Wyrd Scent wording, hunt/safety interpretation, and scent meter replacement behavior.
+Grail Floating Text itself listens to explicit game events, eligible hero health-stat increases, and the vanilla XP gain announcer. Immediate healing is eligible by default; periodic regeneration and timed healing effects require their separate setting. Healing and XP batching never change the visible entry or restart its timer: queued compatible gains receive a fresh full display cycle when their turn begins. Generic XP never merges with mod-claimed XP, and claimed XP requires the same source-specific key and presentation. GFT still avoids duplicating native advanced notification buffers such as items, proficiency, quests, objectives, recipes, fish, journal unlocks, location discovery, and hero level-up.
 
 [line]
 
@@ -66,13 +74,13 @@ Mods can send messages with a category, priority, style, icon ID, and optional c
 | Critical | Highest priority and critical styling fallback            |
 [/code]
 
-[b]Collapse keys[/b] are for status messages that should update in place. For example, Wyrd Hunt Addon uses one stable collapse key for Wyrd Scent status text, so changing scent states replace the old visible status line instead of building a stack of stale states.
+[b]Collapse keys[/b] are for status messages that should update in place. A mod can reuse one stable collapse key for a changing status so each state replaces the old visible line instead of building a stack of stale states.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Built-In Styles[/size][/color][/heading]
 Mods can request a named style, or pass a hex color such as [b]#FFD54A[/b].
-Configured color-group names take priority over HTML named colors, so Purple, Red, Blue, Orange, White, Gray, and other group names always use their matching Color settings. Literal hex styles remain supported.
+Configured color-group names take priority over HTML named colors, so Purple, Pink, Red, Blue, Orange, White, Gray, and other group names always use their matching Color settings. Literal hex styles remain supported.
 
 [code]
 Default
@@ -98,189 +106,22 @@ Steel and Bone handles its own damage numbers, weakness text, and resistance tex
 [heading][color=#C94A4A][size=5]Built-In Icons[/size][/color][/heading]
 Mods can request a named icon ID. Blank or [b]Auto[/b] uses the default icon for the message style/category. [b]None[/b] or [b]Off[/b] suppresses the icon for that message.
 
-[code]
-general
-system
-status
-wyrd
-reward
-combat
-warning
-critical
-debug
-rest
-location
-one_handed
-two_handed
-archery
-shield
-parry
-unarmed
-magic
-crime
-pickpocket
-weight
-experience
-corpse
-[/code]
+Built-in icons cover general notices, rewards and currency, combat and weapon types, magic types, crime, crafting, consumables, exploration, healing, XP, four corpse-quality tiers, and summons. Mod authors can find exact icon IDs and aliases in the bundled [b]docs/API.md[/b] reference.
 
-Icon PNG masks live in [b]GrailFloatingText/icons[/b] and are tinted at runtime from the message style color.
+Built-in icon PNG masks live in [b]GrailFloatingText/icons[/b]. Quick-wheel integrations can also register icons from their own package. GFT applies transparent-edge dilation, runtime mipmaps, trilinear filtering, and runtime style tinting to both.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
-Configuration is created at:
+Configure Grail Floating Text through FoA Mod Manager or:
 
 [code]
 BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 [/code]
 
-Common defaults:
+Settings cover overlay position and scale, timing and animation, icons, event notifications, periodic-healing inclusion and consolidation, XP takeover, colors, and per-source controls. The installed config includes every current default and a description of each setting.
 
-[code]
-Enabled = true
-NotifyModCompatibility = true
-Scale = 1.2
-FontSize = 20
-FontMode = GameDefault
-CenterX = 0.5
-BaseCenterY = 0.25
-Width = 1040
-StackSpacing = 34
-MaximumVisibleNotifications = 16
-DefaultDurationSeconds = 4
-DefaultFadeSeconds = 0.25
-VeryShortDurationSeconds = 3
-ShortDurationSeconds = 3.5
-MediumDurationSeconds = 4
-LongDurationSeconds = 4.5
-VeryLongDurationSeconds = 5
-SystemDurationSeconds = 10
-GlobalOpacity = 0.9
-SpawnAnimationEnabled = true
-SpawnStartScale = 0.7
-SpawnOvershootScale = 1.12
-SpawnAnimationSeconds = 0.2
-StackMoveAnimationSeconds = 0.16
-DuplicateSuppressSeconds = 0.15
-IconsEnabled = true
-IconSize = 32
-IconGap = 10
-IconOpacity = 0.95
-IconShadowEnabled = true
-IconShadowOpacity = 0.75
-Diagnostics = false
-[/code]
-
-Default-game-event defaults:
-
-[code]
-NotifyRestDuration = true
-NotifyInterruptedRestDuration = true
-RestDurationTextFormat = Rested {duration}
-RestInterruptedTextFormat = Rest interrupted: {duration} slept
-RestNotificationMinimumMinutes = 1
-NotifyBlockedDamage = false
-NotifyParriedDamage = true
-CombatDefenseMinimumDamage = 1
-CombatDefenseCooldownSeconds = 0.75
-NotifyEncumbranceChanged = true
-NotifyLocationCleared = true
-NotifyPickpocketSuccess = true
-NotifyPickpocketFail = true
-NotifyBountyChanged = true
-NotifyBountyCleared = true
-NotifyUnforgivableCrime = true
-CrimeEventCooldownSeconds = 0.5
-NotifyWeakspotHit = false
-NotifySneakAttack = false
-CombatHitMinimumDamage = 1
-CombatHitCooldownSeconds = 1
-NotifyXpGained = true
-SuppressVanillaXpNotifications = true
-ConsolidateXpGains = true
-XpTextFormat = +{xp} XP
-XpDurationBucket = Short
-VanillaWyrdEventsEnabled = true
-NotifyWyrdNightChange = true
-NotifyWyrdSafetyChange = true
-SuppressWyrdSafetyWhenWyrdHuntAddonLoaded = true
-NotifyWyrdSoulFragmentCollected = true
-NotifyWyrdSkillToggle = false
-VanillaWyrdEventCooldownSeconds = 0.75
-[/code]
-
-These settings control Grail Floating Text's built-in default-game-event notices. Wyrd Hunt Addon controls Wyrd Scent notifications separately.
-
-Category defaults:
-
-[code]
-GeneralEnabled = true
-CombatEnabled = true
-RewardEnabled = true
-StatusEnabled = true
-SystemEnabled = true
-DebugEnabled = false
-[/code]
-
-Source-control defaults:
-
-[code]
-PerSourceControlsEnabled = true
-DefaultThrottleSeconds = 0.05
-DefaultDurationMultiplier = 1
-[/code]
-
-When [b]PerSourceControlsEnabled[/b] is true, Grail Floating Text creates a config section for each source that sends messages. Source names are based on the sending mod's plugin GUID.
-
-[code]
-[9. Sources.ks.tgfoa.killing-blow-mastery]
-Enabled = true
-ThrottleSeconds = 0.05
-DurationMultiplier = 1
-Diagnostics = false
-[/code]
-
-Color-group defaults:
-
-[code]
-RedColor = #FF3D2E
-RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack
-GoldColor = #FFDB47
-GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
-BlueColor = #9EE0FF
-BlueEvents = default-burden-lifted
-PurpleColor = #C294FF
-PurpleEvents = wyrd-hunt-status; vanilla-wyrd-night; vanilla-wyrd-safety; vanilla-wyrd-skill
-OrangeColor = #FFB87A
-OrangeEvents = default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed
-PaleColor = #DBE6FF
-PaleEvents = default-rest-duration
-GrayColor = #B3B3B3
-GrayEvents =
-WhiteColor = #FFFFFF
-WhiteEvents = default-xp-gain
-DefaultColor = #F5E0AD
-DefaultEvents =
-[/code]
-
-Event lists accept semicolon, comma, pipe, or newline separated event IDs. If an event ID appears in more than one group, the first matching group in the config order wins.
-
-Icon color overrides default to blank and inherit the matching text color group:
-
-[code]
-RedIconColor =
-GoldIconColor =
-BlueIconColor =
-PurpleIconColor =
-OrangeIconColor =
-PaleIconColor =
-GrayIconColor =
-WhiteIconColor =
-DefaultIconColor =
-[/code]
-
-For example, [b]PurpleIconColor = #FFD0FF[/b] keeps Purple-group text at [b]PurpleColor[/b] while tinting its foreground icons separately. Wyrd aliases use the Purple override. Invalid values safely inherit the resolved text color and produce one warning in the BepInEx log. Icon opacity and notification fading still apply; icon shadows remain black and use their independent enable and opacity settings.
+Most features are enabled by default. Periodic healing, block, weak-spot, sneak-attack, Wyrd skill-toggle, and debug notices start disabled to avoid extra HUD noise.
 
 [line]
 
@@ -297,20 +138,20 @@ Resolve the API by reflection:
 GrailFloatingText.NotificationApi
 [/code]
 
-API v9 adds a separate persistent panel surface:
+QuickWheelPanelApi v15 provides a separate persistent panel surface:
 
 [code]
 GrailFloatingText.QuickWheelPanelApi
-TrySet(sourceId, leftTitle, leftSubtitle, leftTexts, leftIconIds, leftStyles, rightTitle, rightSubtitle, rightTexts, rightIconIds, rightStyles, opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale)
+TrySet(sourceId, leftTitle, leftSubtitle, leftTexts, leftIconIds, leftStyles, leftResourceTexts, leftResourceIconIds, leftResourceStyles, leftSummaryRowCount, rightTitle, rightSubtitle, rightTexts, rightIconIds, rightStyles, opacity, tooltipOpacity, fadeSeconds, rightOffset, topOffset, scale, panelColumnWidth, columnGap, panelBackgroundOpacity, panelBackgroundPadding, textShadowEnabled, textShadowOpacity, textShadowOffset, textShadowSoftness, textShadowStrength, textOutlineEnabled, textOutlineColor, textOutlineOpacity, textOutlineWidth, textOutlineStrength, whiteTextOutlineStrengthMultiplier, headerColor, subheaderColor)
 SetTooltipActive(sourceId, active)
 Clear(sourceId)
 [/code]
 
-The caller owns panel lifetime and row limits. GFT owns rendering, font resolution, style colors, built-in icons, position, and the configured fade between normal and tooltip-active opacity.
+QuickWheelPanelApi v15 adds caller-controlled 0 through 200 reference-pixel spacing between its columns while retaining the caller-declared left summary boundary, slight fixed gap before ordinary statistics, 160 through 400 reference-pixel column width, and two charcoal column backplates. Opacity accepts 0 through 1, with zero disabling them, and padding accepts 0 through 32 reference pixels. Each backplate remains one simple UI quad sized to its column's content and rendered behind the text and icons. Each receives its own small 128x256 procedurally generated black alpha mask, so their multi-scale mottling, fine fibers, irregular silhouette, and surface variation differ while very dark scenes remain black. Guaranteed transparent outer gutters, broad feathering, additional texture bleed, and subtly rounded corner intersections remove hard rectangular cutoffs and sharp points for a higher-quality tooltip-like finish without loading a copied game texture. The API also supports 0 through 1 underlay softness and a caller-controlled 0.5x through 2.0x outline-strength multiplier for semantic White text. Icons, Pale text, and other styles retain the caller's configured strength. Outline width and shadow offset accept 0 through 16, while both strength values accept 1 through 8. Supported TextMesh Pro SDF fonts render their outline and underlay from one cached material-backed glyph mesh. Unsupported materials use a bounded six-copy compatibility fallback instead of layered geometry. The caller owns panel lifetime, row limits, resource values, the summary boundary, column width and spacing, backplates, text-effect settings, shared header/subheader colors, and the White-text multiplier. GFT owns rendering, font resolution, row style colors, icon texture quality, position, and the configured fade between normal and tooltip-active opacity.
 
-[b]Adding a compatibility detection:[/b] verify the exact loaded DLL or enabled setting in your own mod, then submit one concise [b]System[/b]/[b]Critical[/b] event with the [b]warning[/b] icon and [b]OnMainMenu[/b] delivery. Use a stable event ID, log the exact evidence to [b]BepInEx/LogOutput.log[/b], and do not guess or change the other mod automatically.
+[b]Adding a compatibility detection:[/b] verify the exact loaded DLL or enabled setting in your own mod, then submit one restrained [b]Warning[/b]-styled, [b]System[/b]-category event with [b]High[/b] priority, the [b]warning[/b] icon, [b]System[/b] duration, and [b]OnMainMenu[/b] delivery. Use a stable event ID as the collapse key, log the exact evidence to [b]BepInEx/LogOutput.log[/b], and do not guess or change the other mod automatically.
 
-[code]TryShowEvent(PluginGuid, "compat-other-mod", conciseText, "Warning", "System", "Critical", "", "warning", "System", "OnMainMenu", 0.25f, 1.0f)[/code]
+[code]TryShowEvent(PluginGuid, "compat-other-mod", conciseText, "Warning", "System", "High", "compat-other-mod", "warning", "System", "OnMainMenu", -1.0f, 1.0f)[/code]
 
 Fade-in stays at [b]DefaultFadeSeconds[/b]. Fade-out scales with total message duration, from 60% to 200% of that baseline and never longer than half the message lifetime. With the defaults, Medium fades out over 0.25 seconds and System over 0.5 seconds.
 
@@ -329,6 +170,14 @@ TryClaimConsolidatedXpGain(sourceId, eventId, consolidationKey, textFormat, styl
 [/code]
 
 Call it immediately before changing hero XP. GFT combines only matching keys from the same source and presentation; use [b]{xp}[/b] or [b]{amount}[/b] in the format and a different key for every meaning that must remain separate. Fall back to the v6 claim when v8 is unavailable.
+
+NotificationApi v10 adds XP claim cancellation:
+
+[code]
+TryCancelXpGainClaim(sourceId, eventId, expectedAmount)
+[/code]
+
+If the XP mutation fails after reserving a v6 or v8 claim, call this immediately with the same source, event, and expected amount. GFT removes the newest matching unconsumed claim so it cannot later describe a reward that was not granted.
 
 API v6 one-shot XP claim call shape:
 
@@ -415,8 +264,8 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
-Grail Floating Text draws its own IMGUI overlay when another mod queues a message, when an enabled built-in default game event fires, or when the vanilla XP announcer reports an XP gain. It does not modify combat, quests, saves, items, enemies, or stat values. Built-in event notices are event-driven and throttled where needed; they do not poll combat, inventory, quest, or save state.
+Grail Floating Text draws its own overlay when another mod queues a message, when an enabled built-in default game event fires, when the hero's health reports an eligible positive change, or when the vanilla XP announcer reports an XP gain. It does not modify combat, quests, saves, items, enemies, or stat values. Built-in event notices are event-driven and throttled or consolidated where needed; they do not poll combat, inventory, quest, or save state.
 
-[b]Optional diagnostics:[/b] Integrated mods can show critical load errors in-game, with details in the BepInEx log.
+[b]Optional integrations:[/b] The Current Integrations section above is the authoritative list of richer repo integrations. Other Grailwright mods also use the shared optional startup path for deferred config-reset and critical load-error notices without requiring GFT to be installed.
 
 If messages are too frequent, use the category toggles or the per-source sections in the config. If messages are missing, make sure [b]Enabled[/b] is true, the relevant category is enabled, and the sending mod is installed and configured to use Grail Floating Text.

@@ -3,18 +3,28 @@ $ErrorActionPreference = "Stop"
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -LiteralPath (
     Join-Path $modRoot "src\GrailFloatingText.cs") -Raw
+$eyesSource = Get-Content -LiteralPath (
+    Join-Path (Split-Path -Parent $modRoot) "EyesInTheDark\src\EyesInTheDark.cs") -Raw
+$eyesBridge = Get-Content -LiteralPath (
+    Join-Path (Split-Path -Parent $modRoot) "EyesInTheDark\src\GrailFloatingTextBridge.cs") -Raw
 $manifest = Get-Content -LiteralPath (
     Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 
-if ($manifest.version -ne "1.11.1") {
-    throw "GFT manifest version is not 1.11.1."
+if ($source -notmatch 'public const string PluginVersion = "(?<version>[0-9]+\.[0-9]+\.[0-9]+)";') {
+    throw "GFT source PluginVersion was not found."
+}
+if ($manifest.version -ne $matches.version) {
+    throw "GFT manifest version '$($manifest.version)' does not match source PluginVersion '$($matches.version)'."
 }
 foreach ($required in @(
-    'public const string PluginVersion = "1.11.1";',
     'ResolveEyesWyrdStyle()',
     '"WyrdnessPalette"',
     '"NativeOrange"',
-    'private const int ConfigSchemaVersion = 24;',
+    'private const int ConfigSchemaVersion = 25;',
+    'public const int ApiVersion = 12;',
+    '"BuiltInEventClaims"',
+    'TrySetBuiltInEventClaim(',
+    'IsBuiltInEventClaimed(VanillaWyrdNightEventId)',
     '"ks.tgfoa.eyes-in-the-dark"',
     '"DeathWrench.TimeMod"',
     '"TimeMod"',
@@ -24,6 +34,25 @@ foreach ($required in @(
     'ShowCompatibilityNotice(')) {
     if (!$source.Contains($required)) {
         throw "GFT Eyes compatibility contract is missing token: $required"
+    }
+}
+
+foreach ($required in @(
+    'BindGftBuiltInEventClaims();',
+    'AtmosphereEventKind.NightBegin',
+    'AtmosphereEventKind.NightEnd',
+    '"vanilla-wyrd-night"')) {
+    if (!$eyesSource.Contains($required)) {
+        throw "Eyes built-in event ownership contract is missing token: $required"
+    }
+}
+
+foreach ($required in @(
+    'TrySetBuiltInEventClaim(',
+    'ReleaseBuiltInEventClaims();',
+    'EyesInTheDarkPlugin.PluginGuid')) {
+    if (!$eyesBridge.Contains($required)) {
+        throw "Eyes GFT bridge ownership contract is missing token: $required"
     }
 }
 

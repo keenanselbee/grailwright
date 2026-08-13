@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 1.11.1
+Version 2.4.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -10,23 +10,39 @@ It stacks active messages instead of letting multiple mod messages draw on top
 of each other. Callers can send style, category, priority, icon, and collapse-key
 intent so status messages update cleanly while reward and event messages still
 stack normally. New messages use a short pop-in scale animation, and stacked
-messages glide into their new positions when pushed. API v9 also provides a
+messages glide into their new positions when pushed. QuickWheelPanelApi v15 provides a
 right-anchored, two-column quick-wheel panel surface with GFT fonts, colors,
-and built-in icons for integrations such as Deeds of Avalon.
+built-in and source-provided icons, and a compact resource strip for
+integrations such as Deeds of Avalon.
 
-When Eyes in the Dark is loaded, built-in Wyrd notifications follow its live
-Purple Wyrdness or Native Orange palette through GFT's corresponding color
-group. Priority, duration, and icon behavior remain independent.
+When Eyes in the Dark's Atmospheric or Detailed notifications are active, it
+claims the night-transition event so GFT does not add redundant Wyrdnight
+falls/fades text. GFT resumes its built-in message automatically when Eyes no
+longer owns that event. All Wyrd notifications follow Eyes' live Purple
+Wyrdness or Native Orange palette through GFT's corresponding color group.
 
 It also includes a small optional default-game-event layer for useful facts the
 game does not already show as ordinary notification text. It can show the actual
-time rested after sleep, including short sleeps caused by interruptions, plus
-encumbrance, location clear, pickpocket, bounty, throttled block/parry combat
-feedback, optional weak spot/sneak attack combat feedback, XP gains, and
-vanilla Wyrd state changes. By default, GFT shows one XP entry at a time and
+time rested as the sleep transition ends, including short sleeps caused by interruptions, plus
+encumbrance and near-capacity warnings, newly available progression points,
+location clear, pickpocket, bounty totals, throttled block/parry combat
+feedback, optional weak spot/sneak attack combat feedback, hero healing, XP
+gains, and vanilla Wyrd state changes. Built-in healing uses the configurable
+    Green group and the heart-and-spark Healing icon. Blood Magic Expansion 2.8.1
+    can mark its healing at the exact mutation, routing visible blood healing through
+    the configurable Red group with the Blood Magic icon. Presentation-aware healing
+    batches stay separate, so blood healing cannot merge into ordinary green healing.
+    Immediate healing is shown by
+default, while periodic regeneration and timed healing effects are excluded
+unless NotifyHealingOverTime is enabled. Integrations can also claim the
+default Healed event only around healing they present or intentionally keep
+    quiet; Blood Magic Expansion also uses this for its frequent held-channel healing
+    ticks without hiding other immediate healing. By default, GFT shows one XP entry at a time and
 combines compatible gains that arrive while it is visible. Generic XP stays
 separate from every mod source, and mod XP merges only through an explicit
-source-specific key. KS Wyrd Hunt Addon still owns Wyrd
+source-specific key. Healing follows the same visible-entry rule: rapid gains
+received while one Healed entry is visible combine into one queued follow-up
+without restarting the current timer. KS Wyrd Hunt Addon still owns Wyrd
 Scent notifications. By
 default, vanilla Safe/Exposed messages are suppressed while Wyrd Hunt Addon is
 loaded so Wyrd Scent remains the authoritative Wyrd status line.
@@ -42,7 +58,7 @@ BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 Default settings:
 
 Enabled = true
-ConfigSchemaVersion = 24
+ConfigSchemaVersion = 25
 NotifyModCompatibility = true
 Successful schema resets wait for fully visible loaded gameplay, then appear with
 the system icon and use the configurable System duration bucket. Integrated
@@ -106,6 +122,9 @@ NotifyParriedDamage = true
 CombatDefenseMinimumDamage = 1
 CombatDefenseCooldownSeconds = 0.75
 NotifyEncumbranceChanged = true
+NotifyNearEncumbranceLimit = true
+EncumbranceWarningPercent = 90
+NotifyProgressionPointsGained = true
 NotifyLocationCleared = true
 NotifyPickpocketSuccess = true
 NotifyPickpocketFail = true
@@ -122,6 +141,12 @@ SuppressVanillaXpNotifications = true
 ConsolidateXpGains = true
 XpTextFormat = +{xp} XP
 XpDurationBucket = Short
+NotifyHealing = true
+NotifyHealingOverTime = false
+ConsolidateHealing = true
+HealingMinimumAmount = 1
+HealingTextFormat = Healed {health}
+HealingDurationBucket = Short
 
 VanillaWyrdEventsEnabled = true
 NotifyWyrdNightChange = true
@@ -132,13 +157,18 @@ NotifyWyrdSkillToggle = false
 VanillaWyrdEventCooldownSeconds = 0.75
 RedColor = #FF3D2E
 RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack
-GoldColor = #FFDB47
+GoldColor = #FFC03A
 GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
 BlueColor = #9EE0FF
 BlueEvents = default-burden-lifted
+GreenColor = #8FD36B
+GreenEvents =
 PurpleColor = #C294FF
 PurpleEvents = wyrd-hunt-status; vanilla-wyrd-night; vanilla-wyrd-safety; vanilla-wyrd-skill
-Built-in vanilla Wyrd notices request the Purple group directly. Each Color
+PinkColor = #E06AAE
+PinkEvents =
+Built-in healing notices request the Green group directly, and built-in vanilla
+Wyrd notices request the Purple group directly. Each Color
 setting's in-config description also identifies its own default hex value.
 Configured color-group names are resolved before literal HTML named colors, so
 each Color setting controls its matching group even for names such as Purple.
@@ -146,7 +176,7 @@ Floating text isolates Unity IMGUI tint and enabled state while drawing so game
 panels and other callbacks cannot darken configured text or icon colors.
 Built-in icons use runtime mipmaps and trilinear filtering for stable detail
 while scaling, with transparent-edge color dilation to prevent dark fringes.
-OrangeColor = #FFB87A
+OrangeColor = #FF9A35
 OrangeEvents = default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed
 PaleColor = #DBE6FF
 PaleEvents = default-rest-duration
@@ -162,7 +192,9 @@ Icon color overrides default to blank and inherit their matching text group:
 RedIconColor =
 GoldIconColor =
 BlueIconColor =
+GreenIconColor =
 PurpleIconColor =
+PinkIconColor =
 OrangeIconColor =
 PaleIconColor =
 GrayIconColor =
@@ -176,17 +208,38 @@ override. Invalid values safely inherit the text color and log one warning.
 Compatibility detection:
 
 GFT checks only exact loaded DLL or setting conflicts it can verify. It reports a
-concise System notice without changing either mod. Authors can perform their own
-exact check and submit an OnMainMenu System event through the API; log the full
-details to BepInEx/LogOutput.log.
+concise orange Warning-styled System notice without changing either mod. These
+notices use High priority, the warning icon, the System duration, and OnMainMenu
+delivery. Authors should log the full evidence to BepInEx/LogOutput.log.
 
 When Eyes in the Dark is loaded, GFT flags Wyrd Hunt and Custom Timescale as
 incompatible counterparts using this same one-notice convention. It does not
 disable, unload, or reconfigure any of the detected plugins.
 
-Mods can integrate with Grail Floating Text as an optional dependency. API v9
-adds QuickWheelPanelApi for persistent two-column quick-wheel panels with
-tooltip-aware opacity. API v8
+Mods can integrate with Grail Floating Text as an optional dependency.
+NotificationApi v10 adds cancellable XP claims so a producer can remove its
+reserved line when the matching XP mutation fails. QuickWheelPanelApi provides
+persistent two-column quick-wheel panels with tooltip-aware opacity. Version 15
+uses native TextMesh Pro SDF outlines and underlay shadows for supported fonts,
+with caller-controlled column spacing, approximate outline and shadow reach up to 16, and strength up to 8. One
+cached material-backed glyph mesh normally replaces copied effect geometry;
+unsupported non-SDF fonts use a bounded six-copy fallback. It retains version
+8's compact three-item resource strip, source-provided icons, caller-controlled
+text effects, shared header/subheader colors, a caller-controlled outline
+strength multiplier for semantic White text, adjustable SDF underlay softness,
+and two caller-controlled charcoal column backplates rendered as simple UI
+quads. Callers can set each column's reference width. Each quad receives its own
+small procedural texture, so their mottling and irregular silhouette differ.
+Guaranteed transparent outer gutters and broader feathering remove rectangular
+edge cutoffs, while multi-scale grain and fine fibers give them a higher-quality
+tooltip-like finish without loading or copying a game texture. A subtle internal
+corner blend reduces sharp points without flattening the irregular silhouette.
+The backplates use black alpha masks, preserving contrast against bright scenery
+without lifting black scenes toward gray. Callers can mark leading left-column
+rows as one continuous summary, followed by a slight fixed break before ordinary
+statistics. GFT repeats layout only when providers republish panel content or
+settings; opacity fades remain frame-smooth.
+The multiplier does not affect icons, Pale text, or other color styles. API v8
 adds source-isolated XP batching through TryClaimConsolidatedXpGain. API v7
 adds Immediate, OnMainMenu, and OnLoad delivery paths. Deferred messages persist
 until their first eligible visible frame, and their duration starts only when
@@ -198,9 +251,16 @@ messages. Older calls still work.
 
 Built-in icon IDs:
 
-general, system, status, wyrd, reward, combat, warning, critical, debug, rest,
-location, one_handed, two_handed, archery, shield, parry, unarmed, magic, crime,
-pickpocket, weight, experience, corpse
+general, system, status, wyrd, reward, gold_earned_very_low, gold_earned_low,
+gold_earned_medium, gold_earned_high, gold_earned_very_high, combat, warning, critical, debug, rest,
+location, one_handed, one_handed_sword, one_handed_axe, one_handed_blunt,
+one_handed_dagger, one_handed_spear, two_handed,
+two_handed_sword, two_handed_axe, two_handed_blunt, two_handed_spear,
+archery, shield, parry, unarmed, magic, crime,
+magic_blood, magic_fire, magic_cold, magic_poison, magic_electric,
+magic_pure, magic_wet, pickpocket, lock, craft, food, potion, healing, fish, recipe,
+weight, experience, corpse_meager, corpse_worthy, corpse_potent, corpse_prime,
+summon, skull
 
 The painterly source sheet lives under icons/source in the Grailwright source
 tree. Runtime icons are the transparent PNG masks in icons and can be replaced

@@ -1,5 +1,4 @@
-TargetVersion=1.11.1
-BaselineVersion=1.10.1
-Added the reflection-friendly QuickWheelPanelApi for right-anchored two-column quick-wheel panels using Grail Floating Text fonts, colors, and built-in icons.
-Added caller-controlled normal opacity, tooltip-active opacity, fade duration, position, scale, rows, and cleanup for Deeds of Avalon and future integrations.
-Added safe fallback-font recovery when a quick-wheel panel cannot resolve the configured game font.
+TargetVersion=2.4.5
+BaselineVersion=2.4.3
+Updated the bundled Meager, Worthy, Potent, and Prime corpse icon artwork.
+Replaced the generic corpse icon with Meager, Worthy, Potent, and Prime icons used by Blood Magic Expansion rewards and Deeds of Avalon corpse statistics.

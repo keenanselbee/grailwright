@@ -1,1 +1,1 @@
-Shared animated icon-capable floating text and quick-wheel panel surfaces for Tainted Grail mods, with source-isolated XP consolidation plus rest, Wyrd, crime, and state notices.
+Shared animated icon-capable floating text and quick-wheel panels for Tainted Grail mods, with source-provided icons, compact resource strips, source-isolated XP consolidation, and optional rest, Wyrd, crime, combat, and state notices.

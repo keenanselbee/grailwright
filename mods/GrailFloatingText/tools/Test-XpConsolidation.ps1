@@ -19,6 +19,16 @@ if ($gftSource.IndexOf("TryClaimConsolidatedXpGain", [StringComparison]::Ordinal
     throw "The API v8 consolidated XP claim method is missing."
 }
 
+foreach ($requiredCancellationToken in @(
+    "public static bool TryCancelXpGainClaim(",
+    "internal bool TryCancelXpGainClaim(",
+    'string.Equals(feature, "XpClaimCancellation"',
+    "_xpDisplayClaims.RemoveAt(i)")) {
+    if ($gftSource.IndexOf($requiredCancellationToken, [StringComparison]::Ordinal) -lt 0) {
+        throw "The API v10 XP claim cancellation contract is missing $requiredCancellationToken."
+    }
+}
+
 $mergeStart = $gftSource.IndexOf("private static bool CanConsolidateXpBatches(", [StringComparison]::Ordinal)
 $mergeEnd = $gftSource.IndexOf("private bool TryShowXpBatch(", $mergeStart, [StringComparison]::Ordinal)
 if ($mergeStart -lt 0 -or $mergeEnd -le $mergeStart) {
@@ -40,11 +50,71 @@ if ($queueMethod.IndexOf("StartTime", [StringComparison]::Ordinal) -ge 0) {
 }
 
 foreach ($requiredBloodMagicKey in @(
-    '"corpse-xp-" + qualityLabel.ToLowerInvariant()',
     '"live-drain-xp"',
-    'GrailFloatingTextLiveDrainXpEventId')) {
+    'GrailFloatingTextLiveDrainXpEventId',
+    '" XP | +" + essenceAward + " Blood Essence"',
+    '"+{xp} XP | +" + essenceAward + " Blood Essence"',
+    '"corpse_" + qualityLabel.ToLowerInvariant(),',
+    '"magic",' + "`r`n" + '                true)',
+    'if (consolidate && _grailFloatingTextTryClaimConsolidatedXpGainMethod != null)',
+    '_grailFloatingTextTryCancelXpGainClaimMethod == null',
+    'TryCancelGrailFloatingTextXpClaim(',
+    'RollbackBloodEssenceAward(essenceReceipt)')) {
     if ($bloodMagicSource.IndexOf($requiredBloodMagicKey, [StringComparison]::Ordinal) -lt 0) {
         throw "Blood Magic XP consolidation is missing $requiredBloodMagicKey."
+    }
+}
+
+if ($bloodMagicSource.IndexOf('XP (" + qualityLabel', [StringComparison]::Ordinal) -ge 0) {
+    throw "Blood Magic corpse reward text still includes its quality label."
+}
+
+$corpsePaymentStart = $bloodMagicSource.IndexOf(
+    "private void PayCorpseLeech(",
+    [StringComparison]::Ordinal)
+$corpsePaymentEnd = $bloodMagicSource.IndexOf(
+    "private void ReportCorpseDrained(",
+    $corpsePaymentStart,
+    [StringComparison]::Ordinal)
+if ($corpsePaymentStart -lt 0 -or $corpsePaymentEnd -le $corpsePaymentStart) {
+    throw "Could not locate the Blood Magic corpse-payment transaction."
+}
+
+$corpsePayment = $bloodMagicSource.Substring(
+    $corpsePaymentStart,
+    $corpsePaymentEnd - $corpsePaymentStart)
+$essenceCommit = $corpsePayment.IndexOf(
+    "TryAwardBloodEssence(corpseQuality, out essenceReceipt)",
+    [StringComparison]::Ordinal)
+$xpClaim = $corpsePayment.IndexOf(
+    "TryClaimGrailFloatingTextCorpseXp(pendingRawXp, state)",
+    [StringComparison]::Ordinal)
+$xpMutation = $corpsePayment.IndexOf(
+    "AwardRawCharacterXp(pendingRawXp)",
+    [StringComparison]::Ordinal)
+if ($essenceCommit -lt 0 -or $xpClaim -le $essenceCommit -or $xpMutation -le $xpClaim) {
+    throw "Blood Magic must save Essence before reserving the combined line and then award XP."
+}
+
+$xpFailureStart = $corpsePayment.IndexOf(
+    "if (!AwardRawCharacterXp(pendingRawXp))",
+    [StringComparison]::Ordinal)
+$xpFailureEnd = $corpsePayment.IndexOf(
+    "state.XpAwarded = true;",
+    $xpFailureStart,
+    [StringComparison]::Ordinal)
+if ($xpFailureStart -lt 0 -or $xpFailureEnd -le $xpFailureStart) {
+    throw "Could not locate the Blood Magic XP failure recovery branch."
+}
+
+$xpFailure = $corpsePayment.Substring(
+    $xpFailureStart,
+    $xpFailureEnd - $xpFailureStart)
+foreach ($requiredRecovery in @(
+    "TryCancelGrailFloatingTextXpClaim(",
+    "RollbackBloodEssenceAward(essenceReceipt)")) {
+    if ($xpFailure.IndexOf($requiredRecovery, [StringComparison]::Ordinal) -lt 0) {
+        throw "Blood Magic XP failure recovery is missing $requiredRecovery."
     }
 }
 

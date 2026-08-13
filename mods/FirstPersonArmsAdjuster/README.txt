@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.4.4
+First Person Arms Adjuster 0.4.5
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -14,7 +14,7 @@ Config file:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 
 FoA Mod Manager organizes the live controls into General, Position, Equipment
-Depth, Advanced - Held Melee, Advanced - Effects, and Diagnostics. Friendly
+Depth, Advanced - Melee Guards, Advanced - Effects, and Diagnostics. Friendly
 labels show metres and signed directions while the stored config keys below
 remain unchanged.
 
@@ -56,6 +56,11 @@ viewmodel offset eases toward HeldMeleeOffsetScale. The default 1.0 retains the
 configured position while enabling the held-only corrections and state blend.
 The configured position and corrections ease back after release or cancel.
 
+The same body-intrusion switch also handles the game's dedicated one-handed and
+two-handed sprint attacks. When LightAttackForward begins, the complete visual
+offset rapidly returns to the vanilla position and stays there for the attack.
+It restores the configured position smoothly after the sprint attack ends.
+
 Set HeldMeleeOffsetScale between 0.0 and 1.0 to retain part of the normal
 offset during the held pose, or disable MitigateHeldMeleeBodyIntrusion to keep
 the configured position throughout heavy attacks.
@@ -75,7 +80,8 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.4.4 leaves VFPB's camera-anchored torso and legs at their native
+Version 0.4.5 adds the dedicated sprint-attack transition guard for both melee
+grips. Version 0.4.4 leaves VFPB's camera-anchored torso and legs at their native
 placement and applies the offset directly at the game's first-person Kandra
 render-collection stage. This keeps the visible arms aligned across perspective order,
 equipment changes, and scene reloads without moving the full-body overlay into
@@ -134,9 +140,10 @@ This restored implementation writes presentation-only Kandra and Drake render
 data. It does not move the live animation skeleton, hand sockets, fire point,
 or projectile origin, but it remains an experimental native-rendering mod.
 
-Held-melee mitigation uses the game's active melee animation states rather
-than movement or camera-bob heuristics, so standing and moving charge holds use
-the same presentation correction. Bow and spell charging remain independent.
+Melee mitigation uses the game's active animation states rather than movement
+or camera-bob heuristics. HeavyAttackStart and HeavyAttackWait drive the held
+corrections, while LightAttackForward drives the sprint-attack vanilla return.
+Bow and spell charging remain independent.
 
 Because the game uses one first-person body hierarchy, visible torso or leg
 geometry may move with the arms. Test melee weapons, bows, shields, magic, item
@@ -147,8 +154,8 @@ previous experimental full-draw hand-only correction has been removed.
 
 When Diagnostics is enabled, the log reports the resolved hierarchy, Kandra
 rig, culling and linked Drake equipment paths, cached presentation-effect
-count, and melee FSM state changes with their layer activity and
-held-mitigation result.
+count, and melee FSM state changes with their layer activity plus independent
+held-heavy and sprint-attack mitigation results.
 
 Compatibility
 -------------

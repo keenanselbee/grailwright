@@ -15,7 +15,7 @@ $expectedSections = @(
     "General",
     "Position",
     "Equipment Depth",
-    "Advanced - Held Melee",
+    "Advanced - Melee Guards",
     "Advanced - Effects",
     "Diagnostics"
 )

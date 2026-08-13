@@ -1,4 +1,4 @@
-TargetVersion=0.4.4
-BaselineVersion=0.4.3
-Removed the VFPB whole-body overlay translation that could push its camera-anchored torso and legs into view.
-Applied native first-person arm and culling offsets at Kandra's render-collection stage, keeping arms aligned across perspective order, equipment changes, and scene reloads while leaving VFPB's overlay placement untouched.
+TargetVersion=0.4.5
+BaselineVersion=0.4.4
+Detected one-handed and two-handed sprint attacks through the game's dedicated animation state.
+Rapidly returned the complete first-person presentation offset to vanilla during sprint attacks, then smoothly restored the configured position afterward to keep shoulders and body geometry out of view.

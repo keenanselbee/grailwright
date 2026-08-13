@@ -38,8 +38,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.4.4.0")]
-[assembly: AssemblyFileVersion("0.4.4.0")]
+[assembly: AssemblyVersion("0.4.5.0")]
+[assembly: AssemblyFileVersion("0.4.5.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -71,7 +71,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.4.4";
+        public const string PluginVersion = "0.4.5";
 
         private const int ConfigSchemaVersion = 8;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -81,6 +81,8 @@ namespace FirstPersonArmsAdjuster
         private const float FireplaceBlendInSeconds = 0.40f;
         private const float HeldMeleeBlendOutSeconds = 0.12f;
         private const float HeldMeleeBlendInSeconds = 0.20f;
+        private const float SprintAttackBlendOutSeconds = 0.05f;
+        private const float SprintAttackBlendInSeconds = 0.20f;
         private const float SheathingBlendStartNormalizedTime = 0.45f;
         private const float SheathingBlendEndNormalizedTime = 0.90f;
         private const float SheathingBlendRestoreSeconds = 0.20f;
@@ -225,6 +227,11 @@ namespace FirstPersonArmsAdjuster
         private float _heldMeleeBlendTarget;
         private float _heldMeleeBlendStartedAt;
         private bool _heldMeleeAttackActive;
+        private float _sprintAttackOffsetBlend;
+        private float _sprintAttackBlendStart;
+        private float _sprintAttackBlendTarget;
+        private float _sprintAttackBlendStartedAt;
+        private bool _sprintAttackActive;
         private float _sheathingOffsetBlend = 1.0f;
         private int _sheathingBlendUpdateFrame = -1;
         private bool _sheathingActive;
@@ -293,6 +300,7 @@ namespace FirstPersonArmsAdjuster
             RestoreRenderOffset();
             UpdateFireplaceOffsetBlend();
             UpdateHeldMeleeOffsetBlend();
+            UpdateSprintAttackOffsetBlend();
             UpdateSheathingOffsetBlend();
             RefreshCurrentVisualWorldOffset();
         }
@@ -395,6 +403,10 @@ namespace FirstPersonArmsAdjuster
             _heldMeleeBlendStart = 0.0f;
             _heldMeleeBlendTarget = 0.0f;
             _heldMeleeAttackActive = false;
+            _sprintAttackOffsetBlend = 0.0f;
+            _sprintAttackBlendStart = 0.0f;
+            _sprintAttackBlendTarget = 0.0f;
+            _sprintAttackActive = false;
             _sheathingOffsetBlend = 1.0f;
             _sheathingBlendUpdateFrame = -1;
             _sheathingActive = false;
@@ -495,10 +507,14 @@ namespace FirstPersonArmsAdjuster
         {
             float now = Time.unscaledTime;
             Hero hero = Hero.Current;
-            bool attackActive = _mitigateHeldMeleeBodyIntrusion != null
-                && _mitigateHeldMeleeBodyIntrusion.Value
+            bool mitigationEnabled = _mitigateHeldMeleeBodyIntrusion != null
+                && _mitigateHeldMeleeBodyIntrusion.Value;
+            bool attackActive = mitigationEnabled
                 && IsHeldMeleeAttackActive(hero);
-            ReportMeleeFsmDiagnostics(hero, attackActive);
+            ReportMeleeFsmDiagnostics(
+                hero,
+                attackActive,
+                mitigationEnabled && IsSprintAttackActive(hero));
             float target = attackActive ? 1.0f : 0.0f;
             if (!Mathf.Approximately(target, _heldMeleeBlendTarget))
             {
@@ -557,6 +573,75 @@ namespace FirstPersonArmsAdjuster
                     || state == HeroStateType.HeavyAttackStartAlternate
                     || state == HeroStateType.HeavyAttackWait
                     || state == HeroStateType.HeavyAttackWaitAlternate)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void UpdateSprintAttackOffsetBlend()
+        {
+            float now = Time.unscaledTime;
+            Hero hero = Hero.Current;
+            bool mitigationEnabled = _mitigateHeldMeleeBodyIntrusion != null
+                && _mitigateHeldMeleeBodyIntrusion.Value;
+            bool attackActive = mitigationEnabled
+                && IsSprintAttackActive(hero);
+            ReportMeleeFsmDiagnostics(
+                hero,
+                mitigationEnabled && IsHeldMeleeAttackActive(hero),
+                attackActive);
+            float target = attackActive ? 1.0f : 0.0f;
+            if (!Mathf.Approximately(target, _sprintAttackBlendTarget))
+            {
+                _sprintAttackBlendStart = _sprintAttackOffsetBlend;
+                _sprintAttackBlendTarget = target;
+                _sprintAttackBlendStartedAt = now;
+            }
+
+            if (attackActive != _sprintAttackActive)
+            {
+                _sprintAttackActive = attackActive;
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        attackActive
+                            ? "Blending the first-person offset to vanilla for a sprint attack."
+                            : "Restoring the configured first-person offset after the sprint attack.");
+                }
+            }
+
+            float duration = _sprintAttackBlendTarget
+                    > _sprintAttackBlendStart
+                ? SprintAttackBlendOutSeconds
+                : SprintAttackBlendInSeconds;
+            float elapsed = now - _sprintAttackBlendStartedAt;
+            float progress = duration <= 0.0f
+                ? 1.0f
+                : Mathf.Clamp01(elapsed / duration);
+            float easedProgress = progress
+                * progress
+                * (3.0f - (2.0f * progress));
+            _sprintAttackOffsetBlend = Mathf.LerpUnclamped(
+                _sprintAttackBlendStart,
+                _sprintAttackBlendTarget,
+                easedProgress);
+        }
+
+        private static bool IsSprintAttackActive(Hero hero)
+        {
+            if (hero == null)
+            {
+                return false;
+            }
+
+            foreach (MeleeFSM melee in hero.Elements<MeleeFSM>())
+            {
+                if (melee != null
+                    && melee.CurrentStateType
+                        == HeroStateType.LightAttackForward)
                 {
                     return true;
                 }
@@ -679,7 +764,8 @@ namespace FirstPersonArmsAdjuster
 
         private void ReportMeleeFsmDiagnostics(
             Hero hero,
-            bool attackActive)
+            bool heldAttackActive,
+            bool sprintAttackActive)
         {
             if (_diagnostics == null || !_diagnostics.Value)
             {
@@ -688,8 +774,10 @@ namespace FirstPersonArmsAdjuster
             }
 
             StringBuilder description = new StringBuilder();
-            description.Append("mitigation=")
-                .Append(attackActive ? "active" : "inactive");
+            description.Append("heldMitigation=")
+                .Append(heldAttackActive ? "active" : "inactive")
+                .Append("; sprintMitigation=")
+                .Append(sprintAttackActive ? "active" : "inactive");
             if (hero == null)
             {
                 description.Append("; hero=none");
@@ -1871,6 +1959,7 @@ namespace FirstPersonArmsAdjuster
         {
             UpdateFireplaceOffsetBlend();
             UpdateHeldMeleeOffsetBlend();
+            UpdateSprintAttackOffsetBlend();
             UpdateSheathingOffsetBlend();
             Vector3 configuredOffset = new Vector3(
                 _horizontalOffset.Value,
@@ -1887,6 +1976,7 @@ namespace FirstPersonArmsAdjuster
                 * _heldMeleeMitigationBlend;
             return (configuredOffset * retainedScale + heldCorrection)
                 * _fireplaceOffsetBlend
+                * (1.0f - _sprintAttackOffsetBlend)
                 * _sheathingOffsetBlend;
         }
 
@@ -2613,11 +2703,11 @@ namespace FirstPersonArmsAdjuster
                 "MitigateHeldMeleeBodyIntrusion",
                 true,
                 new ConfigDescription(
-                    "While a melee heavy attack is raised or held, applies corrections to keep body geometry out of view. Turn off to use the normal offsets with no held-melee correction. Changes apply immediately.",
+                    "Applies presentation corrections during raised or held melee heavy attacks and returns sprint attacks to the vanilla position to keep body geometry out of view. Turn off to use the normal offsets throughout both attack types. Changes apply immediately.",
                     null,
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
-                        DisplaySection = "Advanced - Held Melee",
+                        DisplaySection = "Advanced - Melee Guards",
                         DisplayName = "Prevent Body Intrusion",
                         SectionOrder = 30,
                         Order = 0
@@ -2715,7 +2805,7 @@ namespace FirstPersonArmsAdjuster
                     new AcceptableValueRange<float>(0.0f, 1.0f),
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
-                        DisplaySection = "Advanced - Held Melee",
+                        DisplaySection = "Advanced - Melee Guards",
                         DisplayName = "Normal Offset Retained (0-1)",
                         SectionOrder = 30,
                         Order = 10
@@ -2729,7 +2819,7 @@ namespace FirstPersonArmsAdjuster
                     new AcceptableValueRange<float>(-0.50f, 0.50f),
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
-                        DisplaySection = "Advanced - Held Melee",
+                        DisplaySection = "Advanced - Melee Guards",
                         DisplayName = "Extra Depth Correction (m)",
                         SectionOrder = 30,
                         Order = 20
@@ -2743,7 +2833,7 @@ namespace FirstPersonArmsAdjuster
                     new AcceptableValueRange<float>(-0.50f, 0.50f),
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
-                        DisplaySection = "Advanced - Held Melee",
+                        DisplaySection = "Advanced - Melee Guards",
                         DisplayName = "Extra Vertical Correction (m)",
                         SectionOrder = 30,
                         Order = 30

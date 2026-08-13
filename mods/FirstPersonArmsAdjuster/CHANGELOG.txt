@@ -1,3 +1,8 @@
+Version 0.4.5
+Detected the game's dedicated LightAttackForward sprint-attack state for both one-handed and two-handed melee instead of treating the move as a heavy charge.
+Rapidly returned the complete first-person presentation offset to vanilla during sprint attacks, then smoothly restored the configured position after the attack ended.
+Expanded melee diagnostics to report held-heavy and sprint-attack mitigation independently.
+
 Version 0.4.4
 Removed the 0.4.3 VFPB whole-body overlay translation that could push its camera-anchored torso and legs into view.
 Applied native first-person Kandra arm and culling offsets at Kandra's render-collection stage instead of waiting for the linked-weapon sync callback, keeping arms aligned across perspective order, equipment changes, and scene reloads while leaving VFPB's overlay placement untouched.

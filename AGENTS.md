@@ -39,20 +39,21 @@ Working Rules
 - Avoid destructive commands such as `git reset --hard`, broad deletes, or force pushes unless the user explicitly asks for that exact operation.
 
 
-Sol And Luna Delegation
------------------------
+Sol And Terra Delegation
+------------------------
 
 - Sol High is the primary administrator. Sol owns requirements, task decomposition, architectural and product decisions, user-facing writing, integration, final verification, and reporting.
-- Spawned agents should use Luna High unless the user explicitly requests another model.
-- Use at most one Luna agent at a time.
-- When bounded work is deterministic, produces noisy intermediate output, or would otherwise require several routine tool calls, Sol should proactively delegate exactly one self-contained assignment to `luna_routine` and wait for its concise handoff before continuing.
-- For Nexus metadata validation, package inspection, dry runs, and explicitly authorized remote Nexus operations, Sol should use `luna_nexus_operator` instead of `luna_routine`.
+- Spawned agents should use Terra High unless the user explicitly requests another model.
+- Use at most one Terra agent at a time.
+- When bounded work is deterministic, produces noisy intermediate output, or would otherwise require several routine tool calls, Sol should proactively delegate exactly one self-contained assignment to `terra_routine` and wait for its concise handoff before continuing.
+- For multi-step Nexus validation, package inspection, release dry runs, file uploads, changelog posting, and explicitly authorized full remote updates, Sol should use `terra_nexus_operator` instead of `terra_routine`.
 - Do not delegate a task merely because it is small. Avoid paying for a handoff when Sol can finish it directly with one or two simple actions.
-- Sol must give Luna an exact objective, allowed scope, expected output, verification command, stopping conditions, and whether edits or external actions are authorized.
-- Luna must return a concise result. Sol should review the result and relevant diff instead of repeating Luna's complete investigation.
-- Suitable Luna work includes targeted searches, inventories, builds, tests, log summaries, metadata validation, package inspection, consistency checks, and fully specified mechanical edits.
+- Sol may run an approved description-only Nexus save directly when it is one guarded repository command. Do not create an operator handoff solely for `Update-NexusDescription.ps1 -Save`.
+- Sol must give Terra the exact objective, target mod and version when applicable, authorized local or external action, expected result, and only task-specific stopping conditions. Do not repeat standing role instructions already defined in the custom agent file.
+- Terra must return a concise result. Sol should review the result and relevant diff instead of repeating Terra's complete investigation.
+- Suitable Terra work includes targeted searches, inventories, builds, tests, log summaries, metadata validation, package inspection, consistency checks, and fully specified mechanical edits.
 - Keep ambiguous diagnosis, feature design, behavioral implementation, configuration-schema decisions, version decisions, user-facing release writing, changelog consolidation, and final review with Sol.
-- For Nexus work, Sol writes and approves all descriptions and changelog text. Luna may validate, dry-run, operate the existing Nexus tools, and verify the remote result only when the current user request explicitly authorizes that exact remote operation.
+- For Nexus work, Sol writes and approves all descriptions and changelog text. Terra may validate, dry-run, operate the existing Nexus tools, and verify the remote result only when the current user request explicitly authorizes that exact remote operation. A full-update assignment should authorize the normal same-version fallback: if the target file is already the active primary version and its changelog exactly matches the approved local payload, retain both and complete only the description save instead of stopping or duplicating remote data.
 - External publishing, commits, pushes, destructive operations, and live-game changes are never implied by delegation.
 
 
@@ -193,7 +194,7 @@ Grailwright Mod Development And Publishing
 - Keep `nexus-short-desc.txt` as the Nexus page short description, 350 characters max.
 - Keep `nexus-file-desc.txt` as a stable, concise file-row description of what the mod does. It must be shorter than `nexus-short-desc.txt` and must not be copied from, or lightly reworded from, the short description. Do not use it for version-specific changelog notes; those belong only in `CHANGELOG.txt` and Nexus changelog entries.
 - Nexus description files use Nexus BBCode, not Markdown fenced code blocks. Do not use language-qualified code tags such as `[code=plaintext]`; Nexus may render them literally.
-- Use plain ASCII punctuation in `nexus-full-desc.txt`, `nexus-short-desc.txt`, and `nexus-file-desc.txt`. Use straight apostrophes (`'`) and quotation marks (`"`) instead of curly variants such as `’`, and avoid typographic dashes, ellipses, nonbreaking spaces, and other unusual Unicode punctuation.
+- Use plain ASCII punctuation in `nexus-full-desc.txt`, `nexus-short-desc.txt`, and `nexus-file-desc.txt`. Use straight apostrophes (`'`) and quotation marks (`"`) instead of curly variants such as `'`, and avoid typographic dashes, ellipses, nonbreaking spaces, and other unusual Unicode punctuation.
 - Nexus descriptions should describe config schema behavior generically. Avoid listing specific schema numbers, GUID history, or individual config-change reasons unless the user asks for that detail.
 - In Nexus descriptions, link the first nearby mention of each published mod name to its Nexus page with `[url=...]Mod Name[/url]`; leave repeated mentions in the same paragraph, list, or nearby section unlinked or bold. Avoid self-linking the page title/current mod unless it genuinely helps a bundled-mod page.
 - Use the concise Grail Floating Text diagnostics sentence only when the page has no more useful linked Grail Floating Text integration or dependency description. When used, put it under Compatibility or Optional Integrations: `[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.`

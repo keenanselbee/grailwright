@@ -1,7 +1,7 @@
-name = "luna_routine"
-description = "Luna High worker for bounded, deterministic repository work administered by Sol."
+name = "terra_routine"
+description = "Terra High worker for bounded, deterministic repository work administered by Sol."
 
-model = "gpt-5.6-luna"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 
 developer_instructions = """

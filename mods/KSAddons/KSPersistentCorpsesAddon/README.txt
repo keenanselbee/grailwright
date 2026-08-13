@@ -1,7 +1,7 @@
 Persistent Corpses Addon
 ========================
 
-Version: 1.0.9
+Version: 1.1.0
 Platforms: Windows and Linux through Proton.
 
 Original mod: Persistent Corpses 1.0.0

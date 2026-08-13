@@ -1,3 +1,6 @@
+Version 1.1.0
+Renamed the FoA Mod Manager config-menu title to PersistentCorpses Addon so it sorts directly below the parent PersistentCorpses entry.
+
 Version 1.0.9
 Added All, Limited, and Vanilla corpse-retention modes; Limited is the new default and keeps at most 10 loaded full corpses.
 Lets excess distant corpses use the game's native simplification path, removing empty bodies and preserving visible loot in lightweight replacements.

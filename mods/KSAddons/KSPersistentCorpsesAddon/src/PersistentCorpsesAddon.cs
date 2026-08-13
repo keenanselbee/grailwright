@@ -19,8 +19,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Improves restored Persistent Corpses ragdolls and limits loaded full corpses")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Persistent Corpses Addon")]
-[assembly: AssemblyVersion("1.0.9.0")]
-[assembly: AssemblyFileVersion("1.0.9.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace Keenan.TGFoA.PersistentCorpsesAddon
 {
@@ -42,8 +42,8 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
     {
         public const string PluginGuid =
             "ks.tgfoa.persistent-corpses-addon";
-        public const string PluginName = "Persistent Corpses Addon";
-        public const string PluginVersion = "1.0.9";
+        public const string PluginName = "PersistentCorpses Addon";
+        public const string PluginVersion = "1.1.0";
         public const string ParentPluginGuid =
             "VirusAlex.PersistentCorpses";
 

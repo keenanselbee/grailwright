@@ -73,6 +73,107 @@ namespace Grailwright.Shared
             return TryShow(sourceId, sourceName.Trim() + " " + message.Trim());
         }
 
+        internal static bool TryShowSystemNotification(
+            string sourceId,
+            string eventId,
+            string text,
+            string priority = "Normal",
+            string collapseKey = null)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                sourceId = "grailwright";
+            }
+            if (string.IsNullOrWhiteSpace(eventId)
+                || string.IsNullOrWhiteSpace(text)
+                || !TryResolve())
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(priority))
+            {
+                priority = "Normal";
+            }
+            if (string.IsNullOrWhiteSpace(collapseKey))
+            {
+                collapseKey = eventId;
+            }
+
+            try
+            {
+                object result = _tryShowEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        eventId,
+                        text.Trim(),
+                        "System",
+                        "System",
+                        priority,
+                        collapseKey,
+                        "system",
+                        "System",
+                        -1.0f,
+                        1.0f
+                    });
+
+                return result is bool && (bool)result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        internal static bool TryShowDiagnosticNotification(
+            string sourceId,
+            string eventId,
+            string text,
+            string collapseKey = null)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                sourceId = "grailwright";
+            }
+            if (string.IsNullOrWhiteSpace(eventId)
+                || string.IsNullOrWhiteSpace(text)
+                || !TryResolve())
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(collapseKey))
+            {
+                collapseKey = eventId;
+            }
+
+            try
+            {
+                object result = _tryShowEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        eventId,
+                        text.Trim(),
+                        "System",
+                        "System",
+                        "Low",
+                        collapseKey,
+                        "system",
+                        "Short",
+                        -1.0f,
+                        1.0f
+                    });
+
+                return result is bool && (bool)result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static bool TryShowConfigReset(string sourceId, string text)
         {
             if (string.IsNullOrWhiteSpace(text) || !TryResolve())

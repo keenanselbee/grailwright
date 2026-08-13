@@ -1,0 +1,13 @@
+Version 0.1.2
+Added optional Grail Floating Text System confirmations for the parent's actual runtime toggle state, including the active interior-only scope.
+Added ShowToggleNotifications and keeps ordinary interior and exterior transitions silent.
+
+Version 0.1.1
+Immediately refreshes the parent when HDRP events add a new Fog to the cache.
+Cleans up partial Harmony patches, cache state, and event subscriptions if initialization cannot complete.
+
+Version 0.1.0
+Added an event-fed Fog cache that replaces Better Volumetric Fog's repeated all-resources discovery scan.
+Applies Low quality only in verified interiors by default and restores vanilla volumetrics outdoors, during loading, and outside active gameplay.
+Preserves the parent's hotkey, JSON reload, exact backup restoration, and configured Quality value without editing its JSON file.
+Added optional global operation, selectable quality, original scan fallback, diagnostics, and previous-settings recovery.

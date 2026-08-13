@@ -1,0 +1,1 @@
+Removes repeated global fog searches and focuses cleaner Low-quality volumetrics on interiors by default.

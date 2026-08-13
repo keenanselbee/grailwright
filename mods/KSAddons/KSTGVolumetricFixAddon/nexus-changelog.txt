@@ -1,0 +1,6 @@
+TargetVersion=0.1.2
+BaselineVersion=0.0.1
+Added interior-only Low-quality volumetrics by default and exact restoration of vanilla fog outside active interior gameplay.
+Replaced repeated all-resources fog searches with an event-fed cache that refreshes the parent when newly registered fog is discovered.
+Preserved the parent's hotkey, JSON reload, configured quality, and backup restoration without editing its JSON file.
+Added selectable quality, optional global operation, diagnostics, previous-settings recovery, and optional Grail Floating Text confirmations for actual parent toggle changes.

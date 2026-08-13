@@ -1,0 +1,37 @@
+Version 0.1.8
+Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so adaptive-tier notices can be disabled without losing detailed BepInEx logging.
+Kept ShowToggleNotifications and actual parent runtime-state confirmations independent of Diagnostics.
+
+Version 0.1.7
+Added a default-on StartAtPerformance setting so new scenes begin at Performance and raise GI quality only after sustained FPS meets the target.
+Kept InteriorPreset and ExteriorPreset as contextual recovery limits, with remembered scenes resuming their last successful session tier.
+
+Version 0.1.6
+Added ShowToggleNotifications and standardized parent runtime-state confirmations as Grail Floating Text System messages.
+
+Version 0.1.5
+Removed TG from the addon's package and FoA Mod Manager display names.
+
+Version 0.1.4
+Added a separate Adaptive Presets config section with configurable InteriorPreset and ExteriorPreset tiers.
+Uses each contextual preset as Adaptive mode's starting and maximum recovery tier; defaults remain Full indoors and Balanced outdoors.
+
+Version 0.1.3
+Removed the KS prefix from the FoA Mod Manager config-menu title.
+
+Version 0.1.2
+Added Grail Floating Text System notifications when Global Illumination is toggled on or off through its hotkey or a config reload.
+Added diagnostic-only System notifications when the adaptive FPS controller raises or lowers the GI tier, including the new tier and smoothed FPS.
+
+Version 0.1.1
+Excluded loading screens, active game transitions, and cutscenes from adaptive FPS sampling.
+Refreshes the Full baseline correctly when the parent JSON reloads, including while no lower quality tier is active.
+
+Version 0.1.0
+Added contextual Full, Balanced, and Performance profiles for Global Illumination.
+Uses the parent mod's current settings unchanged for Full, starts interiors at Full, and starts exteriors at Balanced.
+Added a conservative 60 FPS adaptive controller with smoothed gameplay sampling, sustained thresholds, cooldowns, scene warmup, and session-only scene memory.
+Balanced preserves indirect-light multipliers while capping samples at 4, bounces at 1, and using half-resolution screen-space GI.
+Performance temporarily disables screen-space GI while preserving the parent mod's indirect diffuse and reflection multipliers.
+Pauses performance decisions during non-gameplay conditions and restores the parent profile when disabled, unloaded, or outside active gameplay.
+Keeps All Lights Cast Shadows behavior entirely separate.

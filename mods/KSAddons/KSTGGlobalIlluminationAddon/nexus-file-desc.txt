@@ -1,0 +1,1 @@
+Performance-first GI scaling with contextual indoor and outdoor quality limits and conservative 60 FPS adaptation.

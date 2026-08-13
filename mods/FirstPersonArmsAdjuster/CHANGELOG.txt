@@ -1,3 +1,41 @@
+Version 0.4.4
+Removed the 0.4.3 VFPB whole-body overlay translation that could push its camera-anchored torso and legs into view.
+Applied native first-person Kandra arm and culling offsets at Kandra's render-collection stage instead of waiting for the linked-weapon sync callback, keeping arms aligned across perspective order, equipment changes, and scene reloads while leaving VFPB's overlay placement untouched.
+
+Version 0.4.3
+Added automatic VFPB integration so its visible first-person body follows horizontal, vertical, and equipment depth offsets regardless of perspective, equipment, or scene-load order.
+Restored VFPB's native overlay placement before its own updates and reapplied only the visual offset afterward, preserving head anchoring and preventing accumulated movement.
+
+Version 0.4.2
+Restricted the sheathing offset blend to melee weapons in their active two-handed grip, leaving one-handed weapons, bows, spells, and unarmed sheathing unchanged.
+Integrated automatically with Versatile Weapons' live grip classification so native one-handed weapons gain the blend only in two-handed grip, while native two-handed weapons lose it when switched to one-handed grip.
+
+Version 0.4.1
+Blended the complete first-person presentation offset back to the vanilla position from 45% through 90% of melee, bow, and magic sheathing animations, letting adjusted arms and equipment retreat before the game hides the viewmodel.
+Restored the configured offset smoothly when sheathing is interrupted, while leaving animation, gameplay sockets, aiming, and projectile origins unchanged.
+
+Version 0.4.0
+Reorganized FoA Mod Manager into General, Position, Equipment Depth, advanced held-melee and effect controls, and Diagnostics while keeping every stored config section and key unchanged.
+Added friendly setting names, explicit ordering, visible units, signed direction guidance, and clearer explanations of equipment-specific and fallback offsets.
+
+Version 0.3.9
+Fixed equipped effects beneath the first-person body hierarchy being excluded from attached-effect alignment, which left vanilla torch flames and embers at their unadjusted position.
+Kept cached effect emitters at the rendered-item offset between frames while compensating during the temporary body-root render translation, preventing local-space effects from receiving the offset twice.
+Expanded diagnostics to report how many cached presentation effects use body-root render compensation.
+
+Version 0.3.8
+Added targeted first-person offsetting for Visual Effect Graph and particle-system presentation transforms beneath equipped hand items.
+Kept gameplay roots, lights, colliders, rigidbodies, character controllers, sockets, and projectile origins unchanged while caching only the small active effect set.
+Added AdjustAttachedEffects as a live master toggle for equipped presentation effects.
+
+Version 0.3.7
+Fixed held-heavy detection to follow the melee FSM's actual heavy-attack state without requiring its layer-activity flag, allowing two-handed charge corrections to engage when layer reporting lags the visible animation.
+Expanded diagnostics to report every melee FSM's type, layer activity, general state, current state, target state, and held-mitigation result whenever that state signature changes.
+
+Version 0.3.6
+Changed the default held-melee offset scale to 1.0 and both held-only corrections to -0.05, matching the tuned pose.
+Incremented the config schema because the held-melee scale, forward-correction, and vertical-correction defaults changed.
+
 Version 0.3.5
 Added a versioned, allocation-free visual-offset API for optional presentation integrations.
 Cached the effective first-person world translation once per frame, including category offsets and active fireplace or held-melee blends, while reporting no offset when disabled, suspended, or in third person.

@@ -16,6 +16,7 @@ using Awaken.TG.Main.Crafting.Fireplace;
 using Awaken.TG.Assets;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
+using Awaken.TG.Main.Heroes.Items;
 using Awaken.Utility.LowLevel;
 using Awaken.Utility.LowLevel.Collections;
 using BepInEx;
@@ -30,14 +31,15 @@ using UnityEngine;
 using UnityEngine.Jobs;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using UnityEngine.VFX;
 
 [assembly: AssemblyTitle("First Person Arms Adjuster")]
 [assembly: AssemblyDescription("Moves the rendered first-person arms and weapons without changing world FOV.")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.3.5.0")]
-[assembly: AssemblyFileVersion("0.3.5.0")]
+[assembly: AssemblyVersion("0.4.4.0")]
+[assembly: AssemblyFileVersion("0.4.4.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -69,9 +71,9 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.3.5";
+        public const string PluginVersion = "0.4.4";
 
-        private const int ConfigSchemaVersion = 7;
+        private const int ConfigSchemaVersion = 8;
         private const int ConfigRecoveryBaselineSchema = 1;
         private const int SceneTransitionSuspensionFrames = 45;
         private const float FireplaceBlendOutSeconds = 0.25f;
@@ -79,6 +81,9 @@ namespace FirstPersonArmsAdjuster
         private const float FireplaceBlendInSeconds = 0.40f;
         private const float HeldMeleeBlendOutSeconds = 0.12f;
         private const float HeldMeleeBlendInSeconds = 0.20f;
+        private const float SheathingBlendStartNormalizedTime = 0.45f;
+        private const float SheathingBlendEndNormalizedTime = 0.90f;
+        private const float SheathingBlendRestoreSeconds = 0.20f;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
                 new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
@@ -136,6 +141,7 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<float> _horizontalOffset;
         private ConfigEntry<float> _verticalOffset;
         private ConfigEntry<bool> _useCategoryForwardOffsets;
+        private ConfigEntry<bool> _adjustAttachedEffects;
         private ConfigEntry<bool> _mitigateHeldMeleeBodyIntrusion;
         private ConfigEntry<float> _meleeForwardOffset;
         private ConfigEntry<float> _bowForwardOffset;
@@ -178,7 +184,6 @@ namespace FirstPersonArmsAdjuster
         private Vector3 _currentVisualWorldOffset;
         private int _currentVisualWorldOffsetFrame = -1;
         private bool _hasCurrentVisualWorldOffset;
-
         private Harmony _harmony;
         private FieldInfo _inputBonesArrayField;
         private FieldInfo _readTransformField;
@@ -191,8 +196,6 @@ namespace FirstPersonArmsAdjuster
             new KandraRenderer[0];
         private float _nextKandraRigRefreshTime;
         private HeroBodyData _lastReportedKandraBodyData;
-        private RigManager _pendingKandraRigManager;
-        private int _kandraCollectionFrame = -1;
         private int _lastSynchronizedKandraFrame = -1;
         private CharacterHandBase _cachedMainHandWeapon;
         private CharacterHandBase _cachedOffHandWeapon;
@@ -202,6 +205,12 @@ namespace FirstPersonArmsAdjuster
             _originalDrakeOffsets =
                 new Dictionary<Entity, DrakeOffsetState>();
         private float _nextWeaponEntityRefreshTime;
+        private CharacterHandBase _cachedEffectMainHandWeapon;
+        private CharacterHandBase _cachedEffectOffHandWeapon;
+        private PresentationEffectOffsetState[] _attachedEffectOffsets =
+            new PresentationEffectOffsetState[0];
+        private float _nextAttachedEffectRefreshTime;
+        private int _lastReportedAttachedEffectCount = -1;
         private int _suspendOffsetsUntilFrame = -1;
         private float _fireplaceOffsetBlend = 1.0f;
         private float _fireplaceBlendStart = 1.0f;
@@ -216,6 +225,10 @@ namespace FirstPersonArmsAdjuster
         private float _heldMeleeBlendTarget;
         private float _heldMeleeBlendStartedAt;
         private bool _heldMeleeAttackActive;
+        private float _sheathingOffsetBlend = 1.0f;
+        private int _sheathingBlendUpdateFrame = -1;
+        private bool _sheathingActive;
+        private string _meleeFsmDiagnosticSignature;
         private CharacterHandBase _lastReportedMainHandWeapon;
         private CharacterHandBase _lastReportedOffHandWeapon;
         private FieldInfo _bowArrowInMainHandField;
@@ -280,13 +293,20 @@ namespace FirstPersonArmsAdjuster
             RestoreRenderOffset();
             UpdateFireplaceOffsetBlend();
             UpdateHeldMeleeOffsetBlend();
+            UpdateSheathingOffsetBlend();
             RefreshCurrentVisualWorldOffset();
+        }
+
+        private void LateUpdate()
+        {
+            ApplyAttachedEffectOffsets();
         }
 
         private void OnDisable()
         {
             RestoreRenderOffset();
             RestoreDrakeOffsets();
+            RestoreAttachedEffectOffsets();
             ClearSceneCaches();
         }
 
@@ -350,9 +370,8 @@ namespace FirstPersonArmsAdjuster
 
         private void ClearSceneCaches()
         {
+            RestoreAttachedEffectOffsets();
             _lastReportedRoot = null;
-            _pendingKandraRigManager = null;
-            _kandraCollectionFrame = -1;
             _lastSynchronizedKandraFrame = -1;
             _cachedKandraBodyData = null;
             _cachedKandraRigs = new KandraRig[0];
@@ -363,6 +382,12 @@ namespace FirstPersonArmsAdjuster
             _cachedOffHandWeapon = null;
             _cachedWeaponEntityAccess = new LinkedEntitiesAccess[0];
             _nextWeaponEntityRefreshTime = 0.0f;
+            _cachedEffectMainHandWeapon = null;
+            _cachedEffectOffHandWeapon = null;
+            _attachedEffectOffsets =
+                new PresentationEffectOffsetState[0];
+            _nextAttachedEffectRefreshTime = 0.0f;
+            _lastReportedAttachedEffectCount = -1;
             _lastReportedMainHandWeapon = null;
             _lastReportedOffHandWeapon = null;
             _originalDrakeOffsets.Clear();
@@ -370,6 +395,10 @@ namespace FirstPersonArmsAdjuster
             _heldMeleeBlendStart = 0.0f;
             _heldMeleeBlendTarget = 0.0f;
             _heldMeleeAttackActive = false;
+            _sheathingOffsetBlend = 1.0f;
+            _sheathingBlendUpdateFrame = -1;
+            _sheathingActive = false;
+            _meleeFsmDiagnosticSignature = null;
             _currentVisualWorldOffset = Vector3.zero;
             _currentVisualWorldOffsetFrame = -1;
             _hasCurrentVisualWorldOffset = false;
@@ -469,6 +498,7 @@ namespace FirstPersonArmsAdjuster
             bool attackActive = _mitigateHeldMeleeBodyIntrusion != null
                 && _mitigateHeldMeleeBodyIntrusion.Value
                 && IsHeldMeleeAttackActive(hero);
+            ReportMeleeFsmDiagnostics(hero, attackActive);
             float target = attackActive ? 1.0f : 0.0f;
             if (!Mathf.Approximately(target, _heldMeleeBlendTarget))
             {
@@ -515,7 +545,9 @@ namespace FirstPersonArmsAdjuster
 
             foreach (MeleeFSM melee in hero.Elements<MeleeFSM>())
             {
-                if (melee == null || !melee.IsLayerActive)
+                if (melee == null
+                    || melee.GeneralStateType
+                        != HeroGeneralStateType.HeavyAttack)
                 {
                     continue;
                 }
@@ -531,6 +563,177 @@ namespace FirstPersonArmsAdjuster
             }
 
             return false;
+        }
+
+        private void UpdateSheathingOffsetBlend()
+        {
+            if (_sheathingBlendUpdateFrame == Time.frameCount)
+            {
+                return;
+            }
+
+            _sheathingBlendUpdateFrame = Time.frameCount;
+            float sheathingBlend;
+            bool sheathing = TryGetSheathingOffsetBlend(
+                Hero.Current,
+                out sheathingBlend);
+            if (sheathing)
+            {
+                _sheathingOffsetBlend = sheathingBlend;
+            }
+            else
+            {
+                float maxDelta = SheathingBlendRestoreSeconds <= 0.0f
+                    ? 1.0f
+                    : Time.unscaledDeltaTime
+                        / SheathingBlendRestoreSeconds;
+                _sheathingOffsetBlend = Mathf.MoveTowards(
+                    _sheathingOffsetBlend,
+                    1.0f,
+                    maxDelta);
+            }
+
+            if (sheathing != _sheathingActive)
+            {
+                _sheathingActive = sheathing;
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        sheathing
+                            ? "Blending the first-person offset to vanilla during the sheathing animation."
+                            : "Restoring the configured first-person offset after sheathing.");
+                }
+            }
+        }
+
+        private static bool TryGetSheathingOffsetBlend(
+            Hero hero,
+            out float blend)
+        {
+            blend = 1.0f;
+            if (hero == null || !IsUsingTwoHandedMeleeGrip(hero))
+            {
+                return false;
+            }
+
+            bool sheathing = false;
+            foreach (HeroAnimatorSubstateMachine fsm
+                in hero.Elements<HeroAnimatorSubstateMachine>())
+            {
+                if (fsm == null)
+                {
+                    continue;
+                }
+
+                HeroStateType currentState = fsm.CurrentStateType;
+                HeroStateType targetState = fsm.CurrentStateToEnterType;
+                if (!IsSheathingState(currentState)
+                    && !IsSheathingState(targetState))
+                {
+                    continue;
+                }
+
+                sheathing = true;
+                float normalizedTime = 0.0f;
+                HeroAnimatorState animatorState = fsm.CurrentAnimatorState;
+                if (IsSheathingState(currentState)
+                    && animatorState != null)
+                {
+                    normalizedTime = Mathf.Max(
+                        0.0f,
+                        animatorState.TimeElapsedNormalized);
+                }
+
+                float progress = Mathf.InverseLerp(
+                    SheathingBlendStartNormalizedTime,
+                    SheathingBlendEndNormalizedTime,
+                    normalizedTime);
+                float easedProgress = progress
+                    * progress
+                    * (3.0f - (2.0f * progress));
+                blend = Mathf.Min(blend, 1.0f - easedProgress);
+            }
+
+            return sheathing;
+        }
+
+        private static bool IsUsingTwoHandedMeleeGrip(Hero hero)
+        {
+            return IsTwoHandedMeleeItem(hero.MainHandItem)
+                || IsTwoHandedMeleeItem(hero.OffHandItem);
+        }
+
+        private static bool IsTwoHandedMeleeItem(Item item)
+        {
+            // Versatile Weapons patches Item.IsTwoHanded to expose its
+            // current grip, so this follows converted grips without a hard
+            // dependency while retaining native behavior when VW is absent.
+            return item != null && item.IsMelee && item.IsTwoHanded;
+        }
+
+        private static bool IsSheathingState(HeroStateType state)
+        {
+            return state == HeroStateType.UnEquipWeapon
+                || state == HeroStateType.UnEquipWeaponAlternate;
+        }
+
+        private void ReportMeleeFsmDiagnostics(
+            Hero hero,
+            bool attackActive)
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                _meleeFsmDiagnosticSignature = null;
+                return;
+            }
+
+            StringBuilder description = new StringBuilder();
+            description.Append("mitigation=")
+                .Append(attackActive ? "active" : "inactive");
+            if (hero == null)
+            {
+                description.Append("; hero=none");
+            }
+            else
+            {
+                int fsmCount = 0;
+                foreach (MeleeFSM melee in hero.Elements<MeleeFSM>())
+                {
+                    if (melee == null)
+                    {
+                        continue;
+                    }
+
+                    description.Append(fsmCount == 0 ? "; " : " | ")
+                        .Append(melee.GetType().Name)
+                        .Append(": layerActive=")
+                        .Append(melee.IsLayerActive)
+                        .Append(", general=")
+                        .Append(melee.GeneralStateType)
+                        .Append(", current=")
+                        .Append(melee.CurrentStateType)
+                        .Append(", target=")
+                        .Append(melee.CurrentStateToEnterType);
+                    fsmCount++;
+                }
+
+                if (fsmCount == 0)
+                {
+                    description.Append("; meleeFSMs=none");
+                }
+            }
+
+            string signature = description.ToString();
+            if (String.Equals(
+                    signature,
+                    _meleeFsmDiagnosticSignature,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _meleeFsmDiagnosticSignature = signature;
+            Logger.LogInfo("Melee FSM states: " + signature + ".");
         }
 
         private bool IsHeroCrouchTweenActive(out bool signalAvailable)
@@ -582,12 +785,12 @@ namespace FirstPersonArmsAdjuster
 
         private void PatchRenderSystems()
         {
-            MethodInfo collectBoneMatrices = AccessTools.Method(
-                typeof(RigManager),
-                nameof(RigManager.CollectBoneMatrices));
-            MethodInfo collectPostfix = AccessTools.Method(
-                typeof(RigManagerCollectBoneMatricesPatch),
-                nameof(RigManagerCollectBoneMatricesPatch.Postfix));
+            MethodInfo kandraPreLateUpdateEnd = AccessTools.Method(
+                typeof(KandraRendererManager),
+                "OnPreLateUpdateEnd");
+            MethodInfo kandraPostfix = AccessTools.Method(
+                typeof(KandraRendererManagerPreLateUpdateEndPatch),
+                nameof(KandraRendererManagerPreLateUpdateEndPatch.Postfix));
             MethodInfo linkedTransformUpdate = AccessTools.Method(
                 typeof(LinkedTransformSystem),
                 "OnUpdate");
@@ -609,8 +812,8 @@ namespace FirstPersonArmsAdjuster
             _linkedTransformsArrayField = AccessTools.Field(
                 typeof(LinkedTransformSystem),
                 "_transformsArray");
-            if (collectBoneMatrices == null
-                || collectPostfix == null
+            if (kandraPreLateUpdateEnd == null
+                || kandraPostfix == null
                 || linkedTransformUpdate == null
                 || linkedTransformPrefix == null
                 || _inputBonesArrayField == null
@@ -633,16 +836,17 @@ namespace FirstPersonArmsAdjuster
 
             _harmony = new Harmony(PluginGuid);
             _harmony.Patch(
-                collectBoneMatrices,
-                postfix: new HarmonyMethod(collectPostfix));
+                kandraPreLateUpdateEnd,
+                postfix: new HarmonyMethod(kandraPostfix));
             _harmony.Patch(
                 linkedTransformUpdate,
                 prefix: new HarmonyMethod(linkedTransformPrefix));
         }
 
-        internal void CaptureKandraBoneCollection(RigManager rigManager)
+        internal void ApplyKandraRenderOffset(
+            KandraRendererManager rendererManager)
         {
-            if (rigManager == null
+            if (rendererManager == null
                 || OffsetsSuspended()
                 || _enabled == null
                 || !_enabled.Value)
@@ -650,20 +854,51 @@ namespace FirstPersonArmsAdjuster
                 return;
             }
 
-            _pendingKandraRigManager = rigManager;
-            _kandraCollectionFrame = Time.frameCount;
+            Hero hero = Hero.Current;
+            if (hero == null || Hero.TppActive)
+            {
+                return;
+            }
+
+            VHeroController controller = hero.VHeroController;
+            HeroBodyData bodyData = controller == null
+                ? null
+                : controller.BodyData;
+            Camera camera = controller == null
+                ? null
+                : controller.MainCamera;
+            if (bodyData == null || camera == null)
+            {
+                return;
+            }
+
+            Vector3 localOffset = GetEffectiveLocalOffset(hero);
+            if (localOffset.sqrMagnitude <= 0.00000001f)
+            {
+                return;
+            }
+
+            Vector3 worldOffset =
+                camera.transform.TransformVector(localOffset);
+            ApplyLateKandraOffset(
+                bodyData,
+                rendererManager.RigManager,
+                new float3(
+                    worldOffset.x,
+                    worldOffset.y,
+                    worldOffset.z));
         }
 
         private void ApplyLateKandraOffset(
             HeroBodyData bodyData,
+            RigManager rigManager,
             float3 translation)
         {
             if (OffsetsSuspended()
                 || _lastSynchronizedKandraFrame == Time.frameCount
-                || _pendingKandraRigManager == null
-                || _kandraCollectionFrame != Time.frameCount
+                || rigManager == null
                 || (uint)_bonesInFlightField.GetValue(
-                    _pendingKandraRigManager) == 0)
+                    rigManager) == 0)
             {
                 return;
             }
@@ -677,7 +912,7 @@ namespace FirstPersonArmsAdjuster
 
             NativeArray<Bone> bones =
                 (NativeArray<Bone>)_inputBonesArrayField.GetValue(
-                    _pendingKandraRigManager);
+                    rigManager);
             if (!bones.IsCreated)
             {
                 return;
@@ -685,7 +920,7 @@ namespace FirstPersonArmsAdjuster
 
             JobHandle dependency =
                 (JobHandle)_readTransformField.GetValue(
-                    _pendingKandraRigManager);
+                    rigManager);
             int rigCount = 0;
             int boneCount = 0;
             MemoryBookkeeper.MemoryRegion region =
@@ -696,7 +931,7 @@ namespace FirstPersonArmsAdjuster
             {
                 KandraRig rig = _cachedKandraRigs[index];
                 if (rig == null
-                    || !_pendingKandraRigManager.TryGetMemoryRegionFor(
+                    || !rigManager.TryGetMemoryRegionFor(
                         rig,
                         out region)
                     || !region.IsValid)
@@ -730,7 +965,7 @@ namespace FirstPersonArmsAdjuster
             }
 
             _readTransformField.SetValue(
-                _pendingKandraRigManager,
+                rigManager,
                 dependency);
             int cullingRendererCount =
                 ApplyKandraCullingOffset(translation);
@@ -927,11 +1162,6 @@ namespace FirstPersonArmsAdjuster
 
             Vector3 worldOffset =
                 camera.transform.TransformVector(localOffset);
-            float3 translation = new float3(
-                worldOffset.x,
-                worldOffset.y,
-                worldOffset.z);
-            ApplyLateKandraOffset(bodyData, translation);
             RefreshWeaponEntityAccess(hero);
             if (_cachedWeaponEntityAccess.Length == 0)
             {
@@ -1216,6 +1446,264 @@ namespace FirstPersonArmsAdjuster
             }
         }
 
+        private void ApplyAttachedEffectOffsets()
+        {
+            if (!isActiveAndEnabled
+                || OffsetsSuspended()
+                || _enabled == null
+                || !_enabled.Value
+                || _adjustAttachedEffects == null
+                || !_adjustAttachedEffects.Value)
+            {
+                RestoreAttachedEffectOffsets();
+                return;
+            }
+
+            Hero hero = Hero.Current;
+            if (hero == null || Hero.TppActive)
+            {
+                RestoreAttachedEffectOffsets();
+                return;
+            }
+
+            VHeroController controller = hero.VHeroController;
+            HeroBodyData bodyData = controller == null
+                ? null
+                : controller.BodyData;
+            Camera camera = controller == null
+                ? null
+                : controller.MainCamera;
+            if (bodyData == null
+                || bodyData.transform == null
+                || camera == null)
+            {
+                RestoreAttachedEffectOffsets();
+                return;
+            }
+
+            RefreshAttachedEffectOffsets(hero, bodyData.transform);
+            Vector3 worldOffset = camera.transform.TransformVector(
+                GetEffectiveLocalOffset(hero));
+            for (int index = 0;
+                index < _attachedEffectOffsets.Length;
+                index++)
+            {
+                _attachedEffectOffsets[index].Apply(worldOffset);
+            }
+        }
+
+        private void RefreshAttachedEffectOffsets(
+            Hero hero,
+            Transform bodyRoot)
+        {
+            CharacterHandBase mainWeapon = hero.MainHandWeapon;
+            CharacterHandBase offWeapon = hero.OffHandWeapon;
+            float now = Time.unscaledTime;
+            if (_cachedEffectMainHandWeapon == mainWeapon
+                && _cachedEffectOffHandWeapon == offWeapon
+                && now < _nextAttachedEffectRefreshTime)
+            {
+                return;
+            }
+
+            bool equipmentChanged =
+                _cachedEffectMainHandWeapon != mainWeapon
+                || _cachedEffectOffHandWeapon != offWeapon;
+            RestoreAttachedEffectOffsets();
+            _cachedEffectMainHandWeapon = mainWeapon;
+            _cachedEffectOffHandWeapon = offWeapon;
+            _nextAttachedEffectRefreshTime = now + 0.5f;
+
+            HashSet<Transform> excludedRoots = new HashSet<Transform>();
+            AddEffectRoot(excludedRoots, mainWeapon == null
+                ? null
+                : mainWeapon.transform);
+            AddEffectRoot(excludedRoots, offWeapon == null
+                ? null
+                : offWeapon.transform);
+            AddEffectRoot(excludedRoots, hero.MainHand);
+            AddEffectRoot(excludedRoots, hero.OffHand);
+
+            HashSet<Transform> candidates = new HashSet<Transform>();
+            CollectPresentationEffectTransforms(
+                mainWeapon == null ? null : mainWeapon.transform,
+                bodyRoot,
+                excludedRoots,
+                candidates);
+            CollectPresentationEffectTransforms(
+                offWeapon == null ? null : offWeapon.transform,
+                bodyRoot,
+                excludedRoots,
+                candidates);
+            CollectPresentationEffectTransforms(
+                hero.MainHand,
+                bodyRoot,
+                excludedRoots,
+                candidates);
+            CollectPresentationEffectTransforms(
+                hero.OffHand,
+                bodyRoot,
+                excludedRoots,
+                candidates);
+
+            List<PresentationEffectOffsetState> states =
+                new List<PresentationEffectOffsetState>();
+            int bodyRootCompensatedCount = 0;
+            foreach (Transform candidate in candidates)
+            {
+                if (HasCandidateAncestor(candidate, candidates))
+                {
+                    continue;
+                }
+
+                bool compensateBodyRootRender = bodyRoot != null
+                    && candidate.IsChildOf(bodyRoot);
+                states.Add(
+                    new PresentationEffectOffsetState(
+                        candidate,
+                        compensateBodyRootRender));
+                if (compensateBodyRootRender)
+                {
+                    bodyRootCompensatedCount++;
+                }
+            }
+            _attachedEffectOffsets = states.ToArray();
+
+            if (_diagnostics != null
+                && _diagnostics.Value
+                && (equipmentChanged
+                    || _lastReportedAttachedEffectCount
+                        != _attachedEffectOffsets.Length))
+            {
+                _lastReportedAttachedEffectCount =
+                    _attachedEffectOffsets.Length;
+                Logger.LogInfo(
+                    "Cached "
+                    + _attachedEffectOffsets.Length.ToString(
+                        CultureInfo.InvariantCulture)
+                    + " equipped presentation-effect transform(s) for first-person offsetting; body-root render compensation="
+                    + bodyRootCompensatedCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+            }
+        }
+
+        private static void AddEffectRoot(
+            HashSet<Transform> roots,
+            Transform root)
+        {
+            if (root != null)
+            {
+                roots.Add(root);
+            }
+        }
+
+        private static void CollectPresentationEffectTransforms(
+            Transform root,
+            Transform bodyRoot,
+            HashSet<Transform> excludedRoots,
+            HashSet<Transform> candidates)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            VisualEffect[] visualEffects =
+                root.GetComponentsInChildren<VisualEffect>(true);
+            for (int index = 0; index < visualEffects.Length; index++)
+            {
+                VisualEffect visualEffect = visualEffects[index];
+                if (visualEffect != null)
+                {
+                    TryAddPresentationEffectTransform(
+                        visualEffect.transform,
+                        excludedRoots,
+                        candidates);
+                }
+            }
+
+            ParticleSystem[] particleSystems =
+                root.GetComponentsInChildren<ParticleSystem>(true);
+            for (int index = 0; index < particleSystems.Length; index++)
+            {
+                ParticleSystem particleSystem = particleSystems[index];
+                if (particleSystem != null)
+                {
+                    TryAddPresentationEffectTransform(
+                        particleSystem.transform,
+                        excludedRoots,
+                        candidates);
+                }
+            }
+        }
+
+        private static void TryAddPresentationEffectTransform(
+            Transform effectTransform,
+            HashSet<Transform> excludedRoots,
+            HashSet<Transform> candidates)
+        {
+            if (effectTransform == null
+                || excludedRoots.Contains(effectTransform)
+                || effectTransform.GetComponent<Collider>() != null
+                || effectTransform.GetComponent<Rigidbody>() != null
+                || effectTransform.GetComponent<CharacterController>() != null
+                || effectTransform.GetComponent<Light>() != null)
+            {
+                return;
+            }
+
+            candidates.Add(effectTransform);
+        }
+
+        private static bool HasCandidateAncestor(
+            Transform candidate,
+            HashSet<Transform> candidates)
+        {
+            Transform current = candidate == null
+                ? null
+                : candidate.parent;
+            while (current != null)
+            {
+                if (candidates.Contains(current))
+                {
+                    return true;
+                }
+                current = current.parent;
+            }
+            return false;
+        }
+
+        private void RestoreAttachedEffectOffsets()
+        {
+            for (int index = 0;
+                index < _attachedEffectOffsets.Length;
+                index++)
+            {
+                _attachedEffectOffsets[index].Restore();
+            }
+        }
+
+        private void SuspendBodyRootAttachedEffectOffsets()
+        {
+            for (int index = 0;
+                index < _attachedEffectOffsets.Length;
+                index++)
+            {
+                _attachedEffectOffsets[index].SuspendForBodyRootRender();
+            }
+        }
+
+        private void ResumeBodyRootAttachedEffectOffsets()
+        {
+            for (int index = 0;
+                index < _attachedEffectOffsets.Length;
+                index++)
+            {
+                _attachedEffectOffsets[index].ResumeAfterBodyRootRender();
+            }
+        }
+
         private void OnCameraPreCull(Camera camera)
         {
             TryApplyRenderOffset(camera);
@@ -1277,6 +1765,7 @@ namespace FirstPersonArmsAdjuster
             _offsetRoot = bodyData.transform;
             _offsetCamera = camera;
             _originalWorldPosition = _offsetRoot.position;
+            SuspendBodyRootAttachedEffectOffsets();
             _offsetRoot.position =
                 _originalWorldPosition
                 + camera.transform.TransformVector(localOffset);
@@ -1323,6 +1812,7 @@ namespace FirstPersonArmsAdjuster
             {
                 _offsetRoot.position = _originalWorldPosition;
             }
+            ResumeBodyRootAttachedEffectOffsets();
 
             _renderOffsetApplied = false;
             _offsetRoot = null;
@@ -1381,6 +1871,7 @@ namespace FirstPersonArmsAdjuster
         {
             UpdateFireplaceOffsetBlend();
             UpdateHeldMeleeOffsetBlend();
+            UpdateSheathingOffsetBlend();
             Vector3 configuredOffset = new Vector3(
                 _horizontalOffset.Value,
                 _verticalOffset.Value,
@@ -1395,7 +1886,8 @@ namespace FirstPersonArmsAdjuster
                 _heldMeleeExtraForwardOffset.Value)
                 * _heldMeleeMitigationBlend;
             return (configuredOffset * retainedScale + heldCorrection)
-                * _fireplaceOffsetBlend;
+                * _fireplaceOffsetBlend
+                * _sheathingOffsetBlend;
         }
 
         internal bool TryGetCurrentVisualWorldOffset(
@@ -2078,85 +2570,198 @@ namespace FirstPersonArmsAdjuster
                 "1. Core",
                 "Enabled",
                 true,
-                "Master switch for the first-person render offset.");
+                new ConfigDescription(
+                    "Turns first-person arm and equipment position adjustments on or off. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "General",
+                        DisplayName = "Enabled",
+                        SectionOrder = 0,
+                        Order = 0
+                    }));
             _useCategoryForwardOffsets = Config.Bind(
                 "1. Core",
                 "UseCategoryForwardOffsets",
                 true,
-                "Use separate forward offsets for melee weapons, bows, and magic. Unarmed and unknown equipment continue to use ForwardOffset.");
+                new ConfigDescription(
+                    "Uses separate depth offsets for melee weapons, bows, and magic. When off, all equipment uses General / Unarmed Depth Offset. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Equipment Depth",
+                        DisplayName = "Use Separate Equipment Depths",
+                        SectionOrder = 20,
+                        Order = 0
+                    }));
+            _adjustAttachedEffects = Config.Bind(
+                "1. Core",
+                "AdjustAttachedEffects",
+                true,
+                new ConfigDescription(
+                    "Moves supported attached visual effects with the rendered first-person item. Gameplay roots, lights, colliders, and sockets are unchanged. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Effects",
+                        DisplayName = "Keep Attached Effects Aligned",
+                        SectionOrder = 40,
+                        Order = 0
+                    }));
             _mitigateHeldMeleeBodyIntrusion = Config.Bind(
                 "1. Core",
                 "MitigateHeldMeleeBodyIntrusion",
                 true,
-                "Smoothly return the complete viewmodel offset toward vanilla while a melee heavy attack is raised or held, preventing shoulders and torso geometry from being pulled into view.");
+                new ConfigDescription(
+                    "While a melee heavy attack is raised or held, applies corrections to keep body geometry out of view. Turn off to use the normal offsets with no held-melee correction. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Held Melee",
+                        DisplayName = "Prevent Body Intrusion",
+                        SectionOrder = 30,
+                        Order = 0
+                    }));
             _forwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "ForwardOffset",
                 0.30f,
                 new ConfigDescription(
-                    "Meters to move the first-person body and equipped items away from the camera. Positive values make them appear farther away without changing FOV.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Moves unarmed and unrecognized equipment along the camera depth axis. Positive moves it farther from the camera; negative moves it closer. When separate equipment depths are off, this is used for all equipment. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Position",
+                        DisplayName = "General / Unarmed Depth Offset (m)",
+                        SectionOrder = 10,
+                        Order = 0
+                    }));
             _horizontalOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "HorizontalOffset",
                 0.0f,
                 new ConfigDescription(
-                    "Meters to move the first-person body and equipped items right or left in camera space.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Moves the first-person body and equipped items horizontally. Positive moves right; negative moves left. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Position",
+                        DisplayName = "Horizontal Offset (m)",
+                        SectionOrder = 10,
+                        Order = 10
+                    }));
             _verticalOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "VerticalOffset",
                 0.0f,
                 new ConfigDescription(
-                    "Meters to move the first-person body and equipped items up or down in camera space.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Moves the first-person body and equipped items vertically. Positive moves up; negative moves down. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Position",
+                        DisplayName = "Vertical Offset (m)",
+                        SectionOrder = 10,
+                        Order = 20
+                    }));
             _meleeForwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "MeleeForwardOffset",
                 0.30f,
                 new ConfigDescription(
-                    "Forward offset used for melee weapons when UseCategoryForwardOffsets is enabled.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Depth offset for melee weapons when separate equipment depths are enabled. Positive moves them farther from the camera; negative moves them closer. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Equipment Depth",
+                        DisplayName = "Melee Depth Offset (m)",
+                        SectionOrder = 20,
+                        Order = 10
+                    }));
             _bowForwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "BowForwardOffset",
                 0.10f,
                 new ConfigDescription(
-                    "Forward offset used for bows when UseCategoryForwardOffsets is enabled.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Depth offset for bows when separate equipment depths are enabled. Positive moves them farther from the camera; negative moves them closer. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Equipment Depth",
+                        DisplayName = "Bow Depth Offset (m)",
+                        SectionOrder = 20,
+                        Order = 20
+                    }));
             _magicForwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "MagicForwardOffset",
                 0.30f,
                 new ConfigDescription(
-                    "Forward offset used for equipped magic when UseCategoryForwardOffsets is enabled.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Depth offset for magic when separate equipment depths are enabled. Positive moves it farther from the camera; negative moves it closer. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Equipment Depth",
+                        DisplayName = "Magic Depth Offset (m)",
+                        SectionOrder = 20,
+                        Order = 30
+                    }));
             _heldMeleeOffsetScale = Config.Bind(
                 "2. Viewmodel Position",
                 "HeldMeleeOffsetScale",
-                0.0f,
+                1.0f,
                 new ConfigDescription(
-                    "Fraction of the configured viewmodel offset retained while a melee heavy attack is raised or held. Zero uses the vanilla position; one disables the positional reduction without disabling state detection.",
-                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+                    "Amount of the normal viewmodel offset retained while a melee heavy attack is raised or held. 0 uses the vanilla position; 1 retains the full normal offset. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Held Melee",
+                        DisplayName = "Normal Offset Retained (0-1)",
+                        SectionOrder = 30,
+                        Order = 10
+                    }));
             _heldMeleeExtraForwardOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "HeldMeleeExtraForwardOffset",
-                -0.10f,
+                -0.05f,
                 new ConfigDescription(
-                    "Additional camera-space forward offset applied only while a melee heavy attack is raised or held, after HeldMeleeOffsetScale. Negative values pull the viewmodel toward the camera so its near plane can conceal intrusive body geometry.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Additional depth correction while a melee heavy attack is raised or held, after Normal Offset Retained. Positive moves the viewmodel farther from the camera; negative moves it closer to hide body intrusion. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Held Melee",
+                        DisplayName = "Extra Depth Correction (m)",
+                        SectionOrder = 30,
+                        Order = 20
+                    }));
             _heldMeleeExtraVerticalOffset = Config.Bind(
                 "2. Viewmodel Position",
                 "HeldMeleeExtraVerticalOffset",
-                -0.06f,
+                -0.05f,
                 new ConfigDescription(
-                    "Additional camera-space vertical offset applied only while a melee heavy attack is raised or held, after HeldMeleeOffsetScale. Negative values move the held pose down.",
-                    new AcceptableValueRange<float>(-0.50f, 0.50f)));
+                    "Additional vertical correction while a melee heavy attack is raised or held, after Normal Offset Retained. Positive moves the viewmodel up; negative moves it down. Changes apply immediately.",
+                    new AcceptableValueRange<float>(-0.50f, 0.50f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Held Melee",
+                        DisplayName = "Extra Vertical Correction (m)",
+                        SectionOrder = 30,
+                        Order = 30
+                    }));
             _diagnostics = Config.Bind(
                 "3. Diagnostics",
                 "Diagnostics",
                 false,
-                "Log the resolved first-person hierarchy and active Kandra bone, culling, and linked Drake equipment offset paths.");
+                new ConfigDescription(
+                    "Writes first-person hierarchy and active bone, culling, and equipped-item offset details to the BepInEx log. Enable only while troubleshooting.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Diagnostics",
+                        DisplayName = "Diagnostics",
+                        SectionOrder = 50,
+                        Order = 0
+                    }));
 
             RestorePreservedSettings();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -2499,17 +3104,90 @@ namespace FirstPersonArmsAdjuster
             _hasPendingHeldMeleeExtraVerticalOffset = false;
             _hasPendingDiagnostics = false;
         }
+
+        private sealed class PresentationEffectOffsetState
+        {
+            private readonly Transform _transform;
+            private readonly bool _compensateBodyRootRender;
+            private Vector3 _appliedLocalOffset;
+            private bool _suspendedForBodyRootRender;
+
+            internal PresentationEffectOffsetState(
+                Transform transform,
+                bool compensateBodyRootRender)
+            {
+                _transform = transform;
+                _compensateBodyRootRender = compensateBodyRootRender;
+            }
+
+            internal void Apply(Vector3 worldOffset)
+            {
+                if (_transform == null)
+                {
+                    return;
+                }
+
+                Vector3 nativeLocalPosition =
+                    _transform.localPosition - _appliedLocalOffset;
+                Transform parent = _transform.parent;
+                _appliedLocalOffset = parent == null
+                    ? worldOffset
+                    : parent.InverseTransformVector(worldOffset);
+                _transform.localPosition =
+                    nativeLocalPosition + _appliedLocalOffset;
+            }
+
+            internal void SuspendForBodyRootRender()
+            {
+                if (!_compensateBodyRootRender
+                    || _suspendedForBodyRootRender
+                    || _transform == null
+                    || _appliedLocalOffset.sqrMagnitude <= 0.00000001f)
+                {
+                    return;
+                }
+
+                _transform.localPosition -= _appliedLocalOffset;
+                _suspendedForBodyRootRender = true;
+            }
+
+            internal void ResumeAfterBodyRootRender()
+            {
+                if (!_suspendedForBodyRootRender)
+                {
+                    return;
+                }
+
+                if (_transform != null)
+                {
+                    _transform.localPosition += _appliedLocalOffset;
+                }
+                _suspendedForBodyRootRender = false;
+            }
+
+            internal void Restore()
+            {
+                if (_transform != null
+                    && !_suspendedForBodyRootRender
+                    && _appliedLocalOffset.sqrMagnitude > 0.00000001f)
+                {
+                    _transform.localPosition -= _appliedLocalOffset;
+                }
+                _suspendedForBodyRootRender = false;
+                _appliedLocalOffset = Vector3.zero;
+            }
+        }
     }
 
-    internal static class RigManagerCollectBoneMatricesPatch
+    internal static class KandraRendererManagerPreLateUpdateEndPatch
     {
-        internal static void Postfix(RigManager __instance)
+        internal static void Postfix(KandraRendererManager __instance)
         {
             FirstPersonArmsAdjusterPlugin instance =
                 FirstPersonArmsAdjusterPlugin.Instance;
             if (instance != null)
             {
-                instance.CaptureKandraBoneCollection(__instance);
+                instance.ApplyKandraRenderOffset(__instance);
             }
         }
     }

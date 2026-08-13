@@ -1,1 +1,1 @@
-Configurable first-person arm and weapon positioning without changing world FOV.
+Configurable first-person body, weapon, and attached-effect positioning without changing world FOV or gameplay origins.

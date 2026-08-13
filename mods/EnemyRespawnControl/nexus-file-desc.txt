@@ -1,1 +1,1 @@
-Adjust regular mob respawn timing with simple presets.
+Choose when defeated world encounters may return while preserving the game's natural distance-based reactivation.

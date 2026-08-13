@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("2.1.3.0")]
-[assembly: AssemblyFileVersion("2.1.3.0")]
-[assembly: AssemblyInformationalVersion("2.1.3")]
+[assembly: AssemblyVersion("2.2.1.0")]
+[assembly: AssemblyFileVersion("2.2.1.0")]
+[assembly: AssemblyInformationalVersion("2.2.1")]
 
 namespace EnemyRespawnControl
 {
@@ -24,8 +24,8 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "2.1.3";
-        private const int ConfigSchemaVersion = 4;
+        public const string PluginVersion = "2.2.1";
+        private const int ConfigSchemaVersion = 6;
         private const int ConfigRecoveryBaselineSchema = 4;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -38,6 +38,7 @@ namespace EnemyRespawnControl
         private const string LocationSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.LocationSpawner";
         private const string HideSpotSpawnerTypeName = "Awaken.TG.Main.Locations.Spawners.HideSpotLocationSpawner";
         private const string NpcAttachmentTypeName = "Awaken.TG.Main.Fights.NPCs.NpcAttachment";
+        private const int GftLifecycleBatchDelayMilliseconds = 150;
 
         private static readonly string[] EmptyTerms = new string[0];
         private static readonly string[] BuiltInControlledSpawnerTerms = new string[]
@@ -178,7 +179,14 @@ namespace EnemyRespawnControl
         private readonly Dictionary<string, RespawnLock> _locks = new Dictionary<string, RespawnLock>(StringComparer.Ordinal);
         private readonly Dictionary<string, DateTime> _nextBlockLogUtc = new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private readonly Dictionary<string, DateTime> _nextDiagnosticLogUtc = new Dictionary<string, DateTime>(StringComparer.Ordinal);
-        private readonly HashSet<string> _expiredKeys = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PendingGftLifecycleDiagnostic> _pendingGftRestBlocks =
+            new Dictionary<string, PendingGftLifecycleDiagnostic>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PendingGftLifecycleDiagnostic> _pendingGftEligible =
+            new Dictionary<string, PendingGftLifecycleDiagnostic>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PendingGftLifecycleDiagnostic> _pendingGftRespawned =
+            new Dictionary<string, PendingGftLifecycleDiagnostic>(StringComparer.Ordinal);
+        private readonly HashSet<string> _eligibleKeysAwaitingRespawn = new HashSet<string>(StringComparer.Ordinal);
+        private DateTime _gftLifecycleBatchDeadlineUtc = DateTime.MinValue;
         private readonly ConditionalWeakTable<object, CachedKey> _keyCache = new ConditionalWeakTable<object, CachedKey>();
         private readonly ConditionalWeakTable<object, CachedClassification> _classificationCache = new ConditionalWeakTable<object, CachedClassification>();
         private readonly ConditionalWeakTable<object, SpecialSpawnedLocation> _specialSpawnedLocations = new ConditionalWeakTable<object, SpecialSpawnedLocation>();
@@ -195,6 +203,7 @@ namespace EnemyRespawnControl
         private ConfigEntry<string> _additionalControlledSpawnerTerms;
         private ConfigEntry<string> _ignoredSpawnerTerms;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<float> _blockedLogIntervalSeconds;
         private string _cachedAdditionalControlledSpawnerTermsRaw;
         private string[] _cachedAdditionalControlledSpawnerTerms;
@@ -230,6 +239,15 @@ namespace EnemyRespawnControl
             }
         }
 
+        private void Update()
+        {
+            if (_gftLifecycleBatchDeadlineUtc != DateTime.MinValue
+                && DateTime.UtcNow >= _gftLifecycleBatchDeadlineUtc)
+            {
+                FlushGftLifecycleDiagnostics();
+            }
+        }
+
         private void OnDestroy()
         {
             if (_harmony != null)
@@ -257,12 +275,13 @@ namespace EnemyRespawnControl
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. Vanilla=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled.");
+            _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. VeryShort2Hours=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled. Turn off Enabled for unmodified vanilla behavior.");
             _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.");
             _controlFactionNeutralNpcSpawners = Config.Bind("2. Spawner Classification", "ControlFactionNeutralNpcSpawners", true, "Control NPC-template spawners with killed-state even when the current faction hostility check is false. This catches regular world mobs whose hostility is conditional or not restored yet.");
             _additionalControlledSpawnerTerms = Config.Bind("2. Spawner Classification", "AdditionalControlledSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force into respawn control when the built-in classifier misses a regular mob family.");
             _ignoredSpawnerTerms = Config.Bind("2. Spawner Classification", "IgnoredSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force out of respawn control when a world object or passive spawner is misclassified.");
-            _diagnostics = Config.Bind("3. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped spawners with classification reasons, cleanup, and expiry decisions.");
+            _diagnostics = Config.Bind("3. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked cooldown and rest checks, special-spawn bypasses, skipped spawners with classification reasons, repairs, and expiry decisions.");
+            _showGrailFloatingTextDiagnostics = Config.Bind("3. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "Show deduplicated Grail Floating Text lifecycle messages when an encounter is locked, a rest is blocked, its ERC delay ends, or it respawns. Simultaneous events are summarized while Diagnostics is enabled.");
             _blockedLogIntervalSeconds = Config.Bind("3. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
             RestorePreservedSpawnerOverrides();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -492,24 +511,12 @@ namespace EnemyRespawnControl
                 typeof(CooldownConditionPatch),
                 nameof(CooldownConditionPatch.Postfix),
                 true);
-            requiredPatched &= PatchMethod(
+            requiredPatched &= PatchPrefixMethod(
                 baseSpawnerType,
-                "get_CanSpawn",
-                typeof(CanSpawnPatch),
-                nameof(CanSpawnPatch.Postfix),
+                "InterruptTimeSkipCheck",
+                typeof(InterruptTimeSkipCheckPatch),
+                nameof(InterruptTimeSkipCheckPatch.Prefix),
                 true);
-            PatchMethod(
-                baseSpawnerType,
-                "get_CanSpawnAmbush",
-                typeof(CanSpawnAmbushPatch),
-                nameof(CanSpawnAmbushPatch.Postfix),
-                false);
-            PatchMethod(
-                baseSpawnerType,
-                "get_IsValidState",
-                typeof(IsValidStatePatch),
-                nameof(IsValidStatePatch.Postfix),
-                false);
             PatchMethod(
                 baseSpawnerType,
                 "OnLocationSpawned",
@@ -524,12 +531,6 @@ namespace EnemyRespawnControl
                 false);
             PatchMethod(
                 baseSpawnerType,
-                "AfterHeroTeleport",
-                typeof(AfterHeroTeleportPatch),
-                nameof(AfterHeroTeleportPatch.Postfix),
-                false);
-            PatchMethod(
-                baseSpawnerType,
                 "OnRestore",
                 typeof(OnRestorePatch),
                 nameof(OnRestorePatch.Postfix),
@@ -540,12 +541,6 @@ namespace EnemyRespawnControl
                 typeof(AfterLocationKilledPatch),
                 nameof(AfterLocationKilledPatch.Postfix),
                 true);
-            PatchMethod(
-                baseSpawnerType,
-                "OnLocationDiscardedOrKilled",
-                typeof(OnLocationDiscardedOrKilledPatch),
-                nameof(OnLocationDiscardedOrKilledPatch.Postfix),
-                false);
             PatchMethod(
                 baseSpawnerType,
                 "SceneInitializationEndedCallback",
@@ -570,44 +565,55 @@ namespace EnemyRespawnControl
                 typeof(SpawnerInitPatch),
                 nameof(SpawnerInitPatch.Postfix),
                 false);
-            PatchMethodsByName(
-                groupSpawnerType,
-                "ShouldSpawn",
-                typeof(ShouldSpawnPatch),
-                nameof(ShouldSpawnPatch.Postfix),
-                false);
-            PatchMethodsByName(
-                locationSpawnerType,
-                "ShouldSpawn",
-                typeof(ShouldSpawnPatch),
-                nameof(ShouldSpawnPatch.Postfix),
-                false);
-            PatchMethodsByName(
-                hideSpotSpawnerType,
-                "ShouldSpawn",
-                typeof(ShouldSpawnPatch),
-                nameof(ShouldSpawnPatch.Postfix),
-                false);
-            PatchMethodsByNamePrefix(
-                groupSpawnerType,
-                "SpawnPrefabInternal",
-                typeof(SpawnPrefabInternalPatch),
-                nameof(SpawnPrefabInternalPatch.Prefix),
-                false);
-            PatchMethodsByNamePrefix(
-                locationSpawnerType,
-                "SpawnPrefabInternal",
-                typeof(SpawnPrefabInternalPatch),
-                nameof(SpawnPrefabInternalPatch.Prefix),
-                false);
-            PatchMethodsByNamePrefix(
-                hideSpotSpawnerType,
-                "SpawnPrefabInternal",
-                typeof(SpawnPrefabInternalPatch),
-                nameof(SpawnPrefabInternalPatch.Prefix),
-                false);
-
             return requiredPatched;
+        }
+
+        private bool PatchPrefixMethod(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required)
+        {
+            if (declaringType == null)
+            {
+                if (required)
+                {
+                    Log.LogError("Could not patch " + methodName + " because the declaring type was not found.");
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
+                }
+                return !required;
+            }
+
+            MethodInfo original = AccessTools.Method(declaringType, methodName);
+            if (original == null)
+            {
+                if (required)
+                {
+                    Log.LogError("Could not find " + declaringType.FullName + "." + methodName + ".");
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
+                }
+                return !required;
+            }
+
+            MethodInfo prefix = AccessTools.Method(patchType, patchMethodName);
+            if (prefix == null)
+            {
+                Log.LogError("Could not find prefix " + patchType.FullName + ".Prefix.");
+                if (required)
+                {
+                    Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowLoadTimeError(PluginGuid, PluginName, "load-time error. Required patch unavailable; check BepInEx log.");
+                }
+                return !required;
+            }
+
+            _harmony.Patch(original, new HarmonyMethod(prefix), null);
+            if (_diagnostics.Value)
+            {
+                Log.LogInfo("Patched " + original.DeclaringType.FullName + "." + original.Name + " prefix.");
+            }
+
+            return true;
         }
 
         private bool PatchMethod(
@@ -705,52 +711,6 @@ namespace EnemyRespawnControl
             }
         }
 
-        private void PatchMethodsByNamePrefix(
-            Type declaringType,
-            string methodName,
-            Type patchType,
-            string patchMethodName,
-            bool required)
-        {
-            if (declaringType == null)
-            {
-                if (required)
-                {
-                    Log.LogError("Could not patch " + methodName + " because the declaring type was not found.");
-                }
-                return;
-            }
-
-            MethodInfo prefix = AccessTools.Method(patchType, patchMethodName);
-            if (prefix == null)
-            {
-                Log.LogError("Could not find prefix " + patchType.FullName + ".Prefix.");
-                return;
-            }
-
-            int patched = 0;
-            MethodInfo[] methods = declaringType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                if (methods[i].Name != methodName)
-                {
-                    continue;
-                }
-
-                _harmony.Patch(methods[i], new HarmonyMethod(prefix), null);
-                patched++;
-            }
-
-            if (patched == 0 && required)
-            {
-                Log.LogError("Could not find any " + declaringType.FullName + "." + methodName + " methods.");
-            }
-            else if (patched > 0 && _diagnostics.Value)
-            {
-                Log.LogInfo("Patched " + patched.ToString(CultureInfo.InvariantCulture) + " " + declaringType.FullName + "." + methodName + " prefix method(s).");
-            }
-        }
-
         internal void RegisterKilledSpawner(object spawner, object location, string reason)
         {
             if (!IsActive() || spawner == null || IsSpecialSpawnedLocation(location) || ShouldBypassRespawnControl(spawner, reason))
@@ -777,12 +737,15 @@ namespace EnemyRespawnControl
             }
 
             string key = GetSpawnerKey(spawner);
-            RegisterLock(key, spawner, now, timeSource, reason, classificationReason, true);
+            RegisterLock(key, spawner, now, timeSource, reason, classificationReason);
         }
 
         internal void RegisterSpawnerIfKilledState(object spawner, string reason)
         {
-            if (!IsActive() || spawner == null || ShouldBypassRespawnControl(spawner, reason))
+            if (!IsActive()
+                || _respawnMode.Value != RespawnMode.Disabled
+                || spawner == null
+                || ShouldBypassRespawnControl(spawner, reason))
             {
                 return;
             }
@@ -800,7 +763,7 @@ namespace EnemyRespawnControl
             }
 
             string key = GetSpawnerKey(spawner);
-            if (_locks.ContainsKey(key) || _expiredKeys.Contains(key))
+            if (_locks.ContainsKey(key))
             {
                 return;
             }
@@ -809,18 +772,13 @@ namespace EnemyRespawnControl
             string timeSource;
             if (TryGetCurrentTimeSeconds(spawner, out now, out timeSource))
             {
-                RegisterLock(key, spawner, now, timeSource, reason, classificationReason, false);
+                RegisterLock(key, spawner, now, timeSource, reason, classificationReason);
             }
         }
 
         internal void ApplyCooldownGate(object spawner, ref bool result)
         {
-            ApplySpawnGate(spawner, ref result, "cooldown");
-        }
-
-        internal void ApplySpawnGate(object spawner, ref bool result, string gateName)
-        {
-            if (!IsActive() || spawner == null || !result)
+            if (!IsActive() || spawner == null)
             {
                 return;
             }
@@ -829,35 +787,79 @@ namespace EnemyRespawnControl
             RespawnLock existing;
             double now;
             string timeSource;
-            if (TryEvaluateSpawnerBlock(spawner, gateName, out key, out existing, out now, out timeSource))
+            bool releasedNativeCooldown;
+            if (TryEvaluateSpawnerBlock(spawner, "cooldown", out key, out existing, out now, out timeSource, out releasedNativeCooldown))
             {
                 result = false;
-                LogBlocked(key, existing, now, timeSource, gateName);
+                LogBlocked(key, existing, now, timeSource, "cooldown");
+            }
+            else if (releasedNativeCooldown)
+            {
+                result = true;
             }
         }
 
-        internal bool BeforeSpawnInternal(object spawner, string gateName)
+        internal bool BeforeRestTimeSkip(object spawner, object timeSkipData)
         {
-            if (!IsActive() || spawner == null)
+            if (!IsActive() || spawner == null || ShouldBypassRespawnControl(spawner, "rest-time-skip"))
             {
                 return true;
             }
 
-            string key;
+            string classificationReason;
+            if (!ShouldControlSpawner(spawner, "rest-time-skip", out classificationReason))
+            {
+                LogSpawnerClassificationBypass(spawner, "rest-time-skip", classificationReason);
+                return true;
+            }
+
+            string key = GetSpawnerKey(spawner);
             RespawnLock existing;
+            if (!_locks.TryGetValue(key, out existing))
+            {
+                return true;
+            }
+
             double now;
             string timeSource;
-            if (TryEvaluateSpawnerBlock(spawner, gateName, out key, out existing, out now, out timeSource))
+            if (!TryGetCurrentTimeSeconds(spawner, out now, out timeSource))
             {
-                LogBlocked(key, existing, now, timeSource, gateName);
+                LogDiagnosticRateLimited(
+                    "time-read-failed-rest|" + key,
+                    "Could not read in-game/weather time while evaluating a rest respawn for " + DescribeSpawner(spawner) + "; allowing vanilla behavior.");
+                return true;
+            }
+
+            double durationSeconds = GetRespawnDelaySeconds();
+            double elapsed = Math.Max(0d, now - existing.StartSeconds);
+            if (elapsed >= durationSeconds)
+            {
+                ExpireLock(key, spawner, existing, now, durationSeconds);
+                return true;
+            }
+
+            double skippedMinutes;
+            if (!TryGetNumericMember(timeSkipData, "timeSkippedInMinutes", out skippedMinutes))
+            {
+                LogDiagnosticRateLimited(
+                    "time-skip-read-failed|" + key,
+                    "Could not read the proposed rest duration for " + DescribeSpawner(spawner) + "; allowing vanilla behavior.");
+                return true;
+            }
+
+            double projectedNow = now + Math.Max(0d, skippedMinutes) * 60d;
+            if (Double.IsPositiveInfinity(durationSeconds)
+                || projectedNow - existing.StartSeconds < durationSeconds)
+            {
+                LogBlocked(key, existing, projectedNow, timeSource, "rest-time-skip");
                 return false;
             }
 
-            if (_diagnostics.Value && !String.IsNullOrEmpty(key))
+            if (_diagnostics.Value)
             {
-                LogAllowedSpawnAttempt(key, spawner, gateName, existing);
+                Log.LogInfo("Allowed vanilla rest respawn evaluation because the proposed rest crosses the ERC deadline. " +
+                    DescribeLock(key, existing, projectedNow, durationSeconds));
             }
-
             return true;
         }
 
@@ -875,37 +877,75 @@ namespace EnemyRespawnControl
                 return;
             }
 
-            string key;
-            RespawnLock existing;
-            double now;
-            string timeSource;
-            if (!TryEvaluateSpawnerBlock(spawner, "spawned-location-cleanup", out key, out existing, out now, out timeSource))
+            string key = GetSpawnerKey(spawner);
+            if (_eligibleKeysAwaitingRespawn.Remove(key))
+            {
+                QueueGftLifecycleDiagnostic(
+                    _pendingGftRespawned,
+                    key,
+                    GetSpawnerDisplayName(spawner),
+                    0d);
+            }
+        }
+
+        internal void AfterTimeSkipped(object spawner)
+        {
+            RegisterSpawnerIfKilledState(spawner, "time-skipped");
+
+            if (!IsActive() || spawner == null || _respawnMode.Value == RespawnMode.Disabled)
             {
                 return;
             }
 
-            LogBlocked(key, existing, now, timeSource, "spawned-location-cleanup");
-            if (TryDiscardLocation(location))
-            {
-                LogDiagnosticRateLimited(
-                    key + "|discarded-spawned-location",
-                    "Discarded a location that was spawned by a locked spawner. location=" + DescribeObject(location) +
-                    "; id=" + id.ToString(CultureInfo.InvariantCulture) +
-                    "; spawner=" + DescribeSpawner(spawner) + ".");
-            }
-            else if (_diagnostics.Value)
-            {
-                Log.LogWarning("A locked spawner produced a location, but Enemy Respawn Control could not discard it. location=" +
-                    DescribeObject(location) + "; id=" + id.ToString(CultureInfo.InvariantCulture) + "; spawner=" + DescribeSpawner(spawner) + ".");
-            }
+            string key;
+            RespawnLock existing;
+            double now;
+            string timeSource;
+            bool releasedNativeCooldown;
+            TryEvaluateSpawnerBlock(spawner, "time-skipped", out key, out existing, out now, out timeSource, out releasedNativeCooldown);
         }
 
-        private bool TryEvaluateSpawnerBlock(object spawner, string gateName, out string key, out RespawnLock respawnLock, out double now, out string timeSource)
+        internal void OnSpawnerRestore(object spawner)
+        {
+            if (spawner == null)
+            {
+                return;
+            }
+
+            string key = GetSpawnerKey(spawner);
+            _eligibleKeysAwaitingRespawn.Remove(key);
+            _pendingGftRestBlocks.Remove(key);
+            _pendingGftEligible.Remove(key);
+            _pendingGftRespawned.Remove(key);
+            if (_locks.Remove(key) && _diagnostics.Value)
+            {
+                Log.LogInfo("Discarded an in-memory respawn lock while restoring a saved spawner; timed modes fail open across save loads. key=" +
+                    key + "; spawner=" + DescribeSpawner(spawner) + ".");
+            }
+
+            RegisterSpawnerIfKilledState(spawner, "restore");
+        }
+
+        internal void AfterSceneRestored(object spawner)
+        {
+            RegisterSpawnerIfKilledState(spawner, "scene-restore");
+            RepairMissingNativeCooldown(spawner);
+        }
+
+        private bool TryEvaluateSpawnerBlock(
+            object spawner,
+            string gateName,
+            out string key,
+            out RespawnLock respawnLock,
+            out double now,
+            out string timeSource,
+            out bool releasedNativeCooldown)
         {
             key = String.Empty;
             respawnLock = null;
             now = 0d;
             timeSource = String.Empty;
+            releasedNativeCooldown = false;
 
             if (ShouldBypassRespawnControl(spawner, gateName))
             {
@@ -923,46 +963,15 @@ namespace EnemyRespawnControl
             if (!TryGetCurrentTimeSeconds(spawner, out now, out timeSource))
             {
                 key = GetSpawnerKey(spawner);
-                bool hasLock = _locks.TryGetValue(key, out respawnLock);
-                bool hasKilledState = HasKilledLocationState(spawner);
-                if (hasLock || hasKilledState)
-                {
-                    if (respawnLock == null)
-                    {
-                        respawnLock = new RespawnLock();
-                        respawnLock.StartSeconds = now;
-                        respawnLock.TimeSource = "weather";
-                        respawnLock.Reason = "weather-time-unavailable";
-                        respawnLock.ClassificationReason = classificationReason;
-                        respawnLock.SpawnerDescription = DescribeSpawner(spawner);
-                        if (_diagnostics.Value)
-                        {
-                            respawnLock.NpcTemplateSignals = DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates"));
-                        }
-                    }
-
-                    LogDiagnosticRateLimited(
-                        "time-read-failed-block|" + key + "|" + gateName,
-                        "Could not read in-game/weather time while evaluating respawn gate '" + gateName + "' for " + DescribeSpawner(spawner) +
-                        "; blocking because " + (hasLock ? "a respawn lock exists" : "the spawner has killed-state") + ".");
-                    timeSource = "weather";
-                    return true;
-                }
-
                 LogDiagnosticRateLimited(
                     "time-read-failed|" + DescribeObject(spawner),
                     "Could not read in-game/weather time while evaluating respawn gate '" + gateName + "' for " + DescribeSpawner(spawner) +
-                    "; allowing because no respawn lock or killed-state is known.");
+                    "; allowing vanilla behavior.");
                 return false;
             }
 
             key = GetSpawnerKey(spawner);
-            if (!_locks.TryGetValue(key, out respawnLock) && HasKilledLocationState(spawner) && !_expiredKeys.Contains(key))
-            {
-                RegisterLock(key, spawner, now, timeSource, "killed-state-" + gateName, classificationReason, false);
-            }
-
-            return ShouldBlockRespawn(key, spawner, now, timeSource, classificationReason, out respawnLock);
+            return ShouldBlockRespawn(key, spawner, now, timeSource, classificationReason, out respawnLock, out releasedNativeCooldown);
         }
 
         private bool ShouldBypassRespawnControl(object spawner, string gateName)
@@ -972,8 +981,7 @@ namespace EnemyRespawnControl
                 return false;
             }
 
-            return String.Equals(gateName, "can-spawn-ambush", StringComparison.Ordinal)
-                || IsTruthyMember(spawner, "IsManualSpawner")
+            return IsTruthyMember(spawner, "IsManualSpawner")
                 || IsTruthyMember(spawner, "_isManualSpawner")
                 || IsTruthyMember(spawner, "IsSpawningWyrdSpawns")
                 || IsTruthyMember(spawner, "_isSpawningWyrdSpawns")
@@ -1637,9 +1645,17 @@ namespace EnemyRespawnControl
             Log.LogInfo(message);
         }
 
-        private bool ShouldBlockRespawn(string key, object spawner, double now, string timeSource, string classificationReason, out RespawnLock respawnLock)
+        private bool ShouldBlockRespawn(
+            string key,
+            object spawner,
+            double now,
+            string timeSource,
+            string classificationReason,
+            out RespawnLock respawnLock,
+            out bool releasedNativeCooldown)
         {
             respawnLock = null;
+            releasedNativeCooldown = false;
 
             RespawnMode mode = _respawnMode.Value;
             if (mode == RespawnMode.Disabled)
@@ -1654,7 +1670,7 @@ namespace EnemyRespawnControl
                 double lastClear;
                 if (HasKilledLocationState(spawner) || TryReadLastClearPlaySeconds(spawner, out lastClear))
                 {
-                    RegisterLock(key, spawner, now, timeSource, "disabled-mode", classificationReason, false);
+                    RegisterLock(key, spawner, now, timeSource, "disabled-mode", classificationReason);
                     _locks.TryGetValue(key, out respawnLock);
                     return true;
                 }
@@ -1670,44 +1686,71 @@ namespace EnemyRespawnControl
             double durationSeconds = GetRespawnDelaySeconds();
             if (durationSeconds <= 0d)
             {
-                _locks.Remove(key);
-                _expiredKeys.Add(key);
+                releasedNativeCooldown = ExpireLock(key, spawner, respawnLock, now, durationSeconds);
                 return false;
             }
 
             if (!String.Equals(respawnLock.TimeSource, timeSource, StringComparison.Ordinal))
             {
-                respawnLock.StartSeconds = now;
-                respawnLock.TimeSource = timeSource;
-                respawnLock.Reason = "time-source-changed";
+                _locks.Remove(key);
                 if (_diagnostics.Value)
                 {
-                    Log.LogInfo("Respawn lock time source changed; restarting lock. " + DescribeLock(key, respawnLock, now, durationSeconds));
+                    Log.LogWarning("Discarded a respawn lock because its time source changed; allowing vanilla behavior. " +
+                        DescribeLock(key, respawnLock, now, durationSeconds));
                 }
+                return false;
             }
 
-            double elapsed = Math.Max(0d, now - respawnLock.StartSeconds);
+            if (now < respawnLock.StartSeconds)
+            {
+                _locks.Remove(key);
+                if (_diagnostics.Value)
+                {
+                    Log.LogWarning("Discarded a respawn lock after the weather clock moved backwards; allowing vanilla behavior. " +
+                        DescribeLock(key, respawnLock, now, durationSeconds));
+                }
+                return false;
+            }
+
+            double elapsed = now - respawnLock.StartSeconds;
             if (elapsed < durationSeconds)
             {
                 return true;
             }
 
-            _locks.Remove(key);
-            _expiredKeys.Add(key);
-            if (_diagnostics.Value)
-            {
-                Log.LogInfo("Respawn lock expired. " + DescribeLock(key, respawnLock, now, durationSeconds));
-            }
-
+            releasedNativeCooldown = ExpireLock(key, spawner, respawnLock, now, durationSeconds);
             return false;
         }
 
-        private void RegisterLock(string key, object spawner, double now, string timeSource, string reason, string classificationReason, bool resetExpired)
+        private bool ExpireLock(string key, object spawner, RespawnLock respawnLock, double now, double durationSeconds)
         {
-            if (resetExpired)
+            _locks.Remove(key);
+            bool releasedNativeCooldown = ReleaseNativeCooldownIfFullyCleared(spawner);
+            if (_diagnostics.Value)
             {
-                _expiredKeys.Remove(key);
+                Log.LogInfo("Respawn lock expired. " + DescribeLock(key, respawnLock, now, durationSeconds) +
+                    (releasedNativeCooldown
+                        ? " Vanilla killed cooldown released; the encounter is eligible but still requires normal distance/activation conditions."
+                        : ""));
             }
+
+            if (releasedNativeCooldown)
+            {
+                _eligibleKeysAwaitingRespawn.Add(key);
+                QueueGftLifecycleDiagnostic(
+                    _pendingGftEligible,
+                    key,
+                    respawnLock == null ? GetSpawnerDisplayName(spawner) : respawnLock.DisplayName,
+                    0d);
+            }
+
+            return releasedNativeCooldown;
+        }
+
+        private void RegisterLock(string key, object spawner, double now, string timeSource, string reason, string classificationReason)
+        {
+            RespawnLock previousLock;
+            _locks.TryGetValue(key, out previousLock);
 
             RespawnLock respawnLock = new RespawnLock();
             respawnLock.StartSeconds = now;
@@ -1715,15 +1758,28 @@ namespace EnemyRespawnControl
             respawnLock.Reason = reason;
             respawnLock.ClassificationReason = classificationReason;
             respawnLock.SpawnerDescription = DescribeSpawner(spawner);
+            respawnLock.DisplayName = GetSpawnerDisplayName(spawner);
+            respawnLock.HasShownGftLockDiagnostic = previousLock != null && previousLock.HasShownGftLockDiagnostic;
+            respawnLock.HasShownGftRestBlockDiagnostic = previousLock != null && previousLock.HasShownGftRestBlockDiagnostic;
             if (_diagnostics.Value)
             {
                 respawnLock.NpcTemplateSignals = DescribeNpcTemplateSignals(GetMemberValue(spawner, "AllUniqueTemplates"));
             }
             _locks[key] = respawnLock;
+            _eligibleKeysAwaitingRespawn.Remove(key);
+            _pendingGftEligible.Remove(key);
+            _pendingGftRespawned.Remove(key);
 
             if (_diagnostics.Value)
             {
                 Log.LogInfo("Registered respawn lock. " + DescribeLock(key, respawnLock, now, GetRespawnDelaySeconds()));
+            }
+
+            if (!respawnLock.HasShownGftLockDiagnostic && IsFullyClearedSpawner(spawner))
+            {
+                respawnLock.HasShownGftLockDiagnostic = true;
+                ShowGftLifecycleDiagnostic(
+                    "ERC: " + respawnLock.DisplayName + " locked for " + FormatGftDuration(GetRespawnDelaySeconds()) + ".");
             }
         }
 
@@ -1745,6 +1801,181 @@ namespace EnemyRespawnControl
             float interval = Math.Max(0.5f, _blockedLogIntervalSeconds.Value);
             _nextBlockLogUtc[logKey] = utcNow.AddSeconds(interval);
             Log.LogInfo("Blocked respawn at " + gateName + ". " + DescribeLock(key, respawnLock, now, GetRespawnDelaySeconds()));
+
+            if (String.Equals(gateName, "rest-time-skip", StringComparison.Ordinal)
+                && !respawnLock.HasShownGftRestBlockDiagnostic)
+            {
+                respawnLock.HasShownGftRestBlockDiagnostic = true;
+                double remainingSeconds = Double.IsPositiveInfinity(GetRespawnDelaySeconds())
+                    ? Double.PositiveInfinity
+                    : Math.Max(0d, GetRespawnDelaySeconds() - Math.Max(0d, now - respawnLock.StartSeconds));
+                QueueGftLifecycleDiagnostic(
+                    _pendingGftRestBlocks,
+                    key,
+                    respawnLock.DisplayName,
+                    remainingSeconds);
+            }
+        }
+
+        private void QueueGftLifecycleDiagnostic(
+            Dictionary<string, PendingGftLifecycleDiagnostic> pending,
+            string key,
+            string displayName,
+            double remainingSeconds)
+        {
+            if (!CanShowGftLifecycleDiagnostics() || pending == null || String.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            PendingGftLifecycleDiagnostic diagnostic = new PendingGftLifecycleDiagnostic();
+            diagnostic.DisplayName = String.IsNullOrWhiteSpace(displayName) ? "Encounter" : displayName;
+            diagnostic.RemainingSeconds = remainingSeconds;
+            pending[key] = diagnostic;
+
+            if (_gftLifecycleBatchDeadlineUtc == DateTime.MinValue)
+            {
+                _gftLifecycleBatchDeadlineUtc = DateTime.UtcNow.AddMilliseconds(GftLifecycleBatchDelayMilliseconds);
+            }
+        }
+
+        private void FlushGftLifecycleDiagnostics()
+        {
+            _gftLifecycleBatchDeadlineUtc = DateTime.MinValue;
+
+            if (!CanShowGftLifecycleDiagnostics())
+            {
+                _pendingGftRestBlocks.Clear();
+                _pendingGftEligible.Clear();
+                _pendingGftRespawned.Clear();
+                return;
+            }
+
+            List<string> parts = new List<string>();
+            AppendGftRespawnedSummary(parts);
+            AppendGftEligibleSummary(parts);
+            AppendGftRestBlockSummary(parts);
+
+            _pendingGftRestBlocks.Clear();
+            _pendingGftEligible.Clear();
+            _pendingGftRespawned.Clear();
+
+            if (parts.Count > 0)
+            {
+                ShowGftLifecycleDiagnostic("ERC: " + String.Join("; ", parts.ToArray()) + ".");
+            }
+        }
+
+        private void AppendGftRespawnedSummary(List<string> parts)
+        {
+            if (_pendingGftRespawned.Count == 1)
+            {
+                parts.Add(GetFirstGftDisplayName(_pendingGftRespawned) + " respawned");
+            }
+            else if (_pendingGftRespawned.Count > 1)
+            {
+                parts.Add(_pendingGftRespawned.Count.ToString(CultureInfo.InvariantCulture) + " encounters respawned");
+            }
+        }
+
+        private void AppendGftEligibleSummary(List<string> parts)
+        {
+            if (_pendingGftEligible.Count == 1)
+            {
+                parts.Add(GetFirstGftDisplayName(_pendingGftEligible) + " eligible - move away and return to reactivate");
+            }
+            else if (_pendingGftEligible.Count > 1)
+            {
+                parts.Add(_pendingGftEligible.Count.ToString(CultureInfo.InvariantCulture) +
+                    " encounters eligible - move away and return to reactivate");
+            }
+        }
+
+        private void AppendGftRestBlockSummary(List<string> parts)
+        {
+            if (_pendingGftRestBlocks.Count == 0)
+            {
+                return;
+            }
+
+            double maximumRemainingSeconds = 0d;
+            foreach (PendingGftLifecycleDiagnostic diagnostic in _pendingGftRestBlocks.Values)
+            {
+                if (Double.IsPositiveInfinity(diagnostic.RemainingSeconds))
+                {
+                    maximumRemainingSeconds = Double.PositiveInfinity;
+                    break;
+                }
+
+                maximumRemainingSeconds = Math.Max(maximumRemainingSeconds, diagnostic.RemainingSeconds);
+            }
+
+            if (_pendingGftRestBlocks.Count == 1)
+            {
+                parts.Add(GetFirstGftDisplayName(_pendingGftRestBlocks) + " still locked - " +
+                    FormatGftDuration(maximumRemainingSeconds) + " remaining");
+            }
+            else
+            {
+                parts.Add(_pendingGftRestBlocks.Count.ToString(CultureInfo.InvariantCulture) +
+                    " encounters still locked - up to " + FormatGftDuration(maximumRemainingSeconds) + " remaining");
+            }
+        }
+
+        private static string GetFirstGftDisplayName(Dictionary<string, PendingGftLifecycleDiagnostic> pending)
+        {
+            foreach (PendingGftLifecycleDiagnostic diagnostic in pending.Values)
+            {
+                return diagnostic.DisplayName;
+            }
+
+            return "Encounter";
+        }
+
+        private bool CanShowGftLifecycleDiagnostics()
+        {
+            return _diagnostics != null
+                && _diagnostics.Value
+                && _showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value;
+        }
+
+        private void ShowGftLifecycleDiagnostic(string text)
+        {
+            if (!CanShowGftLifecycleDiagnostics() || String.IsNullOrWhiteSpace(text))
+            {
+                return;
+            }
+
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowDiagnosticNotification(
+                    PluginGuid,
+                    "enemy-respawn-control-lifecycle",
+                    text,
+                    "enemy-respawn-control-diagnostics");
+        }
+
+        private static string FormatGftDuration(double seconds)
+        {
+            if (Double.IsPositiveInfinity(seconds))
+            {
+                return "indefinitely";
+            }
+
+            int totalMinutes = Math.Max(1, (int)Math.Ceiling(Math.Max(0d, seconds) / 60d));
+            int hours = totalMinutes / 60;
+            int minutes = totalMinutes % 60;
+            if (hours <= 0)
+            {
+                return totalMinutes.ToString(CultureInfo.InvariantCulture) + "m";
+            }
+            if (minutes == 0)
+            {
+                return hours.ToString(CultureInfo.InvariantCulture) + "h";
+            }
+
+            return hours.ToString(CultureInfo.InvariantCulture) + "h " +
+                minutes.ToString(CultureInfo.InvariantCulture) + "m";
         }
 
         private bool IsActive()
@@ -1756,7 +1987,7 @@ namespace EnemyRespawnControl
         {
             switch (_respawnMode.Value)
             {
-                case RespawnMode.Vanilla:
+                case RespawnMode.VeryShort2Hours:
                     return 2d * 3600d;
                 case RespawnMode.Fast6Hours:
                     return 6d * 3600d;
@@ -1826,6 +2057,79 @@ namespace EnemyRespawnControl
             return false;
         }
 
+        private bool ReleaseNativeCooldownIfFullyCleared(object spawner)
+        {
+            if (!IsFullyClearedSpawner(spawner) || _lastClearOfGroupField == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                _lastClearOfGroupField.SetValue(spawner, Double.NegativeInfinity);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (_diagnostics.Value)
+                {
+                    Log.LogWarning("Could not release the vanilla killed cooldown for " + DescribeSpawner(spawner) + ": " +
+                        ex.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private void RepairMissingNativeCooldown(object spawner)
+        {
+            if ((IsActive() && _respawnMode.Value == RespawnMode.Disabled)
+                || spawner == null
+                || !HasKilledLocationState(spawner)
+                || !IsFullyClearedSpawner(spawner)
+                || _lastClearOfGroupField == null)
+            {
+                return;
+            }
+
+            string classificationReason;
+            if (!ShouldControlSpawner(spawner, "stuck-cooldown-repair", out classificationReason))
+            {
+                return;
+            }
+
+            try
+            {
+                if (_lastClearOfGroupField.GetValue(spawner) != null)
+                {
+                    return;
+                }
+
+                _lastClearOfGroupField.SetValue(spawner, Double.NegativeInfinity);
+                Log.LogInfo("Repaired a fully cleared spawner with a missing vanilla killed-cooldown marker. spawner=" +
+                    DescribeSpawner(spawner) + ".");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Could not repair a missing vanilla killed-cooldown marker for " + DescribeSpawner(spawner) + ": " +
+                    ex.GetBaseException().Message);
+            }
+        }
+
+        private static bool IsFullyClearedSpawner(object spawner)
+        {
+            if (spawner == null
+                || IsTruthyMember(spawner, "IsSpawning")
+                || IsTruthyMember(spawner, "_isSpawning")
+                || IsTruthyMember(spawner, "_isBatchSpawning"))
+            {
+                return false;
+            }
+
+            double currentlySpawned;
+            return TryGetNumericMember(spawner, "CurrentlySpawned", out currentlySpawned)
+                && currentlySpawned <= 0d;
+        }
+
         private bool HasKilledLocationState(object spawner)
         {
             if (_killedLocationsField == null || spawner == null)
@@ -1864,41 +2168,6 @@ namespace EnemyRespawnControl
             }
             catch
             {
-                return false;
-            }
-        }
-
-        private bool TryDiscardLocation(object location)
-        {
-            if (location == null)
-            {
-                return false;
-            }
-
-            object discarded = GetMemberValue(location, "HasBeenDiscarded");
-            if (discarded is bool && (bool)discarded)
-            {
-                return true;
-            }
-
-            MethodInfo discardMethod = FindInstanceMethod(location.GetType(), "Discard");
-            if (discardMethod == null)
-            {
-                return false;
-            }
-
-            try
-            {
-                discardMethod.Invoke(location, null);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                if (_diagnostics.Value)
-                {
-                    Log.LogWarning("Failed to discard spawned location from a locked spawner: " + ex.GetBaseException().Message);
-                }
-
                 return false;
             }
         }
@@ -1963,6 +2232,143 @@ namespace EnemyRespawnControl
             AddPart(parts, "parentDebug", parentDebug);
             AddPart(parts, "coords", coords);
             return String.Join("; ", parts.ToArray());
+        }
+
+        private string GetSpawnerDisplayName(object spawner)
+        {
+            if (spawner == null)
+            {
+                return "Encounter";
+            }
+
+            object parent = GetMemberValue(spawner, "ParentModel");
+            string displayName = parent == null ? "" : GetStringMember(parent, "DisplayName");
+            if (String.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = parent == null ? "" : GetStringMember(parent, "DebugName");
+            }
+            if (String.Equals(displayName, "Spawner", StringComparison.OrdinalIgnoreCase)
+                || String.Equals(displayName, "GroupSpawner", StringComparison.OrdinalIgnoreCase))
+            {
+                displayName = "";
+            }
+
+            if (String.IsNullOrWhiteSpace(displayName))
+            {
+                IEnumerable templates = GetMemberValue(spawner, "AllUniqueTemplates") as IEnumerable;
+                if (templates != null)
+                {
+                    try
+                    {
+                        foreach (object template in templates)
+                        {
+                            object npcTemplate = GetNpcTemplateFromLocationTemplate(template);
+                            displayName = npcTemplate == null ? "" : GetStringMember(npcTemplate, "DisplayName");
+                            if (String.IsNullOrWhiteSpace(displayName))
+                            {
+                                displayName = npcTemplate == null ? "" : GetStringMember(npcTemplate, "DebugName");
+                            }
+                            if (String.IsNullOrWhiteSpace(displayName))
+                            {
+                                displayName = template == null ? "" : GetStringMember(template, "DebugName");
+                            }
+                            if (!String.IsNullOrWhiteSpace(displayName))
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        displayName = "";
+                    }
+                }
+            }
+
+            return HumanizeSpawnerDisplayName(displayName);
+        }
+
+        private static string HumanizeSpawnerDisplayName(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value))
+            {
+                return "Encounter";
+            }
+
+            string displayName = value.Trim();
+            string[] markers = new string[]
+            {
+                "SpawnerEnemies_",
+                "SpawnerSingle_",
+                "GroupSpawner_"
+            };
+            for (int i = 0; i < markers.Length; i++)
+            {
+                int markerIndex = displayName.IndexOf(markers[i], StringComparison.OrdinalIgnoreCase);
+                if (markerIndex >= 0)
+                {
+                    displayName = displayName.Substring(markerIndex + markers[i].Length);
+                    break;
+                }
+            }
+
+            string[] prefixes = new string[]
+            {
+                "NPCTemplate_",
+                "Enemy_",
+                "Animal_",
+                "Spec_",
+                "T1_",
+                "T2_",
+                "T3_",
+                "T4_"
+            };
+            bool removedPrefix;
+            do
+            {
+                removedPrefix = false;
+                for (int i = 0; i < prefixes.Length; i++)
+                {
+                    if (displayName.StartsWith(prefixes[i], StringComparison.OrdinalIgnoreCase))
+                    {
+                        displayName = displayName.Substring(prefixes[i].Length);
+                        removedPrefix = true;
+                        break;
+                    }
+                }
+            }
+            while (removedPrefix);
+
+            StringBuilder builder = new StringBuilder(displayName.Length + 8);
+            char previous = '\0';
+            for (int i = 0; i < displayName.Length; i++)
+            {
+                char current = displayName[i];
+                if (current == '_' || current == '-')
+                {
+                    if (builder.Length > 0 && builder[builder.Length - 1] != ' ')
+                    {
+                        builder.Append(' ');
+                    }
+                    previous = ' ';
+                    continue;
+                }
+
+                if (Char.IsUpper(current) && Char.IsLower(previous)
+                    && builder.Length > 0 && builder[builder.Length - 1] != ' ')
+                {
+                    builder.Append(' ');
+                }
+
+                if (!Char.IsWhiteSpace(current) || (builder.Length > 0 && builder[builder.Length - 1] != ' '))
+                {
+                    builder.Append(current);
+                }
+                previous = current;
+            }
+
+            string result = builder.ToString().Trim();
+            return String.IsNullOrWhiteSpace(result) ? "Encounter" : result;
         }
 
         private string DescribeTemplates(object templatesObject)
@@ -2213,23 +2619,6 @@ namespace EnemyRespawnControl
             }
         }
 
-        private static MethodInfo FindInstanceMethod(Type type, string methodName)
-        {
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            while (type != null)
-            {
-                MethodInfo method = type.GetMethod(methodName, flags, null, Type.EmptyTypes, null);
-                if (method != null)
-                {
-                    return method;
-                }
-
-                type = type.BaseType;
-            }
-
-            return null;
-        }
-
         private static string StableHash(string value)
         {
             if (value == null)
@@ -2314,7 +2703,16 @@ namespace EnemyRespawnControl
             internal string Reason;
             internal string ClassificationReason;
             internal string SpawnerDescription;
+            internal string DisplayName;
             internal string NpcTemplateSignals;
+            internal bool HasShownGftLockDiagnostic;
+            internal bool HasShownGftRestBlockDiagnostic;
+        }
+
+        private sealed class PendingGftLifecycleDiagnostic
+        {
+            internal string DisplayName;
+            internal double RemainingSeconds;
         }
 
         private sealed class SpecialSpawnedLocation
@@ -2333,60 +2731,12 @@ namespace EnemyRespawnControl
             }
         }
 
-        private static class CanSpawnPatch
+        private static class InterruptTimeSkipCheckPatch
         {
-            public static void Postfix(object __instance, ref bool __result)
+            public static bool Prefix(object __instance, object __0)
             {
                 EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.ApplySpawnGate(__instance, ref __result, "can-spawn");
-                }
-            }
-        }
-
-        private static class CanSpawnAmbushPatch
-        {
-            public static void Postfix(object __instance, ref bool __result)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.ApplySpawnGate(__instance, ref __result, "can-spawn-ambush");
-                }
-            }
-        }
-
-        private static class IsValidStatePatch
-        {
-            public static void Postfix(object __instance, ref bool __result)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.ApplySpawnGate(__instance, ref __result, "is-valid-state");
-                }
-            }
-        }
-
-        private static class ShouldSpawnPatch
-        {
-            public static void Postfix(object __instance, ref bool __result)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.ApplySpawnGate(__instance, ref __result, "should-spawn");
-                }
-            }
-        }
-
-        private static class SpawnPrefabInternalPatch
-        {
-            public static bool Prefix(object __instance)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                return plugin == null || plugin.BeforeSpawnInternal(__instance, "spawn-prefab-internal");
+                return plugin == null || plugin.BeforeRestTimeSkip(__instance, __0);
             }
         }
 
@@ -2409,19 +2759,7 @@ namespace EnemyRespawnControl
                 EnemyRespawnControlPlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.RegisterSpawnerIfKilledState(__instance, "time-skipped");
-                }
-            }
-        }
-
-        private static class AfterHeroTeleportPatch
-        {
-            public static void Postfix(object __instance)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.RegisterSpawnerIfKilledState(__instance, "hero-teleport");
+                    plugin.AfterTimeSkipped(__instance);
                 }
             }
         }
@@ -2433,7 +2771,7 @@ namespace EnemyRespawnControl
                 EnemyRespawnControlPlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.RegisterSpawnerIfKilledState(__instance, "restore");
+                    plugin.OnSpawnerRestore(__instance);
                 }
             }
         }
@@ -2450,18 +2788,6 @@ namespace EnemyRespawnControl
             }
         }
 
-        private static class OnLocationDiscardedOrKilledPatch
-        {
-            public static void Postfix(object __instance)
-            {
-                EnemyRespawnControlPlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.RegisterSpawnerIfKilledState(__instance, "discard-or-kill");
-                }
-            }
-        }
-
         private static class SceneInitializationEndedPatch
         {
             public static void Postfix(object __instance)
@@ -2469,7 +2795,7 @@ namespace EnemyRespawnControl
                 EnemyRespawnControlPlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.RegisterSpawnerIfKilledState(__instance, "scene-restore");
+                    plugin.AfterSceneRestored(__instance);
                 }
             }
         }
@@ -2489,7 +2815,7 @@ namespace EnemyRespawnControl
 
     public enum RespawnMode
     {
-        Vanilla,
+        VeryShort2Hours,
         Fast6Hours,
         Default24Hours,
         Slow72Hours,

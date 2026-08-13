@@ -1,3 +1,32 @@
+Version 2.2.1
+Expanded Grail Floating Text diagnostics into readable encounter lifecycle messages for fully cleared locks, rest checks with remaining time, eligibility handoff, and confirmed respawns.
+Combined simultaneous rest, eligibility, and respawn events into one summary and suppressed repeated cooldown polling, duplicate group callbacks, and repeated rest-block messages for the same lock.
+
+Version 2.2.0
+Clarified that an expired ERC delay makes a cleared encounter eligible to respawn but does not bypass the game's normal distance and spawner-activation conditions.
+When diagnostics and Grail Floating Text notifications are enabled, the first fully cleared encounter released each session now shows an in-game reminder to move far enough away and return for vanilla activation.
+Expanded lock-expiry logging to distinguish ERC eligibility from actual vanilla spawn activation.
+
+Version 2.1.9
+Renamed the two-hour RespawnMode preset from Fast2Hours to VeryShort2Hours so the preset sequence reads Very Short, Fast, Default, Slow, and Very Slow.
+Advanced ConfigSchemaVersion from 5 to 6 because the stored RespawnMode enum value was renamed and old Fast2Hours values are no longer valid; compatible customized settings remain recoverable.
+
+Version 2.1.8
+Renamed the misleading Vanilla preset to Fast2Hours; turn off Enabled for unmodified game behavior.
+Moved regular respawn control to the game's side-effect-free cooldown check and added a dedicated projected-weather rest gate, so rests that cross a preset deadline can use the game's normal respawn path.
+Stopped patching CanSpawn, IsValidState, ShouldSpawn, and SpawnPrefabInternal and stopped discarding already-created enemies, preventing ERC from disrupting vanilla spawner bookkeeping and batch counters.
+Timed modes now create locks only from genuine kills, fail open when weather time is unavailable or moves backwards, and never restart a full delay merely because a save, scene, teleport, or rest restored killed-state.
+When a timed lock expires, ERC releases the redundant vanilla killed cooldown for fully cleared encounters; it also repairs fully cleared saved spawners whose vanilla cooldown marker was left missing by older versions.
+Raised ConfigSchemaVersion because RespawnMode renamed Vanilla to Fast2Hours and the old enum value is no longer valid.
+
+Version 2.1.5
+Added ShowGrailFloatingTextDiagnostics, enabled by default, to control the optional in-game diagnostic confirmation.
+When Diagnostics and that setting are enabled, Grail Floating Text now shows only the first blocked enemy respawn per gameplay session; detailed routine diagnostics remain in the BepInEx log.
+
+Version 2.1.4
+Added low-priority Grail Floating Text diagnostic summaries for respawn lock registration, the first blocked attempt per lock and gate, lock expiry, and special-spawn bypasses while Diagnostics is enabled.
+Collapsed all summaries into one lane and retained the existing detailed, rate-limited BepInEx logging.
+
 Version 2.1.3
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 

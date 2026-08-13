@@ -1,14 +1,18 @@
 Enemy Respawn Control
 
-Version 2.1.3
+Version 2.2.1
 
 Platforms: Windows and Linux through Proton.
 
-Enemy Respawn Control is a standalone BepInEx plugin for Tainted Grail: The Fall of Avalon. It remembers regular world mob spawners after their spawned NPCs or creatures are killed and blocks respawn checks until the configured delay has elapsed.
+Enemy Respawn Control is a standalone BepInEx plugin for Tainted Grail: The Fall of Avalon. It remembers regular world mob spawners after their spawned NPCs or creatures are killed and keeps their normal cooldown or rest respawn checks blocked until the configured delay has elapsed.
 
-The generated default is the Default preset, which waits 24 in-game/weather hours. This is still a large increase over the game's usual 2-hour fallback while keeping the world from feeling permanently empty.
+The generated default is the Default preset, which waits 24 in-game/weather hours while keeping the world from feeling permanently empty.
 
 ERC measures respawn delays with the game's in-game/weather clock, not real time. Timescale or day-night mods can make these waits take more or less real-world time because the delay follows the world clock.
+
+Reaching the configured delay makes a cleared encounter eligible to respawn; it does not force enemies to appear immediately. Vanilla still requires the spawner's normal distance and activation conditions, so move far enough away to unload or re-arm the encounter and then return. ERC removes the game's separate 120-second killed cooldown when its own timed lock expires, so no additional real-time wait is required.
+
+Timed locks are intentionally kept in memory only. Loading a save releases them instead of guessing a new deadline from old killed-state; this fail-open policy avoids extending a delay or stranding a spawner when its original kill time is unavailable.
 
 Configuration is created at:
 
@@ -23,16 +27,19 @@ ControlFactionNeutralNpcSpawners = true
 AdditionalControlledSpawnerTerms =
 IgnoredSpawnerTerms =
 Diagnostics = false
+ShowGrailFloatingTextDiagnostics = true
 
 RespawnMode values:
 
-Vanilla = 2 in-game/weather hours
+VeryShort2Hours = 2 in-game/weather hours
 Fast6Hours = 6 in-game/weather hours
 Default24Hours = 24 in-game/weather hours, generated default
 Slow72Hours = 72 in-game/weather hours
 VerySlow168Hours = 168 in-game/weather hours
 Custom = CustomRespawnHours in in-game/weather hours
 Disabled = block cleared controlled mob spawners indefinitely
+
+Turn off Enabled for unmodified vanilla respawn behavior.
 
 Version 2.1.2 keeps the 2.0 classification model and tightens its ambiguous runtime path. Manual ignored terms are authoritative even when current hostility is true, while manual controlled terms can opt NPC-template spawners back in before built-in exclusions. Without a manual override, hostility=true is controlled immediately, faction-neutral spawners are ignored when every NPC template is prey or summon-derived, and mixed-template spawners remain eligible for normal control. Built-in terms cover enemy families seen in game templates and diagnostics, including Wyrdspirits, Dal Riata and Galahad guards, bandits, druids, undead, beasts, and constructs.
 
@@ -42,7 +49,7 @@ Those two manual spawner override lists are preserved by exact current setting
 name across future config schema resets. Other gameplay, timing, and diagnostic
 settings still regenerate from fresh defaults.
 
-Resource, pickable, passive prey, summon-derived, and other passive non-enemy location spawners are ignored when they are not currently hostile. Known Friendly Stronghold variants are also ignored while faction-neutral. ERC leaves the outer rest-ambush gate alone, but ordinary locked mob spawners remain controlled when the game considers them as ambush candidates. Ambush-only spawners, active Wyrd-night spawner state, and manual/story-triggered spawns are ignored so flagged special events can still happen.
+Resource, pickable, passive prey, summon-derived, and other passive non-enemy location spawners are ignored when they are not currently hostile. Known Friendly Stronghold variants are also ignored while faction-neutral. ERC evaluates proposed rest time against each active weather-time deadline; once a rest crosses the deadline, the game resumes its normal rest respawn evaluation. Ambush-only spawners, active Wyrd-night spawner state, and manual/story-triggered spawns are ignored so flagged special events can still happen.
 
 Recommended use:
 
@@ -50,7 +57,7 @@ Disable or remove older RespawnTimer-style mods while testing this plugin. It is
 
 Diagnostics:
 
-Turn Diagnostics on if enemies still respawn too quickly. The log will show spawner keys, lock creation, lifecycle and classification reasons, compact NPC type/prey/summon signals, blocked gate names, allowed spawn attempts, special-spawn bypasses, skipped spawners, cleanup of locked spawned locations, and lock expiry decisions.
+Turn Diagnostics on if enemies still respawn too quickly or remain absent after a delay. The log will show spawner keys, lock creation, lifecycle and classification reasons, compact NPC type/prey/summon signals, blocked cooldown and rest checks, special-spawn bypasses, skipped spawners, repairs, and lock expiry decisions. With ShowGrailFloatingTextDiagnostics enabled, Grail Floating Text shows readable lifecycle messages when a fully cleared encounter is locked, a rest is blocked with time remaining, the encounter becomes eligible but still needs vanilla distance activation, and its respawn is observed. Each lifecycle state is shown once per encounter, simultaneous events are combined, and repeated cooldown polling remains log-only.
 
 Build:
 

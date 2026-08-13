@@ -1,31 +1,37 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Enemy Respawn Control[/size][/color]
 [i]Control regular world mob respawn timing with game-world time presets.[/i][/center]
 
 [line]
 
-[b]Enemy Respawn Control[/b] lets you decide how long cleared regular world encounters stay cleared. It remembers mob spawners after their NPCs or creatures are killed and blocks future respawn attempts until the configured delay has elapsed.
+[b]Enemy Respawn Control[/b] lets you decide how long cleared regular world encounters stay cleared. It remembers mob spawners after their NPCs or creatures are killed and guards their normal cooldown and rest checks until the configured delay has elapsed.
 
-The default [b]Default[/b] preset waits 24 in-game/weather hours. This is still a large increase over the game's usual 2-hour fallback while keeping the world from feeling permanently empty.
+The default [b]Default[/b] preset waits 24 in-game/weather hours while keeping the world from feeling permanently empty.
 
 ERC measures respawn delays with the game's world/weather clock, not real time. Timescale and day-night mods can make these waits take more or less real-world time because the delay follows the in-game clock.
 
+[b]Important:[/b] Reaching the selected delay makes a cleared encounter eligible to respawn; it does not force enemies to appear beside the player. Vanilla still requires its normal distance and spawner-activation conditions, so move far enough away to unload or re-arm the encounter and then return. ERC removes the game's separate 120-second killed cooldown when its timed lock expires, so there is no additional real-time wait.
+
+Timed locks fail open across save loads instead of guessing a new deadline from old killed-state. This avoids extending a delay or stranding a spawner when the original kill time is unavailable.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]Persistent cleared encounters:[/b] Guard regular mob spawners and block respawn checks or direct spawn attempts until the selected delay expires.[/*]
+[*][b]Persistent cleared encounters:[/b] Guard regular mob cooldown and rest checks until the selected delay expires without taking over the game's spawning process; actual return still follows vanilla distance and activation rules.[/*]
 [*][b]World-time scheduling:[/b] Measure delays with the in-game weather clock so day-night speed changes naturally affect real-world wait time.[/*]
-[*][b]Flexible presets:[/b] Choose anything from vanilla-style timing to indefinitely blocked cleared spawners, with a Custom option for exact control.[/*]
+[*][b]Flexible presets:[/b] Choose anything from two in-game hours to indefinitely blocked cleared spawners, with a Custom option for exact control.[/*]
 [*][b]Careful classification:[/b] Control ordinary enemy spawners while excluding resources, pickables, passive prey, summons, and other passive non-enemy spawners.[/*]
 [*][b]Story-safe boundaries:[/b] Leave ambush-only spawners, active Wyrdnight spawner state, and manual or story-triggered spawns alone.[/*]
-[*][b]Focused diagnostics:[/b] Trace spawner classification, locks, blocked gates, allowed attempts, cleanup, and expiry decisions when troubleshooting.[/*]
+[*][b]Focused diagnostics:[/b] Trace spawner classification, locks, blocked cooldown and rest checks, repairs, expiry decisions, the handoff to vanilla distance activation, and confirmed respawns when troubleshooting.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Presets[/size][/color][/heading]
 [list]
-[*][b]Vanilla[/b] - 2 in-game/weather hours[/*]
-[*][b]Fast[/b] - 6 in-game/weather hours[/*]
+[*][b]Very Short[/b] - 2 in-game/weather hours[/*]
+[*][b]Fast 6 Hours[/b] - 6 in-game/weather hours[/*]
 [*][b]Default[/b] - 24 in-game/weather hours[/*]
 [*][b]Slow[/b] - 72 in-game/weather hours[/*]
 [*][b]Very Slow[/b] - 168 in-game/weather hours[/*]
@@ -44,6 +50,8 @@ BepInEx/config/ks.tgfoa.enemy-respawn-control.cfg
 
 Generated defaults use the Default preset and diagnostics off. All preset and custom durations are measured in in-game/weather time. There is no real-time mode.
 
+Turn off [b]Enabled[/b] for unmodified vanilla respawn behavior.
+
 [code]
 Enabled = true
 RespawnMode = Default24Hours
@@ -52,6 +60,7 @@ ControlFactionNeutralNpcSpawners = true
 AdditionalControlledSpawnerTerms =
 IgnoredSpawnerTerms =
 Diagnostics = false
+ShowGrailFloatingTextDiagnostics = true
 [/code]
 
 [b]Spawner classification:[/b] Manual ignored terms are checked first and can force any matching regular spawner out. Hostility=true is then controlled immediately. Manual controlled terms can force a matching NPC-template spawner in before the built-in exclusions are applied. A false hostility read no longer excludes regular NPC-template mob spawners that have killed-state, which catches regular groups whose faction hostility is conditional or not restored yet. Faction-neutral spawners are ignored when every NPC template is prey or summon-derived, while mixed-template spawners remain eligible for normal control. Known Friendly Stronghold variants are also ignored while faction-neutral. Set [b]ControlFactionNeutralNpcSpawners[/b] to false for conservative behavior, or use [b]AdditionalControlledSpawnerTerms[/b] and [b]IgnoredSpawnerTerms[/b] to force a specific spawner/template family in or out.
@@ -85,10 +94,10 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[*][b]Optional diagnostics:[/b] With Diagnostics and ShowGrailFloatingTextDiagnostics enabled, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] shows readable lifecycle messages when a fully cleared encounter is locked, a rest is blocked with time remaining, the encounter becomes eligible but still needs vanilla distance activation, and its respawn is observed. Each state appears once per encounter, simultaneous events are combined, and repeated cooldown polling remains log-only. Detailed classification, lock, cooldown, rest, repair, bypass, expiry, and respawn evidence remains in the BepInEx log.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Notes[/size][/color][/heading]
-Disable or remove older RespawnTimer-style mods while testing Enemy Respawn Control. If an area still respawns too quickly, enable [b]Diagnostics[/b] and check [b]BepInEx/LogOutput.log[/b] for spawner lock, blocked gate, skipped spawner classification, special-spawn bypass, and cleanup messages.
+Disable or remove older RespawnTimer-style mods while testing Enemy Respawn Control. If an area still respawns too quickly or remains empty after a deadline, enable [b]Diagnostics[/b] and check [b]BepInEx/LogOutput.log[/b] for lock, cooldown, rest, classification, repair, bypass, and expiry messages.

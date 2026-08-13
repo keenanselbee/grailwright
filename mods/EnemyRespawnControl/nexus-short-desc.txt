@@ -1,1 +1,1 @@
-Controls regular world mob respawn timing with game-world presets while leaving resources and flagged special event spawns alone.
+Controls when regular world mobs become eligible to return with game-world presets, then leaves actual spawning to vanilla distance and activation rules.

@@ -1,7 +1,7 @@
-TargetVersion=2.1.3
-BaselineVersion=2.0.9
-Excluded faction-neutral spawners when every NPC template is prey or summon-derived, while keeping hostile and mixed-template spawners under normal control.
-Retries prey and summon classification when game template services are not ready instead of caching an ambiguous startup result.
-Made manual ignored terms authoritative over live hostility and manual controlled terms authoritative over built-in exclusions, matching their documented force-out and force-in behavior.
-Expanded diagnostics with the classification reason and compact NPC-template signals retained by each lock.
-Added Linux/Proton installation support through portable package paths while keeping Windows and Vortex installs unchanged.
+TargetVersion=2.2.1
+BaselineVersion=2.1.8
+Clarified that elapsed ERC delays make cleared encounters eligible while actual spawning still follows vanilla distance and activation rules.
+Expanded Grail Floating Text diagnostics into readable per-encounter lifecycle messages for fully cleared locks, blocked rests with remaining time, eligibility handoff, and confirmed respawns.
+Combined simultaneous lifecycle events while suppressing repeated cooldown polling, duplicate group callbacks, and repeat rest-block messages for the same lock.
+Renamed the two-hour preset from Fast2Hours to VeryShort2Hours so the sequence reads Very Short, Fast, Default, Slow, and Very Slow.
+Regenerated configs because the stored RespawnMode enum value changed; compatible customized settings remain recoverable.

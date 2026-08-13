@@ -18,7 +18,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.8.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.7.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.1.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Full Enemy XP](mods/FullEnemyXP) | 1.0.8 | Unpublished |

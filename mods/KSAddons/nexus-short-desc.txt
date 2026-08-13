@@ -1,1 +1,1 @@
-Small compatibility and polish addons for selected Tainted Grail mods: terrain-aware Better Movement slide audio, performance-friendly Wyrd Sight highlighting, TG light-shadow support, and restored-corpse smoothing with configurable limits and safe cleanup.
+Focused companion addons with fixes, features, and performance improvements for All Lights Cast Shadows, Better Movement, Better Volumetric Fog, Contact Shadows, Global Illumination, Persistent Corpses, and Wyrd Sight.

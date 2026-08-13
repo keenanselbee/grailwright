@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]KS Addons[/size][/color]
 [i]Companion addons for selected Tainted Grail: The Fall of Avalon mods.[/i][/center]
 
@@ -12,11 +12,53 @@ Each addon has its own folder and README. Install only the addons whose original
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]Better Movement Addon 0.1.4[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
+[*][b]All Lights Cast Shadows Addon 1.2.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]Better Movement Addon 0.1.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
+[*][b]Better Volumetric Fog Addon 0.1.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] 1.0.2-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
+[*][b]Contact Shadows Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
+[*][b]Global Illumination Addon 0.1.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] 1.0.0.[/*]
+[*][b]Persistent Corpses Addon 1.1.0[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
 [*][b]Wyrd Sight Addon 1.2.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]TG All Lights Cast Shadows Addon 1.1.9[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]Persistent Corpses Addon 1.0.9[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
 [/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]All Lights Cast Shadows Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url].
+
+[list]
+[*][b]Reliable restoration:[/b] Restores the game's original shadow quality and each light's original shadow settings when it no longer needs protection or either mod is disabled.[/*]
+[*][b]Firelight protection:[/b] Prevents bonfire, campfire, and optional user-added lights from being blocked by nearby firepit stones.[/*]
+[*][b]Safer shadow limits:[/b] Gives lights upgraded by the original mod a safe 256 shadow-resolution limit by default without raising lights that already use a lower value.[/*]
+[*][b]Combat performance:[/b] Lowers the shadow limit to 128 during outdoor fights, then restores it five seconds after combat. Optional controls can also reduce the number or range of upgraded lights.[/*]
+[*][b]Clean integration and feedback:[/b] Works through the original mod's own scans, adds no constant light search, and never changes its JSON file. Grail Floating Text can confirm actual parent toggle changes independently. Diagnostics keeps detailed log counts, while the default-on ShowGrailFloatingTextDiagnostics switch controls in-game shadow summaries and remains inactive unless Diagnostics is enabled.[/*]
+[/list]
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg[/code]
+
+Common entries:
+
+[code]
+ProtectBonfireLights = true
+AdditionalExcludedLightPathFragments =
+VerboseExclusionLogging = false
+ProtectShadowAtlas = true
+PromotedShadowResolution = 256
+CombatPerformanceEnabled = true
+OutdoorCombatOnly = true
+CombatExitDelaySeconds = 5
+CombatReduceAtlasResolution = true
+CombatShadowResolution = 128
+CombatLimitLightBudget = false
+CombatMaximumUpgradedLights = 30
+CombatLimitDistance = false
+CombatMaximumDistanceMeters = 20
+ShowToggleNotifications = true
+ShowGrailFloatingTextDiagnostics = true
+Diagnostics = false[/code]
 
 [line]
 
@@ -24,10 +66,10 @@ Each addon has its own folder and README. Install only the addons whose original
 Companion addon for Better Movement 1.3.0 or newer.
 
 [list]
-[*][b]Terrain-aware slide audio:[/b] Adds continuous audio to the original mod's slides, including extended downhill movement. Detects native terrain splatmaps, explicit mesh surfaces, and shallow water across eleven surface families.[/*]
-[*][b]Seamless surface transitions:[/b] Crossfades when a slide reaches another surface and responds to sliding speed with configurable volume and pitch.[/*]
-[*][b]Complete surface sound sets:[/b] Includes two loop, start, and stop variations for every supported surface.[/*]
-[*][b]Positional custom audio:[/b] Uses 3D FMOD playback and supports replaceable WAV folders for custom sound packs.[/*]
+[*][b]Terrain-aware slide sounds:[/b] Adds continuous audio to slides, including extended downhill movement. Recognizes terrain, constructed floors, and shallow water across eleven surface families.[/*]
+[*][b]Smooth surface changes:[/b] Crossfades when a slide reaches a different surface and adjusts volume and pitch with sliding speed.[/*]
+[*][b]Complete sound sets:[/b] Includes two slide loops plus start and stop variations for every supported surface.[/*]
+[*][b]3D and custom audio:[/b] Plays sounds from the player's position and supports replaceable WAV folders for custom sound packs.[/*]
 [*][b]Immersive Footsteps compatibility:[/b] Keeps ordinary steps from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/257]Immersive Footsteps[/url] separate from continuous slide-audio playback.[/*]
 [/list]
 
@@ -50,16 +92,157 @@ Diagnostics = false[/code]
 
 [line]
 
+[heading][color=#C94A4A][size=5]Better Volumetric Fog Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url].
+
+[list]
+[*][b]Smoother fog discovery:[/b] Replaces the original mod's repeated search through every loaded Fog object with a cache that is seeded once and updated by HDRP volume events.[/*]
+[*][b]Interior focus:[/b] Applies the cleaner volumetrics only in verified interiors by default, where blocky lamp, candle, and window light shafts are most noticeable.[/*]
+[*][b]Balanced default quality:[/b] Uses Low indoors for 30 percent screen resolution and 32 slices, then restores vanilla volumetrics outdoors, during loading, and outside active gameplay.[/*]
+[*][b]Exact restoration:[/b] Preserves the original mod's own backups so the game's Fog values and override states return exactly when the enhancement is inactive.[/*]
+[*][b]Clean parent integration and feedback:[/b] Keeps the original hotkey and JSON reload behavior, never edits TGVolumetricFix.json, and allows optional global operation or higher quality through this addon's config. Grail Floating Text can confirm actual parent toggle changes without announcing routine interior and exterior transitions.[/*]
+[/list]
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.tg-volumetric-fix-addon.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+InteriorsOnly = true
+Quality = Low
+OptimizeFogDiscovery = true
+ShowToggleNotifications = true
+Diagnostics = false[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Contact Shadows Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url].
+
+[list]
+[*][b]Interior focus:[/b] Enables contact shadows only in interiors by default, where nearby local lighting provides the strongest visual improvement.[/*]
+[*][b]Stable four-light budget:[/b] Keeps up to four nearby point or spot lights active by default, holds valid selections briefly, and requires a stronger challenger before replacing the weakest selection. This improves interior coverage without returning to the parent mod's broad light activation.[/*]
+[*][b]Conservative visuals:[/b] Uses a shorter ray, softer opacity, 20-meter visual range, and 16 samples by default. Eight samples remains available as a lighter manual alternative.[/*]
+[*][b]Lower scan overhead:[/b] Ignores inactive, disabled, directional, area, zero-intensity, and zero-range lights. It selects from a cached active-light list instead of repeatedly scanning inactive scene objects.[/*]
+[*][b]Exact restoration and feedback:[/b] Restores every selected light and touched camera to their original HDRP values, removes the parent volume while inactive, and never edits the parent JSON file. Grail Floating Text can confirm actual parent toggle changes without announcing routine interior and exterior transitions.[/*]
+[/list]
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.tg-contact-shadows-addon.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+InteriorsOnly = true
+MaximumContactShadowLights = 4
+MaximumLightDistanceMeters = 15
+MinimumLightHoldSeconds = 1
+SwitchAdvantagePercent = 25
+CandidateRefreshSeconds = 5
+ContactShadowMaxDistance = 20
+SampleCount = 16
+Length = 0.075
+Opacity = 0.6
+ShowToggleNotifications = true
+Diagnostics = false[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Global Illumination Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url].
+
+[list]
+[*][b]Performance-first startup:[/b] New scenes start at Performance by default, then raise quality only after sustained FPS meets the target.[/*]
+[*][b]Indoor and outdoor presets:[/b] Uses separate recovery limits for interiors and exteriors. Defaults can recover to the original lighting indoors and Balanced outdoors.[/*]
+[*][b]Balanced outdoor performance:[/b] Uses lighter outdoor lighting settings without weakening the original mod's indirect lighting.[/*]
+[*][b]Gradual automatic adjustment:[/b] Raises or lowers quality one tier at a time after sustained performance, and can remember the last successful scene tier for the current session.[/*]
+[*][b]Safe Performance fallback:[/b] Temporarily disables the most demanding lighting effect while preserving the original brightness. It pauses adjustments during loading, menus, transitions, and unfocused play, never edits the parent JSON, and restores parent values when inactive.[/*]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] feedback:[/b] Confirms actual parent toggle changes independently. The default-on ShowGrailFloatingTextDiagnostics switch controls adaptive-tier notices with the new tier and smoothed FPS, and remains inactive unless Diagnostics is enabled.[/*]
+[/list]
+
+[b]Recommended mod:[/b] Use [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/213]Light Control[/url].
+
+[list]
+[*][b]Dungeons:[/b] World Intensity Day/Night = 2; Brightness Offset Day/Night = -2.[/*]
+[*][b]Interiors:[/b] World Intensity Day/Night = 1.5; Brightness Offset Day/Night = -1.5.[/*]
+[/list]
+
+If interiors are still too dark, raise World Intensity and/or Brightness Offset.
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.tg-global-illumination-addon.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+Mode = Adaptive
+TargetFps = 60
+ShowToggleNotifications = true
+ShowGrailFloatingTextDiagnostics = true
+InteriorPreset = Full
+ExteriorPreset = Balanced
+StartAtPerformance = true
+RememberSceneTier = true
+SampleWindowSeconds = 5
+DowngradeMarginFps = 6
+DowngradeHoldSeconds = 4
+UpgradeMarginFps = 1
+UpgradeHoldSeconds = 30
+ChangeCooldownSeconds = 15
+SceneWarmupSeconds = 5
+Diagnostics = false[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Persistent Corpses Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url].
+
+[list]
+[*][b]Smooth corpse restoration:[/b] Restored bodies can briefly appear standing and then fall over. The addon conceals them while ragdoll physics settles, then reveals them in a natural resting pose.[/*]
+[*][b]Careful settling:[/b] Settling pauses during loading screens and paused gameplay, includes a timeout for unstable bodies, and stops checking each corpse once it is ready.[/*]
+[*][b]Limited retention (default):[/b] Keeps up to 10 complete corpses loaded. Extra bodies use the game's normal cleanup once they are far enough away, avoiding visible changes near the player.[/*]
+[*][b]Alternative retention modes:[/b] [b]All[/b] preserves every corpse, while [b]Vanilla[/b] allows all eligible distant corpses to use normal cleanup.[/*]
+[*][b]Safe long-rest cleanup:[/b] After a bonfire rest of at least six hours, empty corpses are gradually removed and bodies with loot are replaced with simpler versions. Visible loot is preserved, unsafe bodies remain untouched, and no additional save data is written.[/*]
+[/list]
+
+Config file:
+
+[code]
+BepInEx/config/ks.tgfoa.persistent-corpses-addon.cfg[/code]
+
+Common entries:
+
+[code]
+Enabled = true
+MinimumSettleSeconds = 0.75
+MaximumSettleSeconds = 2
+RetentionMode = Limited
+MaximumLoadedFullCorpses = 10
+CleanupAfterLongBonfireRest = true
+MinimumRestHoursForCleanup = 6
+Diagnostics = false[/code]
+
+[line]
+
 [heading][color=#C94A4A][size=5]Wyrd Sight Addon[/size][/color][/heading]
 Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url].
 
 [list]
-[*][b]Timed Wyrd Sight pulses:[/b] Changes the configured Highlight Key from a toggle into a timed pulse. Repeated presses extend the active pulse, and the addon only turns off pulses it started, leaving externally enabled Wyrd Sight active.[/*]
-[*][b]Quest-giver highlighting:[/b] Adds optional, performance-friendly quest-giver outlines inspired by Avalon Untold. Avalon Untold is not required.[/*]
-[*][b]Conservative availability checks:[/b] Hides progression-locked quest offers by default without incorrectly treating temporary conditions as permanent blockers.[/*]
-[*][b]Configurable behavior:[/b] Pulse duration, state-check cadence, retry timing, retry limits, quest range, scan budgets, and outline refresh rates remain adjustable. For a clean pulse, use [b]Enable Glow Shape = true[/b] and [b]Enable Wyrd Sight Particles = false[/b] in Wyrd Sight.[/*]
-[*][b]Bounded background work:[/b] Parses the story archive off the game thread, refreshes NPCs through events, spreads scans and outline baking across frames, and limits animated outline refreshes to 30 per second by default. Quest availability refreshes at each pulse and every 15 seconds only while Wyrd Sight remains continuously active.[/*]
-[*][b]Clean disable and re-enable:[/b] Turning off Enabled or HighlightQuestGivers immediately removes listeners, cached outlines, and rendering resources. An archive read already in progress may finish and remain cached, preventing duplicate background parsing if the feature is re-enabled.[/*]
+[*][b]Timed Wyrd Sight pulses:[/b] Changes the Highlight Key from a toggle into a timed pulse. Repeated presses extend the pulse, and the addon never turns off Wyrd Sight activated by something else.[/*]
+[*][b]Quest-giver highlighting:[/b] Adds optional, performance-friendly quest-giver outlines inspired by Avalon Untold, which is not required. Progression-locked offers stay hidden without treating temporary conditions as permanent blockers.[/*]
+[*][b]Adjustable behavior:[/b] Pulse duration, retry timing, quest range, and performance limits remain configurable. For a clean pulse, use [b]Enable Glow Shape = true[/b] and [b]Enable Wyrd Sight Particles = false[/b] in Wyrd Sight.[/*]
+[*][b]Smooth background processing:[/b] Processes quest data in the background and spreads scans and outline updates out to reduce stutter. Quest availability refreshes with each pulse and every 15 seconds while Wyrd Sight stays active.[/*]
+[*][b]Clean disable and re-enable:[/b] Turning off Enabled or HighlightQuestGivers immediately removes its outlines and rendering resources. Cached quest data can be reused if the feature is enabled again.[/*]
 [/list]
 
 Config file:
@@ -89,69 +272,19 @@ QuestAvailabilityRefreshSeconds = 15[/code]
 
 [line]
 
-[heading][color=#C94A4A][size=5]TG All Lights Cast Shadows Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]TG All Lights Cast Shadows[/url].
-
-[list]
-[*][b]Shadow-quality restoration:[/b] Restores Unity's original global shadow-quality setting after the original mod's toggle restores its tracked lights.[/*]
-[*][b]Firelight protection:[/b] Protects built-in bonfire and campfire light names plus optional user-added path fragments, preventing firepit stones from incorrectly blocking their own illumination.[/*]
-[*][b]Low-overhead integration:[/b] Runs only around the original light mod's own scan and does not poll lights every frame.[/*]
-[/list]
-
-Config file:
-
-[code]
-BepInEx/config/ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg[/code]
-
-Common entries:
-
-[code]
-ProtectBonfireLights = true
-AdditionalExcludedLightPathFragments =
-VerboseExclusionLogging = false[/code]
-
-[line]
-
-[heading][color=#C94A4A][size=5]Persistent Corpses Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url].
-
-[list]
-[*][b]Smooth corpse restoration:[/b] Restored bodies can briefly appear standing and then fall over. The addon conceals them while ragdoll physics settles, then reveals them in a natural resting pose.[/*]
-[*][b]Physics-aware settling:[/b] Settle time advances only during active physics, ignores loading screens and paused gameplay, and uses a maximum timeout for unstable bodies. Initialization scans stop once each corpse is ready.[/*]
-[*][b]Limited retention (default):[/b] Keeps up to 10 loaded full corpses. Excess bodies use the game's native cleanup once they are distant enough, avoiding visible changes near the player.[/*]
-[*][b]Alternative retention modes:[/b] [b]All[/b] preserves every corpse as before, while [b]Vanilla[/b] allows every eligible distant corpse to use normal cleanup.[/*]
-[*][b]Safe long-rest cleanup:[/b] After a bonfire rest of at least six actual hours, empty loaded corpses are gradually removed and loot-bearing ones become lightweight replacement bodies. Visible loot is preserved, unsafe bodies remain untouched, and no additional save data is written.[/*]
-[/list]
-
-Config file:
-
-[code]
-BepInEx/config/ks.tgfoa.persistent-corpses-addon.cfg[/code]
-
-Common entries:
-
-[code]
-Enabled = true
-MinimumSettleSeconds = 0.75
-MaximumSettleSeconds = 2
-RetentionMode = Limited
-MaximumLoadedFullCorpses = 10
-CleanupAfterLongBonfireRest = true
-MinimumRestHoursForCleanup = 6
-Diagnostics = false[/code]
-
-[line]
-
 [heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
 Install with Vortex as [b]BepInEx plugins[/b], or place the selected addon folders under:
 
 [code]
-BepInEx/plugins/WyrdSightAddon/WyrdSightAddon.dll
 BepInEx/plugins/TGAllLightsCastShadowsAddon/TGAllLightsCastShadowsAddon.dll
+BepInEx/plugins/BetterMovementAddon/BetterMovementAddon.dll
+BepInEx/plugins/TGVolumetricFixAddon/TGVolumetricFixAddon.dll
+BepInEx/plugins/TGContactShadowsAddon/TGContactShadowsAddon.dll
+BepInEx/plugins/TGGlobalIlluminationAddon/TGGlobalIlluminationAddon.dll
 BepInEx/plugins/PersistentCorpsesAddon/PersistentCorpsesAddon.dll
-BepInEx/plugins/BetterMovementAddon/BetterMovementAddon.dll[/code]
+BepInEx/plugins/WyrdSightAddon/WyrdSightAddon.dll[/code]
 
-Keep each addon's original mod installed. All four addons declare hard dependencies, so they will not run without their original mods.
+Keep each addon's original mod installed. All seven addons declare hard dependencies, so they will not run without their original mods.
 
 [line]
 

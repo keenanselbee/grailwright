@@ -14,21 +14,50 @@
     },
     {
       "id": "TGAllLightsCastShadowsAddon",
-      "displayName": "KS TG All Lights Cast Shadows Addon",
+      "displayName": "KS All Lights Cast Shadows Addon",
       "importedVersion": "1.1.1",
-      "listedSuiteVersion": "1.1.9",
-      "targetMod": "TG All Lights Cast Shadows",
+      "listedSuiteVersion": "1.2.7",
+      "targetMod": "All Lights Cast Shadows",
       "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133",
       "targetNexusFileVersion": "1.0.0-mono",
       "targetPluginVersion": "1.2.0"
     },
     {
+      "id": "TGGlobalIlluminationAddon",
+      "displayName": "KS Global Illumination Addon",
+      "importedVersion": "0.1.0",
+      "listedSuiteVersion": "0.1.7",
+      "targetMod": "Global Illumination",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134",
+      "targetPluginVersion": "1.0.0"
+    },
+    {
+      "id": "TGContactShadowsAddon",
+      "displayName": "KS Contact Shadows Addon",
+      "importedVersion": "0.1.0",
+      "listedSuiteVersion": "0.1.3",
+      "targetMod": "Contact Shadows",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135",
+      "targetNexusFileVersion": "1.0.0-mono",
+      "targetPluginVersion": "1.0.0"
+    },
+    {
       "id": "PersistentCorpsesAddon",
       "displayName": "KS Persistent Corpses Addon",
       "importedVersion": "1.0.0",
-      "listedSuiteVersion": "1.0.9",
+      "listedSuiteVersion": "1.1.0",
       "targetMod": "Persistent Corpses",
       "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228",
+      "targetPluginVersion": "1.0.0"
+    },
+    {
+      "id": "TGVolumetricFixAddon",
+      "displayName": "KS Better Volumetric Fog Addon",
+      "importedVersion": "0.1.0",
+      "listedSuiteVersion": "0.1.2",
+      "targetMod": "Better Volumetric Fog",
+      "targetNexusUrl": "https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145",
+      "targetNexusFileVersion": "1.0.2-mono",
       "targetPluginVersion": "1.0.0"
     }
   ]

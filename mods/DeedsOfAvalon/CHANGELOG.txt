@@ -1,3 +1,239 @@
+Version 1.7.5
+Changed the Blood Essence and Blood Power progression row to use Grail Floating Text's blood-magic icon while Simple-mode Corpses Drained retains its average corpse-quality icon.
+
+Version 1.7.4
+Changed detailed corpse statistics to use their matching Meager, Worthy, Potent, and Prime Grail Floating Text icons.
+Changed aggregate Blood Essence and Corpses Drained rows to select a corpse icon from the saved average corpse quality, defaulting an empty history to Meager.
+
+Version 1.7.3
+Renamed sorted weapon and magic fallback or collapsed rows to Other Weapons and Other Magic so their source remains clear after kill-count ordering mixes the sections.
+Kept the shorter Other label when SortFoesByKillCount is disabled because authored position and icons already distinguish the weapon and magic sections.
+
+Version 1.7.2
+Added SortFoesByKillCount, enabled by default, to order the final visible Foes Defeated rows from highest to lowest displayed kill count while keeping Total fixed above them.
+Resolved weapon and magic row limits plus collapsed Other values before sorting, used label order for equal counts, and applied the same ordering to Diagnostics preview values.
+
+Version 1.7.1
+Increased the default quick-wheel panel background opacity from 0.9 to 0.95 for stronger contrast against the game world.
+Advanced ConfigSchemaVersion from 10 to 11 because PanelBackgroundOpacity now defaults to 0.95; untouched old defaults receive the new value while valid customized opacity values remain preserved automatically.
+
+Version 1.7.0
+Reordered the fallback magic rows to Fire, Cold, Wet, Electric, Poison, Blood, Pure, and Wyrdness, then moved Summons after them and kept Other last.
+Changed Summons to Grail Floating Text's new configurable Pink color group with a #E06AAE default.
+Standardized left-column statistic labels to sentence case and renamed the detailed Throwable row to Throwables.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.3.7 for the Pink color group.
+
+Version 1.6.9
+Renamed the Summon Kills panel row to Summons.
+
+Version 1.6.8
+Made the Diagnostics preview Total equal the sum of its displayed weapon, summon, and magic kill rows instead of using an independent sample value.
+
+Version 1.6.7
+Made save-memory lookups non-throwing during service transitions and exposed the saved corpse quality sum with the absolute tier API so Blood Magic synchronization preserves the exact quality history.
+
+Version 1.6.6
+Kept direct CrimeCommitted event fallback accounting independent between events while retaining one-per-action deduplication for the game's normal multi-owner crime path.
+
+Version 1.6.5
+Added Summon Kills as a dedicated foe statistic using the game's summon-kill event and the new Grail Floating Text summon icon; summoned targets are excluded from ordinary hero and summon kill counts.
+Made total foes, total corpses drained, and current bounty self-reconcile from their authoritative component values, while clamping invalid negative counters and preventing integer and float counter overflow.
+Counted crafted and pickpocketed item quantities instead of callback occurrences, and deduplicated crimes to one statistic per player crime action even when several owners report it.
+Resolved current Active Bounty from the saved per-faction crime facts so pre-existing and multi-faction bounty is represented without waiting for a new event.
+Made Blood Magic Expansion periodically synchronize absolute corpse-tier counts so transient integration failures cannot permanently drift Deeds statistics; transaction rollback now restores the complete corpse statistic state.
+Added collision-safe save keys for different spells that normalize to the same name, retried loaded-save JSON export until GameplayMemory is available, reconciled statistics immediately before successful-save snapshots, and omitted obsolete internal bounty-cache facts from readable exports.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.3.5 for the summon icon.
+
+Version 1.6.4
+Classified sickle kills as One-Handed Axe instead of maintaining a separate single-weapon category and icon.
+Folded any save-backed sickle count created by the prior test build into the displayed One-Handed Axe and Grouped One-Handed totals without rewriting the saved value.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.3.1.
+
+Version 1.6.3
+Added separate One-Handed Spear and One-Handed Sickle kill counters instead of sending those recognized weapon types to the one-handed fallback.
+Renamed the existing two-handed Polearm row to Two-Handed Spear while retaining its save-backed counter.
+Added specific GFT icons for every recognized one-handed and two-handed weapon row, including the established Two-Handed Sword artwork.
+Renamed weapon fallback and collapsed rows from Other Weapons to Other; weapon and magic fallbacks remain distinguishable by section and icon.
+Added Diagnostics-only fatal-fallback details for damage type, status, item predicates, subtypes, projectile, and skill without adding runtime polling.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.3.0 for the specific weapon icons.
+
+Version 1.6.2
+Promoted the tested panel layout and readability values to the defaults: 190 column width, 0.9 backplate opacity, 16 padding, 28 right offset, 5-by-2 outline, and a fully opaque 4-offset maximum-spread text backing. Diagnostics remains disabled by default.
+Added ColumnGap with a 30 reference-pixel default through Grail Floating Text 2.2.9 and QuickWheelPanelApi version 15.
+Reorganized FoA Mod Manager presentation into clearly named General, Tooltip Behavior, Panel Layout, Panel Background, Panel Colors, Text Outline, Text Backing, Panel Content, Integrations, and Diagnostics sections without renaming the stored config keys.
+Advanced ConfigSchemaVersion from 9 to 10 because the panel layout, backplate, outline, and text-backing defaults changed; untouched old defaults receive the new values while valid customized values are preserved automatically.
+
+Version 1.6.1
+Changed the default TextOutlineOpacity from 1 to 0.5 for a softer edge while retaining the established outline width and strength.
+Advanced ConfigSchemaVersion from 8 to 9 because TextOutlineOpacity now defaults to 0.5; untouched old defaults receive the new value while valid customized values are preserved automatically.
+
+Version 1.6.0
+Changed Total Gold Earned to select one of five GFT coin-pile icons from its saved amount: Very Low below 1,000, Low from 1,000, Medium from 5,000, High from 15,000, and Very High from 40,000.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.8 for the five built-in Gold Earned tiers.
+
+Version 1.5.9
+Moved Total Gold Earned into the normal positive deed-statistic flow with GFT's Gold text color and built-in Gold Earned icon instead of treating it as a permanently visible custom row.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.7 for the built-in Gold Earned icon.
+
+Version 1.5.8
+Added an always-visible Total Gold Earned statistic that records positive Gold changes, ignores spending, and begins tracking from zero when this version first runs for a character.
+Added a distinct hand-painted rising-coin icon for Total Gold Earned so it remains separate from the live Gold resource icon.
+
+Version 1.5.7
+Moved the slight gap below Level/XP to after the continuous HP/MP/SP, resource, available-points, and contextual Wyrd Whispers summary, immediately before the first tracked statistic.
+Made the statistics panel appear and clear directly with the quick-wheel lifecycle instead of waiting for a per-frame world search, while retaining the five-times-per-second value refresh only while open.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.6 and QuickWheelPanelApi version 14 for subtractive dark-scene backplates and the explicit summary boundary.
+
+Version 1.5.6
+Added PanelColumnWidth with a 226 reference-pixel default and a 160 through 400 range for independently tuning each statistics column's width.
+Changed Other, unknown, and collapsed magic text to semantic White while retaining the generic Magic icon.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.3 and QuickWheelPanelApi version 13 for the reusable procedural charcoal backplates.
+
+Version 1.5.5
+Fixed semantic White text to an internal 1.1 outline-strength multiplier and removed WhiteTextOutlineStrengthMultiplier from the user config.
+Advanced ConfigSchemaVersion from 7 to 8 because WhiteTextOutlineStrengthMultiplier was removed; compatible customized settings are preserved automatically.
+
+Version 1.5.4
+Added two black column backplates behind the quick-wheel text and icons for reliable contrast against bright scenery, with 0.5 default PanelBackgroundOpacity and configurable padding.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.2 and QuickWheelPanelApi version 12.
+
+Version 1.5.3
+Changed the default SDF underlay into a centered, medium-soft black text backing with 0.5 opacity, while retaining configurable offset and spread for conventional shadows.
+Added TextShadowSoftness with a 0.5 default and updated the quick-wheel panel requirement to Grail Floating Text 2.2.1 and QuickWheelPanelApi version 11.
+Advanced ConfigSchemaVersion from 6 to 7 because TextShadowOpacity now defaults to 0.5 and TextShadowOffset now defaults to 0 for the soft centered backing; compatible customized settings are preserved automatically.
+
+Version 1.5.2
+Added WhiteTextOutlineStrengthMultiplier with a 1.2 default for semantic White text, including Level/XP, HP/MP/SP, Total, and contextual point rows, without affecting icons or Pale text.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.2.0 and QuickWheelPanelApi version 10.
+
+Version 1.5.1
+Made the previous maximum black outline and shadow strength the new readability defaults, and doubled the available outline, shadow-offset, and strength ranges through Grail Floating Text QuickWheelPanelApi version 9.
+Moved the quick-wheel text effects to Grail Floating Text's native SDF outline and underlay renderer so the stronger range normally uses one glyph mesh instead of copied geometry.
+Advanced ConfigSchemaVersion from 5 to 6 because the outline defaults and both strength settings changed meaning; compatible customized settings are preserved automatically, while the two obsolete copied-layer strengths receive current SDF defaults.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.1.7.
+
+Version 1.5.0
+Aligned the diagnostic preview with Blood Magic Expansion's smooth Blood Power curve, so its 143 Blood Essence example now shows 21 Blood Power.
+
+Version 1.4.9
+Corrected the packaged quick-wheel layout guide to include Catalyst, Arthur, and the separate contextual Wyrd Whispers row.
+
+Version 1.4.8
+Expanded the contextual quick-wheel row to show compact Attribute, Skill, Catalyst, and Arthur values under the same availability rules as the vanilla points widget, while omitting zero and exhausted categories.
+Added a separate Wyrd Whispers row only while the vanilla reminder to talk to Arthur at camp is active.
+
+Version 1.4.7
+Renamed the quick-wheel statistic from "Fishes Caught" to "Fish Caught" without changing its save-backed counter.
+
+Version 1.4.6
+Expanded TextOutlineWidth to 8 pixels and added independent TextOutlineStrength from one through four progressively wider layers through Grail Floating Text QuickWheelPanelApi version 8.
+Rounded Blood Essence to a nonnegative integer when recording it and shortened the progression row to "Blood Essence: X (Y)", where Y is Blood Power.
+Changed Wyrdness category and named-spell text to the semantic Wyrd style so it follows Eyes in the Dark's live Purple Wyrdness or Native Orange palette.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.1.6.
+
+Version 1.4.5
+Changed Wyrdness rows to use Grail Floating Text's established Wyrd icon and Other, unknown, and collapsed magic rows to use its established generic Magic icon.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.1.4 for the corrected built-in magic icon set.
+
+Version 1.4.4
+Added distinct magic-type icons to category and named-spell rows, with each named spell using the same dominant recorded damage type for both its icon and color.
+Updated the quick-wheel panel requirement to Grail Floating Text 2.1.3 for the new built-in magic icons.
+
+Version 1.4.3
+Replaced the universal 99,999 diagnostics placeholder with stable, statistic-specific mid-game preview values suitable for screenshots.
+Kept diagnostics previews display-only so saved counters and exported statistics remain unchanged.
+
+Version 1.4.2
+Replaced the circular Cobweb redesign with a shape-faithful refinement of the original curled icon, preserving its silhouette while improving clarity at quick-wheel scale.
+
+Version 1.4.1
+Redesigned the Ethereal Cobweb resource icon as a heavier coiled-silk silhouette that remains recognizable at quick-wheel scale.
+Removed colored edge contamination from the Gold and Encumbrance icons and normalized all three resource icons for Pale tinting and 15-pixel rendering.
+
+Version 1.4.0
+Changed the Blood Magic quick-wheel row to show Blood Essence and Blood Power together as "Blood Essence: X | Blood Power: X".
+Added StatisticsApi v3 progression reporting for Blood Magic Expansion 2.6.0 while retaining the older Essence-only method for compatibility.
+Included reported Blood Power in the readable character statistics alongside uncapped Blood Essence.
+Kept ConfigSchemaVersion 5 because this release changes integration data and presentation without changing any config setting.
+
+Version 1.3.1
+Combined unrecognized one-handed, two-handed, ranged, and general weapon fallbacks into one displayed Other Weapons row while retaining detailed save-backed counters.
+Colored named spell rows by their dominant recorded damage subtype instead of assigning every spell to Purple.
+Changed Fire to Orange, Poison to the new Grail Floating Text Green group, Electric to Gold, and unknown magic to Default while retaining Blood Red, Cold/Wet Blue, Wyrdness Purple, and Pure Pale.
+Updated the quick-wheel requirement to Grail Floating Text 2.0.9.
+
+Version 1.3.0
+Added Food Eaten, Potions Used, Locks Picked, Items Pickpocketed, Items Crafted, Fishes Caught, and Recipes Learned as save-backed character statistics.
+Added an always-visible quick-wheel resource line for Ethereal Cobweb, Gold, and current/maximum Encumbrance directly below HP, MP, and SP.
+Ordered the left column into exploration, crafting and consumption, Blood, crime, bounty, rest, and death groups.
+Added custom resource icons loaded from the Deeds of Avalon package through Grail Floating Text with runtime mipmaps and trilinear filtering.
+Updated the quick-wheel integration for Grail Floating Text panel API version 7.
+
+Version 1.2.9
+Changed the character-name heading to all caps and added live HP, MP, and SP immediately below Level/XP.
+Added one contextual points line that independently shows Attribute Points and Skill Points only when each value is above zero.
+Added an always-visible save-backed Deaths row at the bottom of the left column using Grail Floating Text's new skull icon.
+Added a default-4 TextShadowStrength setting and Grail Floating Text quick-wheel API version 6 support for a darker layered shadow against bright scenery.
+Shortened the dedicated Blood Magic foe label to Blood.
+Renamed the bounty rows to Active Bounty and Highest Bounty.
+
+Version 1.2.6
+Consolidated previously recorded Blood Transfusion, Life Transfusion, and Abhartach's Calling spell rows into the displayed Blood Magic total through Blood Magic Expansion 2.5.4 without rewriting save-backed statistics.
+Corrected the HeaderColor description for the character-name heading and standardized the grouped Bows wording.
+
+Version 1.2.5
+Replaced the Deeds of Avalon quick-wheel heading with the current player's character name.
+Scaled the panel down automatically below 1440p, reduced it further when the visible rows need more room, and centered its rendered height vertically so 1080p keeps the same proportions against the quick wheel while 1440p ultrawide placement remains right-anchored.
+Changed the fresh-config right offset to 0 and replaced the absolute TopOffset setting with a centered VerticalOffset adjustment.
+Standardized weapon-category display names on the game's title-case One-Handed, Two-Handed, and Bow conventions.
+Added a default-Detailed WeaponStatisticsMode with a Grouped option that combines saved weapon counters into One-Handed, Two-Handed, and Bows rows without changing tracking.
+Added Blood Magic as a dedicated foe type for kills classified by Blood Magic Expansion 2.5.3 or newer.
+Raised the fresh-config deed, weapon, and magic row limits to their supported maxima of 32, 28, and 20.
+Strengthened the fresh-config text contrast with a fully opaque black 3-pixel four-direction outline and a fully opaque 3-pixel drop shadow.
+Advanced the config schema from 4 to 5 because RightOffset, the row-limit settings, and the text contrast settings have new defaults and TopOffset was replaced by the resolution-aware VerticalOffset setting.
+
+Version 1.2.4
+Made Wyrdnights survived follow Eyes in the Dark's live Purple Wyrdness or Native Orange palette through Grail Floating Text's semantic Wyrd style. Explicitly Purple magic rows remain Purple.
+
+Version 1.2.3
+Changed the default shared header color to #D88B38.
+Replaced the layered shadow-strength control with a four-direction text outline plus one conventional drop shadow through Grail Floating Text 2.0.4 quick-wheel panel API version 5.
+Added configurable outline enablement, color, opacity, and width with readable dark-outline defaults, plus a 0.85-opacity drop shadow at a 2-pixel offset.
+Added BloodMagicStatisticsMode with Detailed as the default: Simple shows Blood Essence and only total Corpses Drained, while Detailed shows Blood Essence and only the Meager, Worthy, Potent, and Prime tiers.
+Advanced the config schema from 3 to 4 because TextShadowStrength was removed, outline settings were introduced, and the header color, shadow opacity, and shadow offset defaults changed.
+
+Version 1.2.2
+Promoted the tuned quick-wheel defaults to zero tooltip-active opacity, full text-shadow opacity, 16 deed rows, 14 weapon rows, and 10 magic rows while keeping Diagnostics disabled by default.
+Doubled the configurable row ceilings to 32 deed rows, 28 weapon rows, and 20 magic rows.
+Added TextShadowStrength with up to four progressively wider shadow layers through Grail Floating Text 2.0.3 quick-wheel panel API version 4.
+Moved quick-menu statistics onto explicit Grail Floating Text color pools: White subtitles, Gold quests and locations, Purple Wyrd statistics, Red weapon and Blood Magic statistics, Orange crime and active bounty, and Pale rest information.
+Stopped displaying, recording, or exporting Times rested and retained only cumulative Hours rested.
+Shortened fallback magic rows to Fire, Cold, Poison, Electric, Wyrdness, Pure, Wet, and Other.
+Advanced the config schema from 2 to 3 because tooltip opacity, shadow opacity, row-limit, and subtitle-color defaults changed; compatible customized values remain available through previous-settings recovery.
+
+Version 1.2.1
+Made both quick-wheel headers use a shared configurable HeaderColor, defaulting to #FACB72.
+Made the Level/XP and Total subtitles use a shared configurable SubheaderColor, defaulting to the prior Level/XP color.
+Standardized Blood Essence and every Corpses Drained row on the same Grail Floating Text red color group.
+Renamed the collapsed left-column count from Other recorded deeds to Additional deed rows so it clearly describes hidden rows rather than a tracked statistic.
+Kept config schema 2 because this release only adds color settings and does not invalidate existing settings.
+
+Version 1.2.0
+Changed the fresh-config quick-wheel defaults to 1.5 panel scale, 36-pixel right offset, and 0.1 tooltip-active opacity.
+Added configurable text shadows for every quick-wheel panel title, subtitle, and statistic through the required Grail Floating Text 2.0.1 panel API.
+Standardized displayed statistics as Stat: Number and kept Blood Essence visible when it is zero.
+Made Diagnostics expose zero-value panel statistics as 99,999 for layout testing without changing saved or exported values.
+Advanced the config schema from 1 to 2 because the panel scale, right offset, and tooltip-active opacity defaults changed; compatible customized values remain available through previous-settings recovery.
+
+Version 1.1.1
+Made Blood Essence the public Blood Magic progression statistic and placed it immediately above Corpses Drained in the Grail Floating Text quick-wheel panel, including at zero essence.
+Stopped displaying, recording, or exporting Blood Power because it is an internal Blood Magic Expansion scaling value.
+
+Version 1.1.0
+Added StatisticsApi v2 methods for Blood Magic Expansion to report Blood Power and Blood Essence and to read existing per-tier corpse-drain counts for one-time progression import.
+Added Blood Power to the quick-wheel subtitle and Blood Essence to the recorded deed rows and readable character statistics.
+Started recording the continuous summed corpse quality alongside existing Corpses Drained totals and Meager, Worthy, Potent, and Prime tier counts.
+
 Version 1.0.1
 Removed the circular Blood Magic Expansion soft dependency while retaining its one-way Deeds statistics integration.
 Made Glorious UI delegation honor its master Enabled switch and limited Points available selection to live scene views.

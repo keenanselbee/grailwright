@@ -1,71 +1,230 @@
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Deeds of Avalon[/size][/color]
-[i]Character statistics that belong to the save, presented beside the quick wheel.[/i][/center]
+[i]Save-backed character deeds and combat statistics, presented beside the quick wheel.[/i][/center]
 
 [line]
 
-[b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save game and presents them through a right-anchored, two-column quick-wheel panel.
+[b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save and presents them through a responsive two-column quick-wheel panel.
+
+The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for its fonts, semantic colors, icons, text effects, and charcoal backplates. Version 2.4.4+ supplies the quality-tier corpse icons. Statistics tracking and readable JSON export continue to work when GFT is absent; only the quick-wheel panel requires it.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[list]
+[*][b]Statistics that belong to the save:[/b] Counters are stored per character in the active save instead of a global config or external report.[/*]
+[*][b]Quick-wheel character summary:[/b] See level, XP, resources, available points, deeds, progression, and combat totals without opening another menu.[/*]
+[*][b]Detailed foe attribution:[/b] Track individual one-handed and two-handed weapon types, bows, shields, unarmed attacks, throwables, named spells, damage types, Blood Magic, summons, and fallbacks.[/*]
+[*][b]Useful activity records:[/b] Follow exploration, crafting, consumption, fishing, thievery, crime, bounty, rest, deaths, and total Gold earned. Statistics at zero stay hidden, except Deaths.[/*]
+[*][b]Highest kills first:[/b] Foe rows sort from highest to lowest by default. Disable the option to restore the authored weapon and magic grouping.[/*]
+[*][b]Readable in bright and dark scenes:[/b] Two subtly different charcoal backplates, native SDF outlines, and a soft text backing remain configurable.[/*]
+[*][b]Hardened against drift:[/b] Important totals reconcile from their component values, crime reports are deduplicated, failed saves do not publish statistics, and unavailable services retry safely.[/*]
+[/list]
+
+[line]
 
 [heading][color=#C94A4A][size=5]Quick-Wheel Panel[/size][/color][/heading]
 [code]
-| DEEDS OF AVALON              | FOES DEFEATED              |
-|------------------------------|-----------------------------|
-| Level and current/required XP| Total foes                  |
-| Wyrdnights survived          | One-handed weapon subtypes  |
-| Quests completed             | Two-handed weapon subtypes  |
-| Locations discovered         | Bows, shields, and unarmed  |
-| Crimes and bounty            | Magic by spell/damage type  |
-| Rest records                 | Positive rows only          |
-| Corpses Drained              | Limited rows collapse Other |
-[/code]
+| Area  | Contents                         |
+|-------|----------------------------------|
+| Left  | Character, resources and deeds   |
+| Right | Total and foe categories         |[/code]
 
-The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 1.11.1+ fonts, colors, and built-in icons. Statistics and file export still work when GFT is absent, but the panel requires it.
+The character summary is one continuous block: Level/XP, HP/MP/SP, Ethereal Cobweb, current Gold, Encumbrance, available Attribute/Skill/Catalyst/Arthur values, and contextual Wyrd Whispers. Zero or exhausted point categories are omitted. A slight gap separates that live summary from the first recorded deed.
 
-Normal weapon and spell tooltips remain enabled by default. When either tooltip is visible, the statistics panel fades to 50% opacity by default, then returns smoothly when the tooltip closes. The tooltip opacity and fade time are configurable, and an off-by-default option can hide normal item tooltip text entirely.
+Deaths remains the final left-column statistic and is visible even at zero. Foe categories normally appear only after they have a positive count.
 
-[heading][color=#C94A4A][size=5]Save-Bounded Statistics[/size][/color][/heading]
-The authoritative counters live in the active save's GameplayMemory. Deeds captures a readable snapshot during serialization but writes it only after the game confirms the save succeeded. Loading saved data refreshes the file from the loaded state.
+[b]SortFoesByKillCount[/b] defaults to enabled. It orders the final visible weapon, magic, Summons, and Other rows from highest to lowest displayed count while keeping Total fixed above them. Equal counts use label order. Weapon and magic limits plus collapsed Other values are resolved before sorting. In this mixed sorted list, weapon and magic fallback or collapsed rows are labeled [b]Other Weapons[/b] and [b]Other Magic[/b]. Disable the setting to restore the authored category order and the shorter [b]Other[/b] label, where position and icons distinguish the two sections.
 
-That means a death, reload, or quit without saving discards the unsaved session's counters. Those unsaved values are not added to the readable file.
+[line]
+
+[heading][color=#C94A4A][size=5]Recorded Statistics[/size][/color][/heading]
+Current values and authoritative totals already stored by the game or a supported integration are available immediately. Historical event counters the game does not retain begin when Deeds first tracks that character and cannot be reconstructed retroactively.
 
 [code]
-BepInEx/config/DeedsOfAvalon/Characters/<character-id>/statistics.json
-[/code]
+| Group       | Records                              |
+|-------------|--------------------------------------|
+| Exploration | Wyrdnights, quests, locations        |
+| Crafting    | Recipes and item quantities          |
+| Consumption | Food, potions and fish               |
+| Wealth      | Total Gold earned                    |
+| Crime       | Crimes, locks and pickpocketing      |
+| Bounty      | Current and highest                  |
+| Rest        | Hours rested and deaths              |
+| Combat      | Total, weapons, magic, summons       |
+| Blood Magic | Essence, Power, corpse tiers         |[/code]
 
-Deleting the JSON does not reset the save-backed counters. It is rebuilt after a successful save or after loading saved data.
+Event-backed deed counters begin when Deeds starts tracking that character. Crafted and pickpocketed entries count item quantities rather than callback occurrences. One player crime action counts once even if several crime owners report it. Active Bounty is reconciled from the save's current per-faction bounty values, including bounty that existed before Deeds was installed. Highest Bounty is the highest value Deeds has observed.
+
+Total Gold Earned records positive changes to Gold and ignores spending. It begins at zero when the statistic first becomes available rather than treating current Gold as previous earnings. Its icon grows with the saved total:
+
+[code]
+| Wealth tier | Total Gold earned |
+|-------------|-------------------|
+| Very Low    | 1 - 999           |
+| Low         | 1,000 - 4,999     |
+| Medium      | 5,000 - 14,999    |
+| High        | 15,000 - 39,999   |
+| Very High   | 40,000 or more    |[/code]
+
+[line]
 
 [heading][color=#C94A4A][size=5]Foes Defeated[/size][/color][/heading]
-Hero-killed NPCs are counted once and classified from the fatal damage source. Weapon rows distinguish one-handed sword, axe, blunt, and dagger kills; two-handed sword, axe, blunt, and polearm kills; bow weights; shields; unarmed attacks; throwables; and fallbacks. Magic rows use the spell or equipped magic-item name when the game supplies one, then fall back to fatal Fire, Cold, Poison, Electric, Wyrdness, Pure, Wet, or Other damage.
+Hero-killed NPCs are counted once and classified from the fatal damage source. Enemies killed by the player's summons use the game's dedicated summon-kill event and appear under Summons. Summoned targets are excluded from both hero and summon kill totals.
 
-Only category values above zero are shown. Separate weapon and magic row limits keep the panel readable, with excess positive categories combined into Other rows when enabled.
-
-[heading][color=#C94A4A][size=5]Deeds and Integrations[/size][/color][/heading]
-The left column can show Wyrdnights survived, quests completed, locations discovered, crimes committed, recorded active and highest recorded bounty, rest count and hours, and Blood Magic statistics. Recorded active bounty covers factions observed through crime or bounty-clear events since Deeds began tracking; it is not presented as a complete current total for an existing save with unobserved faction bounty.
-
-[b]Blood Magic Expansion 2.4.6+:[/b] a corpse is counted only after its ritual completes successfully. The exact wording is [b]Corpses Drained[/b], with Meager, Worthy, Potent, and Prime quality rows. Interrupted, rejected, and incomplete rituals do not count.
-
-[b]Glorious UI:[/b] Deeds hides the top-right Points available widget during the quick wheel. When Glorious UI's master [b]Enabled[/b] switch and [b]HideGameplayHudInQuickUseWheel[/b] setting are both enabled, Deeds defers to Glorious UI. Otherwise, Deeds hides and restores only the live widget and never changes the Glorious UI setting.
-
-[b]Killing Blow Mastery:[/b] there is no statistics backward compatibility. Deeds does not read, import, translate, or migrate former Killing Blow Mastery counters or TSV reports.
-
-[heading][color=#C94A4A][size=5]Main Defaults[/size][/color][/heading]
 [code]
-| Setting                     | Default |
-|-----------------------------|---------|
-| ShowCharacterStatistics     | true    |
-| HideItemTooltipText         | false   |
-| PanelOpacity                | 1.0     |
-| TooltipPanelOpacity         | 0.5     |
-| TooltipFadeSeconds          | 0.15    |
-| PanelScale                  | 1.0     |
-| RightOffset                 | 48      |
-| TopOffset                   | 145     |
-| MaximumDeedRows             | 9       |
-| MaximumWeaponRows           | 7       |
-| MaximumMagicRows            | 5       |
-| ShowCollapsedOtherRows      | true    |
-| HidePointsAvailable         | true    |
-| ShowBloodMagicStatistics    | true    |
-[/code]
+| Source | Tracks                                |
+|--------|---------------------------------------|
+| 1H     | Sword, Axe, Blunt, Dagger, Spear      |
+| 2H     | Sword, Axe, Blunt, Spear              |
+| Other  | Bows, Shield, Unarmed, Throwables     |
+| Magic  | Named spells and eight damage types   |
+| Extra  | Summons, Other Weapons, Other Magic   |[/code]
 
-[heading][color=#C94A4A][size=5]Installation[/size][/color][/heading]
-Install with Vortex or place the [b]DeedsOfAvalon[/b] folder under [b]BepInEx/plugins[/b]. Start the game once to create [b]BepInEx/config/ks.tgfoa.deeds-of-avalon.cfg[/b].
+Sickles count as One-Handed Axe. Existing two-handed polearm statistics display as Two-Handed Spear. Every recognized one-handed and two-handed category has its own weapon icon.
+
+[b]WeaponStatisticsMode[/b] controls presentation without reducing tracking detail:
+
+[code]
+| Mode     | Shows                               |
+|----------|-------------------------------------|
+| Detailed | Individual weapon types             |
+| Grouped  | One-Handed, Two-Handed and Bows     |
+| Both     | Shield, Unarmed, Throwables, Other  |[/code]
+
+Unrecognized one-handed, two-handed, ranged, and general weapon sources retain separate save-backed counters but share one displayed fallback row. With kill-count sorting enabled, the mixed list names its two fallbacks Other Weapons and Other Magic. With sorting disabled, both use Other and remain distinguishable by their authored section and icon.
+
+Named spells retain their own counters and use the dominant recorded damage type for both icon and color. Different spell names that normalize to the same save key receive stable disambiguated keys instead of silently merging.
+
+[code]
+| Magic type | Grail Floating Text style |
+|------------|---------------------------|
+| Blood      | Red                       |
+| Fire       | Orange                    |
+| Cold       | Blue                      |
+| Wet        | Blue                      |
+| Electric   | Gold                      |
+| Poison     | Green                     |
+| Pure       | Pale                      |
+| Wyrdness   | Semantic Wyrd             |
+| Summons    | Pink                      |
+| Other      | White                     |[/code]
+
+When kill-count sorting is disabled, named spells remain together and the fallback order is Fire, Cold, Wet, Electric, Poison, Blood, Pure, Wyrdness, Summons, then Other.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Save Reliability and Export[/size][/color][/heading]
+The authoritative counters live in the active save's GameplayMemory. The readable JSON is a convenient export, not the source of truth.
+
+[code]
+BepInEx/config/DeedsOfAvalon/Characters/<character-id>/statistics.json[/code]
+
+Deeds follows the game's save boundary:
+[list]
+[*]A readable snapshot is captured while save memory serializes.[/*]
+[*]The JSON is written only after the game confirms that the save succeeded.[/*]
+[*]Loading saved data refreshes the JSON from the loaded state.[/*]
+[*]Dying, reloading, or quitting without saving discards those unsaved counter changes.[/*]
+[/list]
+
+Deleting [b]statistics.json[/b] does not reset the character. The file is rebuilt after a successful save or after loading saved data. Removing the plugin also does not erase its GameplayMemory context from an existing save.
+
+Total foes, corpse-drain totals, and current bounty reconcile from their authoritative components. Negative values are clamped, counters use saturating addition, multi-owner crime reports are deduplicated to one player action, and loaded-save export waits for GameplayMemory when scene services are still transitioning.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Panel Design and Performance[/size][/color][/heading]
+[list]
+[*][b]Responsive placement:[/b] The panel keeps its 1440p proportions on shorter displays, shrinks further only when needed to fit unusually tall row sets, centers vertically, and remains right-anchored at ultrawide resolutions.[/*]
+[*][b]Charcoal backplates:[/b] Two separately seeded procedural black alpha masks provide different mottling, fibers, transparent gutters, and softly irregular edges. Their subtractive design keeps contrast without becoming gray rectangles in black interiors.[/*]
+[*][b]Native text effects:[/b] Configurable SDF outlines and underlays provide strong contrast without the dozens of copied text objects required by layered UI shadows.[/*]
+[*][b]Tooltip-aware fading:[/b] Normal weapon and spell tooltips remain enabled. The statistics panel fades out by default while either tooltip is visible, then returns smoothly.[/*]
+[*][b]Direct wheel lifecycle:[/b] The panel appears as the quick wheel opens and clears as closing begins. Values refresh five times per second only while open; Deeds does not search the world for the wheel every frame.[/*]
+[/list]
+
+Semantic White text receives a small fixed outline-strength adjustment for Level/XP, HP/MP/SP, Total, and contextual point rows. This does not affect icons or Pale text.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Optional Integrations[/size][/color][/heading]
+Deeds supports [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.6.7+, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url], and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] without making them hard requirements.
+
+[code]
+| Mod         | Adds                          |
+|-------------|-------------------------------|
+| GFT         | Quick-wheel panel             |
+| Blood Magic | Essence, Power, corpse tiers  |
+| Eyes        | Semantic Wyrd colors          |
+| Glorious UI | Points widget ownership       |[/code]
+
+[b]Blood Magic Expansion 2.6.7+:[/b] Deeds displays [b]Blood Essence: X (Y)[/b], where X is integer Blood Essence and Y is Blood Power. Blood Essence remains uncapped; Blood Power reaches normal mastery at 100 and its hard cap at 120.
+
+[b]BloodMagicStatisticsMode[/b] chooses mutually exclusive corpse rows:
+
+[code]
+| Mode     | Rows          |
+|----------|---------------|
+| Simple   | Total         |
+| Detailed | Meager-Prime  |[/code]
+
+Detailed rows use their matching Meager, Worthy, Potent, and Prime corpse icons. The aggregate Blood Essence row uses the blood-magic icon. Simple-mode Corpses Drained selects an icon from saved average corpse quality, with an empty history resolving to Meager.
+
+Existing tier counts and their saved quality sum can initialize Blood Magic progression for an older character. Afterward, BME periodically synchronizes its absolute tier ledger so a temporarily unavailable callback cannot permanently drift the values. Interrupted, rejected, rolled-back, and incomplete rituals do not count.
+
+[b]Eyes in the Dark:[/b] Wyrdnights survived and Wyrdness magic follow its live Purple Wyrdness or Native Orange palette through GFT's semantic Wyrd style.
+
+[b]Glorious UI:[/b] When its master Enabled switch and HideGameplayHudInQuickUseWheel are both enabled, Deeds defers ownership of the Points available widget. Otherwise, Deeds hides and restores only the live widget and never changes Glorious UI's config.
+
+[b]Killing Blow Mastery:[/b] Deeds starts independent statistics and does not read, import, translate, or migrate former Killing Blow Mastery counters or TSV reports.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
+Start the game once to generate:
+
+[code]
+BepInEx/config/ks.tgfoa.deeds-of-avalon.cfg[/code]
+
+[b]Common defaults[/b]
+[code]
+| Setting                  | Default  |
+|--------------------------|----------|
+| Enabled                  | true     |
+| TrackStatistics          | true     |
+| ExportOnSuccessfulSave   | true     |
+| ShowCharacterStatistics  | true     |
+| HideItemTooltipText      | false    |
+| PanelScale               | 1.5      |
+| PanelColumnWidth         | 190      |
+| ColumnGap                | 30       |
+| PanelBackgroundOpacity   | 0.95     |
+| WeaponStatisticsMode     | Detailed |
+| SortFoesByKillCount      | true     |
+| ShowBloodMagicStatistics | true     |
+| BloodMagicStatisticsMode | Detailed |[/code]
+
+Additional settings control tooltip fading, opacity, padding, offsets, colors, text outline and backing, row limits, collapsed Other rows, and the Points available widget. Most users can leave them at their defaults. FoA Mod Manager organizes them into focused presentation groups.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
+Install with Vortex as a [b]BepInEx plugin[/b], or place the packaged folder here:
+
+[code]
+BepInEx/plugins/DeedsOfAvalon/DeedsOfAvalon.dll[/code]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
+[list]
+[*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
+[*][b]BepInEx 5 for the Mono build[/b].[/*]
+[*]Supports Windows and Linux.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for the quick-wheel panel.[/*]
+[/list]
+
+[line]
+
+[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
+Incompatible config updates create a backup and generate current defaults. Compatible customized settings can be restored automatically or through FoA Mod Manager's final [b]Import Previous Settings[/b] tab. Restart the game after importing.

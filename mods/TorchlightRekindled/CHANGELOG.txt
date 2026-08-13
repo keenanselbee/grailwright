@@ -1,3 +1,109 @@
+Version 0.4.3
+Replaced the DarkInteriors and VanillaInteriors presentation with plainly named Bright and Vanilla presets. Vanilla is described as the balance for normal interior brightness, while Bright is described as the balance for darker interiors.
+Added separate interior and exterior brightness preset selectors. Bright defaults indoors, Vanilla defaults outdoors, and the active torch updates automatically when the environment changes.
+Reset the configuration because the interior preset was renamed and given a new generic type and meaning. The previous config is backed up, compatible customized settings are restored automatically, and the two preset selectors start from their new environment-specific defaults.
+
+Version 0.4.2
+Adopted the tested flame-corona position as the new default: 0.45 vertical offset and -0.12 torch-local horizontal offset.
+Reset the configuration because the recommended halo-position defaults changed. The previous config is backed up, and compatible customized settings are restored automatically.
+
+Version 0.4.1
+Reorganized FoA Mod Manager settings into clear General, Torch Light, Visible Flame, Flame Halo, advanced alignment, Interior Bloom, Audio, and Diagnostics groups with user-facing names while retaining compatible stored keys.
+Changed RangeBonusMeters to use literal metres with a 20-metre default and 0-to-70-metre range. The configuration is reset because the setting's meaning and range changed; the previous config is backed up and other compatible customized settings are restored automatically, while range starts from its new default.
+Corrected the manager-facing bash rotation label to Light Parry Roll Offset while retaining the legacy stored key for config compatibility.
+Extracted the halo parry, block, and pommel-bash transitions into a deterministic state controller with contract coverage for fade timing, recovery timing, and rapid reblocking.
+
+Version 0.4.0
+Added live torch-local pitch and yaw corrections for aligning the elongated flame corona with the torch's burnable portion across animations.
+Added a live horizontal corona offset for centering the glow sideways without changing its size or vertical position.
+
+Version 0.3.9
+Fades the flame corona out over 0.2 seconds when blocking begins instead of hiding it immediately.
+Lengthens the post-block recovery to 0.4 seconds when the blocking sequence included a BlockPommel bash, while ordinary blocks retain their 0.2-second recovery.
+
+Version 0.3.8
+Correctly distinguishes the quick BlockParry light tap from the held-block BlockPommel bash.
+Restores the corona over 0.2 seconds after an ordinary block and over 0.3 seconds after a blocking sequence that included a pommel bash.
+Keeps the corona hidden when a pommel bash returns to held blocking, then begins the longer recovery only after the complete block ends.
+
+Version 0.3.7
+Hides the flame corona immediately throughout held blocking, then smoothly fades it back over 0.3 seconds once the block fully ends.
+Keeps the existing bash rotation and half-size treatment visible by giving the BlockParry state priority over block hiding.
+
+Version 0.3.6
+Automatically restores safe customized settings after an incompatible config reset through the shared typed recovery and current-range clamping path.
+Corrected the bash-rotation config help to identify the actual dual-handed BlockParry state.
+
+Version 0.3.5
+Shortened the smooth post-bash corona recovery from 0.5 seconds to 0.3 seconds.
+
+Version 0.3.4
+Added a live InteriorLightingPreset selector with DarkInteriors as the default and VanillaInteriors as a half-brightness balance for world illumination, visible flame brightness, flame HDR bloom response, and flame-corona strength.
+Kept individual tuning, range, flicker timing, corona shape, audio, and interior bloom controls unchanged when switching presets.
+
+Version 0.3.3
+Changed the post-bash corona recovery from an immediate size jump to a smooth 0.5-second return from half-size to the configured size.
+
+Version 0.3.2
+Temporarily halves the flame corona's overall size during a torch bash, then restores the configured size immediately afterward.
+
+Version 0.3.1
+Changed torch-bash detection to the dual-handed BlockParry state actually used by the game, so the configured 90-degree corona correction activates during the bash without affecting ordinary weapon attacks or held blocking.
+Fixed rigid torch-axis capture to use the positioned flame anchor instead of its zero-offset parent pivot, preventing the corona from silently falling back to the less stable hand-to-flame direction.
+
+Version 0.3.0
+Added an immediate 90-degree corona correction while the torch's dual-handed light-attack bash is active, preventing the elongated halo from becoming perpendicular to the torch during the bash.
+Added FlameHaloBashRotationOffsetDegrees for live adjustment of the bash-only correction without changing upright or blocking alignment.
+
+Version 0.2.9
+Made the flame corona follow a cached axis from the rigid torch model instead of the independently shifted flame-effect position, keeping it aligned during torch bashes as well as upright and blocking poses.
+Adopted the tested flame-corona defaults: strength 5, size 0.07 metres, vertical scale 2.2, vertical offset 0.5, and rotation correction -20 degrees.
+Reset the configuration because the recommended flame-corona defaults changed. The previous config is backed up before fresh defaults are generated.
+
+Version 0.2.8
+Raised the maximum FlameHaloStrength from 3 to 10 for much stronger optional corona glow while keeping the recommended default at 3.
+
+Version 0.2.7
+Added a live FlameHaloRotationOffsetDegrees control from -180 to 180 degrees for correcting the automatic torch-shaft alignment without restarting or changing the detected animation tracking.
+
+Version 0.2.6
+Moved flame-corona elongation from hierarchy scaling into the particle's own three-axis size so its camera-facing billboard roll can rotate the stretched shape with the torch.
+
+Version 0.2.5
+Made flame-corona rotation follow the animated torch shaft from the equipped root to the flame instead of the flame effect's intentionally upright axis, fixing the corona remaining vertical while blocking.
+
+Version 0.2.4
+Restored the flame corona's camera-facing billboard so it remains visible from every torch pose.
+Made the visible corona roll with the flame anchor's projected axis after animation updates, keeping its elongated shape aligned with the torch while blocking without per-frame allocations or object searches.
+
+Version 0.2.3
+Doubled the internal response of LightFlickerStrength again, so the displayed default 1 now uses four-times strength while keeping the displayed default and range unchanged.
+Made the flame corona inherit the flame anchor's local orientation instead of remaining camera-upright, so its elongated shape stays aligned with the torch while blocking and during other animations.
+Reset the configuration because LightFlickerStrength gained a stronger meaning. The previous config is backed up before fresh defaults are generated.
+
+Version 0.2.2
+Doubled the internal strength and speed response of the added torch-light flicker while keeping both displayed defaults and ranges unchanged.
+Raised the fire-loop volume response from two-times to four-times internal gain while retaining the displayed volume control and range.
+Adopted the tested flame-corona defaults: strength 3, size 0.065 metres, vertical scale 2.5, and vertical offset 0.45.
+Added an optional torch-equipped gate for interior bloom. It is disabled by default, so weak interior bloom remains enhanced even while the torch is put away.
+Reset the configuration because flicker and audio values gained stronger meanings and the flame-corona defaults changed. The previous config is backed up before fresh defaults are generated.
+
+Version 0.2.1
+Moved vanilla equipped-effect alignment into First Person Arms Adjuster 0.3.8 so torch flames and embers have one general presentation owner and cannot receive the offset twice.
+Kept Torchlight Rekindled's added corona and fire audio parented to the corrected vanilla flame anchor so they continue to follow automatically.
+
+Version 0.2.0
+Added independent vertical scale and proportional vertical offset controls for shaping the flame corona, with a subtle 5 percent upward default.
+Made torch flame effects follow First Person Arms Adjuster's presentation-only visual offset without moving the gameplay hand socket, torch light, physics, or projectile origins.
+
+Version 0.1.9
+Added an equipped-torch interior bloom floor that strengthens weak native threshold, intensity, and scatter settings while preserving stronger scene profiles.
+Kept the bloom enhancement performance-friendly by reusing HDRP's existing bloom pass, retaining native quality and resolution, and checking cached scene context once per second.
+Added configurable interior bloom threshold, intensity, and scatter targets with balanced recommended defaults.
+
+Version 0.1.8
+Fixed the flame halo rendering as an opaque square by validating its HDRP material and applying its radial emissive texture mask.
+
 Version 0.1.7
 Added configurable held-torch reach and world illumination with practical recommended defaults.
 Added synchronized illumination-only flicker strength and speed controls that ride on the native torch update without changing flame particles or range.

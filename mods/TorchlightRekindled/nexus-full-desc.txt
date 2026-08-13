@@ -1,87 +1,105 @@
-[center][color=#E58A36][size=6]Torchlight Rekindled[/size][/color]
-[i]More useful light, a richer flame, and the sound a burning torch deserves.[/i][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+
+[center][color=#C94A4A][size=6]Torchlight Rekindled[/size][/color]
+[i]Carry a brighter flame into Avalon's darkest places, with richer bloom, livelier fire, and immersive torch audio.[/i][/center]
 
 [line]
 
-[b]Torchlight Rekindled[/b] expands the held torch in [b]Tainted Grail: The Fall of Avalon[/b] without replacing its character. The original flicker remains, while illumination, visible flame glow, HDR bloom, and fire audio can each be tuned separately.
+The vanilla torch in [b]Tainted Grail: The Fall of Avalon[/b] is rather barebones: its illumination barely flickers, the visible flame has little brightness or bloom presence, and it has no continuous fire audio.
+
+[b]Torchlight Rekindled[/b] builds on that foundation with adjustable reach and illumination, livelier synchronized flicker, separate visible-flame and HDR bloom controls, an animation-aware flame corona, and a spatial fire loop attached directly to the held flame. Each layer remains independently configurable, and the original torch behavior is restored when the mod is disabled.
 
 [line]
 
-[heading][color=#E58A36][size=5]Features[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]Range bonus:[/b] Choose between a tight atmospheric pool and long dungeon sightlines, with 3 recommended.[/*]
-[*][b]Illumination:[/b] Control how strongly the torch lights walls, floors, and characters. The original flicker is retained and 1 is recommended.[/*]
-[*][b]Light flicker:[/b] Add synchronized slow and fast variation to the illumination cast on the world without changing flame particles or range.[/*]
-[*][b]Flame brightness:[/b] Tune the visible flame, embers, and sparks separately from world illumination, with 0.75 recommended.[/*]
-[*][b]HDR bloom:[/b] Move from a crisp flame to a strong hard-to-look-at glare, with 0.75 recommended.[/*]
-[*][b]Flame corona:[/b] Add a soft radial warm glow for a larger, more readable bloom halo without solid geometry, another gameplay light, or a shadow caster.[/*]
-[*][b]Fire audio:[/b] Add the game's spatial small-fire loop at the torch in the equipped hand, with 1 recommended.[/*]
+[*][b]Interior and exterior brightness presets:[/b] Use Bright by default in darker interiors and Vanilla by default outdoors. Either environment can select either preset live without overwriting individual settings.[/*]
+[*][b]Reach and illumination:[/b] Choose between a tight atmospheric pool and long dungeon sightlines, then tune how strongly the torch lights walls, floors, and characters without flattening the original flicker.[/*]
+[*][b]Livelier light:[/b] Add synchronized slow and fast variation to the illumination cast on the world without changing flame particles or range.[/*]
+[*][b]Independent flame and HDR bloom:[/b] Tune the visible flame, embers, and sparks separately from world illumination, then control their extra HDR glare without removing the flame.[/*]
+[*][b]Animation-aware flame corona:[/b] Add a shapeable soft warm glow with live pitch, yaw, roll, and position corrections for matching the torch's burnable portion. Quick light parries receive their own rotation correction and half-size treatment, while blocking fades the corona out and restores it smoothly after the complete block, without another gameplay light or shadow caster.[/*]
+[*][b]Interior bloom floor:[/b] Strengthen only weak native bloom threshold, intensity, and spread settings throughout interiors without reducing stronger profiles or changing bloom quality and resolution, with an optional torch-equipped gate.[/*]
+[*][b]Missing vanilla torch audio:[/b] The vanilla held torch has no continuous fire loop. Add the game's own spatial small-fire sound directly at the visible flame, with configurable volume.[/*]
+[*][b]Live tuning and clean restoration:[/b] Apply changes immediately, retain individual controls under either preset, and restore the original torch light and flame values when the mod is disabled.[/*]
 [/list]
 
 [line]
 
-[heading][color=#E58A36][size=5]Configuration[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 [code]
-| Setting                   | Default | Range       |
-|---------------------------|---------|-------------|
-| Enabled                   | true    | true/false  |
-| RangeBonusMeters          | 3.0     | 0.0-10.0    |
-| BrightnessMultiplier      | 1.0     | 0.25-3.0    |
-| LightFlickerStrength      | 1.0     | 0.0-2.0     |
-| LightFlickerSpeed         | 1.0     | 0.5-2.0     |
-| FlameBrightnessMultiplier | 0.75    | 0.25-3.0    |
-| FlameBloomMultiplier      | 0.75    | 0.0-3.0     |
-| FlameHaloStrength         | 1.0     | 0.0-3.0     |
-| FlameHaloSize             | 0.08    | 0.02-0.25 m |
-| LoopingFireAudio          | true    | true/false  |
-| LoopingFireVolume         | 1.0     | 0.0-2.0     |
-[/code]
+| Setting                                | Default | Range           |
+|----------------------------------------|---------|-----------------|
+| Enabled                                | true    | true / false    |
+| RangeBonusMeters                       | 20.0    | 0.0 - 70.0 m    |
+| BrightnessMultiplier                   | 1.0     | 0.25 - 3.0      |
+| LightFlickerStrength                   | 1.0     | 0.0 - 2.0       |
+| LightFlickerSpeed                      | 1.0     | 0.5 - 2.0       |
+| FlameBrightnessMultiplier              | 0.75    | 0.25 - 3.0      |
+| FlameBloomMultiplier                   | 0.75    | 0.0 - 3.0       |
+| FlameHaloStrength                      | 5.0     | 0.0 - 10.0      |
+| FlameHaloSize                          | 0.07    | 0.02 - 0.25 m   |
+| FlameHaloVerticalScale                 | 2.2     | 0.25 - 4.0      |
+| FlameHaloVerticalOffset                | 0.45    | -1.0 - 1.0      |
+| FlameHaloHorizontalOffset              | -0.12   | -1.0 - 1.0      |
+| FlameHaloAxisPitchOffsetDegrees        | 0       | -45 - 45        |
+| FlameHaloAxisYawOffsetDegrees          | 0       | -45 - 45        |
+| FlameHaloRotationOffsetDegrees         | -20     | -180 - 180      |
+| FlameHaloBashRotationOffsetDegrees     | 90      | -180 - 180      |
+| EnhanceInteriorBloom                   | true    | true / false    |
+| InteriorBloomOnlyWhileTorchEquipped    | false   | true / false    |
+| InteriorBloomThreshold                 | 1.0     | 0.0 - 4.0       |
+| InteriorBloomIntensity                 | 0.25    | 0.0 - 1.0       |
+| InteriorBloomScatter                   | 0.65    | 0.0 - 1.0       |
+| LoopingFireAudio                       | true    | true / false    |
+| LoopingFireVolume                      | 1.0     | 0.0 - 2.0       |[/code]
 
 The configuration is stored at:
 
 [code]
 BepInEx/config/ks.tgfoa.torchlight-rekindled.cfg[/code]
 
+FoA Mod Manager presents these controls in focused General, Torch Light, Visible Flame, Flame Halo, advanced alignment, Interior Bloom, Audio, and Diagnostics groups. The raw config retains FlameHaloBashRotationOffsetDegrees as the stored key for compatibility, but the manager correctly labels it Light Parry Roll Offset.
+
 The bloom result depends on the active post-processing and bloom settings. Setting FlameBloomMultiplier to 0 removes the flame's extra HDR headroom without removing the flame.
 
-LightFlickerStrength controls additional illumination variation and 0 retains only vanilla flicker. LightFlickerSpeed controls the added motion. The two held-torch lights share one signal, while flame particles and range remain unchanged.
+InteriorBrightnessPreset and ExteriorBrightnessPreset apply separate live balances without rewriting the individual controls. Vanilla is balanced for normal interior brightness, while Bright is balanced for darker interiors. Bright is the default indoors and retains the full configured outputs: 5x world illumination, 2.25x flame-brightness response, 2.25x flame HDR-bloom response, and halo strength 5. Vanilla is the default outdoors and halves those effective outputs to 2.5x, 1.125x, 1.125x, and 2.5. Range, flicker timing, halo size and shape, audio, and the separate interior bloom controls remain unchanged.
 
-FlameHaloStrength controls the additional soft warm corona and 0 disables it. FlameHaloSize controls its diameter; the recommended 0.08 metre size keeps the radial glow inside the visible fire.
+RangeBonusMeters is the number of metres added to the original torch range. LightFlickerStrength controls additional illumination variation, and 0 retains only vanilla flicker. LightFlickerSpeed controls the added motion. The two held-torch lights share one signal, while flame particles and range remain unchanged.
 
-The recommended defaults provide long torch reach, strong world illumination, a bright but readable flame, visible bloom, and an audible hand-positioned crackle. Lower individual controls for a darker, crisper, or quieter presentation.
+FlameHaloStrength controls the additional soft warm corona; 0 disables it, while higher values produce a more pronounced glow. FlameHaloSize controls the width of its emissive core. FlameHaloVerticalScale changes only its height, while the vertical and horizontal offsets position it over the burnable portion. The tested defaults use a 0.45 vertical offset and -0.12 torch-local side offset for a better-centered glow. FlameHaloAxisPitchOffsetDegrees and FlameHaloAxisYawOffsetDegrees correct the tracked direction in torch-local space before screen projection. The corona remains camera-facing, and FlameHaloRotationOffsetDegrees supplies the final screen-space roll correction. During the quick BlockParry light tap, the legacy-named FlameHaloBashRotationOffsetDegrees adds a second correction, the corona becomes half-size, and it smoothly returns to its configured size over 0.3 seconds. When held blocking begins, the corona fades out over 0.2 seconds and remains hidden through BlockPommel bashes. It fades back over 0.2 seconds after an ordinary block, or over 0.4 seconds after a blocking sequence that included a pommel bash.
+
+EnhanceInteriorBloom creates one lightweight HDRP bloom override throughout interiors. InteriorBloomThreshold caps overly restrictive native thresholds, while InteriorBloomIntensity and InteriorBloomScatter establish minimum strength and spread. Stronger native profiles remain unchanged. The controller reuses the existing bloom pass, retains native quality and resolution, checks cached scene context once per second, and disables itself outdoors. Because bloom is screen-wide, other bright emissive objects also benefit. InteriorBloomOnlyWhileTorchEquipped is disabled by default; enable it to limit the enhancement to times when the torch is equipped.
+
+The defaults provide long torch reach, strong world illumination, a bright but readable flame, visible bloom, and an audible hand-positioned crackle. Lower individual controls for a darker, crisper, or quieter presentation.
 
 [line]
 
-[heading][color=#E58A36][size=5]Recommended Companion Setup[/size][/color][/heading]
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/213]Light Control[/url] is recommended for stronger dungeon contrast around the torch. Suggested values under [b]06 Dungeons[/b]:
+[heading][color=#C94A4A][size=5]Recommended Mods & Interior Lighting Setup[/size][/color][/heading]
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/213]Light Control[/url] is recommended for darker dungeons that make the torch genuinely necessary. Suggested settings:
 
 [code]
-| Setting                  | Value |
+| Dungeons                 | Value |
 |--------------------------|-------|
 | Brightness Offset Day    | -2    |
 | Brightness Offset Night  | -2    |
 | World Intensity Day      | 2     |
-| World Intensity Night    | 2     |
-[/code]
-
-Suggested values under [b]07 Interiors[/b]:
+| World Intensity Night    | 2     |[/code]
 
 [code]
-| Setting                  | Value |
+| Interiors                | Value |
 |--------------------------|-------|
 | Brightness Offset Day    | -1.5  |
 | Brightness Offset Night  | -1.5  |
 | World Intensity Day      | 1.5   |
-| World Intensity Night    | 1.5   |
-[/code]
+| World Intensity Night    | 1.5   |[/code]
 
-Light Control adjusts scene lighting and is compatible with Torchlight Rekindled. It is a different mod from Torch Light Control, which modifies the held torch itself and is incompatible.
+For richer indirect light, use [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] together with the [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225]KS Global Illumination Addon[/url]. The parent mod supplies screen-space indirect diffuse and reflections, while the addon keeps the full profile indoors, uses a more efficient balanced profile outdoors, and adapts conservatively toward its performance target. This complements Torchlight Rekindled's direct torch light and interior bloom rather than replacing them.
 
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] is also recommended for positioning the rendered arms, weapons, and held torch without moving the gameplay camera.
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] 0.3.8+ is also recommended for positioning the rendered arms, weapons, held torch, and equipped presentation effects without moving the gameplay camera. It moves the vanilla torch flame and embers; Torchlight Rekindled's corona position and fire audio follow their corrected flame parent, while the corona orientation follows the rigid torch model. The gameplay socket, light, physics, and projectile origins remain unchanged.
 
 [line]
 
-[heading][color=#E58A36][size=5]Install[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
 Install with Vortex as a [b]BepInEx plugin[/b], or place the plugin folder here:
 
 [code]
@@ -89,18 +107,18 @@ BepInEx/plugins/TorchlightRekindled/TorchlightRekindled.dll[/code]
 
 [line]
 
-[heading][color=#E58A36][size=5]Requirements[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
-[*]Supports Windows and Linux through Proton.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]
 
-[heading][color=#E58A36][size=5]Compatibility[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
-[*]Do not combine this mod with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/236]Torch Light Control[/url]. Both modify the same held light, and Torchlight Rekindled declares it incompatible to prevent compounded values.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/236]Torch Light Control[/url] is incompatible.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] is compatible because it controls the separate hidden HeroLight.[/*]
 [*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]

@@ -2,11 +2,12 @@
   "id": "TorchlightRekindled",
   "displayName": "Torchlight Rekindled",
   "packageName": "TorchlightRekindled",
-  "version": "0.1.7",
+  "version": "0.4.3",
   "pluginGuid": "ks.tgfoa.torchlight-rekindled",
   "dll": "TorchlightRekindled.dll",
   "sourceFiles": [
     "src/TorchlightRekindled.cs",
+    "src/HaloAnimationState.cs",
     "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
     "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],

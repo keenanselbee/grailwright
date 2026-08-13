@@ -5,10 +5,15 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using Awaken.TG.Main.Animations.FSM.Heroes.Base;
+using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.Graphics.VFX;
 using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
+using Awaken.TG.Main.Scenes;
+using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
 using BepInEx;
 using BepInEx.Configuration;
 using FMOD;
@@ -16,6 +21,7 @@ using FMOD.Studio;
 using FMODUnity;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.VFX;
 
@@ -24,11 +30,17 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Torchlight Rekindled")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.1.7.0")]
-[assembly: AssemblyFileVersion("0.1.7.0")]
+[assembly: AssemblyVersion("0.4.3.0")]
+[assembly: AssemblyFileVersion("0.4.3.0")]
 
 namespace TorchlightRekindled
 {
+    public enum TorchBrightnessPreset
+    {
+        Vanilla,
+        Bright
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
@@ -39,10 +51,13 @@ namespace TorchlightRekindled
         public const string PluginGuid =
             "ks.tgfoa.torchlight-rekindled";
         public const string PluginName = "Torchlight Rekindled";
-        public const string PluginVersion = "0.1.7";
+        public const string PluginVersion = "0.4.3";
 
-        private const int ConfigSchemaVersion = 5;
+        private const int ConfigSchemaVersion = 11;
         private const int ConfigRecoveryBaselineSchema = 1;
+        private const float InteriorBloomCheckIntervalSeconds = 1f;
+        private const float InteriorBloomPriority = 10010f;
+        private const float InteriorBloomEpsilon = 0.001f;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
                 new[]
@@ -101,7 +116,52 @@ namespace TorchlightRekindled
                         5,
                         "4. Audio",
                         "LoopingFireVolume",
-                        "Displayed 1 is now the recommended fire-loop volume.")
+                        "Displayed 1 is now the recommended fire-loop volume."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "2. Torch Light",
+                        "LightFlickerStrength",
+                        "Displayed flicker strength now uses a doubled internal response."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "2. Torch Light",
+                        "LightFlickerSpeed",
+                        "Displayed flicker speed now uses a doubled internal response."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "3. Flame",
+                        "FlameHaloStrength",
+                        "The recommended flame-halo strength default is now 3."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "3. Flame",
+                        "FlameHaloSize",
+                        "The recommended flame-halo size default is now 0.065 metres."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "3. Flame",
+                        "FlameHaloVerticalScale",
+                        "The recommended flame-halo vertical scale default is now 2.5."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "3. Flame",
+                        "FlameHaloVerticalOffset",
+                        "The recommended flame-halo vertical offset default is now 0.45."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "4. Audio",
+                        "LoopingFireVolume",
+                        "Displayed fire-loop volume now uses four-times internal gain."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        7,
+                        "2. Torch Light",
+                        "LightFlickerStrength",
+                        "Displayed flicker strength now uses a four-times internal response."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        9,
+                        "2. Torch Light",
+                        "RangeBonusMeters",
+                        "RangeBonusMeters now stores literal metres instead of an amplified compact control.")
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
@@ -117,10 +177,15 @@ namespace TorchlightRekindled
         private readonly Dictionary<LightController, TorchRuntime>
             _trackedLightOwners =
                 new Dictionary<LightController, TorchRuntime>();
+        private readonly Dictionary<ConfigDefinition, object>
+            _pendingPreservedSettings =
+                new Dictionary<ConfigDefinition, object>();
         private Harmony _harmony;
         private FieldInfo _bakedNativeIntensityField;
         private FieldInfo _rangeField;
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<TorchBrightnessPreset> _interiorBrightnessPreset;
+        private ConfigEntry<TorchBrightnessPreset> _exteriorBrightnessPreset;
         private ConfigEntry<float> _rangeBonusMeters;
         private ConfigEntry<float> _lightBrightnessMultiplier;
         private ConfigEntry<float> _lightFlickerStrength;
@@ -129,15 +194,61 @@ namespace TorchlightRekindled
         private ConfigEntry<float> _flameBloomMultiplier;
         private ConfigEntry<float> _flameHaloStrength;
         private ConfigEntry<float> _flameHaloSize;
+        private ConfigEntry<float> _flameHaloVerticalScale;
+        private ConfigEntry<float> _flameHaloVerticalOffset;
+        private ConfigEntry<float> _flameHaloHorizontalOffset;
+        private ConfigEntry<float> _flameHaloAxisPitchOffsetDegrees;
+        private ConfigEntry<float> _flameHaloAxisYawOffsetDegrees;
+        private ConfigEntry<float> _flameHaloRotationOffsetDegrees;
+        private ConfigEntry<float> _flameHaloLightParryRotationOffsetDegrees;
+        private ConfigEntry<bool> _enhanceInteriorBloom;
+        private ConfigEntry<bool> _interiorBloomOnlyWhileTorchEquipped;
+        private ConfigEntry<float> _interiorBloomThreshold;
+        private ConfigEntry<float> _interiorBloomIntensity;
+        private ConfigEntry<float> _interiorBloomScatter;
         private ConfigEntry<bool> _loopingFireAudio;
         private ConfigEntry<float> _loopingFireVolume;
         private ConfigEntry<bool> _diagnostics;
+        private GameObject _interiorBloomObject;
+        private Volume _interiorBloomVolume;
+        private VolumeProfile _interiorBloomProfile;
+        private Bloom _interiorBloomOverride;
+        private Coroutine _interiorBloomSampleCoroutine;
+        private string _pendingInteriorBloomSceneKey;
+        private string _nativeBloomSceneKey;
+        private float _nativeBloomThreshold;
+        private float _nativeBloomIntensity;
+        private float _nativeBloomScatter;
+        private float _lastAppliedBloomThreshold = float.NaN;
+        private float _lastAppliedBloomIntensity = float.NaN;
+        private float _lastAppliedBloomScatter = float.NaN;
+        private float _nextInteriorBloomCheckTime;
+        private bool _nativeBloomCaptured;
+        private bool _wasInInteriorContext;
+        private bool _interiorBloomApplied;
+        private bool _interiorBloomUnavailable;
+        private bool _sceneContextKnown;
+        private bool _isInteriorContext;
 
         internal bool FeatureEnabled =>
             _enabled != null && _enabled.Value;
 
+        internal float TorchBrightnessPresetScale =>
+            CurrentBrightnessPreset == TorchBrightnessPreset.Vanilla
+                ? 0.5f
+                : 1f;
+
+        private TorchBrightnessPreset CurrentBrightnessPreset =>
+            _sceneContextKnown && _isInteriorContext
+                ? (_interiorBrightnessPreset == null
+                    ? TorchBrightnessPreset.Bright
+                    : _interiorBrightnessPreset.Value)
+                : (_exteriorBrightnessPreset == null
+                    ? TorchBrightnessPreset.Vanilla
+                    : _exteriorBrightnessPreset.Value);
+
         internal float RangeBonusMeters =>
-            _rangeBonusMeters == null ? 3f : _rangeBonusMeters.Value;
+            _rangeBonusMeters == null ? 20f : _rangeBonusMeters.Value;
 
         internal float LightBrightnessMultiplier =>
             _lightBrightnessMultiplier == null
@@ -161,10 +272,49 @@ namespace TorchlightRekindled
                 : _flameBloomMultiplier.Value;
 
         internal float FlameHaloStrength =>
-            _flameHaloStrength == null ? 1f : _flameHaloStrength.Value;
+            _flameHaloStrength == null ? 5f : _flameHaloStrength.Value;
 
         internal float FlameHaloSize =>
-            _flameHaloSize == null ? 0.08f : _flameHaloSize.Value;
+            _flameHaloSize == null ? 0.07f : _flameHaloSize.Value;
+
+        internal float FlameHaloVerticalScale =>
+            _flameHaloVerticalScale == null
+                ? 2.2f
+                : _flameHaloVerticalScale.Value;
+
+        internal float FlameHaloVerticalOffset =>
+            _flameHaloVerticalOffset == null
+                ? 0.45f
+                : _flameHaloVerticalOffset.Value;
+
+        internal float FlameHaloHorizontalOffset =>
+            _flameHaloHorizontalOffset == null
+                ? -0.12f
+                : _flameHaloHorizontalOffset.Value;
+
+        internal float FlameHaloAxisPitchOffsetDegrees =>
+            _flameHaloAxisPitchOffsetDegrees == null
+                ? 0f
+                : _flameHaloAxisPitchOffsetDegrees.Value;
+
+        internal float FlameHaloAxisYawOffsetDegrees =>
+            _flameHaloAxisYawOffsetDegrees == null
+                ? 0f
+                : _flameHaloAxisYawOffsetDegrees.Value;
+
+        internal float FlameHaloRotationOffsetDegrees =>
+            _flameHaloRotationOffsetDegrees == null
+                ? -20f
+                : _flameHaloRotationOffsetDegrees.Value;
+
+        internal float FlameHaloLightParryRotationOffsetDegrees =>
+            _flameHaloLightParryRotationOffsetDegrees == null
+                ? 90f
+                : _flameHaloLightParryRotationOffsetDegrees.Value;
+
+        internal bool InteriorBloomOnlyWhileTorchEquipped =>
+            _interiorBloomOnlyWhileTorchEquipped != null
+                && _interiorBloomOnlyWhileTorchEquipped.Value;
 
         internal bool LoopingFireAudio =>
             _loopingFireAudio != null && _loopingFireAudio.Value;
@@ -242,6 +392,7 @@ namespace TorchlightRekindled
         private void OnDestroy()
         {
             UnsubscribeConfigEvents();
+            DestroyInteriorBloomController();
 
             if (_harmony != null)
             {
@@ -268,6 +419,33 @@ namespace TorchlightRekindled
             }
         }
 
+        private void Update()
+        {
+            if (Time.unscaledTime < _nextInteriorBloomCheckTime)
+            {
+                return;
+            }
+
+            _nextInteriorBloomCheckTime = Time.unscaledTime
+                + InteriorBloomCheckIntervalSeconds;
+            RefreshSceneContext();
+        }
+
+        private static Grailwright.Shared.ConfigRecoveryUiMetadata ConfigUi(
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order)
+        {
+            return new Grailwright.Shared.ConfigRecoveryUiMetadata
+            {
+                DisplaySection = displaySection,
+                DisplayName = displayName,
+                SectionOrder = sectionOrder,
+                Order = order
+            };
+        }
+
         private void BindConfig()
         {
             Config.Bind(
@@ -282,82 +460,217 @@ namespace TorchlightRekindled
                 "1. Core",
                 "Enabled",
                 true,
-                "Master switch. Turning this off restores the held torch to its original light, flame, and audio behavior.");
+                new ConfigDescription(
+                    "Master switch. Turning this off restores the original held torch.",
+                    null,
+                    ConfigUi("General", "Enabled", 0, 0)));
+            _interiorBrightnessPreset = Config.Bind(
+                "2. Torch Light",
+                "InteriorBrightnessPreset",
+                TorchBrightnessPreset.Bright,
+                new ConfigDescription(
+                    "Brightness used in interiors. Vanilla is balanced for normal interior brightness; Bright is balanced for darker interiors and is the default.",
+                    null,
+                    ConfigUi("General", "Interior Brightness Preset", 0, 10)));
+            _exteriorBrightnessPreset = Config.Bind(
+                "2. Torch Light",
+                "ExteriorBrightnessPreset",
+                TorchBrightnessPreset.Vanilla,
+                new ConfigDescription(
+                    "Brightness used outdoors. Vanilla is balanced for normal interior brightness and is the exterior default; Bright is balanced for darker interiors.",
+                    null,
+                    ConfigUi("General", "Exterior Brightness Preset", 0, 20)));
             _rangeBonusMeters = Config.Bind(
                 "2. Torch Light",
                 "RangeBonusMeters",
-                3f,
+                20f,
                 new ConfigDescription(
-                    "How far the held torch reaches into darkness. The recommended value is 3; use lower values for tighter pools of light or higher values for long sightlines.",
-                    new AcceptableValueRange<float>(0f, 10f)));
+                    "Additional torch reach in metres. Use less for a tighter pool of light or more for longer sightlines.",
+                    new AcceptableValueRange<float>(0f, 70f),
+                    ConfigUi("Torch Light", "Range Bonus (m)", 10, 0)));
             _lightBrightnessMultiplier = Config.Bind(
                 "2. Torch Light",
                 "BrightnessMultiplier",
                 1f,
                 new ConfigDescription(
-                    "How strongly the torch lights walls, floors, and characters while retaining natural flicker. The recommended value is 1.",
-                    new AcceptableValueRange<float>(0.25f, 3f)));
+                    "How strongly the torch lights walls, floors, and characters.",
+                    new AcceptableValueRange<float>(0.25f, 3f),
+                    ConfigUi("Torch Light", "World Illumination", 10, 10)));
             _lightFlickerStrength = Config.Bind(
                 "2. Torch Light",
                 "LightFlickerStrength",
                 1f,
                 new ConfigDescription(
-                    "Additional irregular variation in the light cast onto the environment. The recommended value is 1; 0 keeps only the original flicker and 2 is strongly turbulent.",
-                    new AcceptableValueRange<float>(0f, 2f)));
+                    "Additional irregular illumination variation. Zero keeps only the original flicker.",
+                    new AcceptableValueRange<float>(0f, 2f),
+                    ConfigUi("Torch Light", "Flicker Amount", 10, 20)));
             _lightFlickerSpeed = Config.Bind(
                 "2. Torch Light",
                 "LightFlickerSpeed",
                 1f,
                 new ConfigDescription(
-                    "Speed of the additional illumination flicker. The recommended value is 1; lower values feel calmer and higher values feel more restless.",
-                    new AcceptableValueRange<float>(0.5f, 2f)));
+                    "Speed of the additional illumination flicker.",
+                    new AcceptableValueRange<float>(0.5f, 2f),
+                    ConfigUi("Torch Light", "Flicker Speed", 10, 30)));
             _flameBrightnessMultiplier = Config.Bind(
                 "3. Flame",
                 "FlameBrightnessMultiplier",
                 0.75f,
                 new ConfigDescription(
-                    "Brightness of the visible flame, embers, and sparks without changing the light cast into the world. The recommended value is 0.75.",
-                    new AcceptableValueRange<float>(0.25f, 3f)));
+                    "Brightness of the visible flame, embers, and sparks without changing world illumination.",
+                    new AcceptableValueRange<float>(0.25f, 3f),
+                    ConfigUi("Visible Flame", "Visible Flame Brightness", 20, 0)));
             _flameBloomMultiplier = Config.Bind(
                 "3. Flame",
                 "FlameBloomMultiplier",
                 0.75f,
                 new ConfigDescription(
-                    "Strength of the flame's HDR glare and halo. The recommended value is 0.75; lower it for a crisper flame or raise it for a harder-to-look-at glow.",
-                    new AcceptableValueRange<float>(0f, 3f)));
+                    "Extra HDR glare from the visible flame. Zero removes the extra headroom without removing the flame.",
+                    new AcceptableValueRange<float>(0f, 3f),
+                    ConfigUi("Visible Flame", "Flame Bloom Strength", 20, 10)));
             _flameHaloStrength = Config.Bind(
                 "3. Flame",
                 "FlameHaloStrength",
-                1f,
+                5f,
                 new ConfigDescription(
-                    "Strength of an additional warm bloom corona inside the flame. The recommended value is 1; use 0 to disable the corona.",
-                    new AcceptableValueRange<float>(0f, 3f)));
+                    "Strength of the additional warm corona. Zero disables it.",
+                    new AcceptableValueRange<float>(0f, 10f),
+                    ConfigUi("Flame Halo", "Halo Strength", 30, 0)));
             _flameHaloSize = Config.Bind(
                 "3. Flame",
                 "FlameHaloSize",
-                0.08f,
+                0.07f,
                 new ConfigDescription(
-                    "Diameter in metres of the emissive core that produces the additional corona. The recommended value is 0.08.",
-                    new AcceptableValueRange<float>(0.02f, 0.25f)));
+                    "Diameter in metres of the corona's emissive core.",
+                    new AcceptableValueRange<float>(0.02f, 0.25f),
+                    ConfigUi("Flame Halo", "Halo Size (m)", 30, 10)));
+            _flameHaloVerticalScale = Config.Bind(
+                "3. Flame",
+                "FlameHaloVerticalScale",
+                2.2f,
+                new ConfigDescription(
+                    "Height of the corona relative to its width.",
+                    new AcceptableValueRange<float>(0.25f, 4f),
+                    ConfigUi("Flame Halo", "Halo Height Scale", 30, 20)));
+            _flameHaloVerticalOffset = Config.Bind(
+                "3. Flame",
+                "FlameHaloVerticalOffset",
+                0.45f,
+                new ConfigDescription(
+                    "Vertical position as a fraction of the scaled halo height.",
+                    new AcceptableValueRange<float>(-1f, 1f),
+                    ConfigUi("Flame Halo", "Vertical Offset (scaled height)", 30, 30)));
+            _flameHaloHorizontalOffset = Config.Bind(
+                "3. Flame",
+                "FlameHaloHorizontalOffset",
+                -0.12f,
+                new ConfigDescription(
+                    "Torch-local sideways position as a fraction of halo width.",
+                    new AcceptableValueRange<float>(-1f, 1f),
+                    ConfigUi("Flame Halo", "Torch-Local Side Offset (width)", 30, 40)));
+            _flameHaloAxisPitchOffsetDegrees = Config.Bind(
+                "3. Flame",
+                "FlameHaloAxisPitchOffsetDegrees",
+                0f,
+                new ConfigDescription(
+                    "Forward or backward torch-local correction to the tracked halo axis.",
+                    new AcceptableValueRange<float>(-45f, 45f),
+                    ConfigUi("Halo Alignment - Advanced", "Axis Pitch Offset (deg)", 40, 0)));
+            _flameHaloAxisYawOffsetDegrees = Config.Bind(
+                "3. Flame",
+                "FlameHaloAxisYawOffsetDegrees",
+                0f,
+                new ConfigDescription(
+                    "Sideways torch-local correction to the tracked halo axis.",
+                    new AcceptableValueRange<float>(-45f, 45f),
+                    ConfigUi("Halo Alignment - Advanced", "Axis Yaw Offset (deg)", 40, 10)));
+            _flameHaloRotationOffsetDegrees = Config.Bind(
+                "3. Flame",
+                "FlameHaloRotationOffsetDegrees",
+                -20f,
+                new ConfigDescription(
+                    "Screen-space roll correction added to the detected torch angle.",
+                    new AcceptableValueRange<float>(-180f, 180f),
+                    ConfigUi("Halo Alignment - Advanced", "Screen Roll Offset (deg)", 40, 20)));
+            _flameHaloLightParryRotationOffsetDegrees = Config.Bind(
+                "3. Flame",
+                "FlameHaloBashRotationOffsetDegrees",
+                90f,
+                new ConfigDescription(
+                    "Additional screen-space roll during the quick light-parry animation. The stored key retains its old name for config compatibility.",
+                    new AcceptableValueRange<float>(-180f, 180f),
+                    ConfigUi("Halo Alignment - Advanced", "Light Parry Roll Offset (deg)", 40, 30)));
+            _enhanceInteriorBloom = Config.Bind(
+                "3. Interior Bloom",
+                "EnhanceInteriorBloom",
+                true,
+                new ConfigDescription(
+                    "Raise weak native interior bloom settings to the configured minimums.",
+                    null,
+                    ConfigUi("Interior Bloom", "Enabled", 50, 0)));
+            _interiorBloomOnlyWhileTorchEquipped = Config.Bind(
+                "3. Interior Bloom",
+                "InteriorBloomOnlyWhileTorchEquipped",
+                false,
+                new ConfigDescription(
+                    "Apply the interior bloom floor only while a torch is equipped.",
+                    null,
+                    ConfigUi("Interior Bloom", "Only While Torch Equipped", 50, 10)));
+            _interiorBloomThreshold = Config.Bind(
+                "3. Interior Bloom",
+                "InteriorBloomThreshold",
+                1f,
+                new ConfigDescription(
+                    "Highest brightness threshold allowed for weak interior bloom.",
+                    new AcceptableValueRange<float>(0f, 4f),
+                    ConfigUi("Interior Bloom", "Threshold", 50, 20)));
+            _interiorBloomIntensity = Config.Bind(
+                "3. Interior Bloom",
+                "InteriorBloomIntensity",
+                0.25f,
+                new ConfigDescription(
+                    "Minimum bloom intensity used in weak interiors.",
+                    new AcceptableValueRange<float>(0f, 1f),
+                    ConfigUi("Interior Bloom", "Intensity", 50, 30)));
+            _interiorBloomScatter = Config.Bind(
+                "3. Interior Bloom",
+                "InteriorBloomScatter",
+                0.65f,
+                new ConfigDescription(
+                    "Minimum bloom spread used in weak interiors.",
+                    new AcceptableValueRange<float>(0f, 1f),
+                    ConfigUi("Interior Bloom", "Scatter", 50, 40)));
             _loopingFireAudio = Config.Bind(
                 "4. Audio",
                 "LoopingFireAudio",
                 true,
-                "Play the game's spatial small-fire loop from the held torch.");
+                new ConfigDescription(
+                    "Play the game's spatial small-fire loop from the held torch.",
+                    null,
+                    ConfigUi("Audio", "Enabled", 60, 0)));
             _loopingFireVolume = Config.Bind(
                 "4. Audio",
                 "LoopingFireVolume",
                 1f,
                 new ConfigDescription(
-                    "Loudness of the fire crackle from the torch in your equipped hand. The recommended value is 1; 0 is silent and values above 1 emphasize the torch over nearby ambience.",
-                    new AcceptableValueRange<float>(0f, 2f)));
+                    "Loudness of the fire crackle from the equipped torch.",
+                    new AcceptableValueRange<float>(0f, 2f),
+                    ConfigUi("Audio", "Volume", 60, 10)));
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log torch attachment and runtime details.");
+                new ConfigDescription(
+                    "Log torch attachment, interior bloom, and runtime details.",
+                    null,
+                    ConfigUi("Diagnostics", "Diagnostics", 70, 0)));
 
+            RestorePreservedSettings();
             _enabled.SettingChanged += OnRuntimeSettingChanged;
+            _interiorBrightnessPreset.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _exteriorBrightnessPreset.SettingChanged +=
+                OnRuntimeSettingChanged;
             _rangeBonusMeters.SettingChanged += OnRuntimeSettingChanged;
             _lightBrightnessMultiplier.SettingChanged += OnRuntimeSettingChanged;
             _lightFlickerStrength.SettingChanged += OnRuntimeSettingChanged;
@@ -366,6 +679,24 @@ namespace TorchlightRekindled
             _flameBloomMultiplier.SettingChanged += OnRuntimeSettingChanged;
             _flameHaloStrength.SettingChanged += OnRuntimeSettingChanged;
             _flameHaloSize.SettingChanged += OnRuntimeSettingChanged;
+            _flameHaloVerticalScale.SettingChanged += OnRuntimeSettingChanged;
+            _flameHaloVerticalOffset.SettingChanged += OnRuntimeSettingChanged;
+            _flameHaloHorizontalOffset.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _flameHaloAxisPitchOffsetDegrees.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _flameHaloAxisYawOffsetDegrees.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _flameHaloRotationOffsetDegrees.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _flameHaloLightParryRotationOffsetDegrees.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _enhanceInteriorBloom.SettingChanged += OnRuntimeSettingChanged;
+            _interiorBloomOnlyWhileTorchEquipped.SettingChanged +=
+                OnRuntimeSettingChanged;
+            _interiorBloomThreshold.SettingChanged += OnRuntimeSettingChanged;
+            _interiorBloomIntensity.SettingChanged += OnRuntimeSettingChanged;
+            _interiorBloomScatter.SettingChanged += OnRuntimeSettingChanged;
             _loopingFireAudio.SettingChanged += OnRuntimeSettingChanged;
             _loopingFireVolume.SettingChanged += OnRuntimeSettingChanged;
         }
@@ -375,6 +706,16 @@ namespace TorchlightRekindled
             if (_enabled != null)
             {
                 _enabled.SettingChanged -= OnRuntimeSettingChanged;
+            }
+            if (_interiorBrightnessPreset != null)
+            {
+                _interiorBrightnessPreset.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_exteriorBrightnessPreset != null)
+            {
+                _exteriorBrightnessPreset.SettingChanged -=
+                    OnRuntimeSettingChanged;
             }
             if (_rangeBonusMeters != null)
             {
@@ -408,6 +749,62 @@ namespace TorchlightRekindled
             {
                 _flameHaloSize.SettingChanged -= OnRuntimeSettingChanged;
             }
+            if (_flameHaloVerticalScale != null)
+            {
+                _flameHaloVerticalScale.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloVerticalOffset != null)
+            {
+                _flameHaloVerticalOffset.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloHorizontalOffset != null)
+            {
+                _flameHaloHorizontalOffset.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloAxisPitchOffsetDegrees != null)
+            {
+                _flameHaloAxisPitchOffsetDegrees.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloAxisYawOffsetDegrees != null)
+            {
+                _flameHaloAxisYawOffsetDegrees.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloRotationOffsetDegrees != null)
+            {
+                _flameHaloRotationOffsetDegrees.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_flameHaloLightParryRotationOffsetDegrees != null)
+            {
+                _flameHaloLightParryRotationOffsetDegrees.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_enhanceInteriorBloom != null)
+            {
+                _enhanceInteriorBloom.SettingChanged -= OnRuntimeSettingChanged;
+            }
+            if (_interiorBloomOnlyWhileTorchEquipped != null)
+            {
+                _interiorBloomOnlyWhileTorchEquipped.SettingChanged -=
+                    OnRuntimeSettingChanged;
+            }
+            if (_interiorBloomThreshold != null)
+            {
+                _interiorBloomThreshold.SettingChanged -= OnRuntimeSettingChanged;
+            }
+            if (_interiorBloomIntensity != null)
+            {
+                _interiorBloomIntensity.SettingChanged -= OnRuntimeSettingChanged;
+            }
+            if (_interiorBloomScatter != null)
+            {
+                _interiorBloomScatter.SettingChanged -= OnRuntimeSettingChanged;
+            }
             if (_loopingFireAudio != null)
             {
                 _loopingFireAudio.SettingChanged -= OnRuntimeSettingChanged;
@@ -421,6 +818,8 @@ namespace TorchlightRekindled
         private void OnRuntimeSettingChanged(object sender, EventArgs eventArgs)
         {
             ApplyToActiveTorches();
+            _nextInteriorBloomCheckTime = 0f;
+            RefreshSceneContext();
         }
 
         private void ApplyToActiveTorches()
@@ -434,6 +833,365 @@ namespace TorchlightRekindled
                     torch.ApplySettings();
                 }
             }
+        }
+
+        private void RefreshSceneContext()
+        {
+            string sceneKey;
+            bool isInterior;
+            if (!TryResolveSceneContext(out sceneKey, out isInterior))
+            {
+                DisableInteriorBloom();
+                return;
+            }
+
+            bool brightnessContextChanged = !_sceneContextKnown
+                || _isInteriorContext != isInterior;
+            _sceneContextKnown = true;
+            _isInteriorContext = isInterior;
+            if (brightnessContextChanged)
+            {
+                ApplyToActiveTorches();
+            }
+
+            RefreshInteriorBloomContext(sceneKey, isInterior);
+        }
+
+        private void RefreshInteriorBloomContext(
+            string sceneKey,
+            bool isInterior)
+        {
+            if (!ShouldEnhanceInteriorBloom())
+            {
+                DisableInteriorBloom();
+                return;
+            }
+
+            if (!isInterior)
+            {
+                DisableInteriorBloom();
+                if (_wasInInteriorContext)
+                {
+                    InvalidateNativeBloomCapture();
+                }
+                _wasInInteriorContext = false;
+                return;
+            }
+
+            _wasInInteriorContext = true;
+            if (_nativeBloomCaptured
+                && string.Equals(
+                    _nativeBloomSceneKey,
+                    sceneKey,
+                    StringComparison.Ordinal))
+            {
+                ApplyInteriorBloomFloor();
+                return;
+            }
+
+            QueueNativeBloomCapture(sceneKey);
+        }
+
+        private bool ShouldEnhanceInteriorBloom()
+        {
+            return FeatureEnabled
+                && _enhanceInteriorBloom != null
+                && _enhanceInteriorBloom.Value
+                && (!InteriorBloomOnlyWhileTorchEquipped
+                    || _activeTorches.Count > 0);
+        }
+
+        private static bool TryResolveSceneContext(
+            out string sceneKey,
+            out bool isInterior)
+        {
+            sceneKey = null;
+            isInterior = false;
+            try
+            {
+                if (World.Services == null)
+                {
+                    return false;
+                }
+
+                SceneService sceneService =
+                    World.Services.TryGet<SceneService>();
+                SceneLifetimeEvents lifetime = SceneLifetimeEvents.Get;
+                if (sceneService == null
+                    || sceneService.ActiveSceneRef == null
+                    || string.IsNullOrEmpty(sceneService.ActiveSceneRef.Name)
+                    || lifetime == null
+                    || !lifetime.EverythingInitialized)
+                {
+                    return false;
+                }
+
+                sceneKey = sceneService.ActiveSceneRef.Name;
+                isInterior = !sceneService.IsOpenWorld || lifetime.InInterior;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void QueueNativeBloomCapture(string sceneKey)
+        {
+            if (_interiorBloomSampleCoroutine != null
+                && string.Equals(
+                    _pendingInteriorBloomSceneKey,
+                    sceneKey,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            CancelNativeBloomCapture();
+            DisableInteriorBloom();
+            _nativeBloomCaptured = false;
+            _pendingInteriorBloomSceneKey = sceneKey;
+            _interiorBloomSampleCoroutine = StartCoroutine(
+                CaptureNativeBloomAfterVolumeUpdate(sceneKey));
+        }
+
+        private IEnumerator CaptureNativeBloomAfterVolumeUpdate(
+            string sceneKey)
+        {
+            yield return null;
+            yield return new WaitForEndOfFrame();
+
+            _interiorBloomSampleCoroutine = null;
+            _pendingInteriorBloomSceneKey = null;
+            if (!ShouldEnhanceInteriorBloom())
+            {
+                yield break;
+            }
+
+            string currentSceneKey;
+            bool isInterior;
+            if (!TryResolveSceneContext(
+                    out currentSceneKey,
+                    out isInterior)
+                || !isInterior
+                || !string.Equals(
+                    sceneKey,
+                    currentSceneKey,
+                    StringComparison.Ordinal))
+            {
+                yield break;
+            }
+
+            VolumeManager manager = VolumeManager.instance;
+            Bloom nativeBloom = manager == null || manager.stack == null
+                ? null
+                : manager.stack.GetComponent<Bloom>();
+            if (nativeBloom == null || !nativeBloom.active)
+            {
+                _nativeBloomThreshold = Mathf.Clamp(
+                    _interiorBloomThreshold.Value,
+                    0f,
+                    4f);
+                _nativeBloomIntensity = 0f;
+                _nativeBloomScatter = 0f;
+            }
+            else
+            {
+                _nativeBloomThreshold = nativeBloom.threshold.value;
+                _nativeBloomIntensity = nativeBloom.intensity.value;
+                _nativeBloomScatter = nativeBloom.scatter.value;
+            }
+
+            _nativeBloomSceneKey = sceneKey;
+            _nativeBloomCaptured = true;
+            ApplyInteriorBloomFloor();
+        }
+
+        private void ApplyInteriorBloomFloor()
+        {
+            if (!_nativeBloomCaptured || !ShouldEnhanceInteriorBloom())
+            {
+                DisableInteriorBloom();
+                return;
+            }
+
+            float threshold = Mathf.Min(
+                _nativeBloomThreshold,
+                Mathf.Clamp(_interiorBloomThreshold.Value, 0f, 4f));
+            float intensity = Mathf.Max(
+                _nativeBloomIntensity,
+                Mathf.Clamp01(_interiorBloomIntensity.Value));
+            float scatter = Mathf.Max(
+                _nativeBloomScatter,
+                Mathf.Clamp01(_interiorBloomScatter.Value));
+            bool strengthensNative = threshold
+                    < _nativeBloomThreshold - InteriorBloomEpsilon
+                || intensity
+                    > _nativeBloomIntensity + InteriorBloomEpsilon
+                || scatter
+                    > _nativeBloomScatter + InteriorBloomEpsilon;
+            if (!strengthensNative)
+            {
+                DisableInteriorBloom();
+                return;
+            }
+
+            if (!EnsureInteriorBloomController())
+            {
+                return;
+            }
+
+            if (_interiorBloomApplied
+                && Mathf.Abs(
+                    _lastAppliedBloomThreshold - threshold)
+                    <= InteriorBloomEpsilon
+                && Mathf.Abs(
+                    _lastAppliedBloomIntensity - intensity)
+                    <= InteriorBloomEpsilon
+                && Mathf.Abs(
+                    _lastAppliedBloomScatter - scatter)
+                    <= InteriorBloomEpsilon)
+            {
+                return;
+            }
+
+            _interiorBloomOverride.threshold.overrideState = true;
+            _interiorBloomOverride.threshold.value = threshold;
+            _interiorBloomOverride.intensity.overrideState = true;
+            _interiorBloomOverride.intensity.value = intensity;
+            _interiorBloomOverride.scatter.overrideState = true;
+            _interiorBloomOverride.scatter.value = scatter;
+            _interiorBloomVolume.weight = 1f;
+            _interiorBloomVolume.enabled = true;
+            _lastAppliedBloomThreshold = threshold;
+            _lastAppliedBloomIntensity = intensity;
+            _lastAppliedBloomScatter = scatter;
+            _interiorBloomApplied = true;
+            LogDiagnostic(
+                "Applied interior bloom floor in "
+                + _nativeBloomSceneKey
+                + ": native threshold/intensity/scatter="
+                + FormatBloomValues(
+                    _nativeBloomThreshold,
+                    _nativeBloomIntensity,
+                    _nativeBloomScatter)
+                + "; applied="
+                + FormatBloomValues(threshold, intensity, scatter)
+                + ".");
+        }
+
+        private bool EnsureInteriorBloomController()
+        {
+            if (_interiorBloomVolume != null
+                && _interiorBloomProfile != null
+                && _interiorBloomOverride != null)
+            {
+                return true;
+            }
+            if (_interiorBloomUnavailable)
+            {
+                return false;
+            }
+
+            try
+            {
+                _interiorBloomObject = new GameObject(
+                    "Torchlight Rekindled Interior Bloom");
+                _interiorBloomObject.hideFlags = HideFlags.HideAndDontSave;
+                DontDestroyOnLoad(_interiorBloomObject);
+                _interiorBloomVolume =
+                    _interiorBloomObject.AddComponent<Volume>();
+                _interiorBloomVolume.isGlobal = true;
+                _interiorBloomVolume.priority = InteriorBloomPriority;
+                _interiorBloomVolume.weight = 1f;
+                _interiorBloomVolume.enabled = false;
+
+                _interiorBloomProfile =
+                    ScriptableObject.CreateInstance<VolumeProfile>();
+                _interiorBloomProfile.name =
+                    "Torchlight Rekindled Interior Bloom Profile";
+                _interiorBloomProfile.hideFlags = HideFlags.HideAndDontSave;
+                _interiorBloomOverride =
+                    _interiorBloomProfile.Add<Bloom>(true);
+                _interiorBloomOverride.name =
+                    "Torchlight Rekindled Interior Bloom Override";
+                _interiorBloomOverride.active = true;
+                _interiorBloomVolume.sharedProfile = _interiorBloomProfile;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                _interiorBloomUnavailable = true;
+                LogWarning(
+                    "Could not create the performance-friendly interior bloom override: "
+                    + exception.Message);
+                DestroyInteriorBloomController();
+                return false;
+            }
+        }
+
+        private void DisableInteriorBloom()
+        {
+            if (_interiorBloomVolume != null)
+            {
+                _interiorBloomVolume.enabled = false;
+            }
+            _interiorBloomApplied = false;
+        }
+
+        private void InvalidateNativeBloomCapture()
+        {
+            CancelNativeBloomCapture();
+            _nativeBloomCaptured = false;
+            _nativeBloomSceneKey = null;
+        }
+
+        private void CancelNativeBloomCapture()
+        {
+            if (_interiorBloomSampleCoroutine != null)
+            {
+                StopCoroutine(_interiorBloomSampleCoroutine);
+            }
+            _interiorBloomSampleCoroutine = null;
+            _pendingInteriorBloomSceneKey = null;
+        }
+
+        private void DestroyInteriorBloomController()
+        {
+            CancelNativeBloomCapture();
+            DisableInteriorBloom();
+            if (_interiorBloomVolume != null)
+            {
+                _interiorBloomVolume.sharedProfile = null;
+            }
+            if (_interiorBloomObject != null)
+            {
+                Destroy(_interiorBloomObject);
+            }
+            if (_interiorBloomOverride != null)
+            {
+                Destroy(_interiorBloomOverride);
+            }
+            if (_interiorBloomProfile != null)
+            {
+                Destroy(_interiorBloomProfile);
+            }
+            _interiorBloomObject = null;
+            _interiorBloomVolume = null;
+            _interiorBloomProfile = null;
+            _interiorBloomOverride = null;
+        }
+
+        private static string FormatBloomValues(
+            float threshold,
+            float intensity,
+            float scatter)
+        {
+            return threshold.ToString("0.###", CultureInfo.InvariantCulture)
+                + "/"
+                + intensity.ToString("0.###", CultureInfo.InvariantCulture)
+                + "/"
+                + scatter.ToString("0.###", CultureInfo.InvariantCulture);
         }
 
         internal void TryAttach(CharacterHandBase hand)
@@ -499,11 +1257,18 @@ namespace TorchlightRekindled
         internal void Register(TorchRuntime runtime)
         {
             _activeTorches.Add(runtime);
+            _nextInteriorBloomCheckTime = 0f;
         }
 
         internal void Unregister(TorchRuntime runtime)
         {
             _activeTorches.Remove(runtime);
+            _nextInteriorBloomCheckTime = 0f;
+            if (_activeTorches.Count == 0
+                && InteriorBloomOnlyWhileTorchEquipped)
+            {
+                DisableInteriorBloom();
+            }
         }
 
         internal void RegisterLightController(
@@ -590,6 +1355,7 @@ namespace TorchlightRekindled
                 return;
             }
 
+            CapturePreservedSettings(configPath, storedSchemaVersion);
             string backupPath = configPath
                 + ".pre-schema-"
                 + storedSchemaVersion.ToString(
@@ -625,6 +1391,7 @@ namespace TorchlightRekindled
             }
             catch (Exception exception)
             {
+                _pendingPreservedSettings.Clear();
                 try
                 {
                     if (File.Exists(backupPath))
@@ -648,6 +1415,306 @@ namespace TorchlightRekindled
                     + PluginName
                     + " config schema. Original config was left in place when possible.",
                     exception);
+            }
+        }
+
+        private void CapturePreservedSettings(
+            string configPath,
+            int storedSchemaVersion)
+        {
+            _pendingPreservedSettings.Clear();
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                Grailwright.Shared.ConfigPreviousSettingsRecovery
+                    .ReadCustomizationProfile(
+                        configPath,
+                        storedSchemaVersion,
+                        ConfigSchemaVersion,
+                        ConfigRecoveryKeepCurrentDefaultRules,
+                        ConfigRecoveryPermanentExclusions);
+
+            CaptureCustomizedValue(profile, "1. Core", "Enabled", false);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "InteriorBrightnessPreset",
+                TorchBrightnessPreset.Bright);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "ExteriorBrightnessPreset",
+                TorchBrightnessPreset.Vanilla);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "RangeBonusMeters",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "BrightnessMultiplier",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "LightFlickerStrength",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "2. Torch Light",
+                "LightFlickerSpeed",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameBrightnessMultiplier",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameBloomMultiplier",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloStrength",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloSize",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloVerticalScale",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloVerticalOffset",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloHorizontalOffset",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloAxisPitchOffsetDegrees",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloAxisYawOffsetDegrees",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloRotationOffsetDegrees",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Flame",
+                "FlameHaloBashRotationOffsetDegrees",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Interior Bloom",
+                "EnhanceInteriorBloom",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "3. Interior Bloom",
+                "InteriorBloomOnlyWhileTorchEquipped",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "3. Interior Bloom",
+                "InteriorBloomThreshold",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Interior Bloom",
+                "InteriorBloomIntensity",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "3. Interior Bloom",
+                "InteriorBloomScatter",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "4. Audio",
+                "LoopingFireAudio",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "4. Audio",
+                "LoopingFireVolume",
+                0f);
+            CaptureCustomizedValue(
+                profile,
+                "Diagnostics",
+                "Diagnostics",
+                false);
+        }
+
+        private void CaptureCustomizedValue<T>(
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            string section,
+            string key,
+            T ignoredTypeHint)
+        {
+            T value;
+            if (profile.TryGetCustomizedValue(section, key, out value))
+            {
+                _pendingPreservedSettings[new ConfigDefinition(section, key)] =
+                    value;
+            }
+        }
+
+        private void RestorePreservedSettings()
+        {
+            if (_pendingPreservedSettings.Count == 0)
+            {
+                return;
+            }
+
+            int restored = 0;
+            int clamped = 0;
+            RestorePreservedEntry(_enabled, ref restored, ref clamped);
+            RestorePreservedEntry(
+                _interiorBrightnessPreset,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _exteriorBrightnessPreset,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(_rangeBonusMeters, ref restored, ref clamped);
+            RestorePreservedEntry(
+                _lightBrightnessMultiplier,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _lightFlickerStrength,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _lightFlickerSpeed,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameBrightnessMultiplier,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameBloomMultiplier,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloStrength,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(_flameHaloSize, ref restored, ref clamped);
+            RestorePreservedEntry(
+                _flameHaloVerticalScale,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloVerticalOffset,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloHorizontalOffset,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloAxisPitchOffsetDegrees,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloAxisYawOffsetDegrees,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloRotationOffsetDegrees,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _flameHaloLightParryRotationOffsetDegrees,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _enhanceInteriorBloom,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _interiorBloomOnlyWhileTorchEquipped,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _interiorBloomThreshold,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _interiorBloomIntensity,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _interiorBloomScatter,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _loopingFireAudio,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _loopingFireVolume,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(_diagnostics, ref restored, ref clamped);
+            _pendingPreservedSettings.Clear();
+
+            Logger.LogInfo(
+                "Restored "
+                + restored.ToString(CultureInfo.InvariantCulture)
+                + " customized setting(s) after schema reset"
+                + (clamped > 0
+                    ? "; clamped "
+                        + clamped.ToString(CultureInfo.InvariantCulture)
+                        + " to current ranges"
+                    : string.Empty)
+                + ".");
+        }
+
+        private void RestorePreservedEntry<T>(
+            ConfigEntry<T> entry,
+            ref int restored,
+            ref int clamped)
+        {
+            object value;
+            if (entry == null
+                || !_pendingPreservedSettings.TryGetValue(
+                    entry.Definition,
+                    out value)
+                || !(value is T))
+            {
+                return;
+            }
+
+            bool wasClamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    entry,
+                    (T)value,
+                    out wasClamped))
+            {
+                restored++;
+                if (wasClamped)
+                {
+                    clamped++;
+                }
             }
         }
 
@@ -694,6 +1761,9 @@ namespace TorchlightRekindled
         private LightState[] _lights = new LightState[0];
         private FlameState[] _flames = new FlameState[0];
         private Transform _audioAnchor;
+        private Transform _haloShaftTransform;
+        private Vector3 _haloShaftLocalAxis = Vector3.up;
+        private DualHandedFSM _dualHandedFsm;
         private GameObject _audioObject;
         private ARFmodEventEmitter _audioEmitter;
         private GameObject _haloObject;
@@ -701,6 +1771,15 @@ namespace TorchlightRekindled
         private ParticleSystemRenderer _haloRenderer;
         private Material _haloMaterial;
         private Texture2D _haloTexture;
+        private readonly ParticleSystem.Particle[] _haloParticleBuffer =
+            new ParticleSystem.Particle[1];
+        private readonly HaloAnimationState _haloAnimationState =
+            new HaloAnimationState();
+        private Camera _haloCamera;
+        private float _lastHaloRotationDegrees;
+        private float _haloBaseStrength;
+        private float _lastHaloMaterialStrength = float.NaN;
+        private bool _hasHaloRotation;
         private bool _initialized;
         private bool _shuttingDown;
         private bool _audioFailureLogged;
@@ -725,6 +1804,7 @@ namespace TorchlightRekindled
                 + Mathf.Abs(hand.GetInstanceID() % 10000) * 0.0137f;
             CaptureLights();
             CaptureFlames();
+            CaptureDualHandedFsm();
             _initialized = true;
             _plugin.Register(this);
             ApplySettings();
@@ -753,6 +1833,10 @@ namespace TorchlightRekindled
             {
                 CaptureFlames();
                 ApplySettings();
+            }
+            if (_dualHandedFsm == null)
+            {
+                CaptureDualHandedFsm();
             }
 
             for (int index = 0; index < _lights.Length; index++)
@@ -797,6 +1881,21 @@ namespace TorchlightRekindled
             ApplySettings();
         }
 
+        private void LateUpdate()
+        {
+            if (!_initialized
+                || _shuttingDown
+                || _haloObject == null
+                || !_haloObject.activeInHierarchy
+                || _haloParticles == null
+                || _audioAnchor == null)
+            {
+                return;
+            }
+
+            UpdateHaloAnimation();
+        }
+
         private void OnDisable()
         {
             StopAudio();
@@ -830,13 +1929,17 @@ namespace TorchlightRekindled
                 _plugin.LightBrightnessMultiplier,
                 0.25f,
                 3f);
+            float brightnessPresetScale =
+                _plugin.TorchBrightnessPresetScale;
             float effectiveLightBrightness = Mathf.Max(
-                0f,
-                1f + (lightBrightness - 1f) * 2f) * 5f;
+                    0f,
+                    1f + (lightBrightness - 1f) * 2f)
+                * 5f
+                * brightnessPresetScale;
             float rangeBonus = Mathf.Clamp(
                 _plugin.RangeBonusMeters,
                 0f,
-                10f) * (20f / 3f);
+                70f);
             for (int index = 0; index < _lights.Length; index++)
             {
                 _lights[index].Apply(
@@ -848,11 +1951,11 @@ namespace TorchlightRekindled
             float flameBrightness = Mathf.Clamp(
                 _plugin.FlameBrightnessMultiplier,
                 0.25f,
-                3f) * 3f;
+                3f) * 3f * brightnessPresetScale;
             float flameBloom = Mathf.Clamp(
                 _plugin.FlameBloomMultiplier,
                 0f,
-                3f) * 3f;
+                3f) * 3f * brightnessPresetScale;
             for (int index = 0; index < _flames.Length; index++)
             {
                 _flames[index].Apply(
@@ -876,9 +1979,9 @@ namespace TorchlightRekindled
             }
 
             float strength = Mathf.Clamp(
-                _plugin.LightFlickerStrength,
+                _plugin.LightFlickerStrength * 4f,
                 0f,
-                2f);
+                8f);
             if (strength <= 0f)
             {
                 return;
@@ -888,9 +1991,9 @@ namespace TorchlightRekindled
             {
                 _lastFlickerFrame = Time.frameCount;
                 float speed = Mathf.Clamp(
-                    _plugin.LightFlickerSpeed,
-                    0.5f,
-                    2f);
+                    _plugin.LightFlickerSpeed * 2f,
+                    1f,
+                    4f);
                 float time = Time.time * speed;
                 float slowNoise = Mathf.PerlinNoise(
                         _flickerSeed,
@@ -1026,6 +2129,7 @@ namespace TorchlightRekindled
             _audioAnchor = bestAudioAnchor == null
                 ? _hand.transform
                 : bestAudioAnchor;
+            CaptureHaloShaftAxis();
             _flames = states.ToArray();
 
             if (_haloObject != null)
@@ -1040,19 +2144,164 @@ namespace TorchlightRekindled
                 + _flames.Length.ToString(CultureInfo.InvariantCulture)
                 + "; audio anchor="
                 + GetTransformPath(_audioAnchor)
+                + "; halo shaft="
+                + GetTransformPath(_haloShaftTransform)
                 + ".");
+        }
+
+        private void CaptureHaloShaftAxis()
+        {
+            _haloShaftTransform = null;
+            _haloShaftLocalAxis = Vector3.up;
+            if (_hand == null || _audioAnchor == null)
+            {
+                return;
+            }
+
+            Transform handTransform = _hand.transform;
+            Transform orientationTip = _audioAnchor.parent == null
+                ? _audioAnchor
+                : _audioAnchor.parent;
+            Transform current = orientationTip;
+            while (current != null && current != handTransform)
+            {
+                if (current.name.IndexOf(
+                        "Weapon_EquipableTorch",
+                        StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    _haloShaftTransform = current;
+                    break;
+                }
+                current = current.parent;
+            }
+
+            if (_haloShaftTransform == null)
+            {
+                _haloShaftTransform = handTransform;
+            }
+
+            Vector3 worldAxis = _audioAnchor.position
+                - handTransform.position;
+            if (worldAxis.sqrMagnitude <= 0.0001f)
+            {
+                _haloShaftTransform = null;
+                return;
+            }
+
+            _haloShaftLocalAxis = _haloShaftTransform
+                .InverseTransformDirection(worldAxis.normalized)
+                .normalized;
+        }
+
+        private void CaptureDualHandedFsm()
+        {
+            _dualHandedFsm = null;
+            Hero hero = Hero.Current;
+            if (hero == null)
+            {
+                return;
+            }
+
+            foreach (MeleeFSM melee in hero.Elements<MeleeFSM>())
+            {
+                DualHandedFSM dualHanded = melee as DualHandedFSM;
+                if (dualHanded != null)
+                {
+                    _dualHandedFsm = dualHanded;
+                    return;
+                }
+            }
+        }
+
+        private bool IsTorchLightParryActive()
+        {
+            if (_dualHandedFsm == null || !_dualHandedFsm.IsLayerActive)
+            {
+                return false;
+            }
+
+            return _dualHandedFsm.CurrentStateType
+                    == HeroStateType.BlockParry
+                || _dualHandedFsm.CurrentStateType
+                    == HeroStateType.BlockParryWithoutShield
+                || _dualHandedFsm.CurrentStateToEnterType
+                    == HeroStateType.BlockParry
+                || _dualHandedFsm.CurrentStateToEnterType
+                    == HeroStateType.BlockParryWithoutShield;
+        }
+
+        private bool IsTorchBlockPommelActive()
+        {
+            if (_dualHandedFsm == null || !_dualHandedFsm.IsLayerActive)
+            {
+                return false;
+            }
+
+            return _dualHandedFsm.CurrentStateType
+                    == HeroStateType.BlockPommel
+                || _dualHandedFsm.CurrentStateType
+                    == HeroStateType.BlockPommelWithoutShield
+                || _dualHandedFsm.CurrentStateToEnterType
+                    == HeroStateType.BlockPommel
+                || _dualHandedFsm.CurrentStateToEnterType
+                    == HeroStateType.BlockPommelWithoutShield;
+        }
+
+        private bool IsTorchBlockActive()
+        {
+            if (_dualHandedFsm == null || !_dualHandedFsm.IsLayerActive)
+            {
+                return false;
+            }
+
+            return IsTorchBlockState(_dualHandedFsm.CurrentStateType)
+                || IsTorchBlockState(
+                    _dualHandedFsm.CurrentStateToEnterType);
+        }
+
+        private static bool IsTorchBlockState(HeroStateType stateType)
+        {
+            switch (stateType)
+            {
+                case HeroStateType.BlockStart:
+                case HeroStateType.BlockLoop:
+                case HeroStateType.BlockPommel:
+                case HeroStateType.BlockImpact:
+                case HeroStateType.BlockExit:
+                case HeroStateType.BlockStartWithoutShield:
+                case HeroStateType.BlockLoopWithoutShield:
+                case HeroStateType.BlockPommelWithoutShield:
+                case HeroStateType.BlockImpactWithoutShield:
+                case HeroStateType.BlockExitWithoutShield:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private void ApplyHalo()
         {
             float strength = Mathf.Clamp(
-                _plugin.FlameHaloStrength,
+                _plugin.FlameHaloStrength
+                    * _plugin.TorchBrightnessPresetScale,
                 0f,
-                3f);
+                10f);
             float size = Mathf.Clamp(
                 _plugin.FlameHaloSize,
                 0.02f,
                 0.25f);
+            float verticalScale = Mathf.Clamp(
+                _plugin.FlameHaloVerticalScale,
+                0.25f,
+                4f);
+            float verticalOffset = Mathf.Clamp(
+                _plugin.FlameHaloVerticalOffset,
+                -1f,
+                1f);
+            float horizontalOffset = Mathf.Clamp(
+                _plugin.FlameHaloHorizontalOffset,
+                -1f,
+                1f);
             if (strength <= 0f
                 || _audioAnchor == null
                 || !isActiveAndEnabled)
@@ -1108,6 +2357,7 @@ namespace TorchlightRekindled
                     ParticleSystemRenderMode.Billboard;
                 _haloRenderer.alignment =
                     ParticleSystemRenderSpace.View;
+                _haloRenderer.allowRoll = true;
                 _haloRenderer.sortMode =
                     ParticleSystemSortMode.Distance;
 
@@ -1116,7 +2366,10 @@ namespace TorchlightRekindled
                 main.playOnAwake = false;
                 main.startLifetime = 999999f;
                 main.startSpeed = 0f;
-                main.startSize = 1f;
+                main.startSize3D = true;
+                main.startSizeX = 1f;
+                main.startSizeY = verticalScale;
+                main.startSizeZ = 1f;
                 main.startColor = Color.white;
                 main.maxParticles = 1;
                 main.simulationSpace =
@@ -1138,10 +2391,151 @@ namespace TorchlightRekindled
                     + ".");
             }
 
-            _haloObject.transform.localPosition = Vector3.zero;
+            _haloObject.transform.localPosition = Vector3.up
+                    * (size * verticalScale * verticalOffset)
+                + Vector3.right * (size * horizontalOffset);
             _haloObject.transform.localRotation = Quaternion.identity;
             _haloObject.transform.localScale = Vector3.one * size;
-            ApplyHaloMaterial(strength);
+            UpdateHaloParticleShape(verticalScale);
+            _haloBaseStrength = strength;
+            UpdateHaloAnimation();
+        }
+
+        private void UpdateHaloParticleShape(float verticalScale)
+        {
+            int particleCount = _haloParticles.GetParticles(
+                _haloParticleBuffer);
+            if (particleCount == 0)
+            {
+                return;
+            }
+
+            ParticleSystem.Particle particle = _haloParticleBuffer[0];
+            particle.startSize3D = new Vector3(
+                1f,
+                verticalScale,
+                1f);
+            _haloParticleBuffer[0] = particle;
+            _haloParticles.SetParticles(_haloParticleBuffer, 1);
+        }
+
+        private void UpdateHaloAnimation()
+        {
+            bool lightParryActive = IsTorchLightParryActive();
+            bool blockActive = !lightParryActive && IsTorchBlockActive();
+            HaloAnimationFrame animationFrame = _haloAnimationState.Update(
+                Time.time,
+                lightParryActive,
+                blockActive,
+                blockActive && IsTorchBlockPommelActive());
+            ApplyHaloMaterial(
+                _haloBaseStrength
+                * animationFrame.BlockVisibilityMultiplier);
+
+            float haloScale = Mathf.Clamp(
+                _plugin.FlameHaloSize,
+                0.02f,
+                0.25f) * animationFrame.LightParryScaleMultiplier;
+            Vector3 targetScale = Vector3.one * haloScale;
+            if ((_haloObject.transform.localScale - targetScale)
+                    .sqrMagnitude > 0.000001f)
+            {
+                _haloObject.transform.localScale = targetScale;
+            }
+
+            Camera camera = _haloCamera;
+            if (camera == null || !camera.isActiveAndEnabled)
+            {
+                camera = Camera.main;
+                _haloCamera = camera;
+            }
+            if (camera == null)
+            {
+                return;
+            }
+
+            UpdateHaloRotation(lightParryActive, camera);
+        }
+
+        private Vector3 ResolveTorchAxis()
+        {
+            Transform axisTransform = _haloShaftTransform == null
+                ? _audioAnchor
+                : _haloShaftTransform;
+            Vector3 localTorchAxis = _haloShaftTransform == null
+                ? axisTransform.InverseTransformDirection(
+                    _audioAnchor.position - _hand.transform.position)
+                : _haloShaftLocalAxis;
+            Quaternion localAxisCorrection = Quaternion.Euler(
+                Mathf.Clamp(
+                    _plugin.FlameHaloAxisPitchOffsetDegrees,
+                    -45f,
+                    45f),
+                Mathf.Clamp(
+                    _plugin.FlameHaloAxisYawOffsetDegrees,
+                    -45f,
+                    45f),
+                0f);
+            Vector3 torchAxis = axisTransform.TransformDirection(
+                localAxisCorrection * localTorchAxis);
+            if (torchAxis.sqrMagnitude <= 0.0001f)
+            {
+                return _audioAnchor.up;
+            }
+
+            torchAxis.Normalize();
+            return torchAxis;
+        }
+
+        private void UpdateHaloRotation(
+            bool lightParryActive,
+            Camera camera)
+        {
+            Vector3 torchAxis = ResolveTorchAxis();
+
+            Vector3 viewAxis = camera.transform.InverseTransformDirection(
+                torchAxis);
+            float projectedSqrMagnitude = viewAxis.x * viewAxis.x
+                + viewAxis.y * viewAxis.y;
+            if (projectedSqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            float rotationDegrees = -Mathf.Atan2(
+                viewAxis.x,
+                viewAxis.y) * Mathf.Rad2Deg
+                + Mathf.Clamp(
+                    _plugin.FlameHaloRotationOffsetDegrees,
+                    -180f,
+                    180f)
+                + (lightParryActive
+                    ? Mathf.Clamp(
+                        _plugin.FlameHaloLightParryRotationOffsetDegrees,
+                        -180f,
+                        180f)
+                    : 0f);
+            if (_hasHaloRotation
+                && Mathf.Abs(Mathf.DeltaAngle(
+                    _lastHaloRotationDegrees,
+                    rotationDegrees)) < 0.1f)
+            {
+                return;
+            }
+
+            int particleCount = _haloParticles.GetParticles(
+                _haloParticleBuffer);
+            if (particleCount == 0)
+            {
+                return;
+            }
+
+            ParticleSystem.Particle particle = _haloParticleBuffer[0];
+            particle.rotation = rotationDegrees;
+            _haloParticleBuffer[0] = particle;
+            _haloParticles.SetParticles(_haloParticleBuffer, 1);
+            _lastHaloRotationDegrees = rotationDegrees;
+            _hasHaloRotation = true;
         }
 
         private void ConfigureHaloMaterial(Material material)
@@ -1197,6 +2591,7 @@ namespace TorchlightRekindled
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             material.EnableKeyword("_BLENDMODE_ADD");
             material.DisableKeyword("_BLENDMODE_ALPHA");
+            HDMaterial.ValidateMaterial(material);
         }
 
         private static Texture2D CreateHaloTexture()
@@ -1246,6 +2641,14 @@ namespace TorchlightRekindled
                 return;
             }
 
+            strength = Mathf.Max(0f, strength);
+            if (!float.IsNaN(_lastHaloMaterialStrength)
+                && Mathf.Abs(_lastHaloMaterialStrength - strength) < 0.001f)
+            {
+                return;
+            }
+            _lastHaloMaterialStrength = strength;
+
             Color warmCore = new Color(1f, 0.16f, 0.02f, 1f);
             Color emission = warmCore * (12f * strength);
             emission.a = 1f;
@@ -1274,7 +2677,6 @@ namespace TorchlightRekindled
                 _haloMaterial,
                 "_EmissiveExposureWeight",
                 0f);
-            _haloMaterial.EnableKeyword("_EMISSION");
         }
 
         private static void SetMaterialColorIfPresent(
@@ -1330,6 +2732,10 @@ namespace TorchlightRekindled
             _haloRenderer = null;
             _haloMaterial = null;
             _haloTexture = null;
+            _haloBaseStrength = 0f;
+            _lastHaloMaterialStrength = float.NaN;
+            _hasHaloRotation = false;
+            _haloAnimationState.Reset();
         }
 
         private static bool IsLikelyTorchFlame(string name)
@@ -1416,9 +2822,9 @@ namespace TorchlightRekindled
 
             RESULT volumeResult = audioInstance.setVolume(
                 Mathf.Clamp(
-                    _plugin.LoopingFireVolume * 2f,
+                    _plugin.LoopingFireVolume * 4f,
                     0f,
-                    4f));
+                    8f));
             if (volumeResult != RESULT.OK && !_audioFailureLogged)
             {
                 _audioFailureLogged = true;

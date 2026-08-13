@@ -1,3 +1,88 @@
+Version 3.1.4
+Raised the default KillingBlowSizeMultiplier from 1.2x to 1.3x ReticleSizePixels.
+Advanced ConfigSchemaVersion from 8 to 9 because KillingBlowSizeMultiplier now defaults to 1.3x; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+
+Version 3.1.3
+Added KillingBlowSizeMultiplier so Steel and Bone killing-blow marker compositions have an independent size, defaulting to 1.2x ReticleSizePixels.
+Kept ConfigSchemaVersion at 8 because the new setting is additive and existing configs receive its current default automatically.
+
+Version 3.1.2
+Raised the default Steel and Bone hit-marker DurationMultiplier from 0.5x to 1x so markers match the final damage-number duration.
+Advanced ConfigSchemaVersion from 7 to 8 because DurationMultiplier now defaults to 1x; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+
+Version 3.1.1
+Added the separated hitmarker.png center diamond to every direct nonlethal Steel and Bone hit while excluding damage-over-time ticks and all killing blows.
+Colored the center diamond with the hit's calculated matchup and precision color, beneath the independent weak-spot and critical overlays.
+Updated the bundled weak-spot and critical hit-marker artwork.
+
+Version 3.1.0
+Changed lethal Steel and Bone hit-marker frames and overlays from #A00003 to darker red #8C0003.
+
+Version 3.0.9
+Changed blocked, bloodless, and already-drained corpse reticles to use the ordinary DefaultColor and IdleOpacity while retaining their Meager, Worthy, Potent, or Prime tier shape at 1x scale.
+Removed UnavailableCorpseColor and advanced ConfigSchemaVersion from 6 to 7 because unavailable corpses now follow the normal default-reticle presentation; compatible customized settings remain recoverable.
+
+Version 3.0.8
+Changed lethal Steel and Bone hit-marker frames and overlays from #C80003 to darker red #A00003.
+
+Version 3.0.7
+Raised the default KillingBlowDurationMultiplier from 1.35x to 1.5x before corpse-tier timing is applied.
+Advanced ConfigSchemaVersion from 5 to 6 because KillingBlowDurationMultiplier now defaults to 1.5x; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+
+Version 3.0.6
+Changed lethal Steel and Bone hit-marker frames and overlays from pure red to deep red #C80003.
+
+Version 3.0.5
+Expanded corpse-tier killing-blow duration scaling to Meager 1.00x, Worthy 1.33x, Potent 1.67x, and Prime 2.00x after the existing duration settings.
+
+Version 3.0.4
+Forced the base frame and every visible precision or corpse-tier overlay to pure red on Steel and Bone killing blows while preserving calculated red-shifted colors for nonlethal weak spots and critical hits.
+Scaled killing-blow duration by corpse tier after the existing duration settings: Meager 1.00x, Worthy 1.15x, Potent 1.30x, and Prime 1.50x.
+
+Version 3.0.3
+Kept the proper Meager, Worthy, Potent, or Prime shape for registered bloodless, spent, and otherwise unavailable corpses while rendering them with a new desaturated UnavailableCorpseColor.
+Retained custom_reticle_bloodmagic.png as the fallback for unregistered corpses, disabled tiered reticles, and missing tier assets.
+
+Version 3.0.2
+Updated the bundled Blood Magic corpse-tier and Steel and Bone killing-blow icon artwork.
+
+Version 3.0.1
+Made Steel and Bone event subscription transactional so a failed killing-blow subscription cannot leave the normal hit handler attached.
+
+Version 3.0.0
+Added Meager, Worthy, Potent, and Prime Blood Magic corpse reticles selected through Blood Magic Expansion API v9, while retaining the original reticle as the disabled, unavailable, or missing-asset fallback.
+Added tiered Steel and Bone killing-blow overlays above weak-spot and critical layers, with independent enablement and a configurable duration multiplier.
+Updated Steel and Bone integration to API v5 and intentionally removed API v4 compatibility.
+
+Version 2.9.8
+Rebalanced weakness hit-marker frames to mild above x1.05 through x1.10, strong above x1.10 through x1.20, and extreme above x1.20.
+Updated Steel and Bone integration to API v4 so preset-scaled Effectiveness Feedback Sensitivity changes marker tiers without altering actual damage.
+
+Version 2.9.7
+Widened the neutral hit-marker bucket from x0.999-x1.001 to x0.95-x1.05 so small effectiveness differences use the neutral frame while retaining Steel and Bone's exact feedback color.
+
+Version 2.9.6
+Added DamageOverTimeSizeMultiplier for Steel and Bone hit markers, defaulting Bleed, Poison, Burn, and Breath tick markers to 1.1x ReticleSizePixels instead of the direct-hit size.
+Updated the Steel and Bone integration to API v3 so each resolved hit reports whether it is damage over time.
+
+Version 2.9.5
+Reduced the default Steel and Bone hit-marker size from 1.5x to 1.15x the General reticle size.
+Reduced the default hit-marker duration from 0.75x to 0.5x Steel and Bone's final feedback duration.
+Raised ConfigSchemaVersion to 5 so existing configs receive the new presentation defaults; customized size and duration values remain eligible for recovery.
+
+Version 2.9.4
+Replaced the four categorical base hit markers with eight numbered effectiveness frames: blocked or immune, three resistance strengths, neutral, and three weakness strengths.
+Changed the default GeneralSprite from custom_reticle.png to the neutral custom_reticle_4.png frame.
+Updated the Steel and Bone integration to select frames from the actual effectiveness multiplier while retaining damage-number colors, 1.5x sizing, 0.75x duration, and independent weak-spot and critical overlays.
+Raised ConfigSchemaVersion to 4 because the default GeneralSprite changed to custom_reticle_4.png; customized reticle paths remain eligible for recovery.
+
+Version 2.9.3
+Added optional Steel and Bone hit markers for neutral, weakness, resisted, and zero-damage results, with independent weak-spot and critical overlays.
+Bundled six hot-reloading hit-marker PNGs that use Steel and Bone's final damage-number colors.
+Sized hit markers from the general ReticleSizePixels value at 1.5x by default, independent of Bow, Magic, Blood Magic, and corpse-quality scales.
+Displayed hit markers for 0.75x Steel and Bone's final damage-number duration by default, with a quick settle and final-quarter fade.
+Kept existing reticle and hostile-target behavior unchanged when Steel and Bone is not installed.
+
 Version 2.9.2
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.

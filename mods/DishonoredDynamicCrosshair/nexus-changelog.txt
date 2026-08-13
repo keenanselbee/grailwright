@@ -1,0 +1,9 @@
+TargetVersion=3.1.4
+BaselineVersion=3.0.8
+Added an independent killing-blow marker size setting, defaulting complete killing-blow compositions to 1.3x the general reticle size; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+Raised the default Steel and Bone hit-marker duration from 0.5x to 1x so markers match the final damage-number duration; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+Added a separate center diamond to every direct nonlethal Steel and Bone hit marker, colored from the hit result and omitted for damage-over-time ticks and killing blows.
+Updated the bundled weak-spot and critical hit-marker artwork and kept those symbols layered above the new diamond.
+Changed the complete lethal hit-marker composition to darker red #8C0003 while preserving calculated red-shifted colors for nonlethal precision hits.
+Changed blocked, bloodless, and already-drained corpse reticles to use the ordinary DefaultColor and IdleOpacity while retaining their quality-tier shape at 1x scale.
+Removed the obsolete UnavailableCorpseColor setting and regenerated configs; compatible customized settings remain recoverable.

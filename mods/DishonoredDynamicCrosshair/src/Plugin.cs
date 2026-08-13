@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("2.9.2.0")]
-[assembly: AssemblyFileVersion("2.9.2.0")]
+[assembly: AssemblyVersion("3.1.4.0")]
+[assembly: AssemblyFileVersion("3.1.4.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -83,14 +83,27 @@ namespace DishonoredDynamicCrosshair
         NonHostile
     }
 
+    internal enum HitMarkerFrame
+    {
+        Blocked = 0,
+        ExtremeResistance = 1,
+        StrongResistance = 2,
+        MildResistance = 3,
+        Neutral = 4,
+        MildWeakness = 5,
+        StrongWeakness = 6,
+        ExtremeWeakness = 7
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DishonoredDynamicCrosshairPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "2.9.2";
-        private const int ConfigSchemaVersion = 3;
+        public const string PluginVersion = "3.1.4";
+        private const int ConfigSchemaVersion = 9;
         private const int ConfigRecoveryBaselineSchema = 3;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -101,6 +114,11 @@ namespace DishonoredDynamicCrosshair
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicExpansionApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
+        private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
+        private const string SteelAndBoneHitFeedbackApiTypeName =
+            "SteelAndBone.SteelAndBoneHitFeedbackApi";
+        private const float HitMarkerFadeFraction = 0.25f;
+        private const float HitMarkerInitialScale = 1.12f;
 
         internal static DishonoredDynamicCrosshairPlugin Instance { get; private set; }
 
@@ -112,6 +130,7 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<bool> _bloodMagicRequireRelevantSpell;
         private ConfigEntry<bool> _bloodMagicLogScaleDiagnostics;
         private ConfigEntry<bool> _bloodMagicUseQualityScale;
+        private ConfigEntry<bool> _bloodMagicQualityCrosshairsEnabled;
         private ConfigEntry<float> _bloodMagicMaximumQualityScale;
         private ConfigEntry<string> _bloodMagicUsableCorpseColor;
         private ConfigEntry<ReticleSizeMode> _sizeMode;
@@ -130,6 +149,13 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<bool> _hideMeleeReticle;
         private ConfigEntry<bool> _hideBowReticle;
         private ConfigEntry<bool> _hideItemSpecificReticles;
+        private ConfigEntry<bool> _steelAndBoneHitMarkersEnabled;
+        private ConfigEntry<bool> _killingBlowOverlaysEnabled;
+        private ConfigEntry<float> _hitMarkerSizeMultiplier;
+        private ConfigEntry<float> _hitMarkerDamageOverTimeSizeMultiplier;
+        private ConfigEntry<float> _killingBlowSizeMultiplier;
+        private ConfigEntry<float> _hitMarkerDurationMultiplier;
+        private ConfigEntry<float> _killingBlowDurationMultiplier;
         private readonly Dictionary<string, float> _pendingPreservedVisualFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedVisualStrings =
@@ -143,6 +169,37 @@ namespace DishonoredDynamicCrosshair
         private ContextSettings _bow;
         private ContextSettings _magic;
         private ContextSettings _bloodMagic;
+        private readonly Dictionary<HitMarkerFrame, ReticleAsset> _hitMarkerAssets =
+            new Dictionary<HitMarkerFrame, ReticleAsset>
+            {
+                { HitMarkerFrame.Blocked, new ReticleAsset() },
+                { HitMarkerFrame.ExtremeResistance, new ReticleAsset() },
+                { HitMarkerFrame.StrongResistance, new ReticleAsset() },
+                { HitMarkerFrame.MildResistance, new ReticleAsset() },
+                { HitMarkerFrame.Neutral, new ReticleAsset() },
+                { HitMarkerFrame.MildWeakness, new ReticleAsset() },
+                { HitMarkerFrame.StrongWeakness, new ReticleAsset() },
+                { HitMarkerFrame.ExtremeWeakness, new ReticleAsset() }
+            };
+        private readonly ReticleAsset _directHitMarkerOverlay = new ReticleAsset();
+        private readonly ReticleAsset _weakSpotHitMarkerOverlay = new ReticleAsset();
+        private readonly ReticleAsset _criticalHitMarkerOverlay = new ReticleAsset();
+        private readonly Dictionary<int, ReticleAsset> _bloodMagicQualityAssets =
+            new Dictionary<int, ReticleAsset>
+            {
+                { 1, new ReticleAsset() },
+                { 2, new ReticleAsset() },
+                { 3, new ReticleAsset() },
+                { 4, new ReticleAsset() }
+            };
+        private readonly Dictionary<int, ReticleAsset> _killingBlowOverlayAssets =
+            new Dictionary<int, ReticleAsset>
+            {
+                { 1, new ReticleAsset() },
+                { 2, new ReticleAsset() },
+                { 3, new ReticleAsset() },
+                { 4, new ReticleAsset() }
+            };
 
         private Harmony _harmony;
         private MethodInfo _getMainViewMethod;
@@ -157,9 +214,14 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _isCastMagicGetter;
         private MethodInfo _bloodMagicGetCorpseStateMethod;
         private MethodInfo _bloodMagicGetCorpseQualityMethod;
+        private MethodInfo _bloodMagicGetCorpseQualityTierMethod;
         private MethodInfo _refreshCrosshairMethod;
         private MethodInfo _targetChangedMethod;
         private MethodInfo _loadImageMethod;
+        private EventInfo _steelAndBoneHitResolvedEvent;
+        private Delegate _steelAndBoneHitResolvedHandler;
+        private EventInfo _steelAndBoneKillingBlowResolvedEvent;
+        private Delegate _steelAndBoneKillingBlowResolvedHandler;
         private FieldInfo _allEquipmentSlotsField;
         private FieldInfo _npcDetectionMaxDistanceField;
         private object _defaultTargetType;
@@ -175,6 +237,10 @@ namespace DishonoredDynamicCrosshair
         private GameObject _reticleObject;
         private RectTransform _reticleRect;
         private Image _reticleImage;
+        private Image _directHitMarkerImage;
+        private Image _weakSpotHitMarkerImage;
+        private Image _criticalHitMarkerImage;
+        private Image _killingBlowHitMarkerImage;
         private CanvasGroup _crouchCanvasGroup;
         private RectTransform _crouchRect;
         private GameObject _crouchViewObject;
@@ -189,6 +255,7 @@ namespace DishonoredDynamicCrosshair
         private float _nextTargetRefreshTime;
         private float _nextBloodMagicCheckTime;
         private float _nextBloodMagicApiResolveTime;
+        private float _nextSteelAndBoneApiResolveTime;
         private float _lastCanvasScaleFactor = -1f;
         private int _lastScreenWidth = -1;
         private int _lastScreenHeight = -1;
@@ -203,11 +270,24 @@ namespace DishonoredDynamicCrosshair
         private bool _lastBloodMagicCorpseActive;
         private int _lastBloodMagicCorpseState;
         private float _lastBloodMagicCorpseQuality01 = 0.5f;
+        private int _lastBloodMagicCorpseQualityTier;
         private float _currentBloodMagicQualityScale = 1f;
         private int _currentBloodMagicCorpseState;
+        private int _currentBloodMagicCorpseQualityTier;
         private float _nextBloodMagicScaleDiagnosticLogTime;
         private bool _bloodMagicApiUnavailableForSession;
         private bool _bloodMagicApiUnavailableLogged;
+        private bool _steelAndBoneApiUnavailableForSession;
+        private bool _steelAndBoneApiFailureLogged;
+        private bool _hitMarkerActive;
+        private HitMarkerFrame _activeHitMarkerFrame;
+        private bool _activeHitMarkerWeakSpot;
+        private bool _activeHitMarkerCritical;
+        private bool _activeHitMarkerDamageOverTime;
+        private int _activeKillingBlowTier;
+        private Color _activeHitMarkerColor = Color.white;
+        private float _activeHitMarkerStartedAt;
+        private float _activeHitMarkerEndsAt;
         private bool _lastHeroMounted;
         private bool _hasLastHeroMounted;
         private readonly HashSet<string> _invalidColorsLogged =
@@ -283,6 +363,11 @@ namespace DishonoredDynamicCrosshair
                 "UseCorpseQualityScale",
                 true,
                 "Scale the Blood Magic corpse reticle from Blood Magic Expansion's reported corpse quality.");
+            _bloodMagicQualityCrosshairsEnabled = Config.Bind(
+                "4. Blood Magic",
+                "BloodMagicQualityCrosshairsEnabled",
+                true,
+                "Use tier-specific Blood Magic corpse reticles when their PNG assets are available.");
             _bloodMagicMaximumQualityScale = Config.Bind(
                 "4. Blood Magic",
                 "MaximumQualityScale",
@@ -295,11 +380,10 @@ namespace DishonoredDynamicCrosshair
                 "UsableCorpseColor",
                 "#E8583CFF",
                 "Color for usable blood-magic corpses in #RRGGBBAA format. Corpse quality changes scale only, not color.");
-
             _general = BindContext(
                 ReticleContext.General,
                 "General",
-                "custom_reticle.png",
+                "custom_reticle_4.png",
                 1f);
             _bow = BindContext(
                 ReticleContext.Bow,
@@ -334,6 +418,52 @@ namespace DishonoredDynamicCrosshair
                 0f,
                 OpacityDescription(
                     "Additional opacity multiplier while the hero is mounted. Set to 1 to keep custom reticles visible on mounts."));
+
+            _steelAndBoneHitMarkersEnabled = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "Enabled",
+                true,
+                "Temporarily replace the current reticle with Steel and Bone hit feedback when Steel and Bone is installed.");
+            _killingBlowOverlaysEnabled = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "KillingBlowOverlaysEnabled",
+                true,
+                "Show the tier-specific Steel and Bone killing-blow overlay when its PNG asset is available.");
+            _hitMarkerSizeMultiplier = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "SizeMultiplier",
+                1.15f,
+                new ConfigDescription(
+                    "Hit-marker size relative to ReticleSizePixels. Bow, Magic, Blood Magic, and corpse-quality scales do not affect it.",
+                    new AcceptableValueRange<float>(0.5f, 3f)));
+            _hitMarkerDamageOverTimeSizeMultiplier = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "DamageOverTimeSizeMultiplier",
+                1.1f,
+                new ConfigDescription(
+                    "Damage-over-time hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for Bleed, Poison, Burn, and Breath ticks.",
+                    new AcceptableValueRange<float>(0.5f, 3f)));
+            _killingBlowSizeMultiplier = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "KillingBlowSizeMultiplier",
+                1.3f,
+                new ConfigDescription(
+                    "Killing-blow hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for the complete killing-blow marker composition.",
+                    new AcceptableValueRange<float>(0.5f, 3f)));
+            _hitMarkerDurationMultiplier = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "DurationMultiplier",
+                1f,
+                new ConfigDescription(
+                    "Multiplier applied to Steel and Bone's final damage-number duration for each hit marker.",
+                    new AcceptableValueRange<float>(0.1f, 2f)));
+            _killingBlowDurationMultiplier = Config.Bind(
+                "5. Steel and Bone Hit Markers",
+                "KillingBlowDurationMultiplier",
+                1.5f,
+                new ConfigDescription(
+                    "Additional multiplier applied to the normal hit-marker duration for killing blows.",
+                    new AcceptableValueRange<float>(0.1f, 3f)));
 
             _magicDetection = Config.Bind(
                 "5. Advanced",
@@ -867,6 +997,8 @@ namespace DishonoredDynamicCrosshair
                 OnBehaviorSettingChanged;
             _bloodMagicUseQualityScale.SettingChanged +=
                 OnBehaviorSettingChanged;
+            _bloodMagicQualityCrosshairsEnabled.SettingChanged +=
+                OnBehaviorSettingChanged;
             _bloodMagicMaximumQualityScale.SettingChanged +=
                 OnBehaviorSettingChanged;
             _bloodMagicUsableCorpseColor.SettingChanged +=
@@ -884,6 +1016,18 @@ namespace DishonoredDynamicCrosshair
                 _nonHostileOpacity.SettingChanged += OnBehaviorSettingChanged;
             }
             _mountedOpacityMultiplier.SettingChanged += OnBehaviorSettingChanged;
+            _steelAndBoneHitMarkersEnabled.SettingChanged +=
+                OnHitMarkerSettingChanged;
+            _killingBlowOverlaysEnabled.SettingChanged +=
+                OnBehaviorSettingChanged;
+            _hitMarkerSizeMultiplier.SettingChanged += OnBehaviorSettingChanged;
+            _hitMarkerDamageOverTimeSizeMultiplier.SettingChanged +=
+                OnBehaviorSettingChanged;
+            _killingBlowSizeMultiplier.SettingChanged +=
+                OnBehaviorSettingChanged;
+            _hitMarkerDurationMultiplier.SettingChanged += OnBehaviorSettingChanged;
+            _killingBlowDurationMultiplier.SettingChanged +=
+                OnBehaviorSettingChanged;
             _showCrouchIndicator.SettingChanged += OnBehaviorSettingChanged;
             _crouchIndicatorOpacity.SettingChanged += OnBehaviorSettingChanged;
             _crouchIndicatorVerticalOffset.SettingChanged +=
@@ -934,6 +1078,9 @@ namespace DishonoredDynamicCrosshair
             Unsubscribe(_bloodMagicCorpseReticleMode, OnBehaviorSettingChanged);
             Unsubscribe(_bloodMagicRequireRelevantSpell, OnBehaviorSettingChanged);
             Unsubscribe(_bloodMagicUseQualityScale, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _bloodMagicQualityCrosshairsEnabled,
+                OnBehaviorSettingChanged);
             Unsubscribe(_bloodMagicMaximumQualityScale, OnBehaviorSettingChanged);
             Unsubscribe(_bloodMagicUsableCorpseColor, OnBehaviorSettingChanged);
             Unsubscribe(_sizeMode, OnBehaviorSettingChanged);
@@ -949,6 +1096,17 @@ namespace DishonoredDynamicCrosshair
                 Unsubscribe(_nonHostileOpacity, OnBehaviorSettingChanged);
             }
             Unsubscribe(_mountedOpacityMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _steelAndBoneHitMarkersEnabled,
+                OnHitMarkerSettingChanged);
+            Unsubscribe(_killingBlowOverlaysEnabled, OnBehaviorSettingChanged);
+            Unsubscribe(_hitMarkerSizeMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _hitMarkerDamageOverTimeSizeMultiplier,
+                OnBehaviorSettingChanged);
+            Unsubscribe(_killingBlowSizeMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(_hitMarkerDurationMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(_killingBlowDurationMultiplier, OnBehaviorSettingChanged);
             Unsubscribe(_showCrouchIndicator, OnBehaviorSettingChanged);
             Unsubscribe(_crouchIndicatorOpacity, OnBehaviorSettingChanged);
             Unsubscribe(_crouchIndicatorVerticalOffset, OnBehaviorSettingChanged);
@@ -1332,8 +1490,50 @@ namespace DishonoredDynamicCrosshair
             _reticleImage.raycastTarget = false;
             _reticleImage.preserveAspect = true;
             _reticleImage.type = Image.Type.Simple;
+            _directHitMarkerImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredDirectHitMarkerOverlay");
+            _weakSpotHitMarkerImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredWeakSpotHitMarkerOverlay");
+            _criticalHitMarkerImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredCriticalHitMarkerOverlay");
+            _killingBlowHitMarkerImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredKillingBlowHitMarkerOverlay");
+            _killingBlowHitMarkerImage.transform.SetAsLastSibling();
 
             ApplyReticleState();
+        }
+
+        private static Image CreateHitMarkerOverlayImage(
+            Transform parent,
+            string name)
+        {
+            GameObject overlayObject = new GameObject(
+                name,
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            overlayObject.hideFlags = HideFlags.DontSave;
+            overlayObject.layer = parent.gameObject.layer;
+
+            RectTransform rect = overlayObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one;
+
+            Image image = overlayObject.GetComponent<Image>();
+            image.raycastTarget = false;
+            image.preserveAspect = true;
+            image.type = Image.Type.Simple;
+            image.enabled = false;
+            return image;
         }
 
         private void ApplyReticleLayout(ReticleContext context)
@@ -1373,7 +1573,16 @@ namespace DishonoredDynamicCrosshair
                 == ReticleSizeMode.ScreenPixels
                     ? 1f / canvasScaleFactor
                     : 1f;
-            float finalSize = baseSize * scale * unitConversion;
+            float hitMarkerSizeMultiplier = _activeKillingBlowTier >= 1
+                ? _killingBlowSizeMultiplier.Value
+                : _activeHitMarkerDamageOverTime
+                    ? _hitMarkerDamageOverTimeSizeMultiplier.Value
+                    : _hitMarkerSizeMultiplier.Value;
+            float finalSize = IsHitMarkerActive()
+                ? baseSize
+                    * Mathf.Clamp(hitMarkerSizeMultiplier, 0.5f, 3f)
+                    * unitConversion
+                : baseSize * scale * unitConversion;
 
             _reticleRect.sizeDelta = new Vector2(finalSize, finalSize);
             _reticleRect.localScale = Vector3.one;
@@ -1489,14 +1698,18 @@ namespace DishonoredDynamicCrosshair
         {
             if (_enabled == null || !_enabled.Value)
             {
+                _hitMarkerActive = false;
                 _lastBloodMagicCorpseActive = false;
                 _lastBloodMagicCorpseState = 0;
+                _lastBloodMagicCorpseQualityTier = 0;
                 _currentBloodMagicCorpseState = 0;
+                _currentBloodMagicCorpseQualityTier = 0;
                 ApplyCrouchIndicatorState();
                 if (_reticleImage != null)
                 {
                     _reticleImage.enabled = false;
                 }
+                SetHitMarkerOverlaysEnabled(false, false, false, false);
 
                 return;
             }
@@ -1516,6 +1729,9 @@ namespace DishonoredDynamicCrosshair
             _currentBloodMagicCorpseState = bloodMagicActive
                 ? _lastBloodMagicCorpseState
                 : 0;
+            _currentBloodMagicCorpseQualityTier = bloodMagicActive
+                ? _lastBloodMagicCorpseQualityTier
+                : 0;
             ApplyCrouchIndicatorState();
 
             if (_reticleObject == null || _reticleImage == null)
@@ -1523,8 +1739,20 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            if (IsHitMarkerActive())
+            {
+                ApplyHitMarkerVisual();
+                return;
+            }
+
+            SetHitMarkerOverlaysEnabled(false, false, false, false);
+
             ContextSettings settings = SettingsFor(displayContext);
             Sprite sprite = settings.Asset.Sprite;
+            if (bloodMagicActive)
+            {
+                sprite = ResolveBloodMagicQualitySprite(sprite);
+            }
             if (sprite == null && displayContext != ReticleContext.General)
             {
                 sprite = _general.Asset.Sprite;
@@ -1646,6 +1874,7 @@ namespace DishonoredDynamicCrosshair
                 _lastBloodMagicCorpseActive = false;
                 _lastBloodMagicCorpseState = 0;
                 _lastBloodMagicCorpseQuality01 = 0.5f;
+                _lastBloodMagicCorpseQualityTier = 0;
                 return false;
             }
 
@@ -1682,6 +1911,9 @@ namespace DishonoredDynamicCrosshair
                     _lastBloodMagicCorpseQuality01 = BloodMagicCorpseUsesQualityScale(_lastBloodMagicCorpseState)
                         ? QueryBloodMagicCorpseQuality()
                         : 0f;
+                    _lastBloodMagicCorpseQualityTier = active
+                        ? QueryBloodMagicCorpseQualityTier()
+                        : 0;
                     return active;
                 }
             }
@@ -1745,6 +1977,43 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
+        private int QueryBloodMagicCorpseQualityTier()
+        {
+            if (_bloodMagicGetCorpseQualityTierMethod == null)
+            {
+                return 0;
+            }
+
+            try
+            {
+                object result = _bloodMagicGetCorpseQualityTierMethod.Invoke(
+                    null,
+                    null);
+                return result == null ? 0 : Mathf.Clamp(Convert.ToInt32(result), 0, 4);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private Sprite ResolveBloodMagicQualitySprite(Sprite fallback)
+        {
+            if (_bloodMagicQualityCrosshairsEnabled == null
+                || !_bloodMagicQualityCrosshairsEnabled.Value)
+            {
+                return fallback;
+            }
+
+            ReticleAsset asset;
+            return _bloodMagicQualityAssets.TryGetValue(
+                _lastBloodMagicCorpseQualityTier,
+                out asset)
+                && asset.Sprite != null
+                    ? asset.Sprite
+                    : fallback;
+        }
+
         private float GetBloodMagicQualityScale()
         {
             if (_bloodMagicUseQualityScale == null || !_bloodMagicUseQualityScale.Value)
@@ -1795,13 +2064,16 @@ namespace DishonoredDynamicCrosshair
 
         private string ColorForBloodMagicCorpseState(string fallback)
         {
-            if (!BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
-                || _bloodMagicUsableCorpseColor == null)
+            if (BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState))
             {
-                return fallback;
+                return _bloodMagicUsableCorpseColor == null
+                    ? fallback
+                    : _bloodMagicUsableCorpseColor.Value;
             }
 
-            return _bloodMagicUsableCorpseColor.Value;
+            return _general == null || _general.DefaultColor == null
+                ? fallback
+                : _general.DefaultColor.Value;
         }
 
         private bool ResolveBloodMagicCorpseApi()
@@ -1852,6 +2124,18 @@ namespace DishonoredDynamicCrosshair
                 return false;
             }
 
+            FieldInfo apiVersionField = apiType.GetField(
+                "ApiVersion",
+                BindingFlags.Public | BindingFlags.Static);
+            if (apiVersionField == null
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 9))
+            {
+                _bloodMagicApiUnavailableForSession = true;
+                LogBloodMagicApiUnavailable(
+                    "Blood Magic Expansion is loaded, but API v9 is unavailable; optional blood-magic corpse reticle integration is inactive for this session.");
+                return false;
+            }
+
             _bloodMagicGetCorpseStateMethod = AccessTools.Method(
                 apiType,
                 "GetFocusedCorpseState",
@@ -1860,7 +2144,14 @@ namespace DishonoredDynamicCrosshair
                 apiType,
                 "GetFocusedCorpseQuality01",
                 new Type[0]);
-            if (_bloodMagicGetCorpseStateMethod == null && !_bloodMagicApiFailureLogged)
+            _bloodMagicGetCorpseQualityTierMethod = AccessTools.Method(
+                apiType,
+                "GetFocusedCorpseQualityTier",
+                new Type[0]);
+            if ((_bloodMagicGetCorpseStateMethod == null
+                    || _bloodMagicGetCorpseQualityMethod == null
+                    || _bloodMagicGetCorpseQualityTierMethod == null)
+                && !_bloodMagicApiFailureLogged)
             {
                 _bloodMagicApiFailureLogged = true;
                 _bloodMagicApiUnavailableForSession = true;
@@ -1868,7 +2159,9 @@ namespace DishonoredDynamicCrosshair
                     "Blood Magic corpse reticle integration found Blood Magic Expansion but not its status API.");
             }
 
-            return _bloodMagicGetCorpseStateMethod != null;
+            return _bloodMagicGetCorpseStateMethod != null
+                && _bloodMagicGetCorpseQualityMethod != null
+                && _bloodMagicGetCorpseQualityTierMethod != null;
         }
 
         private void LogBloodMagicApiUnavailable(string message)
@@ -1880,6 +2173,477 @@ namespace DishonoredDynamicCrosshair
 
             _bloodMagicApiUnavailableLogged = true;
             Logger.LogInfo(message);
+        }
+
+        private bool ResolveSteelAndBoneHitFeedbackApi()
+        {
+            if (_steelAndBoneHitResolvedEvent != null
+                && _steelAndBoneHitResolvedHandler != null
+                && _steelAndBoneKillingBlowResolvedEvent != null
+                && _steelAndBoneKillingBlowResolvedHandler != null)
+            {
+                return true;
+            }
+
+            if (_steelAndBoneApiUnavailableForSession
+                || _steelAndBoneHitMarkersEnabled == null
+                || !_steelAndBoneHitMarkersEnabled.Value)
+            {
+                return false;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _nextSteelAndBoneApiResolveTime)
+            {
+                return false;
+            }
+
+            _nextSteelAndBoneApiResolveTime = now + 0.5f;
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    SteelAndBonePluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null)
+            {
+                _steelAndBoneApiUnavailableForSession = true;
+                return false;
+            }
+
+            BaseUnityPlugin plugin = pluginInfo.Instance as BaseUnityPlugin;
+            if (plugin == null)
+            {
+                return false;
+            }
+
+            Type apiType = plugin.GetType().Assembly.GetType(
+                SteelAndBoneHitFeedbackApiTypeName,
+                false);
+            FieldInfo apiVersionField = apiType == null
+                ? null
+                : apiType.GetField(
+                    "ApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+            if (apiVersionField == null
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 5))
+            {
+                _steelAndBoneApiUnavailableForSession = true;
+                LogSteelAndBoneApiFailure(
+                    "Steel and Bone is loaded, but hit-feedback API v5 is unavailable.");
+                return false;
+            }
+
+            EventInfo hitResolvedEvent = apiType == null
+                ? null
+                : apiType.GetEvent(
+                    "HitResolved",
+                    BindingFlags.Public | BindingFlags.Static);
+            if (hitResolvedEvent == null || hitResolvedEvent.EventHandlerType == null)
+            {
+                _steelAndBoneApiUnavailableForSession = true;
+                LogSteelAndBoneApiFailure(
+                    "Steel and Bone is loaded, but its hit-feedback API is unavailable.");
+                return false;
+            }
+
+            EventInfo killingBlowResolvedEvent = apiType.GetEvent(
+                "KillingBlowResolved",
+                BindingFlags.Public | BindingFlags.Static);
+            if (killingBlowResolvedEvent == null
+                || killingBlowResolvedEvent.EventHandlerType == null)
+            {
+                _steelAndBoneApiUnavailableForSession = true;
+                LogSteelAndBoneApiFailure(
+                    "Steel and Bone is loaded, but its killing-blow event is unavailable.");
+                return false;
+            }
+
+            try
+            {
+                MethodInfo handlerMethod = GetType().GetMethod(
+                    nameof(OnSteelAndBoneHitResolved),
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Delegate handler = Delegate.CreateDelegate(
+                    hitResolvedEvent.EventHandlerType,
+                    this,
+                    handlerMethod);
+                MethodInfo killingBlowHandlerMethod = GetType().GetMethod(
+                    nameof(OnSteelAndBoneKillingBlowResolved),
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Delegate killingBlowHandler = Delegate.CreateDelegate(
+                    killingBlowResolvedEvent.EventHandlerType,
+                    this,
+                    killingBlowHandlerMethod);
+                hitResolvedEvent.AddEventHandler(null, handler);
+                _steelAndBoneHitResolvedEvent = hitResolvedEvent;
+                _steelAndBoneHitResolvedHandler = handler;
+                killingBlowResolvedEvent.AddEventHandler(
+                    null,
+                    killingBlowHandler);
+                _steelAndBoneKillingBlowResolvedEvent = killingBlowResolvedEvent;
+                _steelAndBoneKillingBlowResolvedHandler = killingBlowHandler;
+                Logger.LogInfo(
+                    "Steel and Bone hit-marker and killing-blow integration is active.");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                UnsubscribeSteelAndBoneHitFeedback();
+                _steelAndBoneApiUnavailableForSession = true;
+                LogSteelAndBoneApiFailure(
+                    "Could not subscribe to Steel and Bone hit feedback: "
+                    + exception.Message);
+                return false;
+            }
+        }
+
+        private void OnSteelAndBoneHitResolved(
+            float effectivenessMultiplier,
+            float visualEffectivenessMultiplier,
+            bool immune,
+            bool critical,
+            bool weakSpot,
+            bool damageOverTime,
+            string color,
+            float damageNumberDurationSeconds)
+        {
+            if (_enabled == null
+                || !_enabled.Value
+                || _steelAndBoneHitMarkersEnabled == null
+                || !_steelAndBoneHitMarkersEnabled.Value)
+            {
+                return;
+            }
+
+            float durationMultiplier = Mathf.Clamp(
+                _hitMarkerDurationMultiplier.Value,
+                0.1f,
+                2f);
+            float duration = Mathf.Clamp(
+                damageNumberDurationSeconds,
+                0.05f,
+                10f)
+                * durationMultiplier;
+
+            _activeHitMarkerFrame = ResolveHitMarkerFrame(
+                visualEffectivenessMultiplier,
+                immune);
+            _activeHitMarkerCritical = critical;
+            _activeHitMarkerWeakSpot = weakSpot;
+            _activeHitMarkerDamageOverTime = damageOverTime;
+            _activeKillingBlowTier = 0;
+            _activeHitMarkerColor = ParseColor(color);
+            _activeHitMarkerStartedAt = Time.unscaledTime;
+            _activeHitMarkerEndsAt = _activeHitMarkerStartedAt + duration;
+            _hitMarkerActive = true;
+            ApplyReticleState();
+        }
+
+        private void OnSteelAndBoneKillingBlowResolved(
+            int tier,
+            float quality01,
+            float visualEffectiveness,
+            bool immune,
+            bool critical,
+            bool weakSpot,
+            bool damageOverTime,
+            string color,
+            float duration)
+        {
+            if (_enabled == null
+                || !_enabled.Value
+                || _steelAndBoneHitMarkersEnabled == null
+                || !_steelAndBoneHitMarkersEnabled.Value)
+            {
+                return;
+            }
+
+            float normalDurationMultiplier = Mathf.Clamp(
+                _hitMarkerDurationMultiplier.Value,
+                0.1f,
+                2f);
+            float killingBlowDurationMultiplier = _killingBlowDurationMultiplier == null
+                ? 1.5f
+                : Mathf.Clamp(_killingBlowDurationMultiplier.Value, 0.1f, 3f);
+
+            _activeHitMarkerFrame = ResolveHitMarkerFrame(
+                visualEffectiveness,
+                immune);
+            _activeHitMarkerCritical = critical;
+            _activeHitMarkerWeakSpot = weakSpot;
+            _activeHitMarkerDamageOverTime = damageOverTime;
+            _activeKillingBlowTier = Mathf.Clamp(tier, 0, 4);
+                _activeHitMarkerColor = new Color32(0x8C, 0x00, 0x03, 0xFF);
+            _activeHitMarkerStartedAt = Time.unscaledTime;
+            _activeHitMarkerEndsAt = _activeHitMarkerStartedAt
+                + Mathf.Clamp(duration, 0.05f, 10f)
+                * normalDurationMultiplier
+                * killingBlowDurationMultiplier
+                * GetKillingBlowTierDurationMultiplier(_activeKillingBlowTier);
+            _hitMarkerActive = true;
+            ApplyReticleState();
+        }
+
+        private static float GetKillingBlowTierDurationMultiplier(int tier)
+        {
+            switch (tier)
+            {
+                case 2: return 1.33f;
+                case 3: return 1.67f;
+                case 4: return 2.00f;
+                default: return 1.0f;
+            }
+        }
+
+        private static HitMarkerFrame ResolveHitMarkerFrame(
+            float effectivenessMultiplier,
+            bool immune)
+        {
+            if (immune)
+            {
+                return HitMarkerFrame.Blocked;
+            }
+
+            if (float.IsNaN(effectivenessMultiplier)
+                || float.IsInfinity(effectivenessMultiplier))
+            {
+                return HitMarkerFrame.Neutral;
+            }
+
+            if (effectivenessMultiplier < 0.35f)
+            {
+                return HitMarkerFrame.ExtremeResistance;
+            }
+            if (effectivenessMultiplier < 0.70f)
+            {
+                return HitMarkerFrame.StrongResistance;
+            }
+            if (effectivenessMultiplier < 0.95f)
+            {
+                return HitMarkerFrame.MildResistance;
+            }
+            if (effectivenessMultiplier <= 1.05f)
+            {
+                return HitMarkerFrame.Neutral;
+            }
+            if (effectivenessMultiplier <= 1.10f)
+            {
+                return HitMarkerFrame.MildWeakness;
+            }
+            if (effectivenessMultiplier <= 1.20f)
+            {
+                return HitMarkerFrame.StrongWeakness;
+            }
+
+            return HitMarkerFrame.ExtremeWeakness;
+        }
+
+        private bool IsHitMarkerActive()
+        {
+            if (!_hitMarkerActive
+                || _steelAndBoneHitMarkersEnabled == null
+                || !_steelAndBoneHitMarkersEnabled.Value)
+            {
+                _hitMarkerActive = false;
+                return false;
+            }
+
+            if (Time.unscaledTime < _activeHitMarkerEndsAt)
+            {
+                return true;
+            }
+
+            _hitMarkerActive = false;
+            return false;
+        }
+
+        private void ApplyHitMarkerVisual()
+        {
+            ReticleAsset baseAsset;
+            _hitMarkerAssets.TryGetValue(_activeHitMarkerFrame, out baseAsset);
+            Sprite sprite = baseAsset == null ? null : baseAsset.Sprite;
+            if (sprite == null
+                && _hitMarkerAssets.TryGetValue(
+                    HitMarkerFrame.Neutral,
+                    out baseAsset))
+            {
+                sprite = baseAsset.Sprite;
+            }
+
+            if (sprite == null)
+            {
+                _reticleImage.enabled = false;
+                SetHitMarkerOverlaysEnabled(false, false, false, false);
+                return;
+            }
+
+            _reticleObject.SetActive(true);
+            _reticleImage.sprite = sprite;
+            _reticleImage.enabled = true;
+            ApplyHitMarkerLayer(
+                _directHitMarkerImage,
+                _directHitMarkerOverlay.Sprite,
+                !_activeHitMarkerDamageOverTime
+                    && _activeKillingBlowTier == 0);
+            ApplyHitMarkerLayer(
+                _weakSpotHitMarkerImage,
+                _weakSpotHitMarkerOverlay.Sprite,
+                _activeHitMarkerWeakSpot);
+            ApplyHitMarkerLayer(
+                _criticalHitMarkerImage,
+                _criticalHitMarkerOverlay.Sprite,
+                _activeHitMarkerCritical);
+            ReticleAsset killingBlowAsset;
+            _killingBlowOverlayAssets.TryGetValue(
+                _activeKillingBlowTier,
+                out killingBlowAsset);
+            ApplyHitMarkerLayer(
+                _killingBlowHitMarkerImage,
+                killingBlowAsset == null ? null : killingBlowAsset.Sprite,
+                _killingBlowOverlaysEnabled != null
+                    && _killingBlowOverlaysEnabled.Value
+                    && _activeKillingBlowTier >= 1
+                    && _activeKillingBlowTier <= 4);
+            if (_killingBlowHitMarkerImage != null)
+            {
+                _killingBlowHitMarkerImage.transform.SetAsLastSibling();
+            }
+            ApplyReticleLayout(_currentContext);
+            UpdateHitMarkerAnimation();
+        }
+
+        private void ApplyHitMarkerLayer(
+            Image image,
+            Sprite sprite,
+            bool enabled)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            image.sprite = sprite;
+            image.enabled = enabled && sprite != null;
+        }
+
+        private void UpdateHitMarkerAnimation()
+        {
+            if (!_hitMarkerActive || _reticleImage == null)
+            {
+                return;
+            }
+
+            float duration = Mathf.Max(
+                0.05f,
+                _activeHitMarkerEndsAt - _activeHitMarkerStartedAt);
+            float progress = Mathf.Clamp01(
+                (Time.unscaledTime - _activeHitMarkerStartedAt) / duration);
+            if (progress >= 1f)
+            {
+                _hitMarkerActive = false;
+                ApplyReticleState();
+                return;
+            }
+
+            float fadeStart = 1f - HitMarkerFadeFraction;
+            float alpha = progress <= fadeStart
+                ? 1f
+                : 1f - Mathf.InverseLerp(fadeStart, 1f, progress);
+            Color color = _activeHitMarkerColor;
+            color.a *= alpha;
+            _reticleImage.color = color;
+            if (_directHitMarkerImage != null)
+            {
+                _directHitMarkerImage.color = color;
+            }
+            if (_weakSpotHitMarkerImage != null)
+            {
+                _weakSpotHitMarkerImage.color = color;
+            }
+            if (_criticalHitMarkerImage != null)
+            {
+                _criticalHitMarkerImage.color = color;
+            }
+            if (_killingBlowHitMarkerImage != null)
+            {
+                _killingBlowHitMarkerImage.color = color;
+            }
+
+            float settle = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(progress / 0.2f));
+            float scale = Mathf.Lerp(HitMarkerInitialScale, 1f, settle);
+            _reticleRect.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        private void SetHitMarkerOverlaysEnabled(
+            bool directHit,
+            bool weakSpot,
+            bool critical,
+            bool killingBlow)
+        {
+            if (_directHitMarkerImage != null)
+            {
+                _directHitMarkerImage.enabled = directHit;
+            }
+            if (_weakSpotHitMarkerImage != null)
+            {
+                _weakSpotHitMarkerImage.enabled = weakSpot;
+            }
+            if (_criticalHitMarkerImage != null)
+            {
+                _criticalHitMarkerImage.enabled = critical;
+            }
+            if (_killingBlowHitMarkerImage != null)
+            {
+                _killingBlowHitMarkerImage.enabled = killingBlow;
+            }
+        }
+
+        private void LogSteelAndBoneApiFailure(string message)
+        {
+            if (_steelAndBoneApiFailureLogged)
+            {
+                return;
+            }
+
+            _steelAndBoneApiFailureLogged = true;
+            Logger.LogWarning(message);
+        }
+
+        private void UnsubscribeSteelAndBoneHitFeedback()
+        {
+            if (_steelAndBoneHitResolvedEvent == null
+                && _steelAndBoneKillingBlowResolvedEvent == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (_steelAndBoneHitResolvedEvent != null
+                    && _steelAndBoneHitResolvedHandler != null)
+                {
+                    _steelAndBoneHitResolvedEvent.RemoveEventHandler(
+                        null,
+                        _steelAndBoneHitResolvedHandler);
+                }
+                if (_steelAndBoneKillingBlowResolvedEvent != null
+                    && _steelAndBoneKillingBlowResolvedHandler != null)
+                {
+                    _steelAndBoneKillingBlowResolvedEvent.RemoveEventHandler(
+                        null,
+                        _steelAndBoneKillingBlowResolvedHandler);
+                }
+            }
+            catch (Exception exception)
+            {
+                LogSteelAndBoneApiFailure(
+                    "Could not unsubscribe from Steel and Bone hit feedback: "
+                    + exception.Message);
+            }
+
+            _steelAndBoneHitResolvedEvent = null;
+            _steelAndBoneHitResolvedHandler = null;
+            _steelAndBoneKillingBlowResolvedEvent = null;
+            _steelAndBoneKillingBlowResolvedHandler = null;
         }
 
         private Color ParseColor(string colorText)
@@ -2188,11 +2952,105 @@ namespace DishonoredDynamicCrosshair
             LoadSprite(_bow);
             LoadSprite(_magic);
             LoadSprite(_bloodMagic);
+            LoadAllBloodMagicQualitySprites();
+            LoadAllHitMarkerSprites();
+        }
+
+        private void LoadAllBloodMagicQualitySprites()
+        {
+            for (int tier = 1; tier <= 4; tier++)
+            {
+                LoadBloodMagicQualitySprite(tier);
+            }
+        }
+
+        private void LoadBloodMagicQualitySprite(int tier)
+        {
+            ReticleAsset asset = _bloodMagicQualityAssets[tier];
+            LoadPngAsset(
+                asset,
+                ResolveHitMarkerPath(BloodMagicQualityReticleFileName(tier)),
+                "Blood Magic quality reticle tier " + tier,
+                "The standard Blood Magic reticle will be used as a fallback.",
+                "DishonoredDynamicCrosshairBloodMagicQuality" + tier);
         }
 
         private void LoadSprite(ContextSettings settings)
         {
             string path = ResolveSpritePath(settings);
+            string fallback = settings.Context == ReticleContext.General
+                ? "The custom reticle will remain hidden."
+                : "The general reticle will be used as a fallback.";
+            LoadPngAsset(
+                settings.Asset,
+                path,
+                settings.Context + " reticle",
+                fallback,
+                "DishonoredDynamicCrosshair" + settings.Context);
+        }
+
+        private void LoadAllHitMarkerSprites()
+        {
+            for (int frame = 0; frame <= 7; frame++)
+            {
+                LoadHitMarkerSprite((HitMarkerFrame)frame);
+            }
+            LoadPngAsset(
+                _directHitMarkerOverlay,
+                ResolveHitMarkerPath("hitmarker.png"),
+                "direct-hit marker overlay",
+                "Direct hits will use only the base result marker.",
+                "DishonoredDynamicCrosshairDirectHitMarkerOverlay");
+            LoadPngAsset(
+                _weakSpotHitMarkerOverlay,
+                ResolveHitMarkerPath("hitmarker_weakspot_overlay.png"),
+                "weak-spot hit-marker overlay",
+                "Weak-spot hits will use only the base result marker.",
+                "DishonoredDynamicCrosshairWeakSpotHitMarkerOverlay");
+            LoadPngAsset(
+                _criticalHitMarkerOverlay,
+                ResolveHitMarkerPath("hitmarker_critical_overlay.png"),
+                "critical hit-marker overlay",
+                "Critical hits will use only the base result marker.",
+                "DishonoredDynamicCrosshairCriticalHitMarkerOverlay");
+            for (int tier = 1; tier <= 4; tier++)
+            {
+                LoadKillingBlowOverlaySprite(tier);
+            }
+        }
+
+        private void LoadKillingBlowOverlaySprite(int tier)
+        {
+            ReticleAsset asset = _killingBlowOverlayAssets[tier];
+            LoadPngAsset(
+                asset,
+                ResolveHitMarkerPath(KillingBlowOverlayFileName(tier)),
+                "killing-blow overlay tier " + tier,
+                "Killing blows will use only the base result marker.",
+                "DishonoredDynamicCrosshairKillingBlowOverlay" + tier);
+        }
+
+        private void LoadHitMarkerSprite(HitMarkerFrame frame)
+        {
+            ReticleAsset asset = _hitMarkerAssets[frame];
+            string fileName = HitMarkerFileName(frame);
+            LoadPngAsset(
+                asset,
+                ResolveHitMarkerPath(fileName),
+                "effectiveness frame " + (int)frame,
+                frame == HitMarkerFrame.Neutral
+                    ? "Steel and Bone hit markers will remain hidden when no numbered marker is available."
+                    : "The neutral effectiveness frame will be used as a fallback.",
+                "DishonoredDynamicCrosshairHitMarkerFrame" + (int)frame);
+        }
+
+        private void LoadPngAsset(
+            ReticleAsset asset,
+            string path,
+            string label,
+            string missingDescription,
+            string unityName)
+        {
             DateTime writeTimeUtc = File.Exists(path)
                 ? File.GetLastWriteTimeUtc(path)
                 : DateTime.MinValue;
@@ -2200,26 +3058,23 @@ namespace DishonoredDynamicCrosshair
 
             if (!File.Exists(path))
             {
-                bool shouldLog = settings.Asset.ResolvedPath != path
-                    || !settings.Asset.Missing;
-                ClearAsset(settings.Asset);
-                settings.Asset.ResolvedPath = path;
-                settings.Asset.WriteTimeUtc = DateTime.MinValue;
-                settings.Asset.Length = -1L;
-                settings.Asset.Missing = true;
+                bool shouldLog = asset.ResolvedPath != path
+                    || !asset.Missing;
+                ClearAsset(asset);
+                asset.ResolvedPath = path;
+                asset.WriteTimeUtc = DateTime.MinValue;
+                asset.Length = -1L;
+                asset.Missing = true;
                 ApplyReticleState();
 
                 if (shouldLog)
                 {
-                    string fallback = settings.Context == ReticleContext.General
-                        ? "The custom reticle will remain hidden."
-                        : "The general reticle will be used as a fallback.";
                     Logger.LogWarning(
-                        settings.Context
-                        + " reticle PNG was not found: "
+                        label
+                        + " PNG was not found: "
                         + path
                         + " "
-                        + fallback);
+                        + missingDescription);
                 }
 
                 return;
@@ -2236,8 +3091,7 @@ namespace DishonoredDynamicCrosshair
                         2,
                         TextureFormat.RGBA32,
                         useMipMaps);
-                texture.name =
-                    "DishonoredDynamicCrosshair" + settings.Context + "Texture";
+                texture.name = unityName + "Texture";
                 texture.hideFlags = HideFlags.DontSave;
                 texture.wrapMode = TextureWrapMode.Clamp;
 
@@ -2246,14 +3100,12 @@ namespace DishonoredDynamicCrosshair
                     new object[] { texture, pngBytes, false }))
                 {
                     UnityEngine.Object.Destroy(texture);
-                    settings.Asset.ResolvedPath = path;
-                    settings.Asset.WriteTimeUtc = writeTimeUtc;
-                    settings.Asset.Length = length;
-                    settings.Asset.Missing = false;
+                    asset.ResolvedPath = path;
+                    asset.WriteTimeUtc = writeTimeUtc;
+                    asset.Length = length;
+                    asset.Missing = false;
                     Logger.LogError(
-                        "Unity could not decode the "
-                        + settings.Context
-                        + " reticle PNG: "
+                        "Unity could not decode the " + label + " PNG: "
                         + path);
                     return;
                 }
@@ -2275,18 +3127,17 @@ namespace DishonoredDynamicCrosshair
                     100f,
                     0,
                     SpriteMeshType.FullRect);
-                sprite.name =
-                    "DishonoredDynamicCrosshair" + settings.Context + "Sprite";
+                sprite.name = unityName + "Sprite";
                 sprite.hideFlags = HideFlags.DontSave;
 
-                Sprite oldSprite = settings.Asset.Sprite;
-                Texture2D oldTexture = settings.Asset.Texture;
-                settings.Asset.Sprite = sprite;
-                settings.Asset.Texture = texture;
-                settings.Asset.ResolvedPath = path;
-                settings.Asset.WriteTimeUtc = writeTimeUtc;
-                settings.Asset.Length = length;
-                settings.Asset.Missing = false;
+                Sprite oldSprite = asset.Sprite;
+                Texture2D oldTexture = asset.Texture;
+                asset.Sprite = sprite;
+                asset.Texture = texture;
+                asset.ResolvedPath = path;
+                asset.WriteTimeUtc = writeTimeUtc;
+                asset.Length = length;
+                asset.Missing = false;
 
                 ApplyReticleState();
                 if (oldSprite != null)
@@ -2301,8 +3152,8 @@ namespace DishonoredDynamicCrosshair
 
                 Logger.LogInfo(
                     "Loaded "
-                    + settings.Context
-                    + " reticle PNG: "
+                    + label
+                    + " PNG: "
                     + path
                     + " ("
                     + texture.width
@@ -2316,17 +3167,63 @@ namespace DishonoredDynamicCrosshair
             }
             catch (Exception exception)
             {
-                settings.Asset.ResolvedPath = path;
-                settings.Asset.WriteTimeUtc = writeTimeUtc;
-                settings.Asset.Length = length;
-                settings.Asset.Missing = false;
+                asset.ResolvedPath = path;
+                asset.WriteTimeUtc = writeTimeUtc;
+                asset.Length = length;
+                asset.Missing = false;
                 Logger.LogError(
                     "Failed to load "
-                    + settings.Context
-                    + " reticle PNG '"
+                    + label
+                    + " PNG '"
                     + path
                     + "': "
                     + exception);
+            }
+        }
+
+        private string ResolveHitMarkerPath(string fileName)
+        {
+            return Path.GetFullPath(Path.Combine(PluginDirectory, fileName));
+        }
+
+        private static string HitMarkerFileName(HitMarkerFrame frame)
+        {
+            return "custom_reticle_"
+                + ((int)frame).ToString(CultureInfo.InvariantCulture)
+                + ".png";
+        }
+
+        private static string BloodMagicQualityReticleFileName(int tier)
+        {
+            switch (tier)
+            {
+                case 1:
+                    return "custom_reticle_bloodmagic_meager.png";
+                case 2:
+                    return "custom_reticle_bloodmagic_worthy.png";
+                case 3:
+                    return "custom_reticle_bloodmagic_potent.png";
+                case 4:
+                    return "custom_reticle_bloodmagic_prime.png";
+                default:
+                    throw new ArgumentOutOfRangeException("tier");
+            }
+        }
+
+        private static string KillingBlowOverlayFileName(int tier)
+        {
+            switch (tier)
+            {
+                case 1:
+                    return "hitmarker_killingblow_meager_overlay.png";
+                case 2:
+                    return "hitmarker_killingblow_worthy_overlay.png";
+                case 3:
+                    return "hitmarker_killingblow_potent_overlay.png";
+                case 4:
+                    return "hitmarker_killingblow_prime_overlay.png";
+                default:
+                    throw new ArgumentOutOfRangeException("tier");
             }
         }
 
@@ -2350,19 +3247,95 @@ namespace DishonoredDynamicCrosshair
         private void CheckSprite(ContextSettings settings)
         {
             string path = ResolveSpritePath(settings);
+            if (AssetChanged(settings.Asset, path))
+            {
+                LoadSprite(settings);
+            }
+        }
+
+        private void CheckAllHitMarkerSprites()
+        {
+            foreach (KeyValuePair<int, ReticleAsset> pair in
+                _bloodMagicQualityAssets)
+            {
+                string path = ResolveHitMarkerPath(
+                    BloodMagicQualityReticleFileName(pair.Key));
+                if (AssetChanged(pair.Value, path))
+                {
+                    LoadBloodMagicQualitySprite(pair.Key);
+                }
+            }
+
+            foreach (KeyValuePair<HitMarkerFrame, ReticleAsset> pair in
+                _hitMarkerAssets)
+            {
+                string path = ResolveHitMarkerPath(
+                    HitMarkerFileName(pair.Key));
+                if (AssetChanged(pair.Value, path))
+                {
+                    LoadHitMarkerSprite(pair.Key);
+                }
+            }
+
+            string directHitPath = ResolveHitMarkerPath("hitmarker.png");
+            if (AssetChanged(_directHitMarkerOverlay, directHitPath))
+            {
+                LoadPngAsset(
+                    _directHitMarkerOverlay,
+                    directHitPath,
+                    "direct-hit marker overlay",
+                    "Direct hits will use only the base result marker.",
+                    "DishonoredDynamicCrosshairDirectHitMarkerOverlay");
+            }
+
+            string weakSpotPath = ResolveHitMarkerPath(
+                "hitmarker_weakspot_overlay.png");
+            if (AssetChanged(_weakSpotHitMarkerOverlay, weakSpotPath))
+            {
+                LoadPngAsset(
+                    _weakSpotHitMarkerOverlay,
+                    weakSpotPath,
+                    "weak-spot hit-marker overlay",
+                    "Weak-spot hits will use only the base result marker.",
+                    "DishonoredDynamicCrosshairWeakSpotHitMarkerOverlay");
+            }
+
+            string criticalPath = ResolveHitMarkerPath(
+                "hitmarker_critical_overlay.png");
+            if (AssetChanged(_criticalHitMarkerOverlay, criticalPath))
+            {
+                LoadPngAsset(
+                    _criticalHitMarkerOverlay,
+                    criticalPath,
+                    "critical hit-marker overlay",
+                    "Critical hits will use only the base result marker.",
+                    "DishonoredDynamicCrosshairCriticalHitMarkerOverlay");
+            }
+
+            foreach (KeyValuePair<int, ReticleAsset> pair in
+                _killingBlowOverlayAssets)
+            {
+                string path = ResolveHitMarkerPath(
+                    KillingBlowOverlayFileName(pair.Key));
+                if (AssetChanged(pair.Value, path))
+                {
+                    LoadKillingBlowOverlaySprite(pair.Key);
+                }
+            }
+        }
+
+        private static bool AssetChanged(ReticleAsset asset, string path)
+        {
             bool exists = !string.IsNullOrEmpty(path) && File.Exists(path);
             DateTime writeTimeUtc = exists
                 ? File.GetLastWriteTimeUtc(path)
                 : DateTime.MinValue;
             long length = exists ? new FileInfo(path).Length : -1L;
 
-            if (settings.Asset.ResolvedPath != path
-                || settings.Asset.Missing == exists
-                || settings.Asset.WriteTimeUtc != writeTimeUtc
-                || settings.Asset.Length != length)
-            {
-                LoadSprite(settings);
-            }
+            return asset.ResolvedPath != path
+                || asset.Missing == exists
+                || asset.WriteTimeUtc != writeTimeUtc
+                || asset.Length != length;
         }
 
         private static void ClearAsset(ReticleAsset asset)
@@ -2388,6 +3361,12 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            ResolveSteelAndBoneHitFeedbackApi();
+            if (_hitMarkerActive)
+            {
+                UpdateHitMarkerAnimation();
+            }
+
             if (Time.unscaledTime >= _nextSpriteCheckTime)
             {
                 _nextSpriteCheckTime = Time.unscaledTime + 1f;
@@ -2395,6 +3374,7 @@ namespace DishonoredDynamicCrosshair
                 CheckSprite(_bow);
                 CheckSprite(_magic);
                 CheckSprite(_bloodMagic);
+                CheckAllHitMarkerSprites();
             }
 
             if (Time.unscaledTime >= _nextTargetRefreshTime)
@@ -2427,10 +3407,14 @@ namespace DishonoredDynamicCrosshair
                 int bloodMagicState = bloodMagicActive
                     ? _lastBloodMagicCorpseState
                     : 0;
+                int bloodMagicQualityTier = bloodMagicActive
+                    ? _lastBloodMagicCorpseQualityTier
+                    : 0;
                 bool heroMounted = ReadHeroMounted();
                 if (displayContext != _currentContext
                     || displayTargetState != _currentTargetState
                     || bloodMagicState != _currentBloodMagicCorpseState
+                    || bloodMagicQualityTier != _currentBloodMagicCorpseQualityTier
                     || !Mathf.Approximately(
                         bloodMagicQualityScale,
                         _currentBloodMagicQualityScale)
@@ -2501,6 +3485,26 @@ namespace DishonoredDynamicCrosshair
             ApplyReticleState();
             ApplyTargetDetectionRange();
             RefreshVanillaCrosshair();
+        }
+
+        private void OnHitMarkerSettingChanged(
+            object sender,
+            EventArgs eventArgs)
+        {
+            if (_steelAndBoneHitMarkersEnabled == null
+                || !_steelAndBoneHitMarkersEnabled.Value)
+            {
+                _hitMarkerActive = false;
+                UnsubscribeSteelAndBoneHitFeedback();
+            }
+            else
+            {
+                _steelAndBoneApiUnavailableForSession = false;
+                _nextSteelAndBoneApiResolveTime = 0f;
+                ResolveSteelAndBoneHitFeedbackApi();
+            }
+
+            ApplyReticleState();
         }
 
         private void OnTargetDetectionRangeSettingChanged(
@@ -2637,12 +3641,17 @@ namespace DishonoredDynamicCrosshair
             _reticleObject = null;
             _reticleRect = null;
             _reticleImage = null;
+            _directHitMarkerImage = null;
+            _weakSpotHitMarkerImage = null;
+            _criticalHitMarkerImage = null;
+            _killingBlowHitMarkerImage = null;
             _crosshairParent = null;
         }
 
         private void OnDestroy()
         {
             UnregisterSettingHandlers();
+            UnsubscribeSteelAndBoneHitFeedback();
             RestoreTargetDetectionRange();
 
             if (_harmony != null)
@@ -2657,6 +3666,21 @@ namespace DishonoredDynamicCrosshair
             ClearAsset(_bow.Asset);
             ClearAsset(_magic.Asset);
             ClearAsset(_bloodMagic.Asset);
+            foreach (ReticleAsset asset in _bloodMagicQualityAssets.Values)
+            {
+                ClearAsset(asset);
+            }
+            foreach (ReticleAsset asset in _hitMarkerAssets.Values)
+            {
+                ClearAsset(asset);
+            }
+            ClearAsset(_directHitMarkerOverlay);
+            ClearAsset(_weakSpotHitMarkerOverlay);
+            ClearAsset(_criticalHitMarkerOverlay);
+            foreach (ReticleAsset asset in _killingBlowOverlayAssets.Values)
+            {
+                ClearAsset(asset);
+            }
             Instance = null;
         }
 

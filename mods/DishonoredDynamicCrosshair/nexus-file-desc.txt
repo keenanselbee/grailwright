@@ -1,1 +1,1 @@
-Replaces the vanilla crosshair with hot-loading PNG reticles for general, bow, magic, target, and optional Blood Magic corpse contexts, with compact config controls.
+Dynamic, hot-reloading PNG crosshairs for weapon states, target hostility, crouching, and optional Blood Magic or Steel and Bone feedback.

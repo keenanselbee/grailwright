@@ -1,10 +1,12 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Dishonored Dynamic Crosshair[/size][/color]
-[i]Reactive PNG reticles for weapons, targets, and blood-magic corpse feedback.[/i][/center]
+[i]Reactive PNG reticles for weapons, targets, blood magic, and contextual hit feedback.[/i][/center]
 
 [line]
 
-[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback.
+[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] hit feedback.
+
+[line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
@@ -12,7 +14,8 @@
 [*][b]Flexible visibility:[/b] Choose AlwaysVisible, TargetOnly, CombatReady, or HostilesOnly, with live hostility updates and configurable target range.[/*]
 [*][b]Readable targeting:[/b] Apply shared default, hostile, and friendly or neutral colors while retaining independent crouch-indicator controls.[/*]
 [*][b]Precise presentation:[/b] Set true screen-pixel or canvas-relative dimensions, texture filtering, mounted opacity, and vanilla-reticle suppression.[/*]
-[*][b]Blood Magic integration:[/b] Show a dedicated corpse-drain reticle through the optional [b]Blood Magic Expansion[/b] API.[/*]
+[*][b]Blood Magic integration:[/b] Show Meager, Worthy, Potent, and Prime corpse-drain reticles through the optional [b]Blood Magic Expansion[/b] API.[/*]
+[*][b]Steel and Bone hit markers:[/b] Temporarily replace the current reticle with eight effectiveness frames, independent weak-spot and critical overlays, and a tiered killing-blow layer above them.[/*]
 [/list]
 
 [line]
@@ -57,7 +60,9 @@ Start the game once to generate:
 
 [b]Colors and Opacity[/b] has [b]DefaultColor[/b], [b]HostileColor[/b], [b]NonHostileColor[/b], [b]IdleOpacity[/b], [b]TargetOpacity[/b], and [b]MountedOpacityMultiplier[/b].
 
-[b]Blood Magic[/b] has [b]Mode[/b], [b]RequireRelevantBloodSpell[/b], [b]UseCorpseQualityScale[/b], [b]MaximumQualityScale[/b], and [b]UsableCorpseColor[/b].
+[b]Blood Magic[/b] has [b]Mode[/b], [b]RequireRelevantBloodSpell[/b], [b]BloodMagicQualityCrosshairsEnabled[/b], [b]UseCorpseQualityScale[/b], [b]MaximumQualityScale[/b], and [b]UsableCorpseColor[/b].
+
+[b]Steel and Bone Hit Markers[/b] has [b]Enabled[/b], [b]KillingBlowOverlaysEnabled[/b], [b]SizeMultiplier[/b], [b]DamageOverTimeSizeMultiplier[/b], [b]KillingBlowSizeMultiplier[/b], [b]DurationMultiplier[/b], and [b]KillingBlowDurationMultiplier[/b]. Direct-hit frames default to 1.15x the general reticle size, damage-over-time frames default to 1.1x, and complete killing-blow compositions default to 1.3x. All frames default to 1x Steel and Bone's final feedback duration. Killing blows last another 1.5x by default before their corpse tier applies 1.00x, 1.33x, 1.67x, or 2.00x from Meager through Prime. Bow, Magic, Blood Magic, and corpse-quality scales do not affect marker size.
 
 [b]Advanced[/b] has targeting, sizing, texture filtering, crouch indicator opacity/offset, hands-down behavior, and [b]HideVanillaReticles[/b]. Most users can leave these defaults alone.
 
@@ -75,16 +80,47 @@ When [b]Enabled = false[/b], the custom reticle and background polling pause, an
 
 [line]
 
-[heading][color=#C94A4A][size=5]Blood Magic Reticle[/size][/color][/heading]
-[b]Mode = Auto[/b] shows [b]custom_reticle_bloodmagic.png[/b] from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] API v4 focused corpse states; [b]Off[/b] disables the integration. When Blood Magic Expansion is not loaded, the optional API is marked unavailable for the current game session instead of being searched for repeatedly. [b]RequireRelevantBloodSpell[/b] keeps it tied to Blood/Life Transfusion or Abhartach's Calling.
+[heading][color=#C94A4A][size=5]Blood Magic Corpse Drain Reticle[/size][/color][/heading]
 
-No focused corpse shows no blood reticle. Blocked, bloodless, or spent corpses use the blood-magic PNG with the normal Magic/default color path at 1x. Usable or channeling corpses use [b]UsableCorpseColor[/b] and can scale from 1x to [b]MaximumQualityScale[/b] from corpse quality. Quality changes size only, not color. Living enemies keep the normal hostile or magic reticle.
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] installed, Dishonored selects a Meager, Worthy, Potent, or Prime corpse reticle from the shared corpse-quality bucket. The original [b]custom_reticle_bloodmagic.png[/b] remains the fallback when quality is unavailable, tiered reticles are disabled, or a tier asset is missing. Set [b]Mode = Off[/b] to disable the integration. Enable [b]RequireRelevantBloodSpell[/b] to show it only while Blood/Life Transfusion or Abhartach's Calling is relevant.
+
+[list]
+[*][b]No focused corpse:[/b] No blood-magic reticle appears.[/*]
+[*][b]Registered blocked, bloodless, or spent corpse:[/b] Retains its Meager, Worthy, Potent, or Prime PNG at 1x and uses the ordinary [b]DefaultColor[/b] and [b]IdleOpacity[/b].[/*]
+[*][b]Unregistered or unresolved corpse:[/b] Uses the original fallback blood-magic PNG with the ordinary [b]DefaultColor[/b] and [b]IdleOpacity[/b].[/*]
+[*][b]Usable or channeling corpse:[/b] Uses [b]UsableCorpseColor[/b] and can also scale from 1x up to [b]MaximumQualityScale[/b]. Quality changes sprite and size, not color.[/*]
+[*][b]Living enemy:[/b] Keeps the normal hostile or Magic reticle.[/*]
+[/list]
+
+If Blood Magic Expansion is not loaded, Dishonored marks the optional API unavailable for the rest of the game session instead of repeatedly searching for it.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Steel and Bone Hit Markers[/size][/color][/heading]
+
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241?tab=description]Steel and Bone[/url] installed, each outgoing player hit briefly replaces the current reticle with a hit marker showing how effective that hit was:
+
+[code]| Hit Marker | Visual effectiveness | Meaning                       |
+|------------|----------------------|-------------------------------|
+|      0     | Immune or zero       | Blocked                       |
+|      1     | Below x0.35          | Extreme resistance            |
+|      2     | x0.35 to below x0.70 | Strong resistance             |
+|      3     | x0.70 to below x0.95 | Mild resistance               |
+|      4     | x0.95 to x1.05       | Neutral; also General default |
+|      5     | Above x1.05 to x1.10 | Mild weakness                 |
+|      6     | Above x1.10 to x1.20 | Strong weakness               |
+|      7     | Above x1.20          | Extreme weakness              |[/code]
+
+Every direct nonlethal hit adds a central diamond over its effectiveness frame, colored with Steel and Bone's final damage-feedback color. Damage-over-time ticks and killing blows omit the diamond. Steel and Bone's presentation-adjusted effectiveness and calculated red shift remain intact for weak spots and critical hits. Its single Effectiveness Feedback Sensitivity value defaults to x1.20 on Tempered, x1.10 on Hardened, and x1.00 on Crucible, and changes presentation without changing actual damage. Weak-spot and critical symbols are independent overlays above the diamond, so either or both can appear over any effectiveness frame. A killing blow adds its Meager, Worthy, Potent, or Prime corpse-tier overlay above both precision layers and turns the base frame plus every visible overlay dark red (#8C0003). Floating damage numbers can remain disabled; the hit markers still work.
+
+By default, direct-hit markers display at 1.15x the General reticle size, damage-over-time tick markers display at 1.1x, and complete killing-blow compositions display at 1.3x. All use 1x Steel and Bone's final feedback duration. Bow, Magic, Blood Magic, and corpse-quality size scales do not affect them. A new hit immediately selects the latest frame and restarts the timer. After the quick settle and fade, the current General, Bow, Magic, or Blood Magic reticle returns. Without Steel and Bone, Dishonored keeps its normal crosshair behavior.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
-[*][b]Blood Magic Expansion[/b] 2.0.0 or newer is supported for optional blood-magic corpse reticle feedback.[/*]
+[*][b]Blood Magic Expansion[/b] 2.7.6 or newer is supported for optional usable and unavailable tiered blood-magic corpse reticle feedback through API v9. Older API versions are not supported.[/*]
+[*][b]Steel and Bone[/b] 3.3.9 or newer is supported through hit-feedback API v5. Older API v4 builds are not supported.[/*]
 [*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [*]Owrocc ModifyColors can remain installed.[/*]
 [*]Owrocc ModifyCrosshair is redundant and should be removed.[/*]

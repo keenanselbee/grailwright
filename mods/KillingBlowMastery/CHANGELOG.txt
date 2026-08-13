@@ -1,3 +1,14 @@
+Version 1.6.3
+Added optional Versatile Weapons 0.3.0 integration so the current grip selects the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound.
+Retained native weapon proficiency when Versatile Weapons is absent, disabled, or unavailable.
+
+Version 1.6.2
+Changed sickle killing-blow notifications to use the One-Handed Axe icon while retaining One-Handed wording and blade-pool audio.
+
+Version 1.6.1
+Used weapon-specific GFT icons for recognized one-handed and two-handed killing-blow notifications when Grail Floating Text 2.3.0 or newer is available.
+Retained broad proficiency icons with older GFT versions and for unknown subtypes, without changing mastery XP or category-based audio routing.
+
 Version 1.6.0
 Removed Killing Blow Mastery's character-statistics counters, statistics settings, save-memory hook, and TSV export so the mod is focused only on killing-blow proficiency rewards, notifications, and audio.
 No Killing Blow Mastery counters are imported or migrated into Deeds of Avalon.

@@ -17,22 +17,25 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.6.0.0")]
-[assembly: AssemblyFileVersion("1.6.0.0")]
-[assembly: AssemblyInformationalVersion("1.6.0")]
+[assembly: AssemblyVersion("1.6.3.0")]
+[assembly: AssemblyFileVersion("1.6.3.0")]
+[assembly: AssemblyInformationalVersion("1.6.3")]
 
 namespace KillingBlowMastery
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class KillingBlowMasteryPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.6.0";
+        public const string PluginVersion = "1.6.3";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
+        private const string VersatileWeaponsPluginGuid = "ks.tgfoa.versatile-weapons";
+        private const string VersatileWeaponsApiTypeName = "VersatileWeapons.VersatileWeaponsApi";
         private const string GrailFloatingTextKillingBlowEventId = "killing-blow";
         private const string GrailFloatingTextShortDurationBucket = "Short";
         private const string NpcElementTypeName = "Awaken.TG.Main.Fights.NPCs.NpcElement";
@@ -114,6 +117,7 @@ namespace KillingBlowMastery
         private Type _profStatType;
         private MethodInfo _heroCurrentGetter;
         private MethodInfo _profFromAbstractsMethod;
+        private MethodInfo _versatileWeaponsGetEffectiveProficiencyMethod;
         private MethodInfo _tryAddXpMethod;
         private MethodInfo _notificationPushMethod;
         private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
@@ -174,7 +178,10 @@ namespace KillingBlowMastery
         private AudioSource _rewardAudioSource;
         private bool _rewardSoundLoadStarted;
         private bool _grailFloatingTextBridgeResolved;
+        private bool _grailFloatingTextSupportsSpecificWeaponIcons;
         private bool _grailFloatingTextUnavailableLogged;
+        private bool _versatileWeaponsBridgeResolved;
+        private bool _versatileWeaponsBridgeFailureLogged;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
         private string[] _cachedBloodlessSoundBlacklistTerms = new string[0];
@@ -804,7 +811,7 @@ namespace KillingBlowMastery
                 string proficiencyName = DescribeProficiency(proficiency);
                 string enemyName = DescribeObject(npc);
 
-                ShowAwardNotification(bonus, DescribeNotificationProficiency(proficiency, proficiencyName), enemyName, sourceName, enemyXp, proficiency);
+                ShowAwardNotification(bonus, DescribeNotificationProficiency(proficiency, proficiencyName), enemyName, sourceName, enemyXp, proficiency, item);
                 PlayAwardSound(bonus, proficiency, item, sourceDamage, npc);
 
                 LogDiagnostic("Awarded " + bonus.ToString("0.###", CultureInfo.InvariantCulture) + " " +
@@ -1048,7 +1055,7 @@ namespace KillingBlowMastery
             return null;
         }
 
-        private void ShowAwardNotification(float bonus, string proficiencyName, string enemyName, string weaponName, float enemyXp, object proficiency)
+        private void ShowAwardNotification(float bonus, string proficiencyName, string enemyName, string weaponName, float enemyXp, object proficiency, object item)
         {
             if (!_notificationsEnabled.Value || bonus < Math.Max(0.0f, _notificationMinimumXp.Value))
             {
@@ -1069,7 +1076,7 @@ namespace KillingBlowMastery
 
             if (mode == "GrailFloatingText" || mode == "Both")
             {
-                if (TryShowGrailFloatingText(text, ResolveProficiencyIconId(proficiency)))
+                if (TryShowGrailFloatingText(text, ResolveNotificationIconId(proficiency, item)))
                 {
                     LogDiagnostic("Queued killing-blow notification via Grail Floating Text.");
                 }
@@ -1205,6 +1212,20 @@ namespace KillingBlowMastery
                 return false;
             }
 
+            try
+            {
+                MethodInfo builtInIconIdsMethod = AccessTools.Method(apiType, "GetBuiltInIconIds", Type.EmptyTypes);
+                string[] iconIds = builtInIconIdsMethod == null ? null : builtInIconIdsMethod.Invoke(null, null) as string[];
+                _grailFloatingTextSupportsSpecificWeaponIcons = iconIds != null
+                    && Array.Exists(iconIds, id => string.Equals(id, "one_handed_sword", StringComparison.OrdinalIgnoreCase))
+                    && Array.Exists(iconIds, id => string.Equals(id, "two_handed_spear", StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception exception)
+            {
+                _grailFloatingTextSupportsSpecificWeaponIcons = false;
+                LogDiagnostic("Could not inspect Grail Floating Text weapon icons; broad proficiency icons will be used: " + exception.GetBaseException().Message);
+            }
+
             _grailFloatingTextTryShowEventWithIconMethod = AccessTools.Method(
                 apiType,
                 "TryShowEvent",
@@ -1288,6 +1309,34 @@ namespace KillingBlowMastery
             }
 
             return "reward";
+        }
+
+        private string ResolveNotificationIconId(object proficiency, object item)
+        {
+            string fallback = ResolveProficiencyIconId(proficiency);
+            if (!TryResolveGrailFloatingTextBridge() || !_grailFloatingTextSupportsSpecificWeaponIcons || item == null)
+            {
+                return fallback;
+            }
+
+            if (ReferenceEquals(proficiency, _oneHandedProf))
+            {
+                if (GetBoolProperty(item, "IsDagger", false)) return "one_handed_dagger";
+                if (GetBoolProperty(item, "IsSword", false)) return "one_handed_sword";
+                if (GetBoolProperty(item, "IsAxe", false)) return "one_handed_axe";
+                if (GetBoolProperty(item, "IsBlunt", false)) return "one_handed_blunt";
+                if (GetBoolProperty(item, "IsPolearm", false)) return "one_handed_spear";
+                if (GetBoolProperty(item, "IsSickle", false)) return "one_handed_axe";
+            }
+            else if (ReferenceEquals(proficiency, _twoHandedProf))
+            {
+                if (GetBoolProperty(item, "IsSword", false)) return "two_handed_sword";
+                if (GetBoolProperty(item, "IsAxe", false)) return "two_handed_axe";
+                if (GetBoolProperty(item, "IsBlunt", false)) return "two_handed_blunt";
+                if (GetBoolProperty(item, "IsPolearm", false)) return "two_handed_spear";
+            }
+
+            return fallback;
         }
 
         private void LogGrailFloatingTextUnavailableOnce(string message)
@@ -2663,7 +2712,13 @@ namespace KillingBlowMastery
 
         private object ResolveItemProficiency(object item)
         {
-            object proficiency = null;
+            object proficiency = ResolveVersatileWeaponsEffectiveProficiency(
+                item);
+            if (proficiency != null)
+            {
+                return proficiency;
+            }
+
             if (_profFromAbstractsMethod != null && item != null)
             {
                 try
@@ -2709,6 +2764,78 @@ namespace KillingBlowMastery
             }
 
             return null;
+        }
+
+        private object ResolveVersatileWeaponsEffectiveProficiency(
+            object item)
+        {
+            if (item == null || !TryResolveVersatileWeaponsBridge())
+            {
+                return null;
+            }
+
+            try
+            {
+                return _versatileWeaponsGetEffectiveProficiencyMethod.Invoke(
+                    null,
+                    new[] { item });
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsGetEffectiveProficiencyMethod = null;
+                if (!_versatileWeaponsBridgeFailureLogged)
+                {
+                    _versatileWeaponsBridgeFailureLogged = true;
+                    LogDiagnostic(
+                        "Versatile Weapons effective-proficiency API failed; using native proficiency fallback: "
+                        + exception.GetBaseException().Message);
+                }
+                return null;
+            }
+        }
+
+        private bool TryResolveVersatileWeaponsBridge()
+        {
+            if (_versatileWeaponsBridgeResolved)
+            {
+                return _versatileWeaponsGetEffectiveProficiencyMethod != null;
+            }
+
+            _versatileWeaponsBridgeResolved = true;
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    VersatileWeaponsPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null
+                || _itemType == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                VersatileWeaponsApiTypeName,
+                false);
+            _versatileWeaponsGetEffectiveProficiencyMethod = apiType == null
+                ? null
+                : AccessTools.Method(
+                    apiType,
+                    "GetEffectiveProficiency",
+                    new[] { _itemType });
+            if (_versatileWeaponsGetEffectiveProficiencyMethod == null)
+            {
+                if (!_versatileWeaponsBridgeFailureLogged)
+                {
+                    _versatileWeaponsBridgeFailureLogged = true;
+                    LogDiagnostic(
+                        "Versatile Weapons is loaded without its effective-proficiency API; using native proficiency fallback.");
+                }
+                return false;
+            }
+
+            LogDiagnostic(
+                "Connected to the Versatile Weapons effective-proficiency API.");
+            return true;
         }
 
         private bool LooksLikeMagicDamage(object damage)

@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.6.0
+Version 1.6.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -224,9 +224,13 @@ Notifications are on by default. The default notification is:
 Killing blow: +{xp} {skill}
 
 NotificationMode defaults to GrailFloatingText, the optional shared Grail
-Floating Text overlay. When Grail Floating Text 1.2.0 or newer is installed,
-reward text uses skill-level icons for One-Handed, Two-Handed, Archery, Shield,
-Unarmed, and Magic. When Grail Floating Text 1.4.7 or newer is installed,
+Floating Text overlay. With Grail Floating Text 2.3.0 or newer, recognized
+one-handed and two-handed kills use specific sword, axe, blunt, dagger, or spear
+icons while the awarded proficiency remains One-Handed or Two-Handed. Sickles
+use the One-Handed Axe icon while retaining their existing blade-pool audio.
+Older GFT versions and unknown subtypes use the broad proficiency icon.
+Archery, Shield, Unarmed, and Magic retain their skill-level icons. When Grail
+Floating Text 1.4.7 or newer is installed,
 killing-blow rewards use the killing-blow event ID and are red by default through
 Grail Floating Text's editable RedEvents group. Set NotificationMode = GameHud to
 use the original Wyrd/lower HUD notification route, Both to use both routes at
@@ -246,6 +250,13 @@ Diagnostics:
 
 Turn Diagnostics on to log kill source, resolved proficiency, enemy XP, awarded
 bonus, notification route, and reward sound pool.
+
+Compatibility:
+
+Versatile Weapons 0.3.0+ is an optional soft integration. Its current grip
+selects the One-Handed or Two-Handed killing-blow bonus, notification skill,
+weapon-family icon, and finisher sound pool. Native weapon proficiency remains
+the fallback when Versatile Weapons is absent, disabled, or unavailable.
 
 Build:
 

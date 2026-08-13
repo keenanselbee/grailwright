@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Killing Blow Mastery[/size][/color]
 [i]Finisher sounds and modest proficiency XP for the skill that lands the kill.[/i][/center]
 
@@ -10,11 +10,13 @@ The goal is to make side weapons, shields, archery, and magic less painful to tr
 
 It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] reward message and category-based killing blow sounds for blades, axes, blunt weapons, bows, shields, unarmed attacks, and several magic types.
 
+[line]
+
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Finishing-skill XP:[/b] Reward One-Handed, Two-Handed, Unarmed, Archery, Shield, or Magic when that skill lands the killing blow.[/*]
 [*][b]Controlled progression:[/b] Base the modest bonus on enemy XP with configurable minimum and cap values, including recent supported damage-over-time attribution.[/*]
-[*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages and skill-level icons.[/*]
+[*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages. GFT 2.3.1+ adds specific sword, axe, blunt, dagger, and spear icons for recognized handed weapons; sickles use the One-Handed Axe icon.[/*]
 [*][b]Weapon-aware finishers:[/b] Route FMOD sounds through blades, axes, blunt weapons, bows, shields, unarmed attacks, and distinct magic pools.[/*]
 [*][b]Large included sound library:[/b] Use 165 effects across standard, optional dry bloodless-target, and non-corporeal variants, with several selectable sound modes.[/*]
 [/list]
@@ -208,7 +210,7 @@ Default text: Killing blow: +{xp} {skill}
 Example:      Killing blow: +8 Two-Handed
 [/code]
 
-[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] overlay. With Grail Floating Text 1.2.0 or newer, reward text uses skill-level icons for One-Handed, Two-Handed, Archery, Shield, Unarmed, and Magic. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
+[b]NotificationMode[/b] defaults to [b]GrailFloatingText[/b], the optional shared [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] overlay. With Grail Floating Text 2.3.1 or newer, recognized one-handed and two-handed kills use specific sword, axe, blunt, dagger, or spear icons while the awarded proficiency remains One-Handed or Two-Handed. Sickles use the One-Handed Axe icon while retaining blade-pool audio. Older GFT versions and unknown subtypes use the broad proficiency icon. Archery, Shield, Unarmed, and Magic continue to use their skill-level icons. With Grail Floating Text 1.4.7 or newer, killing-blow rewards use the [b]killing-blow[/b] event ID and are red by default through Grail Floating Text's editable [b]RedEvents[/b] group.
 
 [b]NotificationTextFormat[/b] supports:
 
@@ -257,4 +259,5 @@ BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is optional, but required for the default shared reward text route.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] 0.3.0 or newer makes the current grip select the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound. Native weapon proficiency remains the fallback without the integration.[/*]
 [/list]

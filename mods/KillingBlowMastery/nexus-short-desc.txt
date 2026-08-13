@@ -1,1 +1,1 @@
-Adds source-specific finisher sounds and a configurable proficiency XP bonus to the weapon, shield, or magic skill that lands the killing blow.
+Adds source-specific finisher sounds and a configurable proficiency XP bonus to the weapon, shield, or magic skill that lands the killing blow. Also shows killing blow text when Grail Floating Text is installed.

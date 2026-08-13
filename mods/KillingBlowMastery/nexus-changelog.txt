@@ -1,5 +1,4 @@
-TargetVersion=1.6.0
-BaselineVersion=1.5.7
-Removed the character-statistics counters, settings, save-memory hook, and TSV export so Killing Blow Mastery is focused on proficiency rewards, notifications, and audio.
-No Killing Blow Mastery counters are imported or migrated into Deeds of Avalon.
-Advanced ConfigSchemaVersion from 13 to 14 because the Statistics section was removed and Diagnostics moved from section 7 to section 6.
+TargetVersion=1.6.3
+BaselineVersion=1.6.2
+Added optional Versatile Weapons 0.3.0 integration so the current grip selects the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound.
+Retained native weapon proficiency when Versatile Weapons is absent, disabled, or unavailable.

@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]{{Mod Display Name}}[/size][/color]
 [i]{{Short one-line subtitle focused on the player-facing benefit.}}[/i][/center]
 
@@ -7,6 +7,8 @@
 [b]{{Mod Display Name}}[/b] {{Open with the player-facing transformation: what the mod changes, what the player experiences, and why it matters. Keep this to one compact paragraph. Mention [b]Tainted Grail: The Fall of Avalon[/b] only when the game context is useful rather than obvious.}}
 
 {{Optional second paragraph for inspiration, design context, or one important distinction from similar mods. Delete this paragraph when it adds no useful context.}}
+
+[line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
@@ -50,6 +52,7 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [list]
 [*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
 [*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
 [/list]
 
 [line]
@@ -66,13 +69,14 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 {{Short closing note, tuning warning, credit, or scope boundary.}}
 
 Template rules:
-- Begin every new description with this exact visual rhythm: centered Grailwright logo; centered red title; centered italic one-line subtitle; `[line]`; compact opening copy; `Features`; feature list; `[line]`.
-- Do not place a divider between the opening copy and `Features`.
+- Begin every new description with this exact visual rhythm: centered Grailwright logo; centered red title; centered italic one-line subtitle; `[line]`; compact opening copy; `[line]`; `Features`; feature list; `[line]`.
+- Place a divider between the opening copy and `Features`.
 - Begin the first opening paragraph with the full mod name in bold. Lead with the experience or problem solved, not installation, implementation details, or a generic “this mod” sentence.
 - Keep the subtitle to one sentence and make it a player-facing pitch rather than a second title.
 - Give each opening feature bullet a short bold label followed by a concrete explanation. Use three to six bullets and put the most distinctive features first.
 - Use the optional second opening paragraph only for useful inspiration, design context, or differentiation; remove it instead of adding filler.
 - Use the accent color [b]#C94A4A[/b] for the title and every major section header.
+- Use exactly `Supports Windows and Linux.` for the platform line in Nexus descriptions; do not add a Proton qualifier.
 - Use `[center][color=#C94A4A][size=6]...[/size][/color]` for the title.
 - Use `[heading][color=#C94A4A][size=5]...[/size][/color][/heading]` for major headers.
 - Use `[line]` between major sections.

@@ -1,3 +1,117 @@
+Version 2.8.1
+Marked corpse-ritual, Blood/Life Transfusion, and Abhartach healing at the exact health mutation so Grail Floating Text 2.4.6 can present visible blood healing through its configurable Red group with the Blood Magic icon.
+Kept correlated held-channel healing ticks suppressed by default while leaving ordinary healing notifications unchanged.
+
+Version 2.8.0
+Simplified Grail Floating Text corpse rewards to "+X XP | +X Blood Essence" while retaining the matching Meager, Worthy, Potent, or Prime corpse icon.
+
+Version 2.7.9
+Gave native enemy Tiers 0 through 7 distinct corpse-quality anchors so nearby early-game enemies can separate into Meager and Worthy results without sacrificing the shared four-bucket model.
+Changed relative-level weighting to 2.5% quality per level in either direction, capped at 7.5%, so level remains a bounded challenge signal instead of eventually collapsing old enemies into Meager or inflating future enemies into Prime.
+Added a 10% Elite bonus, 17.5% MiniBoss bonus, and 87.5% Boss minimum before the bounded level adjustment.
+
+Version 2.7.8
+Rebalanced corpse quality around native enemy Tier tags: Tier 0-2 is Meager, Tier 3 is Worthy, Tier 4 is Potent, and Tier 5-7 is Prime.
+Added relative-level decay so enemies lose one corpse-quality band for every five levels they fall below the hero, down to vanilla's 10% minimum XP multiplier, without promoting equal- or higher-level enemies.
+Raised the shared untagged-enemy fallback references to 700 base XP and 3400 maximum health.
+Advanced ConfigSchemaVersion from 16 to 17 because the removed ReferenceKillXP and ReferenceMaxHealth settings are now a fixed shared policy; compatible customized settings remain eligible for recovery.
+
+Version 2.7.7
+Changed Grail Floating Text corpse reward lines to use the matching Meager, Worthy, Potent, or Prime corpse icon.
+
+Version 2.7.6
+Extended focused-corpse quality tiers to registered bloodless, spent, and otherwise blocked corpses so integrations can show quality separately from usability.
+
+Version 2.7.5
+Added shared Meager, Worthy, Potent, and Prime corpse-quality bucket definitions for optional cross-mod reticle and killing-blow feedback.
+Updated BloodMagicApi to v9 so focused corpses expose the same evidence-backed tier used by Blood Magic Expansion, including spent corpses while they remain focused.
+
+Version 2.7.4
+Restricted live-drain XP to held-channel damage so tap projectiles cannot earn delayed XP when they land during another active hold.
+Doubled confirmed held-channel Blood/Life Transfusion healing by default through the configurable HeldHealingMultiplier without changing tap projectile healing.
+Suppressed only correlated held-channel healing ticks from Grail Floating Text 2.4.3 or newer while leaving other immediate healing notifications unchanged.
+
+Version 2.7.3
+Changed ShowGrailFloatingTextDiagnostics to default on while each matching granular diagnostic log option remains required for its in-game summary.
+Raised ConfigSchemaVersion from 15 to 16 because the diagnostic-notification default changed; compatible customized settings remain eligible for recovery.
+
+Version 2.7.2
+Excluded Versatile Weapons-suppressed blood spells from relevant-spell API checks so optional UI integrations do not present an unavailable offhand spell.
+Invalidated equipped-spell caches and cleared held Abhartach state as soon as either hand becomes suppressed, then restored native detection when the hand becomes active.
+
+Version 2.7.1
+Added optional low-priority Grail Floating Text diagnostic summaries for corpse rejection, focused-corpse quality changes, and blood-spell inner-light visibility changes, all in one collapsed lane.
+Added ShowGrailFloatingTextDiagnostics defaulting to false and still requiring the matching granular diagnostic log option.
+Changed LogBloodSpellInnerLight to default off and raised ConfigSchemaVersion from 14 to 15 so untouched old defaults receive the quieter value while compatible customized settings remain eligible for recovery.
+
+Version 2.6.9
+Ensured Versatile Weapons suppression clears held-cast tracking even when a blood spell has no matching inner-light readiness entry.
+
+Version 2.6.8
+Added a soft Versatile Weapons integration that immediately suspends an offhand blood-spell light, readiness, cast boost, and held-cast tracking while the opposite weapon uses a two-handed grip.
+Restores normal blood-spell presentation and tracking after Versatile Weapons returns the offhand to active use.
+
+Version 2.6.7
+Imported Deeds of Avalon's saved corpse quality sum with its tier counts before absolute synchronization so average corpse quality remains exact across the upgrade.
+
+Version 2.6.6
+Persisted corpse-quality tiers alongside Blood Essence and periodically synchronized their absolute values to Deeds of Avalon 1.6.5+, preventing temporary integration failures from permanently drifting corpse statistics and restoring the complete tier state when a reward transaction rolls back.
+
+Version 2.6.5
+Added optional Eyes in the Dark integration that reports each successfully completed corpse ritual's quality for exposed-Wyrdnight threat, while failed, interrupted, protected, indoor, and daytime rituals add no threat.
+
+Version 2.6.4
+Replaced the two square-root Blood Power branches with one continuous cubic curve that preserves Power 100 at 1,000 Essence and Power 120 at 2,000 while reducing oversized early gains.
+Kept ConfigSchemaVersion 14 because this changes derived gameplay scaling without changing any config setting.
+
+Version 2.6.3
+Stopped consolidating completed corpse reward notifications so every line reports the exact XP and Blood Essence from one ritual; frequent live-drain XP ticks still consolidate.
+
+Version 2.6.2
+Made corpse rewards commit Blood Essence before reserving their combined Grail Floating Text line.
+Added transactional recovery that cancels the pending GFT XP claim and restores the prior Essence and completed-corpse count if character XP cannot be awarded.
+Required enabled corpse healing to complete before the XP and Essence transaction begins, preventing incomplete rituals from presenting completed rewards.
+Made the combined corpse reward line require Grail Floating Text 2.1.2 or newer; older versions safely fall back to generic XP text.
+
+Version 2.6.1
+Made Power 100-120 continue gameplay bonuses by another 20% of their fully unlocked bonus portion, so the increase matches Power 80-100 while still requiring the severely diminished 1,000-2,000 Essence progression.
+Changed the inner spell light to start at baseline brightness, reach 2x brightness at Power 100, and reach 2.4x brightness at Power 120.
+Changed the default inner spell light range to grow smoothly from 3 meters at Power 0 to 4.5 meters at Power 100 and 5 meters at Power 120.
+Raised the default held-target and corpse-search safety caps from 1.5x to 1.6x so Soul Feast can receive its complete Power 120 continuation.
+Incremented ConfigSchemaVersion from 13 to 14 because the inner-light Range, MaximumPowerRangeMultiplier, and MaximumPowerBrightnessMultiplier defaults and progression meanings changed.
+
+Version 2.6.0
+Changed Blood Essence awards to fixed corpse-quality tiers: Meager grants 1, Worthy 3, Potent 5, and Prime 10.
+Made saved Blood Essence uncapped while Blood Power reaches normal mastery at 100 from 1,000 Essence and severely diminishing overmastery at its hard cap of 120 from 2,000 Essence.
+Limited Power 100-120 to at most 10% additional strength on the already-unlocked bonus portion.
+Added each completed ritual's Blood Essence award to the existing one-line Grail Floating Text corpse XP notification.
+Added a diagnostic Blood Essence override that changes effective Power, API values, and Deeds presentation without overwriting saved Essence.
+Added BloodMagicApi v8 Blood Power access and Deeds of Avalon progression reporting so its quick-wheel row can show Blood Essence and Blood Power together.
+Incremented ConfigSchemaVersion from 12 to 13 because BaseEssencePerCorpse, PrimeQualityBonusEssence, and EssenceAtMaximumPower were removed and replaced by fixed tier awards plus the new 1,000/2,000 progression thresholds.
+
+Version 2.5.4
+Added BloodMagicApi v7 display-name classification so Deeds of Avalon can include previously recorded supported spell-name rows in the displayed Blood Magic total without rewriting save data.
+
+Version 2.5.3
+Added BloodMagicApi v6 damage-source classification so Deeds of Avalon can consolidate Blood Transfusion, Life Transfusion, and Abhartach's Calling kills under the Blood Magic type.
+
+Version 2.5.2
+Fixed Blood Essence progression polling throwing during menus and gameplay-domain transitions when World services or GameplayMemory are temporarily unavailable.
+Changed the progression lookup to use the game's non-throwing service API and continue its normal retry after GameplayMemory becomes available.
+
+Version 2.5.1
+Made Blood Essence the external player-facing progression statistic for Deeds of Avalon, Grail Floating Text quick-wheel presentation, readable exports, and BloodMagicApi v5.
+Kept Blood Power as the internal derived value used for spell and inner-light scaling instead of displaying or exporting it.
+
+Version 2.5.0
+Added save-specific Blood Essence and Blood Power progression earned only by successfully completed corpse rituals, with continuous quality-squared gains and a slower high-level mastery curve capped at Blood Power 50.
+Changed Blood/Life and Abhartach spell growth from automatic Spirituality scaling to Blood Power by default, with exactly no preset tuning bonus at Blood Power 0 and the existing high-end balance restored at Blood Power 50.
+Kept Spirituality available as an explicit legacy GrowthSource without using it as an automatic fallback when Deeds of Avalon is absent.
+Made the blood spell inner light grow smoothly from invisible at Blood Power 0 to configurable maximum-power brightness and range multipliers, while retaining independent intensity, spell, interior, cast, range, and enable controls.
+Added BloodMagicApi v5 read-only Blood Power and Blood Essence accessors.
+Added optional Deeds of Avalon 1.1.0 progress reporting and one-time import of existing Meager, Worthy, Potent, and Prime corpse counts for characters without initialized Blood Magic Expansion progression.
+Incremented ConfigSchemaVersion from 11 to 12 because the Spirituality growth settings were removed or renamed and their default gameplay meaning changed to save-specific Blood Power progression.
+
 Version 2.4.6
 Added optional Deeds of Avalon integration that records each successfully completed corpse ritual as Corpses Drained, separated into Meager, Worthy, Potent, and Prime quality tiers.
 Failed, interrupted, or incomplete corpse rituals are not reported.

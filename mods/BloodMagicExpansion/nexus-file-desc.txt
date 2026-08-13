@@ -1,1 +1,1 @@
-Adds corpse rituals, blood-spell growth, Abhartach tuning, audiovisual feedback, and an independently configurable vanilla Bleed graph preload.
+Transform blood magic into a limitless path of power. Harvest fallen enemies, grow ever stronger, and make every ritual feel more visceral.

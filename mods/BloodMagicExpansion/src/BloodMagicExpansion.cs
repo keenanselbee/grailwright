@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
+using Awaken.TG.Main.Memories;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -18,11 +19,11 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Blood Magic Expansion")]
-[assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and Spirituality scaling for Tainted Grail: The Fall of Avalon")]
+[assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.4.6.0")]
-[assembly: AssemblyFileVersion("2.4.6.0")]
+[assembly: AssemblyVersion("2.8.1.0")]
+[assembly: AssemblyFileVersion("2.8.1.0")]
 
 namespace BloodMagicExpansion
 {
@@ -39,30 +40,88 @@ namespace BloodMagicExpansion
     [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(FirstPersonArmsAdjusterPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(DeedsOfAvalonPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(EyesInTheDarkPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class BloodMagicExpansionPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.4.6";
-        private const int ConfigSchemaVersion = 11;
+        public const string PluginVersion = "2.8.1";
+        private const int ConfigSchemaVersion = 17;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
-                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+                new[]
+                {
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        14,
+                        "2. Blood Spell Inner Light",
+                        "MaximumPowerBrightnessMultiplier",
+                        "The progression now starts at baseline brightness and reaches a recalibrated 2x multiplier at Blood Power 100."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        14,
+                        "2. Blood Spell Inner Light",
+                        "MaximumPowerRangeMultiplier",
+                        "The progression now treats this as the Power 100 multiplier over the baseline Range."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        14,
+                        "2. Blood Spell Inner Light",
+                        "Range",
+                        "Range now defines the Blood Power 0 baseline and is recalibrated to 3 meters.")
+                };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
-            new ConfigDefinition[0];
+        {
+            new ConfigDefinition("13. Diagnostics", "OverrideBloodEssence"),
+            new ConfigDefinition("13. Diagnostics", "BloodEssenceOverrideValue")
+        };
         private const float CacheCleanupIntervalSeconds = 30f;
         private const float CompletedCorpseRetentionSeconds = 120f;
         private const float ExpiredStrongCastRetentionSeconds = 5f;
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string DeedsOfAvalonPluginGuid = "ks.tgfoa.deeds-of-avalon";
         private const string DeedsOfAvalonApiTypeName = "DeedsOfAvalon.StatisticsApi";
+        private const string EyesInTheDarkPluginGuid = "ks.tgfoa.eyes-in-the-dark";
+        private const string EyesInTheDarkCorpseDrainApiTypeName =
+            "EyesInTheDark.EyesInTheDarkCorpseDrainApi";
+        private const string BloodProgressionMemoryContext = "BloodMagicExpansion";
+        private const string BloodProgressionInitializedKey = "progression.initialized";
+        private const string BloodProgressionEssenceKey = "progression.essence";
+        private const string BloodProgressionCorpseCountKey = "progression.corpses_drained";
+        private const string BloodProgressionCorpseStatisticsInitializedKey =
+            "progression.corpse_statistics_initialized";
+        private const string BloodProgressionMeagerCorpseCountKey =
+            "progression.corpses_drained.meager";
+        private const string BloodProgressionWorthyCorpseCountKey =
+            "progression.corpses_drained.worthy";
+        private const string BloodProgressionPotentCorpseCountKey =
+            "progression.corpses_drained.potent";
+        private const string BloodProgressionPrimeCorpseCountKey =
+            "progression.corpses_drained.prime";
+        private const string BloodProgressionCorpseQualitySumKey =
+            "progression.corpses_drained.quality_sum";
+        private const float NormalMaximumBloodPower = 100.0f;
+        private const float AbsoluteMaximumBloodPower = 120.0f;
+        private const float BloodEssenceAtAbsoluteMaximumPower = 2000.0f;
+        private const float MaximumOvermasteryBonusFraction = 0.20f;
+        private const float BloodSpellInnerLightOvermasteryRangeGainFraction = 1.0f / 3.0f;
+        private const float MeagerBloodEssenceAward = 1.0f;
+        private const float WorthyBloodEssenceAward = 3.0f;
+        private const float PotentBloodEssenceAward = 5.0f;
+        private const float PrimeBloodEssenceAward = 10.0f;
+        private const float BloodProgressionSyncIntervalSeconds = 1.0f;
         private const string FirstPersonArmsAdjusterPluginGuid = "ks.tgfoa.first-person-arms-adjuster";
         private const string FirstPersonArmsAdjusterApiTypeName = "FirstPersonArmsAdjuster.FirstPersonArmsAdjusterApi";
+        private const string VersatileWeaponsPluginGuid = "ks.tgfoa.versatile-weapons";
+        private const string VersatileWeaponsApiTypeName = "VersatileWeapons.VersatileWeaponsApi";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
         private const string GrailFloatingTextCorpseXpEventId = "blood-magic-corpse-xp";
         private const string GrailFloatingTextLiveDrainXpEventId = "blood-magic-live-drain-xp";
+        private const string GrailFloatingTextDefaultHealingEventId = "default-healed";
+        private const string GrailFloatingTextBloodHealingEventId = "blood-magic-healed";
+        private const string GrailFloatingTextBloodHealingStyle = "Red";
+        private const string GrailFloatingTextBloodHealingIconId = "magic_blood";
         private const string GrailFloatingTextShortDurationBucket = "Short";
+        private const float LiveDrainHealingEligibilitySeconds = 0.25f;
         private const string BloodSpellInnerLightMainHandObjectName = "BloodMagicExpansionMainHandLight";
         private const string BloodSpellInnerLightOffHandObjectName = "BloodMagicExpansionOffHandLight";
         private const float BloodSpellInnerLightAnchorRetryIntervalSeconds = 0.5f;
@@ -84,9 +143,12 @@ namespace BloodMagicExpansion
         private const string CorpseQualityWorthyLabel = "Worthy";
         private const string CorpseQualityPotentLabel = "Potent";
         private const string CorpseQualityPrimeLabel = "Prime";
-        private const float CorpseLeechMeagerQualityMax = 0.25f;
-        private const float CorpseLeechWorthyQualityMax = 0.50f;
-        private const float CorpseLeechPotentQualityMax = 0.75f;
+        private const float CorpseLeechMeagerQualityMax =
+            Grailwright.Shared.CorpseQualityBuckets.MeagerMaximumQuality;
+        private const float CorpseLeechWorthyQualityMax =
+            Grailwright.Shared.CorpseQualityBuckets.WorthyMaximumQuality;
+        private const float CorpseLeechPotentQualityMax =
+            Grailwright.Shared.CorpseQualityBuckets.PotentMaximumQuality;
 
         private const string HealthElementTypeName = "Awaken.TG.Main.Character.HealthElement";
         private const string MagicFsmTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.Machines.MagicFSM";
@@ -115,9 +177,20 @@ namespace BloodMagicExpansion
         private ConfigFile _resolvedConfig;
         private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
         private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
+        private MethodInfo _grailFloatingTextTryCancelXpGainClaimMethod;
+        private MethodInfo _grailFloatingTextTrySetBuiltInEventClaimMethod;
+        private MethodInfo _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod;
         private MethodInfo _deedsOfAvalonRecordCorpseDrainMethod;
+        private MethodInfo _deedsOfAvalonSetCorpseDrainStatisticsMethod;
+        private MethodInfo _deedsOfAvalonRecordBloodMagicProgressionMethod;
+        private MethodInfo _deedsOfAvalonRecordBloodMagicEssenceMethod;
+        private MethodInfo _deedsOfAvalonGetCorpseDrainCountsMethod;
+        private MethodInfo _deedsOfAvalonGetCorpseDrainStatisticsMethod;
         private bool _deedsOfAvalonBridgeResolved;
         private bool _deedsOfAvalonFailureLogged;
+        private MethodInfo _eyesInTheDarkRegisterCorpseDrainMethod;
+        private bool _eyesInTheDarkBridgeResolved;
+        private bool _eyesInTheDarkFailureLogged;
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<bool> _preloadBleedSkillGraphs;
@@ -154,8 +227,6 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _avoidRecentCorpseLeechRepeats;
         private ConfigEntry<int> _recentCorpseLeechSoundMemory;
         private ConfigEntry<float> _corpseLeechRandomPitchSemitones;
-        private ConfigEntry<float> _corpseQualityReferenceKillXp;
-        private ConfigEntry<float> _corpseQualityReferenceMaxHealth;
         private ConfigEntry<bool> _corpseQualityScaleTransfusionHealing;
         private ConfigEntry<bool> _corpseQualityScaleAbhartachEffects;
         private ConfigEntry<float> _corpseQualityMinimumEffectMultiplier;
@@ -166,6 +237,7 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _liveDrainEnabled;
         private ConfigEntry<bool> _liveDrainAwardCharacterXp;
         private ConfigEntry<float> _liveDrainRawCharacterXpMultiplier;
+        private ConfigEntry<float> _liveDrainHealingMultiplier;
         private ConfigEntry<float> _customLiveDrainXpTickIntervalSeconds;
         private ConfigEntry<float> _customLiveDrainXpPercentPerTick;
         private ConfigEntry<float> _customLiveDrainMaximumXpPercentPerTarget;
@@ -177,6 +249,8 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _bloodSpellInnerLightLifeTransfusionIntensityMultiplier;
         private ConfigEntry<float> _bloodSpellInnerLightAbhartachCallingIntensityMultiplier;
         private ConfigEntry<float> _bloodSpellInnerLightInteriorIntensityMultiplier;
+        private ConfigEntry<float> _bloodSpellInnerLightMaximumPowerBrightnessMultiplier;
+        private ConfigEntry<float> _bloodSpellInnerLightMaximumPowerRangeMultiplier;
         private ConfigEntry<float> _bloodSpellInnerLightRange;
         private ConfigEntry<float> _bloodSpellInnerLightFadeSeconds;
         private ConfigEntry<bool> _bloodSpellScaleProjectileTravel;
@@ -190,11 +264,11 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _customBloodSpellBleedBuildupMultiplier;
         private ConfigEntry<float> _customBloodSpellTapCastSpeedMultiplier;
         private ConfigEntry<float> _customBloodSpellHeldChannelSpeedMultiplier;
-        private ConfigEntry<bool> _bloodSpellSpiritualityScalingEnabled;
+        private ConfigEntry<BloodMagicGrowthSource> _bloodMagicGrowthSource;
         private ConfigEntry<string> _bloodSpellSpiritualityStatTerms;
-        private ConfigEntry<string> _bloodSpellRangeBleedTapSpiritualityBonusCurve;
-        private ConfigEntry<string> _bloodSpellTargetSearchSpiritualityBonusCurve;
-        private ConfigEntry<string> _bloodSpellHeldSpiritualityBonusCurve;
+        private ConfigEntry<string> _bloodSpellRangeBleedTapBloodPowerBonusCurve;
+        private ConfigEntry<string> _bloodSpellTargetSearchBloodPowerBonusCurve;
+        private ConfigEntry<string> _bloodSpellHeldBloodPowerBonusCurve;
         private ConfigEntry<string> _bleedBuildupStatusTerms;
 
         private ConfigEntry<bool> _abhartachTuningEnabled;
@@ -211,11 +285,11 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _customAbhartachHeldCorpseHealingMultiplier;
         private ConfigEntry<float> _customAbhartachCorpseSearchRangeMultiplier;
         private ConfigEntry<float> _abhartachCorpseSearchMaximumMultiplier;
-        private ConfigEntry<string> _abhartachExplosionDamageSpiritualityBonusCurve;
-        private ConfigEntry<string> _abhartachExplosionRadiusSpiritualityBonusCurve;
-        private ConfigEntry<string> _abhartachExplosionBleedSpiritualityBonusCurve;
-        private ConfigEntry<string> _abhartachHeldHealingSpiritualityBonusCurve;
-        private ConfigEntry<string> _abhartachCorpseSearchSpiritualityBonusCurve;
+        private ConfigEntry<string> _abhartachExplosionDamageBloodPowerBonusCurve;
+        private ConfigEntry<string> _abhartachExplosionRadiusBloodPowerBonusCurve;
+        private ConfigEntry<string> _abhartachExplosionBleedBloodPowerBonusCurve;
+        private ConfigEntry<string> _abhartachHeldHealingBloodPowerBonusCurve;
+        private ConfigEntry<string> _abhartachCorpseSearchBloodPowerBonusCurve;
 
         private ConfigEntry<float> _range;
         private ConfigEntry<float> _checkIntervalSeconds;
@@ -238,9 +312,13 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _logPatchWarnings;
         private ConfigEntry<bool> _logCorpseQuality;
         private ConfigEntry<bool> _logBloodSpellInnerLight;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<float> _corpseQualityLogIntervalSeconds;
+        private ConfigEntry<bool> _overrideBloodEssence;
+        private ConfigEntry<float> _bloodEssenceOverrideValue;
         private ConfigEntry<bool> _claimGrailFloatingTextCorpseXp;
         private ConfigEntry<bool> _claimGrailFloatingTextLiveDrainXp;
+        private ConfigEntry<bool> _suppressGrailFloatingTextLiveDrainHealing;
         private readonly Dictionary<string, float> _pendingPreservedCalibrationFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
@@ -289,10 +367,10 @@ namespace BloodMagicExpansion
         private string _cachedBloodlessTermsRaw;
         private string _cachedWhitelistTermsRaw;
         private string _cachedBleedStatusTermsRaw;
+        private string _cachedRangeBleedTapBloodPowerCurveRaw;
+        private string _cachedTargetSearchBloodPowerCurveRaw;
+        private string _cachedHeldBloodPowerCurveRaw;
         private string _cachedSpiritualityTermsRaw;
-        private string _cachedRangeBleedTapSpiritualityCurveRaw;
-        private string _cachedTargetSearchSpiritualityCurveRaw;
-        private string _cachedHeldSpiritualityCurveRaw;
         private string _cachedAbhartachMatchTermsRaw;
         private string _cachedAbhartachTemplateGuidRaw;
         private string _cachedAbhartachExplosionDamageCurveRaw;
@@ -305,10 +383,10 @@ namespace BloodMagicExpansion
         private string[] _cachedBloodlessTerms = new string[0];
         private string[] _cachedWhitelistTerms = new string[0];
         private string[] _cachedBleedStatusTerms = new string[0];
+        private CurvePoint[] _cachedRangeBleedTapBloodPowerCurve = new CurvePoint[0];
+        private CurvePoint[] _cachedTargetSearchBloodPowerCurve = new CurvePoint[0];
+        private CurvePoint[] _cachedHeldBloodPowerCurve = new CurvePoint[0];
         private string[] _cachedSpiritualityTerms = new string[0];
-        private CurvePoint[] _cachedRangeBleedTapSpiritualityCurve = new CurvePoint[0];
-        private CurvePoint[] _cachedTargetSearchSpiritualityCurve = new CurvePoint[0];
-        private CurvePoint[] _cachedHeldSpiritualityCurve = new CurvePoint[0];
         private CurvePoint[] _cachedAbhartachExplosionDamageCurve = new CurvePoint[0];
         private CurvePoint[] _cachedAbhartachExplosionRadiusCurve = new CurvePoint[0];
         private CurvePoint[] _cachedAbhartachExplosionBleedCurve = new CurvePoint[0];
@@ -321,6 +399,8 @@ namespace BloodMagicExpansion
         private float _nextGlobalHoldProbeTime;
         private float _nextUnresolvedCorpseRefreshTime;
         private float _nextLiveDrainCleanupTime;
+        private float _liveDrainHealingEligibleUntil;
+        private int _pendingLiveDrainHealingCount;
         private float _nextCacheCleanupTime;
         private CorpseState _focusedCorpse;
         private bool _loggedHealingResolution;
@@ -334,6 +414,12 @@ namespace BloodMagicExpansion
         private float _lastAbhartachCorpseQuality01 = 0.5f;
         private float _lastAbhartachCorpseQualityUntil;
         private float _nextCorpseQualityLogTime;
+        private string _lastGftCorpseQualitySignature;
+        private float _nextBloodProgressionSyncTime;
+        private float _nextCorpseStatisticsImportAttemptTime;
+        private float _lastReportedBloodEssence = -1.0f;
+        private string _lastReportedCorpseStatistics;
+        private bool _bloodProgressionUnavailableLogged;
         private float _cachedHeroSpiritualityValue;
         private float _nextHeroSpiritualityRefreshTime;
         private float _abhartachHeldHealingActiveUntil;
@@ -353,8 +439,16 @@ namespace BloodMagicExpansion
         private bool _loggedVanillaXpFalloffUnavailable;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextUnavailableLogged;
+        private int _grailFloatingTextHealingClaimDepth;
+        private int _grailFloatingTextHealingPresentationClaimDepth;
         private bool _firstPersonArmsAdjusterBridgeResolved;
         private bool _firstPersonArmsAdjusterUnavailableLogged;
+        private bool _versatileWeaponsBridgeResolved;
+        private bool _versatileWeaponsUnavailableLogged;
+        private bool _versatileWeaponsMainHandWasSuppressed;
+        private bool _versatileWeaponsOffHandWasSuppressed;
+        private Func<bool> _versatileWeaponsIsMainHandSuppressed;
+        private Func<bool> _versatileWeaponsIsOffHandSuppressed;
         private TryGetFirstPersonArmsVisualWorldOffsetDelegate
             _tryGetFirstPersonArmsVisualWorldOffset;
         private Type _hdAdditionalLightDataType;
@@ -365,6 +459,8 @@ namespace BloodMagicExpansion
         private MethodInfo _getHeroItemsMethod;
         private MethodInfo _equippedItemMethod;
         private FieldInfo _allEquipmentSlotsField;
+        private FieldInfo _mainHandEquipmentSlotField;
+        private FieldInfo _offHandEquipmentSlotField;
 
         private float Now
         {
@@ -424,6 +520,9 @@ namespace BloodMagicExpansion
 
         private void OnDestroy()
         {
+            ReleaseGrailFloatingTextDefaultHealingClaim();
+            ReleaseGrailFloatingTextBloodHealingPresentationClaim();
+
             if (_bleedSkillGraphPreloader != null)
             {
                 _bleedSkillGraphPreloader.Dispose();
@@ -462,6 +561,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            UpdateBloodProgression();
             UpdateCorpseLeech();
             UpdateBloodSpellInnerLight();
             CleanupLiveDrainStates();
@@ -515,8 +615,8 @@ namespace BloodMagicExpansion
             _awardCharacterXp = config.Bind("2. Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
             _healCharacter = config.Bind("2. Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
             _liveDrainEnabled = config.Bind("2. Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
-            _bloodSpellTuningEnabled = config.Bind("2. Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Spirituality.");
-            _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Spirituality.");
+            _bloodSpellTuningEnabled = config.Bind("2. Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
+            _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
 
             _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow light from each raised hand that has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped.");
             _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.5f, new ConfigDescription("Shared base brightness of each red hand light while its blood spell is readied, before the per-spell and interior multipliers. Actual casting temporarily triples that hand's final value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
@@ -524,16 +624,18 @@ namespace BloodMagicExpansion
             _bloodSpellInnerLightLifeTransfusionIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "LifeTransfusionIntensityMultiplier", 1.0f, new ConfigDescription("Brightness multiplier applied when Life Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
             _bloodSpellInnerLightAbhartachCallingIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "AbhartachCallingIntensityMultiplier", 1.2f, new ConfigDescription("Brightness multiplier applied when Abhartach's Calling is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
             _bloodSpellInnerLightInteriorIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "InteriorIntensityMultiplier", 1.0f, new ConfigDescription("Additional blood hand-light intensity multiplier in full interior scenes. One preserves the configured intensity, two doubles it, and zero disables the visible hand lights only while indoors.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 5.0f, new ConfigDescription("Range in meters for the red inner player light. Smaller ranges are cheaper and subtler.", new AcceptableValueRange<float>(0.1f, 20.0f)));
+            _bloodSpellInnerLightMaximumPowerBrightnessMultiplier = config.Bind("2. Blood Spell Inner Light", "MaximumPowerBrightnessMultiplier", 2.0f, new ConfigDescription("Blood Power 100 brightness multiplier applied after the independent intensity, spell, interior, and cast settings. Brightness starts at 1x at Power 0, reaches this multiplier at Power 100, and overmastery adds up to 20% more at Power 120.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightMaximumPowerRangeMultiplier = config.Bind("2. Blood Spell Inner Light", "MaximumPowerRangeMultiplier", 1.5f, new ConfigDescription("Blood Power 100 range multiplier applied to the independently configured Power 0 Range. Power 100-120 adds one third of the normal 0-100 range gain, reaching 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.0f, 4.0f)));
+            _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 3.0f, new ConfigDescription("Blood Power 0 range in meters for the red inner player light. It grows to 4.5 meters at Power 100 and 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightFadeSeconds = config.Bind("2. Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
-            _corpseQualityReferenceKillXp = config.Bind("3. Corpse Quality", "ReferenceKillXP", 300.0f, new ConfigDescription("Kill XP that contributes full XP weight to corpse quality.", new AcceptableValueRange<float>(1.0f, 100000.0f)));
-            _corpseQualityReferenceMaxHealth = config.Bind("3. Corpse Quality", "ReferenceMaxHealth", 600.0f, new ConfigDescription("Enemy max HP that contributes full health weight to corpse quality.", new AcceptableValueRange<float>(1.0f, 100000.0f)));
+            _bloodMagicGrowthSource = config.Bind("3. Blood Power", "GrowthSource", BloodMagicGrowthSource.BloodPower, "BloodPower grows permanently from completed corpse rituals. Meager, Worthy, Potent, and Prime corpses grant 1, 3, 5, and 10 uncapped Blood Essence. Power reaches 100 at 1,000 Essence and its hard cap of 120 at 2,000 Essence. Spirituality preserves the legacy stat-based growth model explicitly; Deeds of Avalon is never required.");
+
             _corpseQualityScaleTransfusionHealing = config.Bind("3. Corpse Quality", "ScaleTransfusionHealing", true, "Let corpse quality modestly scale Blood/Life Transfusion corpse healing. Character XP is not multiplied again.");
             _corpseQualityScaleAbhartachEffects = config.Bind("3. Corpse Quality", "ScaleAbhartachEffects", true, "Let corpse quality modestly scale Abhartach corpse explosion damage, radius, bleed buildup, and held corpse healing.");
             _corpseQualityMinimumEffectMultiplier = config.Bind("3. Corpse Quality", "MinimumEffectMultiplier", 0.5f, new ConfigDescription("Gameplay effect multiplier used for a very low-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
             _corpseQualityMaximumEffectMultiplier = config.Bind("3. Corpse Quality", "MaximumEffectMultiplier", 1.5f, new ConfigDescription("Gameplay effect multiplier used for a high-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _corpseQualityFallbackQuality = config.Bind("3. Corpse Quality", "FallbackQuality", 0.0f, new ConfigDescription("Focused corpse quality used when kill XP and max health cannot be resolved.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _corpseQualityFallbackQuality = config.Bind("3. Corpse Quality", "FallbackQuality", 0.0f, new ConfigDescription("Focused corpse quality used when native tier, kill XP, and max health cannot be resolved.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _requireBloodPlausible = config.Bind("4. Bloodless Filter", "RequireBloodPlausible", true, "Reject corpses and live targets that plausibly have no blood.");
             _bloodlessBlacklistTerms = config.Bind("4. Bloodless Filter", "BloodlessBlacklistTerms", "Stone;Golem;Statue;Construct;Automaton;Crystal;Wisp;Spirit;Ghost;Wraith;Specter;Spectre;Skeleton;Skull;Bone;Animated Armor;Elemental;Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness", "Semicolon, comma, pipe, or newline separated terms that make a target ineligible unless whitelisted.");
@@ -558,30 +660,30 @@ namespace BloodMagicExpansion
             _customLiveDrainXpTickIntervalSeconds = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks when Preset is Custom.");
             _customLiveDrainXpPercentPerTick = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 7.0f, "Percent of target kill XP paid per live-drain XP tick when Preset is Custom.");
             _customLiveDrainMaximumXpPercentPerTarget = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainXPPercentCapPerTarget", 35.0f, "Maximum percent of target kill XP paid by live-drain ticks when Preset is Custom.");
-            _customBloodSpellRangeDistanceMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellRangeMultiplier", 1.06f, "Custom preset base projectile travel and spell damage-radius multiplier before Spirituality scaling.");
-            _customBloodSpellHomingTargetSearchMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHomingSearchMultiplier", 1.05f, "Custom preset base homing target-search multiplier before Spirituality scaling.");
-            _customBloodSpellHeldTargetRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldRangeMultiplier", 1.03f, "Custom preset base held target-search range multiplier before Spirituality scaling.");
-            _customBloodSpellBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellBleedMultiplier", 1.06f, "Custom preset base bleed buildup multiplier before Spirituality scaling.");
-            _customBloodSpellTapCastSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellTapSpeedMultiplier", 1.06f, "Custom preset base tap/projectile cast-speed multiplier before Spirituality scaling.");
-            _customBloodSpellHeldChannelSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldChannelSpeedMultiplier", 1.01f, "Custom preset base held/channel delta-time multiplier before Spirituality scaling.");
-            _customAbhartachExplosionDamageMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionDamageMultiplier", 1.05f, "Custom preset base explosion damage multiplier before Spirituality scaling.");
-            _customAbhartachExplosionRadiusMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionRadiusMultiplier", 1.10f, "Custom preset base explosion radius multiplier before Spirituality scaling.");
-            _customAbhartachExplosionBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionBleedMultiplier", 1.12f, "Custom preset base explosion bleed buildup multiplier before Spirituality scaling.");
-            _customAbhartachHeldCorpseHealingMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachHeldCorpseHealingMultiplier", 1.20f, "Custom preset base held corpse healing multiplier before Spirituality scaling.");
-            _customAbhartachCorpseSearchRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachCorpseSearchMultiplier", 1.05f, "Custom preset base corpse-search range multiplier before Spirituality scaling.");
+            _customBloodSpellRangeDistanceMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellRangeMultiplier", 1.06f, "Custom preset maximum-power projectile travel and spell damage-radius multiplier.");
+            _customBloodSpellHomingTargetSearchMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHomingSearchMultiplier", 1.05f, "Custom preset maximum-power homing target-search multiplier.");
+            _customBloodSpellHeldTargetRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldRangeMultiplier", 1.03f, "Custom preset maximum-power held target-search range multiplier.");
+            _customBloodSpellBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellBleedMultiplier", 1.06f, "Custom preset maximum-power bleed buildup multiplier.");
+            _customBloodSpellTapCastSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellTapSpeedMultiplier", 1.06f, "Custom preset maximum-power tap/projectile cast-speed multiplier.");
+            _customBloodSpellHeldChannelSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldChannelSpeedMultiplier", 1.01f, "Custom preset maximum-power held/channel delta-time multiplier.");
+            _customAbhartachExplosionDamageMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionDamageMultiplier", 1.05f, "Custom preset maximum-power explosion damage multiplier.");
+            _customAbhartachExplosionRadiusMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionRadiusMultiplier", 1.10f, "Custom preset maximum-power explosion radius multiplier.");
+            _customAbhartachExplosionBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionBleedMultiplier", 1.12f, "Custom preset maximum-power explosion bleed buildup multiplier.");
+            _customAbhartachHeldCorpseHealingMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachHeldCorpseHealingMultiplier", 1.20f, "Custom preset maximum-power held corpse healing multiplier.");
+            _customAbhartachCorpseSearchRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachCorpseSearchMultiplier", 1.05f, "Custom preset maximum-power corpse-search range multiplier.");
 
             _liveDrainAwardCharacterXp = config.Bind("7. Advanced - Live Drain", "AwardCharacterXP", true, "Award small character XP ticks while held Blood/Life Transfusion damages living enemies.");
             _liveDrainRawCharacterXpMultiplier = config.Bind("7. Advanced - Live Drain", "RawCharacterXPPerComputedXP", 1.0f, "Raw character XP awarded per computed live-drain XP.");
+            _liveDrainHealingMultiplier = config.Bind("7. Advanced - Live Drain", "HeldHealingMultiplier", 2.0f, new ConfigDescription("Multiplier applied to Blood/Life Transfusion healing that follows confirmed held-channel damage. Tap projectile healing is not changed.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
             _bloodSpellScaleProjectileTravel = config.Bind("8. Advanced - Blood Spell Growth", "ScaleProjectileTravel", true, "Scale Blood/Life Transfusion projectile travel distance by increasing projectile lifetime.");
             _bloodSpellScaleHomingTargetSearch = config.Bind("8. Advanced - Blood Spell Growth", "ScaleHomingTargetSearch", true, "Scale Blood/Life Transfusion homing target-search distance when the projectile exposes one.");
             _bloodSpellScaleHeldTargetRange = config.Bind("8. Advanced - Blood Spell Growth", "ScaleHeldTargetRange", true, "Scale Blood/Life Transfusion visual-script target-search range.");
-            _bloodSpellHomingTargetSearchMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HomingTargetSearchMaximumMultiplier", 1.75f, new ConfigDescription("Maximum final Blood/Life homing target-search multiplier after preset and Spirituality scaling.", new AcceptableValueRange<float>(1.0f, 10.0f)));
-            _bloodSpellHeldTargetRangeMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HeldTargetRangeMaximumMultiplier", 1.5f, new ConfigDescription("Maximum final Blood/Life held target-search range multiplier after preset and Spirituality scaling.", new AcceptableValueRange<float>(1.0f, 10.0f)));
-            _bloodSpellSpiritualityScalingEnabled = config.Bind("8. Advanced - Blood Spell Growth", "SpiritualityScalingEnabled", true, "Scale Blood/Life Transfusion bonuses from the hero's Spirituality stat.");
-            _bloodSpellRangeBleedTapSpiritualityBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "RangeBleedTapSpiritualityBonusCurve", "0:0;5:2;10:5;15:10;20:17;25:25;30:35;35:47;40:60;45:75;50:90", "Spirituality-to-bonus-percent curve for range, bleed buildup, and tap/projectile cast speed.");
-            _bloodSpellTargetSearchSpiritualityBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "TargetSearchSpiritualityBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Spirituality-to-bonus-percent curve for held and homing target-search range.");
-            _bloodSpellHeldSpiritualityBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "HeldChannelSpiritualityBonusCurve", "0:0;5:0;10:1;15:2;20:3;25:4;30:5;35:6;40:8;45:10;50:12", "Spirituality-to-bonus-percent curve for held/channel speed.");
+            _bloodSpellHomingTargetSearchMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HomingTargetSearchMaximumMultiplier", 1.75f, new ConfigDescription("Maximum final Blood/Life homing target-search multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _bloodSpellHeldTargetRangeMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HeldTargetRangeMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Blood/Life held target-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _bloodSpellRangeBleedTapBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "RangeBleedTapBloodPowerBonusCurve", "0:0;5:2;10:5;15:10;20:17;25:25;30:35;35:47;40:60;45:75;50:90", "Blood-Power-to-bonus-percent curve for range, bleed buildup, and tap/projectile cast speed.");
+            _bloodSpellTargetSearchBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "TargetSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for held and homing target-search range.");
+            _bloodSpellHeldBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "HeldChannelBloodPowerBonusCurve", "0:0;5:0;10:1;15:2;20:3;25:4;30:5;35:6;40:8;45:10;50:12", "Blood-Power-to-bonus-percent curve for held/channel speed.");
             _bleedBuildupStatusTerms = config.Bind("8. Advanced - Blood Spell Growth", "BleedBuildupStatusTerms", "Bleed;Bleeding", "Terms used to identify bleed buildup statuses for tuning.");
 
             _abhartachScaleExplosionDamage = config.Bind("9. Advanced - Abhartach Calling", "ScaleExplosionDamage", true, "Scale Abhartach's Calling corpse explosion damage.");
@@ -589,19 +691,19 @@ namespace BloodMagicExpansion
             _abhartachScaleExplosionBleed = config.Bind("9. Advanced - Abhartach Calling", "ScaleExplosionBleed", true, "Scale Abhartach's Calling corpse explosion bleed buildup.");
             _abhartachScaleHeldCorpseHealing = config.Bind("9. Advanced - Abhartach Calling", "ScaleHeldCorpseHealing", true, "Scale Abhartach's Calling held corpse healing.");
             _abhartachScaleCorpseSearchRange = config.Bind("9. Advanced - Abhartach Calling", "ScaleCorpseSearchRange", true, "Scale Abhartach's Calling corpse-search range.");
-            _abhartachCorpseSearchMaximumMultiplier = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchMaximumMultiplier", 1.5f, new ConfigDescription("Maximum final Abhartach corpse-search range multiplier after preset and Spirituality scaling.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _abhartachCorpseSearchMaximumMultiplier = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Abhartach corpse-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
             _corpseQualityEffectMemorySeconds = config.Bind("9. Advanced - Abhartach Calling", "CorpseQualityEffectMemorySeconds", 1.25f, new ConfigDescription("Seconds to remember the last Abhartach-focused corpse quality for delayed spell effects.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _abhartachExplosionDamageSpiritualityBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionDamageSpiritualityBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Spirituality-to-bonus-percent curve for explosion damage.");
-            _abhartachExplosionRadiusSpiritualityBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionRadiusSpiritualityBonusCurve", "0:0;5:1;10:2;15:4;20:7;25:10;30:14;35:18;40:23;45:29;50:35", "Spirituality-to-bonus-percent curve for explosion radius.");
-            _abhartachExplosionBleedSpiritualityBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionBleedSpiritualityBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Spirituality-to-bonus-percent curve for explosion bleed buildup.");
-            _abhartachHeldHealingSpiritualityBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "HeldCorpseHealingSpiritualityBonusCurve", "0:0;5:1;10:4;15:7;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Spirituality-to-bonus-percent curve for held corpse healing.");
-            _abhartachCorpseSearchSpiritualityBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchSpiritualityBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Spirituality-to-bonus-percent curve for corpse-search range.");
+            _abhartachExplosionDamageBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionDamageBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion damage.");
+            _abhartachExplosionRadiusBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionRadiusBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:7;25:10;30:14;35:18;40:23;45:29;50:35", "Blood-Power-to-bonus-percent curve for explosion radius.");
+            _abhartachExplosionBleedBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionBleedBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion bleed buildup.");
+            _abhartachHeldHealingBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "HeldCorpseHealingBloodPowerBonusCurve", "0:0;5:1;10:4;15:7;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for held corpse healing.");
+            _abhartachCorpseSearchBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for corpse-search range.");
 
             _bloodTransfusionMatchTerms = config.Bind("10. Advanced - Matching", "BloodSpellMatchTerms", "BloodTransfusion;Blood Transfusion;ItemTemplate_Magic_Tier1_BloodTransfusion;LifeTransfusion;Life Transfusion;ItemTemplate_Magic_Tier1_LifeTransfusion", "Terms used to identify Blood Transfusion and Life Transfusion items, skills, or templates.");
             _bloodTransfusionTemplateGuid = config.Bind("10. Advanced - Matching", "BloodSpellTemplateGuid", "", "Optional exact Blood/Life Transfusion template GUID.");
             _abhartachMatchTerms = config.Bind("10. Advanced - Matching", "AbhartachMatchTerms", "Abhartach;Abhartach's Calling;ItemTemplate_Magic_Tier2_AbhartachsCalling", "Terms used to identify Abhartach's Calling items, skills, or templates.");
             _abhartachTemplateGuid = config.Bind("10. Advanced - Matching", "AbhartachTemplateGuid", "", "Optional exact Abhartach's Calling template GUID.");
-            _bloodSpellSpiritualityStatTerms = config.Bind("10. Advanced - Matching", "SpiritualityStatTerms", "Spirituality;Spirit", "Terms used to find the hero Spirituality stat by reflection.");
+            _bloodSpellSpiritualityStatTerms = config.Bind("10. Advanced - Matching", "SpiritualityStatTerms", "Spirituality;Spirit", "Terms used only when GrowthSource is explicitly set to Spirituality legacy mode.");
 
             _range = config.Bind("11. Performance", "Range", 7.0f, "Maximum camera raycast distance for detecting the corpse being looked at.");
             _checkIntervalSeconds = config.Bind("11. Performance", "CheckIntervalSeconds", 0.15f, "Seconds between corpse look checks while the required spell hold is active.");
@@ -629,10 +731,14 @@ namespace BloodMagicExpansion
             _logHealingResolution = config.Bind("13. Diagnostics", "LogHealingResolution", false, "Log the first hero health path used, or why healing could not resolve.");
             _logPatchWarnings = config.Bind("13. Diagnostics", "LogPatchWarnings", true, "Log warnings if optional patches or reflection paths are unavailable.");
             _logCorpseQuality = config.Bind("13. Diagnostics", "LogCorpseQuality", false, "Log throttled focused-corpse quality samples for reticle tuning.");
-            _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", true, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
+            _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", false, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
+            _showGrailFloatingTextDiagnostics = config.Bind("13. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When the matching diagnostic log option is enabled and Grail Floating Text is installed, show collapsed System summaries for corpse rejection, focused-corpse quality changes, and blood-spell inner-light visibility changes.");
             _corpseQualityLogIntervalSeconds = config.Bind("13. Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
+            _overrideBloodEssence = config.Bind("13. Diagnostics", "OverrideBloodEssence", false, "Temporarily use BloodEssenceOverrideValue for Blood Power, APIs, and optional Deeds display without changing the character's saved Blood Essence.");
+            _bloodEssenceOverrideValue = config.Bind("13. Diagnostics", "BloodEssenceOverrideValue", 1000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 1500, and 2000.", new AcceptableValueRange<float>(0.0f, 1000000.0f)));
             _claimGrailFloatingTextCorpseXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
             _claimGrailFloatingTextLiveDrainXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
+            _suppressGrailFloatingTextLiveDrainHealing = config.Bind("14. Integrations", "SuppressGrailFloatingTextLiveDrainHealing", true, "When supported by Grail Floating Text, keep frequent held-channel Blood/Life Transfusion healing ticks out of its generic Healed notifications.");
 
             if (ShouldLogStartup())
             {
@@ -649,6 +755,10 @@ namespace BloodMagicExpansion
                     + FormatFloat(_bloodSpellInnerLightAbhartachCallingIntensityMultiplier.Value)
                     + ", interiorIntensityMultiplier="
                     + FormatFloat(_bloodSpellInnerLightInteriorIntensityMultiplier.Value)
+                    + ", maximumPowerBrightnessMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightMaximumPowerBrightnessMultiplier.Value)
+                    + ", maximumPowerRangeMultiplier="
+                    + FormatFloat(_bloodSpellInnerLightMaximumPowerRangeMultiplier.Value)
                     + ", range="
                     + FormatFloat(_bloodSpellInnerLightRange.Value)
                     + ", fadeSeconds="
@@ -677,6 +787,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            ObserveVersatileWeaponsSuppressedHands();
             ObserveBloodSpellInnerLightEquippedItems();
             UpdateBloodSpellInnerLight(_bloodSpellInnerLightMainHandState);
             UpdateBloodSpellInnerLight(_bloodSpellInnerLightOffHandState);
@@ -755,6 +866,20 @@ namespace BloodMagicExpansion
                     + ", parent="
                     + DescribeTransform(handState.LightObject.transform.parent)
                     + ".");
+                ShowBloodMagicDiagnostic(
+                    _logBloodSpellInnerLight,
+                    "blood-magic-inner-light",
+                    "Blood Magic: "
+                        + handState.Hand
+                        + " inner light "
+                        + (visible ? "visible" : "hidden")
+                        + "; "
+                        + (IsBloodSpellInnerLightInterior()
+                            ? "interior"
+                            : "exterior")
+                        + "; intensity "
+                        + FormatFloat(nextIntensity)
+                        + ".");
             }
 
             if (!visible)
@@ -769,9 +894,238 @@ namespace BloodMagicExpansion
                 _enabled.Value &&
                 _bloodSpellInnerLightEnabled != null &&
                 _bloodSpellInnerLightEnabled.Value &&
+                !IsVersatileWeaponsHandSuppressed(handState.Hand) &&
                 !handState.SuppressForNonBloodEquipment &&
                 HasBloodSpellInnerLightReadiedState(handState) &&
                 GetBloodSpellInnerLightIntensity() > BloodSpellInnerLightMinimumIntensity;
+        }
+
+        private void ObserveVersatileWeaponsSuppressedHands()
+        {
+            bool mainHandSuppressed = IsVersatileWeaponsHandSuppressed(
+                BloodSpellInnerLightHand.MainHand);
+            bool offHandSuppressed = IsVersatileWeaponsHandSuppressed(
+                BloodSpellInnerLightHand.OffHand);
+
+            if (mainHandSuppressed
+                && !_versatileWeaponsMainHandWasSuppressed)
+            {
+                ClearMagicTrackingForSuppressedHand(
+                    BloodSpellInnerLightHand.MainHand);
+            }
+
+            if (offHandSuppressed
+                && !_versatileWeaponsOffHandWasSuppressed)
+            {
+                ClearMagicTrackingForSuppressedHand(
+                    BloodSpellInnerLightHand.OffHand);
+            }
+
+            if ((mainHandSuppressed
+                    != _versatileWeaponsMainHandWasSuppressed)
+                || (offHandSuppressed
+                    != _versatileWeaponsOffHandWasSuppressed))
+            {
+                _nextBloodTransfusionEquippedCheckTime = 0.0f;
+                _nextAbhartachEquippedCheckTime = 0.0f;
+            }
+
+            if ((mainHandSuppressed
+                    && !_versatileWeaponsMainHandWasSuppressed)
+                || (offHandSuppressed
+                    && !_versatileWeaponsOffHandWasSuppressed))
+            {
+                _abhartachHeldHealingActiveUntil = 0.0f;
+            }
+
+            _versatileWeaponsMainHandWasSuppressed = mainHandSuppressed;
+            _versatileWeaponsOffHandWasSuppressed = offHandSuppressed;
+        }
+
+        private bool IsVersatileWeaponsHandSuppressed(
+            BloodSpellInnerLightHand hand)
+        {
+            if (!TryResolveVersatileWeaponsBridge())
+            {
+                return false;
+            }
+
+            try
+            {
+                return hand == BloodSpellInnerLightHand.MainHand
+                    ? _versatileWeaponsIsMainHandSuppressed()
+                    : _versatileWeaponsIsOffHandSuppressed();
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsIsMainHandSuppressed = null;
+                _versatileWeaponsIsOffHandSuppressed = null;
+                LogVersatileWeaponsUnavailableOnce(
+                    "Versatile Weapons hand-suppression API failed: "
+                    + exception.GetBaseException().Message
+                    + ".");
+                return false;
+            }
+        }
+
+        private bool TryResolveVersatileWeaponsBridge()
+        {
+            if (_versatileWeaponsBridgeResolved)
+            {
+                return _versatileWeaponsIsMainHandSuppressed != null
+                    && _versatileWeaponsIsOffHandSuppressed != null;
+            }
+
+            _versatileWeaponsBridgeResolved = true;
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    VersatileWeaponsPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                VersatileWeaponsApiTypeName,
+                false);
+            MethodInfo mainMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsMainHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            MethodInfo offMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsOffHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            if (mainMethod == null
+                || mainMethod.ReturnType != typeof(bool)
+                || offMethod == null
+                || offMethod.ReturnType != typeof(bool))
+            {
+                LogVersatileWeaponsUnavailableOnce(
+                    "Versatile Weapons is loaded, but its hand-suppression API could not be found.");
+                return false;
+            }
+
+            try
+            {
+                _versatileWeaponsIsMainHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        mainMethod);
+                _versatileWeaponsIsOffHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        offMethod);
+                LogBloodSpellInnerLightDiagnostic(
+                    "connected to the Versatile Weapons hand-suppression API.");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogVersatileWeaponsUnavailableOnce(
+                    "Versatile Weapons hand-suppression API binding failed: "
+                    + exception.GetBaseException().Message
+                    + ".");
+                return false;
+            }
+        }
+
+        private void LogVersatileWeaponsUnavailableOnce(string message)
+        {
+            if (_versatileWeaponsUnavailableLogged)
+            {
+                return;
+            }
+
+            _versatileWeaponsUnavailableLogged = true;
+            Log.LogWarning(message);
+        }
+
+        private void ClearMagicTrackingForSuppressedHand(
+            BloodSpellInnerLightHand hand)
+        {
+            List<object> remove = new List<object>();
+            foreach (KeyValuePair<object, BloodSpellInnerLightReadyState> pair
+                in _bloodSpellInnerLightReadyStates)
+            {
+                bool mainHand;
+                bool offHand;
+                GetBloodSpellInnerLightHandFlags(
+                    pair.Value == null ? null : pair.Value.Hand,
+                    out mainHand,
+                    out offHand);
+                if ((hand == BloodSpellInnerLightHand.MainHand && mainHand)
+                    || (hand == BloodSpellInnerLightHand.OffHand && offHand))
+                {
+                    remove.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < remove.Count; i++)
+            {
+                _bloodSpellInnerLightReadyStates.Remove(remove[i]);
+            }
+
+            remove.Clear();
+            foreach (KeyValuePair<object, StrongCastState> pair
+                in _strongCastStates)
+            {
+                bool mainHand;
+                bool offHand;
+                GetBloodSpellInnerLightHandFlags(
+                    pair.Value == null ? null : pair.Value.Hand,
+                    out mainHand,
+                    out offHand);
+                if ((hand == BloodSpellInnerLightHand.MainHand && mainHand)
+                    || (hand == BloodSpellInnerLightHand.OffHand && offHand))
+                {
+                    remove.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < remove.Count; i++)
+            {
+                _strongCastStates.Remove(remove[i]);
+            }
+
+            BloodSpellInnerLightHandState handState =
+                hand == BloodSpellInnerLightHand.MainHand
+                    ? _bloodSpellInnerLightMainHandState
+                    : _bloodSpellInnerLightOffHandState;
+            handState.ImmediateFadeOutRequested = true;
+            handState.CastBoostState.Clear();
+            handState.CastBoostFactor = 1.0f;
+            ClearUnusedBloodSpellInnerLightCastBoostStates();
+            LogBloodSpellInnerLightDiagnostic(
+                "hand="
+                + hand
+                + " was suspended while Versatile Weapons used the opposite weapon with both hands.");
+        }
+
+        private bool IsVersatileWeaponsMagicFsmSuppressed(object magicFsm)
+        {
+            bool mainHand;
+            bool offHand;
+            GetBloodSpellInnerLightHandFlags(
+                GetHandKey(magicFsm),
+                out mainHand,
+                out offHand);
+            return (mainHand
+                    && IsVersatileWeaponsHandSuppressed(
+                        BloodSpellInnerLightHand.MainHand))
+                || (offHand
+                    && IsVersatileWeaponsHandSuppressed(
+                        BloodSpellInnerLightHand.OffHand));
         }
 
         private void ObserveBloodSpellInnerLightEquippedItems()
@@ -846,7 +1200,7 @@ namespace BloodMagicExpansion
                 brightness *= GetBloodSpellInnerLightInteriorIntensityMultiplier();
             }
 
-            return brightness * boostFactor;
+            return brightness * boostFactor * GetBloodSpellInnerLightPowerBrightnessMultiplier();
         }
 
         private float UpdateBloodSpellInnerLightCastBoostFactor(BloodSpellInnerLightHandState handState)
@@ -1319,6 +1673,13 @@ namespace BloodMagicExpansion
         {
             if (!_enabled.Value || magicFsm == null)
             {
+                return;
+            }
+
+            if (IsVersatileWeaponsMagicFsmSuppressed(magicFsm))
+            {
+                _bloodSpellInnerLightReadyStates.Remove(magicFsm);
+                _strongCastStates.Remove(magicFsm);
                 return;
             }
 
@@ -2108,9 +2469,48 @@ namespace BloodMagicExpansion
 
         private float GetBloodSpellInnerLightRange()
         {
-            return _bloodSpellInnerLightRange == null
-                ? 4.0f
+            float configuredRange = _bloodSpellInnerLightRange == null
+                ? 3.0f
                 : Math.Max(0.1f, _bloodSpellInnerLightRange.Value);
+            float maximumMultiplier = _bloodSpellInnerLightMaximumPowerRangeMultiplier == null
+                ? 1.5f
+                : Math.Max(0.0f, _bloodSpellInnerLightMaximumPowerRangeMultiplier.Value);
+            float power = GetBloodPower();
+            float normalMaximumRange = configuredRange * maximumMultiplier;
+            float normalRange = Mathf.Lerp(
+                configuredRange,
+                normalMaximumRange,
+                GetBloodPowerNormalVisualProgress01(power));
+            float overmasteryProgress = Mathf.Clamp01(
+                (power - NormalMaximumBloodPower)
+                / (AbsoluteMaximumBloodPower - NormalMaximumBloodPower));
+            float overmasteryRangeGain =
+                (normalMaximumRange - configuredRange)
+                * BloodSpellInnerLightOvermasteryRangeGainFraction
+                * overmasteryProgress;
+            return Math.Max(
+                0.1f,
+                normalRange + overmasteryRangeGain);
+        }
+
+        private float GetBloodSpellInnerLightPowerBrightnessMultiplier()
+        {
+            float maximumMultiplier = _bloodSpellInnerLightMaximumPowerBrightnessMultiplier == null
+                ? 2.0f
+                : Math.Max(0.0f, _bloodSpellInnerLightMaximumPowerBrightnessMultiplier.Value);
+            float power = GetBloodPower();
+            float normalMultiplier = Mathf.Lerp(
+                1.0f,
+                maximumMultiplier,
+                GetBloodPowerNormalVisualProgress01(power));
+            return normalMultiplier
+                * (1.0f + GetBloodPowerOvermasteryBonusFraction(power));
+        }
+
+        private static float GetBloodPowerNormalVisualProgress01(float power)
+        {
+            float normalProgress = Mathf.Clamp01(power / NormalMaximumBloodPower);
+            return normalProgress * normalProgress * (3.0f - (2.0f * normalProgress));
         }
 
         private float GetBloodSpellInnerLightFadeSeconds()
@@ -2581,7 +2981,8 @@ namespace BloodMagicExpansion
                         "TakeHealing",
                         typeof(HealingUtilsTakeHealingPatch),
                         nameof(HealingUtilsTakeHealingPatch.Prefix),
-                        false);
+                        false,
+                        nameof(HealingUtilsTakeHealingPatch.Finalizer));
                 }
             });
 
@@ -2717,12 +3118,23 @@ namespace BloodMagicExpansion
             }
         }
 
-        private void PatchMethod(Type declaringType, string methodName, Type patchType, string patchMethodName, bool required)
+        private void PatchMethod(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName,
+            bool required,
+            string finalizerMethodName = null)
         {
             MethodInfo original = AccessTools.Method(declaringType, methodName);
             MethodInfo patch = AccessTools.Method(patchType, patchMethodName);
+            MethodInfo finalizer = string.IsNullOrEmpty(finalizerMethodName)
+                ? null
+                : AccessTools.Method(patchType, finalizerMethodName);
 
-            if (original == null || patch == null)
+            if (original == null
+                || patch == null
+                || (!string.IsNullOrEmpty(finalizerMethodName) && finalizer == null))
             {
                 string message = "Could not patch " + declaringType.FullName + "." + methodName + ".";
                 if (required)
@@ -2740,11 +3152,17 @@ namespace BloodMagicExpansion
             {
                 if (patchMethodName == nameof(MagicFsmUpdatePatch.Prefix))
                 {
-                    _harmony.Patch(original, new HarmonyMethod(patch), null);
+                    _harmony.Patch(
+                        original,
+                        prefix: new HarmonyMethod(patch),
+                        finalizer: finalizer == null ? null : new HarmonyMethod(finalizer));
                 }
                 else
                 {
-                    _harmony.Patch(original, null, new HarmonyMethod(patch));
+                    _harmony.Patch(
+                        original,
+                        postfix: new HarmonyMethod(patch),
+                        finalizer: finalizer == null ? null : new HarmonyMethod(finalizer));
                 }
             }
             catch (Exception ex)
@@ -3427,7 +3845,19 @@ namespace BloodMagicExpansion
 
         internal int GetFocusedCorpseQualityTierForInterop()
         {
-            return GetCorpseQualityTier(GetFocusedCorpseQuality01ForInterop());
+            if (_enabled == null || !_enabled.Value)
+            {
+                return (int)Grailwright.Shared.CorpseQualityTier.None;
+            }
+
+            CorpseState state;
+            if (!TryGetLookedAtCorpseState(out state, true)
+                || state == null)
+            {
+                return (int)Grailwright.Shared.CorpseQualityTier.None;
+            }
+
+            return GetCorpseQualityTier(CalculateCorpseQuality01(state, false));
         }
 
         internal float GetFocusedCorpseQualityEffectMultiplierForInterop()
@@ -3441,6 +3871,17 @@ namespace BloodMagicExpansion
             }
 
             return GetCorpseQualityEffectMultiplier(GetCorpseQuality01(state));
+        }
+
+        internal float GetBloodEssenceForInterop()
+        {
+            float essence = GetBloodEssence();
+            return essence < 0f ? 0f : essence;
+        }
+
+        internal float GetBloodPowerForInterop()
+        {
+            return GetBloodPower();
         }
 
         internal bool IsAbhartachEquippedForInterop()
@@ -3522,6 +3963,7 @@ namespace BloodMagicExpansion
             }
 
             string failures = "";
+            float corpseQuality = GetCorpseQuality01(state);
             float healBasePercent = xpPercent * Math.Max(0f, _healMaxHealthPercentPerXpPercent.Value);
             float healPowerScale = GetHealingPowerScale(state);
             float healQualityScale = GetTransfusionHealingQualityMultiplier(state);
@@ -3542,7 +3984,20 @@ namespace BloodMagicExpansion
                 }
             }
 
-            if (xpEnabled && !state.XpAwarded)
+            if (healingEnabled && !state.Healed)
+            {
+                RejectCorpse(
+                    state,
+                    string.IsNullOrEmpty(failures) ? "healing did not complete" : failures,
+                    false);
+                ResetFocusedCorpse();
+                return;
+            }
+
+            float pendingRawXp = 0.0f;
+            float resolvedBaseXp = 0.0f;
+            bool xpAwardPending = xpEnabled && !state.XpAwarded;
+            if (xpAwardPending)
             {
                 float baseXp = ResolveCorpseEffectiveKillXp(state);
                 if (baseXp <= 0f)
@@ -3551,6 +4006,7 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
+                    resolvedBaseXp = baseXp;
                     float amount = RoundXp(baseXp * (xpPercent / 100f));
                     float absoluteMax = _maximumXp.Value;
                     if (absoluteMax > 0f && amount > absoluteMax)
@@ -3564,60 +4020,72 @@ namespace BloodMagicExpansion
                     }
                     else
                     {
-                        float rawXp = amount * Math.Max(0f, _rawCharacterXpPerCorpseXp.Value);
-                        TryClaimGrailFloatingTextCorpseXp(rawXp, state);
-                        if (AwardRawCharacterXp(rawXp))
-                        {
-                            state.XpAwarded = true;
-                            if (_logAwards.Value)
-                            {
-                                Log.LogInfo("Paid " + rawXp.ToString("0.###", CultureInfo.InvariantCulture) + " corpse leech XP from corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " (" + xpPercent.ToString("0.###", CultureInfo.InvariantCulture) + "% of " + baseXp.ToString("0.###", CultureInfo.InvariantCulture) + ").");
-                            }
-                        }
-                        else
-                        {
-                            failures = AppendFailure(failures, "character XP award failed");
-                        }
+                        pendingRawXp = amount * Math.Max(0f, _rawCharacterXpPerCorpseXp.Value);
                     }
                 }
             }
 
-            bool xpComplete = !xpEnabled || state.XpAwarded;
-            bool healingComplete = !healingEnabled || state.Healed;
-            if (!xpComplete || !healingComplete)
+            if (!string.IsNullOrEmpty(failures))
             {
-                RejectCorpse(state, string.IsNullOrEmpty(failures) ? "enabled reward did not complete" : failures, false);
+                RejectCorpse(state, failures, false);
                 ResetFocusedCorpse();
                 return;
             }
 
-            float corpseSoundQuality = GetCorpseQuality01(state);
+            BloodEssenceAwardReceipt essenceReceipt;
+            if (!TryAwardBloodEssence(corpseQuality, out essenceReceipt))
+            {
+                RejectCorpse(state, "Blood Essence could not be saved", false);
+                ResetFocusedCorpse();
+                return;
+            }
+
+            if (xpAwardPending)
+            {
+                bool xpClaimed = TryClaimGrailFloatingTextCorpseXp(pendingRawXp, state);
+                if (!AwardRawCharacterXp(pendingRawXp))
+                {
+                    if (xpClaimed)
+                    {
+                        TryCancelGrailFloatingTextXpClaim(
+                            GrailFloatingTextCorpseXpEventId,
+                            pendingRawXp);
+                    }
+                    RollbackBloodEssenceAward(essenceReceipt);
+                    RejectCorpse(state, "character XP award failed", false);
+                    ResetFocusedCorpse();
+                    return;
+                }
+
+                state.XpAwarded = true;
+                if (_logAwards.Value)
+                {
+                    Log.LogInfo("Paid " + pendingRawXp.ToString("0.###", CultureInfo.InvariantCulture) + " corpse leech XP from corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " (" + xpPercent.ToString("0.###", CultureInfo.InvariantCulture) + "% of " + resolvedBaseXp.ToString("0.###", CultureInfo.InvariantCulture) + ").");
+                }
+            }
+
             state.Exhausted = true;
             state.ChannelStartTime = 0f;
             state.LastFocusTime = Now;
             TouchCorpseState(state);
             _focusedCorpse = null;
 
-            PlayCorpseLeechSound(corpseSoundQuality);
-            ReportCorpseDrained(corpseSoundQuality);
+            PlayCorpseLeechSound(corpseQuality);
+            ReportCorpseDrained(corpseQuality);
             state.LoggedReject = false;
         }
 
         private void ReportCorpseDrained(float quality)
         {
-            if (!_deedsOfAvalonBridgeResolved)
+            ReportCorpseDrainThreatToEyes(quality);
+            ResolveDeedsOfAvalonBridge();
+
+            if (_deedsOfAvalonSetCorpseDrainStatisticsMethod != null
+                && _deedsOfAvalonGetCorpseDrainStatisticsMethod != null)
             {
-                _deedsOfAvalonBridgeResolved = true;
-                PluginInfo pluginInfo;
-                if (Chainloader.PluginInfos.TryGetValue(DeedsOfAvalonPluginGuid, out pluginInfo)
-                    && pluginInfo != null
-                    && pluginInfo.Instance != null)
-                {
-                    Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(DeedsOfAvalonApiTypeName, false);
-                    _deedsOfAvalonRecordCorpseDrainMethod = apiType == null
-                        ? null
-                        : apiType.GetMethod("TryRecordCorpseDrain", BindingFlags.Public | BindingFlags.Static);
-                }
+                ReportCorpseStatisticsToDeeds();
+                ReportBloodMagicProgressionToDeeds(GetBloodEssence());
+                return;
             }
 
             if (_deedsOfAvalonRecordCorpseDrainMethod == null)
@@ -3630,6 +4098,7 @@ namespace BloodMagicExpansion
                 _deedsOfAvalonRecordCorpseDrainMethod.Invoke(
                     null,
                     new object[] { PluginGuid, GetCorpseQualityLabel(quality), quality });
+                ReportBloodMagicProgressionToDeeds(GetBloodEssence());
             }
             catch (Exception ex)
             {
@@ -3637,6 +4106,626 @@ namespace BloodMagicExpansion
                 {
                     _deedsOfAvalonFailureLogged = true;
                     Log.LogWarning("Deeds of Avalon corpse-drain reporting failed: " + ex.GetBaseException().Message);
+                }
+            }
+        }
+
+        private void ReportCorpseDrainThreatToEyes(float quality)
+        {
+            ResolveEyesInTheDarkBridge();
+            if (_eyesInTheDarkRegisterCorpseDrainMethod == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _eyesInTheDarkRegisterCorpseDrainMethod.Invoke(
+                    null,
+                    new object[] { Mathf.Clamp01(quality) });
+            }
+            catch (Exception ex)
+            {
+                if (!_eyesInTheDarkFailureLogged)
+                {
+                    _eyesInTheDarkFailureLogged = true;
+                    Log.LogWarning(
+                        "Eyes in the Dark corpse-drain threat integration failed: "
+                        + ex.GetBaseException().Message);
+                }
+            }
+        }
+
+        private void ResolveEyesInTheDarkBridge()
+        {
+            if (_eyesInTheDarkBridgeResolved)
+            {
+                return;
+            }
+
+            _eyesInTheDarkBridgeResolved = true;
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    EyesInTheDarkPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                EyesInTheDarkCorpseDrainApiTypeName,
+                false);
+            _eyesInTheDarkRegisterCorpseDrainMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "TryRegisterCorpseDrain",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(float) },
+                    null);
+            if (_eyesInTheDarkRegisterCorpseDrainMethod == null
+                || _eyesInTheDarkRegisterCorpseDrainMethod.ReturnType
+                    != typeof(bool))
+            {
+                _eyesInTheDarkRegisterCorpseDrainMethod = null;
+                if (!_eyesInTheDarkFailureLogged)
+                {
+                    _eyesInTheDarkFailureLogged = true;
+                    Log.LogWarning(
+                        "Eyes in the Dark is loaded, but its corpse-drain threat API could not be found.");
+                }
+            }
+        }
+
+        private void ResolveDeedsOfAvalonBridge()
+        {
+            if (_deedsOfAvalonBridgeResolved)
+            {
+                return;
+            }
+
+            _deedsOfAvalonBridgeResolved = true;
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(DeedsOfAvalonPluginGuid, out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                _deedsOfAvalonBridgeResolved = false;
+                return;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(DeedsOfAvalonApiTypeName, false);
+            if (apiType == null)
+            {
+                return;
+            }
+
+            _deedsOfAvalonRecordCorpseDrainMethod = apiType.GetMethod(
+                "TryRecordCorpseDrain",
+                BindingFlags.Public | BindingFlags.Static);
+            _deedsOfAvalonSetCorpseDrainStatisticsMethod = apiType.GetMethod(
+                "TrySetCorpseDrainStatistics",
+                BindingFlags.Public | BindingFlags.Static);
+            _deedsOfAvalonRecordBloodMagicEssenceMethod = apiType.GetMethod(
+                "TryRecordBloodMagicEssence",
+                BindingFlags.Public | BindingFlags.Static);
+            _deedsOfAvalonRecordBloodMagicProgressionMethod = apiType.GetMethod(
+                "TryRecordBloodMagicProgression",
+                BindingFlags.Public | BindingFlags.Static);
+            _deedsOfAvalonGetCorpseDrainCountsMethod = apiType.GetMethod(
+                "TryGetCorpseDrainCounts",
+                BindingFlags.Public | BindingFlags.Static);
+            _deedsOfAvalonGetCorpseDrainStatisticsMethod = apiType.GetMethod(
+                "TryGetCorpseDrainStatistics",
+                BindingFlags.Public | BindingFlags.Static);
+        }
+
+        private void UpdateBloodProgression()
+        {
+            if (_enabled == null || !_enabled.Value || Now < _nextBloodProgressionSyncTime)
+            {
+                return;
+            }
+
+            _nextBloodProgressionSyncTime = Now + BloodProgressionSyncIntervalSeconds;
+            float essence = GetBloodEssence();
+            if (essence >= 0f && Math.Abs(essence - _lastReportedBloodEssence) > 0.0001f)
+            {
+                ReportBloodMagicProgressionToDeeds(essence);
+                _lastReportedBloodEssence = essence;
+            }
+
+            ReportCorpseStatisticsToDeeds();
+        }
+
+        private bool TryAwardBloodEssence(
+            float quality,
+            out BloodEssenceAwardReceipt receipt)
+        {
+            receipt = null;
+            ContextualFacts facts = null;
+            float beforeEssence = 0.0f;
+            int beforeCorpseCount = 0;
+            string corpseTierKey = null;
+            int beforeTierCount = 0;
+            float beforeQualitySum = 0.0f;
+            bool previousValuesRead = false;
+            try
+            {
+                facts = GetBloodProgressionFacts();
+                if (facts == null)
+                {
+                    if (!_bloodProgressionUnavailableLogged)
+                    {
+                        _bloodProgressionUnavailableLogged = true;
+                        Log.LogWarning("Blood Essence could not be saved because GameplayMemory was unavailable.");
+                    }
+                    return false;
+                }
+
+                EnsureBloodProgressionInitialized(facts);
+                beforeEssence = Math.Max(0f, facts.Get(BloodProgressionEssenceKey, 0.0f));
+                beforeCorpseCount = Math.Max(0, facts.Get(BloodProgressionCorpseCountKey, 0));
+                corpseTierKey = GetBloodProgressionCorpseTierKey(quality);
+                beforeTierCount = Math.Max(0, facts.Get(corpseTierKey, 0));
+                beforeQualitySum = Math.Max(
+                    0.0f,
+                    facts.Get(BloodProgressionCorpseQualitySumKey, 0.0f));
+                previousValuesRead = true;
+                float quality01 = Mathf.Clamp01(quality);
+                float gainedEssence = GetBloodEssenceGainForQuality(quality01);
+                float afterEssence = SaturatingAdd(beforeEssence, gainedEssence);
+                facts.Set(BloodProgressionEssenceKey, afterEssence);
+                facts.Set(
+                    BloodProgressionCorpseCountKey,
+                    SaturatingIncrement(beforeCorpseCount));
+                facts.Set(corpseTierKey, SaturatingIncrement(beforeTierCount));
+                facts.Set(
+                    BloodProgressionCorpseQualitySumKey,
+                    SaturatingAdd(beforeQualitySum, quality01));
+                facts.Set(BloodProgressionCorpseStatisticsInitializedKey, 1);
+                _lastReportedBloodEssence = -1.0f;
+                _lastReportedCorpseStatistics = null;
+                receipt = new BloodEssenceAwardReceipt(
+                    facts,
+                    beforeEssence,
+                    beforeCorpseCount,
+                    corpseTierKey,
+                    beforeTierCount,
+                    beforeQualitySum);
+
+                if (_logAwards != null && _logAwards.Value)
+                {
+                    Log.LogInfo(
+                        "Gained "
+                        + gainedEssence.ToString("0.###", CultureInfo.InvariantCulture)
+                        + " Blood Essence from a "
+                        + GetCorpseQualityLabel(quality01)
+                        + " corpse; total="
+                        + afterEssence.ToString("0.###", CultureInfo.InvariantCulture)
+                        + ", Blood Power="
+                        + GetBloodPowerFromEssence(afterEssence).ToString("0.##", CultureInfo.InvariantCulture)
+                        + ".");
+                }
+
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (previousValuesRead)
+                {
+                    TryRestoreBloodEssenceAward(
+                        facts,
+                        beforeEssence,
+                        beforeCorpseCount,
+                        corpseTierKey,
+                        beforeTierCount,
+                        beforeQualitySum);
+                }
+                Log.LogWarning(
+                    "Blood Essence could not be saved: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private void RollbackBloodEssenceAward(BloodEssenceAwardReceipt receipt)
+        {
+            if (receipt == null || receipt.Facts == null)
+            {
+                return;
+            }
+
+            if (!TryRestoreBloodEssenceAward(
+                receipt.Facts,
+                receipt.BeforeEssence,
+                receipt.BeforeCorpseCount,
+                receipt.CorpseTierKey,
+                receipt.BeforeTierCount,
+                receipt.BeforeQualitySum))
+            {
+                Log.LogError(
+                    "Blood Essence rollback failed after character XP could not be awarded.");
+            }
+        }
+
+        private bool TryRestoreBloodEssenceAward(
+            ContextualFacts facts,
+            float essence,
+            int corpseCount,
+            string corpseTierKey,
+            int tierCount,
+            float qualitySum)
+        {
+            if (facts == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                facts.Set(BloodProgressionEssenceKey, essence);
+                facts.Set(BloodProgressionCorpseCountKey, corpseCount);
+                if (!string.IsNullOrEmpty(corpseTierKey))
+                {
+                    facts.Set(corpseTierKey, tierCount);
+                }
+                facts.Set(BloodProgressionCorpseQualitySumKey, qualitySum);
+            }
+            catch (Exception exception)
+            {
+                Log.LogError(
+                    "Blood Essence state could not be restored: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+
+            _lastReportedBloodEssence = -1.0f;
+            _lastReportedCorpseStatistics = null;
+            return true;
+        }
+
+        private ContextualFacts GetBloodProgressionFacts()
+        {
+            Services services = World.Services;
+            GameplayMemory memory = services == null
+                ? null
+                : services.TryGet<GameplayMemory>();
+            return memory == null ? null : memory.Context(BloodProgressionMemoryContext);
+        }
+
+        private float GetBloodEssence()
+        {
+            float storedEssence = GetStoredBloodEssence();
+            if (storedEssence < 0f)
+            {
+                return storedEssence;
+            }
+
+            return _overrideBloodEssence != null && _overrideBloodEssence.Value
+                ? Math.Max(0f, _bloodEssenceOverrideValue == null ? 0f : _bloodEssenceOverrideValue.Value)
+                : storedEssence;
+        }
+
+        private float GetStoredBloodEssence()
+        {
+            ContextualFacts facts = GetBloodProgressionFacts();
+            if (facts == null)
+            {
+                return -1.0f;
+            }
+
+            EnsureBloodProgressionInitialized(facts);
+            return Math.Max(0f, facts.Get(BloodProgressionEssenceKey, 0.0f));
+        }
+
+        private void EnsureBloodProgressionInitialized(ContextualFacts facts)
+        {
+            if (facts == null)
+            {
+                return;
+            }
+
+            bool progressionInitialized = facts.Get(BloodProgressionInitializedKey, 0) != 0;
+            bool statisticsInitialized =
+                facts.Get(BloodProgressionCorpseStatisticsInitializedKey, 0) != 0;
+            if (progressionInitialized && statisticsInitialized)
+            {
+                return;
+            }
+
+            if (progressionInitialized
+                && !statisticsInitialized
+                && Now < _nextCorpseStatisticsImportAttemptTime)
+            {
+                return;
+            }
+
+            int importedMeager;
+            int importedWorthy;
+            int importedPotent;
+            int importedPrime;
+            float importedEssence;
+            float importedQualitySum;
+            bool imported = TryImportDeedsCorpseDrainCounts(
+                out importedEssence,
+                out importedMeager,
+                out importedWorthy,
+                out importedPotent,
+                out importedPrime,
+                out importedQualitySum);
+            if (!imported)
+            {
+                _nextCorpseStatisticsImportAttemptTime = Now + 10.0f;
+            }
+
+            if (!progressionInitialized)
+            {
+                facts.Set(BloodProgressionEssenceKey, imported ? importedEssence : 0.0f);
+                facts.Set(BloodProgressionInitializedKey, 1);
+                if (importedEssence > 0f)
+                {
+                    Log.LogInfo(
+                        "Initialized Blood Power from existing Deeds of Avalon corpse tiers: essence="
+                        + importedEssence.ToString("0.###", CultureInfo.InvariantCulture)
+                        + ", power="
+                        + GetBloodPowerFromEssence(importedEssence).ToString("0.##", CultureInfo.InvariantCulture)
+                        + ".");
+                }
+            }
+
+            if (!statisticsInitialized && imported)
+            {
+                facts.Set(BloodProgressionMeagerCorpseCountKey, importedMeager);
+                facts.Set(BloodProgressionWorthyCorpseCountKey, importedWorthy);
+                facts.Set(BloodProgressionPotentCorpseCountKey, importedPotent);
+                facts.Set(BloodProgressionPrimeCorpseCountKey, importedPrime);
+                facts.Set(BloodProgressionCorpseQualitySumKey, importedQualitySum);
+                facts.Set(
+                    BloodProgressionCorpseCountKey,
+                    SaturatingAdd(
+                        SaturatingAdd(importedMeager, importedWorthy),
+                        SaturatingAdd(importedPotent, importedPrime)));
+                facts.Set(BloodProgressionCorpseStatisticsInitializedKey, 1);
+            }
+            else if (!statisticsInitialized
+                && facts.Get(BloodProgressionCorpseCountKey, 0) <= 0)
+            {
+                facts.Set(BloodProgressionCorpseStatisticsInitializedKey, 1);
+            }
+        }
+
+        private bool TryImportDeedsCorpseDrainCounts(
+            out float essence,
+            out int meager,
+            out int worthy,
+            out int potent,
+            out int prime,
+            out float qualitySum)
+        {
+            essence = 0.0f;
+            meager = 0;
+            worthy = 0;
+            potent = 0;
+            prime = 0;
+            qualitySum = 0.0f;
+            ResolveDeedsOfAvalonBridge();
+            if (_deedsOfAvalonGetCorpseDrainStatisticsMethod == null
+                && _deedsOfAvalonGetCorpseDrainCountsMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                bool includeQuality = _deedsOfAvalonGetCorpseDrainStatisticsMethod != null;
+                object[] args = includeQuality
+                    ? new object[] { PluginGuid, 0, 0, 0, 0, 0.0f }
+                    : new object[] { PluginGuid, 0, 0, 0, 0 };
+                MethodInfo method = includeQuality
+                    ? _deedsOfAvalonGetCorpseDrainStatisticsMethod
+                    : _deedsOfAvalonGetCorpseDrainCountsMethod;
+                object result = method.Invoke(null, args);
+                if (!(result is bool) || !(bool)result)
+                {
+                    return false;
+                }
+
+                meager = Math.Max(0, Convert.ToInt32(args[1], CultureInfo.InvariantCulture));
+                worthy = Math.Max(0, Convert.ToInt32(args[2], CultureInfo.InvariantCulture));
+                potent = Math.Max(0, Convert.ToInt32(args[3], CultureInfo.InvariantCulture));
+                prime = Math.Max(0, Convert.ToInt32(args[4], CultureInfo.InvariantCulture));
+                qualitySum = includeQuality
+                    ? Math.Max(0.0f, Convert.ToSingle(args[5], CultureInfo.InvariantCulture))
+                    : 0.0f;
+                essence = (meager * MeagerBloodEssenceAward)
+                    + (worthy * WorthyBloodEssenceAward)
+                    + (potent * PotentBloodEssenceAward)
+                    + (prime * PrimeBloodEssenceAward);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (!_deedsOfAvalonFailureLogged)
+                {
+                    _deedsOfAvalonFailureLogged = true;
+                    Log.LogWarning("Deeds of Avalon Blood Power import failed: " + ex.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private void ReportCorpseStatisticsToDeeds()
+        {
+            ResolveDeedsOfAvalonBridge();
+            if (_deedsOfAvalonSetCorpseDrainStatisticsMethod == null
+                || _deedsOfAvalonGetCorpseDrainStatisticsMethod == null)
+            {
+                return;
+            }
+
+            ContextualFacts facts = GetBloodProgressionFacts();
+            if (facts == null)
+            {
+                return;
+            }
+
+            EnsureBloodProgressionInitialized(facts);
+            int meager = Math.Max(0, facts.Get(BloodProgressionMeagerCorpseCountKey, 0));
+            int worthy = Math.Max(0, facts.Get(BloodProgressionWorthyCorpseCountKey, 0));
+            int potent = Math.Max(0, facts.Get(BloodProgressionPotentCorpseCountKey, 0));
+            int prime = Math.Max(0, facts.Get(BloodProgressionPrimeCorpseCountKey, 0));
+            float qualitySum = Math.Max(
+                0.0f,
+                facts.Get(BloodProgressionCorpseQualitySumKey, 0.0f));
+            string fingerprint = string.Join(
+                ":",
+                meager.ToString(CultureInfo.InvariantCulture),
+                worthy.ToString(CultureInfo.InvariantCulture),
+                potent.ToString(CultureInfo.InvariantCulture),
+                prime.ToString(CultureInfo.InvariantCulture),
+                qualitySum.ToString("R", CultureInfo.InvariantCulture));
+            if (string.Equals(
+                fingerprint,
+                _lastReportedCorpseStatistics,
+                StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            try
+            {
+                object result = _deedsOfAvalonSetCorpseDrainStatisticsMethod.Invoke(
+                    null,
+                    new object[] { PluginGuid, meager, worthy, potent, prime, qualitySum });
+                if (result is bool && (bool)result)
+                {
+                    _lastReportedCorpseStatistics = fingerprint;
+                    _deedsOfAvalonFailureLogged = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!_deedsOfAvalonFailureLogged)
+                {
+                    _deedsOfAvalonFailureLogged = true;
+                    Log.LogWarning(
+                        "Deeds of Avalon corpse-statistic synchronization failed: "
+                        + ex.GetBaseException().Message);
+                }
+            }
+        }
+
+        private static string GetBloodProgressionCorpseTierKey(float quality)
+        {
+            float quality01 = Mathf.Clamp01(quality);
+            if (quality01 <= CorpseLeechMeagerQualityMax)
+            {
+                return BloodProgressionMeagerCorpseCountKey;
+            }
+
+            if (quality01 <= CorpseLeechWorthyQualityMax)
+            {
+                return BloodProgressionWorthyCorpseCountKey;
+            }
+
+            return quality01 <= CorpseLeechPotentQualityMax
+                ? BloodProgressionPotentCorpseCountKey
+                : BloodProgressionPrimeCorpseCountKey;
+        }
+
+        private static int SaturatingIncrement(int value)
+        {
+            return value >= int.MaxValue ? int.MaxValue : value + 1;
+        }
+
+        private static int SaturatingAdd(int left, int right)
+        {
+            long sum = (long)Math.Max(0, left) + Math.Max(0, right);
+            return sum >= int.MaxValue ? int.MaxValue : (int)sum;
+        }
+
+        private static float SaturatingAdd(float left, float right)
+        {
+            double sum = Math.Max(0.0f, left) + Math.Max(0.0f, right);
+            return double.IsNaN(sum) || sum <= 0.0
+                ? 0.0f
+                : sum >= float.MaxValue ? float.MaxValue : (float)sum;
+        }
+
+        private float GetBloodEssenceGainForQuality(float quality)
+        {
+            float quality01 = Mathf.Clamp01(quality);
+            if (quality01 <= CorpseLeechMeagerQualityMax)
+            {
+                return MeagerBloodEssenceAward;
+            }
+
+            if (quality01 <= CorpseLeechWorthyQualityMax)
+            {
+                return WorthyBloodEssenceAward;
+            }
+
+            return quality01 <= CorpseLeechPotentQualityMax
+                ? PotentBloodEssenceAward
+                : PrimeBloodEssenceAward;
+        }
+
+        private float GetBloodPower()
+        {
+            float essence = GetBloodEssence();
+            return essence < 0f ? 0f : GetBloodPowerFromEssence(essence);
+        }
+
+        private float GetBloodPowerFromEssence(float essence)
+        {
+            float safeEssence = Math.Max(0f, essence);
+            float progress = Mathf.Clamp01(safeEssence / BloodEssenceAtAbsoluteMaximumPower);
+            return (80.0f * progress * progress * progress)
+                - (280.0f * progress * progress)
+                + (320.0f * progress);
+        }
+
+        private float GetBloodPowerOvermasteryBonusFraction(float power)
+        {
+            return MaximumOvermasteryBonusFraction * Mathf.Clamp01(
+                (power - NormalMaximumBloodPower)
+                / (AbsoluteMaximumBloodPower - NormalMaximumBloodPower));
+        }
+
+        private void ReportBloodMagicProgressionToDeeds(float essence)
+        {
+            ResolveDeedsOfAvalonBridge();
+            if ((_deedsOfAvalonRecordBloodMagicProgressionMethod == null
+                    && _deedsOfAvalonRecordBloodMagicEssenceMethod == null)
+                || essence < 0f)
+            {
+                return;
+            }
+
+            try
+            {
+                if (_deedsOfAvalonRecordBloodMagicProgressionMethod != null)
+                {
+                    _deedsOfAvalonRecordBloodMagicProgressionMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, essence, GetBloodPowerFromEssence(essence) });
+                }
+                else
+                {
+                    _deedsOfAvalonRecordBloodMagicEssenceMethod.Invoke(
+                        null,
+                        new object[] { PluginGuid, essence });
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!_deedsOfAvalonFailureLogged)
+                {
+                    _deedsOfAvalonFailureLogged = true;
+                    Log.LogWarning("Deeds of Avalon Blood Magic progression reporting failed: " + ex.GetBaseException().Message);
                 }
             }
         }
@@ -4042,7 +5131,18 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            return HealHeroPercentOfMaxHealth(percentOfMaxHealth);
+            bool presentationClaimed = BeginGrailFloatingTextBloodHealingPresentationClaim();
+            try
+            {
+                return HealHeroPercentOfMaxHealth(percentOfMaxHealth);
+            }
+            finally
+            {
+                if (presentationClaimed)
+                {
+                    EndGrailFloatingTextBloodHealingPresentationClaim();
+                }
+            }
         }
 
         private void HandleAppliedDamage(object healthElement, object damage)
@@ -4054,10 +5154,17 @@ namespace BloodMagicExpansion
         {
             if (_enabled == null ||
                 !_enabled.Value ||
-                _liveDrainEnabled == null ||
-                !_liveDrainEnabled.Value ||
                 healthElement == null ||
                 damage == null)
+            {
+                return;
+            }
+
+            bool tuneHeldHealing = ShouldTuneBloodSpells()
+                && _liveDrainHealingMultiplier != null;
+            bool awardLiveDrainXp = _liveDrainEnabled != null
+                && _liveDrainEnabled.Value;
+            if (!tuneHeldHealing && !awardLiveDrainXp)
             {
                 return;
             }
@@ -4070,6 +5177,11 @@ namespace BloodMagicExpansion
 
             string sourceSummary;
             if (!IsBloodMagicDamageSource(damage, out sourceSummary))
+            {
+                return;
+            }
+
+            if (GetPropertyValue(damage, "Projectile") != null)
             {
                 return;
             }
@@ -4110,6 +5222,16 @@ namespace BloodMagicExpansion
             }
 
             float now = Now;
+            if (tuneHeldHealing)
+            {
+                RegisterLiveDrainHealingEligibility(now);
+            }
+
+            if (!awardLiveDrainXp)
+            {
+                return;
+            }
+
             LiveDrainState state = GetLiveDrainState(healthElement, target, now);
             state.LastSeenTime = now;
             if (state.BaseXp <= 0f)
@@ -4121,6 +5243,35 @@ namespace BloodMagicExpansion
             state.LastDrainTime = now;
 
             TryAwardLiveDrainXp(state, now, handMultiplier);
+        }
+
+        private void RegisterLiveDrainHealingEligibility(float now)
+        {
+            if (now > _liveDrainHealingEligibleUntil)
+            {
+                _pendingLiveDrainHealingCount = 0;
+            }
+
+            _liveDrainHealingEligibleUntil = now + LiveDrainHealingEligibilitySeconds;
+            _pendingLiveDrainHealingCount = Math.Min(16, _pendingLiveDrainHealingCount + 1);
+        }
+
+        private bool TryConsumeLiveDrainHealingEligibility(object healingItem)
+        {
+            if (_pendingLiveDrainHealingCount <= 0 || Now > _liveDrainHealingEligibleUntil)
+            {
+                _pendingLiveDrainHealingCount = 0;
+                return false;
+            }
+
+            string ignored;
+            if (healingItem != null && !IsBloodTransfusionItem(healingItem, out ignored))
+            {
+                return false;
+            }
+
+            _pendingLiveDrainHealingCount--;
+            return true;
         }
 
         private LiveDrainState GetLiveDrainState(object healthElement, object target, float now)
@@ -4552,6 +5703,57 @@ namespace BloodMagicExpansion
 
             object projectile = GetPropertyValue(damage, "Projectile");
             return IsBloodMagicProjectileSource(projectile, out summary);
+        }
+
+        internal bool IsBloodMagicDamageForInterop(object damage)
+        {
+            string summary;
+            if (IsBloodMagicDamageSource(damage, out summary))
+            {
+                return true;
+            }
+            if (damage == null)
+            {
+                return false;
+            }
+
+            object item = GetPropertyValue(damage, "Item");
+            object skill = GetPropertyValue(damage, "Skill");
+            if (IsAbhartachItemOrSkill(item, skill, out summary))
+            {
+                return true;
+            }
+
+            object projectile = GetPropertyValue(damage, "Projectile");
+            object sourceWeapon = GetPropertyValue(projectile, "SourceWeapon");
+            object sourceProjectile = GetPropertyValue(projectile, "SourceProjectile");
+            return IsAbhartachItemOrSkill(sourceWeapon, null, out summary)
+                || IsAbhartachItemOrSkill(sourceProjectile, null, out summary);
+        }
+
+        internal bool IsBloodMagicDisplayNameForInterop(string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                return false;
+            }
+
+            string text = displayName.Trim();
+            return ContainsAnyConfiguredTerm(text, GetMatchTerms())
+                || ContainsAnyConfiguredTerm(text, GetAbhartachMatchTerms());
+        }
+
+        private static bool ContainsAnyConfiguredTerm(string text, string[] terms)
+        {
+            for (int i = 0; i < terms.Length; i++)
+            {
+                if (!string.IsNullOrEmpty(terms[i])
+                    && text.IndexOf(terms[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool IsBloodMagicProjectileSource(object projectile, out string summary)
@@ -5152,6 +6354,68 @@ namespace BloodMagicExpansion
             }
         }
 
+        internal bool IsBloodMagicHealing(
+            object character,
+            float healing,
+            object healingItem)
+        {
+            if (healing <= 0f)
+            {
+                return false;
+            }
+
+            object hero = GetHero();
+            if (character == null || hero == null || !IsSameModelOrOwner(character, hero))
+            {
+                return false;
+            }
+
+            string ignored;
+            if (healingItem != null)
+            {
+                return IsBloodTransfusionItem(healingItem, out ignored)
+                    || IsAbhartachItem(healingItem, out ignored);
+            }
+
+            return (_pendingLiveDrainHealingCount > 0
+                    && Now <= _liveDrainHealingEligibleUntil)
+                || Now <= _abhartachHeldHealingActiveUntil;
+        }
+
+        internal bool ApplyLiveDrainHealingTuning(object character, ref float healing, object healingItem)
+        {
+            if (!ShouldTuneBloodSpells()
+                || _liveDrainHealingMultiplier == null
+                || healing <= 0f)
+            {
+                return false;
+            }
+
+            object hero = GetHero();
+            if (character == null || hero == null || !IsSameModelOrOwner(character, hero))
+            {
+                return false;
+            }
+
+            if (!TryConsumeLiveDrainHealingEligibility(healingItem))
+            {
+                return false;
+            }
+
+            float multiplier = Math.Max(0f, _liveDrainHealingMultiplier.Value);
+            healing *= multiplier;
+            if (_logAwards != null && _logAwards.Value)
+            {
+                Log.LogInfo("Scaled held live-drain healing by "
+                    + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + "x.");
+            }
+
+            return _suppressGrailFloatingTextLiveDrainHealing != null
+                && _suppressGrailFloatingTextLiveDrainHealing.Value
+                && BeginGrailFloatingTextDefaultHealingClaim();
+        }
+
         private bool ShouldTuneBloodSpells()
         {
             return _enabled != null &&
@@ -5279,6 +6543,179 @@ namespace BloodMagicExpansion
             return state.TargetMaxHealth;
         }
 
+        private bool TryResolveCorpseNativeTier(CorpseState state, out int nativeTier)
+        {
+            nativeTier = -1;
+            if (state == null)
+            {
+                return false;
+            }
+
+            if (TryReadNativeTier(state.TargetObject, out nativeTier)
+                || TryReadNativeTier(state.Corpse, out nativeTier))
+            {
+                state.NativeTier = nativeTier;
+                state.HasNativeTier = true;
+                return true;
+            }
+
+            if (state.HasNativeTier)
+            {
+                nativeTier = state.NativeTier;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryReadNativeTier(object owner, out int nativeTier)
+        {
+            nativeTier = -1;
+            if (owner == null)
+            {
+                return false;
+            }
+
+            object template = GetOptionalPropertyValue(owner, "Template");
+            if (template != null
+                && !ReferenceEquals(template, owner)
+                && TryReadNativeTierFromTags(GetMemberValue(template, "Tags"), out nativeTier))
+            {
+                return true;
+            }
+
+            return TryReadNativeTierFromTags(GetMemberValue(owner, "Tags"), out nativeTier);
+        }
+
+        private bool TryReadNativeTierFromTags(object tags, out int nativeTier)
+        {
+            nativeTier = -1;
+            IEnumerable enumerable = tags as IEnumerable;
+            if (enumerable == null || tags is string)
+            {
+                return false;
+            }
+
+            foreach (object item in enumerable)
+            {
+                string tag = item as string;
+                if (string.IsNullOrEmpty(tag))
+                {
+                    continue;
+                }
+
+                for (int tier = 0; tier <= 7; tier++)
+                {
+                    if (string.Equals(
+                        tag,
+                        "Tier:" + tier.ToString(CultureInfo.InvariantCulture),
+                        StringComparison.Ordinal))
+                    {
+                        nativeTier = tier;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private float ResolveCorpseExpLevel(CorpseState state)
+        {
+            if (state == null)
+            {
+                return -1f;
+            }
+
+            float expLevel = TryReadExpLevel(state.TargetObject);
+            if (expLevel < 0f)
+            {
+                expLevel = TryReadExpLevel(state.Corpse);
+            }
+            if (expLevel >= 0f)
+            {
+                state.TargetExpLevel = expLevel;
+                state.HasTargetExpLevel = true;
+                return expLevel;
+            }
+
+            return state.HasTargetExpLevel ? state.TargetExpLevel : -1f;
+        }
+
+        private Grailwright.Shared.CorpseQualityThreatClass ResolveCorpseThreatClass(
+            CorpseState state)
+        {
+            if (state == null)
+            {
+                return Grailwright.Shared.CorpseQualityThreatClass.Normal;
+            }
+
+            Grailwright.Shared.CorpseQualityThreatClass threatClass;
+            if (TryReadCorpseThreatClass(state.TargetObject, out threatClass)
+                || TryReadCorpseThreatClass(state.Corpse, out threatClass))
+            {
+                state.TargetThreatClass = threatClass;
+                state.HasTargetThreatClass = true;
+                return threatClass;
+            }
+
+            return state.HasTargetThreatClass
+                ? state.TargetThreatClass
+                : Grailwright.Shared.CorpseQualityThreatClass.Normal;
+        }
+
+        private bool TryReadCorpseThreatClass(
+            object owner,
+            out Grailwright.Shared.CorpseQualityThreatClass threatClass)
+        {
+            threatClass = Grailwright.Shared.CorpseQualityThreatClass.Normal;
+            if (owner == null)
+            {
+                return false;
+            }
+
+            object template = GetOptionalPropertyValue(owner, "Template");
+            if (template != null
+                && !ReferenceEquals(template, owner)
+                && TryReadCorpseThreatClassFromNpcType(
+                    GetMemberValue(template, "NpcType"),
+                    out threatClass))
+            {
+                return true;
+            }
+
+            return TryReadCorpseThreatClassFromNpcType(
+                GetMemberValue(owner, "NpcType"),
+                out threatClass);
+        }
+
+        private bool TryReadCorpseThreatClassFromNpcType(
+            object npcType,
+            out Grailwright.Shared.CorpseQualityThreatClass threatClass)
+        {
+            threatClass = Grailwright.Shared.CorpseQualityThreatClass.Normal;
+            if (npcType == null)
+            {
+                return false;
+            }
+
+            string name = npcType.ToString();
+            if (string.Equals(name, "Elite", StringComparison.Ordinal))
+            {
+                threatClass = Grailwright.Shared.CorpseQualityThreatClass.Elite;
+            }
+            else if (string.Equals(name, "MiniBoss", StringComparison.Ordinal))
+            {
+                threatClass = Grailwright.Shared.CorpseQualityThreatClass.MiniBoss;
+            }
+            else if (string.Equals(name, "Boss", StringComparison.Ordinal))
+            {
+                threatClass = Grailwright.Shared.CorpseQualityThreatClass.Boss;
+            }
+
+            return true;
+        }
+
         private float GetHealingPowerScale(CorpseState state)
         {
             if (_healPowerScalingMode == null || _healPowerScalingMode.Value == HealingPowerScalingMode.Off)
@@ -5307,16 +6744,20 @@ namespace BloodMagicExpansion
                 return 0f;
             }
 
-            float referenceXp = Math.Max(
-                1f,
-                _corpseQualityReferenceKillXp == null
-                    ? 300f
-                    : _corpseQualityReferenceKillXp.Value);
-            float referenceMaxHealth = Math.Max(
-                1f,
-                _corpseQualityReferenceMaxHealth == null
-                    ? 600f
-                    : _corpseQualityReferenceMaxHealth.Value);
+            return CalculateCorpseQuality01(state, true);
+        }
+
+        private float CalculateCorpseQuality01(
+            CorpseState state,
+            bool logSample)
+        {
+            if (state == null)
+            {
+                return 0f;
+            }
+
+            float referenceXp = Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceKillXp;
+            float referenceMaxHealth = Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceMaxHealth;
 
             float baseXp = ResolveCorpseBaseXp(state);
             float xpQuality = baseXp > 0f
@@ -5328,40 +6769,64 @@ namespace BloodMagicExpansion
                 ? Mathf.Clamp01(targetMaxHealth / referenceMaxHealth)
                 : 0f;
 
-            bool hasXpQuality = baseXp > 0f;
-            bool hasHealthQuality = targetMaxHealth > 0f;
-            float quality = 0f;
-            if (hasXpQuality && hasHealthQuality)
-            {
-                quality = (xpQuality + healthQuality) * 0.5f;
-            }
-            else if (hasXpQuality)
-            {
-                quality = xpQuality;
-            }
-            else if (hasHealthQuality)
-            {
-                quality = healthQuality;
-            }
-
-            bool fallbackUsed = !hasXpQuality && !hasHealthQuality;
+            int nativeTier;
+            bool hasNativeTier = TryResolveCorpseNativeTier(state, out nativeTier);
+            bool hasQualityEvidence;
+            bool usedNativeTier;
+            float intrinsicQuality = Grailwright.Shared.CorpseQualityBuckets.CalculateIntrinsicQuality01(
+                hasNativeTier ? nativeTier : -1,
+                baseXp,
+                referenceXp,
+                targetMaxHealth,
+                referenceMaxHealth,
+                out hasQualityEvidence,
+                out usedNativeTier);
+            bool fallbackUsed = !hasQualityEvidence;
             if (fallbackUsed)
             {
-                quality = Mathf.Clamp01(_corpseQualityFallbackQuality == null
+                intrinsicQuality = Mathf.Clamp01(_corpseQualityFallbackQuality == null
                     ? 0f
                     : _corpseQualityFallbackQuality.Value);
             }
 
-            LogCorpseQualitySample(
-                state,
-                baseXp,
-                targetMaxHealth,
-                referenceXp,
-                referenceMaxHealth,
-                xpQuality,
-                healthQuality,
-                quality,
-                fallbackUsed);
+            Grailwright.Shared.CorpseQualityThreatClass threatClass =
+                ResolveCorpseThreatClass(state);
+            float classAdjustedQuality =
+                Grailwright.Shared.CorpseQualityBuckets.ApplyThreatClassAdjustment(
+                    intrinsicQuality,
+                    threatClass);
+            float enemyExpLevel = ResolveCorpseExpLevel(state);
+            float heroLevel = TryReadHeroLevel();
+            bool levelAdjusted = false;
+            float quality =
+                Grailwright.Shared.CorpseQualityBuckets.ApplyBoundedRelativeLevelAdjustment(
+                    classAdjustedQuality,
+                    enemyExpLevel,
+                    heroLevel,
+                    Grailwright.Shared.CorpseQualityBuckets.DefaultLevelQualityPerLevel,
+                    Grailwright.Shared.CorpseQualityBuckets.DefaultMaximumLevelQualityAdjustment,
+                    out levelAdjusted);
+            if (logSample)
+            {
+                LogCorpseQualitySample(
+                    state,
+                    baseXp,
+                    targetMaxHealth,
+                    referenceXp,
+                    referenceMaxHealth,
+                    xpQuality,
+                    healthQuality,
+                    nativeTier,
+                    usedNativeTier,
+                    intrinsicQuality,
+                    threatClass,
+                    classAdjustedQuality,
+                    enemyExpLevel,
+                    heroLevel,
+                    levelAdjusted,
+                    quality,
+                    fallbackUsed);
+            }
 
             return Mathf.Clamp01(quality);
         }
@@ -5374,6 +6839,14 @@ namespace BloodMagicExpansion
             float referenceMaxHealth,
             float xpQuality,
             float healthQuality,
+            int nativeTier,
+            bool usedNativeTier,
+            float intrinsicQuality,
+            Grailwright.Shared.CorpseQualityThreatClass threatClass,
+            float classAdjustedQuality,
+            float enemyExpLevel,
+            float heroLevel,
+            bool levelAdjusted,
             float finalQuality,
             bool fallbackUsed)
         {
@@ -5402,35 +6875,54 @@ namespace BloodMagicExpansion
                 + "; referenceMaxHealth=" + referenceMaxHealth.ToString("0.###", CultureInfo.InvariantCulture)
                 + "; xpQuality=" + xpQuality.ToString("0.###", CultureInfo.InvariantCulture)
                 + "; healthQuality=" + healthQuality.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; nativeTier=" + (usedNativeTier
+                    ? nativeTier.ToString(CultureInfo.InvariantCulture)
+                    : "none")
+                + "; intrinsicQuality=" + intrinsicQuality.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; threatClass=" + threatClass.ToString()
+                + "; classAdjustedQuality=" + classAdjustedQuality.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; enemyExpLevel=" + enemyExpLevel.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; heroLevel=" + heroLevel.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; levelAdjusted=" + levelAdjusted.ToString()
                 + "; finalQuality=" + finalQuality.ToString("0.###", CultureInfo.InvariantCulture)
                 + "; fallbackUsed=" + fallbackUsed.ToString()
                 + ".");
+
+            string qualityLabel = GetCorpseQualityLabel(finalQuality);
+            string gftSignature = state.DebugId.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + qualityLabel
+                + "|"
+                + fallbackUsed;
+            if (ShouldShowBloodMagicDiagnostic(_logCorpseQuality)
+                && !string.Equals(
+                    gftSignature,
+                    _lastGftCorpseQualitySignature,
+                    StringComparison.Ordinal))
+            {
+                _lastGftCorpseQualitySignature = gftSignature;
+                ShowBloodMagicDiagnostic(
+                    _logCorpseQuality,
+                    "blood-magic-corpse-quality",
+                    "Blood Magic: "
+                        + DescribeCorpse(state)
+                        + " is "
+                        + qualityLabel
+                        + " quality ("
+                        + (finalQuality * 100.0f).ToString(
+                            "0",
+                            CultureInfo.InvariantCulture)
+                        + "%"
+                        + (fallbackUsed ? ", fallback" : "")
+                        + ").");
+            }
         }
 
         private int GetCorpseQualityTier(float quality)
         {
-            quality = Mathf.Clamp01(quality);
-            if (quality <= 0f)
-            {
-                return 0;
-            }
-
-            if (quality < 0.25f)
-            {
-                return 1;
-            }
-
-            if (quality < 0.5f)
-            {
-                return 2;
-            }
-
-            if (quality < 0.75f)
-            {
-                return 3;
-            }
-
-            return 4;
+            return (int)Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                quality,
+                true);
         }
 
         private float GetTransfusionHealingQualityMultiplier(CorpseState state)
@@ -5603,14 +7095,14 @@ namespace BloodMagicExpansion
 
         private float GetBloodSpellRangeDistanceMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellRangeBleedTapBaseMultiplier(), GetBloodSpellRangeBleedTapSpiritualityMultiplier());
+            return GetBloodSpellTunedMultiplier(GetBloodSpellRangeBleedTapBaseMultiplier(), GetBloodSpellRangeBleedTapGrowthMultiplier());
         }
 
         private float GetBloodSpellHomingTargetSearchMultiplier()
         {
             return GetBloodSpellTunedMultiplier(
                 GetBloodSpellHomingTargetSearchBaseMultiplier(),
-                GetBloodSpellTargetSearchSpiritualityMultiplier(),
+                GetBloodSpellTargetSearchGrowthMultiplier(),
                 _bloodSpellHomingTargetSearchMaximumMultiplier.Value);
         }
 
@@ -5618,50 +7110,50 @@ namespace BloodMagicExpansion
         {
             return GetBloodSpellTunedMultiplier(
                 GetBloodSpellHeldTargetRangeBaseMultiplier(),
-                GetBloodSpellTargetSearchSpiritualityMultiplier(),
+                GetBloodSpellTargetSearchGrowthMultiplier(),
                 _bloodSpellHeldTargetRangeMaximumMultiplier.Value);
         }
 
         private float GetBloodSpellBleedBuildupMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellBleedBuildupBaseMultiplier(), GetBloodSpellRangeBleedTapSpiritualityMultiplier());
+            return GetBloodSpellTunedMultiplier(GetBloodSpellBleedBuildupBaseMultiplier(), GetBloodSpellRangeBleedTapGrowthMultiplier());
         }
 
         private float GetBloodSpellTapCastSpeedMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellTapCastSpeedBaseMultiplier(), GetBloodSpellRangeBleedTapSpiritualityMultiplier());
+            return GetBloodSpellTunedMultiplier(GetBloodSpellTapCastSpeedBaseMultiplier(), GetBloodSpellRangeBleedTapGrowthMultiplier());
         }
 
         private float GetBloodSpellHeldChannelSpeedMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellHeldChannelBaseMultiplier(), GetBloodSpellHeldSpiritualityMultiplier());
+            return GetBloodSpellTunedMultiplier(GetBloodSpellHeldChannelBaseMultiplier(), GetBloodSpellHeldGrowthMultiplier());
         }
 
         private float GetAbhartachExplosionDamageMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionDamageBaseMultiplier(), GetAbhartachSpiritualityMultiplier(GetAbhartachExplosionDamageCurve()));
+            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionDamageBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionDamageCurve()));
         }
 
         private float GetAbhartachExplosionRadiusMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionRadiusBaseMultiplier(), GetAbhartachSpiritualityMultiplier(GetAbhartachExplosionRadiusCurve()));
+            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionRadiusBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionRadiusCurve()));
         }
 
         private float GetAbhartachExplosionBleedBuildupMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionBleedBaseMultiplier(), GetAbhartachSpiritualityMultiplier(GetAbhartachExplosionBleedCurve()));
+            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionBleedBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionBleedCurve()));
         }
 
         private float GetAbhartachHeldCorpseHealingMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachHeldHealingBaseMultiplier(), GetAbhartachSpiritualityMultiplier(GetAbhartachHeldHealingCurve()));
+            return GetBloodSpellTunedMultiplier(GetAbhartachHeldHealingBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachHeldHealingCurve()));
         }
 
         private float GetAbhartachCorpseSearchRangeMultiplier()
         {
             return GetBloodSpellTunedMultiplier(
                 GetAbhartachCorpseSearchBaseMultiplier(),
-                GetAbhartachSpiritualityMultiplier(GetAbhartachCorpseSearchCurve()),
+                GetBloodMagicGrowthMultiplier(GetAbhartachCorpseSearchCurve()),
                 _abhartachCorpseSearchMaximumMultiplier.Value);
         }
 
@@ -5830,101 +7322,112 @@ namespace BloodMagicExpansion
             }
         }
 
-        private float GetBloodSpellRangeBleedTapSpiritualityMultiplier()
+        private float GetBloodSpellRangeBleedTapGrowthMultiplier()
         {
-            return GetBloodSpellSpiritualityMultiplier(GetRangeBleedTapSpiritualityCurve());
+            return GetBloodMagicGrowthMultiplier(GetRangeBleedTapBloodPowerCurve());
         }
 
-        private float GetBloodSpellTargetSearchSpiritualityMultiplier()
+        private float GetBloodSpellTargetSearchGrowthMultiplier()
         {
-            return GetBloodSpellSpiritualityMultiplier(GetTargetSearchSpiritualityCurve());
+            return GetBloodMagicGrowthMultiplier(GetTargetSearchBloodPowerCurve());
         }
 
-        private float GetBloodSpellHeldSpiritualityMultiplier()
+        private float GetBloodSpellHeldGrowthMultiplier()
         {
-            return GetBloodSpellSpiritualityMultiplier(GetHeldSpiritualityCurve());
+            return GetBloodMagicGrowthMultiplier(GetHeldBloodPowerCurve());
         }
 
-        private float GetBloodSpellSpiritualityMultiplier(CurvePoint[] curve)
+        private float GetBloodMagicGrowthMultiplier(CurvePoint[] curve)
         {
-            if (_bloodSpellSpiritualityScalingEnabled == null || !_bloodSpellSpiritualityScalingEnabled.Value)
+            float growthValue = GetBloodMagicGrowthValue();
+            if (growthValue <= 0f)
             {
                 return 1f;
             }
 
-            float spirituality = GetCachedHeroSpiritualityValue();
-            if (spirituality <= 0f)
-            {
-                return 1f;
-            }
-
-            float bonusPercent = EvaluateCurve(curve, spirituality, 0f);
+            float curveGrowthValue = _bloodMagicGrowthSource == null
+                || _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.BloodPower
+                    ? Math.Min(growthValue, NormalMaximumBloodPower)
+                    : growthValue;
+            float bonusPercent = EvaluateCurve(curve, curveGrowthValue, 0f);
             return 1f + (Math.Max(0f, bonusPercent) / 100f);
         }
 
-        private float GetAbhartachSpiritualityMultiplier(CurvePoint[] curve)
+        private float GetBloodMagicGrowthValue()
         {
-            return GetBloodSpellSpiritualityMultiplier(curve);
+            return _bloodMagicGrowthSource != null
+                && _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.Spirituality
+                    ? GetCachedHeroSpiritualityValue()
+                    : GetBloodPower();
         }
 
-        private float GetBloodSpellTunedMultiplier(float presetBase, float spiritualityMultiplier)
+        private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier)
         {
-            return GetBloodSpellTunedMultiplier(presetBase, spiritualityMultiplier, 10f);
+            return GetBloodSpellTunedMultiplier(presetBase, growthMultiplier, 10f);
         }
 
-        private float GetBloodSpellTunedMultiplier(float presetBase, float spiritualityMultiplier, float maximum)
+        private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier, float maximum)
         {
-            float value = Math.Max(0f, presetBase) * Math.Max(0f, spiritualityMultiplier);
+            float value = Math.Max(0f, presetBase) * Math.Max(0f, growthMultiplier);
+            if (_bloodMagicGrowthSource == null
+                || _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.BloodPower)
+            {
+                float power = GetBloodPower();
+                float unlock = Mathf.Clamp01(power / NormalMaximumBloodPower);
+                value = 1.0f + ((value - 1.0f) * unlock);
+                value = 1.0f
+                    + ((value - 1.0f) * (1.0f + GetBloodPowerOvermasteryBonusFraction(power)));
+            }
             return Mathf.Clamp(value, 0f, Math.Max(0f, maximum));
         }
 
-        private CurvePoint[] GetRangeBleedTapSpiritualityCurve()
+        private CurvePoint[] GetRangeBleedTapBloodPowerCurve()
         {
-            string raw = _bloodSpellRangeBleedTapSpiritualityBonusCurve == null
+            string raw = _bloodSpellRangeBleedTapBloodPowerBonusCurve == null
                 ? ""
-                : (_bloodSpellRangeBleedTapSpiritualityBonusCurve.Value ?? "");
-            if (raw != _cachedRangeBleedTapSpiritualityCurveRaw)
+                : (_bloodSpellRangeBleedTapBloodPowerBonusCurve.Value ?? "");
+            if (raw != _cachedRangeBleedTapBloodPowerCurveRaw)
             {
-                _cachedRangeBleedTapSpiritualityCurveRaw = raw;
-                _cachedRangeBleedTapSpiritualityCurve = ParseCurve(raw, GetDefaultRangeBleedTapSpiritualityCurve());
+                _cachedRangeBleedTapBloodPowerCurveRaw = raw;
+                _cachedRangeBleedTapBloodPowerCurve = ParseCurve(raw, GetDefaultRangeBleedTapBloodPowerCurve());
             }
 
-            return _cachedRangeBleedTapSpiritualityCurve;
+            return _cachedRangeBleedTapBloodPowerCurve;
         }
 
-        private CurvePoint[] GetTargetSearchSpiritualityCurve()
+        private CurvePoint[] GetTargetSearchBloodPowerCurve()
         {
-            string raw = _bloodSpellTargetSearchSpiritualityBonusCurve == null
+            string raw = _bloodSpellTargetSearchBloodPowerBonusCurve == null
                 ? ""
-                : (_bloodSpellTargetSearchSpiritualityBonusCurve.Value ?? "");
-            if (raw != _cachedTargetSearchSpiritualityCurveRaw)
+                : (_bloodSpellTargetSearchBloodPowerBonusCurve.Value ?? "");
+            if (raw != _cachedTargetSearchBloodPowerCurveRaw)
             {
-                _cachedTargetSearchSpiritualityCurveRaw = raw;
-                _cachedTargetSearchSpiritualityCurve = ParseCurve(raw, GetDefaultTargetSearchSpiritualityCurve());
+                _cachedTargetSearchBloodPowerCurveRaw = raw;
+                _cachedTargetSearchBloodPowerCurve = ParseCurve(raw, GetDefaultTargetSearchBloodPowerCurve());
             }
 
-            return _cachedTargetSearchSpiritualityCurve;
+            return _cachedTargetSearchBloodPowerCurve;
         }
 
-        private CurvePoint[] GetHeldSpiritualityCurve()
+        private CurvePoint[] GetHeldBloodPowerCurve()
         {
-            string raw = _bloodSpellHeldSpiritualityBonusCurve == null
+            string raw = _bloodSpellHeldBloodPowerBonusCurve == null
                 ? ""
-                : (_bloodSpellHeldSpiritualityBonusCurve.Value ?? "");
-            if (raw != _cachedHeldSpiritualityCurveRaw)
+                : (_bloodSpellHeldBloodPowerBonusCurve.Value ?? "");
+            if (raw != _cachedHeldBloodPowerCurveRaw)
             {
-                _cachedHeldSpiritualityCurveRaw = raw;
-                _cachedHeldSpiritualityCurve = ParseCurve(raw, GetDefaultHeldSpiritualityCurve());
+                _cachedHeldBloodPowerCurveRaw = raw;
+                _cachedHeldBloodPowerCurve = ParseCurve(raw, GetDefaultHeldBloodPowerCurve());
             }
 
-            return _cachedHeldSpiritualityCurve;
+            return _cachedHeldBloodPowerCurve;
         }
 
         private CurvePoint[] GetAbhartachExplosionDamageCurve()
         {
-            string raw = _abhartachExplosionDamageSpiritualityBonusCurve == null
+            string raw = _abhartachExplosionDamageBloodPowerBonusCurve == null
                 ? ""
-                : (_abhartachExplosionDamageSpiritualityBonusCurve.Value ?? "");
+                : (_abhartachExplosionDamageBloodPowerBonusCurve.Value ?? "");
             if (raw != _cachedAbhartachExplosionDamageCurveRaw)
             {
                 _cachedAbhartachExplosionDamageCurveRaw = raw;
@@ -5936,9 +7439,9 @@ namespace BloodMagicExpansion
 
         private CurvePoint[] GetAbhartachExplosionRadiusCurve()
         {
-            string raw = _abhartachExplosionRadiusSpiritualityBonusCurve == null
+            string raw = _abhartachExplosionRadiusBloodPowerBonusCurve == null
                 ? ""
-                : (_abhartachExplosionRadiusSpiritualityBonusCurve.Value ?? "");
+                : (_abhartachExplosionRadiusBloodPowerBonusCurve.Value ?? "");
             if (raw != _cachedAbhartachExplosionRadiusCurveRaw)
             {
                 _cachedAbhartachExplosionRadiusCurveRaw = raw;
@@ -5950,9 +7453,9 @@ namespace BloodMagicExpansion
 
         private CurvePoint[] GetAbhartachExplosionBleedCurve()
         {
-            string raw = _abhartachExplosionBleedSpiritualityBonusCurve == null
+            string raw = _abhartachExplosionBleedBloodPowerBonusCurve == null
                 ? ""
-                : (_abhartachExplosionBleedSpiritualityBonusCurve.Value ?? "");
+                : (_abhartachExplosionBleedBloodPowerBonusCurve.Value ?? "");
             if (raw != _cachedAbhartachExplosionBleedCurveRaw)
             {
                 _cachedAbhartachExplosionBleedCurveRaw = raw;
@@ -5964,9 +7467,9 @@ namespace BloodMagicExpansion
 
         private CurvePoint[] GetAbhartachHeldHealingCurve()
         {
-            string raw = _abhartachHeldHealingSpiritualityBonusCurve == null
+            string raw = _abhartachHeldHealingBloodPowerBonusCurve == null
                 ? ""
-                : (_abhartachHeldHealingSpiritualityBonusCurve.Value ?? "");
+                : (_abhartachHeldHealingBloodPowerBonusCurve.Value ?? "");
             if (raw != _cachedAbhartachHeldHealingCurveRaw)
             {
                 _cachedAbhartachHeldHealingCurveRaw = raw;
@@ -5978,13 +7481,13 @@ namespace BloodMagicExpansion
 
         private CurvePoint[] GetAbhartachCorpseSearchCurve()
         {
-            string raw = _abhartachCorpseSearchSpiritualityBonusCurve == null
+            string raw = _abhartachCorpseSearchBloodPowerBonusCurve == null
                 ? ""
-                : (_abhartachCorpseSearchSpiritualityBonusCurve.Value ?? "");
+                : (_abhartachCorpseSearchBloodPowerBonusCurve.Value ?? "");
             if (raw != _cachedAbhartachCorpseSearchCurveRaw)
             {
                 _cachedAbhartachCorpseSearchCurveRaw = raw;
-                _cachedAbhartachCorpseSearchCurve = ParseCurve(raw, GetDefaultTargetSearchSpiritualityCurve());
+                _cachedAbhartachCorpseSearchCurve = ParseCurve(raw, GetDefaultTargetSearchBloodPowerCurve());
             }
 
             return _cachedAbhartachCorpseSearchCurve;
@@ -6065,7 +7568,7 @@ namespace BloodMagicExpansion
             return points[points.Length - 1].Y;
         }
 
-        private CurvePoint[] GetDefaultRangeBleedTapSpiritualityCurve()
+        private CurvePoint[] GetDefaultRangeBleedTapBloodPowerCurve()
         {
             return new[]
             {
@@ -6083,7 +7586,7 @@ namespace BloodMagicExpansion
             };
         }
 
-        private CurvePoint[] GetDefaultTargetSearchSpiritualityCurve()
+        private CurvePoint[] GetDefaultTargetSearchBloodPowerCurve()
         {
             return new[]
             {
@@ -6101,7 +7604,7 @@ namespace BloodMagicExpansion
             };
         }
 
-        private CurvePoint[] GetDefaultHeldSpiritualityCurve()
+        private CurvePoint[] GetDefaultHeldBloodPowerCurve()
         {
             return new[]
             {
@@ -6193,14 +7696,24 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            string qualityLabel = GetCorpseQualityLabel(GetCorpseQuality01(state));
+            if (!TryResolveGrailFloatingTextBridge()
+                || _grailFloatingTextTryCancelXpGainClaimMethod == null)
+            {
+                return false;
+            }
+
+            float corpseQuality = GetCorpseQuality01(state);
+            string qualityLabel = GetCorpseQualityLabel(corpseQuality);
+            string essenceAward = GetBloodEssenceGainForQuality(corpseQuality)
+                .ToString("0", CultureInfo.InvariantCulture);
             return TryClaimGrailFloatingTextXp(
                 amount,
                 GrailFloatingTextCorpseXpEventId,
-                "corpse-xp-" + qualityLabel.ToLowerInvariant(),
-                "+" + amount.ToString("F0", CultureInfo.InvariantCulture) + " XP (" + qualityLabel + ")",
-                "+{xp} XP (" + qualityLabel + ")",
-                "corpse");
+                string.Empty,
+                "+" + amount.ToString("F0", CultureInfo.InvariantCulture) + " XP | +" + essenceAward + " Blood Essence",
+                "+{xp} XP | +" + essenceAward + " Blood Essence",
+                "corpse_" + qualityLabel.ToLowerInvariant(),
+                false);
         }
 
         private bool TryClaimGrailFloatingTextLiveDrainXp(float amount)
@@ -6218,7 +7731,8 @@ namespace BloodMagicExpansion
                 "live-drain-xp",
                 "+" + amount.ToString("F0", CultureInfo.InvariantCulture) + " XP (Live Drain)",
                 "+{xp} XP (Live Drain)",
-                "magic");
+                "magic",
+                true);
         }
 
         private bool TryClaimGrailFloatingTextXp(
@@ -6227,7 +7741,8 @@ namespace BloodMagicExpansion
             string consolidationKey,
             string text,
             string textFormat,
-            string iconId)
+            string iconId,
+            bool consolidate)
         {
             if (!TryResolveGrailFloatingTextBridge())
             {
@@ -6236,7 +7751,7 @@ namespace BloodMagicExpansion
 
             try
             {
-                if (_grailFloatingTextTryClaimConsolidatedXpGainMethod != null)
+                if (consolidate && _grailFloatingTextTryClaimConsolidatedXpGainMethod != null)
                 {
                     object consolidatedResult = _grailFloatingTextTryClaimConsolidatedXpGainMethod.Invoke(
                         null,
@@ -6291,6 +7806,180 @@ namespace BloodMagicExpansion
             }
         }
 
+        private bool TryCancelGrailFloatingTextXpClaim(
+            string eventId,
+            float expectedAmount)
+        {
+            if (_grailFloatingTextTryCancelXpGainClaimMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _grailFloatingTextTryCancelXpGainClaimMethod.Invoke(
+                    null,
+                    new object[] { PluginGuid, eventId, expectedAmount });
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce(
+                    "Grail Floating Text failed to cancel a Blood Magic XP claim: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool BeginGrailFloatingTextDefaultHealingClaim()
+        {
+            if (_grailFloatingTextHealingClaimDepth > 0)
+            {
+                _grailFloatingTextHealingClaimDepth++;
+                return true;
+            }
+
+            if (!TrySetGrailFloatingTextBuiltInEventClaim(
+                    GrailFloatingTextDefaultHealingEventId,
+                    true))
+            {
+                return false;
+            }
+
+            _grailFloatingTextHealingClaimDepth = 1;
+            return true;
+        }
+
+        private void EndGrailFloatingTextDefaultHealingClaim()
+        {
+            if (_grailFloatingTextHealingClaimDepth <= 0)
+            {
+                return;
+            }
+
+            _grailFloatingTextHealingClaimDepth--;
+            if (_grailFloatingTextHealingClaimDepth == 0)
+            {
+                TrySetGrailFloatingTextBuiltInEventClaim(
+                    GrailFloatingTextDefaultHealingEventId,
+                    false);
+            }
+        }
+
+        private void ReleaseGrailFloatingTextDefaultHealingClaim()
+        {
+            if (_grailFloatingTextHealingClaimDepth <= 0)
+            {
+                return;
+            }
+
+            _grailFloatingTextHealingClaimDepth = 0;
+            TrySetGrailFloatingTextBuiltInEventClaim(
+                GrailFloatingTextDefaultHealingEventId,
+                false);
+        }
+
+        private bool TrySetGrailFloatingTextBuiltInEventClaim(
+            string eventId,
+            bool active)
+        {
+            if (!TryResolveGrailFloatingTextBridge()
+                || _grailFloatingTextTrySetBuiltInEventClaimMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _grailFloatingTextTrySetBuiltInEventClaimMethod.Invoke(
+                    null,
+                    new object[] { PluginGuid, eventId, active });
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce(
+                    "Grail Floating Text failed to update the held-drain healing claim: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool BeginGrailFloatingTextBloodHealingPresentationClaim()
+        {
+            if (_grailFloatingTextHealingPresentationClaimDepth > 0)
+            {
+                _grailFloatingTextHealingPresentationClaimDepth++;
+                return true;
+            }
+
+            if (!TrySetGrailFloatingTextBuiltInEventPresentationClaim(true))
+            {
+                return false;
+            }
+
+            _grailFloatingTextHealingPresentationClaimDepth = 1;
+            return true;
+        }
+
+        private void EndGrailFloatingTextBloodHealingPresentationClaim()
+        {
+            if (_grailFloatingTextHealingPresentationClaimDepth <= 0)
+            {
+                return;
+            }
+
+            _grailFloatingTextHealingPresentationClaimDepth--;
+            if (_grailFloatingTextHealingPresentationClaimDepth == 0)
+            {
+                TrySetGrailFloatingTextBuiltInEventPresentationClaim(false);
+            }
+        }
+
+        private void ReleaseGrailFloatingTextBloodHealingPresentationClaim()
+        {
+            if (_grailFloatingTextHealingPresentationClaimDepth <= 0)
+            {
+                return;
+            }
+
+            _grailFloatingTextHealingPresentationClaimDepth = 0;
+            TrySetGrailFloatingTextBuiltInEventPresentationClaim(false);
+        }
+
+        private bool TrySetGrailFloatingTextBuiltInEventPresentationClaim(bool active)
+        {
+            if (!TryResolveGrailFloatingTextBridge()
+                || _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result =
+                    _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod.Invoke(
+                        null,
+                        new object[]
+                        {
+                            PluginGuid,
+                            GrailFloatingTextDefaultHealingEventId,
+                            GrailFloatingTextBloodHealingEventId,
+                            GrailFloatingTextBloodHealingStyle,
+                            GrailFloatingTextBloodHealingIconId,
+                            active
+                        });
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce(
+                    "Grail Floating Text failed to update the Blood Magic healing presentation claim: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
         private string GetCorpseQualityLabel(float quality)
         {
             string tier = GetCorpseLeechSoundTier(quality);
@@ -6314,7 +8003,9 @@ namespace BloodMagicExpansion
             if (_grailFloatingTextBridgeResolved)
             {
                 return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
-                    _grailFloatingTextTryClaimXpGainMethod != null;
+                    _grailFloatingTextTryClaimXpGainMethod != null ||
+                    _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
+                    _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null;
             }
 
             _grailFloatingTextBridgeResolved = true;
@@ -6371,14 +8062,52 @@ namespace BloodMagicExpansion
                     typeof(float)
                 });
 
+            _grailFloatingTextTryCancelXpGainClaimMethod = AccessTools.Method(
+                apiType,
+                "TryCancelXpGainClaim",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(float)
+                });
+
+            _grailFloatingTextTrySetBuiltInEventClaimMethod = AccessTools.Method(
+                apiType,
+                "TrySetBuiltInEventClaim",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(bool)
+                });
+
+            _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod =
+                AccessTools.Method(
+                    apiType,
+                    "TrySetBuiltInEventPresentationClaim",
+                    new[]
+                    {
+                        typeof(string),
+                        typeof(string),
+                        typeof(string),
+                        typeof(string),
+                        typeof(string),
+                        typeof(bool)
+                    });
+
             if (_grailFloatingTextTryClaimConsolidatedXpGainMethod == null &&
-                _grailFloatingTextTryClaimXpGainMethod == null)
+                _grailFloatingTextTryClaimXpGainMethod == null &&
+                _grailFloatingTextTrySetBuiltInEventClaimMethod == null &&
+                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod == null)
             {
-                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but it does not support XP gain text claims.");
+                LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but its required claim APIs are unavailable.");
             }
 
             return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
-                _grailFloatingTextTryClaimXpGainMethod != null;
+                _grailFloatingTextTryClaimXpGainMethod != null ||
+                _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
+                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null;
         }
 
         private void LogGrailFloatingTextUnavailableOnce(string message)
@@ -6410,7 +8139,38 @@ namespace BloodMagicExpansion
             {
                 state.LoggedReject = true;
                 Log.LogInfo("Rejected corpse leech target #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + ": " + reason + ".");
+                ShowBloodMagicDiagnostic(
+                    _logRejectedCorpses,
+                    "blood-magic-corpse-rejected",
+                    "Blood Magic: corpse rejected - " + reason + ".");
             }
+        }
+
+        private void ShowBloodMagicDiagnostic(
+            ConfigEntry<bool> matchingDiagnostic,
+            string eventId,
+            string text)
+        {
+            if (!ShouldShowBloodMagicDiagnostic(matchingDiagnostic))
+            {
+                return;
+            }
+
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowDiagnosticNotification(
+                    PluginGuid,
+                    eventId,
+                    text,
+                    "blood-magic-diagnostics");
+        }
+
+        private bool ShouldShowBloodMagicDiagnostic(
+            ConfigEntry<bool> matchingDiagnostic)
+        {
+            return _showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value
+                && matchingDiagnostic != null
+                && matchingDiagnostic.Value;
         }
 
         private string AppendFailure(string failures, string failure)
@@ -6990,6 +8750,33 @@ namespace BloodMagicExpansion
                 state.TargetMaxHealth = targetMaxHealth;
             }
 
+            int nativeTier;
+            if (TryReadNativeTier(target, out nativeTier)
+                || TryReadNativeTier(healthElement, out nativeTier))
+            {
+                state.NativeTier = nativeTier;
+                state.HasNativeTier = true;
+            }
+
+            Grailwright.Shared.CorpseQualityThreatClass threatClass;
+            if (TryReadCorpseThreatClass(target, out threatClass)
+                || TryReadCorpseThreatClass(healthElement, out threatClass))
+            {
+                state.TargetThreatClass = threatClass;
+                state.HasTargetThreatClass = true;
+            }
+
+            float expLevel = TryReadExpLevel(target);
+            if (expLevel < 0f)
+            {
+                expLevel = TryReadExpLevel(healthElement);
+            }
+            if (expLevel >= 0f)
+            {
+                state.TargetExpLevel = expLevel;
+                state.HasTargetExpLevel = true;
+            }
+
             bool xpRewardAllowedFound;
             bool xpRewardAllowed = GetBoolProperty(target, "XpRewardAllowed", true, out xpRewardAllowedFound);
             if (!xpRewardAllowedFound)
@@ -7294,6 +9081,13 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            if (IsVersatileWeaponsMagicFsmSuppressed(magicFsm))
+            {
+                _bloodSpellInnerLightReadyStates.Remove(magicFsm);
+                _strongCastStates.Remove(magicFsm);
+                return;
+            }
+
             object item = GetPropertyValue(magicFsm, "Item");
             object skill = GetPropertyValue(magicFsm, "Skill");
             string bloodSummary;
@@ -7348,6 +9142,13 @@ namespace BloodMagicExpansion
         {
             if (!_enabled.Value || magicFsm == null)
             {
+                return;
+            }
+
+            if (IsVersatileWeaponsMagicFsmSuppressed(magicFsm))
+            {
+                _bloodSpellInnerLightReadyStates.Remove(magicFsm);
+                _strongCastStates.Remove(magicFsm);
                 return;
             }
 
@@ -7476,6 +9277,13 @@ namespace BloodMagicExpansion
         {
             if (!_enabled.Value || magicFsm == null)
             {
+                return;
+            }
+
+            if (IsVersatileWeaponsMagicFsmSuppressed(magicFsm))
+            {
+                _bloodSpellInnerLightReadyStates.Remove(magicFsm);
+                _strongCastStates.Remove(magicFsm);
                 return;
             }
 
@@ -8394,6 +10202,11 @@ namespace BloodMagicExpansion
 
                 foreach (object slot in slots)
                 {
+                    if (IsVersatileWeaponsEquipmentSlotSuppressed(slot))
+                    {
+                        continue;
+                    }
+
                     object item = _equippedItemMethod.Invoke(null, new[] { inventory, slot });
                     string ignored;
                     if (IsBloodTransfusionItem(item, out ignored))
@@ -8430,6 +10243,12 @@ namespace BloodMagicExpansion
 
             _getHeroItemsMethod = GetGetterSilent(heroType, "HeroItems");
             _allEquipmentSlotsField = AccessTools.Field(equipmentSlotType, "All");
+            _mainHandEquipmentSlotField = AccessTools.Field(
+                equipmentSlotType,
+                "MainHand");
+            _offHandEquipmentSlotField = AccessTools.Field(
+                equipmentSlotType,
+                "OffHand");
             _equippedItemMethod = GetMethodSilent(inventoryExtensionsType, "EquippedItem", 2);
             if (_getHeroItemsMethod == null || _allEquipmentSlotsField == null || _equippedItemMethod == null)
             {
@@ -8438,6 +10257,37 @@ namespace BloodMagicExpansion
             }
 
             return true;
+        }
+
+        private bool IsVersatileWeaponsEquipmentSlotSuppressed(object slot)
+        {
+            if (slot == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object mainHandSlot = _mainHandEquipmentSlotField == null
+                    ? null
+                    : _mainHandEquipmentSlotField.GetValue(null);
+                if (Equals(slot, mainHandSlot))
+                {
+                    return IsVersatileWeaponsHandSuppressed(
+                        BloodSpellInnerLightHand.MainHand);
+                }
+
+                object offHandSlot = _offHandEquipmentSlotField == null
+                    ? null
+                    : _offHandEquipmentSlotField.GetValue(null);
+                return Equals(slot, offHandSlot)
+                    && IsVersatileWeaponsHandSuppressed(
+                        BloodSpellInnerLightHand.OffHand);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private bool IsBloodTransfusionItem(object item, out string summary)
@@ -8507,6 +10357,11 @@ namespace BloodMagicExpansion
 
                 foreach (object slot in slots)
                 {
+                    if (IsVersatileWeaponsEquipmentSlotSuppressed(slot))
+                    {
+                        continue;
+                    }
+
                     object item = _equippedItemMethod.Invoke(null, new[] { inventory, slot });
                     string ignored;
                     if (IsAbhartachItem(item, out ignored))
@@ -9816,6 +11671,12 @@ namespace BloodMagicExpansion
             BothHands
         }
 
+        private enum BloodMagicGrowthSource
+        {
+            BloodPower,
+            Spirituality
+        }
+
         private enum BloodSpellInnerLightCastBoostEvent
         {
             Started,
@@ -9849,6 +11710,38 @@ namespace BloodMagicExpansion
             public object Target;
         }
 
+        private sealed class HealingUtilsPatchState
+        {
+            internal bool DefaultHealingClaimed;
+            internal bool BloodHealingPresentationClaimed;
+        }
+
+        private sealed class BloodEssenceAwardReceipt
+        {
+            internal BloodEssenceAwardReceipt(
+                ContextualFacts facts,
+                float beforeEssence,
+                int beforeCorpseCount,
+                string corpseTierKey,
+                int beforeTierCount,
+                float beforeQualitySum)
+            {
+                Facts = facts;
+                BeforeEssence = beforeEssence;
+                BeforeCorpseCount = beforeCorpseCount;
+                CorpseTierKey = corpseTierKey;
+                BeforeTierCount = beforeTierCount;
+                BeforeQualitySum = beforeQualitySum;
+            }
+
+            internal ContextualFacts Facts { get; private set; }
+            internal float BeforeEssence { get; private set; }
+            internal int BeforeCorpseCount { get; private set; }
+            internal string CorpseTierKey { get; private set; }
+            internal int BeforeTierCount { get; private set; }
+            internal float BeforeQualitySum { get; private set; }
+        }
+
         private sealed class CorpseState
         {
             public int DebugId;
@@ -9859,6 +11752,9 @@ namespace BloodMagicExpansion
             public float TargetKillXp;
             public float TargetEffectiveKillXp;
             public float TargetMaxHealth;
+            public float TargetExpLevel;
+            public int NativeTier;
+            public Grailwright.Shared.CorpseQualityThreatClass TargetThreatClass;
             public Vector3 LastKnownPosition;
             public float ChannelStartTime;
             public float LastFocusTime;
@@ -9871,6 +11767,9 @@ namespace BloodMagicExpansion
             public bool XpAwarded;
             public bool Healed;
             public bool TargetEffectiveKillXpHasLevelContext;
+            public bool HasTargetExpLevel;
+            public bool HasNativeTier;
+            public bool HasTargetThreatClass;
             public bool LoggedReject;
         }
 
@@ -10291,20 +12190,64 @@ namespace BloodMagicExpansion
 
         private static class HealingUtilsTakeHealingPatch
         {
-            public static void Prefix(object character, ref float healing, object healingItem)
+            public static void Prefix(
+                object character,
+                ref float healing,
+                object healingItem,
+                out HealingUtilsPatchState __state)
             {
                 BloodMagicExpansionPlugin plugin = Instance;
+                __state = null;
                 if (plugin != null)
                 {
+                    bool isBloodMagicHealing = plugin.IsBloodMagicHealing(
+                        character,
+                        healing,
+                        healingItem);
+                    bool defaultHealingClaimed = plugin.ApplyLiveDrainHealingTuning(
+                        character,
+                        ref healing,
+                        healingItem);
                     plugin.ApplyAbhartachHeldCorpseHealingTuning(character, ref healing, healingItem);
+                    bool presentationClaimed = isBloodMagicHealing
+                        && plugin.BeginGrailFloatingTextBloodHealingPresentationClaim();
+                    if (defaultHealingClaimed || presentationClaimed)
+                    {
+                        __state = new HealingUtilsPatchState
+                        {
+                            DefaultHealingClaimed = defaultHealingClaimed,
+                            BloodHealingPresentationClaimed = presentationClaimed
+                        };
+                    }
                 }
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                HealingUtilsPatchState __state)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (__state != null && plugin != null)
+                {
+                    if (__state.BloodHealingPresentationClaimed)
+                    {
+                        plugin.EndGrailFloatingTextBloodHealingPresentationClaim();
+                    }
+
+                    if (__state.DefaultHealingClaimed)
+                    {
+                        plugin.EndGrailFloatingTextDefaultHealingClaim();
+                    }
+                }
+
+                return __exception;
             }
         }
     }
 
     public static class BloodMagicApi
     {
-        public const int ApiVersion = 4;
+        public const int ApiVersion = 9;
 
         public static bool IsLoaded
         {
@@ -10341,6 +12284,30 @@ namespace BloodMagicExpansion
         {
             BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
             return plugin == null ? 1f : plugin.GetFocusedCorpseQualityEffectMultiplierForInterop();
+        }
+
+        public static float GetBloodEssence()
+        {
+            BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
+            return plugin == null ? 0f : plugin.GetBloodEssenceForInterop();
+        }
+
+        public static float GetBloodPower()
+        {
+            BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
+            return plugin == null ? 0f : plugin.GetBloodPowerForInterop();
+        }
+
+        public static bool IsBloodMagicDamage(object damage)
+        {
+            BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
+            return plugin != null && plugin.IsBloodMagicDamageForInterop(damage);
+        }
+
+        public static bool IsBloodMagicDisplayName(string displayName)
+        {
+            BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
+            return plugin != null && plugin.IsBloodMagicDisplayNameForInterop(displayName);
         }
     }
 }

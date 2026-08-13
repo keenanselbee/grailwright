@@ -28,6 +28,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
 | [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.1.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
 | [KS All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
+| [KS Contact Shadows Addon](mods/KSAddons/KSTGContactShadowsAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Contact Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135) |
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
@@ -61,6 +62,7 @@ mods/
     KSPersistentCorpsesAddon/
     KSWyrdSightAddon/
     KSTGAllLightsCastShadowsAddon/
+    KSTGContactShadowsAddon/
 
 tools/
   Build-Mod.ps1

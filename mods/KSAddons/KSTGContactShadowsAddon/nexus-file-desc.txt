@@ -1,0 +1,1 @@
+Stable four-light interior contact shadows with exact restoration and conservative visual limits.

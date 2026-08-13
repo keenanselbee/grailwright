@@ -6,7 +6,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw | Conv
 
 if ($manifest.id -ne "BattlecryVoiceTuner" -or
     $manifest.displayName -ne "Battlecry Voice Tuner" -or
-    $manifest.version -ne "1.1.0" -or
+    $manifest.version -ne "1.1.3" -or
     $manifest.pluginGuid -ne "ks.tgfoa.battlecry-voice-tuner" -or
     $manifest.dll -ne "BattlecryVoiceTuner.dll") {
     throw "Battlecry Voice Tuner manifest identity is inconsistent."
@@ -130,30 +130,43 @@ if ($source -notmatch '(?s)"MaleBattlecryPitchOffsetSemitones",\s*0\.0f' -or
 }
 
 foreach ($required in @(
-    'KeyBindings.Gameplay.ToggleWeapon',
+    'nameof(VHeroKeys.PlayerKeyBindings)',
+    'KeyBindings.UI.Items.TransferItems',
     'inputEvent is UIKeyDownAction',
     'inputEvent is UIKeyHeldAction',
     'inputEvent is UIKeyUpAction',
-    'ToggleHeroWeapon(hero)',
-    'HoldToggleWeaponForBattlecry',
+    'AppendTakeAllItemsBinding',
+    'HoldTakeAllItemsForBattlecry',
     'BattlecryHotkey')) {
     if (!$source.Contains($required)) {
-        throw "Tap-or-hold battlecry input contract is missing: $required"
+        throw "Hold-to-battlecry input contract is missing: $required"
     }
+}
+
+if ($source.Contains('KeyBindings.Gameplay.ToggleWeapon') -or
+    $source.Contains('HoldToggleWeaponForBattlecry') -or
+    $source.Contains('ToggleHeroWeapon(')) {
+    throw "Battlecry input must no longer intercept or replay Toggle Weapon."
 }
 
 if ($source -notmatch '(?s)"BattlecryCooldownSeconds",\s*1\.5f') {
     throw "Battlecry action cooldown must default to 1.5 seconds."
 }
 
-if ($source -notmatch '(?s)"BattlecryAggroRangeMultiplier",\s*3\.0f') {
-    throw "Battlecry hearing range multiplier must default to 3.0."
+if ($source -notmatch '(?s)"BattlecryAggroRangeMultiplier",\s*3\.0f' -or
+    $source -notmatch '(?s)"IndoorBattlecryAggroRangeMultiplier",\s*4\.0f' -or
+    $source -notmatch '(?s)ChallengeNearbyEnemies\(Hero hero\).+IsBattlecryIndoors\(.+indoors\s*\? _indoorBattlecryAggroRangeMultiplier\.Value\s*: _battlecryAggroRangeMultiplier\.Value') {
+    throw "Battlecry hearing range must default to 3.0 outdoors and 4.0 in interiors."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 5' -or
+if ($source -notmatch '(?s)new Grailwright\.Shared\.ConfigRecoveryKeepCurrentDefaultRule\(\s*6,\s*"3\. Battlecry",\s*"BattlecryAggroRangeMultiplier"') {
+    throw "The former all-environment hearing multiplier must not be imported under its new outdoor-only meaning."
+}
+
+if ($source -notmatch 'CurrentConfigSchemaVersion = 7' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 5."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 7."
 }
 
 foreach ($required in @(

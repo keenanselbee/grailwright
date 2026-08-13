@@ -1,1 +1,1 @@
-Challenge enemies with a fierce battlecry! Tune the players voice with pitch, volume, and random variation, then unleash separate male or female cries with geometry-aware indoor and outdoor echoes. Alert or provoke nearby foes and optionally raise Eyes in the Dark's Wyrd Threat.
+Challenge enemies with a fierce battlecry! Customize the player's overall voice with pitch, volume, and random variation. Then unleash distinct male or female cries with geometry-aware indoor and outdoor echoes. Alert or provoke nearby foes, and optionally raise Eyes in the Dark's Wyrd Threat.

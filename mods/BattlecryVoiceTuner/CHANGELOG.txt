@@ -1,3 +1,12 @@
+Version 1.1.3
+Moved the hold-to-battlecry input from Toggle Weapon to the game's remappable Take All Items action, while leaving normal container looting authoritative when a container is open.
+Advanced the config schema from 6 to 7 because HoldToggleWeaponForBattlecry was replaced by HoldTakeAllItemsForBattlecry for the new input behavior.
+
+Version 1.1.2
+Added a separate indoor battlecry hearing range multiplier that defaults to four times each hostile NPC's normal maximum hearing range; the existing three-times multiplier now applies outdoors.
+Advanced the config schema from 5 to 6 because BattlecryAggroRangeMultiplier now controls outdoor challenges while the new IndoorBattlecryAggroRangeMultiplier controls interiors, caves, and roofed spaces.
+Kept the fresh outdoor default when importing older backups because the existing hearing range setting previously applied to every environment.
+
 Version 1.1.0
 Reduced the fresh-config random pitch variation from 0.25 to 0.15 semitones.
 Advanced the config schema from 4 to 5 because the RandomPitchSemitones default changed. Existing customized values remain eligible for conservative recovery.

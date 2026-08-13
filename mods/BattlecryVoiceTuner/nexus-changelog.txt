@@ -1,7 +1,6 @@
-TargetVersion=1.1.0
-BaselineVersion=1.0.8
-Reduced the fresh-config random pitch variation from 0.25 to 0.15 semitones and advanced the config schema so the new default applies while compatible customized values remain recoverable.
-Replaced the fixed outdoor response with event-time 24-direction geometry sampling, an openness-driven diffuse tail, and up to three filtered 3D reflections timed from measured round-trip distance.
-Extended geometry sampling to interiors and roofed spaces with 30-direction room-shape analysis that drives decay, density, filtering, and early/late balance across cabins, corridors, caves, halls, caverns, and open shelter.
-Reserved discrete interior echoes for genuinely large reflection distances, so compact rooms receive dense early reverb without replaying the full cry.
-Kept sampling limited to successful battlecries, retained the game's authoritative interior and roof state, and preserved fixed-response fallbacks when geometry is sparse or sampling fails.
+TargetVersion=1.1.3
+BaselineVersion=1.1.0
+Moved the hold-to-battlecry input from Toggle Weapon to the game's remappable Take All Items action, leaving normal container looting authoritative while a container is open.
+Advanced the config schema because the old Toggle Weapon setting was replaced by a Take All Items setting for the new input behavior.
+Added separate outdoor and interior battlecry hearing range controls, with fresh defaults of three times NPC hearing range outdoors and four times hearing range in interiors and roofed spaces.
+Advanced the config schema because the existing hearing range setting now controls outdoor challenges while the new setting controls interiors; older backups retain the fresh outdoor default for the repurposed setting while other compatible customized values remain recoverable.

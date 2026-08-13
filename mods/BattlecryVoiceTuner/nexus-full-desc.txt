@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Battlecry Voice Tuner[/size][/color]
 [i]A voice shaped for battle. Sneaking is for cowards, let them hear you come.[/i][/center]
 
@@ -6,15 +6,17 @@
 
 [b]Battlecry Voice Tuner[/b] combines two complete features for [b]Tainted Grail: The Fall of Avalon[/b]: a configurable tuner for the Hero's native combat voice and a custom battlecry that affects both the soundscape and nearby enemies.
 
-Tune pitch, randomized variation, volume, and supported vocal categories. Then hold the normal sheath/unsheathe action to roar from separate male or female battlecry pools, challenge hostile NPCs, and hear the cry respond to the actual shape of the surrounding world.
+Tune pitch, randomized variation, volume, and supported vocal categories. Then hold the normal Take All Items action to roar from separate male or female battlecry pools, challenge hostile NPCs, and hear the cry respond to the actual shape of the surrounding world.
 
 The battlecry does not use a simple indoor/outdoor reverb switch. Its advanced geometry-aware acoustic system measures the environment when each cry plays, then builds a location-specific response from room scale, openness, surface distance, direction, and enclosure. Open fields, forests, nearby walls, roofed structures, corridors, cabins, halls, and caverns can all sound meaningfully different.
 
 Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] integration lets successful cries feed the Wyrd Threat and atmospheric-response systems during eligible Wyrdnights.
 
+[line]
+
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]A complete battlecry action:[/b] Hold the game's remappable Toggle Weapon action or use a separate hotkey to unleash a custom cry.[/*]
+[*][b]A complete battlecry action:[/b] Hold the game's remappable Take All Items action or use a separate hotkey to unleash a custom cry.[/*]
 [*][b]Advanced geometry-aware acoustics:[/b] Measure surrounding terrain or room shape per cry, then generate location-specific reverb and directional reflections instead of applying one universal preset.[/*]
 [*][b]Native voice tuning:[/b] Adjust supported vocal pitch, add subtle randomized variation, scale overall voice volume, and choose which native categories are affected.[/*]
 [*][b]Gender-aware battlecries:[/b] Play from 15 included male cries and 12 included female cries, with independent pitch offsets for each pool.[/*]
@@ -25,12 +27,12 @@ Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eye
 
 [line]
 
-[heading][color=#C94A4A][size=5]Hold Sheath/Unsheathe Button to Battlecry[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Hold Take All Items to Battlecry[/size][/color][/heading]
 
 [soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-male[/soundcloud]
 [soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-female[/soundcloud]
 
-Tap the game's [b]Toggle Weapon[/b] action and it retains its normal show/sheath behavior. Hold the same action for 0.45 seconds and the Hero battlecries instead.
+Hold the game's [b]Take All Items[/b] action for 0.45 seconds and the Hero battlecries. The action retains its normal behavior while a container is open.
 
 [list]
 [*]Uses the game's current remapped keyboard or controller binding.[/*]
@@ -77,7 +79,7 @@ Yes, it is wildly overengineered for such a random feature, but damn if it doesn
 
 [heading][color=#C94A4A][size=5]Enemy Aggro and Challenge[/size][/color][/heading]
 
-A battlecry is more than a sound effect. For three active gameplay seconds by default, it challenges hostile NPCs within three times each NPC's own maximum hearing range. Each eligible enemy reacts once per cry:
+A battlecry is more than a sound effect. For three active gameplay seconds by default, it challenges hostile NPCs within three times each NPC's own maximum hearing range outdoors or four times that range in interiors and roofed spaces. Each eligible enemy reacts once per cry:
 
 [list]
 [*][b]Unaware enemies[/b] receive a strong alert directed toward the Hero.[/*]
@@ -147,11 +149,12 @@ BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/code]
 | IndoorBattlecryReverbAmount               | 0.70    | Room-scaled interior response strength       |
 | MaleBattlecryPitchOffsetSemitones         | 0.0     | Additional male battlecry pitch shift        |
 | FemaleBattlecryPitchOffsetSemitones       | 0.0     | Additional female battlecry pitch shift      |
-| HoldToggleWeaponForBattlecry              | true    | Tap to toggle weapon; hold to battlecry      |
+| HoldTakeAllItemsForBattlecry              | true    | Hold Take All Items to battlecry              |
 | BattlecryHoldSeconds                      | 0.45    | Hold threshold                               |
 | BattlecryHotkey                           | None    | Optional separate shortcut                   |
 | BattlecryCooldownSeconds                  | 1.5     | Minimum spacing between cries                |
-| BattlecryAggroRangeMultiplier             | 3.0     | Multiplier on NPC hearing range              |
+| BattlecryAggroRangeMultiplier             | 3.0     | Outdoor multiplier on NPC hearing range      |
+| IndoorBattlecryAggroRangeMultiplier       | 4.0     | Interior multiplier on NPC hearing range     |
 | BattlecryAggroDurationSeconds             | 3.0     | Active challenge duration                    |
 | EyesInTheDarkThreat                       | 10.0    | Optional Wyrd Threat requested per cry       |
 | Diagnostics                               | false   | Detailed audio, input, AI, and API logs      |[/code]
@@ -214,6 +217,6 @@ Incompatible config updates create a backup and generate current defaults while 
 
 [heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
 
-If holding Toggle Weapon only performs the normal toggle, confirm that a real WAV exists for the Hero's current gender and that the cooldown has elapsed.
+If holding Take All Items outside a container does not battlecry, confirm that a real WAV exists for the Hero's current gender and that the cooldown has elapsed.
 
 Enable [b]Diagnostics[/b] and inspect [b]BepInEx/LogOutput.log[/b] for the selected WAV, SFX routing, FMOD results, outdoor openness, measured distances, interior room classification, ceiling height, reflection timing, input path, challenged NPCs, and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] response.

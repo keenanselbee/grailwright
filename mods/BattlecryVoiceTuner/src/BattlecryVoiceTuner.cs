@@ -32,8 +32,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.3.0")]
+[assembly: AssemblyFileVersion("1.1.3.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -53,13 +53,20 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.3";
 
-        private const int CurrentConfigSchemaVersion = 5;
+        private const int CurrentConfigSchemaVersion = 7;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
-                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+                new[]
+                {
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        6,
+                        "3. Battlecry",
+                        "BattlecryAggroRangeMultiplier",
+                        "The existing hearing range multiplier now applies only outdoors.")
+                };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new[]
             {
@@ -148,11 +155,12 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<float> _indoorBattlecryReverbAmount;
         private ConfigEntry<float> _maleBattlecryPitchOffsetSemitones;
         private ConfigEntry<float> _femaleBattlecryPitchOffsetSemitones;
-        private ConfigEntry<bool> _holdToggleWeaponForBattlecry;
+        private ConfigEntry<bool> _holdTakeAllItemsForBattlecry;
         private ConfigEntry<float> _battlecryHoldSeconds;
         private ConfigEntry<KeyboardShortcut> _battlecryHotkey;
         private ConfigEntry<float> _battlecryCooldownSeconds;
         private ConfigEntry<float> _battlecryAggroRangeMultiplier;
+        private ConfigEntry<float> _indoorBattlecryAggroRangeMultiplier;
         private ConfigEntry<float> _battlecryAggroDurationSeconds;
         private ConfigEntry<float> _eyesInTheDarkThreat;
         private ConfigEntry<bool> _playRandomTestSound;
@@ -181,10 +189,9 @@ namespace BattlecryVoiceTuner
         private float _challengeEndsAt;
         private float _nextChallengeScanAt;
         private Hero _challengeHero;
-        private bool _toggleWeaponHeld;
+        private bool _takeAllItemsHeld;
         private bool _battlecryAttemptedForHold;
-        private bool _battlecryTriggeredForHold;
-        private float _toggleWeaponPressedAt;
+        private float _takeAllItemsPressedAt;
         private bool _eyesApiResolved;
         private MethodInfo _eyesBattlecryMethod;
         private bool _noBattlecryFilesWarningLogged;
@@ -694,14 +701,14 @@ namespace BattlecryVoiceTuner
                     6,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
-            _holdToggleWeaponForBattlecry = Config.Bind(
+            _holdTakeAllItemsForBattlecry = Config.Bind(
                 "3. Battlecry",
-                "HoldToggleWeaponForBattlecry",
+                "HoldTakeAllItemsForBattlecry",
                 true,
                 UiDescription(
-                    "Tap the game's Toggle Weapon action to keep its normal behavior, or hold it to battlecry. Uses the game's current remapped keyboard or controller binding.",
+                    "Hold the game's Take All Items action to battlecry. Uses the game's current remapped keyboard or controller binding and does not interfere with taking items from an open container.",
                     "Battlecry Input",
-                    "Hold Toggle Weapon",
+                    "Hold Take All Items",
                     4,
                     0));
 
@@ -710,7 +717,7 @@ namespace BattlecryVoiceTuner
                 "BattlecryHoldSeconds",
                 0.45f,
                 UiDescription(
-                    "Seconds the Toggle Weapon action must be held before attempting a battlecry.",
+                    "Seconds the Take All Items action must be held before attempting a battlecry.",
                     "Battlecry Input",
                     "Hold Time (Seconds)",
                     4,
@@ -745,11 +752,23 @@ namespace BattlecryVoiceTuner
                 "BattlecryAggroRangeMultiplier",
                 3.0f,
                 UiDescription(
-                    "Multiplier applied to each hostile NPC's normal maximum hearing range while resolving the battlecry challenge.",
+                    "Multiplier applied to each hostile NPC's normal maximum hearing range for battlecries in unroofed open-world areas.",
                     "Battlecry Challenge",
-                    "Hearing Range Multiplier",
+                    "Outdoor Hearing Range Multiplier",
                     5,
                     0,
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+
+            _indoorBattlecryAggroRangeMultiplier = Config.Bind(
+                "3. Battlecry",
+                "IndoorBattlecryAggroRangeMultiplier",
+                4.0f,
+                UiDescription(
+                    "Multiplier applied to each hostile NPC's normal maximum hearing range in interiors, caves, and the game's roof volumes.",
+                    "Battlecry Challenge",
+                    "Indoor Hearing Range Multiplier",
+                    5,
+                    1,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _battlecryAggroDurationSeconds = Config.Bind(
@@ -761,7 +780,7 @@ namespace BattlecryVoiceTuner
                     "Battlecry Challenge",
                     "Challenge Duration (Seconds)",
                     5,
-                    1,
+                    2,
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
             _eyesInTheDarkThreat = Config.Bind(
@@ -870,8 +889,24 @@ namespace BattlecryVoiceTuner
             _harmony.Patch(
                 heroKeysTarget,
                 prefix: new HarmonyMethod(heroKeysPrefix));
+
+            MethodInfo heroKeyBindingsTarget = AccessTools.PropertyGetter(
+                typeof(VHeroKeys),
+                nameof(VHeroKeys.PlayerKeyBindings));
+            MethodInfo heroKeyBindingsPostfix = AccessTools.Method(
+                typeof(VHeroKeysPlayerKeyBindingsPatch),
+                nameof(VHeroKeysPlayerKeyBindingsPatch.Postfix));
+            if (heroKeyBindingsTarget == null || heroKeyBindingsPostfix == null)
+            {
+                throw new MissingMethodException(
+                    "Awaken.TG.Main.Heroes.VHeroKeys.PlayerKeyBindings");
+            }
+
+            _harmony.Patch(
+                heroKeyBindingsTarget,
+                postfix: new HarmonyMethod(heroKeyBindingsPostfix));
             _log.LogInfo(
-                "Patched the remappable Toggle Weapon action for tap-or-hold battlecry input.");
+                "Patched the remappable Take All Items action for hold-to-battlecry input.");
 
             MethodInfo roofEnterTarget = AccessTools.Method(
                 typeof(VCRainChecker),
@@ -1039,7 +1074,7 @@ namespace BattlecryVoiceTuner
             return false;
         }
 
-        private bool HandleToggleWeaponInput(
+        private bool HandleTakeAllItemsInput(
             UIEvent inputEvent,
             ref UIResult result)
         {
@@ -1047,8 +1082,8 @@ namespace BattlecryVoiceTuner
                 || !_enabled.Value
                 || _battlecryEnabled == null
                 || !_battlecryEnabled.Value
-                || _holdToggleWeaponForBattlecry == null
-                || !_holdToggleWeaponForBattlecry.Value)
+                || _holdTakeAllItemsForBattlecry == null
+                || !_holdTakeAllItemsForBattlecry.Value)
             {
                 return true;
             }
@@ -1057,7 +1092,7 @@ namespace BattlecryVoiceTuner
             if (keyAction == null
                 || !String.Equals(
                     keyAction.Name,
-                    KeyBindings.Gameplay.ToggleWeapon,
+                    KeyBindings.UI.Items.TransferItems,
                     StringComparison.Ordinal))
             {
                 return true;
@@ -1066,21 +1101,20 @@ namespace BattlecryVoiceTuner
             Hero hero = Hero.Current;
             if (hero == null || hero.HasBeenDiscarded || !hero.IsAlive)
             {
-                ResetToggleWeaponHold();
+                ResetTakeAllItemsHold();
                 return true;
             }
 
             if (inputEvent is UIKeyDownAction)
             {
-                _toggleWeaponHeld = true;
+                _takeAllItemsHeld = true;
                 _battlecryAttemptedForHold = false;
-                _battlecryTriggeredForHold = false;
-                _toggleWeaponPressedAt = Time.unscaledTime;
+                _takeAllItemsPressedAt = Time.unscaledTime;
                 result = UIResult.Accept;
                 return false;
             }
 
-            if (!_toggleWeaponHeld)
+            if (!_takeAllItemsHeld)
             {
                 return true;
             }
@@ -1091,14 +1125,13 @@ namespace BattlecryVoiceTuner
                     ? 0.45f
                     : Math.Max(0.2f, _battlecryHoldSeconds.Value);
                 if (!_battlecryAttemptedForHold
-                    && Time.unscaledTime - _toggleWeaponPressedAt
+                    && Time.unscaledTime - _takeAllItemsPressedAt
                         >= holdSeconds)
                 {
                     _battlecryAttemptedForHold = true;
-                    _battlecryTriggeredForHold =
-                        TryPerformBattlecry(
-                            hero,
-                            "held Toggle Weapon action");
+                    TryPerformBattlecry(
+                        hero,
+                        "held Take All Items action");
                 }
 
                 result = UIResult.Accept;
@@ -1107,13 +1140,7 @@ namespace BattlecryVoiceTuner
 
             if (inputEvent is UIKeyUpAction)
             {
-                bool toggleWeapon = !_battlecryTriggeredForHold;
-                ResetToggleWeaponHold();
-                if (toggleWeapon)
-                {
-                    ToggleHeroWeapon(hero);
-                }
-
+                ResetTakeAllItemsHold();
                 result = UIResult.Accept;
                 return false;
             }
@@ -1121,27 +1148,11 @@ namespace BattlecryVoiceTuner
             return true;
         }
 
-        private static void ToggleHeroWeapon(Hero hero)
+        private void ResetTakeAllItemsHold()
         {
-            if (hero == null || hero.HasBeenDiscarded || !hero.IsAlive)
-            {
-                return;
-            }
-
-            ModelExtensions.Trigger(
-                hero,
-                hero.IsWeaponEquipped
-                    ? Hero.Events.HideWeapons
-                    : Hero.Events.ShowWeapons,
-                false);
-        }
-
-        private void ResetToggleWeaponHold()
-        {
-            _toggleWeaponHeld = false;
+            _takeAllItemsHeld = false;
             _battlecryAttemptedForHold = false;
-            _battlecryTriggeredForHold = false;
-            _toggleWeaponPressedAt = 0f;
+            _takeAllItemsPressedAt = 0f;
         }
 
         private bool TryPerformBattlecry(Hero hero, string inputSource)
@@ -2773,9 +2784,14 @@ namespace BattlecryVoiceTuner
 
         private void ChallengeNearbyEnemies(Hero hero)
         {
+            string environment;
+            bool indoors = IsBattlecryIndoors(
+                out environment);
             float rangeMultiplier = Math.Max(
                 0f,
-                _battlecryAggroRangeMultiplier.Value);
+                indoors
+                    ? _indoorBattlecryAggroRangeMultiplier.Value
+                    : _battlecryAggroRangeMultiplier.Value);
             if (rangeMultiplier <= 0f)
             {
                 return;
@@ -2852,6 +2868,8 @@ namespace BattlecryVoiceTuner
                     + hearingRange.ToString(
                         "0.0",
                         CultureInfo.InvariantCulture)
+                    + "; environment="
+                    + environment
                     + ".");
             }
         }
@@ -3015,9 +3033,29 @@ namespace BattlecryVoiceTuner
             {
                 BattlecryVoiceTunerPlugin instance = _instance;
                 return instance == null
-                    || instance.HandleToggleWeaponInput(
+                    || instance.HandleTakeAllItemsInput(
                         evt,
                         ref __result);
+            }
+        }
+
+        private static class VHeroKeysPlayerKeyBindingsPatch
+        {
+            internal static void Postfix(
+                ref IEnumerable<KeyBindings> __result)
+            {
+                __result = AppendTakeAllItemsBinding(__result);
+            }
+
+            private static IEnumerable<KeyBindings> AppendTakeAllItemsBinding(
+                IEnumerable<KeyBindings> bindings)
+            {
+                foreach (KeyBindings binding in bindings)
+                {
+                    yield return binding;
+                }
+
+                yield return KeyBindings.UI.Items.TransferItems;
             }
         }
 

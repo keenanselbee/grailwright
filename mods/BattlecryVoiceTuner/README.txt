@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.1.0
+Battlecry Voice Tuner 1.1.3
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -9,10 +9,10 @@ adds a gender-aware custom battlecry that challenges nearby enemies.
 Battlecry
 ---------
 
-Tap the game's Toggle Weapon action to preserve its normal show/sheath
-behavior. Hold it for 0.45 seconds to battlecry. Because this uses the game's
-action, remapped keyboard and controller bindings remain supported. An optional
-separate BattlecryHotkey is also available.
+Hold the game's Take All Items action for 0.45 seconds to battlecry. Because
+this uses the game's action, remapped keyboard and controller bindings remain
+supported. An open container keeps the normal Take All Items behavior. An
+optional separate BattlecryHotkey is also available.
 
 Successful battlecries select one of up to 15 WAV files for the player's gender.
 They use the overall pitch, random pitch, and volume tuning plus independent
@@ -29,8 +29,9 @@ vegetation, walls, and overhead surfaces once, then derives a diffuse tail and
 up to three distance-timed, directional reflections. Open terrain stays nearly
 dry while forests, structures, cliffs, and partially enclosed spaces respond
 according to their measured geometry. During the default three-second challenge,
-hostile NPCs within
-three times their individual hearing range react once: unaware enemies become strongly
+hostile NPCs within three times their individual hearing range outdoors or four
+times their hearing range in interiors and roofed spaces react once: unaware
+enemies become strongly
 alert, while enemies that were already alert attempt to enter combat with the
 Hero. Walls and the game's normal combat restrictions remain authoritative.
 
@@ -73,11 +74,12 @@ OutdoorBattlecryReverbAmount = 0.15
 IndoorBattlecryReverbAmount = 0.70
 MaleBattlecryPitchOffsetSemitones = 0.0
 FemaleBattlecryPitchOffsetSemitones = 0.0
-HoldToggleWeaponForBattlecry = true
+HoldTakeAllItemsForBattlecry = true
 BattlecryHoldSeconds = 0.45
 BattlecryHotkey = None
 BattlecryCooldownSeconds = 1.5
 BattlecryAggroRangeMultiplier = 3.0
+IndoorBattlecryAggroRangeMultiplier = 4.0
 BattlecryAggroDurationSeconds = 3.0
 EyesInTheDarkThreat = 10.0
 PlayRandomTestSound = false
@@ -109,8 +111,8 @@ path. Version 1.0.0 generates a fresh Battlecry Voice Tuner config.
 Troubleshooting
 ---------------
 
-If holding Toggle Weapon only performs the normal toggle, confirm that a real
-WAV exists for the current gender and that the battlecry cooldown has elapsed.
+If holding Take All Items outside a container does not battlecry, confirm that a
+real WAV exists for the current gender and that the battlecry cooldown has elapsed.
 Enable Diagnostics and inspect BepInEx/LogOutput.log for file, FMOD, input, AI,
 and Eyes in the Dark integration details.
 

@@ -1,1 +1,1 @@
-Restores Unity shadow state after the parent toggle and protects bonfire and campfire illumination from self-shadowing.
+Restores shadow state, protects bonfire lighting, and adds reversible atlas and combat performance controls.

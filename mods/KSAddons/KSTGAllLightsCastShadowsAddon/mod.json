@@ -1,8 +1,8 @@
 {
   "id": "TGAllLightsCastShadowsAddon",
-  "displayName": "KS TG All Lights Cast Shadows Addon",
+  "displayName": "KS All Lights Cast Shadows Addon",
   "packageName": "TGAllLightsCastShadowsAddon",
-  "version": "1.2.0",
+  "version": "1.2.8",
   "pluginGuid": "ks.tgfoa.tg-all-lights-cast-shadows-addon",
   "dll": "TGAllLightsCastShadowsAddon.dll",
   "sourceFiles": [
@@ -15,6 +15,8 @@
     "%BEPINEX%/BepInEx/core/BepInEx.dll",
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
-    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll"
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
   ]
 }

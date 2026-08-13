@@ -4,17 +4,25 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using Awaken.TG.Main.Heroes;
+using Awaken.TG.Main.Scenes;
+using Awaken.TG.Main.UI.TitleScreen.Loading;
+using Awaken.TG.Main.Utility;
+using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
+using Awaken.Utility;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
-[assembly: AssemblyTitle("TG All Lights Cast Shadows Addon")]
-[assembly: AssemblyDescription("Companion addon for TG All Lights Cast Shadows shadow state and excluded bonfire lights")]
+[assembly: AssemblyTitle("All Lights Cast Shadows Addon")]
+[assembly: AssemblyDescription("Companion addon for All Lights Cast Shadows state restoration, atlas protection, and excluded bonfire lights")]
 [assembly: AssemblyCompany("KS")]
-[assembly: AssemblyProduct("TG All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyProduct("All Lights Cast Shadows Addon")]
+[assembly: AssemblyVersion("1.2.8.0")]
+[assembly: AssemblyFileVersion("1.2.8.0")]
+[assembly: AssemblyInformationalVersion("1.2.8")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -27,8 +35,8 @@ namespace TGAllLightsCastShadowsAddon
     {
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
-        public const string PluginName = "TG All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.2.0";
+        public const string PluginName = "All Lights Cast Shadows Addon";
+        public const string PluginVersion = "1.2.8";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
         private const int ConfigSchemaVersion = 2;
@@ -50,21 +58,64 @@ namespace TGAllLightsCastShadowsAddon
         private FieldInfo _originalStatesField;
         private FieldInfo _originalShadowsField;
         private FieldInfo _originalShadowStrengthField;
+        private FieldInfo _runtimeEnabledField;
+        private FieldInfo _nextScanTimeField;
+        private PropertyInfo _parentCurrentConfigProperty;
+        private FieldInfo _parentUseBudgetField;
+        private FieldInfo _parentMaximumUpgradedLightsField;
+        private FieldInfo _parentMaximumDistanceMetersField;
+        private object _parentManager;
+        private bool _parentRuntimeEnabledKnown;
+        private bool _parentRuntimeEnabled;
         private bool _hdrpResolved;
         private Type _hdAdditionalLightDataType;
         private MethodInfo _hdEnableShadowsMethod;
         private MemberInfo _hdShadowDimmerMember;
         private MemberInfo _hdVolumetricShadowDimmerMember;
+        private PropertyInfo _hdShadowResolutionProperty;
+        private MethodInfo _hdSetShadowResolutionMethod;
+        private MethodInfo _hdSetShadowResolutionLevelMethod;
+        private MethodInfo _hdSetShadowResolutionOverrideMethod;
+        private bool _atlasUnavailableReported;
         private ConfigEntry<bool> _protectBonfireLights;
         private ConfigEntry<string> _additionalExcludedLightPathFragments;
         private ConfigEntry<bool> _verboseExclusionLogging;
+        private ConfigEntry<bool> _protectShadowAtlas;
+        private ConfigEntry<int> _promotedShadowResolution;
+        private ConfigEntry<bool> _combatPerformanceEnabled;
+        private ConfigEntry<bool> _outdoorCombatOnly;
+        private ConfigEntry<float> _combatExitDelaySeconds;
+        private ConfigEntry<bool> _combatReduceAtlasResolution;
+        private ConfigEntry<int> _combatShadowResolution;
+        private ConfigEntry<bool> _combatLimitLightBudget;
+        private ConfigEntry<int> _combatMaximumUpgradedLights;
+        private ConfigEntry<bool> _combatLimitDistance;
+        private ConfigEntry<float> _combatMaximumDistanceMeters;
+        private ConfigEntry<bool> _showToggleNotifications;
+        private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private string[] _excludedFragments = new string[0];
-        private string _pendingPreservedAdditionalExcludedLightPathFragments;
-        private bool _hasPendingPreservedAdditionalExcludedLightPathFragments;
+        private readonly Dictionary<ConfigDefinition, object> _pendingPreservedSettings =
+            new Dictionary<ConfigDefinition, object>();
         private readonly Dictionary<int, ProtectedLightState> _protectedLights =
             new Dictionary<int, ProtectedLightState>();
+        private readonly Dictionary<int, ShadowResolutionState> _shadowResolutionStates =
+            new Dictionary<int, ShadowResolutionState>();
+        private readonly HashSet<int> _atlasScanLights = new HashSet<int>();
         private readonly HashSet<int> _loggedExcludedLights =
             new HashSet<int>();
+        private int _atlasScanPointLights;
+        private int _atlasScanSpotLights;
+        private int _atlasScanOtherLights;
+        private int _atlasScanConstrainedLights;
+        private int _atlasScanEstimatedMaps;
+        private int _atlasScanRestoredLights;
+        private string _lastAtlasDiagnosticSignature = string.Empty;
+        private CombatParentConfigSnapshot _combatParentConfigSnapshot;
+        private bool _combatParentConfigUnavailableReported;
+        private bool _combatPerformanceActive;
+        private float _combatExitEligibleAt;
+        private float _nextCombatStateCheck;
 
         private void Awake()
         {
@@ -88,11 +139,31 @@ namespace TGAllLightsCastShadowsAddon
                     shadowManagerType,
                     "RestoreAllLoadedTrackedLights",
                     new[] { typeof(string) });
+                MethodInfo updateMethod = AccessTools.Method(
+                    shadowManagerType,
+                    "Update");
+                Type hdrpSupportType = AccessTools.TypeByName(
+                    "TGAllLightsCastShadows.HdrpSupport");
+                MethodInfo hdrpRefreshMethod = hdrpSupportType == null
+                    ? null
+                    : AccessTools.Method(
+                        hdrpSupportType,
+                        "TryRefresh",
+                        new[] { typeof(Light), typeof(float) });
+                MethodInfo hdrpDimmerMethod = hdrpSupportType == null
+                    ? null
+                    : AccessTools.Method(
+                        hdrpSupportType,
+                        "TryApplyDimmer",
+                        new[] { typeof(Light), typeof(float) });
                 if (applyAllLightsMethod == null
-                    || restoreAllLightsMethod == null)
+                    || restoreAllLightsMethod == null
+                    || updateMethod == null
+                    || hdrpRefreshMethod == null
+                    || hdrpDimmerMethod == null)
                 {
                     throw new MissingMethodException(
-                        "Could not find the parent light mod's shadow methods.");
+                        "Could not find the parent light mod's shadow or HDRP methods.");
                     }
 
                 InitializeConfig();
@@ -106,18 +177,33 @@ namespace TGAllLightsCastShadowsAddon
                         nameof(Patches.BeforeApplyAllLights)),
                     postfix: new HarmonyMethod(
                         typeof(Patches),
-                        nameof(Patches.AfterApplyAllLights)));
+                        nameof(Patches.AfterApplyAllLights)),
+                    finalizer: new HarmonyMethod(
+                        typeof(Patches),
+                        nameof(Patches.FinalizeApplyAllLights)));
                 _harmony.Patch(
                     restoreAllLightsMethod,
                     postfix: new HarmonyMethod(
                         typeof(Patches),
                         nameof(Patches.AfterRestoreAllLights)));
+                _harmony.Patch(
+                    updateMethod,
+                    postfix: new HarmonyMethod(
+                        typeof(Patches),
+                        nameof(Patches.AfterShadowManagerUpdate)));
+                HarmonyMethod atlasPrefix = new HarmonyMethod(
+                    typeof(Patches),
+                    nameof(Patches.BeforeHdrpShadowRefresh));
+                _harmony.Patch(hdrpRefreshMethod, prefix: atlasPrefix);
+                _harmony.Patch(hdrpDimmerMethod, prefix: atlasPrefix);
+
+                ObserveParentRuntimeState(false);
 
                 Logger.LogInfo(
                     PluginName
                     + " "
                     + PluginVersion
-                    + " loaded; global shadow-state restoration and excluded-light protection are active.");
+                    + " loaded; global shadow-state restoration, excluded-light protection, and shadow-atlas protection are active.");
             }
             catch (Exception exception)
             {
@@ -128,8 +214,22 @@ namespace TGAllLightsCastShadowsAddon
             }
         }
 
+        private void Update()
+        {
+            if (_combatPerformanceEnabled == null
+                || Time.unscaledTime < _nextCombatStateCheck)
+            {
+                return;
+            }
+
+            _nextCombatStateCheck = Time.unscaledTime + 0.25f;
+            RefreshCombatPerformanceState();
+        }
+
         internal void BeforeApplyAllLights()
         {
+            BeginAtlasScan();
+            ApplyCombatParentConfigOverrides();
             if (_originalShadowQualityCaptured)
             {
                 ProtectExcludedLightsBeforeParentScan();
@@ -146,13 +246,22 @@ namespace TGAllLightsCastShadowsAddon
 
         internal void AfterApplyAllLights()
         {
+            RestoreCombatParentConfig();
             RestoreProtectedLightsAfterParentScan();
             RestoreExcludedLightsTouchedByParent();
+            RestoreInactiveShadowResolutions();
+            ReportAtlasDiagnostics();
+        }
+
+        internal void FinalizeApplyAllLights()
+        {
+            RestoreCombatParentConfig();
         }
 
         internal void AfterRestoreAllLights()
         {
             RestoreProtectedLightsAfterParentScan();
+            RestoreAllShadowResolutions();
             _loggedExcludedLights.Clear();
 
             if (!_originalShadowQualityCaptured)
@@ -165,6 +274,17 @@ namespace TGAllLightsCastShadowsAddon
                 "Restored global shadow quality after light upgrades were disabled: "
                 + _originalShadowQuality);
             _originalShadowQualityCaptured = false;
+        }
+
+        internal void AfterShadowManagerUpdate(object manager)
+        {
+            _parentManager = manager;
+            ObserveParentRuntimeState(true);
+        }
+
+        internal void BeforeHdrpShadowRefresh(Light light)
+        {
+            ApplyShadowAtlasProtection(light);
         }
 
         private void InitializeConfig()
@@ -194,11 +314,98 @@ namespace TGAllLightsCastShadowsAddon
                 "VerboseExclusionLogging",
                 false,
                 "Logs each excluded light path once per scene. Useful for finding exact runtime names.");
+            _protectShadowAtlas = Config.Bind(
+                "Shadow Atlas",
+                "ProtectShadowAtlas",
+                true,
+                "Caps only parent-promoted point and spot light shadow maps, reducing HDRP atlas rescaling and flicker.");
+            _promotedShadowResolution = Config.Bind(
+                "Shadow Atlas",
+                "PromotedShadowResolution",
+                256,
+                new ConfigDescription(
+                    "Maximum per-face shadow resolution for parent-promoted point and spot lights. Original lower overrides are never raised.",
+                    new AcceptableValueList<int>(128, 256, 512, 1024)));
+            _combatPerformanceEnabled = Config.Bind(
+                "Combat Performance",
+                "CombatPerformanceEnabled",
+                true,
+                "Enables reversible combat-aware shadow adjustments. By default only the lower combat atlas cap is active.");
+            _outdoorCombatOnly = Config.Bind(
+                "Combat Performance",
+                "OutdoorCombatOnly",
+                true,
+                "Applies combat adjustments only while the hero is fighting outdoors.");
+            _combatExitDelaySeconds = Config.Bind(
+                "Combat Performance",
+                "CombatExitDelaySeconds",
+                5f,
+                new ConfigDescription(
+                    "How long combat must remain over before normal shadow settings return.",
+                    new AcceptableValueRange<float>(0f, 20f)));
+            _combatReduceAtlasResolution = Config.Bind(
+                "Combat Performance",
+                "CombatReduceAtlasResolution",
+                true,
+                "Uses the lower combat atlas cap for parent-promoted point and spot lights.");
+            _combatShadowResolution = Config.Bind(
+                "Combat Performance",
+                "CombatShadowResolution",
+                128,
+                new ConfigDescription(
+                    "Maximum per-face shadow resolution during qualifying combat.",
+                    new AcceptableValueList<int>(128, 256, 512, 1024)));
+            _combatLimitLightBudget = Config.Bind(
+                "Combat Performance",
+                "CombatLimitLightBudget",
+                false,
+                "Optionally lowers the parent's upgraded-light budget during combat.");
+            _combatMaximumUpgradedLights = Config.Bind(
+                "Combat Performance",
+                "CombatMaximumUpgradedLights",
+                30,
+                new ConfigDescription(
+                    "Maximum upgraded lights used when CombatLimitLightBudget is enabled. Never raises the parent's current limit.",
+                    new AcceptableValueRange<int>(0, 200)));
+            _combatLimitDistance = Config.Bind(
+                "Combat Performance",
+                "CombatLimitDistance",
+                false,
+                "Optionally lowers the parent's maximum upgraded-light distance during combat.");
+            _combatMaximumDistanceMeters = Config.Bind(
+                "Combat Performance",
+                "CombatMaximumDistanceMeters",
+                20f,
+                new ConfigDescription(
+                    "Maximum light distance used when CombatLimitDistance is enabled. Never raises the parent's current distance.",
+                    new AcceptableValueRange<float>(1f, 100f)));
+            _showToggleNotifications = Config.Bind(
+                "Notifications",
+                "ShowToggleNotifications",
+                true,
+                "Shows parent toggle confirmations through Grail Floating Text when it is installed.");
+            _diagnostics = Config.Bind(
+                "Diagnostics",
+                "Diagnostics",
+                false,
+                "Logs atlas counts and restored resolution state. Also shows collapsed Grail Floating Text atlas summaries when available.");
+            _showGrailFloatingTextDiagnostics = Config.Bind(
+                "Diagnostics",
+                "ShowGrailFloatingTextDiagnostics",
+                true,
+                "When Diagnostics is enabled and Grail Floating Text is installed, show diagnostic combat and atlas summaries. Detailed BepInEx logging remains active when this is disabled.");
 
-            RestorePreservedAdditionalExcludedLightPathFragments();
+            RestorePreservedSettings();
             RefreshExcludedFragments();
             _additionalExcludedLightPathFragments.SettingChanged +=
                 OnAdditionalExcludedLightPathFragmentsChanged;
+            _protectShadowAtlas.SettingChanged +=
+                OnShadowAtlasSettingChanged;
+            _promotedShadowResolution.SettingChanged +=
+                OnShadowAtlasSettingChanged;
+            SubscribeCombatConfigEvents();
+            _diagnostics.SettingChanged +=
+                OnDiagnosticsSettingChanged;
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
                 Logger,
@@ -241,7 +448,7 @@ namespace TGAllLightsCastShadowsAddon
                 return;
             }
 
-            CapturePreservedAdditionalExcludedLightPathFragments(
+            CapturePreservedSettings(
                 configPath,
                 storedSchemaVersion);
 
@@ -271,7 +478,7 @@ namespace TGAllLightsCastShadowsAddon
             }
             catch (Exception exception)
             {
-                ClearPendingPreservedAdditionalExcludedLightPathFragments();
+                _pendingPreservedSettings.Clear();
 
                 try
                 {
@@ -285,21 +492,21 @@ namespace TGAllLightsCastShadowsAddon
                 catch (Exception restoreException)
                 {
                     Logger.LogError(
-                        "Could not restore the previous TG All Lights Cast Shadows Addon config after a failed schema reset: "
+                        "Could not restore the previous All Lights Cast Shadows Addon config after a failed schema reset: "
                         + restoreException.Message);
                 }
 
                 throw new InvalidOperationException(
-                    "Failed to reset TG All Lights Cast Shadows Addon config schema. Original config was left in place when possible.",
+                    "Failed to reset All Lights Cast Shadows Addon config schema. Original config was left in place when possible.",
                     exception);
             }
         }
 
-        private void CapturePreservedAdditionalExcludedLightPathFragments(
+        private void CapturePreservedSettings(
             string configPath,
             int storedSchemaVersion)
         {
-            ClearPendingPreservedAdditionalExcludedLightPathFragments();
+            _pendingPreservedSettings.Clear();
             Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
                 Grailwright.Shared.ConfigPreviousSettingsRecovery
                     .ReadCustomizationProfile(
@@ -309,81 +516,137 @@ namespace TGAllLightsCastShadowsAddon
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
-            string currentSection = string.Empty;
-            foreach (string rawLine in File.ReadLines(configPath))
+            CaptureCustomizedValue(
+                profile,
+                "Excluded Lights",
+                "ProtectBonfireLights",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "Excluded Lights",
+                "AdditionalExcludedLightPathFragments",
+                string.Empty);
+            CaptureCustomizedValue(
+                profile,
+                "Excluded Lights",
+                "VerboseExclusionLogging",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "Shadow Atlas",
+                "ProtectShadowAtlas",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "Shadow Atlas",
+                "PromotedShadowResolution",
+                0);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatPerformanceEnabled", false);
+            CaptureCustomizedValue(profile, "Combat Performance", "OutdoorCombatOnly", false);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatExitDelaySeconds", 0f);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatReduceAtlasResolution", false);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatShadowResolution", 0);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatLimitLightBudget", false);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatMaximumUpgradedLights", 0);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatLimitDistance", false);
+            CaptureCustomizedValue(profile, "Combat Performance", "CombatMaximumDistanceMeters", 0f);
+            CaptureCustomizedValue(
+                profile,
+                "Diagnostics",
+                "Diagnostics",
+                false);
+            CaptureCustomizedValue(
+                profile,
+                "Diagnostics",
+                "ShowGrailFloatingTextDiagnostics",
+                false);
+        }
+
+        private void CaptureCustomizedValue<T>(
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            string section,
+            string key,
+            T ignoredTypeHint)
+        {
+            T value;
+            if (profile.TryGetCustomizedValue(section, key, out value))
             {
-                string line = rawLine.Trim();
-                if (line.Length == 0 || line[0] == '#')
-                {
-                    continue;
-                }
-
-                if (line.Length > 1 && line[0] == '[' && line[line.Length - 1] == ']')
-                {
-                    currentSection = line.Substring(1, line.Length - 2);
-                    continue;
-                }
-
-                if (!string.Equals(currentSection, "Excluded Lights", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                int separatorIndex = line.IndexOf('=');
-                if (separatorIndex <= 0)
-                {
-                    continue;
-                }
-
-                string settingName = line.Substring(0, separatorIndex).Trim();
-                if (!string.Equals(
-                        settingName,
-                        "AdditionalExcludedLightPathFragments",
-                        StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                string preservedValue;
-                if (profile.TryGetCustomizedValue(
-                    currentSection,
-                    settingName,
-                    out preservedValue))
-                {
-                    _pendingPreservedAdditionalExcludedLightPathFragments =
-                        preservedValue;
-                    _hasPendingPreservedAdditionalExcludedLightPathFragments =
-                        true;
-                }
+                _pendingPreservedSettings[new ConfigDefinition(section, key)] =
+                    value;
             }
         }
 
-        private void RestorePreservedAdditionalExcludedLightPathFragments()
+        private void RestorePreservedSettings()
         {
-            if (!_hasPendingPreservedAdditionalExcludedLightPathFragments
-                || _additionalExcludedLightPathFragments == null)
+            if (_pendingPreservedSettings.Count == 0)
             {
                 return;
             }
 
-            bool clamped;
-            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+            int restored = 0;
+            int clamped = 0;
+            RestorePreservedEntry(_protectBonfireLights, ref restored, ref clamped);
+            RestorePreservedEntry(
                 _additionalExcludedLightPathFragments,
-                _pendingPreservedAdditionalExcludedLightPathFragments,
-                out clamped))
-            {
-                ClearPendingPreservedAdditionalExcludedLightPathFragments();
-                return;
-            }
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(
+                _verboseExclusionLogging,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(_protectShadowAtlas, ref restored, ref clamped);
+            RestorePreservedEntry(
+                _promotedShadowResolution,
+                ref restored,
+                ref clamped);
+            RestorePreservedEntry(_combatPerformanceEnabled, ref restored, ref clamped);
+            RestorePreservedEntry(_outdoorCombatOnly, ref restored, ref clamped);
+            RestorePreservedEntry(_combatExitDelaySeconds, ref restored, ref clamped);
+            RestorePreservedEntry(_combatReduceAtlasResolution, ref restored, ref clamped);
+            RestorePreservedEntry(_combatShadowResolution, ref restored, ref clamped);
+            RestorePreservedEntry(_combatLimitLightBudget, ref restored, ref clamped);
+            RestorePreservedEntry(_combatMaximumUpgradedLights, ref restored, ref clamped);
+            RestorePreservedEntry(_combatLimitDistance, ref restored, ref clamped);
+            RestorePreservedEntry(_combatMaximumDistanceMeters, ref restored, ref clamped);
+            RestorePreservedEntry(_diagnostics, ref restored, ref clamped);
+            RestorePreservedEntry(_showGrailFloatingTextDiagnostics, ref restored, ref clamped);
+
             Logger.LogInfo(
-                "Preserved the additional excluded-light path fragments across the config schema reset.");
-            ClearPendingPreservedAdditionalExcludedLightPathFragments();
+                "Preserved "
+                + restored.ToString(CultureInfo.InvariantCulture)
+                + " setting(s) across the config schema reset; clamped="
+                + clamped.ToString(CultureInfo.InvariantCulture)
+                + ".");
+            _pendingPreservedSettings.Clear();
         }
 
-        private void ClearPendingPreservedAdditionalExcludedLightPathFragments()
+        private void RestorePreservedEntry<T>(
+            ConfigEntry<T> entry,
+            ref int restored,
+            ref int clamped)
         {
-            _pendingPreservedAdditionalExcludedLightPathFragments = null;
-            _hasPendingPreservedAdditionalExcludedLightPathFragments = false;
+            object rawValue;
+            if (entry == null
+                || !_pendingPreservedSettings.TryGetValue(
+                    entry.Definition,
+                    out rawValue)
+                || !(rawValue is T))
+            {
+                return;
+            }
+
+            bool valueClamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                (T)rawValue,
+                out valueClamped))
+            {
+                restored++;
+                if (valueClamped)
+                {
+                    clamped++;
+                }
+            }
         }
 
         private void InitializeParentReflection(Type shadowManagerType)
@@ -394,6 +657,32 @@ namespace TGAllLightsCastShadowsAddon
             _originalStatesField = AccessTools.Field(
                 shadowManagerType,
                 "OriginalStates");
+            _runtimeEnabledField = AccessTools.Field(
+                shadowManagerType,
+                "RuntimeEnabled");
+            _nextScanTimeField = AccessTools.Field(
+                shadowManagerType,
+                "_nextScanTime");
+
+            Type localConfigType = AccessTools.TypeByName(
+                "TGAllLightsCastShadows.LocalConfig");
+            Type localConfigDataType = AccessTools.TypeByName(
+                "TGAllLightsCastShadows.LocalConfigData");
+            if (localConfigType != null && localConfigDataType != null)
+            {
+                _parentCurrentConfigProperty = AccessTools.Property(
+                    localConfigType,
+                    "Current");
+                _parentUseBudgetField = AccessTools.Field(
+                    localConfigDataType,
+                    "UseBudget");
+                _parentMaximumUpgradedLightsField = AccessTools.Field(
+                    localConfigDataType,
+                    "MaxUpgradedLights");
+                _parentMaximumDistanceMetersField = AccessTools.Field(
+                    localConfigDataType,
+                    "MaxDistanceMeters");
+            }
 
             Type originalStateType = shadowManagerType.GetNestedType(
                 "OriginalLightState",
@@ -415,6 +704,21 @@ namespace TGAllLightsCastShadowsAddon
             {
                 Logger.LogWarning(
                     "Could not resolve all parent light-state fields; excluded-light cleanup will use fallbacks.");
+            }
+
+            if (_runtimeEnabledField == null)
+            {
+                Logger.LogWarning(
+                    "Could not resolve the parent runtime toggle field; toggle notifications are unavailable.");
+            }
+
+            if (_parentCurrentConfigProperty == null
+                || _parentUseBudgetField == null
+                || _parentMaximumUpgradedLightsField == null
+                || _parentMaximumDistanceMetersField == null)
+            {
+                Logger.LogWarning(
+                    "Could not resolve all parent config fields; optional combat budget and distance overrides are unavailable.");
             }
         }
 
@@ -457,6 +761,884 @@ namespace TGAllLightsCastShadowsAddon
             EventArgs args)
         {
             RefreshExcludedFragments();
+        }
+
+        private void SubscribeCombatConfigEvents()
+        {
+            _combatPerformanceEnabled.SettingChanged += OnCombatSettingChanged;
+            _outdoorCombatOnly.SettingChanged += OnCombatSettingChanged;
+            _combatExitDelaySeconds.SettingChanged += OnCombatSettingChanged;
+            _combatReduceAtlasResolution.SettingChanged += OnCombatSettingChanged;
+            _combatShadowResolution.SettingChanged += OnCombatSettingChanged;
+            _combatLimitLightBudget.SettingChanged += OnCombatSettingChanged;
+            _combatMaximumUpgradedLights.SettingChanged += OnCombatSettingChanged;
+            _combatLimitDistance.SettingChanged += OnCombatSettingChanged;
+            _combatMaximumDistanceMeters.SettingChanged += OnCombatSettingChanged;
+        }
+
+        private void UnsubscribeCombatConfigEvents()
+        {
+            if (_combatPerformanceEnabled == null)
+            {
+                return;
+            }
+
+            _combatPerformanceEnabled.SettingChanged -= OnCombatSettingChanged;
+            _outdoorCombatOnly.SettingChanged -= OnCombatSettingChanged;
+            _combatExitDelaySeconds.SettingChanged -= OnCombatSettingChanged;
+            _combatReduceAtlasResolution.SettingChanged -= OnCombatSettingChanged;
+            _combatShadowResolution.SettingChanged -= OnCombatSettingChanged;
+            _combatLimitLightBudget.SettingChanged -= OnCombatSettingChanged;
+            _combatMaximumUpgradedLights.SettingChanged -= OnCombatSettingChanged;
+            _combatLimitDistance.SettingChanged -= OnCombatSettingChanged;
+            _combatMaximumDistanceMeters.SettingChanged -= OnCombatSettingChanged;
+        }
+
+        private void OnCombatSettingChanged(object sender, EventArgs args)
+        {
+            _nextCombatStateCheck = 0f;
+            _lastAtlasDiagnosticSignature = string.Empty;
+            if (!_combatPerformanceEnabled.Value)
+            {
+                SetCombatPerformanceActive(false);
+            }
+            else
+            {
+                RefreshCombatPerformanceState();
+                if (!ShouldProtectShadowAtlas())
+                {
+                    RestoreAllShadowResolutions();
+                }
+            }
+
+            NudgeParentScan();
+        }
+
+        private void RefreshCombatPerformanceState()
+        {
+            if (!_combatPerformanceEnabled.Value)
+            {
+                SetCombatPerformanceActive(false);
+                return;
+            }
+
+            bool qualifies;
+            if (!TryGetQualifyingCombatState(out qualifies))
+            {
+                return;
+            }
+
+            if (qualifies)
+            {
+                _combatExitEligibleAt = 0f;
+                SetCombatPerformanceActive(true);
+                return;
+            }
+
+            if (!_combatPerformanceActive)
+            {
+                _combatExitEligibleAt = 0f;
+                return;
+            }
+
+            if (_combatExitEligibleAt <= 0f)
+            {
+                _combatExitEligibleAt =
+                    Time.unscaledTime + _combatExitDelaySeconds.Value;
+            }
+            if (Time.unscaledTime >= _combatExitEligibleAt)
+            {
+                SetCombatPerformanceActive(false);
+            }
+        }
+
+        private bool TryGetQualifyingCombatState(out bool qualifies)
+        {
+            qualifies = false;
+            Hero hero = Hero.Current;
+            if (hero == null
+                || hero.HasBeenDiscarded
+                || !hero.IsAlive
+                || hero.HeroCombat == null
+                || !hero.HeroCombat.IsHeroInFight)
+            {
+                return true;
+            }
+
+            if (!_outdoorCombatOnly.Value)
+            {
+                qualifies = true;
+                return true;
+            }
+
+            if (World.Services == null)
+            {
+                return false;
+            }
+
+            SceneService sceneService = World.Services.TryGet<SceneService>();
+            SceneLifetimeEvents lifetime = SceneLifetimeEvents.Get;
+            if (sceneService == null
+                || lifetime == null
+                || !lifetime.EverythingInitialized)
+            {
+                return false;
+            }
+
+            qualifies = sceneService.IsOpenWorld && !lifetime.InInterior;
+            return true;
+        }
+
+        private void SetCombatPerformanceActive(bool active)
+        {
+            if (_combatPerformanceActive == active)
+            {
+                return;
+            }
+
+            _combatPerformanceActive = active;
+            _combatExitEligibleAt = 0f;
+            _lastAtlasDiagnosticSignature = string.Empty;
+            if (!active && !ShouldProtectShadowAtlas())
+            {
+                RestoreAllShadowResolutions();
+            }
+
+            NudgeParentScan();
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            string message = active
+                ? "Combat shadow mode active: " + DescribeCombatOverrides() + "."
+                : "Combat shadow mode ended; normal settings restored.";
+            Logger.LogInfo(message);
+            if (_showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value)
+            {
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                    .TryShowSystemNotification(
+                        PluginGuid,
+                        active
+                            ? "shadow-combat-mode-enabled"
+                            : "shadow-combat-mode-disabled",
+                        active
+                            ? "Combat shadows: " + DescribeCombatOverrides() + "."
+                            : "Combat shadows restored.",
+                        "Normal",
+                        "shadow-combat-mode");
+            }
+        }
+
+        private string DescribeCombatOverrides()
+        {
+            List<string> parts = new List<string>();
+            if (_combatReduceAtlasResolution.Value)
+            {
+                parts.Add(
+                    "atlas "
+                    + _combatShadowResolution.Value.ToString(
+                        CultureInfo.InvariantCulture));
+            }
+            if (_combatLimitLightBudget.Value)
+            {
+                parts.Add(
+                    "budget "
+                    + _combatMaximumUpgradedLights.Value.ToString(
+                        CultureInfo.InvariantCulture));
+            }
+            if (_combatLimitDistance.Value)
+            {
+                parts.Add(
+                    "distance "
+                    + _combatMaximumDistanceMeters.Value.ToString(
+                        "0.#",
+                        CultureInfo.InvariantCulture)
+                    + "m");
+            }
+            return parts.Count > 0
+                ? string.Join(", ", parts.ToArray())
+                : "no performance overrides enabled";
+        }
+
+        private void OnShadowAtlasSettingChanged(object sender, EventArgs args)
+        {
+            _lastAtlasDiagnosticSignature = string.Empty;
+            if (!ShouldProtectShadowAtlas())
+            {
+                RestoreAllShadowResolutions();
+            }
+
+            NudgeParentScan();
+        }
+
+        private bool ShouldProtectShadowAtlas()
+        {
+            return (_protectShadowAtlas != null && _protectShadowAtlas.Value)
+                || (_combatPerformanceActive
+                    && _combatReduceAtlasResolution != null
+                    && _combatReduceAtlasResolution.Value);
+        }
+
+        private int CurrentShadowResolutionCap()
+        {
+            if (_combatPerformanceActive
+                && _combatReduceAtlasResolution != null
+                && _combatReduceAtlasResolution.Value)
+            {
+                return _protectShadowAtlas != null && _protectShadowAtlas.Value
+                    ? Math.Min(
+                        _promotedShadowResolution.Value,
+                        _combatShadowResolution.Value)
+                    : _combatShadowResolution.Value;
+            }
+
+            return _promotedShadowResolution.Value;
+        }
+
+        private void OnDiagnosticsSettingChanged(object sender, EventArgs args)
+        {
+            _atlasUnavailableReported = false;
+            _combatParentConfigUnavailableReported = false;
+            _lastAtlasDiagnosticSignature = string.Empty;
+            NudgeParentScan();
+        }
+
+        private void ObserveParentRuntimeState(bool notifyChange)
+        {
+            if (_runtimeEnabledField == null)
+            {
+                return;
+            }
+
+            bool runtimeEnabled;
+            try
+            {
+                runtimeEnabled = (bool)_runtimeEnabledField.GetValue(null);
+            }
+            catch (Exception exception)
+            {
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogWarning(
+                        "Could not read the parent shadow toggle state: "
+                        + exception.Message);
+                }
+
+                return;
+            }
+
+            if (!_parentRuntimeEnabledKnown)
+            {
+                _parentRuntimeEnabled = runtimeEnabled;
+                _parentRuntimeEnabledKnown = true;
+                return;
+            }
+
+            if (_parentRuntimeEnabled == runtimeEnabled)
+            {
+                return;
+            }
+
+            _parentRuntimeEnabled = runtimeEnabled;
+            if (notifyChange
+                && _showToggleNotifications != null
+                && _showToggleNotifications.Value)
+            {
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                    .TryShowSystemNotification(
+                        PluginGuid,
+                        runtimeEnabled
+                            ? "all-lights-shadows-enabled"
+                            : "all-lights-shadows-disabled",
+                        "All Lights Cast Shadows: "
+                            + (runtimeEnabled ? "Enabled" : "Disabled"),
+                        "Normal",
+                        "all-lights-shadows-toggle");
+            }
+        }
+
+        private void NudgeParentScan()
+        {
+            if (_parentManager == null || _nextScanTimeField == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _nextScanTimeField.SetValue(_parentManager, 0f);
+            }
+            catch (Exception exception)
+            {
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogWarning(
+                        "Could not request an immediate parent light scan: "
+                        + exception.Message);
+                }
+            }
+        }
+
+        private void ApplyCombatParentConfigOverrides()
+        {
+            RestoreCombatParentConfig();
+            if (!_combatPerformanceActive
+                || (!_combatLimitLightBudget.Value
+                    && !_combatLimitDistance.Value))
+            {
+                return;
+            }
+
+            if (_parentCurrentConfigProperty == null
+                || _parentUseBudgetField == null
+                || _parentMaximumUpgradedLightsField == null
+                || _parentMaximumDistanceMetersField == null)
+            {
+                ReportCombatParentConfigUnavailable(
+                    "parent config reflection is incomplete");
+                return;
+            }
+
+            try
+            {
+                object current = _parentCurrentConfigProperty.GetValue(
+                    null,
+                    null);
+                if (current == null)
+                {
+                    ReportCombatParentConfigUnavailable(
+                        "the parent current config is null");
+                    return;
+                }
+
+                _combatParentConfigSnapshot = new CombatParentConfigSnapshot(
+                    current,
+                    (bool)_parentUseBudgetField.GetValue(current),
+                    (int)_parentMaximumUpgradedLightsField.GetValue(current),
+                    (float)_parentMaximumDistanceMetersField.GetValue(current));
+
+                if (_combatLimitLightBudget.Value
+                    || _combatLimitDistance.Value)
+                {
+                    _parentUseBudgetField.SetValue(current, true);
+                }
+                if (!_combatParentConfigSnapshot.UseBudget)
+                {
+                    if (!_combatLimitLightBudget.Value)
+                    {
+                        _parentMaximumUpgradedLightsField.SetValue(
+                            current,
+                            Int32.MaxValue);
+                    }
+                    if (!_combatLimitDistance.Value)
+                    {
+                        _parentMaximumDistanceMetersField.SetValue(
+                            current,
+                            Single.MaxValue);
+                    }
+                }
+                if (_combatLimitLightBudget.Value)
+                {
+                    int original = _combatParentConfigSnapshot.MaximumUpgradedLights;
+                    _parentMaximumUpgradedLightsField.SetValue(
+                        current,
+                        Math.Min(
+                            original,
+                            _combatMaximumUpgradedLights.Value));
+                }
+                if (_combatLimitDistance.Value)
+                {
+                    float original = _combatParentConfigSnapshot.MaximumDistanceMeters;
+                    _parentMaximumDistanceMetersField.SetValue(
+                        current,
+                        Math.Min(
+                            original,
+                            _combatMaximumDistanceMeters.Value));
+                }
+            }
+            catch (Exception exception)
+            {
+                ReportCombatParentConfigUnavailable(exception.Message);
+                RestoreCombatParentConfig();
+            }
+        }
+
+        private void RestoreCombatParentConfig()
+        {
+            CombatParentConfigSnapshot snapshot = _combatParentConfigSnapshot;
+            _combatParentConfigSnapshot = null;
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _parentUseBudgetField.SetValue(
+                    snapshot.Target,
+                    snapshot.UseBudget);
+                _parentMaximumUpgradedLightsField.SetValue(
+                    snapshot.Target,
+                    snapshot.MaximumUpgradedLights);
+                _parentMaximumDistanceMetersField.SetValue(
+                    snapshot.Target,
+                    snapshot.MaximumDistanceMeters);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not restore the parent config after a combat shadow scan: "
+                    + exception.Message);
+            }
+        }
+
+        private void ReportCombatParentConfigUnavailable(string reason)
+        {
+            if (_combatParentConfigUnavailableReported)
+            {
+                return;
+            }
+
+            _combatParentConfigUnavailableReported = true;
+            Logger.LogWarning(
+                "Optional combat budget and distance overrides are unavailable: "
+                + reason
+                + ". Combat atlas reduction remains independent.");
+            if (_diagnostics != null
+                && _diagnostics.Value
+                && _showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value)
+            {
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                    .TryShowSystemNotification(
+                        PluginGuid,
+                        "shadow-combat-parent-config-unavailable",
+                        "Advanced combat shadow options unavailable; check the BepInEx log.",
+                        "High",
+                        "shadow-combat-mode");
+            }
+        }
+
+        private void BeginAtlasScan()
+        {
+            _atlasScanLights.Clear();
+            _atlasScanPointLights = 0;
+            _atlasScanSpotLights = 0;
+            _atlasScanOtherLights = 0;
+            _atlasScanConstrainedLights = 0;
+            _atlasScanEstimatedMaps = 0;
+            _atlasScanRestoredLights = 0;
+        }
+
+        private void ApplyShadowAtlasProtection(Light light)
+        {
+            if (light == null
+                || !ShouldProtectShadowAtlas())
+            {
+                return;
+            }
+
+            int id = light.GetInstanceID();
+            if (!_atlasScanLights.Add(id))
+            {
+                return;
+            }
+
+            int shadowMapCount;
+            if (light.type == LightType.Point)
+            {
+                _atlasScanPointLights++;
+                shadowMapCount = 6;
+            }
+            else if (light.type == LightType.Spot)
+            {
+                _atlasScanSpotLights++;
+                shadowMapCount = 1;
+            }
+            else
+            {
+                _atlasScanOtherLights++;
+                return;
+            }
+
+            _atlasScanEstimatedMaps += shadowMapCount;
+
+            try
+            {
+                ResolveHdrpMembers();
+                if (_hdAdditionalLightDataType == null
+                    || _hdShadowResolutionProperty == null
+                    || _hdSetShadowResolutionMethod == null
+                    || _hdSetShadowResolutionLevelMethod == null
+                    || _hdSetShadowResolutionOverrideMethod == null)
+                {
+                    ReportAtlasUnavailable(
+                        "HDRP shadow-resolution members could not be resolved.");
+                    return;
+                }
+
+                Component hd = light.GetComponent(_hdAdditionalLightDataType);
+                if (hd == null)
+                {
+                    if (_diagnostics != null && _diagnostics.Value)
+                    {
+                        Logger.LogInfo(
+                            "Shadow atlas skipped a promoted light without HDAdditionalLightData: "
+                            + GetTransformPath(light.transform)
+                            + ".");
+                    }
+
+                    return;
+                }
+
+                ShadowResolutionState state;
+                if (!_shadowResolutionStates.TryGetValue(id, out state))
+                {
+                    object resolution = _hdShadowResolutionProperty.GetValue(
+                        hd,
+                        null);
+                    int originalOverride;
+                    int originalLevel;
+                    bool originalUseOverride;
+                    if (resolution == null
+                        || !TryReadRuntimeMember(
+                            resolution,
+                            "override",
+                            out originalOverride)
+                        || !TryReadRuntimeMember(
+                            resolution,
+                            "level",
+                            out originalLevel)
+                        || !TryReadRuntimeMember(
+                            resolution,
+                            "useOverride",
+                            out originalUseOverride))
+                    {
+                        ReportAtlasUnavailable(
+                            "HDRP shadow-resolution state could not be read.");
+                        return;
+                    }
+
+                    int cap = CurrentShadowResolutionCap();
+                    if (originalUseOverride && originalOverride <= cap)
+                    {
+                        return;
+                    }
+
+                    state = new ShadowResolutionState(
+                        light,
+                        hd,
+                        originalOverride,
+                        originalLevel,
+                        originalUseOverride);
+                    _shadowResolutionStates.Add(id, state);
+
+                    if (_diagnostics != null && _diagnostics.Value)
+                    {
+                        Logger.LogInfo(
+                            "Shadow atlas captured "
+                            + GetTransformPath(light.transform)
+                            + ": type="
+                            + light.type
+                            + ", maps="
+                            + shadowMapCount.ToString(CultureInfo.InvariantCulture)
+                            + ", originalOverride="
+                            + originalOverride.ToString(CultureInfo.InvariantCulture)
+                            + ", originalLevel="
+                            + originalLevel.ToString(CultureInfo.InvariantCulture)
+                            + ", originalUseOverride="
+                            + originalUseOverride
+                            + ".");
+                    }
+                }
+
+                int targetResolution = state.OriginalUseOverride
+                    ? Math.Min(
+                        state.OriginalOverride,
+                        CurrentShadowResolutionCap())
+                    : CurrentShadowResolutionCap();
+                _hdSetShadowResolutionMethod.Invoke(
+                    state.HdData,
+                    new object[] { targetResolution });
+                _hdSetShadowResolutionOverrideMethod.Invoke(
+                    state.HdData,
+                    new object[] { true });
+                _atlasScanConstrainedLights++;
+            }
+            catch (Exception exception)
+            {
+                ReportAtlasUnavailable(
+                    "Could not constrain "
+                    + GetTransformPath(light.transform)
+                    + ": "
+                    + exception.Message);
+            }
+        }
+
+        private void RestoreInactiveShadowResolutions()
+        {
+            if (_shadowResolutionStates.Count == 0)
+            {
+                return;
+            }
+
+            HashSet<int> activeLights = GetActiveLights();
+            List<int> ids = new List<int>(_shadowResolutionStates.Keys);
+            for (int i = 0; i < ids.Count; i++)
+            {
+                int id = ids[i];
+                ShadowResolutionState state = _shadowResolutionStates[id];
+                if (state.Light != null
+                    && activeLights != null
+                    && activeLights.Contains(id))
+                {
+                    continue;
+                }
+
+                RestoreShadowResolution(state);
+                _shadowResolutionStates.Remove(id);
+                _atlasScanRestoredLights++;
+            }
+        }
+
+        private void RestoreAllShadowResolutions()
+        {
+            if (_shadowResolutionStates.Count == 0)
+            {
+                return;
+            }
+
+            foreach (ShadowResolutionState state in _shadowResolutionStates.Values)
+            {
+                RestoreShadowResolution(state);
+            }
+
+            int restored = _shadowResolutionStates.Count;
+            _shadowResolutionStates.Clear();
+            if (_diagnostics != null && _diagnostics.Value)
+            {
+                Logger.LogInfo(
+                    "Restored original HDRP shadow resolution for "
+                    + restored.ToString(CultureInfo.InvariantCulture)
+                    + " promoted light(s).");
+            }
+        }
+
+        private void RestoreShadowResolution(ShadowResolutionState state)
+        {
+            if (state == null || state.Light == null || state.HdData == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _hdSetShadowResolutionMethod.Invoke(
+                    state.HdData,
+                    new object[] { state.OriginalOverride });
+                _hdSetShadowResolutionLevelMethod.Invoke(
+                    state.HdData,
+                    new object[] { state.OriginalLevel });
+                _hdSetShadowResolutionOverrideMethod.Invoke(
+                    state.HdData,
+                    new object[] { state.OriginalUseOverride });
+            }
+            catch (Exception exception)
+            {
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogWarning(
+                        "Could not restore an HDRP shadow-resolution state: "
+                        + exception.Message);
+                }
+            }
+        }
+
+        private void ReportAtlasDiagnostics()
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            HashSet<int> activeLights = GetActiveLights();
+            int activeCount = activeLights != null ? activeLights.Count : 0;
+            int punctualCount = _atlasScanPointLights + _atlasScanSpotLights;
+            int cap = CurrentShadowResolutionCap();
+            string summary =
+                "Shadow atlas scan: active="
+                + activeCount.ToString(CultureInfo.InvariantCulture)
+                + ", punctualSeen="
+                + punctualCount.ToString(CultureInfo.InvariantCulture)
+                + " (point="
+                + _atlasScanPointLights.ToString(CultureInfo.InvariantCulture)
+                + ", spot="
+                + _atlasScanSpotLights.ToString(CultureInfo.InvariantCulture)
+                + ", other="
+                + _atlasScanOtherLights.ToString(CultureInfo.InvariantCulture)
+                + "), estimatedMaps="
+                + _atlasScanEstimatedMaps.ToString(CultureInfo.InvariantCulture)
+                + ", constrained="
+                + _atlasScanConstrainedLights.ToString(CultureInfo.InvariantCulture)
+                + ", tracked="
+                + _shadowResolutionStates.Count.ToString(CultureInfo.InvariantCulture)
+                + ", restored="
+                + _atlasScanRestoredLights.ToString(CultureInfo.InvariantCulture)
+                + ", cap="
+                + cap.ToString(CultureInfo.InvariantCulture)
+                + ", combat="
+                + _combatPerformanceActive
+                + ".";
+            Logger.LogInfo(summary);
+
+            if (!IsActiveGameplaySession())
+            {
+                _lastAtlasDiagnosticSignature = string.Empty;
+                return;
+            }
+
+            if (_showGrailFloatingTextDiagnostics == null
+                || !_showGrailFloatingTextDiagnostics.Value)
+            {
+                return;
+            }
+
+            string signature =
+                activeCount.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _atlasScanPointLights.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _atlasScanSpotLights.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _atlasScanEstimatedMaps.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _atlasScanConstrainedLights.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _shadowResolutionStates.Count.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + cap.ToString(CultureInfo.InvariantCulture)
+                + "|"
+                + _combatPerformanceActive;
+            if (string.Equals(
+                signature,
+                _lastAtlasDiagnosticSignature,
+                StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastAtlasDiagnosticSignature = signature;
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowSystemNotification(
+                    PluginGuid,
+                    "shadow-atlas-diagnostics",
+                    "Shadow atlas guard: "
+                        + _atlasScanConstrainedLights.ToString(
+                            CultureInfo.InvariantCulture)
+                        + "/"
+                        + punctualCount.ToString(CultureInfo.InvariantCulture)
+                        + " lights constrained; "
+                        + _atlasScanEstimatedMaps.ToString(
+                            CultureInfo.InvariantCulture)
+                        + " shadow maps.",
+                    "Normal",
+                    "shadow-atlas-diagnostics");
+        }
+
+        private static bool IsActiveGameplaySession()
+        {
+            Hero hero = Hero.Current;
+            if (LoadingScreenUI.IsLoading
+                || hero == null
+                || hero.HasBeenDiscarded
+                || !hero.IsAlive
+                || hero.IsDying
+                || hero.IsPortaling
+                || hero.JustTeleported
+                || World.Services == null)
+            {
+                return false;
+            }
+
+            SceneService sceneService = World.Services.TryGet<SceneService>();
+            SceneLifetimeEvents lifetime = SceneLifetimeEvents.Get;
+            return sceneService != null
+                && sceneService.ActiveSceneRef != null
+                && !String.IsNullOrEmpty(sceneService.ActiveSceneRef.Name)
+                && lifetime != null
+                && lifetime.EverythingInitialized;
+        }
+
+        private void ReportAtlasUnavailable(string reason)
+        {
+            if (_atlasUnavailableReported)
+            {
+                return;
+            }
+
+            _atlasUnavailableReported = true;
+            Logger.LogWarning("Shadow atlas protection is unavailable: " + reason);
+            if (_diagnostics != null
+                && _diagnostics.Value
+                && _showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value)
+            {
+                Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                    .TryShowSystemNotification(
+                        PluginGuid,
+                        "shadow-atlas-unavailable",
+                        "Shadow atlas guard unavailable; check the BepInEx log.",
+                        "High",
+                        "shadow-atlas-diagnostics");
+            }
+        }
+
+        private static bool TryReadRuntimeMember<T>(
+            object target,
+            string name,
+            out T value)
+        {
+            value = default(T);
+            BindingFlags flags =
+                BindingFlags.Instance
+                | BindingFlags.Public
+                | BindingFlags.NonPublic;
+            Type type = target.GetType();
+            PropertyInfo property = type.GetProperty(name, flags);
+            object raw = property != null
+                ? property.GetValue(target, null)
+                : null;
+            if (property == null)
+            {
+                FieldInfo field = type.GetField(name, flags);
+                if (field == null)
+                {
+                    return false;
+                }
+
+                raw = field.GetValue(target);
+            }
+
+            if (raw is T)
+            {
+                value = (T)raw;
+                return true;
+            }
+
+            try
+            {
+                value = (T)Convert.ChangeType(
+                    raw,
+                    typeof(T),
+                    CultureInfo.InvariantCulture);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void ProtectExcludedLightsBeforeParentScan()
@@ -756,6 +1938,27 @@ namespace TGAllLightsCastShadowsAddon
                     type,
                     flags,
                     new[] { "volumetricShadowDimmer", "m_VolumetricShadowDimmer" });
+                _hdShadowResolutionProperty = type.GetProperty(
+                    "shadowResolution",
+                    flags);
+                _hdSetShadowResolutionMethod = type.GetMethod(
+                    "SetShadowResolution",
+                    flags,
+                    null,
+                    new[] { typeof(int) },
+                    null);
+                _hdSetShadowResolutionLevelMethod = type.GetMethod(
+                    "SetShadowResolutionLevel",
+                    flags,
+                    null,
+                    new[] { typeof(int) },
+                    null);
+                _hdSetShadowResolutionOverrideMethod = type.GetMethod(
+                    "SetShadowResolutionOverride",
+                    flags,
+                    null,
+                    new[] { typeof(bool) },
+                    null);
                 return;
             }
         }
@@ -869,13 +2072,34 @@ namespace TGAllLightsCastShadowsAddon
 
         private void OnDestroy()
         {
+            UnsubscribeCombatConfigEvents();
             if (_additionalExcludedLightPathFragments != null)
             {
                 _additionalExcludedLightPathFragments.SettingChanged -=
                     OnAdditionalExcludedLightPathFragmentsChanged;
             }
 
+            if (_protectShadowAtlas != null)
+            {
+                _protectShadowAtlas.SettingChanged -=
+                    OnShadowAtlasSettingChanged;
+            }
+
+            if (_promotedShadowResolution != null)
+            {
+                _promotedShadowResolution.SettingChanged -=
+                    OnShadowAtlasSettingChanged;
+            }
+
+            if (_diagnostics != null)
+            {
+                _diagnostics.SettingChanged -=
+                    OnDiagnosticsSettingChanged;
+            }
+
             RestoreProtectedLightsAfterParentScan();
+            RestoreCombatParentConfig();
+            RestoreAllShadowResolutions();
 
             if (_originalShadowQualityCaptured)
             {
@@ -888,7 +2112,10 @@ namespace TGAllLightsCastShadowsAddon
                 _harmony.UnpatchSelf();
             }
 
-            Instance = null;
+            if (ReferenceEquals(Instance, this))
+            {
+                Instance = null;
+            }
         }
 
         private sealed class ProtectedLightState
@@ -905,6 +2132,49 @@ namespace TGAllLightsCastShadowsAddon
                 Light = light;
                 Shadows = shadows;
                 ShadowStrength = shadowStrength;
+            }
+        }
+
+        private sealed class ShadowResolutionState
+        {
+            internal readonly Light Light;
+            internal readonly Component HdData;
+            internal readonly int OriginalOverride;
+            internal readonly int OriginalLevel;
+            internal readonly bool OriginalUseOverride;
+
+            internal ShadowResolutionState(
+                Light light,
+                Component hdData,
+                int originalOverride,
+                int originalLevel,
+                bool originalUseOverride)
+            {
+                Light = light;
+                HdData = hdData;
+                OriginalOverride = originalOverride;
+                OriginalLevel = originalLevel;
+                OriginalUseOverride = originalUseOverride;
+            }
+        }
+
+        private sealed class CombatParentConfigSnapshot
+        {
+            internal readonly object Target;
+            internal readonly bool UseBudget;
+            internal readonly int MaximumUpgradedLights;
+            internal readonly float MaximumDistanceMeters;
+
+            internal CombatParentConfigSnapshot(
+                object target,
+                bool useBudget,
+                int maximumUpgradedLights,
+                float maximumDistanceMeters)
+            {
+                Target = target;
+                UseBudget = useBudget;
+                MaximumUpgradedLights = maximumUpgradedLights;
+                MaximumDistanceMeters = maximumDistanceMeters;
             }
         }
     }
@@ -929,12 +2199,42 @@ namespace TGAllLightsCastShadowsAddon
             }
         }
 
+        internal static Exception FinalizeApplyAllLights(
+            Exception __exception)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.FinalizeApplyAllLights();
+            }
+
+            return __exception;
+        }
+
         internal static void AfterRestoreAllLights()
         {
             Plugin plugin = Plugin.Instance;
             if (plugin != null)
             {
                 plugin.AfterRestoreAllLights();
+            }
+        }
+
+        internal static void AfterShadowManagerUpdate(object __instance)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.AfterShadowManagerUpdate(__instance);
+            }
+        }
+
+        internal static void BeforeHdrpShadowRefresh(Light __0)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.BeforeHdrpShadowRefresh(__0);
             }
         }
     }

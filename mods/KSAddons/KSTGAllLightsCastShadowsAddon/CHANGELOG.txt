@@ -1,3 +1,34 @@
+Version 1.2.8
+Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so combat, atlas, and diagnostics-only warning notices can be disabled without losing detailed BepInEx logging.
+Kept ShowToggleNotifications and actual parent toggle confirmations independent of Diagnostics.
+
+Version 1.2.7
+Suppresses the diagnostic shadow-atlas Grail Floating Text summary on the main menu and during loading or teleport transitions while retaining the detailed BepInEx log output.
+
+Version 1.2.6
+Added a ShowToggleNotifications setting and standardized parent toggle confirmations as Grail Floating Text System messages.
+
+Version 1.2.5
+Removed TG from the addon's package and FoA Mod Manager display names.
+
+Version 1.2.4
+Keeps the optional combat budget and distance controls independent when the parent's normal UseBudget setting is disabled, preventing either option from activating the other's dormant limit.
+
+Version 1.2.3
+Added combat-aware shadow performance for outdoor fights, enabled by default with only a reversible 128-pixel promoted-light atlas cap active.
+Returns to the normal atlas cap after combat has remained over for five seconds, avoiding rapid state changes around brief combat transitions.
+Added opt-in combat controls for a lower upgraded-light budget and shorter maximum light distance; parent config values are clamped downward only for the scan and restored immediately afterward.
+Added diagnostic logs and collapsed Grail Floating Text System notices for combat-mode transitions and optional parent-config failures.
+
+Version 1.2.2
+Treats individual promoted lights without HDRP light data as diagnostic skips instead of reporting the entire atlas guard unavailable.
+
+Version 1.2.1
+Added a reversible HDRP shadow-atlas guard that caps only point and spot lights promoted by the parent mod; the default per-face cap is 256 and existing lower overrides are never raised.
+Restores each affected light's original resolution override, tier, and override mode when it leaves the parent budget, the parent or guard is disabled, or the addon unloads.
+Shows Grail Floating Text System notices when the parent shadow toggle changes, independent of Diagnostics.
+Added optional atlas diagnostics with active and punctual light counts, estimated shadow-map use, constrained and restored state, per-light capture details, and collapsed Grail Floating Text summaries.
+
 Version 1.2.0
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.
@@ -37,7 +68,7 @@ Added ConfigSchemaVersion 1 so older or unversioned configs are backed up and re
 Kept shadow-state restoration and excluded-light behavior unchanged.
 
 Version 1.1.0
-Companion addon for TG All Lights Cast Shadows 1.2.0.
+Companion addon for All Lights Cast Shadows 1.2.0.
 Restores Unity global shadow-quality state after the parent mod disables nearby light upgrades.
 Shields configured bonfire and campfire light objects from being upgraded into shadow-casting lights.
 Adds no per-frame scanning and only runs around the parent mod's own light scan.

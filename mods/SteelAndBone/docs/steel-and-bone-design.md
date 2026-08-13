@@ -20,7 +20,7 @@ This is the living implementation and tuning spec. Keep detailed enemy facts in 
 
 ## Game-File Ground Truth
 
-These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.2.1 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
+These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.4.3 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 | Evidence | Confirmed finding | Design consequence |
 |---|---|---|
@@ -66,6 +66,12 @@ Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/
 
 Readied player shields turn a small share of their effective vanilla Block value into passive protection from frontal direct physical hits: 8% on Tempered, 10% on Hardened, and 12% on Crucible. Coverage uses vanilla BlockAngle capped to a centered forward 180-degree arc. The check runs only on incoming damage, performs no physics query or continuous polling, and skips active blocks, rear hits, magic, statuses, damage over time, and sheathed weapons.
 
+## Native Awareness And Restorative Pressure
+
+Version 3.2.7 completes the lightweight awareness layer without replacing enemy AI. Hero footstep noise range uses x1.10/x1.20/x1.30 by preset while native strength, wall checks, armor noise, and NPC hearing remain authoritative. Hardened and Crucible divide only positive native combat-aggro decay by 1.10 or 1.20; chase boundaries, forced combat exit, and target-loss rules remain untouched.
+
+Restorative consumables keep 100%/90%/80% of positive health, stamina, and mana deltas on Tempered/Hardened/Crucible. The correction is scoped to hero-owned items with native restorative markers and does not reinterpret costs, damage, or unrelated item effects.
+
 ## Non-Goals
 
 | Non-goal | Why |
@@ -88,7 +94,7 @@ Steel and Bone presets are independent from the vanilla difficulties `Story`, `E
 
 Presets should be a general matchup-strength and difficulty influence, not separate rulesets. Every Steel and Bone rule has one base multiplier. The preset scales that multiplier toward or away from neutral: Tempered is closer to vanilla, Hardened uses the base rule, and Crucible makes the same rule more decisive. Vanilla-authored multipliers are separate: Tempered leaves them unchanged by default, while Hardened and Crucible amplify their distance from neutral with clamps.
 
-For the 3.0 global layer, Tempered keeps pressure and armor modifiers neutral while setting arrows and hostile enemy sight to x1.10. Hardened applies 5% pressure with one additional enemy attack slot and x1.30 arrows/sight. Crucible applies 10% pressure with two additional slots and x1.50 arrows/sight. Outgoing player health damage is independently configurable and never preset-controlled.
+For the 3.0 global layer, Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor, poise, recovery, enemy movement, aggro persistence, and restorative recovery neutral. Hardened applies 10% damage and experience pressure plus the existing 5% supporting profile, one additional enemy attack slot, x1.30 arrows/sight, x1.20 hearing, x1.10 aggro persistence, and x0.90 restorative recovery. Crucible applies 15% damage and experience pressure plus the existing 10% supporting profile, two additional slots, x1.50 arrows/sight, x1.30 hearing, x1.20 aggro persistence, and x0.80 restorative recovery. Hostile archer aim scatter uses 0.75/0.50/0.25 meters by preset through the game's native target-point inaccuracy, keeping Crucible archers dangerous without perfectly centered aim. Confirmed weak spots add 10%, 20%, or 30% base damage by preset, while native critical damage remains unchanged. Outgoing and incoming player damage remain independently toggleable, while their exact values come directly from the selected preset.
 
 ## Implemented
 
@@ -99,6 +105,7 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | Implemented item | Current behavior | Keep or change |
 |---|---|---|
 | Per-target damage modifier patch | Patches `HealthElement.ApplyDamageModifiers` and adjusts `dmgModifier` after vanilla has calculated subtype, armor, and target damage-received multipliers. The adjusted value folds into the same final outgoing modifier as crit, sneak, weakspot, and backstab. | Keep. This is the right low-impact surface. |
+| Weak-spot reward | Adds `0.10`/`0.20`/`0.30` beside the game's native precision components on confirmed weak spots, before outgoing pressure and material matchups. Native critical damage and build stats remain untouched. | Keep. Deliberate hit placement offsets some preset pressure without globally amplifying random criticals. |
 | Player and target guards | Material rules and outgoing scaling require a hero source. Incoming preset scaling instead requires the hero target and remains safe when the damage dealer is missing. | Keep the two paths explicit so environmental damage never needs a dealer dereference. |
 | Event-driven evaluation | Runs only when damage is being processed. It does not scan enemies. | Keep. This matches the lightweight mod goal. |
 | Cached metadata-first target classification | Caches target family classification by runtime object identity and target-term revision. Reachable surface type, NPC type, tags, and abstract types classify first; broad display-name terms fill in only when metadata does not identify a family. High-signal terms can refine only broad `Flesh` or `FleshUndead` metadata, not stronger metadata families. | Keep. This is the 0.9.0 atlas foundation. |
@@ -213,8 +220,11 @@ True vanilla immunities remain true vanilla immunities. Non-immune amplified res
 | `DamageNumberFontMode` | Follows the game's Accessibility font choice by default and can force the simple Sans, stylized Serif, or Unity IMGUI fallback font. | Keep in parity with Grail Floating Text's font support. |
 | `MeleeDamageNumberDurationMultiplier` | Multiplies the final duration of direct melee numbers after normal resistance, weakness, immunity, and critical timing is resolved. Defaults to `2`; projectiles, spells, and damage-over-time ticks are excluded. | Keep. Camera movement during weapon swings makes the ordinary timing easier to miss. |
 | `DamageNumberHorizontalDrift` and `DamageNumberVerticalDrift` | Independently scale each motion axis from `0` (off) through `1` (default) to `3` (exaggerated) while preserving the relative motion profiles for criticals, weaknesses, resistances, and immunities. | Keep. This supports stationary, straight-rise, wide-spray, and exaggerated feedback styles without separate animation modes. |
-| `DamageOverTimeNumberHeightMultiplier` | Multiplies the initial world-space height for Bleed, Poison, Burn, and Breath status-tick numbers. The `1.25` default starts them 25% higher than ordinary damage numbers. | Keep. Status ticks often report a lower target position than direct hits, so they need a separate baseline without changing their motion. |
-| `DamageNumberSizeContrast` and `DamageNumberColorContrast` | Independently scale weakness/resistance size and color differences from `0` (neutral) through `1` (default) to `3` (dramatic). Critical and weak-spot pop remain independent, and immunity styling is unchanged. | Keep. Players can emphasize color without oversized text, emphasize size without color dependence, or neutralize either channel. |
+| `DamageOverTimeNumberHeightMultiplier` | Multiplies the initial world-space height for Bleed, Poison, Burn, and Breath status-tick numbers from `0` to `6`. The `3` default starts them three times higher than ordinary damage numbers. | Keep. Status ticks often report a lower target position than direct hits, so they need a separate baseline without changing their motion. |
+| `DamageOverTimeNumberScale` | Multiplies the final text scale for Bleed, Poison, Burn, and Breath status-tick numbers from `0.5` to `2`. The `0.75` default keeps ticks subordinate to direct-hit numbers while retaining their normal effectiveness and precision sizing. | Keep. Height and text emphasis should remain independently tunable. |
+| `DamageNumberSizeContrast` and `DamageNumberColorContrast` | Independently scale weakness/resistance size and color differences from `0` (neutral) through `1` (default) to `3` (dramatic). Precision pop remains independent and immunity styling is unchanged. | Keep. Players can emphasize color without oversized text, emphasize size without color dependence, or neutralize either channel. |
+| `EffectivenessFeedbackSensitivity` | Expands or compresses effectiveness distance from neutral for damage-number color and optional hit-marker tiers only. Preset changes set the single value to `1.20` Tempered, `1.10` Hardened, or `1.00` Crucible; later customization persists until the preset changes again. | Keep. Lower presets retain more visual variety without changing combat damage, number size, or duration. |
+| Precision feedback | Reads native critical and weak-spot bonus components, adds the active Steel and Bone weak-spot bonus, and uses the combined value for number size and red tint up to `0.50` on unresisted hits. Material resistance scales down only that tint and size emphasis, while hit-marker frames and separate critical or weak-spot overlays retain their normal identities. | Keep. One channel communicates matchup and another communicates execution without falsely promoting resisted hits into weakness frames. |
 | Damage-number color scaling | The baseline number color is `#E3BD02`; stronger resistances shrink and desaturate toward grey, while stronger weaknesses grow and warm toward red-orange. | Tune after in-game visibility testing. |
 | Final-damage outcome hook | Patches the post-health-decrease event and reads the game's final damage amount and hit position for display. | Keep. This is more accurate than showing the pre-final `Damage.Amount`. |
 | Vanilla amplification config | `AmplifyVanillaMultipliers`, per-preset amplification values, and min/max clamps control how strongly vanilla-authored matchups are pushed. | Keep. This is central to the 0.9.0 atlas goal because it makes confirmed vanilla data matter more without duplicating it as custom rules. |
@@ -471,6 +481,8 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Same spirit enemy, plain physical vs Wyrdness | Plain physical is modestly poor and Wyrdness is the clear strong answer. |
 | Sea creature Cold/Electric/physical test | Cold resistance is respected, Electric weakness feels modest rather than mandatory, Slash/Pierce receive the living-flesh bonus, and Blunt stays neutral. |
 | Preset scaling pass | The same matchup appears on Tempered, Hardened, and Crucible, but grows stronger as the preset rises. |
+| Enemy awareness pass | Footstep range resolves to x1.10/x1.20/x1.30, while only Hardened and Crucible slow native combat-aggro decay; chase and forced-exit behavior remain native. |
+| Restorative consumable pass | Positive health, stamina, and mana deltas retain 100%/90%/80%, while non-restorative effects remain unchanged. |
 | Two-handed sword route | Can beat ordinary flesh but gets increasingly inefficient against bone, construct, spirit, and flora matchups as preset strength rises. |
 | Feedback spam | Floating numbers appear often enough to teach, not often enough to annoy. |
 | Diagnostics | Logs show target families, elite-class target flags, family evidence, damage tags, physical weapon hint, vanilla amplification, vanilla multiplier skip, elite clamp behavior, no-match reason, and applied rule. |
@@ -484,7 +496,7 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Should every family have both a physical and magical answer? | Yes for high-identity families where possible, but the answer should exist on every preset and scale by preset strength. |
 | Should ordinary humans get many rules? | No. Let vanilla handle most human combat unless armor, infection, or caster identity is obvious. |
 | Should bosses ignore weaknesses? | No. Clamp weaknesses instead of disabling them. |
-| Should Steel and Bone alter incoming player damage? | Yes, through the small 0%/5%/10% preset layer, independently toggleable and applied after vanilla routes the hit. |
+| Should Steel and Bone alter incoming player damage? | Yes, through the 5%/10%/15% preset layer, independently toggleable and applied after vanilla routes the hit. |
 
 ## Design Rule Of Thumb
 

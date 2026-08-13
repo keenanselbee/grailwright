@@ -1,4 +1,4 @@
-TargetVersion=3.2.1
-BaselineVersion=3.2.0
-
-Kept the configured player-arrow gravity multiplier consistent during local slow-time effects instead of over-correcting arrow drop.
+TargetVersion=3.4.4
+BaselineVersion=3.4.3
+Added preset-scaled hostile archer aim scatter: 0.75 meters on Tempered, 0.50 meters on Hardened, and 0.25 meters on Crucible, with a freely adjustable setting and 0 restoring native accuracy.
+Applied scatter through the game's native target-point inaccuracy before movement prediction and ballistic solving while preserving larger authored scatter, native gravity, arrow damage, and non-hostile projectiles.

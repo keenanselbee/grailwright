@@ -2,12 +2,13 @@
   "id": "SteelAndBone",
   "displayName": "Steel and Bone",
   "packageName": "SteelAndBone",
-  "version": "3.2.1",
+  "version": "3.4.4",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [
     "src/SteelAndBone.cs",
     "src/DifficultyOverhaul.cs",
+    "../../tools/shared/CorpseQualityBuckets.cs",
     "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
     "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],

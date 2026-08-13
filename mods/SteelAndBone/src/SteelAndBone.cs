@@ -10,6 +10,7 @@ using Awaken.TG.MVC;
 using Awaken.TG.MVC.Elements;
 using Awaken.TG.MVC.Events;
 using Awaken.TG.Main.Character;
+using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
@@ -29,21 +30,115 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.2.1.0")]
-[assembly: AssemblyFileVersion("3.2.1.0")]
-[assembly: AssemblyInformationalVersion("3.2.1")]
+[assembly: AssemblyVersion("3.4.4.0")]
+[assembly: AssemblyFileVersion("3.4.4.0")]
+[assembly: AssemblyInformationalVersion("3.4.4")]
 
 namespace SteelAndBone
 {
+    public static class SteelAndBoneHitFeedbackApi
+    {
+        public const int ApiVersion = 5;
+
+        public static event Action<float, float, bool, bool, bool, bool, string, float>
+            HitResolved;
+
+        public static event Action<int, float, float, bool, bool, bool, bool, string, float>
+            KillingBlowResolved;
+
+        internal static void Publish(
+            float effectivenessMultiplier,
+            float visualEffectivenessMultiplier,
+            bool immune,
+            bool critical,
+            bool weakSpot,
+            bool damageOverTime,
+            string color,
+            float durationSeconds)
+        {
+            Action<float, float, bool, bool, bool, bool, string, float> handlers =
+                HitResolved;
+            if (handlers == null)
+            {
+                return;
+            }
+
+            Delegate[] subscribers = handlers.GetInvocationList();
+            for (int i = 0; i < subscribers.Length; i++)
+            {
+                try
+                {
+                    ((Action<float, float, bool, bool, bool, bool, string, float>)subscribers[i])(
+                        effectivenessMultiplier,
+                        visualEffectivenessMultiplier,
+                        immune,
+                        critical,
+                        weakSpot,
+                        damageOverTime,
+                        color,
+                        durationSeconds);
+                }
+                catch
+                {
+                    // Optional presentation integrations must not affect combat.
+                }
+            }
+        }
+
+        internal static void PublishKillingBlow(
+            int qualityTier,
+            float quality01,
+            float visualEffectivenessMultiplier,
+            bool immune,
+            bool critical,
+            bool weakSpot,
+            bool damageOverTime,
+            string color,
+            float durationSeconds)
+        {
+            Action<int, float, float, bool, bool, bool, bool, string, float> handlers =
+                KillingBlowResolved;
+            if (handlers == null)
+            {
+                return;
+            }
+
+            Delegate[] subscribers = handlers.GetInvocationList();
+            for (int i = 0; i < subscribers.Length; i++)
+            {
+                try
+                {
+                    ((Action<int, float, float, bool, bool, bool, bool, string, float>)subscribers[i])(
+                        qualityTier,
+                        quality01,
+                        visualEffectivenessMultiplier,
+                        immune,
+                        critical,
+                        weakSpot,
+                        damageOverTime,
+                        color,
+                        durationSeconds);
+                }
+                catch
+                {
+                    // Optional presentation integrations must not affect combat.
+                }
+            }
+        }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed partial class SteelAndBonePlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.2.1";
+        public const string PluginVersion = "3.4.4";
 
-        private const int ConfigSchemaVersion = 15;
+        private const string VersatileWeaponsPluginGuid =
+            "ks.tgfoa.versatile-weapons";
+        private const int ConfigSchemaVersion = 18;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -53,7 +148,12 @@ namespace SteelAndBone
                         15,
                         "1. Core",
                         "Preset",
-                        "Preset now controls global difficulty systems in addition to material-rule intensity.")
+                        "Preset now controls global difficulty systems in addition to material-rule intensity."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        16,
+                        "1. Core",
+                        "Preset",
+                        "Preset now applies stronger incoming, outgoing, and experience pressure, including on Tempered.")
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
@@ -182,8 +282,10 @@ namespace SteelAndBone
         private ConfigEntry<float> _damageNumberHorizontalDrift;
         private ConfigEntry<float> _damageNumberVerticalDrift;
         private ConfigEntry<float> _damageOverTimeNumberHeightMultiplier;
+        private ConfigEntry<float> _damageOverTimeNumberScale;
         private ConfigEntry<float> _damageNumberSizeContrast;
         private ConfigEntry<float> _damageNumberColorContrast;
+        private ConfigEntry<float> _effectivenessFeedbackSensitivity;
         private ConfigEntry<float> _damageNumberMinimumAmount;
         private ConfigEntry<int> _damageNumberMaximumActive;
         private ConfigEntry<string> _boneUndeadTerms;
@@ -198,6 +300,7 @@ namespace SteelAndBone
         private ConfigEntry<string> _fleshTerms;
         private ConfigEntry<string> _armoredHumanoidTerms;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<bool> _logPatchWarnings;
 
         private readonly Dictionary<int, TargetClassification> _targetClassifications =
@@ -231,6 +334,8 @@ namespace SteelAndBone
         private string[] _cachedArmoredHumanoidTerms = new string[0];
         private int _targetTermsRevision = 1;
         private string _lastDamageNumberFontDiagnosticKey;
+        private string _lastGftDamageDiagnosticSignature;
+        private float _nextGftDamageDiagnosticTime;
         private FontAsset _imguiDefaultFontAsset;
         private Grailwright.Shared.ConfigRecoveryCustomizationProfile _pendingConfigRecoveryProfile;
 
@@ -288,11 +393,31 @@ namespace SteelAndBone
             Instance = null;
         }
 
+        private static ConfigDescription ConfigUi(
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order,
+            AcceptableValueBase acceptableValues = null)
+        {
+            return new ConfigDescription(
+                description,
+                acceptableValues,
+                new Grailwright.Shared.ConfigRecoveryUiMetadata
+                {
+                    DisplaySection = displaySection,
+                    DisplayName = displayName,
+                    SectionOrder = sectionOrder,
+                    Order = order
+                });
+        }
+
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
 
-            _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
+            _enabled = Config.Bind("1. Core", "Enabled", true, ConfigUi("Master switch.", "General", "Enabled", 0, 0));
             Config.Bind(
                 "1. Core",
                 "ConfigSchemaVersion",
@@ -301,94 +426,97 @@ namespace SteelAndBone
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, "Difficulty profile. Tempered keeps penalty and armor modifiers neutral while setting arrows and enemy sight to 1.10x, Hardened applies the default 5% pressure profile with 1.30x arrows and sight, and Crucible applies the 10% profile with 1.50x arrows and sight plus stronger material rules.");
-            _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, "Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.");
-            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, "Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.");
-            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, "Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.");
-            _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, "Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.");
-            _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, "Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets. 0.10 turns a 1.15 weakness into 1.05.");
-            _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, "Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets.");
+            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, ConfigUi("Difficulty profile. Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor-weight, recovery, poise, and enemy movement modifiers neutral. Hardened applies 10% damage and experience pressure plus the default 5% supporting profile. Crucible applies 15% damage and experience pressure plus the 10% supporting profile and stronger material rules.", "General", "Preset", 0, 10));
+            _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, ConfigUi("Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.", "Combat Rules", "Respect Native Multipliers", 10, 0));
+            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, ConfigUi("Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.", "Combat Rules", "Arrow Material Rules", 10, 10));
+            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, ConfigUi("Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.", "Combat Rules", "Armored Spell Weaknesses", 10, 20));
+            _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, ConfigUi("Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.", "Combat Rules", "Elite Rule Limits", 10, 30));
+            _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, ConfigUi("Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets when Elite Rule Limits is enabled. 0.10 turns a 1.15 weakness into 1.05.", "Advanced - Elite Rules", "Weakness Bonus Reduction", 20, 0, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, ConfigUi("Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets when Elite Rule Limits is enabled.", "Advanced - Elite Rules", "Minimum Resistance Multiplier", 20, 10, new AcceptableValueRange<float>(0.05f, 0.95f)));
 
-            _amplifyVanillaMultipliers = Config.Bind("2. Vanilla Multipliers", "AmplifyVanillaMultipliers", true, "Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.");
-            _temperedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered. 0 leaves vanilla unchanged.");
-            _hardenedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened.");
-            _crucibleVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, "Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible.");
-            _minimumAmplifiedVanillaResistance = Config.Bind("2. Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, "Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce.");
-            _maximumAmplifiedVanillaWeakness = Config.Bind("2. Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, "Highest vanilla weakness multiplier Steel and Bone amplification can produce.");
+            _amplifyVanillaMultipliers = Config.Bind("2. Vanilla Multipliers", "AmplifyVanillaMultipliers", true, ConfigUi("Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.", "Advanced - Vanilla Multipliers", "Amplify Native Multipliers", 30, 0));
+            _temperedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered when Amplify Native Multipliers is enabled. 0 leaves vanilla unchanged.", "Advanced - Vanilla Multipliers", "Tempered Amplification", 30, 10, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _hardenedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Hardened Amplification", 30, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _crucibleVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Crucible Amplification", 30, 30, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _minimumAmplifiedVanillaResistance = Config.Bind("2. Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Minimum Amplified Resistance", 30, 40, new AcceptableValueRange<float>(0.01f, 0.95f)));
+            _maximumAmplifiedVanillaWeakness = Config.Bind("2. Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50, new AcceptableValueRange<float>(1.05f, 3.0f)));
 
-            _damageNumbersEnabled = Config.Bind("3. Feedback", "DamageNumbersEnabled", true, "Show Steel and Bone floating damage numbers for outgoing player hits.");
-            _damageNumberBaseColor = Config.Bind("3. Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, "Neutral outgoing damage-number color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.");
-            _damageNumberFontSize = Config.Bind("3. Feedback", "DamageNumberFontSize", 34, "Base floating damage-number font size.");
-            _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, "Font used by Steel and Bone damage numbers. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
-            _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, "Seconds a normal Steel and Bone damage number remains visible.");
-            _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, "Seconds a critical Steel and Bone damage number remains visible.");
-            _meleeDamageNumberDurationMultiplier = Config.Bind("3. Feedback", "MeleeDamageNumberDurationMultiplier", 2.0f, new ConfigDescription("Multiplier applied to the final duration of direct melee damage numbers so they remain readable while the camera follows a swing. 1 uses the same duration as other damage numbers.", new AcceptableValueRange<float>(1.0f, 3.0f)));
-            _damageNumberHorizontalDrift = Config.Bind("3. Feedback", "DamageNumberHorizontalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberVerticalDrift = Config.Bind("3. Feedback", "DamageNumberVerticalDrift", 1.0f, new ConfigDescription("Multiplier for floating damage-number upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageOverTimeNumberHeightMultiplier = Config.Bind("3. Feedback", "DamageOverTimeNumberHeightMultiplier", 1.25f, new ConfigDescription("Multiplier for the initial world-space height of Bleed, Poison, Burn, and Breath status-tick damage numbers. 1 uses the ordinary damage-number height, while 1.25 starts damage-over-time numbers 25% higher.", new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberSizeContrast = Config.Bind("3. Feedback", "DamageNumberSizeContrast", 1.0f, new ConfigDescription("Strength of the size difference between resisted, neutral, and weakness damage numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberColorContrast = Config.Bind("3. Feedback", "DamageNumberColorContrast", 1.0f, new ConfigDescription("Strength of resistance grey and weakness red-orange tinting away from the neutral damage-number color. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, "Suppress non-immune damage numbers below this final damage amount.");
-            _damageNumberMaximumActive = Config.Bind("3. Feedback", "DamageNumberMaximumActive", 36, "Maximum Steel and Bone floating damage numbers kept on screen at once.");
+            _damageNumbersEnabled = Config.Bind("3. Feedback", "DamageNumbersEnabled", true, ConfigUi("Show Steel and Bone floating damage numbers for outgoing player hits.", "Damage Numbers", "Enabled", 40, 0));
+            _damageNumberBaseColor = Config.Bind("3. Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, ConfigUi("When Damage Numbers is enabled, sets the neutral outgoing color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.", "Damage Numbers", "Base Color", 40, 10));
+            _damageNumberFontSize = Config.Bind("3. Feedback", "DamageNumberFontSize", 34, ConfigUi("When Damage Numbers is enabled, sets the base floating damage-number font size.", "Damage Numbers", "Font Size", 40, 20, new AcceptableValueRange<int>(12, 80)));
+            _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, ConfigUi("Font used when Damage Numbers is enabled. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.", "Damage Numbers", "Font", 40, 30));
+            _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a normal number remains visible.", "Damage Numbers", "Normal Duration (Seconds)", 40, 40, new AcceptableValueRange<float>(0.35f, 2.50f)));
+            _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a critical number remains visible.", "Damage Numbers", "Critical Duration (Seconds)", 40, 50, new AcceptableValueRange<float>(0.45f, 3.00f)));
+            _meleeDamageNumberDurationMultiplier = Config.Bind("3. Feedback", "MeleeDamageNumberDurationMultiplier", 2.0f, ConfigUi("When Damage Numbers is enabled, multiplies the final duration of direct melee numbers so they remain readable while the camera follows a swing. 1 uses the same duration as other damage numbers.", "Damage Numbers", "Melee Duration Multiplier", 40, 60, new AcceptableValueRange<float>(1.0f, 3.0f)));
+            _damageNumberHorizontalDrift = Config.Bind("3. Feedback", "DamageNumberHorizontalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Horizontal Drift", 40, 70, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberVerticalDrift = Config.Bind("3. Feedback", "DamageNumberVerticalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Vertical Drift", 40, 80, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageOverTimeNumberHeightMultiplier = Config.Bind("3. Feedback", "DamageOverTimeNumberHeightMultiplier", 3.0f, ConfigUi("When Damage Numbers is enabled, multiplies the initial world-space height of Bleed, Poison, Burn, and Breath status-tick numbers. 1 uses the ordinary height, while 3 starts them three times higher.", "Damage Numbers", "Damage-Over-Time Height Multiplier", 40, 90, new AcceptableValueRange<float>(0.0f, 6.0f)));
+            _damageOverTimeNumberScale = Config.Bind("3. Feedback", "DamageOverTimeNumberScale", 0.75f, ConfigUi("When Damage Numbers is enabled, scales the text size of Bleed, Poison, Burn, and Breath status-tick numbers after normal resistance, weakness, weak-spot, and critical sizing. 1 uses the ordinary size, while 0.75 makes status ticks 25% smaller.", "Damage Numbers", "Damage-Over-Time Text Scale", 40, 100, new AcceptableValueRange<float>(0.5f, 2.0f)));
+            _damageNumberSizeContrast = Config.Bind("3. Feedback", "DamageNumberSizeContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls the size difference between resisted, neutral, and weakness numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", "Damage Numbers", "Size Contrast", 40, 110, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _effectivenessFeedbackSensitivity = Config.Bind("3. Feedback", "EffectivenessFeedbackSensitivity", GetPresetEffectivenessFeedbackSensitivity(_preset.Value), ConfigUi("Scales resistance and weakness distance from neutral for hit-marker tier selection and damage-number color only. Changing Preset sets this to 1.20 for Tempered, 1.10 for Hardened, or 1.00 for Crucible; customize it afterward without changing combat damage, number size, or duration.", "Damage Numbers", "Effectiveness Feedback Sensitivity", 40, 120, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberColorContrast = Config.Bind("3. Feedback", "DamageNumberColorContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls resistance grey and weakness red-orange tinting after effectiveness sensitivity is applied. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", "Damage Numbers", "Color Contrast", 40, 130, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, ConfigUi("When Damage Numbers is enabled, suppresses non-immune numbers below this final damage amount.", "Damage Numbers", "Minimum Amount", 40, 140, new AcceptableValueRange<float>(0.0f, 1000.0f)));
+            _damageNumberMaximumActive = Config.Bind("3. Feedback", "DamageNumberMaximumActive", 36, ConfigUi("When Damage Numbers is enabled, limits how many Steel and Bone floating numbers remain on screen at once.", "Damage Numbers", "Maximum Active", 40, 150, new AcceptableValueRange<int>(1, 128)));
 
             _boneUndeadTerms = Config.Bind(
                 "4. Target Families",
                 "BoneUndeadTerms",
                 "Skeleton;Skull;Bone;Animated Armor;JollySkeleton;Keeper Of The Barrow;KeeperOfTheBarrow",
-                "Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.", "Advanced - Target Families", "Bone Undead Terms", 50, 0));
             _constructTerms = Config.Bind(
                 "4. Target Families",
                 "ConstructTerms",
                 "Stone;Golem;Construct;Automaton;Statue;Crystal;Lost Knight;LostKnight;Forgeborn;ForgeBorn;Cairnguard;Tibby;Sentinel;Barnaclator",
-                "Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.", "Advanced - Target Families", "Construct Terms", 50, 10));
             _wyrdTerms = Config.Bind(
                 "4. Target Families",
                 "WyrdTerms",
                 "Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness",
-                "Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.", "Advanced - Target Families", "Wyrd Terms", 50, 20));
             _drownedZombieTerms = Config.Bind(
                 "4. Target Families",
                 "DrownedZombieTerms",
                 "Drowner;Drowned;Drowned Knight;Ghost Crew;Scourge",
-                "Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.", "Advanced - Target Families", "Drowned Zombie Terms", 50, 30));
             _infectedFleshTerms = Config.Bind(
                 "4. Target Families",
                 "InfectedFleshTerms",
                 "Red Death;RedDeath;Infected",
-                "Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.", "Advanced - Target Families", "Infected Flesh Terms", 50, 40));
             _seaFleshTerms = Config.Bind(
                 "4. Target Families",
                 "SeaFleshTerms",
                 "Sarras;Finbled;Tadpole;Tidewraith;Scion;Archivist;Floatling;Reefback;Wailcap;Grindylow;Croakmaw",
-                "Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.", "Advanced - Target Families", "Sea Flesh Terms", 50, 50));
             _spiritTerms = Config.Bind(
                 "4. Target Families",
                 "SpiritTerms",
                 "Ghost;Spirit;Wraith;Banshee;Melancholy;Mistling;Mistbearer;Strawchild;Strawfather",
-                "Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.", "Advanced - Target Families", "Spirit Terms", 50, 60));
             _floraTerms = Config.Bind(
                 "4. Target Families",
                 "FloraTerms",
                 "Dryad;Gloomfrond;Fleshtree;Wailcap;Viridian",
-                "Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.", "Advanced - Target Families", "Flora Terms", 50, 70));
             _fleshUndeadTerms = Config.Bind(
                 "4. Target Families",
                 "FleshUndeadTerms",
                 "Zombie;Undead;Wight;Bloody;Frostbitten Warrior;Plaguewraith",
-                "Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.", "Advanced - Target Families", "Flesh Undead Terms", 50, 80));
             _fleshTerms = Config.Bind(
                 "4. Target Families",
                 "FleshTerms",
                 "Bandit;Outlaw;Human;Humanoid;Remor;Redcap;Corpse Eater;Wolf;Bear",
-                "Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.", "Advanced - Target Families", "Flesh Terms", 50, 90));
             _armoredHumanoidTerms = Config.Bind(
                 "4. Target Families",
                 "ArmoredHumanoidTerms",
                 "Knight;Guard;Squire;Warrior;Deserter;Kamelot;Soldier;Armor;Armored",
-                "Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.");
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.", "Advanced - Target Families", "Armored Humanoid Terms", 50, 100));
 
-            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, "Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.");
-            _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, "Log warnings when required game methods cannot be patched.");
+            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, ConfigUi("Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.", "Diagnostics", "Diagnostics", 90, 0));
+            _showGrailFloatingTextDiagnostics = Config.Bind("5. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, ConfigUi("When Diagnostics is enabled and Grail Floating Text is installed, show concise damage-decision summaries. Detailed BepInEx logging remains active when this is disabled.", "Diagnostics", "Show Grail Floating Text Diagnostics", 90, 5));
+            _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, ConfigUi("Log warnings when required game methods cannot be patched.", "Diagnostics", "Patch Failure Warnings", 90, 10));
 
             BindDifficultyConfig();
             RestorePreservedConfigSettings();
@@ -533,7 +661,9 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _damageNumberHorizontalDrift, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberVerticalDrift, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageOverTimeNumberHeightMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageOverTimeNumberScale, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberSizeContrast, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _effectivenessFeedbackSensitivity, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberColorContrast, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberMinimumAmount, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberMaximumActive, ref restoredCount, ref clampedCount);
@@ -549,10 +679,11 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _fleshTerms, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _armoredHumanoidTerms, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _diagnostics, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _showGrailFloatingTextDiagnostics, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _logPatchWarnings, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _difficultyModifiersEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerDamageDealt, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _playerDamageDealtMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _weakSpotDamageBonus, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerDamageTaken, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyStaminaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
@@ -563,12 +694,16 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyArmorWeightPenalties, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyConsumableRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyMovementSpeed, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyHostileArrowVelocity, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _hostileArcherAimScatter, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemySightRange, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemyHearingRange, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyEnemyAggroPersistence, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyKillExperience, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyQuestExperience, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyProficiencyExperience, ref restoredCount, ref clampedCount);
@@ -677,9 +812,19 @@ namespace SteelAndBone
             return true;
         }
 
-        internal void ApplyDamageRuleModifier(object healthElement, object damage, ref float damageModifier)
+        internal void ApplyDamageRuleModifier(
+            object healthElement,
+            object damage,
+            DamageModifiersInfo modifiersInfo,
+            ref float damageModifier)
         {
             if (_enabled == null || !_enabled.Value || healthElement == null || damage == null)
+            {
+                return;
+            }
+
+            Damage typedDamage = damage as Damage;
+            if (typedDamage != null && typedDamage.Type == DamageType.Interact)
             {
                 return;
             }
@@ -706,6 +851,7 @@ namespace SteelAndBone
                 return;
             }
 
+            ApplyWeakSpotDamageBonus(modifiersInfo, ref damageModifier);
             ApplyOutgoingHealthDamageModifier(ref damageModifier);
 
             TargetClassification targetClass = GetTargetClassification(target, healthElement);
@@ -776,6 +922,19 @@ namespace SteelAndBone
             if (!matchedRule && !appliedVanillaAmplification)
             {
                 LogNoRuleDiagnostic(target ?? healthElement, targetClass, damageClass, skippedForVanilla, skippedForEliteClamp);
+                if (skippedForVanilla || skippedForEliteClamp)
+                {
+                    string outcome = skippedForVanilla
+                        ? "vanilla response preserved"
+                        : "elite clamp kept the result neutral";
+                    ShowDamageDecisionDiagnostic(
+                        "skip|" + DescribeTargetFamilies(targetClass) + "|" + DescribeDamageTags(damageClass) + "|" + outcome,
+                        DescribeTargetFamilies(targetClass)
+                            + " + "
+                            + DescribeDamageTags(damageClass)
+                            + " -> "
+                            + outcome);
+                }
                 RememberDamageFeedback(damage, 1.0f, "Neutral", "Neutral");
                 return;
             }
@@ -788,6 +947,15 @@ namespace SteelAndBone
                     vanillaAmplification.AmplifiedMultiplier,
                     "Vanilla",
                     vanillaAmplification.SubtypeName);
+                ShowDamageDecisionDiagnostic(
+                    "vanilla|"
+                        + vanillaAmplification.SubtypeName
+                        + "|"
+                        + vanillaAmplification.AmplifiedMultiplier.ToString("0.###", CultureInfo.InvariantCulture),
+                    "Vanilla "
+                        + vanillaAmplification.SubtypeName
+                        + " -> x"
+                        + vanillaAmplification.AmplifiedMultiplier.ToString("0.###", CultureInfo.InvariantCulture));
                 return;
             }
 
@@ -806,6 +974,21 @@ namespace SteelAndBone
             }
 
             RememberDamageFeedback(damage, feedbackMultiplier, match.TargetLabel, match.DamageLabel);
+            ShowDamageDecisionDiagnostic(
+                "rule|"
+                    + match.TargetLabel
+                    + "|"
+                    + match.DamageLabel
+                    + "|"
+                    + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + "|"
+                    + match.WasEliteClamped,
+                match.TargetLabel
+                    + " + "
+                    + match.DamageLabel
+                    + " -> x"
+                    + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + (match.WasEliteClamped ? " (elite-clamped)" : ""));
             if (DiagnosticsEnabled())
             {
                 LogDiagnostic(
@@ -1845,6 +2028,34 @@ namespace SteelAndBone
             }
         }
 
+        private static float GetPresetEffectivenessFeedbackSensitivity(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    return 1.20f;
+                case Preset.Crucible:
+                    return 1.00f;
+                case Preset.Hardened:
+                default:
+                    return 1.10f;
+            }
+        }
+
+        private void ApplyPresetEffectivenessFeedbackSensitivity()
+        {
+            if (_effectivenessFeedbackSensitivity == null || _preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetEffectivenessFeedbackSensitivity(_preset.Value);
+            if (Math.Abs(_effectivenessFeedbackSensitivity.Value - presetValue) > 0.0001f)
+            {
+                _effectivenessFeedbackSensitivity.Value = presetValue;
+            }
+        }
+
         private bool HasMeaningfulEffect(float multiplier)
         {
             return GetRuleImpact(multiplier) > 0.001f;
@@ -2307,11 +2518,31 @@ namespace SteelAndBone
 
         private bool IsDamageOverTime(object damage)
         {
+            Damage typedDamage = damage as Damage;
+            if (typedDamage != null)
+            {
+                return typedDamage.IsDamageOverTime;
+            }
+
             object statusDamageType = GetOptionalPropertyValue(damage, "StatusDamageType");
             return ValueNameContains(statusDamageType, "Bleed")
                 || ValueNameContains(statusDamageType, "Poison")
                 || ValueNameContains(statusDamageType, "Burn")
                 || ValueNameContains(statusDamageType, "Breath");
+        }
+
+        private bool IsOneDamageDirectAttack(object damage)
+        {
+            Damage typedDamage = damage as Damage;
+            if (typedDamage == null
+                || typedDamage.IsDamageOverTime
+                || typedDamage.Amount != 1.0f)
+            {
+                return false;
+            }
+
+            return typedDamage.Type == DamageType.PhysicalHitSource
+                || typedDamage.Type == DamageType.MagicalHitSource;
         }
 
         private bool IsMeleeDamage(object damage)
@@ -2993,7 +3224,7 @@ namespace SteelAndBone
 
         private void RememberDamageFeedback(object damage, float multiplier, string targetLabel, string damageLabel)
         {
-            if (_damageNumbersEnabled == null || !_damageNumbersEnabled.Value || damage == null)
+            if (_enabled == null || !_enabled.Value || damage == null)
             {
                 return;
             }
@@ -3017,7 +3248,7 @@ namespace SteelAndBone
 
         internal void HandleDamageOutcome(object healthElement, object damageOutcome)
         {
-            if (damageOutcome == null || !DamageNumbersActive())
+            if (damageOutcome == null || _enabled == null || !_enabled.Value)
             {
                 return;
             }
@@ -3042,11 +3273,6 @@ namespace SteelAndBone
             }
 
             bool immune = finalAmount <= 0.0001f;
-            if (!immune && finalAmount <= GetDamageNumberMinimumAmount())
-            {
-                return;
-            }
-
             Vector3 position;
             if (!TryGetVector3MemberValue(damageOutcome, "Position", out position)
                 && !TryGetVector3MemberValue(damage, "Position", out position))
@@ -3057,20 +3283,116 @@ namespace SteelAndBone
             object modifiersInfo = GetOptionalMemberValue(damageOutcome, "DamageModifiersInfo");
             bool critical = IsTrueMember(damage, "Critical")
                 || IsTrueMember(damage, "IsCritical")
-                || IsTrueMember(modifiersInfo, "AnyCritical");
+                || IsTrueMember(modifiersInfo, "IsCritical");
             bool weakSpot = IsTrueMember(damage, "WeakSpotHit")
                 || IsTrueMember(damage, "IsWeakSpot")
                 || IsTrueMember(modifiersInfo, "IsWeakSpot");
 
+            float criticalBonus = critical ? 0.50f : 0.0f;
+            float resolvedCriticalBonus;
+            if (critical
+                && TryGetFloatMemberValue(modifiersInfo, "CriticalMultiplier", out resolvedCriticalBonus))
+            {
+                criticalBonus = Mathf.Max(0.0f, resolvedCriticalBonus);
+            }
+
+            float nativeWeakSpotBonus = 0.0f;
+            float resolvedWeakSpotBonus;
+            if (weakSpot
+                && TryGetFloatMemberValue(modifiersInfo, "WeakSpotMultiplier", out resolvedWeakSpotBonus))
+            {
+                nativeWeakSpotBonus = Mathf.Max(0.0f, resolvedWeakSpotBonus);
+            }
+
+            float steelAndBoneWeakSpotBonus = weakSpot
+                ? GetActiveWeakSpotDamageBonus()
+                : 0.0f;
+            float precisionBonus = criticalBonus
+                + nativeWeakSpotBonus
+                + steelAndBoneWeakSpotBonus;
+
+            bool damageOverTime = IsDamageOverTime(damage);
+            bool oneDamageDirectAttack = finalAmount == 1.0f
+                && IsOneDamageDirectAttack(damage);
+            bool hitMarkerImmune = immune || oneDamageDirectAttack;
+            float effectivenessMultiplier = feedback == null ? 1.0f : feedback.Multiplier;
+            float visualEffectivenessMultiplier = ApplyEffectivenessFeedbackSensitivity(effectivenessMultiplier);
             DamageNumberVisual visual = BuildDamageNumberVisual(
                 finalAmount,
                 feedback,
+                visualEffectivenessMultiplier,
                 critical,
                 weakSpot,
+                precisionBonus,
                 immune,
-                IsDamageOverTime(damage),
+                damageOverTime,
                 feedback == null ? IsMeleeDamage(damage) : feedback.IsMelee);
-            _damageNumberRenderer.ShowDamageNumber(position, visual);
+            if (oneDamageDirectAttack)
+            {
+                visual.Text = "RESISTED";
+            }
+            SteelAndBoneHitFeedbackApi.Publish(
+                effectivenessMultiplier,
+                visualEffectivenessMultiplier,
+                hitMarkerImmune,
+                critical,
+                weakSpot,
+                damageOverTime,
+                "#" + ColorUtility.ToHtmlStringRGBA(visual.Color),
+                visual.DurationSeconds);
+
+            object resolvedTarget = ResolveDamageTargetOwner(healthElement, damage);
+            object remainingHealth = GetOptionalPropertyValue(healthElement, "Health");
+            if (finalAmount > 0.0001f
+                && remainingHealth != null
+                && ReadStatValue(remainingHealth) <= 0.0001f
+                && resolvedTarget is NpcElement)
+            {
+                NpcElement defeatedNpc = (NpcElement)resolvedTarget;
+                float killXp = TryReadKillXp(defeatedNpc);
+                float maxHealth = TryReadMaxHealth(defeatedNpc);
+                int nativeTier;
+                bool hasNativeTier = TryReadNativeTier(defeatedNpc, out nativeTier);
+                bool hasQualityEvidence;
+                float quality01 = Grailwright.Shared.CorpseQualityBuckets.CalculateIntrinsicQuality01(
+                    hasNativeTier ? nativeTier : -1,
+                    killXp,
+                    Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceKillXp,
+                    maxHealth,
+                    Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceMaxHealth,
+                    out hasQualityEvidence,
+                    out _);
+                quality01 = Grailwright.Shared.CorpseQualityBuckets.ApplyThreatClassAdjustment(
+                    quality01,
+                    ResolveCorpseQualityThreatClass(defeatedNpc));
+                quality01 = ApplyCorpseQualityLevelAdjustment(
+                    quality01,
+                    defeatedNpc,
+                    out _);
+                Grailwright.Shared.CorpseQualityTier qualityTier =
+                    Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                        quality01,
+                        hasQualityEvidence);
+                if (qualityTier != Grailwright.Shared.CorpseQualityTier.None)
+                {
+                    SteelAndBoneHitFeedbackApi.PublishKillingBlow(
+                        (int)qualityTier,
+                        quality01,
+                        visualEffectivenessMultiplier,
+                        hitMarkerImmune,
+                        critical,
+                        weakSpot,
+                        damageOverTime,
+                        "#" + ColorUtility.ToHtmlStringRGBA(visual.Color),
+                        visual.DurationSeconds);
+                }
+            }
+
+            if (DamageNumbersActive()
+                && (immune || finalAmount > GetDamageNumberMinimumAmount()))
+            {
+                _damageNumberRenderer.ShowDamageNumber(position, visual);
+            }
         }
 
         private bool DamageNumbersActive()
@@ -3098,6 +3420,190 @@ namespace SteelAndBone
 
             object target = ResolveDamageTargetOwner(healthElement, damage);
             return target == null || !IsSameModelOrOwner(target, hero);
+        }
+
+        private float TryReadKillXp(object target)
+        {
+            if (target == null)
+            {
+                return 0.0f;
+            }
+
+            object template = GetOptionalPropertyValue(target, "Template");
+            float value = TryReadKillXpDirect(template);
+            return value > 0.0f ? value : TryReadKillXpDirect(target);
+        }
+
+        private bool TryReadNativeTier(NpcElement npc, out int nativeTier)
+        {
+            nativeTier = -1;
+            if (npc == null || npc.Template == null || npc.Template.Tags == null)
+            {
+                return false;
+            }
+
+            foreach (string tag in npc.Template.Tags)
+            {
+                for (int tier = 0; tier <= 7; tier++)
+                {
+                    if (string.Equals(tag, "Tier:" + tier, StringComparison.Ordinal))
+                    {
+                        nativeTier = tier;
+                        return true;
+                    }
+                }
+            }
+
+            nativeTier = -1;
+            return false;
+        }
+
+        private float ApplyCorpseQualityLevelAdjustment(
+            float intrinsicQuality01,
+            NpcElement npc,
+            out bool adjusted)
+        {
+            adjusted = false;
+            Hero hero = Hero.Current;
+            if (npc == null || npc.Template == null || hero == null)
+            {
+                return intrinsicQuality01;
+            }
+
+            return Grailwright.Shared.CorpseQualityBuckets.ApplyBoundedRelativeLevelAdjustment(
+                intrinsicQuality01,
+                npc.Template.ExpLevel,
+                (float)hero.Level,
+                Grailwright.Shared.CorpseQualityBuckets.DefaultLevelQualityPerLevel,
+                Grailwright.Shared.CorpseQualityBuckets.DefaultMaximumLevelQualityAdjustment,
+                out adjusted);
+        }
+
+        private Grailwright.Shared.CorpseQualityThreatClass ResolveCorpseQualityThreatClass(
+            NpcElement npc)
+        {
+            if (npc == null || npc.Template == null)
+            {
+                return Grailwright.Shared.CorpseQualityThreatClass.Normal;
+            }
+
+            switch (npc.Template.NpcType)
+            {
+                case NpcType.Elite:
+                    return Grailwright.Shared.CorpseQualityThreatClass.Elite;
+                case NpcType.MiniBoss:
+                    return Grailwright.Shared.CorpseQualityThreatClass.MiniBoss;
+                case NpcType.Boss:
+                    return Grailwright.Shared.CorpseQualityThreatClass.Boss;
+                default:
+                    return Grailwright.Shared.CorpseQualityThreatClass.Normal;
+            }
+        }
+
+        private float TryReadKillXpDirect(object target)
+        {
+            if (target == null)
+            {
+                return 0.0f;
+            }
+
+            string[] propertyNames =
+            {
+                "ExpReward",
+                "XPReward",
+                "XpReward",
+                "ExperienceReward"
+            };
+            for (int i = 0; i < propertyNames.Length; i++)
+            {
+                float value;
+                if (TryGetFloatMemberValue(target, propertyNames[i], out value)
+                    && value > 0.0f)
+                {
+                    return value;
+                }
+            }
+
+            MethodInfo method = AccessTools.Method(target.GetType(), "GetExpReward", new Type[0]);
+            if (method == null)
+            {
+                return 0.0f;
+            }
+
+            try
+            {
+                return ConvertNumericValue(method.Invoke(target, null), 0.0f);
+            }
+            catch
+            {
+                return 0.0f;
+            }
+        }
+
+        private float TryReadMaxHealth(object target)
+        {
+            if (target == null)
+            {
+                return 0.0f;
+            }
+
+            float value = ReadStatValue(GetOptionalPropertyValue(target, "MaxHealth"));
+            if (value > 0.0f)
+            {
+                return value;
+            }
+
+            object healthElement = GetOptionalPropertyValue(target, "HealthElement");
+            return ReadStatValue(GetOptionalPropertyValue(healthElement, "MaxHealth"));
+        }
+
+        private float ReadStatValue(object stat)
+        {
+            float direct = ConvertNumericValue(stat, -1.0f);
+            if (direct >= 0.0f)
+            {
+                return direct;
+            }
+
+            string[] propertyNames =
+            {
+                "ModifiedValue",
+                "BaseValue",
+                "ValueForSave",
+                "PredictedValue",
+                "Value",
+                "CurrentValue"
+            };
+            for (int i = 0; i < propertyNames.Length; i++)
+            {
+                float value;
+                if (TryGetFloatMemberValue(stat, propertyNames[i], out value)
+                    && value >= 0.0f)
+                {
+                    return value;
+                }
+            }
+
+            return 0.0f;
+        }
+
+        private float ConvertNumericValue(object value, float fallback)
+        {
+            if (value == null)
+            {
+                return fallback;
+            }
+
+            try
+            {
+                return value is IConvertible
+                    ? Convert.ToSingle(value, CultureInfo.InvariantCulture)
+                    : fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
         }
 
         private bool TryConsumeDamageFeedback(object damage, out PendingDamageFeedback feedback)
@@ -3185,8 +3691,10 @@ namespace SteelAndBone
         private DamageNumberVisual BuildDamageNumberVisual(
             float finalAmount,
             PendingDamageFeedback feedback,
+            float visualEffectivenessMultiplier,
             bool critical,
             bool weakSpot,
+            float precisionBonus,
             bool immune,
             bool damageOverTime,
             bool meleeDamage)
@@ -3194,6 +3702,12 @@ namespace SteelAndBone
             float multiplier = feedback == null ? 1.0f : feedback.Multiplier;
             float resistance = multiplier < 0.999f ? Mathf.Clamp01((1.0f - multiplier) / 0.95f) : 0.0f;
             float weakness = multiplier > 1.001f ? Mathf.Clamp01(multiplier - 1.0f) : 0.0f;
+            float visualResistance = visualEffectivenessMultiplier < 0.999f
+                ? Mathf.Clamp01((1.0f - visualEffectivenessMultiplier) / 0.95f)
+                : 0.0f;
+            float visualWeakness = visualEffectivenessMultiplier > 1.001f
+                ? Mathf.Clamp01(visualEffectivenessMultiplier - 1.0f)
+                : 0.0f;
             float sizeContrast = GetDamageNumberSizeContrast();
             float colorContrast = GetDamageNumberColorContrast();
 
@@ -3208,8 +3722,11 @@ namespace SteelAndBone
 
             if (resistance > 0.0f)
             {
-                float tone = Mathf.Clamp01(0.18f + (resistance * 0.82f));
-                color = Color.Lerp(baseColor, ResistedDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                if (visualResistance > 0.0f)
+                {
+                    float tone = Mathf.Clamp01(0.18f + (visualResistance * 0.82f));
+                    color = Color.Lerp(baseColor, ResistedDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                }
                 float resistedScale = Mathf.Lerp(0.96f, 0.68f, resistance);
                 scale = 1.0f + ((resistedScale - 1.0f) * sizeContrast);
                 duration = Mathf.Lerp(duration, 0.60f, resistance);
@@ -3220,8 +3737,11 @@ namespace SteelAndBone
             }
             else if (weakness > 0.0f)
             {
-                float tone = Mathf.Clamp01(0.30f + (weakness * 0.70f));
-                color = Color.Lerp(baseColor, WeaknessDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                if (visualWeakness > 0.0f)
+                {
+                    float tone = Mathf.Clamp01(0.30f + (visualWeakness * 0.70f));
+                    color = Color.Lerp(baseColor, WeaknessDamageNumberColor, Mathf.Clamp01(tone * colorContrast));
+                }
                 float weaknessScale = Mathf.Lerp(1.12f, 1.46f, weakness);
                 scale = 1.0f + ((weaknessScale - 1.0f) * sizeContrast);
                 duration = Mathf.Max(duration, Mathf.Lerp(duration, 1.05f, weakness));
@@ -3242,9 +3762,18 @@ namespace SteelAndBone
                 gravity = UnityEngine.Random.Range(18.0f, 30.0f);
             }
 
+            float precisionVisualScale = 1.0f - resistance;
+            float precisionVisualBonus = immune
+                ? 0.0f
+                : Mathf.Clamp(precisionBonus, 0.0f, 0.50f) * precisionVisualScale;
+            if (precisionVisualBonus > 0.0f)
+            {
+                color = Color.Lerp(color, Color.red, precisionVisualBonus);
+                scale *= 1.0f + precisionVisualBonus;
+            }
+
             if (critical)
             {
-                scale *= 1.25f;
                 duration = Mathf.Max(duration, GetDamageNumberCriticalDurationSeconds());
                 fadeStart = Mathf.Max(fadeStart, 0.64f);
                 horizontalDistance *= 0.58f;
@@ -3254,7 +3783,6 @@ namespace SteelAndBone
 
             if (weakSpot)
             {
-                scale += 0.08f;
                 verticalRise += 8.0f;
             }
 
@@ -3263,14 +3791,19 @@ namespace SteelAndBone
                 duration *= GetMeleeDamageNumberDurationMultiplier();
             }
 
+            if (damageOverTime)
+            {
+                scale *= GetDamageOverTimeNumberScale();
+            }
+
             return new DamageNumberVisual
             {
                 Text = immune ? "IMMUNE" : FormatDamageAmount(finalAmount),
                 Color = color,
                 OutlineColor = DamageNumberOutlineColor,
                 FontSize = GetDamageNumberFontSize(),
-                StartScale = Mathf.Clamp(scale * (critical ? 1.18f : 1.05f), 0.55f, 1.95f),
-                EndScale = Mathf.Clamp(scale, 0.55f, 1.80f),
+                StartScale = Mathf.Clamp(scale * (critical ? 1.18f : 1.05f), 0.55f, 2.45f),
+                EndScale = Mathf.Clamp(scale, 0.55f, 2.20f),
                 DurationSeconds = duration,
                 FadeStart = Mathf.Clamp(fadeStart, 0.20f, 0.90f),
                 Direction = UnityEngine.Random.value < 0.5f ? -1.0f : 1.0f,
@@ -3452,8 +3985,14 @@ namespace SteelAndBone
 
         private float GetDamageOverTimeNumberHeightMultiplier()
         {
-            float value = _damageOverTimeNumberHeightMultiplier == null ? 1.25f : _damageOverTimeNumberHeightMultiplier.Value;
-            return Clamp(value, 0.0f, 3.0f);
+            float value = _damageOverTimeNumberHeightMultiplier == null ? 3.0f : _damageOverTimeNumberHeightMultiplier.Value;
+            return Clamp(value, 0.0f, 6.0f);
+        }
+
+        private float GetDamageOverTimeNumberScale()
+        {
+            float value = _damageOverTimeNumberScale == null ? 0.75f : _damageOverTimeNumberScale.Value;
+            return Clamp(value, 0.5f, 2.0f);
         }
 
         private float GetDamageNumberSizeContrast()
@@ -3466,6 +4005,19 @@ namespace SteelAndBone
         {
             float value = _damageNumberColorContrast == null ? 1.0f : _damageNumberColorContrast.Value;
             return Clamp(value, 0.0f, 3.0f);
+        }
+
+        private float ApplyEffectivenessFeedbackSensitivity(float effectivenessMultiplier)
+        {
+            if (float.IsNaN(effectivenessMultiplier) || float.IsInfinity(effectivenessMultiplier))
+            {
+                return 1.0f;
+            }
+
+            float sensitivity = _effectivenessFeedbackSensitivity == null
+                ? GetPresetEffectivenessFeedbackSensitivity(_preset == null ? Preset.Hardened : _preset.Value)
+                : Clamp(_effectivenessFeedbackSensitivity.Value, 0.0f, 3.0f);
+            return Clamp(1.0f + ((effectivenessMultiplier - 1.0f) * sensitivity), 0.0f, 3.0f);
         }
 
         private float GetDamageNumberMinimumAmount()
@@ -3821,6 +4373,39 @@ namespace SteelAndBone
             {
                 Log.LogInfo(message);
             }
+        }
+
+        private void ShowDamageDecisionDiagnostic(
+            string signature,
+            string decision)
+        {
+            if (!DiagnosticsEnabled()
+                || _showGrailFloatingTextDiagnostics == null
+                || !_showGrailFloatingTextDiagnostics.Value
+                || string.IsNullOrWhiteSpace(signature)
+                || string.IsNullOrWhiteSpace(decision)
+                || string.Equals(
+                    signature,
+                    _lastGftDamageDiagnosticSignature,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _nextGftDamageDiagnosticTime)
+            {
+                return;
+            }
+
+            _lastGftDamageDiagnosticSignature = signature;
+            _nextGftDamageDiagnosticTime = now + 2.0f;
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowDiagnosticNotification(
+                    PluginGuid,
+                    "steel-and-bone-damage-decision",
+                    "S&B: " + decision,
+                    "steel-and-bone-diagnostics");
         }
 
         private bool DiagnosticsEnabled()
@@ -4521,12 +5106,20 @@ namespace SteelAndBone
 
         private static class ApplyDamageModifiersPatch
         {
-            public static void Postfix(object __instance, object damage, ref float dmgModifier)
+            public static void Postfix(
+                object __instance,
+                object damage,
+                DamageModifiersInfo __result,
+                ref float dmgModifier)
             {
                 SteelAndBonePlugin plugin = Instance;
                 if (plugin != null)
                 {
-                    plugin.ApplyDamageRuleModifier(__instance, damage, ref dmgModifier);
+                    plugin.ApplyDamageRuleModifier(
+                        __instance,
+                        damage,
+                        __result,
+                        ref dmgModifier);
                 }
             }
         }
@@ -4736,6 +5329,22 @@ namespace SteelAndBone
                     + " -> "
                     + damageModifier.ToString("0.###", CultureInfo.InvariantCulture)
                     + ".");
+                ShowDamageDecisionDiagnostic(
+                    "weighted|"
+                        + feedbackTargetLabel
+                        + "|"
+                        + feedbackDamageLabel
+                        + "|"
+                        + weightedAdjustment.ToString("0.###", CultureInfo.InvariantCulture),
+                    (string.IsNullOrEmpty(feedbackTargetLabel)
+                            ? "Mixed"
+                            : feedbackTargetLabel)
+                        + " + "
+                        + (string.IsNullOrEmpty(feedbackDamageLabel)
+                            ? "mixed damage"
+                            : feedbackDamageLabel)
+                        + " -> x"
+                        + weightedAdjustment.ToString("0.###", CultureInfo.InvariantCulture));
             }
 
             return true;

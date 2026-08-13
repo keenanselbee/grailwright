@@ -12,6 +12,7 @@ $readmePath = Join-Path $modRoot "README.txt"
 $nexusFullPath = Join-Path $modRoot "nexus-full-desc.txt"
 $nexusShortPath = Join-Path $modRoot "nexus-short-desc.txt"
 $nexusFilePath = Join-Path $modRoot "nexus-file-desc.txt"
+$qualityBucketsPath = Join-Path (Split-Path -Parent (Split-Path -Parent $modRoot)) "tools\shared\CorpseQualityBuckets.cs"
 
 function Assert-Contract {
     param(
@@ -31,20 +32,118 @@ $readme = Get-Content -LiteralPath $readmePath -Raw
 $nexusFull = Get-Content -LiteralPath $nexusFullPath -Raw
 $nexusShort = (Get-Content -LiteralPath $nexusShortPath -Raw).Trim()
 $nexusFile = (Get-Content -LiteralPath $nexusFilePath -Raw).Trim()
+$qualityBuckets = Get-Content -LiteralPath $qualityBucketsPath -Raw
 
-Assert-Contract ($manifest.version -eq "3.2.1") "mod.json is not version 3.2.1."
+Assert-Contract ($manifest.version -eq "3.4.4") "mod.json is not version 3.4.4."
 Assert-Contract ($manifest.sourceFiles -contains "src/DifficultyOverhaul.cs") "DifficultyOverhaul.cs is missing from sourceFiles."
-Assert-Contract ($mainSource.Contains('PluginVersion = "3.2.1"')) "PluginVersion is not 3.2.1."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.2.1.0")]')) "AssemblyFileVersion is not 3.2.1.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.2.1")]')) "AssemblyInformationalVersion is not 3.2.1."
-Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 15')) "Config schema is not 15."
+Assert-Contract ($manifest.sourceFiles -contains "../../tools/shared/CorpseQualityBuckets.cs") "The shared corpse-quality bucket helper is missing from sourceFiles."
+Assert-Contract ($mainSource.Contains('PluginVersion = "3.4.4"')) "PluginVersion is not 3.4.4."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.4.4.0")]')) "AssemblyVersion is not 3.4.4.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.4.4.0")]')) "AssemblyFileVersion is not 3.4.4.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.4.4")]')) "AssemblyInformationalVersion is not 3.4.4."
+Assert-Contract ($mainSource.Contains('IsTrueMember(modifiersInfo, "IsCritical")')) "Hit feedback does not use the specific critical modifier."
+Assert-Contract (-not $mainSource.Contains('IsTrueMember(modifiersInfo, "AnyCritical")')) "Hit feedback still treats weak spots, sneak attacks, or backstabs as true critical hits."
+Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 18')) "Config schema is not 18."
+Assert-Contract ($mainSource.Contains('typedDamage.Type == DamageType.Interact')) "Non-combat interaction damage is not excluded from Steel and Bone modifiers."
+Assert-Contract ($mainSource.IndexOf('typedDamage.Type == DamageType.Interact', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('ApplyOutgoingHealthDamageModifier(ref damageModifier);', [StringComparison]::Ordinal)) "Interaction damage is not excluded before outgoing player-damage pressure."
 Assert-Contract ($mainSource.Contains('ConfigRecoveryBaselineSchema = 14')) "Recovery baseline moved from 14."
+Assert-Contract ($mainSource.Contains('"DamageOverTimeNumberHeightMultiplier", 3.0f,')) "Damage-over-time number height does not default to 3.0x."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(0.0f, 6.0f)')) "Damage-over-time number height maximum is not 6.0x."
+Assert-Contract ($mainSource.Contains('_damageOverTimeNumberHeightMultiplier == null ? 3.0f')) "Damage-over-time number height fallback is not 3.0x."
+Assert-Contract ($mainSource.Contains('return Clamp(value, 0.0f, 6.0f);')) "Damage-over-time number height runtime maximum is not 6.0x."
+Assert-Contract ($mainSource.Contains('"DamageOverTimeNumberScale", 0.75f,')) "Damage-over-time number text scale does not default to 0.75x."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(0.5f, 2.0f)')) "Damage-over-time number text-scale range is missing."
+Assert-Contract ($mainSource.Contains('scale *= GetDamageOverTimeNumberScale();')) "Damage-over-time number text scale is not applied to final visual sizing."
+Assert-Contract ($mainSource.Contains('RestorePreservedSetting(profile, _damageOverTimeNumberScale')) "Damage-over-time number text scale is not recoverable."
 Assert-Contract ($mainSource.Contains('new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(')) "Preset safety rule is missing."
 Assert-Contract ($mainSource.Contains('"Preset"')) "Preset safety rule does not target Preset."
 Assert-Contract ($mainSource.Contains('ReadCustomizationProfile(')) "Automatic config preservation does not use the shared customization profile."
 Assert-Contract ($mainSource.Contains('profile.TryGetCustomizedValue(')) "Automatic config preservation does not use shared typed customization detection."
 Assert-Contract ($mainSource.Contains('ConfigPreviousSettingsRecovery.TryRestore(')) "Automatic config preservation does not use shared current-range clamping."
 Assert-Contract ($mainSource.IndexOf('RestorePreservedConfigSettings();', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('ConfigPreviousSettingsRecovery.Bind(', [StringComparison]::Ordinal)) "Automatic preservation does not run before the manual recovery tab is bound."
+Assert-Contract ($mainSource.Contains('private static ConfigDescription ConfigUi(')) "Config UI metadata helper is missing."
+Assert-Contract ($mainSource.Contains('new Grailwright.Shared.ConfigRecoveryUiMetadata')) "Config UI metadata helper does not use the shared FoA Mod Manager-compatible tag."
+Assert-Contract ($mainSource.Contains('ConfigUi("Master switch.", "General", "Enabled", 0, 0)')) "General Enabled UI metadata is missing."
+Assert-Contract ($mainSource.Contains('"Combat Rules", "Respect Native Multipliers", 10, 0')) "Combat Rules UI metadata is missing."
+Assert-Contract ($mainSource.Contains('"Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50')) "Advanced vanilla UI metadata is missing."
+Assert-Contract ($mainSource.Contains('"Damage Numbers", "Effectiveness Feedback Sensitivity", 40, 120')) "Effectiveness feedback sensitivity UI metadata is missing."
+Assert-Contract ($mainSource.Contains('"Damage Numbers", "Maximum Active", 40, 150')) "Damage Numbers UI ordering is missing."
+Assert-Contract ($mainSource.Contains('GetPresetEffectivenessFeedbackSensitivity(_preset.Value)')) "Effectiveness feedback sensitivity does not use the selected preset as its initial default."
+Assert-Contract ($mainSource.Contains('case Preset.Tempered:') -and $mainSource.Contains('return 1.20f;')) "Tempered feedback sensitivity is not 1.20."
+Assert-Contract ($mainSource.Contains('case Preset.Crucible:') -and $mainSource.Contains('return 1.00f;')) "Crucible feedback sensitivity is not 1.00."
+Assert-Contract ($mainSource.Contains('return 1.10f;')) "Hardened feedback sensitivity is not 1.10."
+Assert-Contract ($difficultySource.Contains('ReferenceEquals(args.ChangedSetting, _preset)')) "Preset changes do not reset the single feedback sensitivity setting."
+Assert-Contract ($mainSource.Contains('ApplyEffectivenessFeedbackSensitivity(effectivenessMultiplier)')) "Presentation effectiveness does not apply feedback sensitivity."
+Assert-Contract ($mainSource.Contains('public const int ApiVersion = 5;')) "Hit-feedback API is not v5."
+Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<float, float, bool, bool, bool, bool, string, float>\s+HitResolved;')) "Hit-feedback API v5 hit signature is incorrect."
+Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<int, float, float, bool, bool, bool, bool, string, float>\s+KillingBlowResolved;')) "Killing-blow feedback event signature is incorrect."
+Assert-Contract ($mainSource.Contains('object remainingHealth = GetOptionalPropertyValue(healthElement, "Health");')) "Killing-blow detection does not read resolved remaining health."
+Assert-Contract ($mainSource.Contains('ReadStatValue(remainingHealth) <= 0.0001f')) "Killing-blow detection does not recognize the pre-death zero-health state."
+Assert-Contract ($mainSource.Contains('resolvedTarget is NpcElement')) "Killing-blow feedback is not limited to defeated NPCs."
+Assert-Contract ($mainSource.Contains('CorpseQualityBuckets.CalculateIntrinsicQuality01(')) "Killing-blow quality does not use the shared native-tier calculation."
+Assert-Contract ($mainSource.Contains('CorpseQualityBuckets.ApplyThreatClassAdjustment(')) "Killing-blow quality does not apply the shared threat-class adjustment."
+Assert-Contract ($mainSource.Contains('CorpseQualityBuckets.ApplyBoundedRelativeLevelAdjustment(')) "Killing-blow quality does not apply the shared bounded relative-level adjustment."
+Assert-Contract ($mainSource.Contains('string.Equals(tag, "Tier:" + tier, StringComparison.Ordinal)')) "Killing-blow quality does not require an exact native Tier tag."
+Assert-Contract ($mainSource.Contains('SteelAndBoneHitFeedbackApi.PublishKillingBlow(')) "Resolved killing blows are not published."
+Assert-Contract ($qualityBuckets.Contains('DefaultReferenceKillXp = 700.0f')) "The shared untagged XP reference is not 700."
+Assert-Contract ($qualityBuckets.Contains('DefaultReferenceMaxHealth = 3400.0f')) "The shared untagged health reference is not 3400."
+Assert-Contract ($qualityBuckets.Contains('DefaultLevelQualityPerLevel = 0.025f')) "The shared quality adjustment is not 2.5% per level."
+Assert-Contract ($qualityBuckets.Contains('DefaultMaximumLevelQualityAdjustment = 0.075f')) "The shared level adjustment cap is not 7.5%."
+Assert-Contract ($qualityBuckets.Contains('EliteQualityBonus = 0.10f')) "The Elite quality bonus is not 10%."
+Assert-Contract ($qualityBuckets.Contains('MiniBossQualityBonus = 0.175f')) "The MiniBoss quality bonus is not 17.5%."
+Assert-Contract ($qualityBuckets.Contains('BossMinimumQuality = 0.875f')) "The Boss quality floor is not Prime."
+Assert-Contract ($qualityBuckets.Contains('quality01 <= MeagerMaximumQuality')) "Meager bucket boundary is not inclusive."
+Assert-Contract ($qualityBuckets.Contains('quality01 <= WorthyMaximumQuality')) "Worthy bucket boundary is not inclusive."
+Assert-Contract ($qualityBuckets.Contains('quality01 <= PotentMaximumQuality')) "Potent bucket boundary is not inclusive."
+Assert-Contract ($mainSource.Contains('return typedDamage.IsDamageOverTime;')) "Damage-over-time classification does not use the native Damage.IsDamageOverTime flag."
+Assert-Contract ([regex]::IsMatch($mainSource, 'private bool IsOneDamageDirectAttack\(object damage\)[\s\S]*?typedDamage\.IsDamageOverTime[\s\S]*?typedDamage\.Amount != 1\.0f[\s\S]*?return typedDamage\.Type == DamageType\.PhysicalHitSource\s*\|\| typedDamage\.Type == DamageType\.MagicalHitSource;')) "One-damage frame-0 classification is not limited to direct non-DoT physical or magical hits at exactly Damage.Amount 1."
+Assert-Contract ([regex]::IsMatch($mainSource, 'bool oneDamageDirectAttack = finalAmount == 1\.0f\s*&& IsOneDamageDirectAttack\(damage\);\s*bool hitMarkerImmune = immune \|\| oneDamageDirectAttack;')) "One-damage direct weapon and spell hits do not select hit-marker frame 0."
+Assert-Contract ([regex]::IsMatch($mainSource, 'BuildDamageNumberVisual\([\s\S]*?immune,[\s\S]*?damageOverTime,')) "One-damage frame-0 classification must not change floating damage-number immunity styling."
+Assert-Contract ([regex]::IsMatch($mainSource, 'if \(oneDamageDirectAttack\)\s*\{\s*visual\.Text = "RESISTED";')) "One-damage direct weapon and spell hits do not replace the numeric damage text with RESISTED."
+Assert-Contract ([regex]::IsMatch($mainSource, 'SteelAndBoneHitFeedbackApi\.Publish\([\s\S]*?hitMarkerImmune,')) "Hit-marker frame-0 classification is not published without an API change."
+Assert-Contract ($difficultySource.Contains('"WeakSpotDamageBonus"')) "Weak Spot Damage Bonus is not configurable."
+Assert-Contract ($difficultySource.Contains('GetPresetWeakSpotDamageBonus(_preset.Value)')) "Weak Spot Damage Bonus does not use the selected preset as its initial default."
+Assert-Contract ($difficultySource.Contains('return 0.10f;') -and $difficultySource.Contains('return 0.20f;') -and $difficultySource.Contains('return 0.30f;')) "Weak Spot Damage Bonus preset values are incomplete."
+Assert-Contract ($difficultySource.Contains('ApplyPresetWeakSpotDamageBonus();')) "Preset changes do not reset Weak Spot Damage Bonus."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'damageModifier\s*\+=\s*bonus;')) "Weak Spot Damage Bonus is not added beside native precision bonuses."
+Assert-Contract ($mainSource.IndexOf('ApplyWeakSpotDamageBonus(modifiersInfo, ref damageModifier);', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('ApplyOutgoingHealthDamageModifier(ref damageModifier);', [StringComparison]::Ordinal)) "Weak Spot Damage Bonus is not applied before outgoing damage pressure."
+Assert-Contract ($mainSource.Contains('DamageModifiersInfo __result')) "The damage patch does not receive native precision results."
+Assert-Contract ($mainSource.Contains('"CriticalMultiplier"') -and $mainSource.Contains('"WeakSpotMultiplier"')) "Precision feedback does not read the native critical and weak-spot bonuses."
+Assert-Contract ($mainSource.Contains('Mathf.Clamp(precisionBonus, 0.0f, 0.50f)')) "Precision feedback is not capped at 50%."
+Assert-Contract ($mainSource.Contains('float precisionVisualScale = 1.0f - resistance;')) "Precision feedback does not scale down with normalized resistance."
+Assert-Contract ($mainSource.Contains(': Mathf.Clamp(precisionBonus, 0.0f, 0.50f) * precisionVisualScale;')) "Precision color and size do not share the resistance-scaled precision bonus."
+Assert-Contract ($mainSource.Contains('Color.Lerp(color, Color.red, precisionVisualBonus)')) "Precision feedback color does not blend toward pure red."
+Assert-Contract ($mainSource.Contains('scale *= 1.0f + precisionVisualBonus;')) "Damage-number precision scaling does not follow the resolved bonus."
+Assert-Contract ($mainSource.Contains('Critical = critical')) "Resistance scaling must not suppress the critical number pop."
+Assert-Contract ([regex]::IsMatch($mainSource, 'SteelAndBoneHitFeedbackApi\.Publish\(\s*effectivenessMultiplier,\s*visualEffectivenessMultiplier,\s*hitMarkerImmune,\s*critical,\s*weakSpot,')) "Resistance scaling must retain critical and weak-spot hit-marker identities."
+
+$weakSpotCases = @(
+    @{ Preset = "Tempered"; Bonus = 0.10; Outgoing = 0.95; Expected = 1.045 },
+    @{ Preset = "Hardened"; Bonus = 0.20; Outgoing = 0.90; Expected = 1.080 },
+    @{ Preset = "Crucible"; Bonus = 0.30; Outgoing = 0.85; Expected = 1.105 }
+)
+foreach ($case in $weakSpotCases) {
+    $resolved = (1.0 + $case.Bonus) * $case.Outgoing
+    Assert-Contract ([Math]::Abs($resolved - $case.Expected) -lt 0.000001) ("Weak-spot arithmetic drifted for " + $case.Preset + ".")
+}
+
+$defaultCriticalPrecision = [Math]::Min(0.50, 0.50)
+Assert-Contract ([Math]::Abs((1.0 + $defaultCriticalPrecision) - 1.50) -lt 0.000001) "Default critical feedback does not resolve to x1.50 size."
+$extremeResistance = 1.0
+$extremeResistancePrecision = $defaultCriticalPrecision * (1.0 - $extremeResistance)
+Assert-Contract ([Math]::Abs($extremeResistancePrecision) -lt 0.000001) "Maximum resistance does not suppress precision color and size emphasis."
+Assert-Contract ($mainSource.Contains('"Advanced - Target Families", "Armored Humanoid Terms", 50, 100')) "Target family UI ordering is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, '"Difficulty - Player",\s*"Player Arrow Gravity Multiplier",\s*60,\s*80')) "Player difficulty UI metadata is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, '"Difficulty - Enemies",\s*"Maximum Enemy Attack Slots",\s*70,\s*10')) "Enemy difficulty UI metadata is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, '"Difficulty - Enemies",\s*"Hostile Archer Aim Scatter \(Meters\)",\s*70,\s*45')) "Hostile archer aim-scatter UI metadata is missing."
+Assert-Contract ($difficultySource.Contains('"Difficulty - Progression", "Quest and Objective XP", 80, 10')) "Progression UI metadata is missing."
+Assert-Contract ($mainSource.Contains('"Diagnostics", "Diagnostics", 90, 0')) "Diagnostics display metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(0.0f, 0.50f)')) "Elite weakness range metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(0.05f, 0.95f)')) "Elite resistance range metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(1.05f, 3.0f)')) "Vanilla weakness range metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<int>(12, 80)')) "Damage-number font range metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<float>(0.35f, 2.50f)')) "Damage-number duration range metadata is missing."
+Assert-Contract ($mainSource.Contains('new AcceptableValueRange<int>(1, 128)')) "Damage-number maximum-active range metadata is missing."
 Assert-Contract ($mainSource.Contains('class EnemyArmorProfile : Element<NpcElement>')) "NPC armor profiles are not cached on the target."
 Assert-Contract ($mainSource.Contains('ICharacterInventory.Events.AfterEquipmentChanged')) "NPC armor profiles do not refresh after equipment changes."
 Assert-Contract ($mainSource.Contains('item.Template.IsLightArmor')) "Light armor does not use native item-template evidence."
@@ -124,7 +223,7 @@ Assert-Contract ($missingAutomaticRecovery.Count -eq 0) ("Automatic config prese
 $requiredSettings = @(
     "DifficultyModifiersEnabled",
     "ModifyPlayerDamageDealt",
-    "PlayerDamageDealtMultiplier",
+    "WeakSpotDamageBonus",
     "ModifyPlayerDamageTaken",
     "PassiveShieldProtectionEnabled",
     "ModifyStaminaUsage",
@@ -136,12 +235,16 @@ $requiredSettings = @(
     "ModifyArmorWeightPenalties",
     "ModifyLightArmorMobility",
     "ModifyArmorPhysicalProtection",
+    "ModifyConsumableRecovery",
     "ModifyEnemyAttackSlots",
     "EnemyAttackSlotCap",
     "ModifyEnemyAttackRecovery",
     "ModifyEnemyMovementSpeed",
     "ModifyHostileArrowVelocity",
+    "HostileArcherAimScatter",
     "ModifyEnemySightRange",
+    "ModifyEnemyHearingRange",
+    "ModifyEnemyAggroPersistence",
     "ModifyKillExperience",
     "ModifyQuestExperience",
     "ModifyProficiencyExperience"
@@ -155,9 +258,21 @@ Assert-Contract ($difficultySource.Contains('return 0.05f;')) "Hardened 5 percen
 Assert-Contract ($difficultySource.Contains('return 0.10f;')) "Crucible 10 percent preset value is missing."
 Assert-Contract ($difficultySource.Contains('return 1.0f - PresetPenaltyAmount();')) "Preset reduction math is missing."
 Assert-Contract ($difficultySource.Contains('return 1.0f + PresetPenaltyAmount();')) "Preset cost math is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'private float PresetPlayerPressureAmount\(\)[\s\S]*?case Preset\.Hardened:\s*return 0\.10f;[\s\S]*?case Preset\.Crucible:\s*return 0\.15f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 0\.05f;')) "Player pressure is not 5/10/15 percent for Tempered/Hardened/Crucible."
+Assert-Contract (-not $difficultySource.Contains('_playerDamageDealtMultiplier')) "Removed PlayerDamageDealtMultiplier field or runtime reference remains."
+Assert-Contract (-not [regex]::IsMatch($difficultySource, 'Config\.Bind\(\s*"6\. Difficulty - Player",\s*"PlayerDamageDealtMultiplier"')) "Removed PlayerDamageDealtMultiplier config binding remains."
+Assert-Contract (-not $mainSource.Contains('RestorePreservedSetting(profile, _playerDamageDealtMultiplier')) "Removed PlayerDamageDealtMultiplier preservation reference remains."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyOutgoingHealthDamageModifier[\s\S]*?float multiplier = PresetPlayerPressureReductionMultiplier\(\);')) "Outgoing player damage does not use the preset reduction directly."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'private bool OutgoingDamageModifierIsEffective\(\)[\s\S]*?float multiplier = PresetPlayerPressureReductionMultiplier\(\);')) "Outgoing overlap effectiveness does not depend only on the toggle/master state and preset pressure."
+Assert-Contract ($difficultySource.Contains('float multiplier = PresetPlayerPressureCostMultiplier();')) "Incoming player damage does not use the 5/10/15 pressure mapping."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyKillExperience[\s\S]*?PresetPlayerPressureReductionMultiplier\(\)[\s\S]*?ApplyQuestExperience[\s\S]*?PresetPlayerPressureReductionMultiplier\(\)[\s\S]*?ApplyProficiencyExperience[\s\S]*?PresetPlayerPressureReductionMultiplier\(\)')) "Kill, quest, and proficiency experience do not all use the 5/10/15 pressure mapping."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyEnemyAttackRecovery[\s\S]*?float multiplier = PresetReductionMultiplier\(\);')) "Enemy recovery no longer uses the existing 0/5/10 supporting profile."
 Assert-Contract ($difficultySource.Contains('return 1.10f;')) "Tempered arrow velocity is not x1.10."
 Assert-Contract ($difficultySource.Contains('return 1.30f;')) "Hardened arrow velocity is not x1.30."
 Assert-Contract ($difficultySource.Contains('return 1.50f;')) "Crucible arrow velocity is not x1.50."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'GetPresetHostileArcherAimScatter[\s\S]*?case Preset\.Tempered:\s*return 0\.75f;[\s\S]*?case Preset\.Crucible:\s*return 0\.25f;[\s\S]*?case Preset\.Hardened:[\s\S]*?return 0\.50f;')) "Hostile archer aim scatter is not 0.75/0.50/0.25 meters by preset."
+Assert-Contract ($difficultySource.Contains('ApplyPresetHostileArcherAimScatter();')) "Preset changes do not reset hostile archer aim scatter."
+Assert-Contract ($difficultySource.Contains('new AcceptableValueRange<float>(0.0f, 2.0f)')) "Hostile archer aim-scatter range is not 0.00 to 2.00 meters."
 Assert-Contract ($difficultySource.Contains('PresetEnemySightRangeMultiplier')) "Enemy sight-range preset mapping is missing."
 Assert-Contract ($difficultySource.Contains('return heavy ? 1.10f : 1.05f;')) "Hardened physical armor values are missing."
 Assert-Contract ($difficultySource.Contains('return heavy ? 1.20f : 1.10f;')) "Crucible physical armor values are missing."
@@ -167,6 +282,9 @@ Assert-Contract ($difficultySource.Contains('case Preset.Crucible:') -and $diffi
 
 $requiredHooks = @(
     "CharacterStats.CharacterStatsWrapper",
+    "AINoises.MakeHeroFootstepNoise",
+    "NpcAIDistancesUtils.CombatAggroDecreaseModifierByDistanceToLastIdlePoint",
+    "ItemSkillsInvoker.PerformImmediate",
     "MaxEnemiesAttacking",
     "AttackActionUnBookProlong",
     "GetExpReward",
@@ -195,6 +313,9 @@ Assert-Contract ($difficultySource.Contains("stats.MovementSpeedMultiplier")) "L
 Assert-Contract ($difficultySource.Contains("IsPhysicalDamageSubtype")) "Physical-only armor filtering is missing."
 Assert-Contract ($difficultySource.Contains("EquipmentSlotType.Quiver")) "Hostile projectile filtering is not limited to arrows."
 Assert-Contract ($difficultySource.Contains("IsHostileTo(Hero.Current)")) "Hostile arrow ownership filtering is missing."
+Assert-Contract ($difficultySource.Contains('shootParams.shooter is NpcElement')) "Hostile archer tuning is not limited to NPC shooters."
+Assert-Contract ($difficultySource.Contains('ref CombatBehaviourUtils.FireProjectileParams fireParams')) "Hostile archer tuning does not modify the native fire parameters by reference."
+Assert-Contract ($difficultySource.Contains('fireParams.inaccuracy = Mathf.Max(before, scatter);')) "Hostile archer tuning does not preserve larger authored inaccuracy."
 Assert-Contract ($difficultySource.Contains("Mathf.Clamp") -and $difficultySource.Contains("ScaleBallisticVelocity")) "Hostile velocity is not scaled at the ballistic clamp."
 Assert-Contract ($difficultySource.Contains("World.All<NpcElement>()")) "Loaded-NPC sight-range reconciliation is missing."
 Assert-Contract ($difficultySource.Contains("NpcStats.SightLengthMultiplier")) "Native NPC sight-distance stat is not used."
@@ -204,13 +325,30 @@ Assert-Contract ($difficultySource.Contains("npc.IsAlive") -and $difficultySourc
 Assert-Contract ($difficultySource.Contains("npc.NpcAI.Working")) "Enemy sight eligibility lacks active-AI filtering."
 Assert-Contract ($difficultySource.Contains("WithFactionUtils.IsHostileToHero(npc)")) "Enemy sight eligibility lacks hostility filtering."
 Assert-Contract ($difficultySource.Contains("RemoveAllEnemySightRangeTweaks")) "Enemy sight-range shutdown cleanup is missing."
+Assert-Contract ($difficultySource.Contains('private float PresetEnemyHearingRangeMultiplier()')) "Enemy hearing-range preset mapping is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyHearingRangeMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.20f;[\s\S]*?case Preset\.Crucible:\s*return 1\.30f;')) "Enemy hearing range is not x1.10/x1.20/x1.30 by preset."
+Assert-Contract ($difficultySource.Contains('typeof(AINoises)') -and $difficultySource.Contains('"MakeHeroFootstepNoise"')) "Enemy hearing does not patch the native hero-footstep noise route."
+Assert-Contract ($difficultySource.Contains('noiseRange *= multiplier;')) "Enemy hearing does not preserve native noise strength while scaling range."
+Assert-Contract ($difficultySource.Contains('private float PresetEnemyAggroPersistenceMultiplier()')) "Enemy aggro-persistence preset mapping is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyAggroPersistenceMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.10f;[\s\S]*?case Preset\.Crucible:\s*return 1\.20f;')) "Enemy aggro persistence is not x1.00/x1.10/x1.20 by preset."
+Assert-Contract ($difficultySource.Contains('aggroDecreaseModifier /= multiplier;')) "Enemy aggro persistence does not scale native aggro decay."
+Assert-Contract (-not [regex]::IsMatch($difficultySource, 'AccessTools\.Method\([^\)]*"ShouldForceEnd(?:Combat|Alert)"')) "Enemy aggro persistence patches a forced combat or alert exit route."
+Assert-Contract ($difficultySource.Contains('private float PresetConsumableRecoveryMultiplier()')) "Restorative-consumable preset mapping is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetConsumableRecoveryMultiplier[\s\S]*?case Preset\.Hardened:\s*return 0\.90f;[\s\S]*?case Preset\.Crucible:\s*return 0\.80f;')) "Consumable recovery is not x1.00/x0.90/x0.80 by preset."
+Assert-Contract ($difficultySource.Contains('ConsumableModifiesHealth') -and $difficultySource.Contains('ConsumableModifiesMana') -and $difficultySource.Contains('ConsumableStamina')) "Consumable recovery does not use all native restorative markers."
+Assert-Contract ($difficultySource.Contains('ConsumableRecoveryPatchState __state')) "Consumable recovery is not transactional per invocation."
+Assert-Contract ($difficultySource.Contains('stat.SetTo(adjusted, false, null);')) "Consumable recovery correction can be misread as a second damage or resource-spend event."
 Assert-Contract ($difficultySource.Contains("CustomDifficultyPluginGuid")) "Custom Difficulty overlap detection is missing."
+Assert-Contract ($difficultySource.Contains("HarderLifePluginGuid")) "HarderLife overlap detection is missing."
 Assert-Contract ($difficultySource.Contains("TaintedCombatPluginGuid")) "Tainted Combat overlap detection is missing."
 Assert-Contract ($difficultySource.Contains("TaintedInstinctsPluginGuid")) "Tainted Instincts overlap detection is missing."
 Assert-Contract ($difficultySource.Contains("FlatArrowsPluginGuid")) "Flat Arrows overlap detection is missing."
 Assert-Contract ($difficultySource.Contains('ReadExternalBool(plugin, "AMOD", "EnableArrowModifications", true)')) "Flat Arrows overlap detection does not honor its arrow-modification switch."
 Assert-Contract ($difficultySource.Contains('ReportCompatibilityOverlap("Flat Arrows", conflicts)')) "Flat Arrows conflicts are not reported through the shared silent-overlap policy."
 Assert-Contract ($difficultySource.Contains('ReportCompatibilityOverlap("Tainted Instincts", conflicts)')) "Tainted Instincts conflicts are not reported through the shared silent-overlap policy."
+Assert-Contract ($difficultySource.Contains('ReportCompatibilityOverlap("HarderLife", conflicts)')) "HarderLife conflicts are not reported through the shared silent-overlap policy."
+Assert-Contract ($difficultySource.Contains('"HearingRangeMultiplier"') -and $difficultySource.Contains('"AggroPersistenceMultiplier"')) "HarderLife enemy-awareness overlap detection is incomplete."
+Assert-Contract ($difficultySource.Contains('"PotionEffectivenessMultiplier"') -and $difficultySource.Contains('"ConsumableEffectivenessMultiplier"')) "HarderLife consumable overlap detection is incomplete."
 Assert-Contract ($difficultySource.Contains("conflicts.Count == 0")) "Silent no-overlap behavior is missing."
 Assert-Contract ($difficultySource.Contains('bool momentumOverlap = momentum')) "Tainted Combat custom momentum detection is missing."
 Assert-Contract ($difficultySource.Contains('staminaOverlap = momentumOverlap')) "Tainted Combat momentum does not report stamina overlap."
@@ -261,7 +399,7 @@ Assert-Contract ($nexusFull.Contains("Passive shield protection") -and $nexusFul
 Assert-Contract ($nexusFull.Contains("| Blunt            | x1.00   | x1.00 | x1.08  | x1.15 |")) "Nexus description does not show neutral Blunt damage against exposed humanoid flesh."
 Assert-Contract ($nexusFull.Contains("Combat Philosophy")) "Nexus description lacks the combat-philosophy section."
 Assert-Contract ($nexusFull.Contains("Arrows pierce exposed flesh. Magic overwhelms plate armor. Armor turns aside arrows.")) "Nexus description does not explain the three-way counter cycle."
-Assert-Contract ($nexusFull.Contains("27633-1786004558-146176661.png")) "Nexus description lacks the combat-philosophy image."
+Assert-Contract ($nexusFull.Contains("27633-1786131422-324075370.png")) "Nexus description lacks the combat-philosophy image."
 Assert-Contract ($nexusFull.Contains("mods/60888")) "Nexus description does not link Requiem's current Special Edition page."
 Assert-Contract ($nexusFull.Contains("not an attempt to reproduce the scope of a total conversion")) "Nexus description does not bound the Requiem comparison."
 Assert-Contract ($nexusFull.Contains("Custom Difficulty[/url] is incompatible")) "Custom Difficulty is not described as incompatible on Nexus."
@@ -271,9 +409,11 @@ Assert-Contract ($nexusFull.Contains("conditionally compatible")) "Tainted Comba
 Assert-Contract ($nexusFull.Contains("Better Movement")) "Better Movement compatibility note is missing."
 Assert-Contract ($nexusFull.Contains("mods/105]Flat Arrows[/url] is conditionally compatible")) "Flat Arrows conditional compatibility note is missing."
 Assert-Contract ($nexusFull.Contains("PlayerArrowGravityMultiplier") -and $nexusFull.Contains("x0.75 gravity")) "Nexus description lacks the preset-independent player-arrow gravity control."
+Assert-Contract ($nexusFull.Contains("HostileArcherAimScatter") -and $nexusFull.Contains("0.75 m") -and $nexusFull.Contains("0.25 m")) "Nexus description lacks hostile archer aim-scatter tuning."
 Assert-Contract ($nexusFull.Contains("Tainted Instincts") -and $nexusFull.Contains("enemy sight")) "Tainted Instincts incompatibility or enemy-awareness description is missing."
+Assert-Contract ($nexusFull.Contains("HarderLife") -and $nexusFull.Contains("hearing") -and $nexusFull.Contains("consumable")) "HarderLife compatibility note does not cover the new overlaps."
 Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 350 characters."
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.2 difficulty contracts passed."
+Write-Output "Steel and Bone 3.4.4 difficulty contracts passed."

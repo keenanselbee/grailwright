@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
+using Awaken.TG.Main.AI;
 using Awaken.TG.Main.AI.Combat.Utils;
 using Awaken.TG.Main.AI.Fights.Projectiles;
 using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
@@ -35,14 +36,17 @@ namespace SteelAndBone
     {
         private const string CustomDifficultyPluginGuid = "jonanoj.CustomDifficulty";
         private const string FlatArrowsPluginGuid = "RedJohn260.FlatArrows";
+        private const string HarderLifePluginGuid = "fuwuvi.HarderLife";
         private const string TaintedCombatPluginGuid = "kane.tgfoa.tainted-combat";
         private const string TaintedInstinctsPluginGuid = "kane.tgfoa.tainted-instincts";
+        private const string VersatileWeaponsApiTypeName =
+            "VersatileWeapons.VersatileWeaponsApi";
         private const float NeutralTolerance = 0.0001f;
         private const float DifficultyRefreshIntervalSeconds = 1.0f;
 
         private ConfigEntry<bool> _difficultyModifiersEnabled;
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
-        private ConfigEntry<float> _playerDamageDealtMultiplier;
+        private ConfigEntry<float> _weakSpotDamageBonus;
         private ConfigEntry<bool> _modifyPlayerDamageTaken;
         private ConfigEntry<bool> _passiveShieldProtectionEnabled;
         private ConfigEntry<bool> _modifyStaminaUsage;
@@ -54,12 +58,16 @@ namespace SteelAndBone
         private ConfigEntry<bool> _modifyArmorWeightPenalties;
         private ConfigEntry<bool> _modifyLightArmorMobility;
         private ConfigEntry<bool> _modifyArmorPhysicalProtection;
+        private ConfigEntry<bool> _modifyConsumableRecovery;
         private ConfigEntry<bool> _modifyEnemyAttackSlots;
         private ConfigEntry<int> _enemyAttackSlotCap;
         private ConfigEntry<bool> _modifyEnemyAttackRecovery;
         private ConfigEntry<bool> _modifyEnemyMovementSpeed;
         private ConfigEntry<bool> _modifyHostileArrowVelocity;
+        private ConfigEntry<float> _hostileArcherAimScatter;
         private ConfigEntry<bool> _modifyEnemySightRange;
+        private ConfigEntry<bool> _modifyEnemyHearingRange;
+        private ConfigEntry<bool> _modifyEnemyAggroPersistence;
         private ConfigEntry<bool> _modifyKillExperience;
         private ConfigEntry<bool> _modifyQuestExperience;
         private ConfigEntry<bool> _modifyProficiencyExperience;
@@ -70,6 +78,10 @@ namespace SteelAndBone
         private float _nextDifficultyRefreshAt;
         private bool _resourceStatsPatchAvailable;
         private bool _reportedEnemyRuntimeRefreshFailure;
+        private bool _versatileWeaponsBridgeResolved;
+        private bool _versatileWeaponsBridgeFailureLogged;
+        private Func<bool> _versatileWeaponsIsMainHandSuppressed;
+        private Func<bool> _versatileWeaponsIsOffHandSuppressed;
 
         private enum DifficultyStatTarget
         {
@@ -130,132 +142,180 @@ namespace SteelAndBone
             internal float OriginalPoiseDamage;
         }
 
+        private sealed class ConsumableRecoveryPatchState
+        {
+            internal Stat Health;
+            internal Stat Mana;
+            internal Stat Stamina;
+            internal float HealthBefore;
+            internal float ManaBefore;
+            internal float StaminaBefore;
+        }
+
         private void BindDifficultyConfig()
         {
             _difficultyModifiersEnabled = Config.Bind(
                 "1. Core",
                 "DifficultyModifiersEnabled",
                 true,
-                "Master switch for Steel and Bone's global damage, resource, armor, projectile, enemy-awareness, enemy-pressure, poise, and experience modifiers. Material matchup rules remain active when this is disabled.");
+                ConfigUi("Master switch for Steel and Bone's global damage, resource, armor, projectile, enemy-awareness, enemy-pressure, poise, and experience modifiers. Material matchup rules remain active when this is disabled.", "General", "Difficulty Modifiers", 0, 20));
 
             _modifyPlayerDamageDealt = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyPlayerDamageDealt",
                 true,
-                "Apply PlayerDamageDealtMultiplier to health damage dealt by the player. This value is independent from the preset.");
-            _playerDamageDealtMultiplier = Config.Bind(
+                ConfigUi("Reduce health damage dealt by the player by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Outgoing Player Damage", 60, 0));
+            _weakSpotDamageBonus = Config.Bind(
                 "6. Difficulty - Player",
-                "PlayerDamageDealtMultiplier",
-                1.0f,
-                new ConfigDescription(
-                    "Health-damage multiplier for outgoing player damage. 1 is neutral and this value is not changed by presets.",
-                    new AcceptableValueRange<float>(0.25f, 3.0f)));
+                "WeakSpotDamageBonus",
+                GetPresetWeakSpotDamageBonus(_preset.Value),
+                ConfigUi(
+                    "Add 10%, 20%, or 30% base damage to confirmed weak-spot hits according to the preset when Difficulty Modifiers is enabled. This is added beside the game's native critical, weak-spot, sneak, and backstab bonuses before Steel and Bone's outgoing and matchup multipliers. Changing Preset resets this value; customize it afterward if desired.",
+                    "Difficulty - Player",
+                    "Weak Spot Damage Bonus",
+                    60,
+                    5,
+                    new AcceptableValueRange<float>(0.0f, 0.50f)));
             _modifyPlayerDamageTaken = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyPlayerDamageTaken",
                 true,
-                "Increase health damage taken from all routed damage sources by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Increase health damage taken from all routed damage sources by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Incoming Player Damage", 60, 10));
             _passiveShieldProtectionEnabled = Config.Bind(
                 "6. Difficulty - Player",
                 "PassiveShieldProtectionEnabled",
                 true,
-                "Grant an equipped and readied shield modest passive protection against direct physical attacks from within its forward BlockAngle. Active blocks, rear attacks, magic, status effects, and damage over time are unaffected.");
+                ConfigUi("When Difficulty Modifiers is enabled, grant an equipped and readied shield modest passive protection against direct physical attacks from within its forward BlockAngle. Active blocks, rear attacks, magic, status effects, and damage over time are unaffected.", "Difficulty - Player", "Passive Shield Protection", 60, 20));
             _modifyStaminaUsage = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyStaminaUsage",
                 true,
-                "Increase player stamina usage by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Increase player stamina usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Stamina Usage", 60, 30));
             _modifyManaUsage = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyManaUsage",
                 true,
-                "Increase player mana usage by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Increase player mana usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Mana Usage", 60, 40));
             _modifyPlayerPoiseDamageDealt = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyPlayerPoiseDamageDealt",
                 true,
-                "Reduce poise damage dealt by the player by 0%, 5%, or 10% according to the preset, making enemies slightly harder to stagger-lock.");
+                ConfigUi("Reduce poise damage dealt by the player by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled, making enemies slightly harder to stagger-lock.", "Difficulty - Player", "Player Poise Damage Dealt", 60, 50));
             _modifyPlayerArrowVelocity = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyPlayerArrowVelocity",
                 true,
-                "Multiply player-fired arrow velocity by 1.10, 1.30, or 1.50 according to the preset. This velocity setting does not alter damage; ArrowMaterialRulesEnabled controls the separate material matchup.");
+                ConfigUi("Multiply player-fired arrow speed by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled. This setting does not alter damage; Arrow Material Rules controls the separate material matchup.", "Difficulty - Player", "Player Arrow Speed", 60, 60));
             _modifyPlayerArrowDrop = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyPlayerArrowDrop",
                 true,
-                "Apply PlayerArrowGravityMultiplier to player-fired arrows. This reduces arrow drop without tilting the launch direction and is independent from the preset.");
+                ConfigUi("When Difficulty Modifiers is enabled, apply Player Arrow Gravity Multiplier to player-fired arrows. This reduces arrow drop without tilting the launch direction and is independent from the preset.", "Difficulty - Player", "Reduce Player Arrow Drop", 60, 70));
             _playerArrowGravityMultiplier = Config.Bind(
                 "6. Difficulty - Player",
                 "PlayerArrowGravityMultiplier",
                 0.75f,
-                new ConfigDescription(
-                    "Gravity multiplier for player-fired arrows. 1 is vanilla gravity and 0.75 applies 25% less gravity. Arrow velocity remains controlled separately by the preset.",
+                ConfigUi(
+                    "Gravity multiplier for player-fired arrows when Reduce Player Arrow Drop and Difficulty Modifiers are enabled. 1 is vanilla gravity and 0.75 applies 25% less gravity. Arrow velocity remains controlled separately by the preset.",
+                    "Difficulty - Player",
+                    "Player Arrow Gravity Multiplier",
+                    60,
+                    80,
                     new AcceptableValueRange<float>(0.25f, 1.0f)));
             _modifyArmorWeightPenalties = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyArmorWeightPenalties",
                 true,
-                "Multiply the game's native armor-weight penalties by 1.00, 1.05, or 1.10 according to the preset. Existing armor proficiency still softens eligible penalties.");
+                ConfigUi("Multiply the game's native armor-weight penalties by 1.00, 1.05, or 1.10 according to the preset when Difficulty Modifiers is enabled. Existing armor proficiency still softens eligible penalties.", "Difficulty - Player", "Armor Weight Penalties", 60, 90));
             _modifyLightArmorMobility = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyLightArmorMobility",
                 true,
-                "Increase movement speed while in the game's Light armor tier by 0%, 2.5%, or 5% according to the preset.");
+                ConfigUi("Increase movement speed while in the game's Light armor tier by 0%, 2.5%, or 5% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Light Armor Mobility", 60, 100));
             _modifyArmorPhysicalProtection = Config.Bind(
                 "6. Difficulty - Player",
                 "ModifyArmorPhysicalProtection",
                 true,
-                "Multiply physical armor in Medium by 1.00/1.05/1.10 and in Heavy or Overload by 1.00/1.10/1.20 according to the preset. Magical armor checks are unchanged.");
+                ConfigUi("Multiply physical armor in Medium by 1.00/1.05/1.10 and in Heavy or Overload by 1.00/1.10/1.20 according to the preset when Difficulty Modifiers is enabled. Magical armor checks are unchanged.", "Difficulty - Player", "Physical Armor Protection", 60, 110));
+            _modifyConsumableRecovery = Config.Bind(
+                "6. Difficulty - Player",
+                "ModifyConsumableRecovery",
+                true,
+                ConfigUi("Multiply positive health, stamina, and mana recovery from restorative consumables by 1.00, 0.90, or 0.80 according to the preset when Difficulty Modifiers is enabled. Non-restorative item effects are unchanged.", "Difficulty - Player", "Restorative Consumable Recovery", 60, 120));
 
             _modifyEnemyAttackSlots = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyEnemyAttackSlots",
                 true,
-                "Add 0, 1, or 2 simultaneous enemy attack slots to the current game difficulty according to the preset.");
+                ConfigUi("Add 0, 1, or 2 simultaneous enemy attack slots to the current game difficulty according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Slots", 70, 0));
             _enemyAttackSlotCap = Config.Bind(
                 "7. Difficulty - Enemies",
                 "EnemyAttackSlotCap",
                 6,
-                new ConfigDescription(
-                    "Safety cap for slots added by Steel and Bone. This never lowers a higher value supplied by the game or another mod.",
+                ConfigUi(
+                    "Safety cap for slots added by Steel and Bone when Enemy Attack Slots and Difficulty Modifiers are enabled. This never lowers a higher value supplied by the game or another mod.",
+                    "Difficulty - Enemies",
+                    "Maximum Enemy Attack Slots",
+                    70,
+                    10,
                     new AcceptableValueRange<int>(1, 12)));
             _modifyEnemyAttackRecovery = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyEnemyAttackRecovery",
                 true,
-                "Shorten the delay before enemies release attack slots by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Shorten the delay before enemies release attack slots by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Recovery Time", 70, 20));
             _modifyEnemyMovementSpeed = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyEnemyMovementSpeed",
                 true,
-                "Increase combat movement speed by up to 0%, 5%, or 10% according to the preset. Ordinary agile enemies receive the full bonus; Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half; Heavy-armored, massive, boss, and scripted enemies retain their vanilla speed.");
+                ConfigUi("Increase combat movement speed by up to 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled. Ordinary agile enemies receive the full bonus; Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half; Heavy-armored, massive, boss, and scripted enemies retain their vanilla speed.", "Difficulty - Enemies", "Enemy Movement Speed", 70, 30));
             _modifyHostileArrowVelocity = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyHostileArrowVelocity",
                 true,
-                "Multiply hostile NPC arrow velocity by 1.10, 1.30, or 1.50 according to the preset while preserving the game's ballistic aim calculation. Hostile arrow damage is unchanged.");
+                ConfigUi("Multiply hostile NPC arrow speed by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled while preserving the game's ballistic aim calculation. Hostile arrow damage is unchanged.", "Difficulty - Enemies", "Hostile Arrow Speed", 70, 40));
+            _hostileArcherAimScatter = Config.Bind(
+                "7. Difficulty - Enemies",
+                "HostileArcherAimScatter",
+                GetPresetHostileArcherAimScatter(_preset.Value),
+                ConfigUi(
+                    "Minimum random aim-point scatter in meters for hostile NPC arrows when Difficulty Modifiers is enabled. Changing Preset sets this to 0.75 for Tempered, 0.50 for Hardened, or 0.25 for Crucible; customize it afterward or set it to 0 for native accuracy.",
+                    "Difficulty - Enemies",
+                    "Hostile Archer Aim Scatter (Meters)",
+                    70,
+                    45,
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
             _modifyEnemySightRange = Config.Bind(
                 "7. Difficulty - Enemies",
                 "ModifyEnemySightRange",
                 true,
-                "Multiply the native sight distance of active hostile NPCs by 1.10, 1.30, or 1.50 according to the preset. Line of sight, visibility, alert behavior, and authored perception distances remain native.");
+                ConfigUi("Multiply the native sight distance of active hostile NPCs by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled. Line of sight, visibility, alert behavior, and authored perception distances remain native.", "Difficulty - Enemies", "Hostile Enemy Sight Distance", 70, 50));
+            _modifyEnemyHearingRange = Config.Bind(
+                "7. Difficulty - Enemies",
+                "ModifyEnemyHearingRange",
+                true,
+                ConfigUi("Multiply the native range of hero footstep noise by 1.10, 1.20, or 1.30 according to the preset when Difficulty Modifiers is enabled. Native hearing strength, wall checks, armor noise, and NPC hearing differences remain in control.", "Difficulty - Enemies", "Hostile Enemy Hearing Range", 70, 60));
+            _modifyEnemyAggroPersistence = Config.Bind(
+                "7. Difficulty - Enemies",
+                "ModifyEnemyAggroPersistence",
+                true,
+                ConfigUi("Multiply native combat aggro persistence by 1.00, 1.10, or 1.20 according to the preset when Difficulty Modifiers is enabled. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.", "Difficulty - Enemies", "Enemy Aggro Persistence", 70, 70));
 
             _modifyKillExperience = Config.Bind(
                 "8. Difficulty - Progression",
                 "ModifyKillExperience",
                 true,
-                "Reduce experience gained from enemy kills by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Reduce experience gained from enemy kills by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Kill XP", 80, 0));
             _modifyQuestExperience = Config.Bind(
                 "8. Difficulty - Progression",
                 "ModifyQuestExperience",
                 true,
-                "Reduce experience gained from quest and objective rewards by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Reduce experience gained from quest and objective rewards by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Quest and Objective XP", 80, 10));
             _modifyProficiencyExperience = Config.Bind(
                 "8. Difficulty - Progression",
                 "ModifyProficiencyExperience",
                 true,
-                "Reduce proficiency experience by 0%, 5%, or 10% according to the preset.");
+                ConfigUi("Reduce proficiency experience by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Proficiency XP", 80, 20));
         }
 
         private void InitializeDifficultyOverhaul()
@@ -296,6 +356,13 @@ namespace SteelAndBone
 
         private void OnDifficultySettingChanged(object sender, SettingChangedEventArgs args)
         {
+            if (args != null && ReferenceEquals(args.ChangedSetting, _preset))
+            {
+                ApplyPresetEffectivenessFeedbackSensitivity();
+                ApplyPresetWeakSpotDamageBonus();
+                ApplyPresetHostileArcherAimScatter();
+            }
+
             ReapplyDifficultyStatTweaks();
             RefreshEnemyRuntimeTweaks();
             EvaluateCompatibilityOverlaps();
@@ -309,6 +376,24 @@ namespace SteelAndBone
                 nameof(CharacterStatsInitializePatch.Postfix),
                 "CharacterStats.CharacterStatsWrapper.Initialize",
                 "stamina and mana modifiers");
+            PatchOptionalPrefix(
+                AccessTools.Method(
+                    typeof(AINoises),
+                    "MakeHeroFootstepNoise",
+                    new[] { typeof(float), typeof(float), typeof(float), typeof(Vector3) }),
+                typeof(EnemyHearingRangePatch),
+                nameof(EnemyHearingRangePatch.Prefix),
+                "AINoises.MakeHeroFootstepNoise",
+                "enemy hearing-range modifier");
+            PatchOptionalPostfix(
+                AccessTools.Method(
+                    typeof(NpcAIDistancesUtils),
+                    "CombatAggroDecreaseModifierByDistanceToLastIdlePoint",
+                    new[] { typeof(NpcAI) }),
+                typeof(EnemyAggroPersistencePatch),
+                nameof(EnemyAggroPersistencePatch.Postfix),
+                "NpcAIDistancesUtils.CombatAggroDecreaseModifierByDistanceToLastIdlePoint",
+                "enemy aggro-persistence modifier");
             PatchOptionalPostfix(
                 AccessTools.PropertyGetter(typeof(Difficulty), "MaxEnemiesAttacking"),
                 typeof(MaxEnemiesAttackingPatch),
@@ -363,22 +448,54 @@ namespace SteelAndBone
                 nameof(HeroPhysicalArmorPatch.Postfix),
                 "Hero.TotalArmor",
                 "armor physical-protection modifier");
-            PatchHostileArrowVelocity();
+            PatchConsumableRecovery();
+            PatchHostileArrowBallistics();
             PatchPoiseDamage();
         }
 
-        private void PatchHostileArrowVelocity()
+        private void PatchConsumableRecovery()
+        {
+            MethodInfo original = AccessTools.Method(
+                typeof(ItemSkillsInvoker),
+                "PerformImmediate");
+            MethodInfo prefix = AccessTools.Method(
+                typeof(ConsumableRecoveryPatch),
+                nameof(ConsumableRecoveryPatch.Prefix));
+            MethodInfo postfix = AccessTools.Method(
+                typeof(ConsumableRecoveryPatch),
+                nameof(ConsumableRecoveryPatch.Postfix));
+            if (original == null || prefix == null || postfix == null)
+            {
+                Warn("Could not patch ItemSkillsInvoker.PerformImmediate; the restorative-consumable modifier is disabled.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    original,
+                    new HarmonyMethod(prefix),
+                    new HarmonyMethod(postfix));
+                LogDiagnostic("Patched ItemSkillsInvoker.PerformImmediate for the restorative-consumable modifier.");
+            }
+            catch (Exception ex)
+            {
+                Warn("Could not patch ItemSkillsInvoker.PerformImmediate; the restorative-consumable modifier is disabled. " + ex.GetBaseException().Message);
+            }
+        }
+
+        private void PatchHostileArrowBallistics()
         {
             MethodInfo original = AccessTools.Method(
                 typeof(CombatBehaviourUtils),
                 "FireProjectile",
                 new[] { typeof(CombatBehaviourUtils.FireProjectileParams), typeof(VGUtils.ShootParams) });
-            MethodInfo prefix = AccessTools.Method(typeof(HostileArrowVelocityPatch), nameof(HostileArrowVelocityPatch.Prefix));
-            MethodInfo transpiler = AccessTools.Method(typeof(HostileArrowVelocityPatch), nameof(HostileArrowVelocityPatch.Transpiler));
-            MethodInfo finalizer = AccessTools.Method(typeof(HostileArrowVelocityPatch), nameof(HostileArrowVelocityPatch.Finalizer));
+            MethodInfo prefix = AccessTools.Method(typeof(HostileArrowBallisticsPatch), nameof(HostileArrowBallisticsPatch.Prefix));
+            MethodInfo transpiler = AccessTools.Method(typeof(HostileArrowBallisticsPatch), nameof(HostileArrowBallisticsPatch.Transpiler));
+            MethodInfo finalizer = AccessTools.Method(typeof(HostileArrowBallisticsPatch), nameof(HostileArrowBallisticsPatch.Finalizer));
             if (original == null || prefix == null || transpiler == null || finalizer == null)
             {
-                Warn("Could not patch CombatBehaviourUtils.FireProjectile; the hostile arrow-velocity modifier is disabled.");
+                Warn("Could not patch CombatBehaviourUtils.FireProjectile; the hostile arrow ballistics modifiers are disabled.");
                 return;
             }
 
@@ -391,11 +508,11 @@ namespace SteelAndBone
                     new HarmonyMethod(transpiler),
                     new HarmonyMethod(finalizer),
                     null);
-                LogDiagnostic("Patched CombatBehaviourUtils.FireProjectile for the hostile arrow-velocity modifier.");
+                LogDiagnostic("Patched CombatBehaviourUtils.FireProjectile for hostile arrow velocity and archer aim scatter.");
             }
             catch (Exception ex)
             {
-                Warn("Could not patch CombatBehaviourUtils.FireProjectile; the hostile arrow-velocity modifier is disabled. " + ex.GetBaseException().Message);
+                Warn("Could not patch CombatBehaviourUtils.FireProjectile; the hostile arrow ballistics modifiers are disabled. " + ex.GetBaseException().Message);
             }
         }
 
@@ -524,6 +641,35 @@ namespace SteelAndBone
             return 1.0f - PresetPenaltyAmount();
         }
 
+        private float PresetPlayerPressureAmount()
+        {
+            if (_preset == null)
+            {
+                return 0.05f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 0.10f;
+                case Preset.Crucible:
+                    return 0.15f;
+                case Preset.Tempered:
+                default:
+                    return 0.05f;
+            }
+        }
+
+        private float PresetPlayerPressureCostMultiplier()
+        {
+            return 1.0f + PresetPlayerPressureAmount();
+        }
+
+        private float PresetPlayerPressureReductionMultiplier()
+        {
+            return 1.0f - PresetPlayerPressureAmount();
+        }
+
         private float PresetArrowVelocityMultiplier()
         {
             if (_preset == null)
@@ -543,6 +689,34 @@ namespace SteelAndBone
             }
         }
 
+        private static float GetPresetHostileArcherAimScatter(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    return 0.75f;
+                case Preset.Crucible:
+                    return 0.25f;
+                case Preset.Hardened:
+                default:
+                    return 0.50f;
+            }
+        }
+
+        private void ApplyPresetHostileArcherAimScatter()
+        {
+            if (_hostileArcherAimScatter == null || _preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetHostileArcherAimScatter(_preset.Value);
+            if (Math.Abs(_hostileArcherAimScatter.Value - presetValue) > NeutralTolerance)
+            {
+                _hostileArcherAimScatter.Value = presetValue;
+            }
+        }
+
         private float PresetEnemySightRangeMultiplier()
         {
             if (_preset == null)
@@ -559,6 +733,63 @@ namespace SteelAndBone
                 case Preset.Tempered:
                 default:
                     return 1.10f;
+            }
+        }
+
+        private float PresetEnemyHearingRangeMultiplier()
+        {
+            if (_preset == null)
+            {
+                return 1.10f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 1.20f;
+                case Preset.Crucible:
+                    return 1.30f;
+                case Preset.Tempered:
+                default:
+                    return 1.10f;
+            }
+        }
+
+        private float PresetEnemyAggroPersistenceMultiplier()
+        {
+            if (_preset == null)
+            {
+                return 1.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 1.10f;
+                case Preset.Crucible:
+                    return 1.20f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private float PresetConsumableRecoveryMultiplier()
+        {
+            if (_preset == null)
+            {
+                return 1.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 0.90f;
+                case Preset.Crucible:
+                    return 0.80f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
             }
         }
 
@@ -685,13 +916,12 @@ namespace SteelAndBone
 
         private void ApplyOutgoingHealthDamageModifier(ref float damageModifier)
         {
-            if (!DifficultyModifierIsEnabled(_modifyPlayerDamageDealt)
-                || _playerDamageDealtMultiplier == null)
+            if (!DifficultyModifierIsEnabled(_modifyPlayerDamageDealt))
             {
                 return;
             }
 
-            float multiplier = Clamp(_playerDamageDealtMultiplier.Value, 0.25f, 3.0f);
+            float multiplier = PresetPlayerPressureReductionMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -702,6 +932,68 @@ namespace SteelAndBone
             LogDifficultyDiagnostic("PlayerDamageDealt", before, damageModifier, multiplier);
         }
 
+        private static float GetPresetWeakSpotDamageBonus(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    return 0.10f;
+                case Preset.Crucible:
+                    return 0.30f;
+                case Preset.Hardened:
+                default:
+                    return 0.20f;
+            }
+        }
+
+        private void ApplyPresetWeakSpotDamageBonus()
+        {
+            if (_weakSpotDamageBonus == null || _preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetWeakSpotDamageBonus(_preset.Value);
+            if (Math.Abs(_weakSpotDamageBonus.Value - presetValue) > NeutralTolerance)
+            {
+                _weakSpotDamageBonus.Value = presetValue;
+            }
+        }
+
+        private float GetActiveWeakSpotDamageBonus()
+        {
+            if (!DifficultyModifiersAreEnabled() || _weakSpotDamageBonus == null)
+            {
+                return 0.0f;
+            }
+
+            return Mathf.Clamp(_weakSpotDamageBonus.Value, 0.0f, 0.50f);
+        }
+
+        private void ApplyWeakSpotDamageBonus(
+            DamageModifiersInfo modifiersInfo,
+            ref float damageModifier)
+        {
+            if (!modifiersInfo.IsWeakSpot)
+            {
+                return;
+            }
+
+            float bonus = GetActiveWeakSpotDamageBonus();
+            if (bonus <= NeutralTolerance)
+            {
+                return;
+            }
+
+            float before = damageModifier;
+            damageModifier += bonus;
+            LogDifficultyDiagnostic(
+                "WeakSpotDamageBonus",
+                before,
+                damageModifier,
+                bonus);
+        }
+
         private void ApplyIncomingHealthDamageModifier(ref float damageModifier)
         {
             if (!DifficultyModifierIsEnabled(_modifyPlayerDamageTaken))
@@ -709,7 +1001,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetCostMultiplier();
+            float multiplier = PresetPlayerPressureCostMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -735,13 +1027,18 @@ namespace SteelAndBone
                 return;
             }
 
+            bool shieldInOffHand = true;
             Item shield = hero.Inventory.EquippedItem(EquipmentSlotType.OffHand);
             if (shield == null || !shield.IsShield)
             {
+                shieldInOffHand = false;
                 shield = hero.Inventory.EquippedItem(EquipmentSlotType.MainHand);
             }
 
-            if (shield == null || !shield.IsShield || shield.ItemStats == null)
+            if (shield == null
+                || !shield.IsShield
+                || shield.ItemStats == null
+                || IsVersatileWeaponsHandSuppressed(shieldInOffHand))
             {
                 return;
             }
@@ -797,6 +1094,104 @@ namespace SteelAndBone
             float before = damageModifier;
             damageModifier *= multiplier;
             LogDifficultyDiagnostic("PassiveShieldProtection", before, damageModifier, multiplier);
+        }
+
+        private bool IsVersatileWeaponsHandSuppressed(bool offHand)
+        {
+            if (!TryResolveVersatileWeaponsBridge())
+            {
+                return false;
+            }
+
+            try
+            {
+                return offHand
+                    ? _versatileWeaponsIsOffHandSuppressed()
+                    : _versatileWeaponsIsMainHandSuppressed();
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsIsMainHandSuppressed = null;
+                _versatileWeaponsIsOffHandSuppressed = null;
+                if (!_versatileWeaponsBridgeFailureLogged)
+                {
+                    _versatileWeaponsBridgeFailureLogged = true;
+                    Logger.LogWarning(
+                        "Versatile Weapons hand-suppression API failed; passive shield protection is using native equipment state: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private bool TryResolveVersatileWeaponsBridge()
+        {
+            if (_versatileWeaponsBridgeResolved)
+            {
+                return _versatileWeaponsIsMainHandSuppressed != null
+                    && _versatileWeaponsIsOffHandSuppressed != null;
+            }
+
+            _versatileWeaponsBridgeResolved = true;
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    VersatileWeaponsPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                VersatileWeaponsApiTypeName,
+                false);
+            MethodInfo mainMethod = apiType == null
+                ? null
+                : AccessTools.Method(
+                    apiType,
+                    "IsMainHandSuppressed",
+                    Type.EmptyTypes);
+            MethodInfo offMethod = apiType == null
+                ? null
+                : AccessTools.Method(
+                    apiType,
+                    "IsOffHandSuppressed",
+                    Type.EmptyTypes);
+            if (mainMethod == null || offMethod == null)
+            {
+                if (!_versatileWeaponsBridgeFailureLogged)
+                {
+                    _versatileWeaponsBridgeFailureLogged = true;
+                    Logger.LogWarning(
+                        "Versatile Weapons is loaded without its hand-suppression API; passive shield protection is using native equipment state.");
+                }
+                return false;
+            }
+
+            try
+            {
+                _versatileWeaponsIsMainHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        mainMethod);
+                _versatileWeaponsIsOffHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        offMethod);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (!_versatileWeaponsBridgeFailureLogged)
+                {
+                    _versatileWeaponsBridgeFailureLogged = true;
+                    Logger.LogWarning(
+                        "Versatile Weapons hand-suppression API binding failed; passive shield protection is using native equipment state: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
         }
 
         private void ApplyPlayerArrowVelocity(ref Vector3 arrowVelocity)
@@ -871,18 +1266,173 @@ namespace SteelAndBone
                 || damageType == DamageSubType.Bludgeoning;
         }
 
+        private void ApplyEnemyHearingRange(ref float noiseRange)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyEnemyHearingRange) || noiseRange <= 0.0f)
+            {
+                return;
+            }
+
+            float multiplier = PresetEnemyHearingRangeMultiplier();
+            if (ApproximatelyNeutral(multiplier))
+            {
+                return;
+            }
+
+            float before = noiseRange;
+            noiseRange *= multiplier;
+            LogDifficultyDiagnostic("EnemyHearingRange", before, noiseRange, multiplier);
+        }
+
+        private void ApplyEnemyAggroPersistence(NpcAI npcAI, ref float aggroDecreaseModifier)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyEnemyAggroPersistence)
+                || npcAI == null
+                || !npcAI.Working
+                || !npcAI.InCombat
+                || npcAI.NpcElement == null
+                || !npcAI.NpcElement.IsAlive
+                || npcAI.NpcElement.IsSummonOrAlly
+                || !WithFactionUtils.IsHostileToHero(npcAI.NpcElement)
+                || aggroDecreaseModifier <= 0.0f)
+            {
+                return;
+            }
+
+            float multiplier = PresetEnemyAggroPersistenceMultiplier();
+            if (ApproximatelyNeutral(multiplier))
+            {
+                return;
+            }
+
+            float before = aggroDecreaseModifier;
+            aggroDecreaseModifier /= multiplier;
+            LogDifficultyDiagnostic("EnemyAggroDecrease", before, aggroDecreaseModifier, 1.0f / multiplier);
+        }
+
+        private void CaptureConsumableRecovery(
+            ItemSkillsInvoker invoker,
+            ref ConsumableRecoveryPatchState state)
+        {
+            state = null;
+            if (!ConsumableRecoveryModifierIsEffective() || invoker == null)
+            {
+                return;
+            }
+
+            Item item = invoker.ParentModel;
+            Hero hero = Hero.Current;
+            if (item == null
+                || item.Template == null
+                || item.Owner == null
+                || hero == null
+                || !ReferenceEquals(item.Owner.Character, hero))
+            {
+                return;
+            }
+
+            bool modifiesHealth = item.Template.ConsumableModifiesHealth;
+            bool modifiesMana = item.Template.ConsumableModifiesMana;
+            bool modifiesStamina = item.Template.ConsumableStamina;
+            if (!modifiesHealth && !modifiesMana && !modifiesStamina)
+            {
+                return;
+            }
+
+            CharacterStats stats = hero.CharacterStats;
+            Stat health = modifiesHealth ? hero.Health : null;
+            Stat mana = modifiesMana && stats != null ? stats.Mana : null;
+            Stat stamina = modifiesStamina && stats != null ? stats.Stamina : null;
+            if (health == null && mana == null && stamina == null)
+            {
+                return;
+            }
+
+            state = new ConsumableRecoveryPatchState
+            {
+                Health = health,
+                Mana = mana,
+                Stamina = stamina,
+                HealthBefore = health == null ? 0.0f : health.BaseValue,
+                ManaBefore = mana == null ? 0.0f : mana.BaseValue,
+                StaminaBefore = stamina == null ? 0.0f : stamina.BaseValue
+            };
+        }
+
+        private void ApplyConsumableRecovery(ConsumableRecoveryPatchState state)
+        {
+            if (state == null || !ConsumableRecoveryModifierIsEffective())
+            {
+                return;
+            }
+
+            float multiplier = PresetConsumableRecoveryMultiplier();
+            ApplyRestorativeConsumableMultiplier(state.Health, state.HealthBefore, multiplier, "Health");
+            ApplyRestorativeConsumableMultiplier(state.Mana, state.ManaBefore, multiplier, "Mana");
+            ApplyRestorativeConsumableMultiplier(state.Stamina, state.StaminaBefore, multiplier, "Stamina");
+        }
+
+        private void ApplyRestorativeConsumableMultiplier(
+            Stat stat,
+            float before,
+            float multiplier,
+            string label)
+        {
+            if (stat == null || multiplier >= 1.0f - NeutralTolerance)
+            {
+                return;
+            }
+
+            float restored = stat.BaseValue - before;
+            if (restored <= 0.0f)
+            {
+                return;
+            }
+
+            float adjusted = before + restored * multiplier;
+            stat.SetTo(adjusted, false, null);
+            LogDifficultyDiagnostic("Consumable" + label, before + restored, adjusted, multiplier);
+        }
+
         private float HostileArrowVelocityMultiplier(VGUtils.ShootParams shootParams)
         {
             if (!DifficultyModifierIsEnabled(_modifyHostileArrowVelocity)
-                || shootParams.shooter == null
-                || Hero.Current == null
-                || !ReferenceEquals(shootParams.projectileSlotType, EquipmentSlotType.Quiver)
-                || !shootParams.shooter.IsHostileTo(Hero.Current))
+                || !IsHostileNpcArrow(shootParams))
             {
                 return 1.0f;
             }
 
             return PresetArrowVelocityMultiplier();
+        }
+
+        private void ApplyHostileArcherAimScatter(
+            ref CombatBehaviourUtils.FireProjectileParams fireParams,
+            VGUtils.ShootParams shootParams)
+        {
+            if (!DifficultyModifiersAreEnabled()
+                || _hostileArcherAimScatter == null
+                || !IsHostileNpcArrow(shootParams))
+            {
+                return;
+            }
+
+            float scatter = Mathf.Clamp(_hostileArcherAimScatter.Value, 0.0f, 2.0f);
+            float before = fireParams.inaccuracy;
+            if (scatter <= before + NeutralTolerance)
+            {
+                return;
+            }
+
+            fireParams.inaccuracy = Mathf.Max(before, scatter);
+            LogDifficultyDiagnostic("HostileArcherAimScatter", before, fireParams.inaccuracy, scatter);
+        }
+
+        private static bool IsHostileNpcArrow(VGUtils.ShootParams shootParams)
+        {
+            return shootParams.shooter is NpcElement
+                && Hero.Current != null
+                && ReferenceEquals(shootParams.projectileSlotType, EquipmentSlotType.Quiver)
+                && shootParams.shooter.IsHostileTo(Hero.Current);
         }
 
         private void ApplyEnemyAttackSlots(ref int value)
@@ -931,7 +1481,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetReductionMultiplier();
+            float multiplier = PresetPlayerPressureReductionMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -949,7 +1499,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetReductionMultiplier();
+            float multiplier = PresetPlayerPressureReductionMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -967,7 +1517,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetReductionMultiplier();
+            float multiplier = PresetPlayerPressureReductionMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -1443,6 +1993,7 @@ namespace SteelAndBone
             {
                 EvaluateCustomDifficultyOverlap();
                 EvaluateFlatArrowsOverlap();
+                EvaluateHarderLifeOverlap();
                 EvaluateTaintedCombatOverlap();
                 EvaluateTaintedInstinctsOverlap();
             }
@@ -1471,7 +2022,7 @@ namespace SteelAndBone
                 "ModifyPlayerDamageDealt");
             AddConflictIf(
                 conflicts,
-                PresetModifierIsEffective(_modifyPlayerDamageTaken)
+                PlayerPressureModifierIsEffective(_modifyPlayerDamageTaken)
                     && ExternalFloatIsNonNeutral(plugin, "DamageTakenMultipliers", "PlayerDamageTakenMultiplier", 1.0f),
                 "ModifyPlayerDamageTaken");
             AddConflictIf(
@@ -1491,17 +2042,17 @@ namespace SteelAndBone
                 "ModifyEnemyAttackSlots");
             AddConflictIf(
                 conflicts,
-                PresetModifierIsEffective(_modifyKillExperience)
+                PlayerPressureModifierIsEffective(_modifyKillExperience)
                     && ExternalFloatIsNonNeutral(plugin, "ExpMultipliers", "KillExpMultiplier", 1.0f),
                 "ModifyKillExperience");
             AddConflictIf(
                 conflicts,
-                PresetModifierIsEffective(_modifyQuestExperience)
+                PlayerPressureModifierIsEffective(_modifyQuestExperience)
                     && ExternalFloatIsNonNeutral(plugin, "ExpMultipliers", "QuestExpMultiplier", 1.0f),
                 "ModifyQuestExperience");
             AddConflictIf(
                 conflicts,
-                PresetModifierIsEffective(_modifyProficiencyExperience)
+                PlayerPressureModifierIsEffective(_modifyProficiencyExperience)
                     && CustomDifficultyChangesProficiencyExperience(plugin),
                 "ModifyProficiencyExperience");
             ReportCompatibilityOverlap("Custom Difficulty", conflicts);
@@ -1527,6 +2078,70 @@ namespace SteelAndBone
                 PlayerArrowDropModifierIsEffective(),
                 "ModifyPlayerArrowDrop");
             ReportCompatibilityOverlap("Flat Arrows", conflicts);
+        }
+
+        private void EvaluateHarderLifeOverlap()
+        {
+            BaseUnityPlugin plugin;
+            if (!TryGetEnabledPlugin(HarderLifePluginGuid, out plugin)
+                || !ReadExternalBool(plugin, "0. Master Switch", "Enabled", true))
+            {
+                return;
+            }
+
+            bool combatScalingEnabled = ReadExternalBool(
+                plugin,
+                "2. Combat Scaling",
+                "CombatScalingEnabled",
+                true);
+            bool staminaPenaltyEnabled = ReadExternalBool(
+                plugin,
+                "3. Stamina",
+                "StaminaPenaltyEnabled",
+                true);
+            bool parryEnabled = ReadExternalBool(plugin, "1. Parry", "ParryEnabled", true);
+            bool aggroRangeEnabled = ReadExternalBool(plugin, "4. Aggro", "AggroRangeEnabled", true);
+            bool potionNerfEnabled = ReadExternalBool(plugin, "5. Potions", "PotionNerfEnabled", true);
+            bool enemyPerceptionEnabled = ReadExternalBool(
+                plugin,
+                "7. Enemy Perception",
+                "EnemyPerceptionEnabled",
+                true);
+
+            bool outgoingOverlap = combatScalingEnabled
+                && (ExternalFloatIsNonNeutral(plugin, "2. Combat Scaling", "OutgoingDamageMultiplier", 1.0f)
+                    || ExternalFloatIsNonNeutral(plugin, "2. Combat Scaling", "OutgoingMagicDamageMultiplier", 1.0f));
+            bool incomingOverlap = combatScalingEnabled
+                && ExternalFloatIsNonNeutral(plugin, "2. Combat Scaling", "IncomingDamageMultiplier", 1.0f);
+            bool staminaOverlap = (combatScalingEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "2. Combat Scaling", "StaminaUsageMultiplier", 1.0f))
+                || (staminaPenaltyEnabled
+                    && (ExternalFloatIsNonNeutral(plugin, "3. Stamina", "BlockStaminaCostMultiplier", 1.0f)
+                        || ExternalFloatIsNonNeutral(plugin, "3. Stamina", "DashStaminaCostMultiplier", 1.0f)))
+                || (parryEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "1. Parry", "ParryStaminaCostMultiplier", 1.0f));
+            bool manaOverlap = combatScalingEnabled
+                && ExternalFloatIsNonNeutral(plugin, "2. Combat Scaling", "ManaUsageMultiplier", 1.0f);
+            bool sightOverlap = aggroRangeEnabled
+                && ExternalFloatIsNonNeutral(plugin, "4. Aggro", "AggroRangeMultiplier", 1.0f);
+            bool hearingOverlap = enemyPerceptionEnabled
+                && ExternalFloatIsNonNeutral(plugin, "7. Enemy Perception", "HearingRangeMultiplier", 1.0f);
+            bool persistenceOverlap = enemyPerceptionEnabled
+                && ExternalFloatIsNonNeutral(plugin, "7. Enemy Perception", "AggroPersistenceMultiplier", 1.0f);
+            bool consumableOverlap = potionNerfEnabled
+                && (ExternalFloatIsNonNeutral(plugin, "5. Potions", "PotionEffectivenessMultiplier", 1.0f)
+                    || ExternalFloatIsNonNeutral(plugin, "5. Potions", "ConsumableEffectivenessMultiplier", 1.0f));
+
+            List<string> conflicts = new List<string>();
+            AddConflictIf(conflicts, OutgoingDamageModifierIsEffective() && outgoingOverlap, "ModifyPlayerDamageDealt");
+            AddConflictIf(conflicts, PlayerPressureModifierIsEffective(_modifyPlayerDamageTaken) && incomingOverlap, "ModifyPlayerDamageTaken");
+            AddConflictIf(conflicts, PresetModifierIsEffective(_modifyStaminaUsage) && staminaOverlap, "ModifyStaminaUsage");
+            AddConflictIf(conflicts, PresetModifierIsEffective(_modifyManaUsage) && manaOverlap, "ModifyManaUsage");
+            AddConflictIf(conflicts, EnemySightRangeModifierIsEffective() && sightOverlap, "ModifyEnemySightRange");
+            AddConflictIf(conflicts, EnemyHearingRangeModifierIsEffective() && hearingOverlap, "ModifyEnemyHearingRange");
+            AddConflictIf(conflicts, EnemyAggroPersistenceModifierIsEffective() && persistenceOverlap, "ModifyEnemyAggroPersistence");
+            AddConflictIf(conflicts, ConsumableRecoveryModifierIsEffective() && consumableOverlap, "ModifyConsumableRecovery");
+            ReportCompatibilityOverlap("HarderLife", conflicts);
         }
 
         private void EvaluateTaintedCombatOverlap()
@@ -1634,10 +2249,28 @@ namespace SteelAndBone
                 || (grindylowEnabled && ReadExternalBool(plugin, "GrindylowTuning", "IgnoreMeleeCombatSlots", true))
                 || (corpseEaterEnabled && ReadExternalBool(plugin, "CorpseEaterTuning", "IgnoreMeleeCombatSlots", true));
 
+            bool recoveryOverlap = (wolfEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "WolfTuning", "AttackCooldownSeconds", 2.0f))
+                || (outlawEnabled && (
+                    ExternalFloatIsNonNeutral(plugin, "OutlawTuning", "OneHandedApproachAttackCooldownSeconds", 9.0f)
+                    || ExternalFloatIsNonNeutral(plugin, "OutlawTuning", "TwoHandedApproachAttackCooldownSeconds", 10.0f)))
+                || (bearEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "BearTuning", "TimedPredatorAttackCooldownSeconds", 5.0f))
+                || (drownerEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "DrownerTuning", "ApproachAttackCooldownSeconds", 12.0f))
+                || (grindylowEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "GrindylowTuning", "ApproachAttackCooldownSeconds", 5.0f))
+                || (corpseEaterEnabled
+                    && ExternalFloatIsNonNeutral(plugin, "CorpseEaterTuning", "ApproachAttackCooldownSeconds", 15.0f));
+            bool pursuitOverlap = wolfEnabled
+                && ExternalFloatIsNonZero(plugin, "WolfTuning", "PursuitMemoryExtraSeconds");
+
             List<string> conflicts = new List<string>();
-            AddConflictIf(conflicts, DifficultyModifierIsEnabled(_modifyEnemySightRange) && sightOverlap, "ModifyEnemySightRange");
-            AddConflictIf(conflicts, PresetModifierIsEffective(_modifyPlayerDamageTaken) && damageOverlap, "ModifyPlayerDamageTaken");
+            AddConflictIf(conflicts, EnemySightRangeModifierIsEffective() && sightOverlap, "ModifyEnemySightRange");
+            AddConflictIf(conflicts, PlayerPressureModifierIsEffective(_modifyPlayerDamageTaken) && damageOverlap, "ModifyPlayerDamageTaken");
             AddConflictIf(conflicts, AttackSlotsModifierIsEffective() && slotOverlap, "ModifyEnemyAttackSlots");
+            AddConflictIf(conflicts, PresetModifierIsEffective(_modifyEnemyAttackRecovery) && recoveryOverlap, "ModifyEnemyAttackRecovery");
+            AddConflictIf(conflicts, EnemyAggroPersistenceModifierIsEffective() && pursuitOverlap, "ModifyEnemyAggroPersistence");
             ReportCompatibilityOverlap("Tainted Instincts", conflicts);
         }
 
@@ -1655,9 +2288,13 @@ namespace SteelAndBone
 
         private bool OutgoingDamageModifierIsEffective()
         {
-            return DifficultyModifierIsEnabled(_modifyPlayerDamageDealt)
-                && _playerDamageDealtMultiplier != null
-                && !ApproximatelyNeutral(_playerDamageDealtMultiplier.Value);
+            if (!DifficultyModifierIsEnabled(_modifyPlayerDamageDealt))
+            {
+                return false;
+            }
+
+            float multiplier = PresetPlayerPressureReductionMultiplier();
+            return !ApproximatelyNeutral(multiplier);
         }
 
         private bool PresetModifierIsEffective(ConfigEntry<bool> setting)
@@ -1665,11 +2302,40 @@ namespace SteelAndBone
             return DifficultyModifierIsEnabled(setting) && PresetPenaltyAmount() > NeutralTolerance;
         }
 
+        private bool PlayerPressureModifierIsEffective(ConfigEntry<bool> setting)
+        {
+            return DifficultyModifierIsEnabled(setting) && PresetPlayerPressureAmount() > NeutralTolerance;
+        }
+
         private bool PlayerArrowDropModifierIsEffective()
         {
             return DifficultyModifierIsEnabled(_modifyPlayerArrowDrop)
                 && _playerArrowGravityMultiplier != null
                 && _playerArrowGravityMultiplier.Value < 1.0f - NeutralTolerance;
+        }
+
+        private bool EnemySightRangeModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemySightRange)
+                && !ApproximatelyNeutral(PresetEnemySightRangeMultiplier());
+        }
+
+        private bool EnemyHearingRangeModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemyHearingRange)
+                && !ApproximatelyNeutral(PresetEnemyHearingRangeMultiplier());
+        }
+
+        private bool EnemyAggroPersistenceModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemyAggroPersistence)
+                && !ApproximatelyNeutral(PresetEnemyAggroPersistenceMultiplier());
+        }
+
+        private bool ConsumableRecoveryModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyConsumableRecovery)
+                && !ApproximatelyNeutral(PresetConsumableRecoveryMultiplier());
         }
 
         private bool AttackSlotsModifierIsEffective()
@@ -1723,6 +2389,10 @@ namespace SteelAndBone
             else if (string.Equals(pluginName, "Flat Arrows", StringComparison.Ordinal))
             {
                 message = "Overlapping player-arrow modifiers are active with Flat Arrows. See the BepInEx log for the settings to disable.";
+            }
+            else if (string.Equals(pluginName, "HarderLife", StringComparison.Ordinal))
+            {
+                message = "Overlapping difficulty modifiers are active with HarderLife. See the BepInEx log for the settings to disable.";
             }
             else if (string.Equals(pluginName, "Tainted Instincts", StringComparison.Ordinal))
             {
@@ -1908,15 +2578,24 @@ namespace SteelAndBone
             }
         }
 
-        private static class HostileArrowVelocityPatch
+        private static class HostileArrowBallisticsPatch
         {
             [ThreadStatic]
             private static float _velocityMultiplier;
 
-            public static void Prefix(VGUtils.ShootParams shootParams)
+            public static void Prefix(
+                ref CombatBehaviourUtils.FireProjectileParams fireParams,
+                VGUtils.ShootParams shootParams)
             {
                 SteelAndBonePlugin plugin = Instance;
-                _velocityMultiplier = plugin == null ? 1.0f : plugin.HostileArrowVelocityMultiplier(shootParams);
+                if (plugin == null)
+                {
+                    _velocityMultiplier = 1.0f;
+                    return;
+                }
+
+                plugin.ApplyHostileArcherAimScatter(ref fireParams, shootParams);
+                _velocityMultiplier = plugin.HostileArrowVelocityMultiplier(shootParams);
             }
 
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
@@ -1926,7 +2605,7 @@ namespace SteelAndBone
                     typeof(Mathf),
                     nameof(Mathf.Clamp),
                     new[] { typeof(float), typeof(float), typeof(float) });
-                MethodInfo scale = AccessTools.Method(typeof(HostileArrowVelocityPatch), nameof(ScaleBallisticVelocity));
+                MethodInfo scale = AccessTools.Method(typeof(HostileArrowBallisticsPatch), nameof(ScaleBallisticVelocity));
                 int matches = 0;
 
                 foreach (CodeInstruction instruction in instructions)
@@ -1969,6 +2648,72 @@ namespace SteelAndBone
             {
                 _velocityMultiplier = 1.0f;
                 return __exception;
+            }
+        }
+
+        private static class EnemyHearingRangePatch
+        {
+            public static void Prefix(ref float __0)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyEnemyHearingRange(ref __0);
+                }
+            }
+        }
+
+        private static class EnemyAggroPersistencePatch
+        {
+            public static void Postfix(NpcAI __0, ref float __result)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyEnemyAggroPersistence(__0, ref __result);
+                }
+            }
+        }
+
+        private static class ConsumableRecoveryPatch
+        {
+            public static void Prefix(
+                ItemSkillsInvoker __instance,
+                ref ConsumableRecoveryPatchState __state)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    plugin.CaptureConsumableRecovery(__instance, ref __state);
+                }
+                catch (Exception ex)
+                {
+                    __state = null;
+                    plugin.Warn("Could not capture restorative consumable recovery: " + ex.GetBaseException().Message);
+                }
+            }
+
+            public static void Postfix(ConsumableRecoveryPatchState __state)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin == null || __state == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    plugin.ApplyConsumableRecovery(__state);
+                }
+                catch (Exception ex)
+                {
+                    plugin.Warn("Could not apply restorative consumable recovery: " + ex.GetBaseException().Message);
+                }
             }
         }
 

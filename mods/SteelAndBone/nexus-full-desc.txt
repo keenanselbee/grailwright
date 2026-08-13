@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Steel and Bone[/size][/color]
 [i]Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.[/i][/center]
 
@@ -10,11 +10,11 @@ Its defining feature is a material weakness and resistance system. Bone does not
 
 Vanilla weaknesses, resistances, and immunities remain first in the damage pipeline. Steel and Bone reads the enemy and the incoming damage, respects what Tainted Grail already decided, and adds a focused rule only where it improves the matchup. Mixed hits are resolved by damage part, so physical, elemental, and status payloads keep their own reactions. Reactive damage numbers make the result immediately readable.
 
-The wider difficulty layer grows outward from that same idea: preparation should matter. Enemies notice sooner, groups apply steadier pressure, arrows travel faster and flatter, armor creates clearer roles, and resources and advancement demand more commitment. These systems reinforce the matchup game without replacing enemy AI, rewriting encounters, or inflating health bars.
+The wider difficulty layer grows outward from that same idea: preparation should matter. Enemies see and hear sooner, combat attention fades more slowly, groups apply steadier pressure, arrows travel faster and flatter, armor creates clearer roles, and resources and advancement demand more commitment. These systems reinforce the matchup game without replacing enemy AI, rewriting encounters, or inflating health bars.
 
 [line]
 
-[center][img width=500,height=500]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1786004558-146176661.png[/img][/center]
+[center][img width=500,height=500]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1786131422-324075370.png[/img][/center]
 
 [center][b]Arrows pierce exposed flesh. Magic overwhelms plate armor. Armor turns aside arrows.[/b][/center]
 
@@ -101,17 +101,31 @@ Steel and Bone also reads the equipped armor's native Fabric, Leather, or Metal 
 
 [heading][color=#C94A4A][size=5]Readable Combat Feedback[/size][/color][/heading]
 
+[b]Floating damage numbers[/b]
+
 Built-in floating damage numbers turn hidden matchup rules into visible information:
 
 [list]
 [*]Neutral hits use an amber-yellow baseline.[/*]
 [*]Resisted hits become smaller and greyer.[/*]
 [*]Weakness hits become larger and warmer.[/*]
-[*]Critical hits and weak spots receive additional pop.[/*]
+[*]Critical and weak-spot size and red tint follow their combined real precision bonus, capped at x1.50 size and 50% red on unresisted hits, then fade with material resistance.[/*]
 [*]Immunities use dedicated text and styling.[/*]
 [/list]
 
-Size, color contrast, font, duration, drift, damage-over-time height, and maximum active numbers remain configurable.
+Bleed, Poison, Burn, and Breath tick numbers begin at 3x the ordinary world-space height and 0.75x the ordinary text size by default. DamageOverTimeNumberHeightMultiplier can be tuned from 0x to 6x, while DamageOverTimeNumberScale can be tuned from 0.5x to 2x.
+
+[b]Effectiveness Feedback Sensitivity[/b] changes only how strongly resistance and weakness are presented through number color and optional hit-marker tiers. Changing the preset sets the single value to x1.20 on Tempered, x1.10 on Hardened, or x1.00 on Crucible; it remains freely adjustable afterward and never changes combat damage, number size, or duration.
+
+Confirmed weak spots receive an additive Steel and Bone bonus of 10% on Tempered, 20% on Hardened, or 30% on Crucible. This is summed beside the game's native critical, weak-spot, sneak, and backstab components before outgoing and matchup multipliers. Native critical damage remains unchanged. Precision hits tint the final number and optional hit marker toward pure red according to their combined real bonus, up to 50% on unresisted hits. Material resistance fades that precision tint and size so ineffective hits remain dim, while separate weak-spot and critical markers remain visible; immunity remains grey.
+
+Size, color contrast, font, duration, drift, damage-over-time height and text scale, and maximum active numbers remain configurable.
+
+[b]Optional crosshair hit markers[/b]
+
+Prefer feedback at the center of the screen without floating numbers? [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.0.0 or newer can turn Steel and Bone's final hit result into eight bundled reticle frames: frame 0 for true immunity or a direct physical or magical hit that finalizes at exactly 1 damage, frames 1 through 3 for increasing resistance, frame 4 for neutral damage, and frames 5 through 7 for increasing weakness. Steel and Bone displays RESISTED instead of 1 for those ineffective direct hits. Damage-over-time ticks can use their own marker size and do not use the 1-damage frame. Independent weak-spot and critical overlays can appear over any frame. Killing blows add a Meager, Worthy, Potent, or Prime corpse-tier overlay above both precision layers. Native enemy Tier tags use distinct Tier 0 through Tier 7 quality anchors, while kill XP and max health handle untagged enemies. Elites gain 10%, MiniBosses gain 17.5%, and Bosses begin at Prime quality. Relative enemy level then moves quality by 2.5% per level in either direction, capped at 7.5%, preserving variety without letting level difference overwhelm native enemy identity. The tier calculation shares Blood Magic Expansion's definitions but does not require Blood Magic Expansion.
+
+The marker uses the same final color and duration information as the damage-number system, but it does not require floating damage numbers to be enabled. Each new hit immediately updates the frame and restarts its display timer.
 
 [line]
 
@@ -119,7 +133,9 @@ Size, color contrast, font, duration, drift, damage-over-time height, and maximu
 
 [b]Enemy awareness and pressure[/b]
 [list]
-[*]Hostile sight distance rises by preset while native line of sight, visibility, hearing, alert buildup, and pursuit remain in control.[/*]
+[*]Hostile sight distance rises by preset while native line of sight, visibility, and authored perception differences remain in control.[/*]
+[*]Hero footstep hearing range uses x1.10 / x1.20 / x1.30 by preset while native hearing strength, wall checks, armor noise, and individual NPC hearing remain authoritative.[/*]
+[*]Hardened and Crucible slow only native combat aggro decay to x1.10 or x1.20 persistence. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.[/*]
 [*]Higher presets add simultaneous enemy attack slots and shorten recovery before those slots return.[/*]
 [*]In combat, ordinary agile enemies gain up to 5% movement on Hardened or 10% on Crucible. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed.[/*]
 [*]Friendly actors, summons, allies, inactive AI, and dead actors are excluded from sight tuning.[/*]
@@ -129,9 +145,10 @@ Size, color contrast, font, duration, drift, damage-over-time height, and maximu
 [list]
 [*]Player and hostile arrows travel at x1.10 / x1.30 / x1.50 speed by preset.[/*]
 [*]Player arrows use x0.75 gravity by default on every preset. The value is independently configurable from x0.25 to x1.00 and never tilts the launch direction.[/*]
-[*]Hostile velocity is applied before native movement prediction and ballistic aiming.[/*]
+[*]Hostile archers receive 0.75 / 0.50 / 0.25 meters of minimum native aim-point scatter by preset. The single value remains adjustable afterward, and 0 restores native accuracy.[/*]
+[*]Hostile scatter and velocity are applied before native movement prediction and ballistic aiming. Larger authored scatter is preserved.[/*]
 [*]Direct player arrows receive a material matchup on their physical share; hostile arrow damage remains native.[/*]
-[*]Native aim, projectile offsets, collision, draw-strength scaling, elemental payloads, and bow animations remain unchanged.[/*]
+[*]Native gravity, projectile offsets, collision, draw-strength scaling, elemental payloads, and bow animations remain unchanged.[/*]
 [/list]
 
 [b]Armor roles[/b]
@@ -148,7 +165,7 @@ Armor proficiency, native tier thresholds, individual penalty rules, and Overloa
 
 [b]Passive shield protection[/b]
 
-An equipped and readied shield provides modest passive protection against direct physical attacks from the front even when it is not actively raised. The shield's effective vanilla Block rating determines the reduction, while its BlockAngle determines the forward arc and is capped at 180 degrees total coverage.
+An equipped and readied shield provides modest passive protection against direct physical attacks from the front even when it is not actively raised. The shield's effective vanilla Block rating determines the reduction, while its BlockAngle determines the forward arc and is capped at 180 degrees total coverage. A shield suppressed by Versatile Weapons while the opposite weapon uses both hands grants no passive protection.
 
 [code]
 | Effective Block | Tempered | Hardened | Crucible |
@@ -170,9 +187,10 @@ Effective Block includes the game's normal requirement penalty. Rear attacks, di
 [b]Player and progression pressure[/b]
 [list]
 [*]Incoming health damage and stamina or mana usage increase by preset.[/*]
+[*]Outgoing player health damage is reduced by preset.[/*]
+[*]Restorative consumables retain 100%, 90%, or 80% of positive health, stamina, and mana recovery by preset; non-restorative item effects are unchanged.[/*]
 [*]Player-dealt poise damage falls slightly, making repeated stagger pressure less dominant.[/*]
 [*]Kill, quest, objective, and proficiency experience are reduced by preset.[/*]
-[*]Outgoing player health damage remains independently configurable.[/*]
 [*]Coin rewards are not modified.[/*]
 [/list]
 
@@ -184,24 +202,30 @@ Effective Block includes the game's normal requirement penalty. Rear attacks, di
 | Modifier                        | Tempered | Hardened    | Crucible    |
 |---------------------------------|----------|-------------|-------------|
 | Material-rule intensity         | 55%      | 100%        | 135%        |
+| Outgoing player damage          | x0.95    | x0.90       | x0.85       |
+| Incoming player damage          | x1.05    | x1.10       | x1.15       |
+| Kill, quest, and proficiency XP | x0.95    | x0.90       | x0.85       |
+| Added weak-spot base damage     | +10%     | +20%        | +30%        |
 | Player and hostile arrow speed  | x1.10    | x1.30       | x1.50       |
 | Player arrow gravity            | x0.75    | x0.75       | x0.75       |
+| Hostile archer aim scatter      | 0.75 m   | 0.50 m      | 0.25 m      |
 | Hostile enemy sight distance    | x1.10    | x1.30       | x1.50       |
+| Hero footstep hearing range     | x1.10    | x1.20       | x1.30       |
+| Native combat aggro persistence | x1.00    | x1.10       | x1.20       |
 | Light/agile enemy movement      | x1.00    | Up to x1.05 | Up to x1.10 |
-| Incoming health damage          | x1.00    | x1.05       | x1.10       |
 | Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
+| Restorative consumable recovery | x1.00    | x0.90       | x0.80       |
 | Native armor-weight penalties   | x1.00    | x1.05       | x1.10       |
 | Light armor movement            | x1.00    | x1.025      | x1.05       |
 | Medium physical armor           | x1.00    | x1.05       | x1.10       |
 | Heavy/Overload physical armor   | x1.00    | x1.10       | x1.20       |
 | Enemy attack slots              | +0       | +1          | +2          |
 | Enemy attack recovery time      | x1.00    | x0.95       | x0.90       |
-| Player poise damage dealt       | x1.00    | x0.95       | x0.90       |
-| Kill, quest, and proficiency XP | x1.00    | x0.95       | x0.90       |[/code]
+| Player poise damage dealt       | x1.00    | x0.95       | x0.90       |[/code]
 
 [b]Tempered[/b] stays close to vanilla pressure while retaining lighter material rules and improved projectile speed. [b]Hardened[/b] is the intended default. [b]Crucible[/b] makes enemy knowledge, preparation, and armor roles matter most.
 
-[b]PlayerDamageDealtMultiplier[/b] is independent from presets and defaults to 1. [b]PlayerArrowGravityMultiplier[/b] is also independent from presets and defaults to 0.75. Every global modifier has its own toggle, and [b]DifficultyModifiersEnabled=false[/b] disables the complete supporting difficulty layer without disabling material combat or damage feedback.
+Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset. [b]WeakSpotDamageBonus[/b] and [b]HostileArcherAimScatter[/b] change with the preset, remain freely adjustable afterward, and can be set to 0 to disable their individual effects. [b]PlayerArrowGravityMultiplier[/b] remains independent from presets and defaults to 0.75. Every global modifier has its own control, and [b]DifficultyModifiersEnabled=false[/b] disables the complete supporting difficulty layer without disabling material combat or damage feedback.
 
 [line]
 
@@ -237,7 +261,7 @@ ArrowMaterialRulesEnabled = true
 ArmoredSpellWeaknessEnabled = true
 DifficultyModifiersEnabled = true
 ModifyPlayerDamageDealt = true
-PlayerDamageDealtMultiplier = 1
+WeakSpotDamageBonus = 0.20
 ModifyPlayerDamageTaken = true
 ModifyStaminaUsage = true
 ModifyManaUsage = true
@@ -248,15 +272,20 @@ PlayerArrowGravityMultiplier = 0.75
 ModifyArmorWeightPenalties = true
 ModifyLightArmorMobility = true
 ModifyArmorPhysicalProtection = true
+ModifyConsumableRecovery = true
 ModifyEnemyAttackSlots = true
 EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true
 ModifyEnemyMovementSpeed = true
 ModifyHostileArrowVelocity = true
 ModifyEnemySightRange = true
+ModifyEnemyHearingRange = true
+ModifyEnemyAggroPersistence = true
 ModifyKillExperience = true
 ModifyQuestExperience = true
 ModifyProficiencyExperience = true[/code]
+
+FoA Mod Manager presents common controls first, keeps related toggles and values together, and groups expert rule tuning and target-family terms under Advanced sections. Remaining stored config keys stay stable for existing users.
 
 [line]
 
@@ -266,9 +295,12 @@ ModifyProficiencyExperience = true[/code]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] is compatible. Its movement multipliers stack with the optional Light armor bonus; disable either modifier if the combined speed is not desired.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/57]Custom Difficulty[/url] is incompatible because it changes many of the same difficulty systems. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/105]Flat Arrows[/url] is conditionally compatible. Its bow pull, release, and instant-fire options do not directly overlap, but its arrow modifications stack with Steel and Bone's player velocity and gravity changes. Disable Flat Arrows' [b]EnableArrowModifications[/b] or disable both [b]ModifyPlayerArrowVelocity[/b] and [b]ModifyPlayerArrowDrop[/b] in Steel and Bone.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/164]HarderLife[/url] is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and restorative-consumable modifiers stack with Steel and Bone. Set matching HarderLife multipliers to 1.0, or disable the corresponding Steel and Bone settings, to avoid compounding them. Its parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/219]Tainted Instincts[/url] is incompatible because it can modify enemy sight, damage, cooldown, pursuit, and combat-slot behavior. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/219]Tainted Instincts[/url] is incompatible because it can modify enemy sight, damage, attack cadence, pursuit, and combat-slot behavior. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] 0.3.0 or newer suspends passive shield protection while that shield is hidden by a two-handed grip and restores it when the hand becomes active.[/*]
+[*][b]Dishonored Dynamic Crosshair[/b] 3.0.0 or newer supports the optional API v5 eight-frame hit-marker and tiered killing-blow integration, Effectiveness Feedback Sensitivity, and separate damage-over-time marker sizing described under Readable Combat Feedback.[/*]
+[*][b]Optional diagnostics:[/b] ShowGrailFloatingTextDiagnostics defaults on but remains inactive until Diagnostics is enabled. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] then shows short, low-priority summaries only when the final target, damage, multiplier, vanilla-preservation, elite-clamp, or weighted-composition decision changes. Repeated hits collapse into one lane, while disabling the GFT switch leaves full BepInEx evidence active.[/*]
 [/list]
 
 Steel and Bone stays silent when no overlap is active. A confirmed overlap shows one short in-game warning and lists the exact conflicting Steel and Bone toggles in the BepInEx log.

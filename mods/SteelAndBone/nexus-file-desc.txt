@@ -1,1 +1,1 @@
-Material-driven combat with clear armor, arrow, and spell matchups, modular difficulty tuning, and readable damage feedback.
+Material-driven combat with armor, arrow, and spell matchups, modular difficulty, and damage-number or optional reticle feedback.

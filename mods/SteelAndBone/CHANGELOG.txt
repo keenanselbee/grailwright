@@ -1,3 +1,101 @@
+Version 3.4.4
+Added HostileArcherAimScatter, set by Preset to 0.75 meters on Tempered, 0.50 meters on Hardened, or 0.25 meters on Crucible and freely adjustable afterward; 0 restores native accuracy.
+Applied hostile archer scatter through the game's native target-point inaccuracy before movement prediction and ballistic solving while preserving larger authored scatter, native gravity, arrow damage, and non-hostile projectiles.
+
+Version 3.4.3
+Excluded the game's non-combat interaction damage from Steel and Bone modifiers, restoring woodcutting, mining, digging, and other tool-driven loot interactions.
+
+Version 3.4.2
+Gave native enemy Tiers 0 through 7 distinct corpse-quality anchors so nearby early-game enemies can separate into Meager and Worthy results without sacrificing the shared four-bucket model.
+Changed relative-level weighting to 2.5% quality per level in either direction, capped at 7.5%, so level remains a bounded challenge signal instead of eventually collapsing old enemies into Meager or inflating future enemies into Prime.
+Added a 10% Elite bonus, 17.5% MiniBoss bonus, and 87.5% Boss minimum before the bounded level adjustment.
+
+Version 3.4.1
+Rebalanced corpse quality around native enemy Tier tags: Tier 0-2 is Meager, Tier 3 is Worthy, Tier 4 is Potent, and Tier 5-7 is Prime.
+Added relative-level decay so enemies lose one corpse-quality band for every five levels they fall below the hero, down to vanilla's 10% minimum XP multiplier, without promoting equal- or higher-level enemies.
+Raised the shared untagged-enemy fallback references to 700 base XP and 3400 maximum health.
+
+Version 3.4.0
+Raised the default DamageOverTimeNumberHeightMultiplier from 1.25x to 3.0x so Bleed, Poison, Burn, and Breath tick numbers begin clearly above direct-hit numbers, and expanded its supported maximum from 3.0x to 6.0x.
+Added DamageOverTimeNumberScale, defaulting to 0.75x, so status-tick text size can be tuned independently from 0.5x to 2.0x while retaining normal effectiveness and precision sizing.
+Advanced ConfigSchemaVersion from 17 to 18 because DamageOverTimeNumberHeightMultiplier now defaults to 3.0x; untouched old defaults receive the new value while compatible customized settings remain recoverable.
+
+Version 3.3.9
+Fixed killing-blow feedback to recognize the resolved zero-health state before the game marks the defeated NPC dead.
+
+Version 3.3.8
+Added corpse-quality data to resolved player killing blows using the same Meager, Worthy, Potent, and Prime buckets as Blood Magic Expansion without requiring Blood Magic Expansion to be installed.
+Updated the optional hit-feedback API to v5 with a dedicated killing-blow event for Dishonored Dynamic Crosshair overlays; API v4 consumers are no longer supported.
+
+Version 3.3.7
+Extended RESISTED floating text and the frame-0 hit marker to direct physical attacks without an item or projectile reference, including unarmed and itemless abilities.
+
+Version 3.3.6
+Extended RESISTED floating text and the frame-0 hit marker to direct non-damage-over-time spells that finalize at exactly 1 damage.
+
+Version 3.3.5
+Changed direct non-damage-over-time physical weapon hits that finalize at exactly 1 damage to show RESISTED instead of 1 while retaining the frame-0 hit marker.
+
+Version 3.3.4
+Made optional Dishonored Dynamic Crosshair frame 0 cover true immunities and direct non-damage-over-time physical weapon hits that finalize at exactly 1 damage, while Steel and Bone still shows those hits as 1-damage floating numbers.
+Kept bleed, poison, burn, breath, spells, traps, status effects, and environmental damage out of the 1-damage frame-0 classification.
+
+Version 3.3.3
+Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so in-game damage-decision summaries can be disabled without losing detailed BepInEx logging.
+Made material resistance fade precision damage-number tint and size so heavily resisted weak-spot and critical hits remain dim while retaining their hit markers and animations.
+
+Version 3.3.2
+Added optional Versatile Weapons integration so a shield hidden by a two-handed grip grants no passive frontal protection and resumes protecting when its hand becomes active.
+Retained native equipped-shield behavior when Versatile Weapons is absent, disabled, or unavailable.
+
+Version 3.3.1
+Added a preset-reset WeakSpotDamageBonus of 10% on Tempered, 20% on Hardened, and 30% on Crucible, summed beside native precision bonuses before outgoing and matchup multipliers.
+Kept native critical damage unchanged while driving precision number size and damage-number or hit-marker red tint from the combined real critical and weak-spot bonus, capped at x1.50 size and 50% red.
+Kept hit-marker frame selection dedicated to resistance and weakness effectiveness, with independent critical and weak-spot overlays and immunity priority unchanged.
+
+Version 3.3.0
+Added one EffectivenessFeedbackSensitivity setting that changes to 1.20 on Tempered, 1.10 on Hardened, or 1.00 on Crucible whenever the preset changes, then remains freely adjustable.
+Applied effectiveness sensitivity to damage-number color and Dishonored Dynamic Crosshair hit-marker tier selection without changing combat damage, number size, or duration.
+Upgraded the optional hit-feedback API to v4 so integrations receive both actual and presentation-adjusted effectiveness multipliers.
+
+Version 3.2.9
+Added low-priority Grail Floating Text diagnostic summaries for final target, damage, multiplier, vanilla-preservation, elite-clamp, and weighted-composition decisions while Diagnostics is enabled.
+Deduplicated repeated decisions, limited presentation to one collapsed lane, and kept full per-hit evidence in the BepInEx log.
+
+Version 3.2.8
+Separated true critical-hit feedback from weak-spot, sneak-attack, and backstab feedback so weak-spot hits no longer automatically display the critical overlay.
+
+Version 3.2.7
+Added preset-scaled hero footstep hearing range at x1.10/x1.20/x1.30 while preserving native hearing strength, wall checks, armor noise, and individual NPC hearing.
+Added conservative native combat aggro persistence at x1.00/x1.10/x1.20 without extending chase boundaries, suppressing combat exit, or replacing target-loss rules.
+Reduced positive health, stamina, and mana recovery from restorative consumables to x1.00/x0.90/x0.80 while leaving non-restorative item effects unchanged.
+Added exact HarderLife overlap detection and expanded Tainted Instincts detection for attack cooldown and pursuit stacking.
+
+Version 3.2.6
+Upgraded the optional hit-feedback API to report whether each resolved hit is damage over time, allowing Dishonored Dynamic Crosshair 2.9.6 and newer to size tick markers independently.
+
+Version 3.2.5
+Upgraded the optional hit-feedback API to provide the actual effectiveness multiplier and an explicit immunity flag.
+Enabled Dishonored Dynamic Crosshair 2.9.4 and newer to distinguish three resistance strengths, neutral damage, three weakness strengths, and fully blocked damage.
+
+Version 3.2.4
+Added an optional combat-feedback API for Dishonored Dynamic Crosshair 2.9.3 and newer to show contextual hit markers.
+Published neutral, weakness, resisted, zero-damage, weak-spot, and critical results with the same final colors and durations used by damage numbers.
+Kept hit-marker feedback available when Steel and Bone damage numbers are disabled.
+
+Version 3.2.3
+Simplified player damage configuration to separate Outgoing Player Damage and Incoming Player Damage toggles whose exact values come directly from the selected preset.
+Removed the redundant PlayerDamageDealtMultiplier override so the configured preset always matches the documented outgoing damage value.
+Reorganized FoA Mod Manager with friendly setting names, deterministic ordering, and Advanced sections for expert rule tuning and target-family terms.
+Added visible supported ranges for elite limits, native multiplier amplification, and damage-number controls.
+Clarified Tempered's packaged description and labeled the partial defaults list as Main Difficulty Settings.
+Raised ConfigSchemaVersion to 17 because PlayerDamageDealtMultiplier was removed and previously implicit numeric limits are now enforced as config ranges.
+
+Version 3.2.2
+Changed Tempered, Hardened, and Crucible to increase incoming health damage by 5%, 10%, and 15%, reduce outgoing health damage by 5%, 10%, and 15%, and reduce kill, quest, objective, and proficiency experience by 5%, 10%, and 15%.
+Kept PlayerDamageDealtMultiplier as optional additional tuning applied after the preset's outgoing-damage reduction.
+Raised ConfigSchemaVersion to 16 because Preset now changes outgoing health damage and uses stronger incoming-damage and experience values, including on Tempered.
+
 Version 3.2.1
 Kept the configured player-arrow gravity multiplier consistent during local slow-time effects instead of over-correcting arrow drop.
 

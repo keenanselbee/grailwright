@@ -41,4 +41,37 @@ foreach ($fragment in $forbiddenFragments) {
     }
 }
 
+$sharedOffsetConsumer = 'TryGetCurrentVisualWorldOffset(out worldOffset)'
+$sharedOffsetConsumerCount = [regex]::Matches(
+    $source,
+    [regex]::Escape($sharedOffsetConsumer)
+).Count
+if ($sharedOffsetConsumerCount -ne 5) {
+    throw "Expected the public API and four visual paths to share one cached world offset; found $sharedOffsetConsumerCount consumers."
+}
+
+$effectiveOffsetSampleCount = [regex]::Matches(
+    $source,
+    'camera\.transform\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)'
+).Count
+if ($effectiveOffsetSampleCount -ne 1) {
+    throw "Expected exactly one camera-space sample of the effective visual offset; found $effectiveOffsetSampleCount."
+}
+
+if ([regex]::IsMatch(
+        $source,
+        'camera\.transform\.TransformVector\(\s*localOffset\s*\)')) {
+    throw "A visual path independently resamples the camera-space offset instead of using the per-frame cache."
+}
+
+$immutableFrameGuard = @'
+if (_currentVisualWorldOffsetFrame == Time.frameCount)
+            {
+                return;
+            }
+'@
+if (-not $source.Contains($immutableFrameGuard)) {
+    throw "The visual world-offset cache can be refreshed more than once per frame."
+}
+
 Write-Host "First Person Arms Adjuster VFPB compatibility contracts passed."

@@ -1,4 +1,3 @@
-TargetVersion=0.4.5
-BaselineVersion=0.4.4
-Detected one-handed and two-handed sprint attacks through the game's dedicated animation state.
-Rapidly returned the complete first-person presentation offset to vanilla during sprint attacks, then smoothly restored the configured position afterward to keep shoulders and body geometry out of view.
+TargetVersion=0.4.6
+BaselineVersion=0.4.5
+Sampled one immutable camera-space presentation offset per frame across arms, equipment, attached effects, and the temporary body render translation, keeping hands connected to weapons during rapid camera movement.

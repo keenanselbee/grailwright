@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.4.5
+First Person Arms Adjuster 0.4.6
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -80,8 +80,11 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.4.5 adds the dedicated sprint-attack transition guard for both melee
-grips. Version 0.4.4 leaves VFPB's camera-anchored torso and legs at their native
+Version 0.4.6 keeps arms, equipment, attached effects, and the temporary body
+render translation on one immutable per-frame camera-space offset so rapid look
+movement cannot pull hands away from weapons. Version 0.4.5 adds the dedicated
+sprint-attack transition guard for both melee grips. Version 0.4.4 leaves VFPB's
+camera-anchored torso and legs at their native
 placement and applies the offset directly at the game's first-person Kandra
 render-collection stage. This keeps the visible arms aligned across perspective order,
 equipment changes, and scene reloads without moving the full-body overlay into

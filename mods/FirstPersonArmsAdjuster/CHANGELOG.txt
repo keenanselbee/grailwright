@@ -1,3 +1,6 @@
+Version 0.4.6
+Sampled one immutable camera-space presentation offset per frame for Kandra arms, Drake equipment, attached effects, and the temporary body render translation, keeping hands connected to weapons during rapid horizontal and vertical camera movement.
+
 Version 0.4.5
 Detected the game's dedicated LightAttackForward sprint-attack state for both one-handed and two-handed melee instead of treating the move as a heavy charge.
 Rapidly returned the complete first-person presentation offset to vanilla during sprint attacks, then smoothly restored the configured position after the attack ended.

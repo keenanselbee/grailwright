@@ -20,7 +20,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.1.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
-| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.4.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
+| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Full Enemy XP](mods/FullEnemyXP) | 1.1.0 | Unpublished |
 | [Grail Floating Text](mods/GrailFloatingText) | 2.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
 | [Killing Blow Mastery](mods/KillingBlowMastery) | 1.6.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |

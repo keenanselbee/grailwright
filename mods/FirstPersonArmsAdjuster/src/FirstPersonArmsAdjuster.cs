@@ -38,8 +38,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.4.5.0")]
-[assembly: AssemblyFileVersion("0.4.5.0")]
+[assembly: AssemblyVersion("0.4.6.0")]
+[assembly: AssemblyFileVersion("0.4.6.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -71,7 +71,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.4.5";
+        public const string PluginVersion = "0.4.6";
 
         private const int ConfigSchemaVersion = 8;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -952,22 +952,18 @@ namespace FirstPersonArmsAdjuster
             HeroBodyData bodyData = controller == null
                 ? null
                 : controller.BodyData;
-            Camera camera = controller == null
-                ? null
-                : controller.MainCamera;
-            if (bodyData == null || camera == null)
+            if (bodyData == null)
             {
                 return;
             }
 
-            Vector3 localOffset = GetEffectiveLocalOffset(hero);
-            if (localOffset.sqrMagnitude <= 0.00000001f)
+            Vector3 worldOffset;
+            if (!TryGetCurrentVisualWorldOffset(out worldOffset)
+                || worldOffset.sqrMagnitude <= 0.00000001f)
             {
                 return;
             }
 
-            Vector3 worldOffset =
-                camera.transform.TransformVector(localOffset);
             ApplyLateKandraOffset(
                 bodyData,
                 rendererManager.RigManager,
@@ -1232,24 +1228,20 @@ namespace FirstPersonArmsAdjuster
             HeroBodyData bodyData = controller == null
                 ? null
                 : controller.BodyData;
-            Camera camera = controller == null
-                ? null
-                : controller.MainCamera;
-            if (bodyData == null || camera == null)
+            if (bodyData == null)
             {
                 RestoreDrakeOffsets(entityManager, null);
                 return;
             }
 
-            Vector3 localOffset = GetEffectiveLocalOffset(hero);
-            if (localOffset.sqrMagnitude <= 0.00000001f)
+            Vector3 worldOffset;
+            if (!TryGetCurrentVisualWorldOffset(out worldOffset)
+                || worldOffset.sqrMagnitude <= 0.00000001f)
             {
                 RestoreDrakeOffsets(entityManager, null);
                 return;
             }
 
-            Vector3 worldOffset =
-                camera.transform.TransformVector(localOffset);
             RefreshWeaponEntityAccess(hero);
             if (_cachedWeaponEntityAccess.Length == 0)
             {
@@ -1558,20 +1550,21 @@ namespace FirstPersonArmsAdjuster
             HeroBodyData bodyData = controller == null
                 ? null
                 : controller.BodyData;
-            Camera camera = controller == null
-                ? null
-                : controller.MainCamera;
             if (bodyData == null
-                || bodyData.transform == null
-                || camera == null)
+                || bodyData.transform == null)
+            {
+                RestoreAttachedEffectOffsets();
+                return;
+            }
+
+            Vector3 worldOffset;
+            if (!TryGetCurrentVisualWorldOffset(out worldOffset))
             {
                 RestoreAttachedEffectOffsets();
                 return;
             }
 
             RefreshAttachedEffectOffsets(hero, bodyData.transform);
-            Vector3 worldOffset = camera.transform.TransformVector(
-                GetEffectiveLocalOffset(hero));
             for (int index = 0;
                 index < _attachedEffectOffsets.Length;
                 index++)
@@ -1844,8 +1837,9 @@ namespace FirstPersonArmsAdjuster
                 return;
             }
 
-            Vector3 localOffset = GetEffectiveLocalOffset(hero);
-            if (localOffset.sqrMagnitude <= 0.00000001f)
+            Vector3 worldOffset;
+            if (!TryGetCurrentVisualWorldOffset(out worldOffset)
+                || worldOffset.sqrMagnitude <= 0.00000001f)
             {
                 return;
             }
@@ -1856,12 +1850,14 @@ namespace FirstPersonArmsAdjuster
             SuspendBodyRootAttachedEffectOffsets();
             _offsetRoot.position =
                 _originalWorldPosition
-                + camera.transform.TransformVector(localOffset);
+                + worldOffset;
             _renderOffsetApplied = true;
 
             if (_diagnostics.Value && _lastReportedRoot != _offsetRoot)
             {
                 _lastReportedRoot = _offsetRoot;
+                Vector3 localOffset =
+                    camera.transform.InverseTransformVector(worldOffset);
                 Logger.LogInfo(
                     "Applying first-person render offset to "
                     + GetTransformPath(_offsetRoot)
@@ -1994,6 +1990,11 @@ namespace FirstPersonArmsAdjuster
 
         private void RefreshCurrentVisualWorldOffset()
         {
+            if (_currentVisualWorldOffsetFrame == Time.frameCount)
+            {
+                return;
+            }
+
             _currentVisualWorldOffsetFrame = Time.frameCount;
             _currentVisualWorldOffset = Vector3.zero;
             _hasCurrentVisualWorldOffset = false;

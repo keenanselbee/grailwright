@@ -1,5 +1,5 @@
 Steel and Bone
-Version 3.4.5
+Version 3.4.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -52,6 +52,8 @@ Enemy awareness remains native-first. Sight tuning multiplies each active hostil
 
 Restorative-consumable tuning measures only positive health, stamina, or mana recovery from items carrying the game's matching consumable markers. Hardened retains 90% and Crucible retains 80% of the native recovered amount. Tempered and non-restorative item effects remain unchanged.
 
+Standard food healing remains native on Tempered. Hardened restores health at 75% of the native rate for 1.5 times the duration (112.5% total) and adds 0.5 stamina per second for the food's original duration. Crucible restores health at 62.5% of the native rate for twice the duration (125% total) and adds 1 stamina per second for the original duration. The added stamina effect does not stack: another qualifying food replaces it while preserving the food's other authored effects. Food tooltips update from the current preset without adding Steel and Bone or preset labels.
+
 Enemy movement tuning multiplies the game's native combat movement stat without changing attack animation speed. Exposed, Light-armored, and ordinary agile enemies such as wolves and swarms receive the full 0%/5%/10% preset bonus. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed. It applies only to living, active, hostile combatants and can also affect native movement during lunging attacks.
 
 Vanilla attack slots are Story/Easy 1, Normal/Challenge 2, Hard 3, and Survival 4. Steel and Bone adds 0/1/2 and caps only its own increase at 6 by default.
@@ -78,6 +80,7 @@ ModifyArmorWeightPenalties = true
 ModifyLightArmorMobility = true
 ModifyArmorPhysicalProtection = true
 ModifyConsumableRecovery = true
+ModifyFoodRecovery = true
 ModifyEnemyAttackSlots = true
 EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true

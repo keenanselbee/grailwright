@@ -14,15 +14,23 @@ using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.General.StatTypes;
 using Awaken.TG.Main.Grounds;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Heroes.Items.Attachments;
+using Awaken.TG.Main.Heroes.Items.Tooltips.Descriptors;
 using Awaken.TG.Main.Heroes.Stats;
+using Awaken.TG.Main.Heroes.Statuses;
+using Awaken.TG.Main.Heroes.Statuses.Duration;
 using Awaken.TG.Main.Heroes.Stats.Tweaks;
 using Awaken.TG.Main.Settings.Gameplay;
+using Awaken.TG.Main.Skills;
 using Awaken.TG.Main.Stories.Quests;
 using Awaken.TG.Main.Stories.Quests.Objectives;
+using Awaken.TG.Main.Templates;
 using Awaken.TG.Main.UI.HUD.Notifications;
+using Awaken.TG.Main.Utility.RichEnums;
 using Awaken.TG.Main.VisualGraphUtils;
 using BepInEx;
 using BepInEx.Bootstrap;
@@ -43,6 +51,14 @@ namespace SteelAndBone
             "VersatileWeapons.VersatileWeaponsApi";
         private const float NeutralTolerance = 0.0001f;
         private const float DifficultyRefreshIntervalSeconds = 1.0f;
+        private const string StandardFoodRecoveryGraphGuid = "1c2da8428b5a74142b93ed84593676a9";
+        private const string NonStackingFoodStatusGuid = "bf8c8a961f51ba94faa9f5e02a0b9502";
+        private const string FoodStaminaStatusSourceId = "ks.tgfoa.steel-and-bone:food-stamina";
+
+        private static readonly FieldInfo SkillVariableOverridesField =
+            AccessTools.Field(typeof(Skill), "_variableOverrides");
+        private static readonly MethodInfo StatusSourceUniqueIdSetter =
+            AccessTools.PropertySetter(typeof(StatusSourceInfo), "SourceUniqueID");
 
         private ConfigEntry<bool> _difficultyModifiersEnabled;
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
@@ -58,6 +74,7 @@ namespace SteelAndBone
         private ConfigEntry<bool> _modifyArmorWeightPenalties;
         private ConfigEntry<bool> _modifyLightArmorMobility;
         private ConfigEntry<bool> _modifyArmorPhysicalProtection;
+        private ConfigEntry<bool> _modifyFoodRecovery;
         private ConfigEntry<bool> _modifyConsumableRecovery;
         private ConfigEntry<bool> _modifyEnemyAttackSlots;
         private ConfigEntry<int> _enemyAttackSlotCap;
@@ -150,6 +167,23 @@ namespace SteelAndBone
             internal float HealthBefore;
             internal float ManaBefore;
             internal float StaminaBefore;
+            internal FoodSkillOverrideState Food;
+        }
+
+        private sealed class FoodSkillVariableSnapshot
+        {
+            internal Skill Skill;
+            internal List<SkillVariable> VariableOverrides;
+        }
+
+        private sealed class FoodSkillOverrideState
+        {
+            internal Item Item;
+            internal Hero Hero;
+            internal readonly List<FoodSkillVariableSnapshot> Snapshots =
+                new List<FoodSkillVariableSnapshot>();
+            internal float AuthoredDuration;
+            internal bool Restored;
         }
 
         private void BindDifficultyConfig()
@@ -242,6 +276,11 @@ namespace SteelAndBone
                 "ModifyConsumableRecovery",
                 true,
                 ConfigUi("Multiply positive health, stamina, and mana recovery from restorative consumables by 1.00, 0.90, or 0.80 according to the preset when Difficulty Modifiers is enabled. Non-restorative item effects are unchanged.", "Difficulty - Player", "Restorative Consumable Recovery", 60, 120));
+            _modifyFoodRecovery = Config.Bind(
+                "6. Difficulty - Player",
+                "ModifyFoodRecovery",
+                true,
+                ConfigUi("Reshape standard food healing over time when Difficulty Modifiers is enabled. Hardened restores 75% per second for 1.5x duration and adds 0.5 stamina per second; Crucible restores 62.5% per second for 2x duration and adds 1 stamina per second. Tempered remains native.", "Difficulty - Player", "Food Recovery", 60, 125));
 
             _modifyEnemyAttackSlots = Config.Bind(
                 "7. Difficulty - Enemies",
@@ -464,23 +503,63 @@ namespace SteelAndBone
             MethodInfo postfix = AccessTools.Method(
                 typeof(ConsumableRecoveryPatch),
                 nameof(ConsumableRecoveryPatch.Postfix));
-            if (original == null || prefix == null || postfix == null)
+            MethodInfo finalizer = AccessTools.Method(
+                typeof(ConsumableRecoveryPatch),
+                nameof(ConsumableRecoveryPatch.Finalizer));
+            if (original == null || prefix == null || postfix == null || finalizer == null)
             {
                 Warn("Could not patch ItemSkillsInvoker.PerformImmediate; the restorative-consumable modifier is disabled.");
+            }
+            else
+            {
+                try
+                {
+                    _harmony.Patch(
+                        original,
+                        prefix: new HarmonyMethod(prefix),
+                        postfix: new HarmonyMethod(postfix),
+                        finalizer: new HarmonyMethod(finalizer));
+                    LogDiagnostic("Patched ItemSkillsInvoker.PerformImmediate for restorative consumables and food recovery.");
+                }
+                catch (Exception ex)
+                {
+                    Warn("Could not patch ItemSkillsInvoker.PerformImmediate; restorative consumable and food modifiers are disabled. " + ex.GetBaseException().Message);
+                }
+            }
+
+            MethodInfo descriptionGetter = AccessTools.PropertyGetter(
+                typeof(ExistingItemDescriptor),
+                nameof(ExistingItemDescriptor.ItemDescription));
+            MethodInfo descriptionPrefix = AccessTools.Method(
+                typeof(FoodDescriptionPatch),
+                nameof(FoodDescriptionPatch.Prefix));
+            MethodInfo descriptionPostfix = AccessTools.Method(
+                typeof(FoodDescriptionPatch),
+                nameof(FoodDescriptionPatch.Postfix));
+            MethodInfo descriptionFinalizer = AccessTools.Method(
+                typeof(FoodDescriptionPatch),
+                nameof(FoodDescriptionPatch.Finalizer));
+            if (descriptionGetter == null
+                || descriptionPrefix == null
+                || descriptionPostfix == null
+                || descriptionFinalizer == null)
+            {
+                Warn("Could not patch ExistingItemDescriptor.ItemDescription; food tooltip tuning is disabled.");
                 return;
             }
 
             try
             {
                 _harmony.Patch(
-                    original,
-                    new HarmonyMethod(prefix),
-                    new HarmonyMethod(postfix));
-                LogDiagnostic("Patched ItemSkillsInvoker.PerformImmediate for the restorative-consumable modifier.");
+                    descriptionGetter,
+                    prefix: new HarmonyMethod(descriptionPrefix),
+                    postfix: new HarmonyMethod(descriptionPostfix),
+                    finalizer: new HarmonyMethod(descriptionFinalizer));
+                LogDiagnostic("Patched ExistingItemDescriptor.ItemDescription for live food recovery text.");
             }
             catch (Exception ex)
             {
-                Warn("Could not patch ItemSkillsInvoker.PerformImmediate; the restorative-consumable modifier is disabled. " + ex.GetBaseException().Message);
+                Warn("Could not patch ExistingItemDescriptor.ItemDescription; food tooltip tuning is disabled. " + ex.GetBaseException().Message);
             }
         }
 
@@ -790,6 +869,63 @@ namespace SteelAndBone
                 case Preset.Tempered:
                 default:
                     return 1.0f;
+            }
+        }
+
+        private float PresetFoodHealthRateMultiplier()
+        {
+            if (_preset == null)
+            {
+                return 1.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 0.75f;
+                case Preset.Crucible:
+                    return 0.625f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private float PresetFoodHealthDurationMultiplier()
+        {
+            if (_preset == null)
+            {
+                return 1.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 1.5f;
+                case Preset.Crucible:
+                    return 2.0f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private float PresetFoodStaminaRate()
+        {
+            if (_preset == null)
+            {
+                return 0.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Hardened:
+                    return 0.5f;
+                case Preset.Crucible:
+                    return 1.0f;
+                case Preset.Tempered:
+                default:
+                    return 0.0f;
             }
         }
 
@@ -1312,10 +1448,11 @@ namespace SteelAndBone
 
         private void CaptureConsumableRecovery(
             ItemSkillsInvoker invoker,
+            ItemActionType actionType,
             ref ConsumableRecoveryPatchState state)
         {
             state = null;
-            if (!ConsumableRecoveryModifierIsEffective() || invoker == null)
+            if (invoker == null || actionType != ItemActionType.Eat)
             {
                 return;
             }
@@ -1328,6 +1465,22 @@ namespace SteelAndBone
                 || hero == null
                 || !ReferenceEquals(item.Owner.Character, hero))
             {
+                return;
+            }
+
+            bool isFood = item.IsEdible && !item.Template.IsPotion;
+            FoodSkillOverrideState foodState = null;
+            if (isFood && FoodRecoveryModifierIsEffective())
+            {
+                foodState = ApplyFoodSkillOverrides(item, hero);
+            }
+
+            if (!ConsumableRecoveryModifierIsEffective() || isFood)
+            {
+                if (foodState != null)
+                {
+                    state = new ConsumableRecoveryPatchState { Food = foodState };
+                }
                 return;
             }
 
@@ -1355,21 +1508,251 @@ namespace SteelAndBone
                 Stamina = stamina,
                 HealthBefore = health == null ? 0.0f : health.BaseValue,
                 ManaBefore = mana == null ? 0.0f : mana.BaseValue,
-                StaminaBefore = stamina == null ? 0.0f : stamina.BaseValue
+                StaminaBefore = stamina == null ? 0.0f : stamina.BaseValue,
+                Food = foodState
             };
         }
 
         private void ApplyConsumableRecovery(ConsumableRecoveryPatchState state)
         {
-            if (state == null || !ConsumableRecoveryModifierIsEffective())
+            if (state == null)
             {
                 return;
             }
 
-            float multiplier = PresetConsumableRecoveryMultiplier();
-            ApplyRestorativeConsumableMultiplier(state.Health, state.HealthBefore, multiplier, "Health");
-            ApplyRestorativeConsumableMultiplier(state.Mana, state.ManaBefore, multiplier, "Mana");
-            ApplyRestorativeConsumableMultiplier(state.Stamina, state.StaminaBefore, multiplier, "Stamina");
+            RestoreFoodSkillOverrides(state.Food);
+            ApplyFoodStaminaRecovery(state.Food);
+
+            if (ConsumableRecoveryModifierIsEffective())
+            {
+                float multiplier = PresetConsumableRecoveryMultiplier();
+                ApplyRestorativeConsumableMultiplier(state.Health, state.HealthBefore, multiplier, "Health");
+                ApplyRestorativeConsumableMultiplier(state.Mana, state.ManaBefore, multiplier, "Mana");
+                ApplyRestorativeConsumableMultiplier(state.Stamina, state.StaminaBefore, multiplier, "Stamina");
+            }
+        }
+
+        private FoodSkillOverrideState ApplyFoodSkillOverrides(Item item, Hero hero)
+        {
+            if (item == null
+                || hero == null
+                || SkillVariableOverridesField == null
+                || !FoodRecoveryModifierIsEffective())
+            {
+                return null;
+            }
+
+            FoodSkillOverrideState state = new FoodSkillOverrideState
+            {
+                Item = item,
+                Hero = hero
+            };
+
+            try
+            {
+                float rateMultiplier = PresetFoodHealthRateMultiplier();
+                float durationMultiplier = PresetFoodHealthDurationMultiplier();
+                foreach (Skill skill in item.ItemEffectsSkills)
+                {
+                    if (skill == null
+                        || skill.Graph == null
+                        || !string.Equals(skill.Graph.GUID, StandardFoodRecoveryGraphGuid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    float? authoredDuration = skill.GetVariable("Duration", hero);
+                    if (authoredDuration.HasValue)
+                    {
+                        state.AuthoredDuration = Mathf.Max(state.AuthoredDuration, authoredDuration.Value);
+                    }
+
+                    if (skill.GetRichEnum("StatEnum") != AliveStatType.HealthRegen)
+                    {
+                        continue;
+                    }
+
+                    List<SkillVariable> currentOverrides =
+                        SkillVariableOverridesField.GetValue(skill) as List<SkillVariable>;
+                    state.Snapshots.Add(new FoodSkillVariableSnapshot
+                    {
+                        Skill = skill,
+                        VariableOverrides = CloneSkillVariables(currentOverrides)
+                    });
+
+                    float? addValue = skill.GetVariable("AddValue", hero);
+                    float? gain = skill.GetVariable("Gain", hero);
+                    if (addValue.HasValue)
+                    {
+                        skill.OverrideVariable("AddValue", addValue.Value * rateMultiplier);
+                    }
+                    if (gain.HasValue)
+                    {
+                        skill.OverrideVariable("Gain", gain.Value * rateMultiplier);
+                    }
+                    if (authoredDuration.HasValue)
+                    {
+                        skill.OverrideVariable("Duration", authoredDuration.Value * durationMultiplier);
+                    }
+                }
+
+                if (state.AuthoredDuration <= NeutralTolerance)
+                {
+                    RestoreFoodSkillOverrides(state);
+                    return null;
+                }
+
+                return state;
+            }
+            catch
+            {
+                RestoreFoodSkillOverrides(state);
+                throw;
+            }
+        }
+
+        private static List<SkillVariable> CloneSkillVariables(List<SkillVariable> variables)
+        {
+            if (variables == null)
+            {
+                return null;
+            }
+
+            List<SkillVariable> clone = new List<SkillVariable>(variables.Count);
+            for (int i = 0; i < variables.Count; i++)
+            {
+                SkillVariable variable = variables[i];
+                clone.Add(variable == null ? null : variable.Copy());
+            }
+            return clone;
+        }
+
+        private static void RestoreFoodSkillOverrides(FoodSkillOverrideState state)
+        {
+            if (state == null || state.Restored)
+            {
+                return;
+            }
+
+            if (SkillVariableOverridesField == null)
+            {
+                state.Restored = true;
+                return;
+            }
+
+            for (int i = 0; i < state.Snapshots.Count; i++)
+            {
+                FoodSkillVariableSnapshot snapshot = state.Snapshots[i];
+                if (snapshot != null && snapshot.Skill != null)
+                {
+                    SkillVariableOverridesField.SetValue(snapshot.Skill, snapshot.VariableOverrides);
+                }
+            }
+            state.Restored = true;
+        }
+
+        private void ApplyFoodStaminaRecovery(FoodSkillOverrideState state)
+        {
+            if (state == null
+                || state.Hero == null
+                || state.Hero.Statuses == null
+                || state.AuthoredDuration <= NeutralTolerance)
+            {
+                return;
+            }
+
+            float staminaRate = PresetFoodStaminaRate();
+            if (staminaRate <= NeutralTolerance)
+            {
+                return;
+            }
+
+            StatusTemplate template = TemplatesUtil.Load<StatusTemplate>(NonStackingFoodStatusGuid);
+            if (template == null || StatusSourceUniqueIdSetter == null)
+            {
+                Warn("Could not resolve the native non-stacking food status; added food stamina recovery was skipped.");
+                return;
+            }
+
+            RemoveFoodStaminaStatus(state.Hero);
+
+            StatusSourceInfo sourceInfo = StatusSourceInfo
+                .FromStatus(template)
+                .WithCharacter(state.Hero)
+                .WithItem(state.Item);
+            StatusSourceUniqueIdSetter.Invoke(
+                sourceInfo,
+                new object[] { FoodStaminaStatusSourceId });
+
+            SkillVariablesOverride variables = new SkillVariablesOverride(
+                new[] { new SkillVariable("AddValue", staminaRate) },
+                new[]
+                {
+                    new SkillRichEnum(
+                        "StatEnum",
+                        new RichEnumReference(CharacterStatType.StaminaRegen))
+                });
+            Status status = new Status(template, sourceInfo, variables);
+            state.Hero.Statuses.AddNewStatus(
+                status,
+                new TimeDuration(state.AuthoredDuration));
+        }
+
+        private static void RemoveFoodStaminaStatus(Hero hero)
+        {
+            if (hero == null || hero.Statuses == null)
+            {
+                return;
+            }
+
+            List<Status> matchingStatuses = new List<Status>();
+            foreach (Status status in hero.Statuses.AllStatuses)
+            {
+                if (status != null
+                    && status.SourceInfo != null
+                    && string.Equals(
+                        status.SourceInfo.SourceUniqueID,
+                        FoodStaminaStatusSourceId,
+                        StringComparison.Ordinal))
+                {
+                    matchingStatuses.Add(status);
+                }
+            }
+
+            for (int i = 0; i < matchingStatuses.Count; i++)
+            {
+                hero.Statuses.RemoveStatus(matchingStatuses[i]);
+            }
+        }
+
+        private string AppendFoodStaminaDescription(
+            FoodSkillOverrideState state,
+            string description)
+        {
+            if (state == null || state.AuthoredDuration <= NeutralTolerance)
+            {
+                return description;
+            }
+
+            float staminaRate = PresetFoodStaminaRate();
+            if (staminaRate <= NeutralTolerance)
+            {
+                return description;
+            }
+
+            string duration = state.AuthoredDuration.ToString("0.###", CultureInfo.InvariantCulture);
+            string staminaLine = staminaRate < 0.75f
+                ? "Restores 1 stamina every 2 seconds for " + duration + " seconds."
+                : "Restores 1 stamina per second for " + duration + " seconds.";
+            if (!string.IsNullOrEmpty(description)
+                && description.IndexOf(staminaLine, StringComparison.Ordinal) >= 0)
+            {
+                return description;
+            }
+
+            return string.IsNullOrWhiteSpace(description)
+                ? staminaLine
+                : description.TrimEnd() + Environment.NewLine + staminaLine;
         }
 
         private void ApplyRestorativeConsumableMultiplier(
@@ -2141,6 +2524,7 @@ namespace SteelAndBone
             AddConflictIf(conflicts, EnemyHearingRangeModifierIsEffective() && hearingOverlap, "ModifyEnemyHearingRange");
             AddConflictIf(conflicts, EnemyAggroPersistenceModifierIsEffective() && persistenceOverlap, "ModifyEnemyAggroPersistence");
             AddConflictIf(conflicts, ConsumableRecoveryModifierIsEffective() && consumableOverlap, "ModifyConsumableRecovery");
+            AddConflictIf(conflicts, FoodRecoveryModifierIsEffective() && consumableOverlap, "ModifyFoodRecovery");
             ReportCompatibilityOverlap("HarderLife", conflicts);
         }
 
@@ -2336,6 +2720,14 @@ namespace SteelAndBone
         {
             return DifficultyModifierIsEnabled(_modifyConsumableRecovery)
                 && !ApproximatelyNeutral(PresetConsumableRecoveryMultiplier());
+        }
+
+        private bool FoodRecoveryModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyFoodRecovery)
+                && (!ApproximatelyNeutral(PresetFoodHealthRateMultiplier())
+                    || !ApproximatelyNeutral(PresetFoodHealthDurationMultiplier())
+                    || PresetFoodStaminaRate() > NeutralTolerance);
         }
 
         private bool AttackSlotsModifierIsEffective()
@@ -2679,6 +3071,7 @@ namespace SteelAndBone
         {
             public static void Prefix(
                 ItemSkillsInvoker __instance,
+                ItemActionType __0,
                 ref ConsumableRecoveryPatchState __state)
             {
                 SteelAndBonePlugin plugin = Instance;
@@ -2689,10 +3082,11 @@ namespace SteelAndBone
 
                 try
                 {
-                    plugin.CaptureConsumableRecovery(__instance, ref __state);
+                    plugin.CaptureConsumableRecovery(__instance, __0, ref __state);
                 }
                 catch (Exception ex)
                 {
+                    RestoreFoodSkillOverrides(__state == null ? null : __state.Food);
                     __state = null;
                     plugin.Warn("Could not capture restorative consumable recovery: " + ex.GetBaseException().Message);
                 }
@@ -2714,6 +3108,99 @@ namespace SteelAndBone
                 {
                     plugin.Warn("Could not apply restorative consumable recovery: " + ex.GetBaseException().Message);
                 }
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                ConsumableRecoveryPatchState __state)
+            {
+                try
+                {
+                    RestoreFoodSkillOverrides(__state == null ? null : __state.Food);
+                }
+                catch (Exception ex)
+                {
+                    SteelAndBonePlugin plugin = Instance;
+                    if (plugin != null)
+                    {
+                        plugin.Warn("Could not restore temporary food skill values: " + ex.GetBaseException().Message);
+                    }
+                }
+                return __exception;
+            }
+        }
+
+        private static class FoodDescriptionPatch
+        {
+            public static void Prefix(
+                ExistingItemDescriptor __instance,
+                ref FoodSkillOverrideState __state)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin == null || __instance == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    Item item = __instance.ExistingItem;
+                    Hero hero = Hero.Current;
+                    if (item != null
+                        && item.Template != null
+                        && item.IsEdible
+                        && !item.Template.IsPotion
+                        && hero != null)
+                    {
+                        __state = plugin.ApplyFoodSkillOverrides(item, hero);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RestoreFoodSkillOverrides(__state);
+                    __state = null;
+                    plugin.Warn("Could not prepare live food tooltip values: " + ex.GetBaseException().Message);
+                }
+            }
+
+            public static void Postfix(
+                ref string __result,
+                FoodSkillOverrideState __state)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin == null || __state == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    RestoreFoodSkillOverrides(__state);
+                    __result = plugin.AppendFoodStaminaDescription(__state, __result);
+                }
+                catch (Exception ex)
+                {
+                    plugin.Warn("Could not finish live food tooltip values: " + ex.GetBaseException().Message);
+                }
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                FoodSkillOverrideState __state)
+            {
+                try
+                {
+                    RestoreFoodSkillOverrides(__state);
+                }
+                catch (Exception ex)
+                {
+                    SteelAndBonePlugin plugin = Instance;
+                    if (plugin != null)
+                    {
+                        plugin.Warn("Could not restore temporary food tooltip values: " + ex.GetBaseException().Message);
+                    }
+                }
+                return __exception;
             }
         }
 

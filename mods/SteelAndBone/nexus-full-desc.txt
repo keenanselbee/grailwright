@@ -189,6 +189,7 @@ Effective Block includes the game's normal requirement penalty. Rear attacks, di
 [*]Incoming health damage and stamina or mana usage increase by preset.[/*]
 [*]Outgoing player health damage is reduced by preset.[/*]
 [*]Restorative consumables retain 100%, 90%, or 80% of positive health, stamina, and mana recovery by preset; non-restorative item effects are unchanged.[/*]
+[*]Standard food becomes slower but more sustaining: Hardened delivers 112.5% total health over 1.5x duration with 0.5 stamina per second, while Crucible delivers 125% total health over 2x duration with 1 stamina per second. The added stamina effect replaces itself instead of stacking, and food tooltips show the current values without extra preset labels.[/*]
 [*]Player-dealt poise damage falls slightly, making repeated stagger pressure less dominant.[/*]
 [*]Kill, quest, objective, and proficiency experience are reduced by preset.[/*]
 [*]Coin rewards are not modified.[/*]
@@ -215,6 +216,9 @@ Effective Block includes the game's normal requirement penalty. Rear attacks, di
 | Light/agile enemy movement      | x1.00    | Up to x1.05 | Up to x1.10 |
 | Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
 | Restorative consumable recovery | x1.00    | x0.90       | x0.80       |
+| Standard food health rate       | x1.00    | x0.75       | x0.625      |
+| Standard food health duration   | x1.00    | x1.50       | x2.00       |
+| Added food stamina per second   | 0        | 0.5         | 1.0         |
 | Native armor-weight penalties   | x1.00    | x1.05       | x1.10       |
 | Light armor movement            | x1.00    | x1.025      | x1.05       |
 | Medium physical armor           | x1.00    | x1.05       | x1.10       |
@@ -273,6 +277,7 @@ ModifyArmorWeightPenalties = true
 ModifyLightArmorMobility = true
 ModifyArmorPhysicalProtection = true
 ModifyConsumableRecovery = true
+ModifyFoodRecovery = true
 ModifyEnemyAttackSlots = true
 EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true

@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 3.4.5.
+Current release: 3.4.6.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -28,6 +28,9 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Common enemy combat movement | 1.00 | Up to 1.05 | Up to 1.10 | `ModifyEnemyMovementSpeed` |
 | Player poise damage dealt | 1.00 | 0.95 | 0.90 | `ModifyPlayerPoiseDamageDealt` |
 | Restorative consumable recovery | 1.00 | 0.90 | 0.80 | `ModifyConsumableRecovery` |
+| Standard food health rate | 1.00 | 0.75 | 0.625 | `ModifyFoodRecovery` |
+| Standard food health duration | 1.00 | 1.50 | 2.00 | `ModifyFoodRecovery` |
+| Added food stamina per second | 0 | 0.5 | 1.0 | `ModifyFoodRecovery` |
 | Kill, quest, and proficiency XP | 0.95 | 0.90 | 0.85 | Separate XP toggles |
 
 `DifficultyModifiersEnabled` disables this entire table without disabling material rules or feedback. Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset.
@@ -49,6 +52,7 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Weak-spot reward | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Add the preset's `WeakSpotDamageBonus` beside native critical, weak-spot, sneak, and backstab components, then apply outgoing pressure and material matchups. Do not alter native critical damage, hero stats, item stats, or hitbox definitions. |
 | Resources | Non-saved stat tweaks | Keep exactly one owned tweak per active lever. |
 | Restorative consumables | Transactional `ItemSkillsInvoker.PerformImmediate` prefix/postfix | Scale only positive health, stamina, and mana deltas on hero-owned items carrying the matching native consumable marker. Leave non-restorative effects and negative deltas unchanged. |
+| Standard food | Temporary overrides around `ItemSkillsInvoker.PerformImmediate` and `ExistingItemDescriptor.ItemDescription` | Match only the native `Consumable_ApplyStatus_FoodHealForDuration` graph on edible non-potions. Scale health rate and duration before the native status is created, restore serialized skill overrides transactionally, and preserve the native queued-healing prediction. Add one marked, replace-on-eat stamina status for the food's original duration. |
 | Attack slots and recovery | Native `Difficulty` property postfixes | Add to current slots and scale current recovery without lowering another source's value. |
 | Experience | Native reward getters and proficiency prefix | Scale positive rewards once at their authoritative route. |
 
@@ -122,6 +126,9 @@ Normal operation is silent. A confirmed overlap produces one short native notifi
 | Critical plus weak spot | Native critical, native weak spot, and Steel and Bone weak-spot bonuses are summed once before outgoing and matchup multipliers. |
 | Rear, magical, status, damage-over-time, or sheathed-shield hit | No passive shield reduction. |
 | Restorative item with health, stamina, or mana marker | Positive recovered deltas retain 100%/90%/80%; costs and non-restorative effects remain unchanged. |
+| Standard food health effect | Tempered remains native; Hardened is 0.75 rate for 1.5x duration (1.125 total); Crucible is 0.625 rate for 2x duration (1.25 total). The native health status still drives queued-healing prediction. |
+| Standard food stamina effect | Tempered adds none; Hardened adds 0.5 per second; Crucible adds 1 per second. Duration is the food's original authored duration, and a later qualifying food replaces only this marked effect. |
+| Food tooltip after a preset change | The next descriptor resolution uses the current preset, retains unrelated/native text, replaces the native health values through graph tokens, and appends exactly one unlabeled stamina line. Already-active statuses keep their consumed values. |
 | HarderLife overlap active | Warning lists only the matching active Steel and Bone toggles, including hearing, persistence, or consumable recovery when applicable. |
 | Tainted Instincts sight tuning disabled | No sight-range overlap warning. |
 | Tainted Instincts sight tuning active | Warning names `ModifyEnemySightRange`; other active exact overlaps are listed. |
@@ -129,4 +136,4 @@ Normal operation is silent. A confirmed overlap produces one short native notifi
 | Schema reset from a supported backup | Restore compatible customized values automatically, retain the current Preset default through its schema-16 meaning-change rule, skip removed settings, and clamp restored values to current ranges. |
 | Package | One top-level `SteelAndBone` folder with DLL and installed-user docs only. |
 
-Config schema is 19 because 3.4.5 materially raised the preset defaults for HostileArcherAimScatter. Untouched old defaults regenerate at the stronger values while compatible custom values remain recoverable. The fixed recovery baseline remains 14.
+Config schema remains 19. Version 3.4.6 adds ModifyFoodRecovery with a compatible default and therefore does not require a reset. The fixed recovery baseline remains 14.

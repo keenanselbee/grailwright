@@ -30,9 +30,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.4.5.0")]
-[assembly: AssemblyFileVersion("3.4.5.0")]
-[assembly: AssemblyInformationalVersion("3.4.5")]
+[assembly: AssemblyVersion("3.4.6.0")]
+[assembly: AssemblyFileVersion("3.4.6.0")]
+[assembly: AssemblyInformationalVersion("3.4.6")]
 
 namespace SteelAndBone
 {
@@ -134,7 +134,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.4.5";
+        public const string PluginVersion = "3.4.6";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -695,6 +695,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyConsumableRecovery, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyFoodRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);

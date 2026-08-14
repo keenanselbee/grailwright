@@ -1,3 +1,10 @@
+Version 3.4.6
+Reshaped standard food healing on Hardened to 75% rate for 1.5x duration (112.5% total) and on Crucible to 62.5% rate for 2x duration (125% total), while Tempered remains native.
+Added one non-stacking food stamina effect using each food's original duration: 0.5 stamina per second on Hardened and 1 stamina per second on Crucible. Existing food effects remain intact, and eating another qualifying food replaces only Steel and Bone's stamina effect.
+Updated food tooltips from the selected preset at display time without adding preset or mod names. Native health text resolves through the modified food graph, and the added stamina line appears once.
+Kept health recovery on the game's native food status so its remaining healing continues to appear in the health bar's queued-healing preview.
+Added ModifyFoodRecovery as an independent toggle without resetting the config schema. Potion recovery and the game's Potion Poisoning system are unchanged in this release.
+
 Version 3.4.5
 Raised HostileArcherAimScatter to 1.50 meters on Tempered, 1.25 meters on Hardened, and 1.00 meter on Crucible so hostile archers retain meaningful inaccuracy across every preset.
 Advanced ConfigSchemaVersion from 18 to 19 because HostileArcherAimScatter now has materially higher preset defaults; untouched old defaults receive the new values while compatible customized settings remain recoverable.

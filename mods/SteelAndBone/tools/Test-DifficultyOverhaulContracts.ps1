@@ -34,13 +34,13 @@ $nexusShort = (Get-Content -LiteralPath $nexusShortPath -Raw).Trim()
 $nexusFile = (Get-Content -LiteralPath $nexusFilePath -Raw).Trim()
 $qualityBuckets = Get-Content -LiteralPath $qualityBucketsPath -Raw
 
-Assert-Contract ($manifest.version -eq "3.4.5") "mod.json is not version 3.4.5."
+Assert-Contract ($manifest.version -eq "3.4.6") "mod.json is not version 3.4.6."
 Assert-Contract ($manifest.sourceFiles -contains "src/DifficultyOverhaul.cs") "DifficultyOverhaul.cs is missing from sourceFiles."
 Assert-Contract ($manifest.sourceFiles -contains "../../tools/shared/CorpseQualityBuckets.cs") "The shared corpse-quality bucket helper is missing from sourceFiles."
-Assert-Contract ($mainSource.Contains('PluginVersion = "3.4.5"')) "PluginVersion is not 3.4.5."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.4.5.0")]')) "AssemblyVersion is not 3.4.5.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.4.5.0")]')) "AssemblyFileVersion is not 3.4.5.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.4.5")]')) "AssemblyInformationalVersion is not 3.4.5."
+Assert-Contract ($mainSource.Contains('PluginVersion = "3.4.6"')) "PluginVersion is not 3.4.6."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.4.6.0")]')) "AssemblyVersion is not 3.4.6.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.4.6.0")]')) "AssemblyFileVersion is not 3.4.6.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.4.6")]')) "AssemblyInformationalVersion is not 3.4.6."
 Assert-Contract ($mainSource.Contains('IsTrueMember(modifiersInfo, "IsCritical")')) "Hit feedback does not use the specific critical modifier."
 Assert-Contract (-not $mainSource.Contains('IsTrueMember(modifiersInfo, "AnyCritical")')) "Hit feedback still treats weak spots, sneak attacks, or backstabs as true critical hits."
 Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 19')) "Config schema is not 19."
@@ -236,6 +236,7 @@ $requiredSettings = @(
     "ModifyLightArmorMobility",
     "ModifyArmorPhysicalProtection",
     "ModifyConsumableRecovery",
+    "ModifyFoodRecovery",
     "ModifyEnemyAttackSlots",
     "EnemyAttackSlotCap",
     "ModifyEnemyAttackRecovery",
@@ -338,6 +339,22 @@ Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetConsumableRecoveryMu
 Assert-Contract ($difficultySource.Contains('ConsumableModifiesHealth') -and $difficultySource.Contains('ConsumableModifiesMana') -and $difficultySource.Contains('ConsumableStamina')) "Consumable recovery does not use all native restorative markers."
 Assert-Contract ($difficultySource.Contains('ConsumableRecoveryPatchState __state')) "Consumable recovery is not transactional per invocation."
 Assert-Contract ($difficultySource.Contains('stat.SetTo(adjusted, false, null);')) "Consumable recovery correction can be misread as a second damage or resource-spend event."
+Assert-Contract ($difficultySource.Contains('StandardFoodRecoveryGraphGuid = "1c2da8428b5a74142b93ed84593676a9"')) "Food recovery does not target the audited native standard-food graph."
+Assert-Contract ($difficultySource.Contains('NonStackingFoodStatusGuid = "bf8c8a961f51ba94faa9f5e02a0b9502"')) "Food stamina recovery does not use the audited native non-stacking status."
+Assert-Contract ($difficultySource.Contains('item.IsEdible && !item.Template.IsPotion')) "Food recovery is not classified through native edible and potion ancestry."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetFoodHealthRateMultiplier[\s\S]*?case Preset\.Hardened:\s*return 0\.75f;[\s\S]*?case Preset\.Crucible:\s*return 0\.625f;')) "Food health rate is not x1.00/x0.75/x0.625 by preset."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetFoodHealthDurationMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.5f;[\s\S]*?case Preset\.Crucible:\s*return 2\.0f;')) "Food health duration is not x1.00/x1.50/x2.00 by preset."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetFoodStaminaRate[\s\S]*?case Preset\.Hardened:\s*return 0\.5f;[\s\S]*?case Preset\.Crucible:\s*return 1\.0f;')) "Food stamina recovery is not 0/0.5/1.0 per second by preset."
+Assert-Contract ($difficultySource.Contains('skill.OverrideVariable("AddValue", addValue.Value * rateMultiplier);')) "Food recovery does not scale the native health rate."
+Assert-Contract ($difficultySource.Contains('skill.OverrideVariable("Gain", gain.Value * rateMultiplier);')) "Food recovery does not scale level gain with the native health rate."
+Assert-Contract ($difficultySource.Contains('skill.OverrideVariable("Duration", authoredDuration.Value * durationMultiplier);')) "Food recovery does not scale the native health duration."
+Assert-Contract ($difficultySource.Contains('SkillVariableOverridesField.SetValue(snapshot.Skill, snapshot.VariableOverrides);')) "Temporary food graph overrides are not restored exactly."
+Assert-Contract ($difficultySource.Contains('FoodStaminaStatusSourceId')) "The added food stamina channel lacks a durable ownership marker."
+Assert-Contract ($difficultySource.Contains('hero.Statuses.RemoveStatus(matchingStatuses[i]);')) "A later food does not replace the owned stamina channel."
+Assert-Contract ($difficultySource.Contains('new TimeDuration(state.AuthoredDuration)')) "Food stamina duration does not use the original authored food duration."
+Assert-Contract ($difficultySource.Contains('typeof(ExistingItemDescriptor)') -and $difficultySource.Contains('nameof(ExistingItemDescriptor.ItemDescription)')) "Food tooltip values are not resolved through the shared item descriptor."
+Assert-Contract ($difficultySource.Contains('description.TrimEnd() + Environment.NewLine + staminaLine')) "Food tooltip text does not preserve native lines while adding the stamina effect once."
+Assert-Contract ($difficultySource.Contains('RestoreFoodSkillOverrides(__state)')) "Food tooltip patches do not restore temporary graph values."
 Assert-Contract ($difficultySource.Contains("CustomDifficultyPluginGuid")) "Custom Difficulty overlap detection is missing."
 Assert-Contract ($difficultySource.Contains("HarderLifePluginGuid")) "HarderLife overlap detection is missing."
 Assert-Contract ($difficultySource.Contains("TaintedCombatPluginGuid")) "Tainted Combat overlap detection is missing."
@@ -416,4 +433,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.4.5 difficulty contracts passed."
+Write-Output "Steel and Bone 3.4.6 difficulty contracts passed."

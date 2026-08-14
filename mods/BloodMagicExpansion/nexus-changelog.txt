@@ -1,5 +1,5 @@
-TargetVersion=2.8.0
-BaselineVersion=2.7.7
-Refined corpse quality with distinct Tier 0-7 anchors, bounded relative-level nudging, Elite and MiniBoss bonuses, a Prime Boss floor, and fixed fallback references for untagged enemies.
-Reset configuration schema because the obsolete corpse-quality reference settings were removed; compatible customized settings remain recoverable.
-Simplified corpse reward text to "+X XP | +X Blood Essence" while keeping the matching corpse-quality icon.
+TargetVersion=2.8.1
+BaselineVersion=2.7.9
+Integrated corpse-ritual, Blood/Life Transfusion, and Abhartach healing with Grail Floating Text 2.4.6 so visible blood healing uses the configurable Red group and Blood Magic icon.
+Kept frequent held-channel healing ticks suppressed by default while leaving ordinary healing notifications unchanged.
+Simplified corpse reward text to "+X XP | +X Blood Essence" while retaining the matching corpse-quality icon.

@@ -1,7 +1,5 @@
 TargetVersion=2.2.1
-BaselineVersion=2.1.8
+BaselineVersion=2.1.9
 Clarified that elapsed ERC delays make cleared encounters eligible while actual spawning still follows vanilla distance and activation rules.
 Expanded Grail Floating Text diagnostics into readable per-encounter lifecycle messages for fully cleared locks, blocked rests with remaining time, eligibility handoff, and confirmed respawns.
 Combined simultaneous lifecycle events while suppressing repeated cooldown polling, duplicate group callbacks, and repeat rest-block messages for the same lock.
-Renamed the two-hour preset from Fast2Hours to VeryShort2Hours so the sequence reads Very Short, Fast, Default, Slow, and Very Slow.
-Regenerated configs because the stored RespawnMode enum value changed; compatible customized settings remain recoverable.

@@ -1,4 +1,5 @@
-TargetVersion=2.4.5
-BaselineVersion=2.4.3
-Updated the bundled Meager, Worthy, Potent, and Prime corpse icon artwork.
-Replaced the generic corpse icon with Meager, Worthy, Potent, and Prime icons used by Blood Magic Expansion rewards and Deeds of Avalon corpse statistics.
+TargetVersion=2.4.6
+BaselineVersion=2.4.5
+Added API v12 source-scoped built-in event presentation claims so integrations can restyle an exact synchronous event without bypassing Grail Floating Text healing settings.
+Separated buffered and queued healing by event, style, and icon so Blood Magic healing cannot merge into ordinary green healing.
+Integrated Blood Magic Expansion 2.8.1 healing with the configurable Red group and Blood Magic icon while retaining default suppression of frequent held-channel ticks.

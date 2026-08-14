@@ -1,4 +1,3 @@
 TargetVersion=1.7.5
-BaselineVersion=1.7.3
-Changed detailed corpse statistics to use matching Meager, Worthy, Potent, or Prime icons, with Simple-mode Corpses Drained selecting from the saved average quality.
-Changed the Blood Essence progression row to use the blood-magic icon.
+BaselineVersion=1.7.4
+Changed the Blood Essence and Blood Power progression row to use Grail Floating Text's blood-magic icon while Simple-mode Corpses Drained retains its average corpse-quality icon.

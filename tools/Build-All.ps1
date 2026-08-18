@@ -6,6 +6,8 @@ param(
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
     [switch]$StageToVortex,
+    [switch]$DesktopOnly,
+    [switch]$PackageOnly,
     [int]$LockWaitSeconds = 0,
     [int]$LockStaleAfterMinutes = 720,
     [switch]$ForceStaleLock
@@ -13,6 +15,18 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$outputModes = @($StageToVortex.IsPresent, $DesktopOnly.IsPresent, $PackageOnly.IsPresent)
+$outputModeCount = @($outputModes | Where-Object { $_ }).Count
+if ($outputModeCount -gt 1) {
+    throw "Use only one output mode: -StageToVortex, -DesktopOnly, or -PackageOnly."
+}
+if ($DesktopOnly -and -not [string]::IsNullOrWhiteSpace($DestinationDirectory)) {
+    throw "-DesktopOnly cannot be combined with -DestinationDirectory; it always exports to the Windows Desktop."
+}
+if ($PackageOnly -and [string]::IsNullOrWhiteSpace($DestinationDirectory)) {
+    throw "-PackageOnly requires an explicit -DestinationDirectory."
+}
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $buildScript = Join-Path $PSScriptRoot "Build-Mod.ps1"
@@ -50,7 +64,11 @@ foreach ($manifest in $manifests) {
         $args.SkipCompile = $true
     }
 
-    if ($StageToVortex) {
+    if ($DesktopOnly) {
+        $args.DesktopOnly = $true
+    } elseif ($PackageOnly) {
+        $args.PackageOnly = $true
+    } else {
         $args.StageToVortex = $true
     }
 

@@ -379,48 +379,6 @@ function Assert-PortableArchiveLayout {
     }
 }
 
-function Remove-PreviousPackageArchives {
-    param(
-        [Parameter(Mandatory = $true)][string]$DestinationDirectory,
-        [Parameter(Mandatory = $true)][string]$PackageName,
-        [Parameter(Mandatory = $true)][string]$ArchiveName,
-        [Parameter(Mandatory = $true)][string]$CurrentZipPath
-    )
-
-    $currentZipFull = [System.IO.Path]::GetFullPath($CurrentZipPath)
-    $patterns = @(
-        ("^" + [regex]::Escape($ArchiveName) + " [0-9][0-9A-Za-z.\-]*\.zip$")
-        ("^" + [regex]::Escape($PackageName) + "-[0-9][0-9A-Za-z.\-]*\.zip$")
-    )
-    $removed = New-Object "System.Collections.Generic.List[string]"
-
-    foreach ($filter in @("$ArchiveName *.zip", "$PackageName-*.zip")) {
-        foreach ($archive in Get-ChildItem -LiteralPath $DestinationDirectory -File -Filter $filter -ErrorAction SilentlyContinue) {
-            $archiveFull = [System.IO.Path]::GetFullPath($archive.FullName)
-            if ($archiveFull -ieq $currentZipFull) {
-                continue
-            }
-
-            $matched = $false
-            foreach ($pattern in $patterns) {
-                if ($archive.Name -match $pattern) {
-                    $matched = $true
-                    break
-                }
-            }
-
-            if (-not $matched) {
-                continue
-            }
-
-            Remove-Item -LiteralPath $archive.FullName -Force
-            $removed.Add($archive.FullName)
-        }
-    }
-
-    return @($removed)
-}
-
 $scriptPath = Get-ScriptPath
 if ([string]::IsNullOrWhiteSpace($ModRoot)) {
     if ([string]::IsNullOrWhiteSpace($scriptPath)) {
@@ -436,10 +394,7 @@ if (-not (Test-Path -LiteralPath $ModRoot -PathType Container)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($DestinationDirectory)) {
-    $DestinationDirectory = [Environment]::GetFolderPath("DesktopDirectory")
-    if ([string]::IsNullOrWhiteSpace($DestinationDirectory)) {
-        $DestinationDirectory = Join-Path $HOME "Desktop"
-    }
+    throw "Pass -DestinationDirectory explicitly; package export never defaults to the Desktop."
 }
 
 New-Item -ItemType Directory -Force -Path $DestinationDirectory | Out-Null
@@ -525,7 +480,6 @@ try {
     }
 
     Move-Item -LiteralPath $tempZipPath -Destination $zipPath -Force
-    $removedArchives = Remove-PreviousPackageArchives -DestinationDirectory $DestinationDirectory -PackageName $PackageName -ArchiveName $ArchiveName -CurrentZipPath $zipPath
 
     [pscustomobject]@{
         PackageName = $PackageName
@@ -533,7 +487,6 @@ try {
         Version = $Version
         ZipPath = $zipPath
         Files = $copiedFiles
-        RemovedArchives = $removedArchives
     }
 } finally {
     if (Test-Path -LiteralPath $tempZipPath -PathType Leaf) {

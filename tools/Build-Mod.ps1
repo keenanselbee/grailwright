@@ -8,6 +8,8 @@ param(
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
     [switch]$StageToVortex,
+    [switch]$DesktopOnly,
+    [switch]$PackageOnly,
     [switch]$KeepScratch,
     [int]$LockWaitSeconds = 0,
     [int]$LockStaleAfterMinutes = 720,
@@ -16,6 +18,20 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$outputModes = @($StageToVortex.IsPresent, $DesktopOnly.IsPresent, $PackageOnly.IsPresent)
+$outputModeCount = @($outputModes | Where-Object { $_ }).Count
+if ($outputModeCount -gt 1) {
+    throw "Use only one output mode: -StageToVortex, -DesktopOnly, or -PackageOnly."
+}
+if ($DesktopOnly -and -not [string]::IsNullOrWhiteSpace($DestinationDirectory)) {
+    throw "-DesktopOnly cannot be combined with -DestinationDirectory; it always exports to the Windows Desktop."
+}
+if ($PackageOnly -and [string]::IsNullOrWhiteSpace($DestinationDirectory)) {
+    throw "-PackageOnly requires an explicit -DestinationDirectory."
+}
+
+$shouldStageToVortex = -not $DesktopOnly -and -not $PackageOnly
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $LockScript = Join-Path $PSScriptRoot "Lock-Operation.ps1"
@@ -349,7 +365,13 @@ if ((Test-JsonProperty -Object $Manifest -Name "packageName") -and -not [string]
     $lockModName = [string]$Manifest.id
 }
 
-$buildAction = if ($StageToVortex) { "build-stage-mod" } else { "build-mod" }
+$buildAction = if ($shouldStageToVortex) {
+    "build-stage-mod"
+} elseif ($DesktopOnly) {
+    "build-desktop-mod"
+} else {
+    "build-package-mod"
+}
 $modLock = Enter-GrailwrightLock -Name "mod-$lockModName" -Action $buildAction -Mod $lockModName -RepoRoot $RepoRoot -TimeoutSeconds $LockWaitSeconds -StaleAfterMinutes $LockStaleAfterMinutes -ForceStaleLock:$ForceStaleLock
 
 try {
@@ -359,10 +381,10 @@ $ResolvedVortexModsRoot = Resolve-VortexModsRoot -Candidate $VortexModsRoot
 $ResolvedBepInExRoot = Resolve-BepInExRoot -Candidate $BepInExRoot -ResolvedGameRoot $ResolvedGameRoot -ResolvedVortexModsRoot $ResolvedVortexModsRoot
 
 if ([string]::IsNullOrWhiteSpace($DestinationDirectory)) {
-    $DestinationDirectory = if ($StageToVortex) {
-        Join-Path $RepoRoot ".codex-temp\packages"
-    } else {
+    $DestinationDirectory = if ($DesktopOnly) {
         Get-DesktopDirectory
+    } else {
+        Join-Path $RepoRoot ".codex-temp\packages"
     }
 }
 
@@ -463,7 +485,7 @@ if ($KeepScratch) {
 
 $exportResult = & $exportScript @exportArgs
 
-if ($StageToVortex) {
+if ($shouldStageToVortex) {
     $stageScript = Join-Path $PSScriptRoot "Stage-VortexMod.ps1"
     if (-not (Test-Path -LiteralPath $stageScript -PathType Leaf)) {
         throw "Missing Vortex staging script: $stageScript"

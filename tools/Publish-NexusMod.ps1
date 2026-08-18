@@ -849,6 +849,7 @@ function Build-Archive {
         $Destination = Join-Path $RepoRoot ".codex-temp\builds"
     }
     $buildArgs.DestinationDirectory = $Destination
+    $buildArgs.PackageOnly = $true
 
     $buildArgs.LockWaitSeconds = $script:LockWaitSeconds
     $buildArgs.LockStaleAfterMinutes = $script:LockStaleAfterMinutes

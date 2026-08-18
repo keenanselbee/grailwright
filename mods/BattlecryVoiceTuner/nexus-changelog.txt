@@ -1,6 +1,3 @@
-TargetVersion=1.1.3
-BaselineVersion=1.1.0
-Moved the hold-to-battlecry input from Toggle Weapon to the game's remappable Take All Items action, leaving normal container looting authoritative while a container is open.
-Advanced the config schema because the old Toggle Weapon setting was replaced by a Take All Items setting for the new input behavior.
-Added separate outdoor and interior battlecry hearing range controls, with fresh defaults of three times NPC hearing range outdoors and four times hearing range in interiors and roofed spaces.
-Advanced the config schema because the existing hearing range setting now controls outdoor challenges while the new setting controls interiors; older backups retain the fresh outdoor default for the repurposed setting while other compatible customized values remain recoverable.
+TargetVersion=1.1.4
+BaselineVersion=1.1.3
+Cleaned the generated config into unnumbered task-oriented sections that match its FoA Mod Manager layout, keeping Testing near the bottom, Diagnostics penultimate, and Import Previous Settings last.

@@ -5,6 +5,7 @@ $helper = Get-Content -LiteralPath (
     Join-Path $repoRoot "tools\shared\GrailFloatingTextLoadErrorNotifier.cs") -Raw
 
 foreach ($required in @(
+    "TryShowEventNotification(",
     "TryShowDiagnosticNotification(",
     '"System"',
     '"Low"',
@@ -34,12 +35,18 @@ $contracts = @(
         Path = "mods\EnemyRespawnControl\src\EnemyRespawnControl.cs"
         Tokens = @(
             '"ShowGrailFloatingTextDiagnostics", true',
-            "ShowRespawnBlockDiagnostic(",
+            "CanShowGftLifecycleDiagnostics(",
+            "ShowGftLifecycleDiagnostic(",
+            "QueueGftLifecycleDiagnostic(",
+            "FlushGftLifecycleDiagnostics(",
             "_diagnostics.Value",
             "_showGrailFloatingTextDiagnostics.Value",
-            '"enemy-respawn-control-state"',
+            '"enemy-respawn-control-lifecycle"',
             '"enemy-respawn-control-diagnostics"',
-            "_hasShownGftRespawnBlockDiagnostic")
+            "GftLifecycleBatchDelayMilliseconds",
+            "_pendingGftRestBlocks",
+            "_pendingGftEligible",
+            "_pendingGftRespawned")
     },
     @{
         Name = "Full Enemy XP"
@@ -59,7 +66,6 @@ $contracts = @(
         Tokens = @(
             '"ShowGrailFloatingTextDiagnostics", true',
             '"LogBloodSpellInnerLight", false',
-            "private const int ConfigSchemaVersion = 16;",
             "ShowBloodMagicDiagnostic(",
             "matchingDiagnostic.Value",
             '"blood-magic-diagnostics"',
@@ -118,14 +124,15 @@ $contracts = @(
 foreach ($contract in $contracts) {
     $source = Get-Content -LiteralPath (
         Join-Path $repoRoot $contract.Path) -Raw
+    $normalizedSource = [regex]::Replace($source, '\s+', ' ')
     foreach ($required in $contract.Tokens) {
-        if (!$source.Contains($required)) {
+        if (!$normalizedSource.Contains($required)) {
             throw "$($contract.Name) GFT diagnostic contract is missing token: $required"
         }
     }
     if ($contract.ContainsKey("ForbiddenTokens")) {
         foreach ($forbidden in $contract.ForbiddenTokens) {
-            if ($source.Contains($forbidden)) {
+            if ($normalizedSource.Contains($forbidden)) {
                 throw "$($contract.Name) GFT diagnostic contract contains retired token: $forbidden"
             }
         }

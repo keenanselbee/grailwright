@@ -66,11 +66,21 @@ Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/
 
 Readied player shields turn a small share of their effective vanilla Block value into passive protection from frontal direct physical hits: 8% on Tempered, 10% on Hardened, and 12% on Crucible. Coverage uses vanilla BlockAngle capped to a centered forward 180-degree arc. The check runs only on incoming damage, performs no physics query or continuous polling, and skips active blocks, rear hits, magic, statuses, damage over time, and sheathed weapons.
 
-## Native Awareness And Restorative Pressure
+## Native Awareness And Recovery Pressure
 
 Version 3.2.7 completes the lightweight awareness layer without replacing enemy AI. Hero footstep noise range uses x1.10/x1.20/x1.30 by preset while native strength, wall checks, armor noise, and NPC hearing remain authoritative. Hardened and Crucible divide only positive native combat-aggro decay by 1.10 or 1.20; chase boundaries, forced combat exit, and target-loss rules remain untouched.
 
-Restorative consumables keep 100%/90%/80% of positive health, stamina, and mana deltas on Tempered/Hardened/Crucible. The correction is scoped to hero-owned items with native restorative markers and does not reinterpret costs, damage, or unrelated item effects.
+Potion healing, auxiliary effects, item tooltips, and Better UI presentation stay completely native. Steel and Bone suppresses potion-originated contributions to the game's single buildup pool and instead tracks independent Health, Mana, Stamina, and Utility buckets. Direct flat, percentage, and timed restoration graphs select the resource buckets; a multi-resource restorative contributes once to each restored resource, while every other consumed potion uses Utility. Each bucket receives 60/65/70 buildup by preset and lazily decays at the native 10 points per second. Completing any bucket clears all four and activates the one native Potion Poisoning status; mixing classes does not combine buildup, and buildup pauses while poisoning is active. The native icon and active decay remain authoritative. Activation snapshots the relevant maximum resources, then actual native buildup-progress loss meters a 30% drain for each completed Health, Mana, or Stamina bucket, or a 15% drain of all three resources for Utility. Ordinary recovery can offset the drain; Health is floored at 1 while Mana and Stamina can reach zero.
+
+Standard food health and added stamina recovery share one native food status, its adjusted duration, item identity, and icon. All presets use four times the native duration and store 1 stamina per second. Health rate is 0.50 on Tempered, 0.375 on Hardened, and 0.25 on Crucible. If native source separation creates multiple food statuses, Steel and Bone retains only the one with the greatest remaining predicted healing and uses remaining duration to break a tie. The player-stat update applies whole stamina points at one-second boundaries rather than increasing vanilla `StaminaRegen` or adding fractional points each frame. Ordinary action lockouts do not suppress those ticks. Native Overexertion does: active food halves its paired regeneration-lock and Stamina Depleted durations and resets the food tick accumulator throughout the lock. The actual transition out of Overexertion preloads 0.9 seconds of the next interval, making the first point arrive 0.1 seconds later before normal one-second cadence resumes. The shared health recovery and food duration continue normally, while an expired food status or disabled food recovery discards the pending point. Active-effect and item descriptions show both channels in one entry, native health prediction remains authoritative, and optional Better UI compatibility recomputes the adjusted food overlay during its normal slot refresh.
+
+Stamina Depleted presentation is independently configurable. Smooth is the default: it lets the native view start and stop its audio and snapshot emitters, kills only the repeating HUD-image tween, then drives the existing image through one eased unscaled fade in and fade out. Native leaves the complete game presentation untouched. Off hides the HUD image and forces only the dedicated stamina-depleted post-process volume to zero. Movement penalties, continuous-action restrictions, status timing, and resource behavior remain native in every mode.
+
+## Progressive Tenacity
+
+Version 3.8.0 adds one preset-independent late-game curve rather than changing the three preset profiles. Tenacity remains inactive through hero level 20 and scales linearly to full strength at level 35. Native NPC type supplies a fixed cap: 10% for Trash, 15% for Normal, 25% for Elite, 30% for MiniBoss, and 40% for Boss enemies; Critters and Hero Summons receive none.
+
+Tenacity applies at full strength to player-caused poise, force, and enemy stamina damage, including the direct and parry routes that can drive native stamina stagger. Native hero-owned summons count as player-caused sources, while Hero Summon targets remain exempt. Direct non-damage-over-time health damage uses half strength as a bounded burst brake without changing enemy maximum health. Damage over time is excluded from every Tenacity route. A confirmed native or Steel and Bone material weakness halves Tenacity for that hit, while critical, weak-spot, backstab, and generic damage bonuses do not. The system adds no timers, adaptive performance tracking, stagger immunity, saved NPC state, preset mutation, or material-feedback reclassification.
 
 ## Non-Goals
 
@@ -94,7 +104,7 @@ Steel and Bone presets are independent from the vanilla difficulties `Story`, `E
 
 Presets should be a general matchup-strength and difficulty influence, not separate rulesets. Every Steel and Bone rule has one base multiplier. The preset scales that multiplier toward or away from neutral: Tempered is closer to vanilla, Hardened uses the base rule, and Crucible makes the same rule more decisive. Vanilla-authored multipliers are separate: Tempered leaves them unchanged by default, while Hardened and Crucible amplify their distance from neutral with clamps.
 
-For the 3.0 global layer, Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor, poise, recovery, enemy movement, aggro persistence, and restorative recovery neutral. Hardened applies 10% damage and experience pressure plus the existing 5% supporting profile, one additional enemy attack slot, x1.30 arrows/sight, x1.20 hearing, x1.10 aggro persistence, and x0.90 restorative recovery. Crucible applies 15% damage and experience pressure plus the existing 10% supporting profile, two additional slots, x1.50 arrows/sight, x1.30 hearing, x1.20 aggro persistence, and x0.80 restorative recovery. Hostile archer aim scatter uses 1.50/1.25/1.00 meters by preset through the game's native target-point inaccuracy, keeping Crucible archers dangerous without perfectly centered aim. Confirmed weak spots add 10%, 20%, or 30% base damage by preset, while native critical damage remains unchanged. Outgoing and incoming player damage remain independently toggleable, while their exact values come directly from the selected preset.
+For the 3.0 global layer, Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor, poise, recovery, enemy movement, and aggro persistence neutral. Hardened applies 10% damage and experience pressure plus the existing 5% supporting profile, one additional enemy attack slot, x1.30 arrows/sight, x1.20 hearing, and x1.10 aggro persistence. Crucible applies 15% damage and experience pressure plus the existing 10% supporting profile, two additional slots, x1.50 arrows/sight, x1.30 hearing, and x1.20 aggro persistence. Potion Poisoning buildup is 60/65/70 in each independent class bucket; Health, Mana, and Stamina triggers drain 30% of the matching maximum while Utility drains 15% of all three. Standard food uses 0.50/0.375/0.25 health rate, x4 duration, and 1 discrete stamina point per second. Hostile archer aim scatter uses 1.50/1.25/1.00 meters by preset through the game's native target-point inaccuracy, keeping Crucible archers dangerous without perfectly centered aim. Confirmed weak spots add 10%, 20%, or 30% base damage by preset, while native critical damage remains unchanged. Outgoing and incoming player damage remain independently toggleable, while their exact values come directly from the selected preset.
 
 ## Implemented
 
@@ -108,35 +118,35 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | Weak-spot reward | Adds `0.10`/`0.20`/`0.30` beside the game's native precision components on confirmed weak spots, before outgoing pressure and material matchups. Native critical damage and build stats remain untouched. | Keep. Deliberate hit placement offsets some preset pressure without globally amplifying random criticals. |
 | Player and target guards | Material rules and outgoing scaling require a hero source. Incoming preset scaling instead requires the hero target and remains safe when the damage dealer is missing. | Keep the two paths explicit so environmental damage never needs a dealer dereference. |
 | Event-driven evaluation | Runs only when damage is being processed. It does not scan enemies. | Keep. This matches the lightweight mod goal. |
-| Cached metadata-first target classification | Caches target family classification by runtime object identity and target-term revision. Reachable surface type, NPC type, tags, and abstract types classify first; broad display-name terms fill in only when metadata does not identify a family. High-signal terms can refine only broad `Flesh` or `FleshUndead` metadata, not stronger metadata families. | Keep. This is the 0.9.0 atlas foundation. |
+| Cached metadata-first target classification | Caches creature identity and body material by runtime object identity and target-term revision. Reachable NPC type, tags, and abstract types classify identity first; `HitBones`, `HitStone`, and `HitWood` classify body material without deciding biological identity. Broad display-name terms fill gaps, and exact corrections resolve known metadata conflicts. | Keep. This preserves material weapon logic without turning every matching hit surface into Bone Undead or a Construct. |
 
 ### Current Target Families
 
 | Family | Seed terms | Current purpose | Accuracy note |
 |---|---|---|---|
 | BoneUndead | `Skeleton`, `Skull`, `Bone`, `Animated Armor`, `JollySkeleton`, `Keeper Of The Barrow`, `KeeperOfTheBarrow` | Catches bone and animated-armor-like enemies. | Best supported by skeleton template data, but still partly term-based. |
-| Construct | `Stone`, `Golem`, `Construct`, `Automaton`, `Statue`, `Crystal`, `Lost Knight`, `LostKnight`, `Forgeborn`, `ForgeBorn`, `Cairnguard`, `Tibby`, `Sentinel`, `Barnaclator` | Catches stone, golem, and construct enemies. | Broad physical rules apply here, but elemental exceptions are left to vanilla when present. |
+| Construct | `Stone`, `Golem`, `Construct`, `Automaton`, `Statue`, exact Crystal Crawler/Walker terms, `Lost Knight`, `LostKnight`, `Forgeborn`, `ForgeBorn`, `Cairnguard`, `Tibby`, `Sentinel`, `Barnaclator` | Catches stone, golem, and construct enemies. | Broad physical rules apply here, but elemental exceptions are left to vanilla when present. Bare `Crystal` is intentionally excluded because substring matching also catches Crystal Kyrus. |
 | ArmoredHumanoid | `Knight`, `Guard`, `Squire`, `Warrior`, `Deserter`, `Kamelot`, `Soldier`, `Armor`, `Armored` | Catches armored humanoid targets without overriding stronger construct, bone, sea, spirit, flora, or Wyrd metadata families. | Slash and generic physical resistance are conservative overlays; piercing is not treated as armor penetration. |
 | Flesh | `Bandit`, `Outlaw`, `Human`, `Humanoid`, `Remor`, `Redcap`, `Corpse Eater`, `Wolf`, `Bear` | Gives ordinary flesh a very mild home for bleed, poison, slash, and pierce when no more specific family wins first. | Uses high-signal metadata such as Human, Humanoid, Bandit, and Cultist, but avoids using `HitFlesh` as a broad detector. |
-| FleshUndead | `Zombie`, `Undead`, `Wight`, `Bloody`, `Frostbitten Warrior`, `Plaguewraith` | Covers fleshy undead where reliable zombie/bloody metadata exists but drowned or infected specifics do not. | Mild overlay only. DrownedZombie and InfectedFlesh terms can refine broad FleshUndead metadata when names expose them. |
+| FleshUndead | `Zombie`, `Undead`, `Bloody`, `Frostbitten Warrior`, `Plaguewraith` | Covers fleshy undead where reliable zombie/bloody metadata exists but drowned or infected specifics do not. | Wights are corrected to Flora from their Wyrd-flora identity. DrownedZombie and InfectedFlesh terms can refine broad FleshUndead metadata when names expose them. |
 | Wyrd | `Wyrdspawn`, `Wyrdspirit`, `Wyrd Spirit`, `WyrdSlime`, `Wyrd Slime`, `Wyrdness` | Catches Wyrd enemies. | `Abstract:WyrdnessBound` is a better detector when reachable. Wyrdstalker is not a confirmed WyrdnessBound enemy. |
 | DrownedZombie | `Drowner`, `Drowned`, `Drowned Knight`, `Ghost Crew`, `Scourge` | Adds drowned-undead body logic without making them fire-weak. | Drowner Fire resistance is vanilla and is not duplicated as a Steel and Bone overlay. |
 | InfectedFlesh | `Red Death`, `RedDeath`, `Infected` | Catches Red Death and infected flesh enemies. | Fire and Poison overlays are skipped if vanilla already has a non-neutral subtype multiplier; mild slash/pierce weaknesses retain living-flesh physical behavior. |
 | SeaFlesh | `Sarras`, `Finbled`, `Tadpole`, `Tidewraith`, `Scion`, `Archivist`, `Floatling`, `Reefback`, `Wailcap`, `Grindylow`, `Croakmaw` | Adds modest aquatic identity. | Cold resistance is often vanilla in Sarras data, so `RespectVanillaMultipliers` matters here. |
 | Spirit | `Ghost`, `Spirit`, `Wraith`, `Banshee`, `Melancholy`, `Mistling`, `Mistbearer`, `Strawchild`, `Strawfather` | Makes spirits less like ordinary flesh without full lockouts. | Physical resistance is deliberately modest until play testing confirms stronger values. |
-| Flora | `Dryad`, `Gloomfrond`, `Fleshtree`, `Wailcap`, `Viridian` | Makes plant/fungus enemies favor Fire and slash. | Wailcap poison resistance is vanilla; broad flora rules are Steel and Bone overlays. |
+| Flora | `Dryad`, `Gloomfrond`, `Fleshtree` | Makes plant/fungus enemies favor Fire and slash. | Wights are exact Wyrd-flora corrections. Wailcaps remain Sea Creatures rather than inheriting broad flora rules. |
 
 ### Historical 0.9.0 Atlas Boundaries
 
 | Path or signal | 0.9.0 behavior | Reason |
 |---|---|---|
-| `HitBones`, `Skeleton`, `BoneMask` | Classified as BoneUndead. | Strong material and template evidence. |
-| `HitStone`, `Construct`, `Automaton`, `Golem` | Classified as Construct. | Strong material and template evidence. |
-| `WyrdnessBound` | Classified as Wyrd. | Strong family marker, even though the Wyrdness resistance itself is a Steel and Bone design rule. |
+| `HitBones` | Sets the bone-body material flag. | A hit surface describes impact material, not necessarily undead identity. Skeleton and BoneMask evidence still identify BoneUndead where appropriate. |
+| `HitStone` | Sets the stone-body material flag. | A stone surface can belong to a Wyrd Sleepwalker or misleading flesh template rather than a Construct. Construct, Automaton, Golem, and exact-name evidence decide identity. |
+| `WyrdnessBound` | Classified as Wyrd. | Strong family marker; authored native and exact reactions decide Wyrdness damage. |
 | `Scourge` or drowned terms | Classified as DrownedZombie. | Specific drowned identity is safer than broad undead. |
 | `SarrasCreature` or `ReefboundBody` | Classified as SeaFlesh. | Strong Sarras/sea marker; vanilla Cold multipliers still win where present. |
 | `Ghost` or spirit terms | Classified as Spirit. | Stronger than broad `HitMagic`, which remains neutral by itself. |
-| `Flora` or flora terms | Classified as Flora. | Specific plant/fungus identity; Wailcap overlap must be validated in game. |
+| `Flora` or flora terms | Classified as Flora. | Specific plant/fungus identity; Wailcaps are explicitly corrected to SeaFlesh. |
 | `Zombie` or `Bloody` with no stronger family | Classified as FleshUndead. | Broad undead flesh identity, kept mild and refineable by terms. |
 | `Human`, `Humanoid`, `Bandit`, `Cultist`, `Animal`, or `Animal_Prey` with no stronger family | Classified as Flesh. | Ordinary flesh baseline, kept very mild. |
 | Armor terms on broad `Flesh` or `FleshUndead` | Adds ArmoredHumanoid. | Lets gear identity refine broad body metadata without stealing stronger families. |
@@ -162,7 +172,7 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | Fire | Checks damage subtype and also treats `StatusDamageType.Burn` as Fire for rule matching. | Confirmed native subtype. |
 | Cold | Checks damage subtype. | Confirmed native subtype. This is the engine name for frost-like damage. |
 | Electric | Checks damage subtype. | Confirmed native subtype. This is the engine name for shock-like damage. |
-| Wet | Checks damage subtype. | Confirmed native subtype. Detected for diagnostics and future rules. |
+| Wet | Checks damage subtype. | Confirmed native subtype. Exact fire-aligned bodies and golems receive the first focused Wet weakness. |
 | Burn | Checks status damage type. | Currently feeds Fire-style matching because TG exposes Burn as status damage. |
 
 ### Current Damage Rules
@@ -173,26 +183,53 @@ Vanilla enemy subtype multipliers are handled before these overlays. Steel and B
 
 | Target family | Damage tags | Base multiplier | Priority | Design intent | Accuracy note |
 |---|---|---:|---:|---|---|
+| BoneUndead | Cold | 0.66 | 60 | Inert bone has no living warmth for Cold to attack. | Matches the final Hardened Cold resistance of many higher-tier skeletons; native subtype reactions still win, and independent Chill buildup remains intact. |
 | BoneUndead | Blood magic, bleed | 0.25 | 100 | Dry bone should not care about blood or bleeding. | Bleed immunity is strongly supported by templates. Blood magic is a design extension. |
-| BoneUndead | Slashing, piercing | 0.55 | 80 | Blades and points are worse into bone or empty armor. | Vanilla confirms blunt weakness, not slash/pierce resistance. Keep as an overlay. |
-| BoneUndead | Bludgeoning | 1.08 | 70 | Blunt remains the expected physical answer. | Skipped when vanilla already has a non-neutral Bludgeoning multiplier. |
-| BoneUndead | Generic Physical | 0.85 | 40 | Untyped physical should be safe but not a best answer against bone. | Fallback only. Specific slash, pierce, or blunt rules win when detected. |
+| BoneBody | Slashing, piercing | 0.55 | 80 | Blades and points are worse into bone or empty armor. | Applies from bone material independently of Spirit, undead, or other identity. |
+| BoneBody | Bludgeoning | 1.08 | 70 | Blunt remains the expected physical answer. | Skipped when vanilla already has a non-neutral Bludgeoning multiplier. |
+| BoneBody | Generic Physical | 0.85 | 40 | Untyped physical should be safe but not a best answer against bone. | Fallback only. Specific slash, pierce, or blunt rules win when detected. |
+| Construct | Cold | 0.66 | 60 | Inert stone and animated armor resist thermal injury without becoming immune to magical hindrance. | Applies only when native Cold data is neutral; exact fire, crystal, ice, and other elemental reactions remain authoritative. |
 | Construct | Blood magic, bleed, poison | 0.25 | 100 | Stone and constructs are not biological targets. | Fits many constructs, but element rules remain per subtype or vanilla exception. |
-| Construct | Slashing, piercing | 0.75 | 70 | Edged and pointed weapons are less effective against hard bodies. | Broad physical overlay. |
-| Construct | Bludgeoning | 1.15 | 80 | Impact weapons get a clear construct lane. | Steel and Bone overlay unless vanilla has a subtype rule. |
-| Construct | Generic Physical | 0.85 | 40 | Untyped physical should not erase the construct weapon-choice lesson. | Fallback only. Specific slash, pierce, or blunt rules win when detected. |
+| StoneBody | Slashing, piercing | 0.75 | 70 | Edged and pointed weapons are less effective against hard bodies. | Applies from stone material independently of Construct or Wyrd identity. |
+| StoneBody | Bludgeoning | 1.15 | 80 | Impact weapons get a clear hard-body lane. | Steel and Bone overlay unless vanilla has a subtype rule. |
+| StoneBody | Generic Physical | 0.85 | 40 | Untyped physical should not erase the material weapon-choice lesson. | Fallback only. Specific slash, pierce, or blunt rules win when detected. |
 | ArmoredHumanoid | Physical weapon types | 0.82-1.15 | 90 | Slash loses effectiveness faster than Pierce while Blunt improves with armor weight. | Uses the equipped Light/Medium/Heavy tier and dampens added resistance when vanilla numerical armor is already active. |
 | Flesh | Bleed, poison | 1.06 | 20 | Ordinary flesh gives status/body damage a small home. | Broad but mild; only applies after stronger families miss. |
 | Flesh | Slashing, piercing | 1.04 | 15 | Blades and points stay slightly better into ordinary flesh. | Broad but mild; only applies after stronger families miss. |
 | FleshUndead | Blood magic, bleed, poison | 0.78 | 55 | Fleshy undead are worse biological targets without using skeleton-level lockouts. | Broad but mild; drowned and infected specifics win when detected. |
 | FleshUndead | Fire | 1.08 | 50 | Fire becomes a modest default answer where vanilla and specific families are silent. | Skipped when vanilla already has a non-neutral Fire multiplier. |
 | FleshUndead | Bludgeoning | 1.05 | 45 | Blunt gives a small physical fallback. | Mild overlay. |
-| Wyrd | Wyrdness | 0.35 | 70 | Current mod choice: Wyrd enemies resist Wyrdness. | Vanilla has `WyrdnessBound` abstracts, but no broad Wyrdness multiplier. |
 | DrownedZombie | Blood magic, bleed | 0.65 | 80 | Waterlogged undead are worse blood/bleed targets. | Overlay; Drowners do not have vanilla bleed immunity. |
 | DrownedZombie | Electric | 1.15 | 70 | Electric becomes a readable drowned counter. | Overlay; no broad vanilla Electric weakness found. |
 | DrownedZombie | Bludgeoning | 1.10 | 60 | Blunt gives a physical fallback. | Overlay. |
 | InfectedFlesh | Poison | 0.66 | 80 | Infected enemies are poor poison targets. | Red Death poison resistance is vanilla and will be skipped as duplicate. |
 | InfectedFlesh | Fire | 1.15 | 70 | Fire is the clean infected counter when vanilla has not already handled it. | Red Death fire weakness is vanilla and will be skipped as duplicate. |
+| Grindylow/Blood Abomination/Bonemask summon gaps | Cold | 1.20 | 130 | Missing summon reactions should match their ordinary family's native Cold weakness. | Exact summon terms only; the Grindylow rule outranks SeaFlesh Cold resistance. |
+| Flamegobbler | Cold | 1.15 | 130 | Fire-immune bodies gain a readable opposing-element counter. | Exact Flamegobbler term; no broad fire-body inference. |
+| Crystal body | Cold | 1.20 | 130 | Crystal Walker joins the Cold-weak Crystal Crawler pattern. | Exact Crawler/Walker terms; existing native Crawler multipliers remain authoritative and bosses soften the custom bonus. |
+| Wyrd Slime | Cold / Blunt | 1.10 / 0.80 | 130 | Freezing and congealing remains the positive answer while its formless mass absorbs impact. | Exact Wyrd Slime terms; Slash and Pierce remain neutral rather than becoming explicit weaknesses. |
+| Frostgrot | Fire / Cold | 1.15 / 0.75 | 130 | Its explicit frost identity receives the opposing-element answer. | Exact runtime name; native subtype reactions remain authoritative. |
+| Frozen undead | Fire / Cold | 1.15 / 0.75 | 130 | Frostbitten Warriors should read as frozen flesh undead rather than stone constructs. | Exact Frostbitten Warrior terms. |
+| Missing Corpse Eater variants | Fire / Wyrdness | 1.20 / 0.80 | 130 | Repairs the summon and large variant to match the established Corpse Eater reactions. | Exact gap terms only. |
+| Electric Stagfather golem | Poison | 1.33 | 130 | Completes the elemental golem counter pattern without making all constructs poison-weak. | Exact electric variant; native reactions remain authoritative. |
+| Mistbearer | Fire / Wyrdness | 1.20 / 0.80 | 130 | Follows the established Mistling material pattern. | Exact base and mimic terms. |
+| Wyrdheir challenge | Cold | 0.60 | 130 | Repairs the challenge variant to match the ordinary Wyrdheir. | Exact challenge term. |
+| Nivera / Rimefiend | Fire | 1.33 / 1.20 | 130 | Fire provides a clear caster answer to strongly frost-themed enemies. | Exact archetypes only. |
+| Frost Wolf | Fire / Cold | 1.15 / 0.75 | 130 | Adds a mild, readable elemental identity without generalizing to wolves. | Exact summoned Frost Wolf variants. |
+| Straw Dad/Son | Fire / slashing | 1.20 / 1.15 | 130 | Fire and cutting fit dry straw bodies. | Exact two templates. |
+| Wyrdspawn | Slashing | 1.10 | 130 | Supplies a modest weapon lane without imposing a universal elemental answer. | Exact Wyrdspawn identity; no broad Wyrd Slash or Wyrdness rule. |
+| Ogre | Piercing / biological / Blunt | 1.15 / 1.10 / 0.90 | 130 | Living brutes reward precise and biological attacks while resisting crushing blows. | Exact Ogre templates, layered above ordinary Flesh. |
+| Fire-aligned bodies and golems | Wet | 1.20 | 130 | Gives the two direct Wet spells a narrow counter without inventing a universal Wet chart. | Exact Flamegobbler, Cindermar, Forgeborn, fire Stagfather golem, and fire elemental golem terms. |
+| Drowned skeleton sailors | Electric | 1.12 | 130 | Waterlogged Deckhand and Mariner skeletons gain a caster answer while retaining BoneUndead physical rules. | Exact DrownedDeckhand and DrownedMariner terms. |
+| Frost Angel / Ice Weaver Champion / Ice Weaver Wolf | Fire / Cold | 1.20 / 0.75 | 130 | Visibly frost-aligned variants gain a consistent opposing-element answer. | Exact archetypes only; the ordinary Ice Weaver keeps its stronger native reactions. |
+| Ice Trial Wyrdspawn/Wyrdspirit | Fire / Cold | 1.15 / 0.75 | 130 | Adds a mild frost identity without weakening all Wyrd enemies to Fire. | Exact Ice Trial terms; Wyrd remains the body family. |
+| Charred Conclave Wyrdspawn | Cold / Fire | 1.15 / 0.75 | 130 | The charred variant receives the inverse elemental profile. | Exact Charred Conclave term; Wyrd remains the body family. |
+| Trial Ice Statue | Fire / Cold | 1.20 / 0.60 | 130 | The animated ice statue receives a strong but readable elemental identity. | Exact trial statue; corrected to Construct. |
+| Ancient Beholder | Piercing / biological / Blunt | 1.12 / 1.08 / 0.90 | 130 | A large living horror rewards precise and biological attacks rather than inheriting stone-construct rules. | Exact Tier 6 Ancient Beholder; corrected to Flesh. |
+| Singworm / Lir tentacle | Slashing / Blunt | 1.15 / 0.85 | 130 | Soft, flexible bodies favor cutting over crushing. | Exact Singworm and summoned Lir tentacle terms; corrected to Flesh. |
+| Blood Abomination | Slashing / Blunt | 1.20 / 0.80 | 130 | A fluid, formless blood mass rewards cutting while absorbing impact. | Exact variants only; the MiniBoss clamp leaves a final x1.10 Slash weakness. Misleading BoneMask metadata is cleared instead of applying BoneUndead physical rules. Native Cold and Wyrdness reactions remain authoritative. |
+| Tidewraith | Blunt | 0.90 | 130 | Its flexible aquatic plant body absorbs some impact. | Exact Tidewraith term; existing SeaFlesh rules already provide mild Slash and Pierce advantages. |
+| Flora or wood | Axe | 1.20 | 125 | Axes should be the strongest intuitive cutting answer to wood and plant bodies. | Replaces the ordinary `1.15` flora Slash rule for axe hits; never stacks. |
 | SeaFlesh | Cold | 0.70 | 70 | Aquatic/Sarras enemies lean cold-resistant. | Many Sarras Cold rules are vanilla and will be skipped as duplicate. |
 | SeaFlesh | Electric | 1.12 | 60 | Electric gives sea creatures a mild counter. | Overlay; tune after play testing. |
 | Spirit | Blood magic, bleed, poison | 0.35 | 90 | Spirits are bad biological targets. | Broad overlay; status-immunity data is uneven. |
@@ -284,11 +321,11 @@ Recommended Hardened baseline:
 | Light armor | 0.98 | 1.03 | 1.00 | 0.98 | Edges remain usable and Pierce retains a slight advantage. |
 | Medium armor | 0.92 | 1.00 | 1.08 | 0.94 | Slash begins losing ground while Blunt becomes favorable. |
 | Heavy armor | 0.82 | 0.90 | 1.15 | 0.88 | Slash is the poorest ordinary weapon match, Pierce remains better, and Blunt is the clear counter. |
-| Bone undead | 0.55 | 0.55 | 1.08 | 0.85 | Blunt `1.33` is common vanilla data and wins through vanilla-skip behavior; the table shows the fallback Steel and Bone overlay. |
+| Bone body | 0.55 | 0.55 | 1.08 | 0.85 | Blunt `1.33` is common skeleton data and wins through vanilla-skip behavior; the table shows the fallback body-material overlay. |
 | Drowned zombie | 1.00 | 0.90 | 1.10 | 1.00 | Dead organs make pierce mildly poor, severing slash stays neutral, and blunt disrupts the degraded body. |
 | Flesh undead | 1.00 | 0.90 | 1.05 | 1.00 | Dead organs make pierce mildly poor while slash stays neutral and blunt is a mild structural counter. |
 | Spirit | 0.85 | 0.85 | 0.85 | 0.85 | Cautious overlay; no broad vanilla physical resistance was found. Wyrdness supplies the positive counter. |
-| Construct | 0.75 | 0.75 | 1.15 | 0.85 | Design overlay. Do not use one universal elemental rule for all constructs. |
+| Stone body | 0.75 | 0.75 | 1.15 | 0.85 | Design overlay. Biological Construct identity is resolved separately, and elemental reactions remain archetype-specific. |
 | Flora | 1.15 | 0.70 | 1.00 | 1.00 | Design overlay; Wailcap poison resistance is confirmed, but broad flora damage data is not. |
 | SeaFlesh | 1.04 | 1.06 | 1.00 | 1.00 | Shares the living-flesh physical baseline; the confirmed vanilla family pattern remains Cold resistance. |
 | Wyrd | 1.00 | 1.00 | 1.00 | 1.00 | Physical damage stays neutral; vanilla WyrdnessBound does not imply a physical multiplier. |
@@ -325,11 +362,11 @@ Different magic should have strengths and weaknesses, but only where Steel and B
 | Blood magic | Living flesh | Bone undead, drowned zombies, constructs, spirits | Ordinary flesh now has a `1.10` weakness; keep validating that blood-magic text classification does not produce false positives. |
 | Bleed | Flesh, beasts, unarmored humanoids | Bone, constructs, Red Death, Banshee, spirits, plants if not fleshy; Drowners as a Steel and Bone overlay | Positive flesh weakness is implemented cautiously at `1.06`; tune only after false-positive checks. |
 | Poison | Flesh, beasts, some humans | Bone, constructs, undead, plants/fungus, Red Death, Wailcap-style enemies | Positive flesh weakness is implemented cautiously at `1.06`. Red Death `Poison 66%`, Wailcap `Poison 25%`, Lost Knight/Cairnguard `Poison 50%` are confirmed and respected by vanilla-skip logic. |
-| Wyrdness | Spirits | Current Wyrd enemies resist it; Ice Weaver, Blood Abomination, and Giant Sentinel-style enemies have confirmed partial Wyrdness resistance | Spirits now have a `1.15` weakness. Keep current Wyrd-family resistance until testing says Wyrdness should destabilize Wyrd targets. |
-| Fire | Confirmed against Red Death, Ice Weaver, Cairnguard, and ice Stagfather variants; plants as a Steel and Bone overlay | Confirmed weak into Drowners, Forgeborn, Flamegobbler, Lost Knight, and fire Stagfather variants | `DamageSubType.Fire` and `StatusDamageType.Burn` detection are implemented. Vanilla fire-resistant exceptions are preserved by subtype skip logic. |
-| Cold | Confirmed against Forgeborn, Grindylow, Blood Abomination, Giant Sentinel, and fire Stagfather variants | Confirmed weak into Sarras sea creatures, Ice Weaver, Cairnguard, Rimefiend, and many high-tier skeletons | `DamageSubType.Cold` detection is implemented. Use `Cold`, not frost, in config and feedback. |
-| Electric | Confirmed against Lost Knight and Tibby; Steel and Bone overlay against drowned/sea targets | Electric-aligned enemies if found | `DamageSubType.Electric` detection is implemented. Broad construct Electric weakness is still avoided. |
-| Wet | Not enough design data yet | Not enough design data yet | Detection is implemented for diagnostics and future rules. |
+| Wyrdness | Spirits | Ice Weaver, Blood Abomination, and Giant Sentinel-style enemies have confirmed partial native resistance | Spirits have a `1.15` weakness. Neutral Wyrd enemies remain neutral instead of receiving a blanket family resistance. |
+| Fire | Confirmed against Red Death, Ice Weaver, Cairnguard, and ice Stagfather variants; plants as a Steel and Bone overlay; exact additions for Frostbitten Warriors, Mistbearers, Nivera, Rimefiends, Frost Wolves, the Frost Angel, Ice Weaver variants, Ice Trial creatures, the Trial Ice Statue, and straw parents | Confirmed weak into Drowners, Forgeborn, Flamegobbler, Lost Knight, fire Stagfather variants, and the Charred Conclave Wyrdspawn | `DamageSubType.Fire` and `StatusDamageType.Burn` detection are implemented. Vanilla fire-resistant exceptions are preserved by subtype skip logic. |
+| Cold | Confirmed against Forgeborn, Grindylow, Blood Abomination, Giant Sentinel, and fire Stagfather variants; Steel and Bone adds Flamegobbler, crystal-body, Wyrd Slime, and Charred Conclave lanes | Bone Undead and Constructs receive x0.66 on Hardened where native data is neutral. Confirmed resistances remain on Sarras sea creatures, Ice Weaver, Cairnguard, Rimefiend, and many high-tier skeletons; exact additions cover Frostgrot, Frostbitten Warriors, Frost Wolves, the Frost Angel, Ice Weaver variants, Ice Trial creatures, the Trial Ice Statue, and the Wyrdheir challenge | `DamageSubType.Cold` detection is implemented. Damage resistance does not suppress independent Chill buildup. Curlghast, Marrowghast, Slugholder, and Snail remain neutral without stronger evidence. Use `Cold`, not frost, in config and feedback. |
+| Electric | Confirmed against Lost Knight and Tibby; Steel and Bone overlay against drowned/sea targets and exact drowned skeleton sailors | Electric-aligned enemies if found | `DamageSubType.Electric` detection is implemented. Broad construct Electric weakness is still avoided. |
+| Wet | Exact Flamegobbler, Cindermar, Forgeborn, and fire-aligned golem bodies | No resistance chart yet | `DamageSubType.Wet` detection is implemented. The first rule is deliberately narrow because only two audited direct player spells use Wet and vanilla enemies define no Wet multipliers. |
 | Holy or silver | Undead, spirits, Wyrd if item/effect text exposes reliable terms | Ordinary flesh | No native subtype found. Only add if runtime item, skill, enchantment, or effect text can be detected reliably. |
 
 Magic should not become "physical, but better." The desired pattern is:
@@ -482,7 +519,8 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Sea creature Cold/Electric/physical test | Cold resistance is respected, Electric weakness feels modest rather than mandatory, Slash/Pierce receive the living-flesh bonus, and Blunt stays neutral. |
 | Preset scaling pass | The same matchup appears on Tempered, Hardened, and Crucible, but grows stronger as the preset rises. |
 | Enemy awareness pass | Footstep range resolves to x1.10/x1.20/x1.30, while only Hardened and Crucible slow native combat-aggro decay; chase and forced-exit behavior remain native. |
-| Restorative consumable pass | Positive health, stamina, and mana deltas retain 100%/90%/80%, while non-restorative effects remain unchanged. |
+| Potion overdrinking pass | Potion healing and presentation remain native; direct restoratives feed independent Health, Mana, and Stamina buckets, all other consumed potions feed Utility, and each bucket receives 60/65/70 buildup with native decay. Completing one clears every bucket and activates the single native status with a 30% matching-resource drain, or a 15% all-resource drain for Utility. |
+| Food stamina lockout pass | Only the food status with the greatest remaining predicted healing survives. It restores exactly 1 whole point per elapsed second through ordinary action lockouts. During native Overexertion, the paired regeneration lock and Stamina Depleted status last half as long and food stamina pauses without banking ticks. The first point follows 0.1 seconds after the lock ends, then normal one-second cadence resumes. |
 | Two-handed sword route | Can beat ordinary flesh but gets increasingly inefficient against bone, construct, spirit, and flora matchups as preset strength rises. |
 | Feedback spam | Floating numbers appear often enough to teach, not often enough to annoy. |
 | Diagnostics | Logs show target families, elite-class target flags, family evidence, damage tags, physical weapon hint, vanilla amplification, vanilla multiplier skip, elite clamp behavior, no-match reason, and applied rule. |
@@ -492,7 +530,7 @@ The next testing pass should prove that the 0.9.0 rule engine works in real figh
 | Question | Current recommendation |
 |---|---|
 | Should Steel and Bone skip rules when vanilla already has a non-neutral multiplier? | Yes by default for strong vanilla exceptions. Layer only when the Steel and Bone rule is explicit and documented. |
-| Should Wyrdness hurt or resist Wyrd enemies? | Keep the implemented Wyrdness resistance until lore and in-game feel testing says otherwise. The vanilla templates do not prove broad Wyrdness resistance for Wyrdspawn. |
+| Should Wyrdness hurt or resist Wyrd enemies? | Keep neutral Wyrd enemies neutral. Preserve authored native resistance where present and use exact archetype rules only when lore or game data supports them. |
 | Should every family have both a physical and magical answer? | Yes for high-identity families where possible, but the answer should exist on every preset and scale by preset strength. |
 | Should ordinary humans get many rules? | No. Let vanilla handle most human combat unless armor, infection, or caster identity is obvious. |
 | Should bosses ignore weaknesses? | No. Clamp weaknesses instead of disabling them. |

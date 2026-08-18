@@ -1,7 +1,7 @@
 Torchlight Rekindled
 ====================
 
-Version 0.4.3
+Version 0.4.4
 
 Platforms: Windows and Linux.
 
@@ -40,6 +40,11 @@ Configuration
 Config file:
 
   BepInEx\config\ks.tgfoa.torchlight-rekindled.cfg
+
+FoA Mod Manager section order:
+General, Torch Light, Visible Flame, Flame Halo, Halo Alignment - Advanced,
+Interior Bloom, Audio, Diagnostics, and the final Import Previous Settings
+section.
 
 Defaults and ranges:
 

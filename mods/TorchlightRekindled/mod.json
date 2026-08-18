@@ -2,7 +2,7 @@
   "id": "TorchlightRekindled",
   "displayName": "Torchlight Rekindled",
   "packageName": "TorchlightRekindled",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "pluginGuid": "ks.tgfoa.torchlight-rekindled",
   "dll": "TorchlightRekindled.dll",
   "sourceFiles": [

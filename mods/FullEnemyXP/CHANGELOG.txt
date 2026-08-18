@@ -1,3 +1,8 @@
+Version 1.1.1
+Removed numeric prefixes from raw config sections and added explicit semantic ordering metadata to every visible setting: General, Testing, Diagnostics, then Import Previous Settings.
+Moved DryRun into its own late Testing section so normal diagnostics remain grouped and Import Previous Settings stays last.
+Advanced ConfigSchemaVersion from 1 to 2 because the settings moved to clean section names; the previous config is backed up and this release intentionally regenerates current defaults rather than mapping old numbered sections.
+
 Version 1.1.0
 Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so in-game summaries can be disabled without losing detailed BepInEx logging.
 

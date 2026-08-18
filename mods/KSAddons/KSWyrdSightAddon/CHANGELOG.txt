@@ -1,3 +1,8 @@
+Version 1.2.7
+Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
+Advanced ConfigSchemaVersion from 2 to 3 because settings moved to the clean General, Pulse Timing, Quest Givers, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 1.2.6
 Made the Enabled master switch disable both pulse handling and quest-giver highlighting.
 Kept an in-progress story archive load attached across temporary detector shutdowns so re-enabling cannot start a duplicate parse; an already-started read may finish before its resources are released.

@@ -1,3 +1,52 @@
+Version 0.5.6
+Removed numeric prefixes from the generated config and aligned every raw section with the established FoA Mod Manager categories.
+Advanced ConfigSchemaVersion from 13 to 14 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired layout.
+Kept Diagnostics penultimate and Import Previous Settings last.
+
+Version 0.5.5
+Removed the optional vanilla first-person head-bob multiplier and the related locomotion depth guard, eliminating the arm-moving camera-motion path and its four settings.
+Consolidated camera motion into one Head Bob tab with Enable Head Bob, Head Bob Strength, Head Bob Smoothness, and Sprint Emphasis.
+Kept the game's Accessibility / Head Bob setting as the global master switch while suppressing its native first-person arm movement and leaving third person untouched.
+Renamed the four camera-only settings to match their final Head Bob role and retained the Balanced, 0.7 smoothness, and 0.75 sprint-emphasis defaults.
+Incremented the config schema because the vanilla and locomotion settings were removed, the camera-only settings were renamed and moved, and Diagnostics moved to its final stored section; current defaults are regenerated while other compatible customized settings remain recoverable.
+
+Version 0.5.4
+Enforced the vanilla Accessibility / Head Bob gate again immediately before rendering alternate motion, preventing even its smoothed residual offset from appearing after the setting is turned off.
+
+Version 0.5.3
+Gated alternate camera motion behind the game's vanilla Accessibility / Head Bob setting, allowing that global accessibility control to disable both FPAA camera-motion paths.
+Kept EnableVanillaHeadBob independent and off by default, so the accessibility setting can authorize alternate camera-only motion without enabling the arm-affecting native bob.
+Incremented the config schema because EnableAlternateCameraMotion now requires the vanilla accessibility setting; compatible customized settings remain recoverable.
+
+Version 0.5.2
+Integrated Immersive Camera Motion's render-only first-person camera bob into First Person Arms Adjuster and retired the standalone package.
+Enabled the alternate camera motion by default with Subtle, Balanced, and Strong intensity presets, adjustable path smoothing, and native sprint detection.
+Raised the default sprint impact to 0.75, adding about 56% amplitude and 19% cadence while sprinting with the Balanced preset.
+Kept the complete native head-bob multiplier and locomotion depth guard available under Camera Motion - Vanilla Head Bob, but added EnableVanillaHeadBob as an off-by-default master switch.
+Separated FoA Mod Manager controls into Camera Motion - Vanilla Head Bob and Camera Motion - Alternate.
+Incremented the config schema because the new vanilla head-bob switch changes first-person camera-motion ownership and defaults; compatible customized settings remain recoverable.
+
+Version 0.5.1
+Changed the locomotion depth guard's post-movement release from 1.00 second to 0.40 seconds, matching its engagement duration.
+
+Version 0.5.0
+Lengthened the locomotion depth guard's post-movement release from 0.55 seconds to 1.00 second for a gentler return to the configured first-person depth.
+
+Version 0.4.9
+Gated the locomotion depth guard behind the vanilla Accessibility / Head Bob toggle and FPAA's first-person head-bob multiplier, smoothly releasing the guard whenever either source disables first-person bob.
+Incremented the config schema because MitigateLocomotionBodyIntrusion now applies only while first-person head bob is active; compatible customized settings remain recoverable.
+
+Version 0.4.8
+Changed the default first-person head-bob multiplier to 0.5 and the default locomotion depth retained to 0.75, matching the tested balanced camera-motion profile.
+Moved both locomotion guard controls into the Camera Motion tab and clarified that the guard is only needed while first-person head bob is enabled.
+Lengthened the smooth locomotion depth transition to 0.40 seconds entering movement and 0.55 seconds settling after movement, with speed hysteresis to prevent threshold flicker.
+Incremented the config schema because HeadBobStrengthMultiplier and LocomotionDepthOffsetScale now have materially different defaults; customized compatible values remain recoverable.
+
+Version 0.4.7
+Added a smooth locomotion depth guard that reduces only the configured camera-space depth offset during grounded movement, preserving horizontal and vertical placement while keeping shoulder and torso geometry away from the camera.
+Added a configurable first-person native head-bob multiplier with the vanilla accessibility toggle preserved and True Third Person's third-person value left untouched.
+Made First Person Arms Adjuster the authoritative first-person head-bob owner; disable the separate Immersive Camera Motion plugin when using this version.
+
 Version 0.4.6
 Sampled one immutable camera-space presentation offset per frame for Kandra arms, Drake equipment, attached effects, and the temporary body render translation, keeping hands connected to weapons during rapid horizontal and vertical camera movement.
 

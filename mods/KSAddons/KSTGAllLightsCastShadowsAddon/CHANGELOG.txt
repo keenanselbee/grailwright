@@ -1,3 +1,8 @@
+Version 1.2.9
+Added explicit FoA Mod Manager ordering metadata to every visible setting and moved the hidden schema marker out of its numbered raw section.
+Advanced ConfigSchemaVersion from 2 to 3 because the schema marker moved from the retired numbered Core section to clean General; compatible current-name settings remain eligible for conservative recovery.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 1.2.8
 Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so combat, atlas, and diagnostics-only warning notices can be disabled without losing detailed BepInEx logging.
 Kept ShowToggleNotifications and actual parent toggle confirmations independent of Diagnostics.

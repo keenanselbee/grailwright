@@ -1,0 +1,27 @@
+{
+  "id": "SoulAndService",
+  "displayName": "Soul and Service - Summon Overhaul",
+  "packageName": "SoulAndService",
+  "version": "0.3.5",
+  "pluginGuid": "ks.tgfoa.soul-and-service",
+  "dll": "SoulAndService.dll",
+  "sourceFiles": [
+    "src/SoulAndService.cs",
+    "src/SummonRuntime.cs",
+    "src/SoulSalvageRuntime.cs",
+    "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
+    "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
+  ],
+  "references": [
+    "%GAME%/Fall of Avalon_Data/Managed/netstandard.dll",
+    "%BEPINEX%/BepInEx/core/BepInEx.dll",
+    "%BEPINEX%/BepInEx/core/0Harmony.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.PackageUtilities.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
+  ]
+}

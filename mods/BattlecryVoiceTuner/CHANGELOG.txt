@@ -1,3 +1,8 @@
+Version 1.1.4
+Removed numeric prefixes from the generated config and aligned its raw sections with the existing task-oriented FoA Mod Manager categories.
+Advanced the config schema from 7 to 8 because settings moved between raw sections; the existing durable voice-tuning recovery keeps compatible customized pitch and volume values while other retired-section values regenerate from current defaults.
+Kept Testing near the bottom, Diagnostics penultimate, and Import Previous Settings last.
+
 Version 1.1.3
 Moved the hold-to-battlecry input from Toggle Weapon to the game's remappable Take All Items action, while leaving normal container looting authoritative when a container is open.
 Advanced the config schema from 6 to 7 because HoldToggleWeaponForBattlecry was replaced by HoldTakeAllItemsForBattlecry for the new input behavior.

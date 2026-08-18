@@ -10,8 +10,8 @@ $threatSource = Get-Content -LiteralPath (
 $manifest = Get-Content -LiteralPath (
     Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 
-if ($manifest.version -ne "1.3.4") {
-    throw "Eyes in the Dark battlecry integration requires manifest version 1.3.4."
+if ($manifest.version -ne "1.3.5") {
+    throw "Eyes in the Dark battlecry integration requires manifest version 1.3.5."
 }
 
 foreach ($required in @(

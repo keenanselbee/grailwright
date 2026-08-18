@@ -1,1 +1,1 @@
-Moves first-person arms, body, weapons, held arrows, and equipped presentation effects with configurable category offsets and a held-melee body guard, without changing world FOV or projectile origins.
+Moves first-person arms, body, weapons, held arrows, and effects with configurable offsets, plus smooth camera-only head bob, sprint emphasis, and automatic clipping guards without changing world FOV, aim, or combat.

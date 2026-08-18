@@ -87,22 +87,19 @@ For the standard food graph, the native total shown as `HealValue` is derived by
 
 This confirms that duration and per-second effectiveness can be adjusted independently while keeping the tooltip mathematically correct.
 
-The requested preset relationships are internally consistent:
+The implemented preset relationships retain the native health status while drawing recovery out over four times the authored duration:
 
 | Preset | Per-second multiplier | Duration multiplier | Total multiplier |
 |---|---:|---:|---:|
-| Tempered | 1.0 | 1.0 | 1.0 |
-| Hardened | 0.75 | 1.5 | 1.125 |
-| Crucible | 0.625 | 2.0 | 1.25 |
+| Tempered | 0.50 | 4.0 | 2.0 |
+| Hardened | 0.375 | 4.0 | 1.5 |
+| Crucible | 0.25 | 4.0 | 1.0 |
 
-Crucible's `0.625 * 2.0 = 1.25` relationship implements the later preference for 1.25 times total healing over twice the duration. If exact parity were wanted instead, its per-second multiplier would be 0.5.
+Crucible keeps total healing at native parity, while Tempered and Hardened make food more sustaining without increasing its per-second rescue strength.
 
 ## Stamina-regeneration implications
 
-A separate stamina-over-time effect is feasible and can share the adjusted food duration. The intended rates translate cleanly to:
-
-- Hardened: `0.5 StaminaRegen` per second, equivalent to 1 stamina every 2 seconds;
-- Crucible: `1.0 StaminaRegen` per second.
+A stamina-over-time channel can share the adjusted food duration. The implementation stores 1 stamina per second on the same native food status on every preset and restores it in discrete whole-point ticks. Ordinary action regeneration lockouts do not suppress those ticks. Native Overexertion deliberately does: active food halves its paired regeneration-lock and Stamina Depleted durations and pauses the added stamina channel without banking progress. The transition out preloads 0.9 seconds of the next interval so the first point arrives 0.1 seconds later, then normal one-second cadence resumes. This avoids fractional stamina every frame, since any positive fraction can satisfy the game's action-availability check, without letting the next whole food tick prematurely clear the zero-stamina movement penalty.
 
 Three normal edible templates already author a stamina-regeneration effect: Grandma's Powermilk, Onion Bun, and Peppermint. Apple Fritters, Wyrddeer Stew, and Heart affect maximum stamina rather than stamina regeneration. A blanket preset bonus must therefore be additive by design and the tooltip builder must avoid producing two indistinguishable stamina lines.
 
@@ -113,8 +110,8 @@ The following can be implemented with high confidence:
 1. Identify concrete food at runtime without relying on display text.
 2. Restrict healing scaling to the standard food-over-time graph when its `StatEnum` is `HealthRegen`.
 3. Override the graph's effective `AddValue` and `Duration` using the selected preset.
-4. Add a separate stamina-regeneration-over-time effect for Hardened and Crucible, lasting for the adjusted food duration.
+4. Store the added stamina rate and adjusted duration on the same native food status, then restore one whole stamina point at each elapsed-second boundary on every preset. Suspend and reset that interval during native Overexertion while halving its paired regeneration-lock and Stamina Depleted durations, then preload 0.9 seconds of the next interval when the lock ends.
 5. Replace the affected tooltip description through the descriptor route, render the final numeric healing and duration deliberately, preserve unrelated effect lines, and omit all Steel and Bone or preset branding.
 6. Apply the same descriptor behavior to inventory, crafting previews, and vendor views through their shared descriptor base.
 
-The remaining implementation choice is how existing stamina-regeneration foods should combine with the preset bonus. The data supports either additive stacking or a single consolidated displayed rate; it does not establish a design preference. Consolidating the displayed total into one stamina line would be the quieter tooltip treatment.
+The native food template is source-separated, so the base game can retain several simultaneous food-health statuses. Steel and Bone instead compares each status's own contribution to native queued-healing prediction, keeps only the greatest remaining contribution, and uses remaining duration as the tie-breaker. This makes both health recovery and the attached stamina channel strictly non-stacking.

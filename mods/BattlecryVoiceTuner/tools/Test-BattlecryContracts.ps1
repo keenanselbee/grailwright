@@ -6,7 +6,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw | Conv
 
 if ($manifest.id -ne "BattlecryVoiceTuner" -or
     $manifest.displayName -ne "Battlecry Voice Tuner" -or
-    $manifest.version -ne "1.1.3" -or
+    $manifest.version -ne "1.1.4" -or
     $manifest.pluginGuid -ne "ks.tgfoa.battlecry-voice-tuner" -or
     $manifest.dll -ne "BattlecryVoiceTuner.dll") {
     throw "Battlecry Voice Tuner manifest identity is inconsistent."
@@ -163,10 +163,10 @@ if ($source -notmatch '(?s)new Grailwright\.Shared\.ConfigRecoveryKeepCurrentDef
     throw "The former all-environment hearing multiplier must not be imported under its new outdoor-only meaning."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 7' -or
+if ($source -notmatch 'CurrentConfigSchemaVersion = 8' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 7."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 8."
 }
 
 foreach ($required in @(

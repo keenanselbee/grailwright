@@ -17,6 +17,7 @@ using Awaken.TG.Assets;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Settings.Accessibility;
 using Awaken.Utility.LowLevel;
 using Awaken.Utility.LowLevel.Collections;
 using BepInEx;
@@ -38,11 +39,18 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.4.6.0")]
-[assembly: AssemblyFileVersion("0.4.6.0")]
+[assembly: AssemblyVersion("0.5.6.0")]
+[assembly: AssemblyFileVersion("0.5.6.0")]
 
 namespace FirstPersonArmsAdjuster
 {
+    internal enum HeadBobPreset
+    {
+        Subtle,
+        Balanced,
+        Strong
+    }
+
     public static class FirstPersonArmsAdjusterApi
     {
         public const int ApiVersion = 1;
@@ -66,14 +74,19 @@ namespace FirstPersonArmsAdjuster
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
         BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        TrueThirdPersonPluginGuid,
+        BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class FirstPersonArmsAdjusterPlugin : BaseUnityPlugin
     {
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.4.6";
+        public const string PluginVersion = "0.5.6";
+        public const string TrueThirdPersonPluginGuid =
+            "kane.tgfoa.true-third-person";
 
-        private const int ConfigSchemaVersion = 8;
+        private const int ConfigSchemaVersion = 14;
         private const int ConfigRecoveryBaselineSchema = 1;
         private const int SceneTransitionSuspensionFrames = 45;
         private const float FireplaceBlendOutSeconds = 0.25f;
@@ -83,6 +96,16 @@ namespace FirstPersonArmsAdjuster
         private const float HeldMeleeBlendInSeconds = 0.20f;
         private const float SprintAttackBlendOutSeconds = 0.05f;
         private const float SprintAttackBlendInSeconds = 0.20f;
+        private const float HeadBobSpeedThreshold = 0.05f;
+        private const float HeadBobMaximumDeltaTime = 0.05f;
+        private const float HeadBobBlendInSeconds = 0.18f;
+        private const float HeadBobBlendOutSeconds = 0.28f;
+        private const float HeadBobMinimumSmoothTime = 0.02f;
+        private const float HeadBobMaximumSmoothTime = 0.18f;
+        private const float HeadBobSprintBlendSeconds = 0.20f;
+        private const float HeadBobMaximumSprintAmplitudeBonus = 0.75f;
+        private const float HeadBobMaximumSprintCadenceBonus = 0.25f;
+        private const float TwoPi = Mathf.PI * 2.0f;
         private const float SheathingBlendStartNormalizedTime = 0.45f;
         private const float SheathingBlendEndNormalizedTime = 0.90f;
         private const float SheathingBlendRestoreSeconds = 0.20f;
@@ -91,6 +114,10 @@ namespace FirstPersonArmsAdjuster
                 new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
+        private static readonly FieldInfo NativeHeadBobIntensityField =
+            AccessTools.Field(typeof(HeadBobbingSetting), "_intensity");
+        private static readonly PropertyInfo NativeHeadBobEnabledProperty =
+            AccessTools.Property(typeof(HeadBobbingSetting), "Enabled");
 
         private struct DrakeOffsetState
         {
@@ -151,6 +178,10 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<float> _heldMeleeOffsetScale;
         private ConfigEntry<float> _heldMeleeExtraForwardOffset;
         private ConfigEntry<float> _heldMeleeExtraVerticalOffset;
+        private ConfigEntry<bool> _enableHeadBob;
+        private ConfigEntry<HeadBobPreset> _headBobPreset;
+        private ConfigEntry<float> _headBobSmoothness;
+        private ConfigEntry<float> _sprintEmphasis;
         private ConfigEntry<bool> _diagnostics;
 
         private bool _hasPendingEnabled;
@@ -175,6 +206,14 @@ namespace FirstPersonArmsAdjuster
         private float _pendingHeldMeleeExtraForwardOffset;
         private bool _hasPendingHeldMeleeExtraVerticalOffset;
         private float _pendingHeldMeleeExtraVerticalOffset;
+        private bool _hasPendingEnableHeadBob;
+        private bool _pendingEnableHeadBob;
+        private bool _hasPendingHeadBobPreset;
+        private HeadBobPreset _pendingHeadBobPreset;
+        private bool _hasPendingHeadBobSmoothness;
+        private float _pendingHeadBobSmoothness;
+        private bool _hasPendingSprintEmphasis;
+        private float _pendingSprintEmphasis;
         private bool _hasPendingDiagnostics;
         private bool _pendingDiagnostics;
 
@@ -246,6 +285,18 @@ namespace FirstPersonArmsAdjuster
         private float _nextBowDiagnosticTime;
         private string _viewmodelDiagnosticSignature;
         private float _nextViewmodelDiagnosticTime;
+        private bool _nativeHeadBobRecoveryFailureReported;
+        private float _headBobStridePhase;
+        private float _headBobWeight;
+        private float _headBobWeightVelocity;
+        private float _headBobSprintWeight;
+        private float _headBobSprintWeightVelocity;
+        private Vector3 _headBobLocalOffset;
+        private Vector3 _headBobLocalOffsetVelocity;
+        private Camera _headBobCamera;
+        private Vector3 _headBobOriginalCameraPosition;
+        private bool _headBobApplied;
+        private float _nextHeadBobDiagnosticTime;
 
         internal static FirstPersonArmsAdjusterPlugin Instance
         {
@@ -278,7 +329,17 @@ namespace FirstPersonArmsAdjuster
                     + _forwardOffset.Value.ToString(
                         "0.###",
                         CultureInfo.InvariantCulture)
-                    + " m; restored 0.2.0 Kandra bone, culling, and linked Drake equipment offsets are active; the world camera FOV is unchanged.");
+                    + " m; HeadBob="
+                    + _enableHeadBob.Value.ToString(
+                        CultureInfo.InvariantCulture)
+                    + "@"
+                    + _headBobPreset.Value.ToString()
+                    + "; SprintEmphasis="
+                    + Mathf.Clamp01(
+                        _sprintEmphasis.Value).ToString(
+                            "0.##",
+                            CultureInfo.InvariantCulture)
+                    + "; native Kandra, culling, and linked Drake presentation offsets are active; the world camera FOV is unchanged.");
             }
             catch (Exception exception)
             {
@@ -297,7 +358,9 @@ namespace FirstPersonArmsAdjuster
         {
             // A failed or interrupted camera render must never leave the hero
             // body displaced during gameplay or physics updates.
+            RestoreHeadBob();
             RestoreRenderOffset();
+            UpdateHeadBob();
             UpdateFireplaceOffsetBlend();
             UpdateHeldMeleeOffsetBlend();
             UpdateSprintAttackOffsetBlend();
@@ -312,6 +375,8 @@ namespace FirstPersonArmsAdjuster
 
         private void OnDisable()
         {
+            RestoreHeadBob();
+            ResetHeadBob();
             RestoreRenderOffset();
             RestoreDrakeOffsets();
             RestoreAttachedEffectOffsets();
@@ -328,6 +393,7 @@ namespace FirstPersonArmsAdjuster
                 OnEndCameraRendering;
             SceneManager.activeSceneChanged -= OnActiveSceneChanged;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            RestoreHeadBob();
             RestoreDrakeOffsets();
             if (_harmony != null)
             {
@@ -359,6 +425,7 @@ namespace FirstPersonArmsAdjuster
 
         private void BeginSceneTransition(string reason)
         {
+            RestoreHeadBob();
             RestoreRenderOffset();
             _suspendOffsetsUntilFrame = Math.Max(
                 _suspendOffsetsUntilFrame,
@@ -414,6 +481,7 @@ namespace FirstPersonArmsAdjuster
             _currentVisualWorldOffset = Vector3.zero;
             _currentVisualWorldOffsetFrame = -1;
             _hasCurrentVisualWorldOffset = false;
+            ResetHeadBob();
         }
 
         private bool OffsetsSuspended()
@@ -648,6 +716,18 @@ namespace FirstPersonArmsAdjuster
             }
 
             return false;
+        }
+
+        private bool IsHeadBobAccessibilityEnabled()
+        {
+            HeadBobbingSetting setting =
+                Awaken.TG.MVC.World.Any<HeadBobbingSetting>();
+            float nativeIntensity;
+            return setting != null
+                && TryGetNativeHeadBobIntensity(
+                    setting,
+                    out nativeIntensity)
+                && nativeIntensity > 0.0f;
         }
 
         private void UpdateSheathingOffsetBlend()
@@ -885,6 +965,13 @@ namespace FirstPersonArmsAdjuster
             MethodInfo linkedTransformPrefix = AccessTools.Method(
                 typeof(LinkedTransformSystemPatch),
                 nameof(LinkedTransformSystemPatch.Prefix));
+            MethodInfo headBobbingIntensityGetter =
+                AccessTools.PropertyGetter(
+                    typeof(HeadBobbingSetting),
+                    "Intensity");
+            MethodInfo headBobbingPostfix = AccessTools.Method(
+                typeof(HeadBobbingIntensityPatch),
+                nameof(HeadBobbingIntensityPatch.Postfix));
             _inputBonesArrayField = AccessTools.Field(
                 typeof(RigManager),
                 "_inputBonesArray");
@@ -929,6 +1016,78 @@ namespace FirstPersonArmsAdjuster
             _harmony.Patch(
                 linkedTransformUpdate,
                 prefix: new HarmonyMethod(linkedTransformPrefix));
+            if (headBobbingIntensityGetter != null
+                && headBobbingPostfix != null
+                && NativeHeadBobIntensityField != null
+                && NativeHeadBobEnabledProperty != null)
+            {
+                _harmony.Patch(
+                    headBobbingIntensityGetter,
+                    postfix: new HarmonyMethod(headBobbingPostfix));
+            }
+            else
+            {
+                Logger.LogWarning(
+                    "Could not resolve the native head-bob members. Viewmodel positioning remains active, but first-person head-bob control is unavailable.");
+            }
+        }
+
+        internal void SuppressNativeFirstPersonHeadBob(
+            ref float intensity)
+        {
+            Hero hero = Hero.Current;
+            if (_enabled == null
+                || !_enabled.Value
+                || hero == null
+                || Hero.TppActive)
+            {
+                return;
+            }
+
+            intensity = 0.0f;
+        }
+
+        private bool TryGetNativeHeadBobIntensity(
+            HeadBobbingSetting setting,
+            out float intensity)
+        {
+            intensity = 0.0f;
+            try
+            {
+                object enabledValue =
+                    NativeHeadBobEnabledProperty.GetValue(setting, null);
+                if (!(enabledValue is bool))
+                {
+                    throw new InvalidCastException(
+                        "The accessibility getter returned an unexpected value.");
+                }
+                if (!(bool)enabledValue)
+                {
+                    return true;
+                }
+
+                object intensityValue =
+                    NativeHeadBobIntensityField.GetValue(setting);
+                if (!(intensityValue is float))
+                {
+                    throw new InvalidCastException(
+                        "The native intensity field returned an unexpected value.");
+                }
+
+                intensity = (float)intensityValue;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (!_nativeHeadBobRecoveryFailureReported)
+                {
+                    _nativeHeadBobRecoveryFailureReported = true;
+                    Logger.LogWarning(
+                        "Could not recover vanilla first-person head-bob intensity; leaving the incoming value unchanged: "
+                        + exception.Message);
+                }
+                return false;
+            }
         }
 
         internal void ApplyKandraRenderOffset(
@@ -1785,20 +1944,295 @@ namespace FirstPersonArmsAdjuster
             }
         }
 
+        private void UpdateHeadBob()
+        {
+            Hero hero = Hero.Current;
+            bool motionAvailable = _enabled != null
+                && _enabled.Value
+                && _enableHeadBob != null
+                && _enableHeadBob.Value
+                && IsHeadBobAccessibilityEnabled()
+                && hero != null
+                && !Hero.TppActive
+                && hero.Grounded
+                && !hero.IsSwimming
+                && hero.VHeroController != null
+                && hero.VHeroController.MainCamera != null;
+            float speed = motionAvailable
+                ? Mathf.Max(0.0f, hero.HorizontalSpeed)
+                : 0.0f;
+            bool moving = motionAvailable
+                && speed >= HeadBobSpeedThreshold;
+            float targetWeight = moving
+                ? Mathf.Clamp01(speed / 1.5f)
+                : 0.0f;
+            float deltaTime = Mathf.Min(
+                Mathf.Max(0.0f, Time.unscaledDeltaTime),
+                HeadBobMaximumDeltaTime);
+            float blendTime = targetWeight > _headBobWeight
+                ? HeadBobBlendInSeconds
+                : HeadBobBlendOutSeconds;
+            _headBobWeight = Mathf.SmoothDamp(
+                _headBobWeight,
+                targetWeight,
+                ref _headBobWeightVelocity,
+                blendTime,
+                Mathf.Infinity,
+                deltaTime);
+
+            bool sprinting = moving && hero.IsSprinting;
+            _headBobSprintWeight = Mathf.SmoothDamp(
+                _headBobSprintWeight,
+                sprinting ? 1.0f : 0.0f,
+                ref _headBobSprintWeightVelocity,
+                HeadBobSprintBlendSeconds,
+                Mathf.Infinity,
+                deltaTime);
+
+            Vector3 targetLocalOffset = Vector3.zero;
+            if (moving && deltaTime > 0.0f)
+            {
+                float strideLength;
+                float verticalAmplitude;
+                float lateralAmplitude;
+                GetHeadBobPresetValues(
+                    _headBobPreset.Value,
+                    out strideLength,
+                    out verticalAmplitude,
+                    out lateralAmplitude);
+                float sprintImpact = Mathf.Clamp01(
+                    _sprintEmphasis.Value);
+                float sprintAmplitude = Mathf.Lerp(
+                    1.0f,
+                    1.0f
+                        + (HeadBobMaximumSprintAmplitudeBonus
+                            * sprintImpact),
+                    _headBobSprintWeight);
+                float sprintCadence = Mathf.Lerp(
+                    1.0f,
+                    1.0f
+                        + (HeadBobMaximumSprintCadenceBonus
+                            * sprintImpact),
+                    _headBobSprintWeight);
+                _headBobStridePhase = Mathf.Repeat(
+                    _headBobStridePhase
+                        + (speed
+                            * deltaTime
+                            * TwoPi
+                            * sprintCadence
+                            / strideLength),
+                    TwoPi);
+                float speedScale = Mathf.Lerp(
+                    0.85f,
+                    1.15f,
+                    Mathf.Clamp01(speed / 5.0f));
+                float amplitude = _headBobWeight
+                    * speedScale
+                    * sprintAmplitude;
+                targetLocalOffset = new Vector3(
+                    Mathf.Sin(_headBobStridePhase)
+                        * lateralAmplitude
+                        * amplitude,
+                    -Mathf.Cos(_headBobStridePhase * 2.0f)
+                        * verticalAmplitude
+                        * amplitude,
+                    0.0f);
+            }
+
+            float smoothness = _headBobSmoothness == null
+                ? 0.0f
+                : Mathf.Clamp01(
+                    _headBobSmoothness.Value);
+            if (smoothness <= 0.0f || deltaTime <= 0.0f)
+            {
+                _headBobLocalOffset = targetLocalOffset;
+                _headBobLocalOffsetVelocity = Vector3.zero;
+            }
+            else
+            {
+                float smoothTime = Mathf.Lerp(
+                    HeadBobMinimumSmoothTime,
+                    HeadBobMaximumSmoothTime,
+                    smoothness);
+                _headBobLocalOffset = Vector3.SmoothDamp(
+                    _headBobLocalOffset,
+                    targetLocalOffset,
+                    ref _headBobLocalOffsetVelocity,
+                    smoothTime,
+                    Mathf.Infinity,
+                    deltaTime);
+                if (targetLocalOffset.sqrMagnitude <= 0.00000001f
+                    && _headBobLocalOffset.sqrMagnitude
+                        <= 0.00000001f)
+                {
+                    _headBobLocalOffset = Vector3.zero;
+                    _headBobLocalOffsetVelocity = Vector3.zero;
+                }
+            }
+
+            ReportHeadBobDiagnostics(
+                hero,
+                speed,
+                motionAvailable);
+        }
+
+        private static void GetHeadBobPresetValues(
+            HeadBobPreset preset,
+            out float strideLength,
+            out float verticalAmplitude,
+            out float lateralAmplitude)
+        {
+            switch (preset)
+            {
+                case HeadBobPreset.Subtle:
+                    strideLength = 2.05f;
+                    verticalAmplitude = 0.006f;
+                    lateralAmplitude = 0.002f;
+                    break;
+                case HeadBobPreset.Strong:
+                    strideLength = 1.75f;
+                    verticalAmplitude = 0.025f;
+                    lateralAmplitude = 0.0085f;
+                    break;
+                default:
+                    strideLength = 1.95f;
+                    verticalAmplitude = 0.012f;
+                    lateralAmplitude = 0.004f;
+                    break;
+            }
+        }
+
+        private void ResetHeadBob()
+        {
+            _headBobStridePhase = 0.0f;
+            _headBobWeight = 0.0f;
+            _headBobWeightVelocity = 0.0f;
+            _headBobSprintWeight = 0.0f;
+            _headBobSprintWeightVelocity = 0.0f;
+            _headBobLocalOffset = Vector3.zero;
+            _headBobLocalOffsetVelocity = Vector3.zero;
+        }
+
+        private void TryApplyHeadBob(Camera camera)
+        {
+            if (_headBobApplied
+                || camera == null
+                || _headBobLocalOffset.sqrMagnitude
+                    <= 0.00000001f)
+            {
+                return;
+            }
+
+            Hero hero = Hero.Current;
+            if (_enabled == null
+                || !_enabled.Value
+                || _enableHeadBob == null
+                || !_enableHeadBob.Value
+                || !IsHeadBobAccessibilityEnabled()
+                || hero == null
+                || Hero.TppActive
+                || hero.VHeroController == null
+                || hero.VHeroController.MainCamera != camera)
+            {
+                return;
+            }
+
+            _headBobCamera = camera;
+            _headBobOriginalCameraPosition =
+                camera.transform.position;
+            camera.transform.position =
+                _headBobOriginalCameraPosition
+                + camera.transform.TransformVector(
+                    _headBobLocalOffset);
+            _headBobApplied = true;
+        }
+
+        private void RestoreHeadBob(Camera camera = null)
+        {
+            if (!_headBobApplied
+                || (camera != null
+                    && camera != _headBobCamera))
+            {
+                return;
+            }
+
+            if (_headBobCamera != null)
+            {
+                _headBobCamera.transform.position =
+                    _headBobOriginalCameraPosition;
+            }
+            _headBobCamera = null;
+            _headBobApplied = false;
+        }
+
+        private void ReportHeadBobDiagnostics(
+            Hero hero,
+            float speed,
+            bool motionAvailable)
+        {
+            if (_diagnostics == null
+                || !_diagnostics.Value
+                || Time.unscaledTime
+                    < _nextHeadBobDiagnosticTime)
+            {
+                return;
+            }
+
+            _nextHeadBobDiagnosticTime =
+                Time.unscaledTime + 1.0f;
+            Logger.LogInfo(
+                "Head bob: available="
+                + motionAvailable.ToString(
+                    CultureInfo.InvariantCulture)
+                + "; speed="
+                + speed.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + "; sprinting="
+                + (hero != null && hero.IsSprinting).ToString(
+                    CultureInfo.InvariantCulture)
+                + "; sprintWeight="
+                + _headBobSprintWeight.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + "; preset="
+                + _headBobPreset.Value
+                + "; smoothness="
+                + _headBobSmoothness.Value.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + "; sprintEmphasis="
+                + _sprintEmphasis.Value.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + "; localOffset=("
+                + _headBobLocalOffset.x.ToString(
+                    "0.####",
+                    CultureInfo.InvariantCulture)
+                + ","
+                + _headBobLocalOffset.y.ToString(
+                    "0.####",
+                    CultureInfo.InvariantCulture)
+                + ",0).");
+        }
+
         private void OnCameraPreCull(Camera camera)
         {
+            TryApplyHeadBob(camera);
             TryApplyRenderOffset(camera);
         }
 
         private void OnCameraPostRender(Camera camera)
         {
             RestoreRenderOffset(camera);
+            RestoreHeadBob(camera);
         }
 
         private void OnBeginCameraRendering(
             ScriptableRenderContext context,
             Camera camera)
         {
+            TryApplyHeadBob(camera);
             TryApplyRenderOffset(camera);
         }
 
@@ -1807,6 +2241,7 @@ namespace FirstPersonArmsAdjuster
             Camera camera)
         {
             RestoreRenderOffset(camera);
+            RestoreHeadBob(camera);
         }
 
         private void TryApplyRenderOffset(Camera camera)
@@ -2650,7 +3085,7 @@ namespace FirstPersonArmsAdjuster
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -2658,11 +3093,11 @@ namespace FirstPersonArmsAdjuster
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
                 new ConfigDescription(
-                    "Turns first-person arm and equipment position adjustments on or off. Changes apply immediately.",
+                    "Turns first-person arm and equipment positioning plus FPAA head bob on or off. Changes apply immediately.",
                     null,
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
@@ -2672,7 +3107,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 0
                     }));
             _useCategoryForwardOffsets = Config.Bind(
-                "1. Core",
+                "Equipment Depth",
                 "UseCategoryForwardOffsets",
                 true,
                 new ConfigDescription(
@@ -2686,7 +3121,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 0
                     }));
             _adjustAttachedEffects = Config.Bind(
-                "1. Core",
+                "Advanced - Effects",
                 "AdjustAttachedEffects",
                 true,
                 new ConfigDescription(
@@ -2700,7 +3135,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 0
                     }));
             _mitigateHeldMeleeBodyIntrusion = Config.Bind(
-                "1. Core",
+                "Advanced - Melee Guards",
                 "MitigateHeldMeleeBodyIntrusion",
                 true,
                 new ConfigDescription(
@@ -2714,7 +3149,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 0
                     }));
             _forwardOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Position",
                 "ForwardOffset",
                 0.30f,
                 new ConfigDescription(
@@ -2728,7 +3163,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 0
                     }));
             _horizontalOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Position",
                 "HorizontalOffset",
                 0.0f,
                 new ConfigDescription(
@@ -2742,7 +3177,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 10
                     }));
             _verticalOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Position",
                 "VerticalOffset",
                 0.0f,
                 new ConfigDescription(
@@ -2756,7 +3191,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 20
                     }));
             _meleeForwardOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "MeleeForwardOffset",
                 0.30f,
                 new ConfigDescription(
@@ -2770,7 +3205,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 10
                     }));
             _bowForwardOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "BowForwardOffset",
                 0.10f,
                 new ConfigDescription(
@@ -2784,7 +3219,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 20
                     }));
             _magicForwardOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "MagicForwardOffset",
                 0.30f,
                 new ConfigDescription(
@@ -2798,7 +3233,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 30
                     }));
             _heldMeleeOffsetScale = Config.Bind(
-                "2. Viewmodel Position",
+                "Advanced - Melee Guards",
                 "HeldMeleeOffsetScale",
                 1.0f,
                 new ConfigDescription(
@@ -2812,7 +3247,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 10
                     }));
             _heldMeleeExtraForwardOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Advanced - Melee Guards",
                 "HeldMeleeExtraForwardOffset",
                 -0.05f,
                 new ConfigDescription(
@@ -2826,7 +3261,7 @@ namespace FirstPersonArmsAdjuster
                         Order = 20
                     }));
             _heldMeleeExtraVerticalOffset = Config.Bind(
-                "2. Viewmodel Position",
+                "Advanced - Melee Guards",
                 "HeldMeleeExtraVerticalOffset",
                 -0.05f,
                 new ConfigDescription(
@@ -2839,12 +3274,68 @@ namespace FirstPersonArmsAdjuster
                         SectionOrder = 30,
                         Order = 30
                     }));
+            _enableHeadBob = Config.Bind(
+                "Head Bob",
+                "EnableHeadBob",
+                true,
+                new ConfigDescription(
+                    "Enables FPAA's camera-only first-person head bob. The game's Accessibility / Head Bob setting remains the global master switch. Arms stay steady, native first-person bob remains suppressed, and third person is untouched. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Head Bob",
+                        DisplayName = "Enable Head Bob",
+                        SectionOrder = 25,
+                        Order = 0
+                    }));
+            _headBobPreset = Config.Bind(
+                "Head Bob",
+                "HeadBobPreset",
+                HeadBobPreset.Balanced,
+                new ConfigDescription(
+                    "Selects Subtle, Balanced, or Strong head bob. Strong has the greatest vertical and side-to-side movement. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Head Bob",
+                        DisplayName = "Head Bob Strength",
+                        SectionOrder = 25,
+                        Order = 10
+                    }));
+            _headBobSmoothness = Config.Bind(
+                "Head Bob",
+                "HeadBobSmoothness",
+                0.7f,
+                new ConfigDescription(
+                    "Softens the head-bob path. 0 follows the motion directly; higher values feel smoother but can slightly reduce the apparent strength. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Head Bob",
+                        DisplayName = "Head Bob Smoothness",
+                        SectionOrder = 25,
+                        Order = 20
+                    }));
+            _sprintEmphasis = Config.Bind(
+                "Head Bob",
+                "SprintEmphasis",
+                0.75f,
+                new ConfigDescription(
+                    "Controls how much stronger and faster head bob becomes while sprinting. At the default 0.75, sprinting adds about 56% movement and 19% cadence; 0 removes the sprint bonus. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Head Bob",
+                        DisplayName = "Sprint Emphasis",
+                        SectionOrder = 25,
+                        Order = 30
+                    }));
             _diagnostics = Config.Bind(
-                "3. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 false,
                 new ConfigDescription(
-                    "Writes first-person hierarchy and active bone, culling, and equipped-item offset details to the BepInEx log. Enable only while troubleshooting.",
+                    "Writes first-person hierarchy, camera motion, active bone, culling, and equipped-item offset details to the BepInEx log. Enable only while troubleshooting.",
                     null,
                     new Grailwright.Shared.ConfigRecoveryUiMetadata
                     {
@@ -2891,7 +3382,7 @@ namespace FirstPersonArmsAdjuster
                 const string schemaPrefix = "ConfigSchemaVersion =";
                 if (String.Equals(
                         currentSection,
-                        "1. Core",
+                        "General",
                         StringComparison.Ordinal)
                     && line.StartsWith(
                         schemaPrefix,
@@ -2989,55 +3480,75 @@ namespace FirstPersonArmsAdjuster
                         ConfigRecoveryPermanentExclusions);
 
             _hasPendingEnabled = profile.TryGetCustomizedValue(
-                "1. Core",
+                "General",
                 "Enabled",
                 out _pendingEnabled);
             _hasPendingMitigateHeldMeleeBodyIntrusion =
                 profile.TryGetCustomizedValue(
-                    "1. Core",
+                    "Equipment Depth",
                     "MitigateHeldMeleeBodyIntrusion",
                     out _pendingMitigateHeldMeleeBodyIntrusion);
             _hasPendingForwardOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Position",
                 "ForwardOffset",
                 out _pendingForwardOffset);
             _hasPendingHorizontalOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Position",
                 "HorizontalOffset",
                 out _pendingHorizontalOffset);
             _hasPendingVerticalOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Position",
                 "VerticalOffset",
                 out _pendingVerticalOffset);
             _hasPendingMeleeForwardOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "MeleeForwardOffset",
                 out _pendingMeleeForwardOffset);
             _hasPendingBowForwardOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "BowForwardOffset",
                 out _pendingBowForwardOffset);
             _hasPendingMagicForwardOffset = profile.TryGetCustomizedValue(
-                "2. Viewmodel Position",
+                "Equipment Depth",
                 "MagicForwardOffset",
                 out _pendingMagicForwardOffset);
             _hasPendingHeldMeleeOffsetScale =
                 profile.TryGetCustomizedValue(
-                    "2. Viewmodel Position",
+                    "Advanced - Melee Guards",
                     "HeldMeleeOffsetScale",
                     out _pendingHeldMeleeOffsetScale);
             _hasPendingHeldMeleeExtraForwardOffset =
                 profile.TryGetCustomizedValue(
-                    "2. Viewmodel Position",
+                    "Advanced - Melee Guards",
                     "HeldMeleeExtraForwardOffset",
                     out _pendingHeldMeleeExtraForwardOffset);
             _hasPendingHeldMeleeExtraVerticalOffset =
                 profile.TryGetCustomizedValue(
-                    "2. Viewmodel Position",
+                    "Advanced - Melee Guards",
                     "HeldMeleeExtraVerticalOffset",
                     out _pendingHeldMeleeExtraVerticalOffset);
+            _hasPendingEnableHeadBob =
+                profile.TryGetCustomizedValue(
+                    "Head Bob",
+                    "EnableHeadBob",
+                    out _pendingEnableHeadBob);
+            _hasPendingHeadBobPreset =
+                profile.TryGetCustomizedValue(
+                    "Head Bob",
+                    "HeadBobPreset",
+                    out _pendingHeadBobPreset);
+            _hasPendingHeadBobSmoothness =
+                profile.TryGetCustomizedValue(
+                    "Head Bob",
+                    "HeadBobSmoothness",
+                    out _pendingHeadBobSmoothness);
+            _hasPendingSprintEmphasis =
+                profile.TryGetCustomizedValue(
+                    "Head Bob",
+                    "SprintEmphasis",
+                    out _pendingSprintEmphasis);
             _hasPendingDiagnostics = profile.TryGetCustomizedValue(
-                "3. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 out _pendingDiagnostics);
         }
@@ -3071,7 +3582,6 @@ namespace FirstPersonArmsAdjuster
                     clampedCount++;
                 }
             }
-
             RestorePreservedFloat(
                 _hasPendingForwardOffset,
                 _forwardOffset,
@@ -3124,6 +3634,42 @@ namespace FirstPersonArmsAdjuster
                 _hasPendingHeldMeleeExtraVerticalOffset,
                 _heldMeleeExtraVerticalOffset,
                 _pendingHeldMeleeExtraVerticalOffset,
+                ref restoredCount,
+                ref clampedCount);
+            if (_hasPendingEnableHeadBob
+                && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _enableHeadBob,
+                    _pendingEnableHeadBob,
+                    out clamped))
+            {
+                restoredCount++;
+                if (clamped)
+                {
+                    clampedCount++;
+                }
+            }
+            if (_hasPendingHeadBobPreset
+                && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _headBobPreset,
+                    _pendingHeadBobPreset,
+                    out clamped))
+            {
+                restoredCount++;
+                if (clamped)
+                {
+                    clampedCount++;
+                }
+            }
+            RestorePreservedFloat(
+                _hasPendingHeadBobSmoothness,
+                _headBobSmoothness,
+                _pendingHeadBobSmoothness,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingSprintEmphasis,
+                _sprintEmphasis,
+                _pendingSprintEmphasis,
                 ref restoredCount,
                 ref clampedCount);
             if (_hasPendingDiagnostics
@@ -3193,6 +3739,10 @@ namespace FirstPersonArmsAdjuster
             _hasPendingHeldMeleeOffsetScale = false;
             _hasPendingHeldMeleeExtraForwardOffset = false;
             _hasPendingHeldMeleeExtraVerticalOffset = false;
+            _hasPendingEnableHeadBob = false;
+            _hasPendingHeadBobPreset = false;
+            _hasPendingHeadBobSmoothness = false;
+            _hasPendingSprintEmphasis = false;
             _hasPendingDiagnostics = false;
         }
 
@@ -3292,6 +3842,24 @@ namespace FirstPersonArmsAdjuster
             if (instance != null)
             {
                 instance.ApplyDrakeWeaponOffset(__instance);
+            }
+        }
+    }
+
+    internal static class HeadBobbingIntensityPatch
+    {
+        [HarmonyPriority(Priority.Last)]
+        [HarmonyAfter(
+            FirstPersonArmsAdjusterPlugin.TrueThirdPersonPluginGuid)]
+        internal static void Postfix(
+            ref float __result)
+        {
+            FirstPersonArmsAdjusterPlugin instance =
+                FirstPersonArmsAdjusterPlugin.Instance;
+            if (instance != null)
+            {
+                instance.SuppressNativeFirstPersonHeadBob(
+                    ref __result);
             }
         }
     }

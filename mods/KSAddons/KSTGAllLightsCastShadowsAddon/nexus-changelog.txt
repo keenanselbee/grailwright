@@ -1,4 +1,3 @@
-TargetVersion=1.2.8
-BaselineVersion=1.2.7
-Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so combat, atlas, and diagnostics-only warning notices can be disabled without losing detailed BepInEx logging.
-Kept ShowToggleNotifications and actual parent toggle confirmations independent of Diagnostics.
+TargetVersion=1.2.9
+BaselineVersion=1.2.8
+Added explicit task-oriented config ordering, removed the last numbered raw section, and kept Diagnostics penultimate with Import Previous Settings last.

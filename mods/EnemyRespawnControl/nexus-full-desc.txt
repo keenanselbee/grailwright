@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Enemy Respawn Control[/size][/color]
 [i]Control regular world mob respawn timing with game-world time presets.[/i][/center]
 
@@ -52,6 +52,8 @@ Generated defaults use the Default preset and diagnostics off. All preset and cu
 
 Turn off [b]Enabled[/b] for unmodified vanilla respawn behavior.
 
+FoA Mod Manager presents the settings in task order: [b]General[/b], [b]Spawner Classification[/b], [b]Diagnostics[/b], then [b]Import Previous Settings[/b].
+
 [code]
 Enabled = true
 RespawnMode = Default24Hours
@@ -93,8 +95,11 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][b]Optional diagnostics:[/b] With Diagnostics and ShowGrailFloatingTextDiagnostics enabled, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] shows readable lifecycle messages when a fully cleared encounter is locked, a rest is blocked with time remaining, the encounter becomes eligible but still needs vanilla distance activation, and its respawn is observed. Each state appears once per encounter, simultaneous events are combined, and repeated cooldown polling remains log-only. Detailed classification, lock, cooldown, rest, repair, bypass, expiry, and respawn evidence remains in the BepInEx log.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also shows concise encounter lifecycle messages for cleared locks, blocked rests, eligibility, and observed respawns.[/*]
 [/list]
 
 [line]

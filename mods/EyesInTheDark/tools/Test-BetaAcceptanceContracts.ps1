@@ -68,24 +68,24 @@ $gftModJson = Get-Content -LiteralPath (
 $repoReadme = Get-Content -LiteralPath (
     Join-Path $repoRoot "README.md") -Raw
 
-Assert-Contract ($modJson.version -eq "1.3.4") "mod.json version is not 1.3.4."
+Assert-Contract ($modJson.version -eq "1.3.5") "mod.json version is not 1.3.5."
 Assert-Contract ($modJson.displayName -eq "Eyes in the Dark - Wyrdnight Overhaul") "mod.json display name is stale."
 Assert-Contract ($pluginSource.Contains('public const string PluginName = "Eyes in the Dark";')) "config/plugin title is not Eyes in the Dark."
-Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "1.3.4";')) "plugin version is not 1.3.4."
-Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("1.3.4.0")]')) "assembly version is not 1.3.4.0."
+Assert-Contract ($pluginSource.Contains('public const string PluginVersion = "1.3.5";')) "plugin version is not 1.3.5."
+Assert-Contract ($pluginSource.Contains('[assembly: AssemblyVersion("1.3.5.0")]')) "assembly version is not 1.3.5.0."
 Assert-Contract ($pluginSource.Contains('[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Overhaul")]')) "assembly title is stale."
-Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 21;')) "config schema is not 21."
+Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 22;')) "config schema is not 22."
 Assert-Contract ($pluginSource -match '(?s)"AllowUnprotectedWyrdnightRest",\s*true,\s*UiDescription') "unprotected Wyrdnight rest does not default to enabled for Watchful tuning."
 Assert-Contract ($pluginSource -match '(?s)"ShowWyrdnightRestAvailability",\s*true,\s*UiDescription') "Wyrdnight rest availability does not default to enabled."
 Assert-Contract ($pluginSource.Contains('"The new visual baseline deliberately replaces prior customized pulse amounts with the tested 0.8 default."')) "schema-7 pulse recovery rule is missing."
 Assert-Contract ($pluginSource.Contains('"The new visual baseline deliberately returns diagnostics to its safe off default after regeneration."')) "schema-7 diagnostics recovery rule is missing."
 Assert-Contract ($pluginSource.Contains('"The recalibrated brightness control gives 1.0 a new 3x RGB meaning, so older same-name values are unsafe to preserve."')) "schema-17 meter brightness recovery rules are missing."
-Assert-Contract ($readme.Contains('Version: 1.3.4')) "installed README version is stale."
+Assert-Contract ($readme.Contains('Version: 1.3.5')) "installed README version is stale."
 Assert-Contract ($readme.StartsWith('Eyes in the Dark - Wyrdnight Overhaul')) "installed README title is stale."
-Assert-Contract ($changelog.StartsWith('Version 1.3.4')) "changelog does not start with 1.3.4."
-Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.4 |')) "top-level README row is stale."
-Assert-Contract ($gftModJson.version -eq "2.4.2") "GFT mod.json version is not 2.4.2."
-Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 25;')) "GFT config schema is not 25."
+Assert-Contract ($changelog.StartsWith('Version 1.3.5')) "changelog does not start with 1.3.5."
+Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.5 |')) "top-level README row is stale."
+Assert-Contract ($gftModJson.version -eq "2.5.4") "GFT mod.json version is not 2.5.4."
+Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 27;')) "GFT config schema is not 27."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleWyrdness'))) "retired Purple Wyrdness package remains in the repository."
 Assert-Contract (!$repoReadme.Contains('(mods/PurpleWyrdness)')) "top-level README still lists Purple Wyrdness."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleMoonTest'))) "retired PurpleMoonTest package remains in the repository."
@@ -271,7 +271,7 @@ foreach ($required in @(
     '"Advanced - Stalker Tuning"',
     '"Advanced - Boundary Tuning"',
     '"Advanced - Visual Layers"',
-    '"Advanced - Diagnostics"')) {
+    '"Diagnostics"')) {
     Assert-Contract ($pluginSource.Contains($required)) "config UX contract is missing $required."
 }
 Assert-Contract ($pluginSource -match '(?s)"Enable Ambient Stalkers",\s*0,\s*30') "ambient-stalker toggle is not in the primary General flow."
@@ -382,7 +382,7 @@ foreach ($required in @(
     'GameplayTuningPreset.WatchfulNight',
     'GameplayTuningPreset.CursedNight',
     '_gameplayPreset.Value = GameplayTuningPreset.Custom;',
-    '"2. Gameplay Preset"',
+    '"Gameplay Preset"',
     '"ApplyPreset"')) {
     Assert-Contract ($pluginSource.Contains($required)) "one-shot gameplay presets are missing $required."
 }
@@ -430,4 +430,4 @@ if (![string]::IsNullOrWhiteSpace($PackagePath)) {
     }
 }
 
-Write-Host "Eyes in the Dark 1.3.4 acceptance contracts passed."
+Write-Host "Eyes in the Dark 1.3.5 acceptance contracts passed."

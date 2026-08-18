@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Blood Magic Expansion[/size][/color]
 [i]Corpse rituals, live draining, and restrained blood-magic progression.[/i][/center]
 
@@ -173,16 +173,21 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.0.3+ is supported for optional usable and unavailable tiered corpse-reticle feedback through BloodMagicApi v9.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is an optional soft dependency for source-isolated XP text; version 2.1.2+ enables transactional combined corpse XP and Essence lines, 1.9.0+ consolidates live-drain XP, 2.4.4+ supplies quality-matched corpse icons, and 2.4.6+ gives visible Blood Magic healing its separate red Blood Magic presentation while keeping correlated held-channel ticks quiet by default. Diagnostics can also show collapsed corpse-resolution, quality-change, and inner-light visibility summaries when the default-on GFT diagnostic toggle and the matching granular log option are enabled.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] 1.6.7+ uses Grail Floating Text for optional quick-wheel Blood Essence and Blood Power presentation above completed Corpses Drained totals, exact absolute tier and quality synchronization, one-time import of existing tier counts, and new or previously recorded Blood Magic kill classification without rewriting save data.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] 0.3.5+ is an optional soft integration that keeps the unparented blood-spell lights aligned with presentation-only arm offsets.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] 0.1.3+ is an optional soft integration that suspends a hidden blood spell's inner light, readiness, cast boost, held-cast tracking, and relevant-spell API feedback while the opposite weapon uses both hands, then restores normal behavior when the hand becomes active. Relevant-spell suppression requires Blood Magic Expansion 2.7.2 or newer.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] 1.3.2+ accepts completed corpse quality through a soft integration. Its default tuning converts successful exposed-Wyrdnight rituals into 4-to-12 Wyrd Threat; other ritual contexts add no threat.[/*]
-[*]Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v8.[/*]
-[*]May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] uses Grail Floating Text for optional quick-wheel Blood Essence and Blood Power presentation above completed Corpses Drained totals, exact absolute tier and quality synchronization, one-time import of existing tier counts, and new or previously recorded Blood Magic kill classification without rewriting save data.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is supported for optional usable and unavailable tiered corpse-reticle feedback through BloodMagicApi v9.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] accepts completed corpse quality through a soft integration. Its default tuning converts successful exposed-Wyrdnight rituals into 4-to-12 Wyrd Threat; other ritual contexts add no threat.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] is an optional soft integration that keeps the unparented blood-spell lights aligned with presentation-only arm offsets.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also provides source-isolated XP and Essence reward lines, quality-matched corpse icons, and a separate Blood Magic presentation for visible healing.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] is an optional soft integration that suspends a hidden blood spell's inner light, readiness, cast boost, held-cast tracking, and relevant-spell API feedback while the opposite weapon uses both hands, then restores normal behavior when the hand becomes active.[/*]
 [/list]
+
+Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v8.
+
+May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.
 
 [line]
 

@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.1.3
+Battlecry Voice Tuner 1.1.4
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -85,10 +85,10 @@ EyesInTheDarkThreat = 10.0
 PlayRandomTestSound = false
 Diagnostics = false
 
-FoA Mod Manager presents these stable settings as General, Voice Tuning, Native
-Voice Events, Battlecry Audio, Battlecry Input, Battlecry Challenge, Optional
-Integrations, Testing, and Diagnostics. This display-only organization does not
-change the stored config sections or keys.
+FoA Mod Manager and the generated config use these task-oriented sections:
+General, Voice Tuning, Native Voice Events, Battlecry Audio, Battlecry Input,
+Battlecry Challenge, Optional Integrations, Testing, Diagnostics, and the final
+Import Previous Settings section.
 
 PlayRandomTestSound is a pseudo-button for existing game voice events. It does
 not select custom battlecry files.

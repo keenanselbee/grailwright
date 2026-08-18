@@ -1,3 +1,8 @@
+Version 0.1.7
+Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
+Advanced ConfigSchemaVersion from 2 to 3 because settings moved to the clean General, Audio, Terrain Detection, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 0.1.6
 Changed the FoA Mod Manager config-menu title to BetterMovement Addon so it groups with the parent mod.
 

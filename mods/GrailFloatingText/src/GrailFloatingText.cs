@@ -46,9 +46,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.4.6.0")]
-[assembly: AssemblyFileVersion("2.4.6.0")]
-[assembly: AssemblyInformationalVersion("2.4.6")]
+[assembly: AssemblyVersion("2.5.4.0")]
+[assembly: AssemblyFileVersion("2.5.4.0")]
+[assembly: AssemblyInformationalVersion("2.5.4")]
 
 namespace GrailFloatingText
 {
@@ -261,7 +261,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.4.6";
+        public const string PluginVersion = "2.5.4";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -284,7 +284,7 @@ namespace GrailFloatingText
             "ks.tgfoa.dishonored-dynamic-crosshair";
         private const string DynamicCrosshairAssemblyName =
             "DishonoredDynamicCrosshair";
-        private const int ConfigSchemaVersion = 25;
+        private const int ConfigSchemaVersion = 27;
         private const int ConfigRecoveryBaselineSchema = 15;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -540,6 +540,8 @@ namespace GrailFloatingText
 
         private readonly Dictionary<string, object> _pendingPreservedPresentation =
             new Dictionary<string, object>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly HashSet<string> _pendingPreservedSourceSections =
             new HashSet<string>(StringComparer.Ordinal);
         private int _pendingPreservedInvalidValueCount;
@@ -649,6 +651,7 @@ namespace GrailFloatingText
                 ShowPendingConfigResetNotification();
                 PatchXpNotifications();
                 PatchHealingOverTimeSources();
+                PatchConsumableNotifications();
                 StartDefaultGameEventBinding();
                 Config.Save();
                 Logger.LogInfo(PluginName + " " + PluginVersion + " loaded.");
@@ -1662,6 +1665,7 @@ namespace GrailFloatingText
         {
             if (!IsHealingNotificationEnabled()
                 || IsBuiltInEventClaimed(DefaultHealingEventId)
+                || IsConsumableHealingClaimed()
                 || (!IsHealingOverTimeNotificationEnabled()
                     && _healingOverTimeScopeDepth > 0)
                 || change.value <= 0.0f
@@ -4364,25 +4368,25 @@ namespace GrailFloatingText
                 return settings;
             }
 
-            string section = "9. Sources." + ToConfigName(sourceId);
+            string section = "Sources." + ToConfigName(sourceId);
             settings = new SourceSettings
             {
-                Enabled = Config.Bind(section, "Enabled", true, "Allow this source to show Grail Floating Text messages."),
-                ThrottleSeconds = Config.Bind(
+                Enabled = BindOrdered(section, "Enabled", true, "Allow this source to show Grail Floating Text messages."),
+                ThrottleSeconds = BindOrdered(
                     section,
                     "ThrottleSeconds",
                     GetDefaultSourceThrottleSeconds(),
                     new ConfigDescription(
                         "Minimum seconds between non-high-priority messages from this source.",
                         new AcceptableValueRange<float>(0.0f, 10.0f))),
-                DurationMultiplier = Config.Bind(
+                DurationMultiplier = BindOrdered(
                     section,
                     "DurationMultiplier",
                     GetDefaultSourceDurationMultiplier(),
                     new ConfigDescription(
                         "Multiplier applied to this source's requested display duration.",
                         new AcceptableValueRange<float>(0.1f, 5.0f))),
-                Diagnostics = Config.Bind(section, "Diagnostics", false, "Log accepted messages from this source.")
+                Diagnostics = BindOrdered(section, "Diagnostics", false, "Log accepted messages from this source.")
             };
 
             _sourceSettingsById[sourceId] = settings;
@@ -4527,19 +4531,19 @@ namespace GrailFloatingText
             bool controlsQuickWheel;
             if (TryGetLoadedBoolean(
                     GloriousUiPluginGuid,
-                    "1. Core",
+                    "General",
                     "Enabled",
                     out gloriousEnabled)
                 && gloriousEnabled
                 && TryGetLoadedBoolean(
                     GloriousUiPluginGuid,
-                    "5. Equipment Panel",
+                    "Equipment Panel",
                     "ControlEquipmentWeaponLoadouts",
                     out controlsEquipmentLoadouts)
                 && controlsEquipmentLoadouts
                 && TryGetLoadedBoolean(
                     GloriousUiPluginGuid,
-                    "5. Equipment Panel",
+                    "Equipment Panel",
                     "ControlQuickUseWheelLoadouts",
                     out controlsQuickWheel)
                 && controlsQuickWheel
@@ -4578,7 +4582,7 @@ namespace GrailFloatingText
             if (gloriousEnabled
                 && TryGetLoadedBoolean(
                     GloriousUiPluginGuid,
-                    "2. HUD",
+                    "HUD",
                     "ControlHeroHud",
                     out controlsHeroHud)
                 && controlsHeroHud
@@ -4621,13 +4625,13 @@ namespace GrailFloatingText
             bool damageNumbersEnabled;
             if (!TryGetLoadedBoolean(
                     SteelAndBonePluginGuid,
-                    "1. Core",
+                    "General",
                     "Enabled",
                     out steelAndBoneEnabled)
                 || !steelAndBoneEnabled
                 || !TryGetLoadedBoolean(
                     SteelAndBonePluginGuid,
-                    "3. Feedback",
+                    "Feedback",
                     "DamageNumbersEnabled",
                     out damageNumbersEnabled)
                 || !damageNumbersEnabled)
@@ -5121,7 +5125,7 @@ namespace GrailFloatingText
                     && pluginInfo.Instance != null)
                 {
                     ConfigEntryBase palette = pluginInfo.Instance.Config[
-                        "8. Wyrd Visuals",
+                        "Wyrd Visuals",
                         "WyrdnessPalette"];
                     if (palette != null
                         && string.Equals(
@@ -5424,16 +5428,172 @@ namespace GrailFloatingText
             return string.IsNullOrWhiteSpace(configName) ? "unknown" : configName;
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return base.Config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return base.Config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    GetConfigDisplaySection(section),
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static string GetConfigDisplaySection(string section)
+        {
+            const string sourcePrefix = "Sources.";
+            if (section.StartsWith(sourcePrefix, StringComparison.Ordinal))
+            {
+                return "Source - " + section.Substring(sourcePrefix.Length);
+            }
+
+            return section;
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "General":
+                    return 0;
+                case "Layout":
+                    return 10;
+                case "Timing":
+                    return 20;
+                case "Animation":
+                    return 30;
+                case "Queue":
+                    return 40;
+                case "Categories":
+                    return 50;
+                case "Icons":
+                    return 60;
+                case "Color Groups":
+                    return 70;
+                case "Icon Color Overrides":
+                    return 80;
+                case "Default Game Events":
+                    return 90;
+                case "Source Defaults":
+                    return 100;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+            }
+
+            if (section.StartsWith("Sources.", StringComparison.Ordinal))
+            {
+                return 110;
+            }
+
+            throw new InvalidOperationException(
+                "Missing config section order for " + section + ".");
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
+        private static string GetCleanConfigSection(string section)
+        {
+            switch (section)
+            {
+                case "1. Core":
+                    return "General";
+                case "2. Layout":
+                    return "Layout";
+                case "3. Timing":
+                    return "Timing";
+                case "4. Animation":
+                    return "Animation";
+                case "5. Queue":
+                    return "Queue";
+                case "6. Categories":
+                    return "Categories";
+                case "7. Source Defaults":
+                    return "Source Defaults";
+                case "8. Icons":
+                    return "Icons";
+                case "9. Default Game Events":
+                    return "Default Game Events";
+                case "10. Diagnostics":
+                    return "Diagnostics";
+                case "11. Color Groups":
+                    return "Color Groups";
+                case "12. Icon Color Overrides":
+                    return "Icon Color Overrides";
+            }
+
+            const string oldSourcePrefix = "9. Sources.";
+            if (section.StartsWith(oldSourcePrefix, StringComparison.Ordinal))
+            {
+                return "Sources." + section.Substring(oldSourcePrefix.Length);
+            }
+
+            return section;
+        }
+
         private void BindConfig()
         {
-            _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch for the shared Grail Floating Text overlay.");
-            _notifyModCompatibility = Config.Bind(
-                "1. Core",
+            _configSettingOrders.Clear();
+            _enabled = BindOrdered("General", "Enabled", true, "Master switch for the shared Grail Floating Text overlay.");
+            _notifyModCompatibility = BindOrdered(
+                "General",
                 "NotifyModCompatibility",
                 true,
                 "Show warning-styled system notices when a loaded Grailwright mod has documented incompatible DLLs loaded alongside it. Detection treats the Grailwright mod as the preferred implementation but never disables another plugin automatically.");
-            Config.Bind(
-                "1. Core",
+            BindOrdered(
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -5441,95 +5601,96 @@ namespace GrailFloatingText
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
 
-            _scale = Config.Bind("2. Layout", "Scale", 1.2f, new ConfigDescription("Scale multiplier for all floating text.", new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _fontSize = Config.Bind("2. Layout", "FontSize", 20, new ConfigDescription("Base font size before scale is applied.", new AcceptableValueRange<int>(8, 72)));
-            _fontMode = Config.Bind("2. Layout", "FontMode", FontMode.GameDefault, "Font used by the overlay. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
-            _centerX = Config.Bind("2. Layout", "CenterX", 0.5f, new ConfigDescription("Horizontal center as a fraction of screen width.", new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _baseCenterY = Config.Bind("2. Layout", "BaseCenterY", 0.25f, new ConfigDescription("Vertical center for the newest notification as a fraction of screen height.", new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _width = Config.Bind("2. Layout", "Width", 1040.0f, new ConfigDescription("Maximum centered icon-and-text group width before wrapping, prior to scale and screen-safe limits.", new AcceptableValueRange<float>(100.0f, 1600.0f)));
-            _stackSpacing = Config.Bind("2. Layout", "StackSpacing", 34.0f, new ConfigDescription("Vertical distance between stacked active notifications before scale is applied.", new AcceptableValueRange<float>(16.0f, 160.0f)));
-            _maximumVisibleNotifications = Config.Bind("2. Layout", "MaximumVisibleNotifications", 16, new ConfigDescription("Maximum active notifications kept on screen at once. Oldest entries are dropped first.", new AcceptableValueRange<int>(1, 24)));
+            _scale = BindOrdered("Layout", "Scale", 1.2f, new ConfigDescription("Scale multiplier for all floating text.", new AcceptableValueRange<float>(0.1f, 3.0f)));
+            _fontSize = BindOrdered("Layout", "FontSize", 20, new ConfigDescription("Base font size before scale is applied.", new AcceptableValueRange<int>(8, 72)));
+            _fontMode = BindOrdered("Layout", "FontMode", FontMode.GameDefault, "Font used by the overlay. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.");
+            _centerX = BindOrdered("Layout", "CenterX", 0.5f, new ConfigDescription("Horizontal center as a fraction of screen width.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _baseCenterY = BindOrdered("Layout", "BaseCenterY", 0.25f, new ConfigDescription("Vertical center for the newest notification as a fraction of screen height.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _width = BindOrdered("Layout", "Width", 1040.0f, new ConfigDescription("Maximum centered icon-and-text group width before wrapping, prior to scale and screen-safe limits.", new AcceptableValueRange<float>(100.0f, 1600.0f)));
+            _stackSpacing = BindOrdered("Layout", "StackSpacing", 34.0f, new ConfigDescription("Vertical distance between stacked active notifications before scale is applied.", new AcceptableValueRange<float>(16.0f, 160.0f)));
+            _maximumVisibleNotifications = BindOrdered("Layout", "MaximumVisibleNotifications", 16, new ConfigDescription("Maximum active notifications kept on screen at once. Oldest entries are dropped first.", new AcceptableValueRange<int>(1, 24)));
 
-            _defaultDurationSeconds = Config.Bind("3. Timing", "DefaultDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Default display duration used when a caller does not request one.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _defaultFadeSeconds = Config.Bind("3. Timing", "DefaultFadeSeconds", 0.25f, new ConfigDescription("Default fade-in duration and medium-duration fade-out baseline used when a caller does not request one. Fade-out scales with total display duration, up to twice this value.", new AcceptableValueRange<float>(0.0f, 5.0f)));
-            _veryShortDurationSeconds = Config.Bind("3. Timing", "VeryShortDurationSeconds", DefaultVeryShortDurationSeconds, new ConfigDescription("Display duration for very short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _shortDurationSeconds = Config.Bind("3. Timing", "ShortDurationSeconds", DefaultShortDurationSeconds, new ConfigDescription("Display duration for short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _mediumDurationSeconds = Config.Bind("3. Timing", "MediumDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Display duration for medium event-bucket messages. Event callbacks default to this bucket.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _longDurationSeconds = Config.Bind("3. Timing", "LongDurationSeconds", DefaultLongDurationSeconds, new ConfigDescription("Display duration for long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _veryLongDurationSeconds = Config.Bind("3. Timing", "VeryLongDurationSeconds", DefaultVeryLongDurationSeconds, new ConfigDescription("Display duration for very long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _systemDurationSeconds = Config.Bind("3. Timing", "SystemDurationSeconds", DefaultSystemDurationSeconds, new ConfigDescription("Display duration for startup, config reset, and load-time system messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
-            _globalOpacity = Config.Bind("3. Timing", "GlobalOpacity", 0.9f, new ConfigDescription("Opacity multiplier applied to every floating text entry.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _defaultDurationSeconds = BindOrdered("Timing", "DefaultDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Default display duration used when a caller does not request one.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _defaultFadeSeconds = BindOrdered("Timing", "DefaultFadeSeconds", 0.25f, new ConfigDescription("Default fade-in duration and medium-duration fade-out baseline used when a caller does not request one. Fade-out scales with total display duration, up to twice this value.", new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _veryShortDurationSeconds = BindOrdered("Timing", "VeryShortDurationSeconds", DefaultVeryShortDurationSeconds, new ConfigDescription("Display duration for very short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _shortDurationSeconds = BindOrdered("Timing", "ShortDurationSeconds", DefaultShortDurationSeconds, new ConfigDescription("Display duration for short event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _mediumDurationSeconds = BindOrdered("Timing", "MediumDurationSeconds", DefaultMediumDurationSeconds, new ConfigDescription("Display duration for medium event-bucket messages. Event callbacks default to this bucket.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _longDurationSeconds = BindOrdered("Timing", "LongDurationSeconds", DefaultLongDurationSeconds, new ConfigDescription("Display duration for long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _veryLongDurationSeconds = BindOrdered("Timing", "VeryLongDurationSeconds", DefaultVeryLongDurationSeconds, new ConfigDescription("Display duration for very long event-bucket messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _systemDurationSeconds = BindOrdered("Timing", "SystemDurationSeconds", DefaultSystemDurationSeconds, new ConfigDescription("Display duration for startup, config reset, and load-time system messages.", new AcceptableValueRange<float>(0.25f, 10.0f)));
+            _globalOpacity = BindOrdered("Timing", "GlobalOpacity", 0.9f, new ConfigDescription("Opacity multiplier applied to every floating text entry.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            _spawnAnimationEnabled = Config.Bind("4. Animation", "SpawnAnimationEnabled", true, "Play a short pop-in scale animation when notifications appear.");
-            _spawnStartScale = Config.Bind("4. Animation", "SpawnStartScale", 0.7f, new ConfigDescription("Initial scale for the notification pop-in animation.", new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _spawnOvershootScale = Config.Bind("4. Animation", "SpawnOvershootScale", 1.12f, new ConfigDescription("Largest scale reached before the pop-in animation settles to normal size.", new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _spawnAnimationSeconds = Config.Bind("4. Animation", "SpawnAnimationSeconds", 0.2f, new ConfigDescription("Duration of the pop-in scale animation.", new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _stackMoveAnimationSeconds = Config.Bind("4. Animation", "StackMoveAnimationSeconds", 0.16f, new ConfigDescription("Time used for existing notifications to glide into their new stacked positions.", new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _spawnAnimationEnabled = BindOrdered("Animation", "SpawnAnimationEnabled", true, "Play a short pop-in scale animation when notifications appear.");
+            _spawnStartScale = BindOrdered("Animation", "SpawnStartScale", 0.7f, new ConfigDescription("Initial scale for the notification pop-in animation.", new AcceptableValueRange<float>(0.1f, 3.0f)));
+            _spawnOvershootScale = BindOrdered("Animation", "SpawnOvershootScale", 1.12f, new ConfigDescription("Largest scale reached before the pop-in animation settles to normal size.", new AcceptableValueRange<float>(0.1f, 3.0f)));
+            _spawnAnimationSeconds = BindOrdered("Animation", "SpawnAnimationSeconds", 0.2f, new ConfigDescription("Duration of the pop-in scale animation.", new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _stackMoveAnimationSeconds = BindOrdered("Animation", "StackMoveAnimationSeconds", 0.16f, new ConfigDescription("Time used for existing notifications to glide into their new stacked positions.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
-            _duplicateSuppressSeconds = Config.Bind("5. Queue", "DuplicateSuppressSeconds", 0.15f, new ConfigDescription("Drop identical non-collapsed messages from the same source within this many seconds. Set to 0 to disable.", new AcceptableValueRange<float>(0.0f, 5.0f)));
+            _duplicateSuppressSeconds = BindOrdered("Queue", "DuplicateSuppressSeconds", 0.15f, new ConfigDescription("Drop identical non-collapsed messages from the same source within this many seconds. Set to 0 to disable.", new AcceptableValueRange<float>(0.0f, 5.0f)));
 
-            _categoryEnabledByName["General"] = Config.Bind("6. Categories", "GeneralEnabled", true, "Show general floating text entries.");
-            _categoryEnabledByName["Combat"] = Config.Bind("6. Categories", "CombatEnabled", true, "Show combat-category floating text entries.");
-            _categoryEnabledByName["Reward"] = Config.Bind("6. Categories", "RewardEnabled", true, "Show reward-category floating text entries.");
-            _categoryEnabledByName["Status"] = Config.Bind("6. Categories", "StatusEnabled", true, "Show status-category floating text entries.");
-            _categoryEnabledByName["System"] = Config.Bind("6. Categories", "SystemEnabled", true, "Show system-category floating text entries.");
-            _categoryEnabledByName["Debug"] = Config.Bind("6. Categories", "DebugEnabled", false, "Show debug-category floating text entries.");
+            _categoryEnabledByName["General"] = BindOrdered("Categories", "GeneralEnabled", true, "Show general floating text entries.");
+            _categoryEnabledByName["Combat"] = BindOrdered("Categories", "CombatEnabled", true, "Show combat-category floating text entries.");
+            _categoryEnabledByName["Reward"] = BindOrdered("Categories", "RewardEnabled", true, "Show reward-category floating text entries.");
+            _categoryEnabledByName["Status"] = BindOrdered("Categories", "StatusEnabled", true, "Show status-category floating text entries.");
+            _categoryEnabledByName["System"] = BindOrdered("Categories", "SystemEnabled", true, "Show system-category floating text entries.");
+            _categoryEnabledByName["Debug"] = BindOrdered("Categories", "DebugEnabled", false, "Show debug-category floating text entries.");
 
-            _perSourceControlsEnabled = Config.Bind("7. Source Defaults", "PerSourceControlsEnabled", true, "Create per-source config sections when mods send messages.");
-            _defaultSourceThrottleSeconds = Config.Bind("7. Source Defaults", "DefaultThrottleSeconds", 0.05f, new ConfigDescription("Minimum seconds between non-high-priority messages from the same source before a per-source override exists.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _defaultSourceDurationMultiplier = Config.Bind("7. Source Defaults", "DefaultDurationMultiplier", 1.0f, new ConfigDescription("Default multiplier applied to requested display duration before a per-source override exists.", new AcceptableValueRange<float>(0.1f, 5.0f)));
+            _perSourceControlsEnabled = BindOrdered("Source Defaults", "PerSourceControlsEnabled", true, "Create per-source config sections when mods send messages.");
+            _defaultSourceThrottleSeconds = BindOrdered("Source Defaults", "DefaultThrottleSeconds", 0.05f, new ConfigDescription("Minimum seconds between non-high-priority messages from the same source before a per-source override exists.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _defaultSourceDurationMultiplier = BindOrdered("Source Defaults", "DefaultDurationMultiplier", 1.0f, new ConfigDescription("Default multiplier applied to requested display duration before a per-source override exists.", new AcceptableValueRange<float>(0.1f, 5.0f)));
 
-            _iconsEnabled = Config.Bind("8. Icons", "IconsEnabled", true, "Draw built-in icon masks beside floating text when an icon is resolved.");
-            _iconSize = Config.Bind("8. Icons", "IconSize", 32.0f, new ConfigDescription("Icon size before scale is applied.", new AcceptableValueRange<float>(8.0f, 96.0f)));
-            _iconGap = Config.Bind("8. Icons", "IconGap", 10.0f, new ConfigDescription("Horizontal gap between icon and text before scale is applied.", new AcceptableValueRange<float>(0.0f, 64.0f)));
-            _iconOpacity = Config.Bind("8. Icons", "IconOpacity", 0.95f, new ConfigDescription("Opacity multiplier applied to icon masks.", new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _iconShadowEnabled = Config.Bind("8. Icons", "IconShadowEnabled", true, "Draw a black offset shadow behind icons. Text shadows are controlled separately and remain enabled.");
-            _iconShadowOpacity = Config.Bind("8. Icons", "IconShadowOpacity", 0.75f, new ConfigDescription("Opacity multiplier applied to icon shadows.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _iconsEnabled = BindOrdered("Icons", "IconsEnabled", true, "Draw built-in icon masks beside floating text when an icon is resolved.");
+            _iconSize = BindOrdered("Icons", "IconSize", 32.0f, new ConfigDescription("Icon size before scale is applied.", new AcceptableValueRange<float>(8.0f, 96.0f)));
+            _iconGap = BindOrdered("Icons", "IconGap", 10.0f, new ConfigDescription("Horizontal gap between icon and text before scale is applied.", new AcceptableValueRange<float>(0.0f, 64.0f)));
+            _iconOpacity = BindOrdered("Icons", "IconOpacity", 0.95f, new ConfigDescription("Opacity multiplier applied to icon masks.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _iconShadowEnabled = BindOrdered("Icons", "IconShadowEnabled", true, "Draw a black offset shadow behind icons. Text shadows are controlled separately and remain enabled.");
+            _iconShadowOpacity = BindOrdered("Icons", "IconShadowOpacity", 0.75f, new ConfigDescription("Opacity multiplier applied to icon shadows.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            _notifyRestDuration = Config.Bind("9. Default Game Events", "NotifyRestDuration", true, "Show how long the hero actually rested as the sleep transition ends.");
-            _notifyInterruptedRestDuration = Config.Bind("9. Default Game Events", "NotifyInterruptedRestDuration", true, "Use interrupted wording when rest ends early due to a Wyrd interruption.");
-            _restDurationTextFormat = Config.Bind("9. Default Game Events", "RestDurationTextFormat", "Rested {duration}", "Floating text for completed rest. Tokens: {duration}.");
-            _restInterruptedTextFormat = Config.Bind("9. Default Game Events", "RestInterruptedTextFormat", "Rest interrupted: {duration} slept", "Floating text for interrupted rest. Tokens: {duration}.");
-            _restNotificationMinimumMinutes = Config.Bind("9. Default Game Events", "RestNotificationMinimumMinutes", 1, new ConfigDescription("Minimum actual rest duration in minutes required before showing rest text.", new AcceptableValueRange<int>(0, 1440)));
-            _notifyBlockedDamage = Config.Bind("9. Default Game Events", "NotifyBlockedDamage", false, "Show optional throttled combat text when the hero blocks damage.");
-            _notifyParriedDamage = Config.Bind("9. Default Game Events", "NotifyParriedDamage", true, "Show optional throttled combat text when the hero parries damage.");
-            _combatDefenseMinimumDamage = Config.Bind("9. Default Game Events", "CombatDefenseMinimumDamage", 1.0f, new ConfigDescription("Minimum blocked/parried damage required before showing combat defense text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
-            _combatDefenseCooldownSeconds = Config.Bind("9. Default Game Events", "CombatDefenseCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated block or parry messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _notifyEncumbranceChanged = Config.Bind("9. Default Game Events", "NotifyEncumbranceChanged", true, "Show Over-encumbered and Burden lifted text when the encumbrance state changes.");
-            _notifyNearEncumbranceLimit = Config.Bind("9. Default Game Events", "NotifyNearEncumbranceLimit", true, "Show one warning when carried weight crosses the configured percentage of the hero's limit. The warning rearms after weight falls five percentage points below the threshold.");
-            _encumbranceWarningPercent = Config.Bind("9. Default Game Events", "EncumbranceWarningPercent", 90, new ConfigDescription("Carry-weight percentage that triggers the near-limit warning.", new AcceptableValueRange<int>(50, 100)));
-            _notifyProgressionPointsGained = Config.Bind("9. Default Game Events", "NotifyProgressionPointsGained", true, "Show one consolidated message when spendable Attribute, Skill, Catalyst, Arthur, or Wyrd Whisper points increase.");
-            _notifyLocationCleared = Config.Bind("9. Default Game Events", "NotifyLocationCleared", true, "Show a reward-style message when a location is cleared.");
-            _notifyPickpocketSuccess = Config.Bind("9. Default Game Events", "NotifyPickpocketSuccess", true, "Show pickpocket text when a pickpocket succeeds.");
-            _notifyPickpocketFail = Config.Bind("9. Default Game Events", "NotifyPickpocketFail", true, "Show pickpocket warning text when a pickpocket fails.");
-            _notifyBountyChanged = Config.Bind("9. Default Game Events", "NotifyBountyChanged", true, "Show crime text when a noticed crime changes the hero's bounty.");
-            _notifyBountyCleared = Config.Bind("9. Default Game Events", "NotifyBountyCleared", true, "Show crime text when a bounty is cleared.");
-            _notifyUnforgivableCrime = Config.Bind("9. Default Game Events", "NotifyUnforgivableCrime", true, "Show critical crime text when an unforgivable crime is committed.");
-            _crimeEventCooldownSeconds = Config.Bind("9. Default Game Events", "CrimeEventCooldownSeconds", 0.5f, new ConfigDescription("Minimum seconds between repeated crime, bounty, and pickpocket messages of the same type.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _notifyWeakspotHit = Config.Bind("9. Default Game Events", "NotifyWeakspotHit", false, "Show optional critical combat text when the hero lands a weak spot hit.");
-            _notifySneakAttack = Config.Bind("9. Default Game Events", "NotifySneakAttack", false, "Show optional critical combat text when the hero lands sneak attack damage.");
-            _combatHitMinimumDamage = Config.Bind("9. Default Game Events", "CombatHitMinimumDamage", 1.0f, new ConfigDescription("Minimum sneak attack damage required before showing sneak attack text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
-            _combatHitCooldownSeconds = Config.Bind("9. Default Game Events", "CombatHitCooldownSeconds", 1.0f, new ConfigDescription("Minimum seconds between repeated weak spot or sneak attack messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _notifyXpGained = Config.Bind("9. Default Game Events", "NotifyXpGained", true, "Show XP gains through Grail Floating Text.");
-            _suppressVanillaXpNotifications = Config.Bind("9. Default Game Events", "SuppressVanillaXpNotifications", true, "Hide vanilla XP notifications when Grail Floating Text successfully shows an XP gain.");
-            _consolidateXpGains = Config.Bind("9. Default Game Events", "ConsolidateXpGains", true, "Show one XP entry at a time and combine queued compatible gains. Generic XP combines only with generic XP; mod claims require the same source-specific consolidation key.");
-            _xpTextFormat = Config.Bind("9. Default Game Events", "XpTextFormat", "+{xp} XP", "Floating text for XP gains. Tokens: {xp}, {amount}.");
-            _xpDurationBucket = Config.Bind("9. Default Game Events", "XpDurationBucket", "Short", "Named duration bucket used for XP gain floating text.");
-            _notifyHealing = Config.Bind("9. Default Game Events", "NotifyHealing", true, "Show actual increases to the hero's health through Grail Floating Text.");
-            _notifyHealingOverTime = Config.Bind("9. Default Game Events", "NotifyHealingOverTime", false, "Show periodic healing from health regeneration and timed status effects. Immediate healing still follows NotifyHealing.");
-            _consolidateHealing = Config.Bind("9. Default Game Events", "ConsolidateHealing", true, "Show one healing entry at a time and combine healing received while it is visible into the next entry.");
-            _healingMinimumAmount = Config.Bind("9. Default Game Events", "HealingMinimumAmount", 1.0f, new ConfigDescription("Minimum accumulated healing required before showing a notification. Smaller rapid gains are buffered for up to two seconds.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
-            _healingTextFormat = Config.Bind("9. Default Game Events", "HealingTextFormat", "Healed {health}", "Floating text for healing received. Tokens: {health}, {amount}.");
-            _healingDurationBucket = Config.Bind("9. Default Game Events", "HealingDurationBucket", "Short", "Named duration bucket used for healing floating text.");
-            _vanillaWyrdEventsEnabled = Config.Bind("9. Default Game Events", "VanillaWyrdEventsEnabled", true, "Show built-in Grail Floating Text messages for vanilla Wyrd game events.");
-            _notifyWyrdNightChange = Config.Bind("9. Default Game Events", "NotifyWyrdNightChange", true, "Show Wyrdnight falls/fades messages when the vanilla Wyrdnight state changes.");
-            _notifyWyrdSafetyChange = Config.Bind("9. Default Game Events", "NotifyWyrdSafetyChange", true, "Show Safe from Wyrdness and Exposed to Wyrdness messages for vanilla Wyrd safety changes.");
-            _suppressWyrdSafetyWhenWyrdHuntAddonLoaded = Config.Bind("9. Default Game Events", "SuppressWyrdSafetyWhenWyrdHuntAddonLoaded", true, "Suppress vanilla Wyrd safety messages while Wyrd Hunt Addon is loaded so the addon's Wyrd Scent status remains authoritative.");
-            _notifyWyrdSoulFragmentCollected = Config.Bind("9. Default Game Events", "NotifyWyrdSoulFragmentCollected", true, "Show a Wyrd power unlocked message when a Wyrd soul fragment is collected.");
-            _notifyWyrdSkillToggle = Config.Bind("9. Default Game Events", "NotifyWyrdSkillToggle", false, "Show Wyrd Skill active/ended messages when the Wyrd skill is toggled.");
-            _vanillaWyrdEventCooldownSeconds = Config.Bind("9. Default Game Events", "VanillaWyrdEventCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated vanilla Wyrd messages of the same type.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _notifyRestDuration = BindOrdered("Default Game Events", "NotifyRestDuration", true, "Show how long the hero actually rested as the sleep transition ends.");
+            _notifyInterruptedRestDuration = BindOrdered("Default Game Events", "NotifyInterruptedRestDuration", true, "Use interrupted wording when rest ends early due to a Wyrd interruption.");
+            _restDurationTextFormat = BindOrdered("Default Game Events", "RestDurationTextFormat", "Rested {duration}", "Floating text for completed rest. Tokens: {duration}.");
+            _restInterruptedTextFormat = BindOrdered("Default Game Events", "RestInterruptedTextFormat", "Rest interrupted: {duration} slept", "Floating text for interrupted rest. Tokens: {duration}.");
+            _restNotificationMinimumMinutes = BindOrdered("Default Game Events", "RestNotificationMinimumMinutes", 1, new ConfigDescription("Minimum actual rest duration in minutes required before showing rest text.", new AcceptableValueRange<int>(0, 1440)));
+            _notifyBlockedDamage = BindOrdered("Default Game Events", "NotifyBlockedDamage", false, "Show optional throttled combat text when the hero blocks damage.");
+            _notifyParriedDamage = BindOrdered("Default Game Events", "NotifyParriedDamage", true, "Show optional throttled combat text when the hero parries damage.");
+            _combatDefenseMinimumDamage = BindOrdered("Default Game Events", "CombatDefenseMinimumDamage", 1.0f, new ConfigDescription("Minimum blocked/parried damage required before showing combat defense text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
+            _combatDefenseCooldownSeconds = BindOrdered("Default Game Events", "CombatDefenseCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated block or parry messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _notifyEncumbranceChanged = BindOrdered("Default Game Events", "NotifyEncumbranceChanged", true, "Show Over-encumbered and Burden lifted text when the encumbrance state changes.");
+            _notifyNearEncumbranceLimit = BindOrdered("Default Game Events", "NotifyNearEncumbranceLimit", true, "Show one warning when carried weight crosses the configured percentage of the hero's limit. The warning rearms after weight falls five percentage points below the threshold.");
+            _encumbranceWarningPercent = BindOrdered("Default Game Events", "EncumbranceWarningPercent", 90, new ConfigDescription("Carry-weight percentage that triggers the near-limit warning.", new AcceptableValueRange<int>(50, 100)));
+            _notifyProgressionPointsGained = BindOrdered("Default Game Events", "NotifyProgressionPointsGained", true, "Show one consolidated message when spendable Attribute, Skill, Catalyst, Arthur, or Wyrd Whisper points increase.");
+            _notifyLocationCleared = BindOrdered("Default Game Events", "NotifyLocationCleared", true, "Show a reward-style message when a location is cleared.");
+            _notifyPickpocketSuccess = BindOrdered("Default Game Events", "NotifyPickpocketSuccess", true, "Show pickpocket text when a pickpocket succeeds.");
+            _notifyPickpocketFail = BindOrdered("Default Game Events", "NotifyPickpocketFail", true, "Show pickpocket warning text when a pickpocket fails.");
+            _notifyBountyChanged = BindOrdered("Default Game Events", "NotifyBountyChanged", true, "Show crime text when a noticed crime changes the hero's bounty.");
+            _notifyBountyCleared = BindOrdered("Default Game Events", "NotifyBountyCleared", true, "Show crime text when a bounty is cleared.");
+            _notifyUnforgivableCrime = BindOrdered("Default Game Events", "NotifyUnforgivableCrime", true, "Show critical crime text when an unforgivable crime is committed.");
+            _crimeEventCooldownSeconds = BindOrdered("Default Game Events", "CrimeEventCooldownSeconds", 0.5f, new ConfigDescription("Minimum seconds between repeated crime, bounty, and pickpocket messages of the same type.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _notifyWeakspotHit = BindOrdered("Default Game Events", "NotifyWeakspotHit", false, "Show optional critical combat text when the hero lands a weak spot hit.");
+            _notifySneakAttack = BindOrdered("Default Game Events", "NotifySneakAttack", false, "Show optional critical combat text when the hero lands sneak attack damage.");
+            _combatHitMinimumDamage = BindOrdered("Default Game Events", "CombatHitMinimumDamage", 1.0f, new ConfigDescription("Minimum sneak attack damage required before showing sneak attack text.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
+            _combatHitCooldownSeconds = BindOrdered("Default Game Events", "CombatHitCooldownSeconds", 1.0f, new ConfigDescription("Minimum seconds between repeated weak spot or sneak attack messages.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _notifyXpGained = BindOrdered("Default Game Events", "NotifyXpGained", true, "Show XP gains through Grail Floating Text.");
+            _suppressVanillaXpNotifications = BindOrdered("Default Game Events", "SuppressVanillaXpNotifications", true, "Hide vanilla XP notifications when Grail Floating Text successfully shows an XP gain.");
+            _consolidateXpGains = BindOrdered("Default Game Events", "ConsolidateXpGains", true, "Show one XP entry at a time and combine queued compatible gains. Generic XP combines only with generic XP; mod claims require the same source-specific consolidation key.");
+            _xpTextFormat = BindOrdered("Default Game Events", "XpTextFormat", "+{xp} XP", "Floating text for XP gains. Tokens: {xp}, {amount}.");
+            _xpDurationBucket = BindOrdered("Default Game Events", "XpDurationBucket", "Short", "Named duration bucket used for XP gain floating text.");
+            _notifyHealing = BindOrdered("Default Game Events", "NotifyHealing", true, "Show actual increases to the hero's health through Grail Floating Text.");
+            _notifyHealingOverTime = BindOrdered("Default Game Events", "NotifyHealingOverTime", false, "Show periodic healing from health regeneration and timed status effects. Immediate healing still follows NotifyHealing.");
+            _consolidateHealing = BindOrdered("Default Game Events", "ConsolidateHealing", true, "Show one healing entry at a time and combine healing received while it is visible into the next entry.");
+            _healingMinimumAmount = BindOrdered("Default Game Events", "HealingMinimumAmount", 1.0f, new ConfigDescription("Minimum accumulated healing required before showing a notification. Smaller rapid gains are buffered for up to two seconds.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
+            _healingTextFormat = BindOrdered("Default Game Events", "HealingTextFormat", "Healed {health}", "Floating text for healing received. Tokens: {health}, {amount}.");
+            _healingDurationBucket = BindOrdered("Default Game Events", "HealingDurationBucket", "Short", "Named duration bucket used for healing floating text.");
+            BindConsumableNotificationConfig();
+            _vanillaWyrdEventsEnabled = BindOrdered("Default Game Events", "VanillaWyrdEventsEnabled", true, "Show built-in Grail Floating Text messages for vanilla Wyrd game events.");
+            _notifyWyrdNightChange = BindOrdered("Default Game Events", "NotifyWyrdNightChange", true, "Show Wyrdnight falls/fades messages when the vanilla Wyrdnight state changes.");
+            _notifyWyrdSafetyChange = BindOrdered("Default Game Events", "NotifyWyrdSafetyChange", true, "Show Safe from Wyrdness and Exposed to Wyrdness messages for vanilla Wyrd safety changes.");
+            _suppressWyrdSafetyWhenWyrdHuntAddonLoaded = BindOrdered("Default Game Events", "SuppressWyrdSafetyWhenWyrdHuntAddonLoaded", true, "Suppress vanilla Wyrd safety messages while Wyrd Hunt Addon is loaded so the addon's Wyrd Scent status remains authoritative.");
+            _notifyWyrdSoulFragmentCollected = BindOrdered("Default Game Events", "NotifyWyrdSoulFragmentCollected", true, "Show a Wyrd power unlocked message when a Wyrd soul fragment is collected.");
+            _notifyWyrdSkillToggle = BindOrdered("Default Game Events", "NotifyWyrdSkillToggle", false, "Show Wyrd Skill active/ended messages when the Wyrd skill is toggled.");
+            _vanillaWyrdEventCooldownSeconds = BindOrdered("Default Game Events", "VanillaWyrdEventCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated vanilla Wyrd messages of the same type.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            _diagnostics = Config.Bind("10. Diagnostics", "Diagnostics", false, "Log accepted floating text entries.");
+            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log accepted floating text entries.");
 
             BindColorGroups();
         }
@@ -5542,17 +5703,17 @@ namespace GrailFloatingText
             BindColorGroup(
                 "Red",
                 "#FF3D2E",
-                "killing-blow; blood-magic-corpse-xp; blood-magic-healed; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack",
+                "killing-blow; blood-magic-corpse-xp; blood-magic-healed; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack; default-potion-poisoning",
                 "High-impact success or danger events.");
             BindColorGroup(
                 "Gold",
                 "#FFC03A",
-                "default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment",
+                "default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment; default-food-consumed",
                 "Reward and progress events.");
             BindColorGroup(
                 "Blue",
                 "#9EE0FF",
-                "default-burden-lifted",
+                "default-burden-lifted; default-potion-consumed",
                 "Clean status-change events.");
             BindColorGroup(
                 "Green",
@@ -5598,18 +5759,18 @@ namespace GrailFloatingText
 
         private void BindColorGroup(string name, string defaultColor, string defaultEvents, string description)
         {
-            const string colorSection = "11. Color Groups";
-            const string iconColorSection = "12. Icon Color Overrides";
+            const string colorSection = "Color Groups";
+            const string iconColorSection = "Icon Color Overrides";
             ColorGroupSettings settings = new ColorGroupSettings
             {
                 Name = name,
-                Color = Config.Bind(
+                Color = BindOrdered(
                     colorSection,
                     name + "Color",
                     defaultColor,
                     description + " Default: " + defaultColor + ". Enter an HTML hex color such as #RRGGBB or #RRGGBBAA."),
-                Events = Config.Bind(colorSection, name + "Events", defaultEvents, "Semicolon, comma, pipe, or newline separated event IDs assigned to this color group. First matching group wins."),
-                IconColor = Config.Bind(
+                Events = BindOrdered(colorSection, name + "Events", defaultEvents, "Semicolon, comma, pipe, or newline separated event IDs assigned to this color group. First matching group wins."),
+                IconColor = BindOrdered(
                     iconColorSection,
                     name + "IconColor",
                     string.Empty,
@@ -5791,7 +5952,8 @@ namespace GrailFloatingText
                 }
 
                 string settingName = line.Substring(0, separatorIndex).Trim();
-                string settingId = currentSection + "\n" + settingName;
+                string cleanSection = GetCleanConfigSection(currentSection);
+                string settingId = cleanSection + "\n" + settingName;
                 object preservedValue;
                 if (!TryGetPreservedPresentationValue(
                     profile,
@@ -5812,9 +5974,9 @@ namespace GrailFloatingText
                 }
 
                 _pendingPreservedPresentation[settingId] = preservedValue;
-                if (currentSection.StartsWith("9. Sources.", StringComparison.Ordinal))
+                if (cleanSection.StartsWith("Sources.", StringComparison.Ordinal))
                 {
-                    _pendingPreservedSourceSections.Add(currentSection);
+                    _pendingPreservedSourceSections.Add(cleanSection);
                 }
             }
         }
@@ -5832,20 +5994,20 @@ namespace GrailFloatingText
             float legacyDefault;
             switch (settingId)
             {
-                case "3. Timing\nDefaultDurationSeconds":
-                case "3. Timing\nMediumDurationSeconds":
+                case "Timing\nDefaultDurationSeconds":
+                case "Timing\nMediumDurationSeconds":
                     legacyDefault = 2.0f;
                     break;
-                case "3. Timing\nVeryShortDurationSeconds":
+                case "Timing\nVeryShortDurationSeconds":
                     legacyDefault = 1.0f;
                     break;
-                case "3. Timing\nShortDurationSeconds":
+                case "Timing\nShortDurationSeconds":
                     legacyDefault = 1.5f;
                     break;
-                case "3. Timing\nLongDurationSeconds":
+                case "Timing\nLongDurationSeconds":
                     legacyDefault = 2.5f;
                     break;
-                case "3. Timing\nVeryLongDurationSeconds":
+                case "Timing\nVeryLongDurationSeconds":
                     legacyDefault = 3.0f;
                     break;
                 default:
@@ -5894,7 +6056,7 @@ namespace GrailFloatingText
 
             if (string.Equals(
                 settingId,
-                "2. Layout\nFontMode",
+                "Layout\nFontMode",
                 StringComparison.Ordinal))
             {
                 FontMode value;
@@ -5911,11 +6073,11 @@ namespace GrailFloatingText
 
             if (string.Equals(
                     settingId,
-                    "4. Animation\nSpawnAnimationEnabled",
+                    "Animation\nSpawnAnimationEnabled",
                     StringComparison.Ordinal)
                 || string.Equals(
                     settingId,
-                    "8. Icons\nIconShadowEnabled",
+                    "Icons\nIconShadowEnabled",
                     StringComparison.Ordinal))
             {
                 bool value;
@@ -5930,7 +6092,7 @@ namespace GrailFloatingText
                 return false;
             }
 
-            if (section.StartsWith("9. Sources.", StringComparison.Ordinal))
+            if (section.StartsWith("Sources.", StringComparison.Ordinal))
             {
                 if (string.Equals(settingName, "Enabled", StringComparison.Ordinal))
                 {
@@ -5968,7 +6130,7 @@ namespace GrailFloatingText
                 return false;
             }
 
-            if (string.Equals(section, "11. Color Groups", StringComparison.Ordinal)
+            if (string.Equals(section, "Color Groups", StringComparison.Ordinal)
                 && settingName.EndsWith("Color", StringComparison.Ordinal))
             {
                 string value;
@@ -5982,7 +6144,7 @@ namespace GrailFloatingText
                 }
             }
 
-            if (string.Equals(section, "12. Icon Color Overrides", StringComparison.Ordinal)
+            if (string.Equals(section, "Icon Color Overrides", StringComparison.Ordinal)
                 && settingName.EndsWith("IconColor", StringComparison.Ordinal))
             {
                 string value;
@@ -6002,41 +6164,41 @@ namespace GrailFloatingText
         {
             switch (settingId)
             {
-                case "2. Layout\nScale":
+                case "Layout\nScale":
                     return true;
-                case "2. Layout\nCenterX":
-                case "2. Layout\nBaseCenterY":
-                case "3. Timing\nGlobalOpacity":
-                case "8. Icons\nIconOpacity":
-                case "8. Icons\nIconShadowOpacity":
+                case "Layout\nCenterX":
+                case "Layout\nBaseCenterY":
+                case "Timing\nGlobalOpacity":
+                case "Icons\nIconOpacity":
+                case "Icons\nIconShadowOpacity":
                     return true;
-                case "2. Layout\nWidth":
+                case "Layout\nWidth":
                     return true;
-                case "2. Layout\nStackSpacing":
+                case "Layout\nStackSpacing":
                     return true;
-                case "3. Timing\nDefaultDurationSeconds":
-                case "3. Timing\nVeryShortDurationSeconds":
-                case "3. Timing\nShortDurationSeconds":
-                case "3. Timing\nMediumDurationSeconds":
-                case "3. Timing\nLongDurationSeconds":
-                case "3. Timing\nVeryLongDurationSeconds":
-                case "3. Timing\nSystemDurationSeconds":
+                case "Timing\nDefaultDurationSeconds":
+                case "Timing\nVeryShortDurationSeconds":
+                case "Timing\nShortDurationSeconds":
+                case "Timing\nMediumDurationSeconds":
+                case "Timing\nLongDurationSeconds":
+                case "Timing\nVeryLongDurationSeconds":
+                case "Timing\nSystemDurationSeconds":
                     return true;
-                case "3. Timing\nDefaultFadeSeconds":
+                case "Timing\nDefaultFadeSeconds":
                     return true;
-                case "4. Animation\nSpawnStartScale":
-                case "4. Animation\nSpawnOvershootScale":
+                case "Animation\nSpawnStartScale":
+                case "Animation\nSpawnOvershootScale":
                     return true;
-                case "4. Animation\nSpawnAnimationSeconds":
-                case "4. Animation\nStackMoveAnimationSeconds":
+                case "Animation\nSpawnAnimationSeconds":
+                case "Animation\nStackMoveAnimationSeconds":
                     return true;
-                case "7. Source Defaults\nDefaultThrottleSeconds":
+                case "Source Defaults\nDefaultThrottleSeconds":
                     return true;
-                case "7. Source Defaults\nDefaultDurationMultiplier":
+                case "Source Defaults\nDefaultDurationMultiplier":
                     return true;
-                case "8. Icons\nIconSize":
+                case "Icons\nIconSize":
                     return true;
-                case "8. Icons\nIconGap":
+                case "Icons\nIconGap":
                     return true;
                 default:
                     return false;
@@ -6047,9 +6209,9 @@ namespace GrailFloatingText
         {
             switch (settingId)
             {
-                case "2. Layout\nFontSize":
+                case "Layout\nFontSize":
                     return true;
-                case "2. Layout\nMaximumVisibleNotifications":
+                case "Layout\nMaximumVisibleNotifications":
                     return true;
                 default:
                     return false;
@@ -6101,7 +6263,7 @@ namespace GrailFloatingText
                     continue;
                 }
 
-                if (section.StartsWith("9. Sources.", StringComparison.Ordinal))
+                if (section.StartsWith("Sources.", StringComparison.Ordinal))
                 {
                     if (string.Equals(settingName, "Enabled", StringComparison.Ordinal))
                     {
@@ -6133,7 +6295,7 @@ namespace GrailFloatingText
                     continue;
                 }
 
-                if (string.Equals(pair.Key, "2. Layout\nFontMode", StringComparison.Ordinal))
+                if (string.Equals(pair.Key, "Layout\nFontMode", StringComparison.Ordinal))
                 {
                     if (pair.Value is FontMode
                         && Enum.IsDefined(typeof(FontMode), pair.Value))
@@ -6157,11 +6319,11 @@ namespace GrailFloatingText
 
                 if (string.Equals(
                         pair.Key,
-                        "4. Animation\nSpawnAnimationEnabled",
+                        "Animation\nSpawnAnimationEnabled",
                         StringComparison.Ordinal)
                     || string.Equals(
                         pair.Key,
-                        "8. Icons\nIconShadowEnabled",
+                        "Icons\nIconShadowEnabled",
                         StringComparison.Ordinal))
                 {
                     RestorePreservedBool(
@@ -6172,7 +6334,7 @@ namespace GrailFloatingText
                     continue;
                 }
 
-                if (string.Equals(section, "11. Color Groups", StringComparison.Ordinal)
+                if (string.Equals(section, "Color Groups", StringComparison.Ordinal)
                     && settingName.EndsWith("Color", StringComparison.Ordinal))
                 {
                     RestorePreservedString(
@@ -6183,7 +6345,7 @@ namespace GrailFloatingText
                     continue;
                 }
 
-                if (string.Equals(section, "12. Icon Color Overrides", StringComparison.Ordinal)
+                if (string.Equals(section, "Icon Color Overrides", StringComparison.Ordinal)
                     && settingName.EndsWith("IconColor", StringComparison.Ordinal))
                 {
                     RestorePreservedString(
@@ -6209,15 +6371,15 @@ namespace GrailFloatingText
         {
             foreach (string section in _pendingPreservedSourceSections)
             {
-                Config.Bind(section, "Enabled", true, "Allow this source to show Grail Floating Text messages.");
-                Config.Bind(
+                BindOrdered(section, "Enabled", true, "Allow this source to show Grail Floating Text messages.");
+                BindOrdered(
                     section,
                     "ThrottleSeconds",
                     GetDefaultSourceThrottleSeconds(),
                     new ConfigDescription(
                         "Minimum seconds between non-high-priority messages from this source.",
                         new AcceptableValueRange<float>(0.0f, 10.0f)));
-                Config.Bind(
+                BindOrdered(
                     section,
                     "DurationMultiplier",
                     GetDefaultSourceDurationMultiplier(),

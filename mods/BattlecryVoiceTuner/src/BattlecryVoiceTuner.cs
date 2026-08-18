@@ -32,8 +32,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.1.3.0")]
-[assembly: AssemblyFileVersion("1.1.3.0")]
+[assembly: AssemblyVersion("1.1.4.0")]
+[assembly: AssemblyFileVersion("1.1.4.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -53,9 +53,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.1.3";
+        public const string PluginVersion = "1.1.4";
 
-        private const int CurrentConfigSchemaVersion = 7;
+        private const int CurrentConfigSchemaVersion = 8;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -71,7 +71,7 @@ namespace BattlecryVoiceTuner
             new[]
             {
                 new ConfigDefinition(
-                    "4. Testing",
+                    "Testing",
                     "PlayRandomTestSound")
             };
 
@@ -379,7 +379,8 @@ namespace BattlecryVoiceTuner
                     continue;
                 }
 
-                if (!String.Equals(currentSection, "1. Core", StringComparison.Ordinal))
+                if (!String.Equals(currentSection, "1. Core", StringComparison.Ordinal)
+                    && !String.Equals(currentSection, "Voice Tuning", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -490,7 +491,7 @@ namespace BattlecryVoiceTuner
         private void BindConfig()
         {
             _configSchemaVersion = Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 CurrentConfigSchemaVersion,
                 new ConfigDescription(
@@ -507,7 +508,7 @@ namespace BattlecryVoiceTuner
                     }));
 
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
                 UiDescription(
@@ -518,7 +519,7 @@ namespace BattlecryVoiceTuner
                     0));
 
             _pitchSemitones = Config.Bind(
-                "1. Core",
+                "Voice Tuning",
                 "PitchSemitones",
                 0.0f,
                 UiDescription(
@@ -530,7 +531,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _randomPitchSemitones = Config.Bind(
-                "1. Core",
+                "Voice Tuning",
                 "RandomPitchSemitones",
                 0.15f,
                 UiDescription(
@@ -542,7 +543,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 3.0f)));
 
             _volumeMultiplier = Config.Bind(
-                "1. Core",
+                "Voice Tuning",
                 "VolumeMultiplier",
                 1.0f,
                 UiDescription(
@@ -554,7 +555,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
             _includeAttackGrunts = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludeAttackGrunts",
                 true,
                 UiDescription(
@@ -565,7 +566,7 @@ namespace BattlecryVoiceTuner
                     0));
 
             _includeHurtGrunts = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludeHurtGrunts",
                 true,
                 UiDescription(
@@ -576,7 +577,7 @@ namespace BattlecryVoiceTuner
                     1));
 
             _includeDeathGrunts = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludeDeathGrunts",
                 true,
                 UiDescription(
@@ -587,7 +588,7 @@ namespace BattlecryVoiceTuner
                     2));
 
             _includeStatusPainGrunts = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludeStatusPainGrunts",
                 true,
                 UiDescription(
@@ -598,7 +599,7 @@ namespace BattlecryVoiceTuner
                     3));
 
             _includePlayerHitFeedback = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludePlayerHitFeedback",
                 true,
                 UiDescription(
@@ -609,7 +610,7 @@ namespace BattlecryVoiceTuner
                     4));
 
             _includeStaminaDepletedBreathing = Config.Bind(
-                "2. Supported Sounds",
+                "Native Voice Events",
                 "IncludeStaminaDepletedBreathing",
                 false,
                 UiDescription(
@@ -620,7 +621,7 @@ namespace BattlecryVoiceTuner
                     5));
 
             _battlecryEnabled = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "BattlecryEnabled",
                 true,
                 UiDescription(
@@ -631,7 +632,7 @@ namespace BattlecryVoiceTuner
                     0));
 
             _battlecryVolumeMultiplier = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "BattlecryVolumeMultiplier",
                 0.5f,
                 UiDescription(
@@ -643,7 +644,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
             _battlecryReverbEnabled = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "BattlecryReverbEnabled",
                 true,
                 UiDescription(
@@ -654,7 +655,7 @@ namespace BattlecryVoiceTuner
                     2));
 
             _outdoorBattlecryReverbAmount = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "OutdoorBattlecryReverbAmount",
                 0.15f,
                 UiDescription(
@@ -666,7 +667,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _indoorBattlecryReverbAmount = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "IndoorBattlecryReverbAmount",
                 0.70f,
                 UiDescription(
@@ -678,7 +679,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _maleBattlecryPitchOffsetSemitones = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "MaleBattlecryPitchOffsetSemitones",
                 0.0f,
                 UiDescription(
@@ -690,7 +691,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _femaleBattlecryPitchOffsetSemitones = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Audio",
                 "FemaleBattlecryPitchOffsetSemitones",
                 0.0f,
                 UiDescription(
@@ -702,7 +703,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _holdTakeAllItemsForBattlecry = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Input",
                 "HoldTakeAllItemsForBattlecry",
                 true,
                 UiDescription(
@@ -713,7 +714,7 @@ namespace BattlecryVoiceTuner
                     0));
 
             _battlecryHoldSeconds = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Input",
                 "BattlecryHoldSeconds",
                 0.45f,
                 UiDescription(
@@ -725,7 +726,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
 
             _battlecryHotkey = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Input",
                 "BattlecryHotkey",
                 new KeyboardShortcut(KeyCode.None),
                 UiDescription(
@@ -736,7 +737,7 @@ namespace BattlecryVoiceTuner
                     2));
 
             _battlecryCooldownSeconds = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Input",
                 "BattlecryCooldownSeconds",
                 1.5f,
                 UiDescription(
@@ -748,7 +749,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
             _battlecryAggroRangeMultiplier = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Challenge",
                 "BattlecryAggroRangeMultiplier",
                 3.0f,
                 UiDescription(
@@ -760,7 +761,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _indoorBattlecryAggroRangeMultiplier = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Challenge",
                 "IndoorBattlecryAggroRangeMultiplier",
                 4.0f,
                 UiDescription(
@@ -772,7 +773,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _battlecryAggroDurationSeconds = Config.Bind(
-                "3. Battlecry",
+                "Battlecry Challenge",
                 "BattlecryAggroDurationSeconds",
                 3.0f,
                 UiDescription(
@@ -784,7 +785,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
             _eyesInTheDarkThreat = Config.Bind(
-                "3. Battlecry",
+                "Optional Integrations",
                 "EyesInTheDarkThreat",
                 10.0f,
                 UiDescription(
@@ -796,7 +797,7 @@ namespace BattlecryVoiceTuner
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
             _playRandomTestSound = Config.Bind(
-                "4. Testing",
+                "Testing",
                 "PlayRandomTestSound",
                 false,
                 UiDescription(
@@ -808,7 +809,7 @@ namespace BattlecryVoiceTuner
             _playRandomTestSound.SettingChanged += OnPlayRandomTestSoundChanged;
 
             _diagnostics = Config.Bind(
-                "5. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 false,
                 UiDescription(

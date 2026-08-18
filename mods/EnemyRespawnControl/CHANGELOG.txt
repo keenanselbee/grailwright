@@ -1,3 +1,8 @@
+Version 2.2.2
+Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
+Advanced ConfigSchemaVersion from 6 to 7 because settings moved from numbered raw sections to General, Spawner Classification, and Diagnostics; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 2.2.1
 Expanded Grail Floating Text diagnostics into readable encounter lifecycle messages for fully cleared locks, rest checks with remaining time, eligibility handoff, and confirmed respawns.
 Combined simultaneous rest, eligibility, and respawn events into one summary and suppressed repeated cooldown polling, duplicate group callbacks, and repeated rest-block messages for the same lock.

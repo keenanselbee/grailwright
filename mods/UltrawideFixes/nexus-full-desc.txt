@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Ultrawide Fixes[/size][/color]
 [i]Cleaner title and loading screens for wider displays.[/i][/center]
 
@@ -81,8 +81,11 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
 [/list]
 
 [line]

@@ -1,4 +1,4 @@
-KS Better Movement Addon 0.1.6
+KS Better Movement Addon 0.1.7
 
 Adds terrain-aware sliding sounds to Better Movement 1.3.0. Slide audio begins with the game's slide, follows long downhill slides, changes when the player crosses onto another surface, and fades when sliding ends or is cancelled.
 
@@ -17,6 +17,14 @@ default. The old config is backed up, untouched old defaults regenerate at
 0.40, and compatible customized settings are restored conservatively.
 FoA Mod Manager keeps a final Import Previous Settings tab for supported
 backups.
+
+FoA Mod Manager section order:
+
+General
+Audio
+Terrain Detection
+Diagnostics
+Import Previous Settings
 
 Default behavior
 

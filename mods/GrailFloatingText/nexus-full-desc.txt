@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Grail Floating Text[/size][/color]
 [i]A shared floating text overlay for events and mod messages.[/i][/center]
 
@@ -15,7 +15,7 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]One shared message stack:[/b] Keep active mod text organized with smooth pop-in, upward movement, priority sorting, duplicate suppression, and in-place status updates.[/*]
-[*][b]Useful game-event notices:[/b] Optionally show rest duration, block and parry feedback, encumbrance and near-capacity warnings, newly available progression points, cleared locations, pickpocket results, bounty changes with their current total, weak spots, sneak attacks, hero healing, and Wyrd events.[/*]
+[*][b]Useful game-event notices:[/b] Optionally show rest duration, block and parry feedback, encumbrance and near-capacity warnings, newly available progression points, cleared locations, pickpocket results, bounty changes with their current total, weak spots, sneak attacks, hero healing, consumed food and potions, Potion Poisoning activation, and Wyrd events.[/*]
 [*][b]Readable built-in presentation:[/b] Use painterly icons, protected texture filtering, configurable colors and shadows, and font modes that can follow the game's Accessibility choice.[/*]
 [*][b]Detailed player control:[/b] Configure message categories, position, scale, width, spacing, timing, opacity, animation, icons, and the maximum visible stack.[/*]
 [*][b]Source-aware behavior:[/b] Control enabled state, throttling, duration, and diagnostics per integration while keeping XP consolidation isolated by source.[/*]
@@ -32,6 +32,7 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [*][b]Built-in state and crime events[/b] can show [b]Over-encumbered[/b], [b]Burden lifted[/b], [b]Location cleared[/b] with the Location icon, [b]Pickpocketed Item[/b], [b]Bounty +25: Theft[/b], [b]Bounty cleared[/b], and [b]Unforgivable crime[/b] messages from explicit game callbacks.[/*]
 [*][b]Optional combat hit events[/b] can show throttled [b]Weak spot hit[/b] and [b]Sneak attack: 32 damage[/b] messages using the Critical icon.[/*]
 [*][b]Built-in healing notifications[/b] show immediate hero health gains as green [b]Healed 25[/b] entries with a dedicated heart-and-spark icon. Periodic health regeneration and timed healing effects stay quiet by default and can be enabled separately. Integrations can suppress or restyle only their own scoped healing presentation. Presentation-aware batches keep different event colors and icons separate while rapid compatible healing combines into one queued follow-up without restarting the current timer.[/*]
+[*][b]Built-in consumable notifications[/b] show the consumed item name with matching painterly icons: gold for food and blue for potions. Potion Poisoning appears as its own red potion line only when the status activates; buildup progress stays quiet. GFT suppresses the matching native potion or poisoning notice only after its replacement is accepted, preserving native fallback. Full item descriptions are optional and disabled by default. The trigger follows native overdrink, including adjustments from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url]. If Steel and Bone prevents food use during combat, GFT suppresses its food-consumed line so only the restriction feedback appears.[/*]
 [*][b]Built-in XP gain takeover[/b] shows one XP entry at a time and combines compatible gains queued behind it, while suppressing the vanilla popup only when GFT accepts the gain.[/*]
 [*][b]Palette-aware Wyrd style[/b] uses the Wyrd icon for built-in [b]Wyrdnight falls[/b], [b]Wyrdnight fades[/b], [b]Wyrd power unlocked[/b], and optional vanilla Safe/Exposed state text. When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] provides Atmospheric or Detailed night-transition text, GFT suppresses its redundant built-in falls/fades message without changing user settings. Wyrd events and API callers follow Eyes' live Purple Wyrdness or Native Orange selection for both text and icon tint through GFT's matching configurable color group.[/*]
 [*][b]Startup diagnostics[/b] defer config reset messages until fully visible loaded gameplay and load-time errors until the usable main menu, where errors remain visible for 10 seconds.[/*]
@@ -44,10 +45,10 @@ For players, that means less overlapping HUD text. For mod authors, it means a s
 [*][b]Full Enemy XP[/b] uses its Diagnostics setting for the first adjusted or dry-run kill and each configured periodic aggregate, including estimated restored XP and the latest multiplier.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] uses diagnostic-only System messages for completed grip changes, supported-weapon detection, Strength lockouts, unsupported pairings, blocked transitions, and automatic recoveries while retaining detailed FSM and animator context in the BepInEx log.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225]KS Addons[/url] groups GFT feedback from its graphics companions into one integration: All Lights Cast Shadows, Better Volumetric Fog, Contact Shadows, and Global Illumination can confirm actual parent toggle changes; Diagnostics also enables collapsed shadow combat and atlas summaries plus adaptive GI tier changes with smoothed FPS.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] uses Diagnostics for deduplicated final target, damage, multiplier, vanilla-preservation, elite-clamp, and weighted-composition decisions in one collapsed lane.[/*]
+[*][b]Steel and Bone[/b] uses Diagnostics for deduplicated final target, damage, multiplier, vanilla-preservation, elite-clamp, and weighted-composition decisions in one collapsed lane.[/*]
 [/list]
 
-Grail Floating Text itself listens to explicit game events, eligible hero health-stat increases, and the vanilla XP gain announcer. Immediate healing is eligible by default; periodic regeneration and timed healing effects require their separate setting. Healing and XP batching never change the visible entry or restart its timer: queued compatible gains receive a fresh full display cycle when their turn begins. Generic XP never merges with mod-claimed XP, and claimed XP requires the same source-specific key and presentation. GFT still avoids duplicating native advanced notification buffers such as items, proficiency, quests, objectives, recipes, fish, journal unlocks, location discovery, and hero level-up.
+Grail Floating Text itself listens to explicit game events, hero consumable use, eligible hero health-stat increases, and the vanilla XP gain announcer. Immediate healing is eligible by default; periodic regeneration and timed healing effects require their separate setting. Healing and XP batching never change the visible entry or restart its timer: queued compatible gains receive a fresh full display cycle when their turn begins. Generic XP never merges with mod-claimed XP, and claimed XP requires the same source-specific key and presentation. Apart from its scoped potion replacement, GFT still avoids duplicating native advanced notification buffers such as items, proficiency, quests, objectives, recipes, fish, journal unlocks, location discovery, and hero level-up.
 
 [line]
 
@@ -119,9 +120,9 @@ Configure Grail Floating Text through FoA Mod Manager or:
 BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 [/code]
 
-Settings cover overlay position and scale, timing and animation, icons, event notifications, periodic-healing inclusion and consolidation, XP takeover, colors, and per-source controls. The installed config includes every current default and a description of each setting.
+Settings cover overlay position and scale, timing and animation, icons, event notifications, consumable names and optional descriptions, Potion Poisoning activation, periodic-healing inclusion and consolidation, XP takeover, colors, and per-source controls. The installed config includes every current default and a description of each setting.
 
-Most features are enabled by default. Periodic healing, block, weak-spot, sneak-attack, Wyrd skill-toggle, and debug notices start disabled to avoid extra HUD noise.
+Most features are enabled by default. Full consumable descriptions, periodic healing, block, weak-spot, sneak-attack, Wyrd skill-toggle, and debug notices start disabled to avoid extra HUD noise.
 
 [line]
 

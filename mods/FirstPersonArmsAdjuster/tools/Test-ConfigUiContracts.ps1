@@ -15,6 +15,7 @@ $expectedSections = @(
     "General",
     "Position",
     "Equipment Depth",
+    "Head Bob",
     "Advanced - Melee Guards",
     "Advanced - Effects",
     "Diagnostics"
@@ -28,6 +29,10 @@ $expectedLabels = @(
     "Melee Depth Offset (m)",
     "Bow Depth Offset (m)",
     "Magic Depth Offset (m)",
+    "Enable Head Bob",
+    "Head Bob Strength",
+    "Head Bob Smoothness",
+    "Sprint Emphasis",
     "Prevent Body Intrusion",
     "Normal Offset Retained (0-1)",
     "Extra Depth Correction (m)",
@@ -56,8 +61,8 @@ foreach ($label in $expectedLabels) {
 }
 
 if ($source -notmatch '(?s)"ConfigSchemaVersion",\s*ConfigSchemaVersion,.+BrowsableAttribute\(false\)' -or
-    $source -notmatch 'private const int ConfigSchemaVersion = 8;') {
-    throw "The schema marker must remain hidden and the metadata-only UX change must not advance schema 8."
+    $source -notmatch 'private const int ConfigSchemaVersion = 14;') {
+    throw "The schema marker must remain hidden and use schema 13 after removing and renaming the old camera-motion settings."
 }
 
 Write-Host "First Person Arms Adjuster config UI contracts passed."

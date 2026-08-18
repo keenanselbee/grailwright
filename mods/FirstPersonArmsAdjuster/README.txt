@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.4.6
+First Person Arms Adjuster 0.5.6
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -6,6 +6,8 @@ Platforms: Windows and Linux through Proton.
 First Person Arms Adjuster is an experimental prototype for Tainted Grail:
 The Fall of Avalon. It moves the rendered first-person body, arms, weapons, and
 held arrows in camera space without changing the world camera or field of view.
+It also provides camera-only first-person head bob that never moves the shared
+arm and body rig.
 
 Config
 ------
@@ -13,10 +15,11 @@ Config
 Config file:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 
-FoA Mod Manager organizes the live controls into General, Position, Equipment
-Depth, Advanced - Melee Guards, Advanced - Effects, and Diagnostics. Friendly
-labels show metres and signed directions while the stored config keys below
-remain unchanged.
+FoA Mod Manager and the generated config organize the live controls into
+General, Position, Equipment Depth, Head Bob, Advanced - Melee Guards,
+Advanced - Effects, Diagnostics, and the final Import Previous Settings section.
+Friendly labels show metres and signed directions while the stored config keys
+below remain unchanged.
 
 Defaults:
 Enabled = true
@@ -25,6 +28,10 @@ HorizontalOffset = 0.0
 VerticalOffset = 0.0
 UseCategoryForwardOffsets = true
 AdjustAttachedEffects = true
+EnableHeadBob = true
+HeadBobPreset = Balanced
+HeadBobSmoothness = 0.7
+SprintEmphasis = 0.75
 MeleeForwardOffset = 0.30
 BowForwardOffset = 0.10
 MagicForwardOffset = 0.30
@@ -40,6 +47,16 @@ right, and positive VerticalOffset moves it up. Changes apply live.
 
 Category offsets are enabled by default so melee and magic use 0.30 while bows
 use 0.10. Unarmed and unrecognized equipment continue to use ForwardOffset.
+
+Head bob applies distance-driven vertical and side-to-side movement only while
+the main first-person camera renders, then restores the camera. It does not move
+the arms, body rig, camera depth, aim, or third-person camera. The game's
+Accessibility / Head Bob setting is the global master switch; FPAA suppresses
+the game's arm-moving first-person bob and substitutes this camera-only motion.
+Choose Subtle, Balanced, or Strong with HeadBobPreset. HeadBobSmoothness rounds
+the path with up to 0.18 seconds of filtering. SprintEmphasis uses the Hero's
+native sprint state. Its default 0.75 adds about 56% movement and 19% cadence
+while sprinting; 0 disables the sprint bonus.
 
 AdjustAttachedEffects moves cached Visual Effect Graph and particle-system
 presentation transforms beneath equipped first-person items with the rendered
@@ -80,7 +97,21 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.4.6 keeps arms, equipment, attached effects, and the temporary body
+Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
+layout and removes their numeric prefixes. Version 0.5.5 removes the old native-bob and locomotion-guard path and presents
+the camera-only system as one four-option Head Bob section. Version 0.5.4 enforces the vanilla accessibility gate immediately before every
+alternate-motion render. Version 0.5.3 gates alternate motion behind the vanilla Accessibility / Head
+Bob setting while leaving FPAA's native-bob switch independent and off by
+default. Version 0.5.2 integrates the retired standalone Immersive Camera Motion system
+as FPAA's default render-only alternative, adds three intensity presets,
+smoothing, and stronger sprint emphasis, and leaves the full native bob plus
+locomotion guard available in its own off-by-default tab. Version 0.5.1 matches
+locomotion guard engagement and release at 0.40 seconds.
+Version 0.5.0 lengthened the locomotion guard release to 1.00 second for a gentler
+return. Version 0.4.9 gates the locomotion guard behind active vanilla first-person head
+bob. Version 0.4.8 adopts the tested 0.5 head-bob and 0.75 retained-depth defaults,
+groups the related controls, and greatly softens guard transitions. Version 0.4.7 adds the grounded locomotion depth guard and first-person native
+head-bob control. Version 0.4.6 keeps arms, equipment, attached effects, and the temporary body
 render translation on one immutable per-frame camera-space offset so rapid look
 movement cannot pull hands away from weapons. Version 0.4.5 adds the dedicated
 sprint-attack transition guard for both melee grips. Version 0.4.4 leaves VFPB's
@@ -157,7 +188,7 @@ previous experimental full-draw hand-only correction has been removed.
 
 When Diagnostics is enabled, the log reports the resolved hierarchy, Kandra
 rig, culling and linked Drake equipment paths, cached presentation-effect
-count, and melee FSM state changes with their layer activity plus independent
+count, camera-only head bob, and melee FSM state changes with their layer activity plus independent
 held-heavy and sprint-attack mitigation results.
 
 Compatibility
@@ -173,6 +204,11 @@ The integration is cached and allocation-free during normal frame updates.
 VFPB - Visible First Person Body remains independently anchored to the camera.
 First Person Arms Adjuster moves the native first-person arms and held equipment
 without translating VFPB's torso and legs.
+
+True Third Person suppresses native head bob in both perspectives by default.
+First Person Arms Adjuster recovers the underlying Accessibility / Head Bob
+state for its camera-only first-person motion and leaves third person under
+True Third Person's control.
 
 Previous settings
 -----------------

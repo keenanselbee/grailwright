@@ -1,7 +1,7 @@
 Main Menu Music
 ===============
 
-Version 2.2.1
+Version 2.2.2
 
 Platforms: Windows and Linux through Proton.
 
@@ -105,8 +105,13 @@ The config is generated after first launch:
 
   BepInEx\config\ks.tgfoa.main-menu-music.cfg
 
-Version 2.2.1 uses ConfigSchemaVersion 16. Older configs are backed up and a
+Version 2.2.2 uses ConfigSchemaVersion 17. Older configs are backed up and a
 fresh config is generated once so the updated defaults apply cleanly.
+
+FoA Mod Manager section order:
+Playback, Base Music, Ambience Layers, Custom File, Looping, Loading And
+Compatibility, Base Music Advanced DSP, Diagnostics, and the final Import
+Previous Settings section.
 
 Install shape
 -------------

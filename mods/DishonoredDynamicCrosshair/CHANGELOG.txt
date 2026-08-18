@@ -1,3 +1,63 @@
+Version 3.2.8
+Made Blood Magic corpse-reticle and routine interaction-icon presentations hide the complete crouch-awareness eye and pupil so their contextual symbols remain uncluttered.
+Kept ConfigSchemaVersion at 15 because this is a presentation-only behavior change with no setting or default migration.
+
+Version 3.2.7
+Made the crouch-awareness eye and pupil inherit the fully resolved active-crosshair opacity, including targeting, mounting, interaction, and backstab fading.
+Replaced the absolute CrouchIndicatorOpacity setting with CrouchIndicatorOpacityMultiplier, defaulting to 1 for an exact opacity match while retaining optional proportional tuning.
+Advanced ConfigSchemaVersion from 14 to 15 because the old absolute opacity setting was removed and replaced with multiplier semantics; the obsolete value is intentionally not recovered.
+
+Version 3.2.6
+Changed the interaction-icon defaults to the tested presentation: 1.1x scale, 0.8 opacity, and a -120 UI-unit vanilla-text offset that follows the game's HUD canvas scaling across resolutions and HUD Scale choices.
+Added explicit FoA Mod Manager section and setting order metadata to every visible option so the clean section names retain their intended semantic order instead of falling back to alphabetical sorting.
+Advanced ConfigSchemaVersion from 13 to 14 because IconScale, IconOpacity, and VanillaTextVerticalOffset changed defaults; compatible customized visual values remain recoverable.
+
+Version 3.2.5
+Raised the default interaction-icon scale from 1.0x to 1.2x and made active interaction icons fully replace the underlying crosshair by default with CrosshairOpacityWhileActive at 0.
+Added VanillaTextVerticalOffset for moving the game's interaction text above or below its default just-below-center position.
+Collapsed the vanilla key-button container while prompt suppression is active so the remaining background fits the interaction text instead of reserving empty E, F, or controller-glyph space.
+Removed numeric prefixes from the authored config section names, kept each section's primary enable control first, and retained Diagnostics followed by Import Previous Settings as the final two displayed sections.
+Advanced ConfigSchemaVersion from 12 to 13 because the interaction scale and underlying-crosshair opacity defaults changed and the authored settings moved to unnumbered sections; compatible customized visual values remain recoverable.
+
+Version 3.2.4
+Added contextual interaction icons driven by the exact action selected by the game's interaction HUD, with dedicated mining, lumbering, fishing, digging, reading, talking, resting, mounting, and campfire visuals plus a general hand fallback.
+Made any locked location use the lockpick icon even when it cannot be picked, and made theft, pickpocket, and other illegal interactions use the hand icon in killing-blow dark red.
+Added a dedicated Interaction Icons config section with master enablement, independent icon scale and opacity, a default 0.5 underlying-crosshair opacity, and default-on vanilla interaction-key glyph suppression that preserves text, blocked explanations, and hold progress.
+Placed routine interaction icons above normal reticle and awareness visuals but below hit markers; hit feedback temporarily suppresses them, while the topmost backstab indicator overrides them.
+Renamed backstab.png to interaction_backstab.png and kept its standard 512x512 fixed-scale presentation.
+Kept ConfigSchemaVersion at 12 because every new setting is additive and the backstab asset name is not configurable.
+
+Version 3.2.1
+Replaced custom_reticle_backstab_ready_overlay.png with the standard-size 512x512 backstab.png and removed its special scale setting and activation pulse.
+Changed the default BackstabReadyColor to the killing-blow dark red #8C0003FF, placed the indicator above every other crosshair and hit-marker layer, and dimmed all underlying elements to half their normal opacity while it is active.
+Advanced ConfigSchemaVersion from 11 to 12 because BackstabReadyColor changed default and BackstabReadyScale was removed; untouched old defaults receive dark red while compatible customized colors remain recoverable.
+
+Version 3.2.0
+Made the active General, Bow, or Magic context dot appear as the crouch-awareness eye's pupil from stealth_eye_2.png through stealth_eye_10.png, even when ShowCenterDot is disabled.
+Kept frames 0 and 1 dotless, matched the pupil to the eye's color, opacity, and vertical offset, and placed it above the eye artwork but below every hit-marker layer.
+Kept ConfigSchemaVersion at 11 because this is a compatible visual behavior update with no setting or default migration.
+
+Version 3.1.8
+Renamed the Blood Magic quality reticles to custom_reticle_bloodmagic_0.png through custom_reticle_bloodmagic_3.png for Meager, Worthy, Potent, and Prime.
+Made custom_reticle_bloodmagic_0.png the shared fallback and Meager asset, removing the separate custom_reticle_bloodmagic.png fallback.
+Advanced ConfigSchemaVersion from 10 to 11 because BloodMagicSprite now defaults to custom_reticle_bloodmagic_0.png instead of the removed custom_reticle_bloodmagic.png; untouched old defaults receive the new path while compatible customized settings remain recoverable.
+
+Version 3.1.7
+Separated the General, Bow, and Magic center dots into hot-reloading dot.png, dot_bow.png, and dot_magic.png assets controlled by the new default-on ShowCenterDot setting.
+Renamed the seven non-neutral Steel and Bone effectiveness frames to hitmarker_0.png through hitmarker_7.png while reserving frame 4 for custom_reticle.png in every General, Bow, Magic, and Blood Magic context.
+Replaced the vanilla crouch indicator with eleven synchronized stealth-eye frames: the eye opens inside the reticle while long awareness lines outside it retract toward the center and disappear at full detection.
+Moved hit feedback into a dedicated layer above the center visuals so direct hitmarker.png feedback covers the ordinary dot while the crouch-awareness eye remains visible beneath every hit marker.
+Advanced ConfigSchemaVersion from 9 to 10 because GeneralSprite now defaults to custom_reticle.png instead of the removed custom_reticle_4.png; untouched old defaults receive the new path while compatible customized settings remain recoverable.
+
+Version 3.1.6
+Replaced the initial backstab-ready artwork with a bolder mirrored-fang overlay that remains legible after mipmapped downscaling while keeping the center transparent.
+Kept Ambush Integrity API v1 behavior, overlay settings, priority, and ConfigSchemaVersion 9 unchanged.
+
+Version 3.1.5
+Added an optional Ambush Integrity API v1 integration that displays backstab readiness without duplicating stealth eligibility rules.
+Added a hot-reloading custom_reticle_backstab_ready_overlay.png with two lower dagger shapes, a clear aiming center, a short activation pulse, and lower priority than hit-marker feedback.
+Added BackstabReadyOverlayEnabled, BackstabReadyColor, and BackstabReadyScale settings while retaining ConfigSchemaVersion 9 because the new settings are additive.
+
 Version 3.1.4
 Raised the default KillingBlowSizeMultiplier from 1.2x to 1.3x ReticleSizePixels.
 Advanced ConfigSchemaVersion from 8 to 9 because KillingBlowSizeMultiplier now defaults to 1.3x; untouched old defaults receive the new value while compatible customized settings remain recoverable.

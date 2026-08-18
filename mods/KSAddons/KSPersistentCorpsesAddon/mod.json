@@ -2,7 +2,7 @@
   "id": "PersistentCorpsesAddon",
   "displayName": "KS Persistent Corpses Addon",
   "packageName": "PersistentCorpsesAddon",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "pluginGuid": "ks.tgfoa.persistent-corpses-addon",
   "dll": "PersistentCorpsesAddon.dll",
   "sourceFiles": [

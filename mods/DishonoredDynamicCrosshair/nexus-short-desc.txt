@@ -1,1 +1,1 @@
-A Dishonored-style dynamic PNG crosshair with weapon and target states, Blood Magic corpse feedback, and optional Steel and Bone hit markers: eight effectiveness frames from immunity through weakness, damage-result colors, and independent weak-spot and critical overlays.
+A Dishonored-style dynamic PNG crosshair with weapon and target states, contextual interaction icons, an animated crouch-awareness eye, Blood Magic corpse feedback, and layered Steel and Bone hit markers.

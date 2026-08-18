@@ -1,3 +1,11 @@
+Version 1.6.5
+Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
+Advanced ConfigSchemaVersion from 14 to 15 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Placed notifications and audio before Advanced, with Diagnostics penultimate and Import Previous Settings last.
+
+Version 1.6.4
+Shortened the full finisher-sound distance fade from 50 meters to 30 meters so ranged killing blows become quieter sooner while retaining the 10% distant-volume floor.
+
 Version 1.6.3
 Added optional Versatile Weapons 0.3.0 integration so the current grip selects the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound.
 Retained native weapon proficiency when Versatile Weapons is absent, disabled, or unavailable.

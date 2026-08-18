@@ -20,9 +20,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Companion addon for All Lights Cast Shadows state restoration, atlas protection, and excluded bonfire lights")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.2.8.0")]
-[assembly: AssemblyFileVersion("1.2.8.0")]
-[assembly: AssemblyInformationalVersion("1.2.8")]
+[assembly: AssemblyVersion("1.2.9.0")]
+[assembly: AssemblyFileVersion("1.2.9.0")]
+[assembly: AssemblyInformationalVersion("1.2.9")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -36,10 +36,10 @@ namespace TGAllLightsCastShadowsAddon
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.2.8";
+        public const string PluginVersion = "1.2.9";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 2;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -292,7 +292,7 @@ namespace TGAllLightsCastShadowsAddon
             ResetConfigIfSchemaChanged();
 
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -303,97 +303,128 @@ namespace TGAllLightsCastShadowsAddon
                 "Excluded Lights",
                 "ProtectBonfireLights",
                 true,
-                "Prevents selected bonfire/campfire style lights from being upgraded to cast shadows.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Prevents selected bonfire/campfire style lights from being upgraded to cast shadows.",
+                    "Excluded Lights", "Protect Bonfire Lights", 0, 0));
             _additionalExcludedLightPathFragments = Config.Bind(
                 "Excluded Lights",
                 "AdditionalExcludedLightPathFragments",
                 "",
-                "Optional comma-separated transform name fragments to exclude in addition to the addon's built-in bonfire and campfire names.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Optional comma-separated transform name fragments to exclude in addition to the addon's built-in bonfire and campfire names.",
+                    "Excluded Lights", "Additional Excluded Light Paths", 0, 10));
             _verboseExclusionLogging = Config.Bind(
                 "Excluded Lights",
                 "VerboseExclusionLogging",
                 false,
-                "Logs each excluded light path once per scene. Useful for finding exact runtime names.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Logs each excluded light path once per scene. Useful for finding exact runtime names.",
+                    "Excluded Lights", "Verbose Exclusion Logging", 0, 20));
             _protectShadowAtlas = Config.Bind(
                 "Shadow Atlas",
                 "ProtectShadowAtlas",
                 true,
-                "Caps only parent-promoted point and spot light shadow maps, reducing HDRP atlas rescaling and flicker.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Caps only parent-promoted point and spot light shadow maps, reducing HDRP atlas rescaling and flicker.",
+                    "Shadow Atlas", "Protect Shadow Atlas", 10, 0));
             _promotedShadowResolution = Config.Bind(
                 "Shadow Atlas",
                 "PromotedShadowResolution",
                 256,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum per-face shadow resolution for parent-promoted point and spot lights. Original lower overrides are never raised.",
+                    "Shadow Atlas", "Promoted Shadow Resolution", 10, 10,
                     new AcceptableValueList<int>(128, 256, 512, 1024)));
             _combatPerformanceEnabled = Config.Bind(
                 "Combat Performance",
                 "CombatPerformanceEnabled",
                 true,
-                "Enables reversible combat-aware shadow adjustments. By default only the lower combat atlas cap is active.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Enables reversible combat-aware shadow adjustments. By default only the lower combat atlas cap is active.",
+                    "Combat Performance", "Enabled", 20, 0));
             _outdoorCombatOnly = Config.Bind(
                 "Combat Performance",
                 "OutdoorCombatOnly",
                 true,
-                "Applies combat adjustments only while the hero is fighting outdoors.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Applies combat adjustments only while the hero is fighting outdoors.",
+                    "Combat Performance", "Outdoor Combat Only", 20, 10));
             _combatExitDelaySeconds = Config.Bind(
                 "Combat Performance",
                 "CombatExitDelaySeconds",
                 5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How long combat must remain over before normal shadow settings return.",
+                    "Combat Performance", "Combat Exit Delay", 20, 20,
                     new AcceptableValueRange<float>(0f, 20f)));
             _combatReduceAtlasResolution = Config.Bind(
                 "Combat Performance",
                 "CombatReduceAtlasResolution",
                 true,
-                "Uses the lower combat atlas cap for parent-promoted point and spot lights.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Uses the lower combat atlas cap for parent-promoted point and spot lights.",
+                    "Combat Performance", "Reduce Atlas Resolution", 20, 30));
             _combatShadowResolution = Config.Bind(
                 "Combat Performance",
                 "CombatShadowResolution",
                 128,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum per-face shadow resolution during qualifying combat.",
+                    "Combat Performance", "Combat Shadow Resolution", 20, 40,
                     new AcceptableValueList<int>(128, 256, 512, 1024)));
             _combatLimitLightBudget = Config.Bind(
                 "Combat Performance",
                 "CombatLimitLightBudget",
                 false,
-                "Optionally lowers the parent's upgraded-light budget during combat.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Optionally lowers the parent's upgraded-light budget during combat.",
+                    "Combat Performance", "Limit Light Budget", 20, 50));
             _combatMaximumUpgradedLights = Config.Bind(
                 "Combat Performance",
                 "CombatMaximumUpgradedLights",
                 30,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum upgraded lights used when CombatLimitLightBudget is enabled. Never raises the parent's current limit.",
+                    "Combat Performance", "Maximum Upgraded Lights", 20, 60,
                     new AcceptableValueRange<int>(0, 200)));
             _combatLimitDistance = Config.Bind(
                 "Combat Performance",
                 "CombatLimitDistance",
                 false,
-                "Optionally lowers the parent's maximum upgraded-light distance during combat.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Optionally lowers the parent's maximum upgraded-light distance during combat.",
+                    "Combat Performance", "Limit Light Distance", 20, 70));
             _combatMaximumDistanceMeters = Config.Bind(
                 "Combat Performance",
                 "CombatMaximumDistanceMeters",
                 20f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum light distance used when CombatLimitDistance is enabled. Never raises the parent's current distance.",
+                    "Combat Performance", "Maximum Light Distance", 20, 80,
                     new AcceptableValueRange<float>(1f, 100f)));
             _showToggleNotifications = Config.Bind(
                 "Notifications",
                 "ShowToggleNotifications",
                 true,
-                "Shows parent toggle confirmations through Grail Floating Text when it is installed.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Shows parent toggle confirmations through Grail Floating Text when it is installed.",
+                    "Notifications", "Show Toggle Notifications", 30, 0));
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
                 false,
-                "Logs atlas counts and restored resolution state. Also shows collapsed Grail Floating Text atlas summaries when available.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Logs atlas counts and restored resolution state. Also shows collapsed Grail Floating Text atlas summaries when available.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
             _showGrailFloatingTextDiagnostics = Config.Bind(
                 "Diagnostics",
                 "ShowGrailFloatingTextDiagnostics",
                 true,
-                "When Diagnostics is enabled and Grail Floating Text is installed, show diagnostic combat and atlas summaries. Detailed BepInEx logging remains active when this is disabled.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled and Grail Floating Text is installed, show diagnostic combat and atlas summaries. Detailed BepInEx logging remains active when this is disabled.",
+                    "Diagnostics", "Show Grail Floating Text Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 10));
 
             RestorePreservedSettings();
             RefreshExcludedFragments();

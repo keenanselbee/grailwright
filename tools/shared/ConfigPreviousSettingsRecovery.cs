@@ -17,6 +17,32 @@ namespace Grailwright.Shared
         public int Order { get; set; }
     }
 
+    internal static class ConfigUiDescription
+    {
+        internal const int DiagnosticsSectionOrder = 900;
+        internal const int ImportSectionOrder = Int32.MaxValue;
+
+        internal static ConfigDescription Create(
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order,
+            AcceptableValueBase acceptableValues = null)
+        {
+            return new ConfigDescription(
+                description,
+                acceptableValues,
+                new ConfigRecoveryUiMetadata
+                {
+                    DisplaySection = displaySection,
+                    DisplayName = displayName,
+                    SectionOrder = sectionOrder,
+                    Order = order
+                });
+        }
+    }
+
     internal sealed class ConfigRecoveryKeepCurrentDefaultRule
     {
         internal ConfigRecoveryKeepCurrentDefaultRule(
@@ -152,7 +178,7 @@ namespace Grailwright.Shared
 
     internal sealed class ConfigPreviousSettingsRecovery
     {
-        internal const string RecoverySection = "99. Import Previous Settings";
+        internal const string RecoverySection = "Import Previous Settings";
         internal const string CurrentSchemaKey = "CurrentSchema";
         internal const string AvailableBackupSchemaKey = "AvailableBackupSchema";
         internal const string RecoveryKey = "ImportPreviousSettingsNow";
@@ -293,7 +319,7 @@ namespace Grailwright.Shared
                     {
                         DisplaySection = "Import Previous Settings",
                         DisplayName = "Current Schema",
-                        SectionOrder = Int32.MaxValue,
+                        SectionOrder = ConfigUiDescription.ImportSectionOrder,
                         Order = 0
                     }));
             _availableBackupSchemaEntry = _config.Bind(
@@ -309,7 +335,7 @@ namespace Grailwright.Shared
                     {
                         DisplaySection = "Import Previous Settings",
                         DisplayName = "Available Backup Schema",
-                        SectionOrder = Int32.MaxValue,
+                        SectionOrder = ConfigUiDescription.ImportSectionOrder,
                         Order = 1
                     }));
 
@@ -338,7 +364,7 @@ namespace Grailwright.Shared
                     {
                         DisplaySection = "Import Previous Settings",
                         DisplayName = "Import Previous Settings Now",
-                        SectionOrder = Int32.MaxValue,
+                        SectionOrder = ConfigUiDescription.ImportSectionOrder,
                         Order = 2
                     }));
 

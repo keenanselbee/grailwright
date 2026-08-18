@@ -1,7 +1,7 @@
 KS Contact Shadows Addon
 ========================
 
-Version: 0.1.3
+Version: 0.1.4
 Platforms: Windows and Linux through Proton.
 
 Original mod: Contact Shadows 1.0.0-mono
@@ -65,6 +65,15 @@ Common entries:
   Opacity = 0.6
   ShowToggleNotifications = true
   Diagnostics = false
+
+FoA Mod Manager section order:
+
+  General
+  Light Selection
+  Visuals
+  Notifications
+  Diagnostics
+  Import Previous Settings
 
 Set InteriorsOnly to false to use the same configured light budget outdoors.
 Directional and area lights remain excluded because the addon intentionally

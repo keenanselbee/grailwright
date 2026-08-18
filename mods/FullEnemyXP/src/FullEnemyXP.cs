@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("Removes the enemy overlevel kill XP penalty in Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Full Enemy XP")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
-[assembly: AssemblyInformationalVersion("1.1.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyInformationalVersion("1.1.1")]
 
 namespace FullEnemyXP
 {
@@ -25,8 +25,8 @@ namespace FullEnemyXP
     {
         public const string PluginGuid = "ks.tgfoa.full-enemy-xp";
         public const string PluginName = "Full Enemy XP";
-        public const string PluginVersion = "1.1.0";
-        private const int ConfigSchemaVersion = 1;
+        public const string PluginVersion = "1.1.1";
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -122,9 +122,18 @@ namespace FullEnemyXP
         {
             ResetConfigIfSchemaChanged();
 
-            _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
+            _enabled = Config.Bind(
+                "General",
+                "Enabled",
+                true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch.",
+                    "General",
+                    "Enabled",
+                    0,
+                    0));
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -132,24 +141,71 @@ namespace FullEnemyXP
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _minimumOverlevelXpMultiplier = Config.Bind(
-                "1. Core",
+                "General",
                 "MinimumOverlevelXPMultiplier",
                 1.0f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Minimum enemy-level XP multiplier when the player is above the enemy XP level. 1 means full enemy XP; lower values allow partial vanilla falloff.",
+                    "General",
+                    "Minimum Overlevel XP Multiplier",
+                    0,
+                    10,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _dryRun = Config.Bind("2. Diagnostics", "DryRun", false, "Log overlevel XP adjustments without changing the vanilla XP multiplier.");
-            _diagnostics = Config.Bind("2. Diagnostics", "Diagnostics", false, "Log patch setup, adjusted kill XP, optional unchanged checks, and session summaries.");
-            _showGrailFloatingTextDiagnostics = Config.Bind("2. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When Diagnostics is enabled and Grail Floating Text is installed, show concise in-game adjustment summaries. Detailed BepInEx logging remains active when this is disabled.");
-            _logAdjustedKills = Config.Bind("2. Diagnostics", "LogAdjustedKills", true, "When Diagnostics is enabled, log each kill whose overlevel XP multiplier is raised or would be raised in DryRun.");
-            _logUnchangedEligibleKills = Config.Bind("2. Diagnostics", "LogUnchangedEligibleKills", false, "When Diagnostics is enabled, log eligible kill XP awards that do not need adjustment.");
-            _logSkippedDeathChecks = Config.Bind("2. Diagnostics", "LogSkippedDeathChecks", false, "When Diagnostics is enabled, log adjustment checks skipped because the mod is disabled or context was incomplete.");
+            _dryRun = Config.Bind(
+                "Testing",
+                "DryRun",
+                false,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log overlevel XP adjustments without changing the vanilla XP multiplier.",
+                    "Testing", "Dry Run", 800, 0));
+            _diagnostics = Config.Bind(
+                "Diagnostics",
+                "Diagnostics",
+                false,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log patch setup, adjusted kill XP, optional unchanged checks, and session summaries.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
+            _showGrailFloatingTextDiagnostics = Config.Bind(
+                "Diagnostics",
+                "ShowGrailFloatingTextDiagnostics",
+                true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled and Grail Floating Text is installed, show concise in-game adjustment summaries. Detailed BepInEx logging remains active when this is disabled.",
+                    "Diagnostics", "Show Grail Floating Text Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 10));
+            _logAdjustedKills = Config.Bind(
+                "Diagnostics",
+                "LogAdjustedKills",
+                true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled, log each kill whose overlevel XP multiplier is raised or would be raised in DryRun.",
+                    "Diagnostics", "Log Adjusted Kills",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 20));
+            _logUnchangedEligibleKills = Config.Bind(
+                "Diagnostics",
+                "LogUnchangedEligibleKills",
+                false,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled, log eligible kill XP awards that do not need adjustment.",
+                    "Diagnostics", "Log Unchanged Eligible Kills",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 30));
+            _logSkippedDeathChecks = Config.Bind(
+                "Diagnostics",
+                "LogSkippedDeathChecks",
+                false,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled, log adjustment checks skipped because the mod is disabled or context was incomplete.",
+                    "Diagnostics", "Log Skipped Death Checks",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 40));
             _summaryEveryAdjustedKills = Config.Bind(
-                "2. Diagnostics",
+                "Diagnostics",
                 "SummaryEveryAdjustedKills",
                 10,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "When Diagnostics is enabled, log a session summary after this many adjusted or dry-run adjusted kills. Zero disables periodic summaries.",
+                    "Diagnostics", "Summary Every Adjusted Kills",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 50,
                     new AcceptableValueRange<int>(0, 1000)));
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,

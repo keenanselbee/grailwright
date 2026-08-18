@@ -1,3 +1,3 @@
-TargetVersion=1.7.5
-BaselineVersion=1.7.4
-Changed the Blood Essence and Blood Power progression row to use Grail Floating Text's blood-magic icon while Simple-mode Corpses Drained retains its average corpse-quality icon.
+TargetVersion=1.7.7
+BaselineVersion=1.7.6
+Removed numeric prefixes from the generated config while preserving the established semantic FoA Mod Manager ordering, with Diagnostics penultimate and Import Previous Settings last.

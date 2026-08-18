@@ -22,8 +22,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.8.1.0")]
-[assembly: AssemblyFileVersion("2.8.1.0")]
+[assembly: AssemblyVersion("2.8.2.0")]
+[assembly: AssemblyFileVersion("2.8.2.0")]
 
 namespace BloodMagicExpansion
 {
@@ -46,8 +46,8 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.8.1";
-        private const int ConfigSchemaVersion = 17;
+        public const string PluginVersion = "2.8.2";
+        private const int ConfigSchemaVersion = 18;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -71,8 +71,8 @@ namespace BloodMagicExpansion
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
         {
-            new ConfigDefinition("13. Diagnostics", "OverrideBloodEssence"),
-            new ConfigDefinition("13. Diagnostics", "BloodEssenceOverrideValue")
+            new ConfigDefinition("Diagnostics", "OverrideBloodEssence"),
+            new ConfigDefinition("Diagnostics", "BloodEssenceOverrideValue")
         };
         private const float CacheCleanupIntervalSeconds = 30f;
         private const float CompletedCorpseRetentionSeconds = 120f;
@@ -323,6 +323,8 @@ namespace BloodMagicExpansion
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
             new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
         private int _pendingPreservedInvalidValueCount;
 
         private static readonly Color BloodSpellInnerLightColor = new Color(1.0f, 0.02f, 0.0f, 1.0f);
@@ -589,156 +591,286 @@ namespace BloodMagicExpansion
                 visualWorldOffset);
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            section = GetCleanConfigSection(section);
+            ConfigFile config = ResolveConfigFile();
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    section,
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "General":
+                    return 0;
+                case "Main Loop":
+                    return 10;
+                case "Blood Power":
+                    return 20;
+                case "Corpse Quality":
+                    return 30;
+                case "Bloodless Filter":
+                    return 40;
+                case "Blood Spell Inner Light":
+                    return 50;
+                case "Audio":
+                    return 60;
+                case "Integrations":
+                    return 70;
+                case "Advanced - Corpse Rewards":
+                    return 100;
+                case "Advanced - Custom Preset":
+                    return 110;
+                case "Advanced - Live Drain":
+                    return 120;
+                case "Advanced - Blood Spell Growth":
+                    return 130;
+                case "Advanced - Abhartach Calling":
+                    return 140;
+                case "Advanced - Matching":
+                    return 150;
+                case "Performance":
+                    return 160;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+                default:
+                    throw new InvalidOperationException(
+                        "Missing config section order for " + section + ".");
+            }
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
+        private static string GetCleanConfigSection(string section)
+        {
+            int separatorIndex = section.IndexOf(". ", StringComparison.Ordinal);
+            if (separatorIndex <= 0)
+            {
+                return section;
+            }
+
+            for (int index = 0; index < separatorIndex; index++)
+            {
+                if (!Char.IsDigit(section[index]))
+                {
+                    return section;
+                }
+            }
+
+            return section.Substring(separatorIndex + 2);
+        }
+
         private void BindConfig()
         {
             ConfigFile config = ResolveConfigFile();
             ResetConfigIfSchemaChanged(config);
+            _configSettingOrders.Clear();
 
-            _enabled = config.Bind("1. Core", "Enabled", true, "Master switch.");
-            config.Bind(
-                "1. Core",
+            _enabled = BindOrdered("General", "Enabled", true, "Master switch.");
+            BindOrdered(
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version for this clean Blood Magic Expansion config.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = config.Bind("1. Core", "Preset", Preset.Desecration, "Main profile. BloodRite is quick and restrained, Desecration is the balanced default, SoulFeast is slower and more rewarding, and Custom uses the advanced custom values.");
-            _preloadBleedSkillGraphs = config.Bind(
-                "1. Core",
+            _preset = BindOrdered("General", "Preset", Preset.Desecration, "Main profile. BloodRite is quick and restrained, Desecration is the balanced default, SoulFeast is slower and more rewarding, and Custom uses the advanced custom values.");
+            _preloadBleedSkillGraphs = BindOrdered(
+                "General",
                 "PreloadBleedSkillGraphs",
                 true,
                 "Preload and retain the vanilla Bleed status skill graph during gameplay loading instead of its first combat application. This isolated compatibility option can be disabled if a future game update removes the cold-load hitch.");
 
-            _handRequirement = config.Bind("2. Main Loop", "HandRequirement", HandRequirement.AnyHand, "Minimum required Blood/Life Transfusion hold state. AnyHand allows single-hand half payout and dual-hand full payout.");
-            _singleHandPayoutMultiplier = config.Bind("2. Main Loop", "SingleHandPayoutMultiplier", 0.5f, "Payout multiplier when only one Blood/Life Transfusion hand is held. Dual-held casts always use the full amount.");
-            _awardCharacterXp = config.Bind("2. Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
-            _healCharacter = config.Bind("2. Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
-            _liveDrainEnabled = config.Bind("2. Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
-            _bloodSpellTuningEnabled = config.Bind("2. Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
-            _abhartachTuningEnabled = config.Bind("2. Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
+            _handRequirement = BindOrdered("Main Loop", "HandRequirement", HandRequirement.AnyHand, "Minimum required Blood/Life Transfusion hold state. AnyHand allows single-hand half payout and dual-hand full payout.");
+            _singleHandPayoutMultiplier = BindOrdered("Main Loop", "SingleHandPayoutMultiplier", 0.5f, "Payout multiplier when only one Blood/Life Transfusion hand is held. Dual-held casts always use the full amount.");
+            _awardCharacterXp = BindOrdered("Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
+            _healCharacter = BindOrdered("Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
+            _liveDrainEnabled = BindOrdered("Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
+            _bloodSpellTuningEnabled = BindOrdered("Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
+            _abhartachTuningEnabled = BindOrdered("Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
 
-            _bloodSpellInnerLightEnabled = config.Bind("2. Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow light from each raised hand that has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped.");
-            _bloodSpellInnerLightIntensity = config.Bind("2. Blood Spell Inner Light", "Intensity", 0.5f, new ConfigDescription("Shared base brightness of each red hand light while its blood spell is readied, before the per-spell and interior multipliers. Actual casting temporarily triples that hand's final value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightBloodTransfusionIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "BloodTransfusionIntensityMultiplier", 0.8f, new ConfigDescription("Brightness multiplier applied when Blood Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightLifeTransfusionIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "LifeTransfusionIntensityMultiplier", 1.0f, new ConfigDescription("Brightness multiplier applied when Life Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightAbhartachCallingIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "AbhartachCallingIntensityMultiplier", 1.2f, new ConfigDescription("Brightness multiplier applied when Abhartach's Calling is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightInteriorIntensityMultiplier = config.Bind("2. Blood Spell Inner Light", "InteriorIntensityMultiplier", 1.0f, new ConfigDescription("Additional blood hand-light intensity multiplier in full interior scenes. One preserves the configured intensity, two doubles it, and zero disables the visible hand lights only while indoors.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightMaximumPowerBrightnessMultiplier = config.Bind("2. Blood Spell Inner Light", "MaximumPowerBrightnessMultiplier", 2.0f, new ConfigDescription("Blood Power 100 brightness multiplier applied after the independent intensity, spell, interior, and cast settings. Brightness starts at 1x at Power 0, reaches this multiplier at Power 100, and overmastery adds up to 20% more at Power 120.", new AcceptableValueRange<float>(0.0f, 8.0f)));
-            _bloodSpellInnerLightMaximumPowerRangeMultiplier = config.Bind("2. Blood Spell Inner Light", "MaximumPowerRangeMultiplier", 1.5f, new ConfigDescription("Blood Power 100 range multiplier applied to the independently configured Power 0 Range. Power 100-120 adds one third of the normal 0-100 range gain, reaching 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.0f, 4.0f)));
-            _bloodSpellInnerLightRange = config.Bind("2. Blood Spell Inner Light", "Range", 3.0f, new ConfigDescription("Blood Power 0 range in meters for the red inner player light. It grows to 4.5 meters at Power 100 and 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.1f, 20.0f)));
-            _bloodSpellInnerLightFadeSeconds = config.Bind("2. Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _bloodSpellInnerLightEnabled = BindOrdered("Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow light from each raised hand that has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped.");
+            _bloodSpellInnerLightIntensity = BindOrdered("Blood Spell Inner Light", "Intensity", 0.5f, new ConfigDescription("Shared base brightness of each red hand light while its blood spell is readied, before the per-spell and interior multipliers. Actual casting temporarily triples that hand's final value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightBloodTransfusionIntensityMultiplier = BindOrdered("Blood Spell Inner Light", "BloodTransfusionIntensityMultiplier", 0.8f, new ConfigDescription("Brightness multiplier applied when Blood Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightLifeTransfusionIntensityMultiplier = BindOrdered("Blood Spell Inner Light", "LifeTransfusionIntensityMultiplier", 1.0f, new ConfigDescription("Brightness multiplier applied when Life Transfusion is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightAbhartachCallingIntensityMultiplier = BindOrdered("Blood Spell Inner Light", "AbhartachCallingIntensityMultiplier", 1.2f, new ConfigDescription("Brightness multiplier applied when Abhartach's Calling is readied in this hand.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightInteriorIntensityMultiplier = BindOrdered("Blood Spell Inner Light", "InteriorIntensityMultiplier", 1.0f, new ConfigDescription("Additional blood hand-light intensity multiplier in full interior scenes. One preserves the configured intensity, two doubles it, and zero disables the visible hand lights only while indoors.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightMaximumPowerBrightnessMultiplier = BindOrdered("Blood Spell Inner Light", "MaximumPowerBrightnessMultiplier", 2.0f, new ConfigDescription("Blood Power 100 brightness multiplier applied after the independent intensity, spell, interior, and cast settings. Brightness starts at 1x at Power 0, reaches this multiplier at Power 100, and overmastery adds up to 20% more at Power 120.", new AcceptableValueRange<float>(0.0f, 8.0f)));
+            _bloodSpellInnerLightMaximumPowerRangeMultiplier = BindOrdered("Blood Spell Inner Light", "MaximumPowerRangeMultiplier", 1.5f, new ConfigDescription("Blood Power 100 range multiplier applied to the independently configured Power 0 Range. Power 100-120 adds one third of the normal 0-100 range gain, reaching 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.0f, 4.0f)));
+            _bloodSpellInnerLightRange = BindOrdered("Blood Spell Inner Light", "Range", 3.0f, new ConfigDescription("Blood Power 0 range in meters for the red inner player light. It grows to 4.5 meters at Power 100 and 5 meters at Power 120 with defaults.", new AcceptableValueRange<float>(0.1f, 20.0f)));
+            _bloodSpellInnerLightFadeSeconds = BindOrdered("Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
 
-            _bloodMagicGrowthSource = config.Bind("3. Blood Power", "GrowthSource", BloodMagicGrowthSource.BloodPower, "BloodPower grows permanently from completed corpse rituals. Meager, Worthy, Potent, and Prime corpses grant 1, 3, 5, and 10 uncapped Blood Essence. Power reaches 100 at 1,000 Essence and its hard cap of 120 at 2,000 Essence. Spirituality preserves the legacy stat-based growth model explicitly; Deeds of Avalon is never required.");
+            _bloodMagicGrowthSource = BindOrdered("Blood Power", "GrowthSource", BloodMagicGrowthSource.BloodPower, "BloodPower grows permanently from completed corpse rituals. Meager, Worthy, Potent, and Prime corpses grant 1, 3, 5, and 10 uncapped Blood Essence. Power reaches 100 at 1,000 Essence and its hard cap of 120 at 2,000 Essence. Spirituality preserves the legacy stat-based growth model explicitly; Deeds of Avalon is never required.");
 
-            _corpseQualityScaleTransfusionHealing = config.Bind("3. Corpse Quality", "ScaleTransfusionHealing", true, "Let corpse quality modestly scale Blood/Life Transfusion corpse healing. Character XP is not multiplied again.");
-            _corpseQualityScaleAbhartachEffects = config.Bind("3. Corpse Quality", "ScaleAbhartachEffects", true, "Let corpse quality modestly scale Abhartach corpse explosion damage, radius, bleed buildup, and held corpse healing.");
-            _corpseQualityMinimumEffectMultiplier = config.Bind("3. Corpse Quality", "MinimumEffectMultiplier", 0.5f, new ConfigDescription("Gameplay effect multiplier used for a very low-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _corpseQualityMaximumEffectMultiplier = config.Bind("3. Corpse Quality", "MaximumEffectMultiplier", 1.5f, new ConfigDescription("Gameplay effect multiplier used for a high-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _corpseQualityFallbackQuality = config.Bind("3. Corpse Quality", "FallbackQuality", 0.0f, new ConfigDescription("Focused corpse quality used when native tier, kill XP, and max health cannot be resolved.", new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _corpseQualityScaleTransfusionHealing = BindOrdered("Corpse Quality", "ScaleTransfusionHealing", true, "Let corpse quality modestly scale Blood/Life Transfusion corpse healing. Character XP is not multiplied again.");
+            _corpseQualityScaleAbhartachEffects = BindOrdered("Corpse Quality", "ScaleAbhartachEffects", true, "Let corpse quality modestly scale Abhartach corpse explosion damage, radius, bleed buildup, and held corpse healing.");
+            _corpseQualityMinimumEffectMultiplier = BindOrdered("Corpse Quality", "MinimumEffectMultiplier", 0.5f, new ConfigDescription("Gameplay effect multiplier used for a very low-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _corpseQualityMaximumEffectMultiplier = BindOrdered("Corpse Quality", "MaximumEffectMultiplier", 1.5f, new ConfigDescription("Gameplay effect multiplier used for a high-quality corpse.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _corpseQualityFallbackQuality = BindOrdered("Corpse Quality", "FallbackQuality", 0.0f, new ConfigDescription("Focused corpse quality used when native tier, kill XP, and max health cannot be resolved.", new AcceptableValueRange<float>(0.0f, 1.0f)));
 
-            _requireBloodPlausible = config.Bind("4. Bloodless Filter", "RequireBloodPlausible", true, "Reject corpses and live targets that plausibly have no blood.");
-            _bloodlessBlacklistTerms = config.Bind("4. Bloodless Filter", "BloodlessBlacklistTerms", "Stone;Golem;Statue;Construct;Automaton;Crystal;Wisp;Spirit;Ghost;Wraith;Specter;Spectre;Skeleton;Skull;Bone;Animated Armor;Elemental;Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness", "Semicolon, comma, pipe, or newline separated terms that make a target ineligible unless whitelisted.");
-            _bloodWhitelistTerms = config.Bind("4. Bloodless Filter", "BloodWhitelistTerms", "", "Optional terms that force eligibility even if a blacklist term also matches.");
+            _requireBloodPlausible = BindOrdered("Bloodless Filter", "RequireBloodPlausible", true, "Reject corpses and live targets that plausibly have no blood.");
+            _bloodlessBlacklistTerms = BindOrdered("Bloodless Filter", "BloodlessBlacklistTerms", "Stone;Golem;Statue;Construct;Automaton;Crystal;Wisp;Spirit;Ghost;Wraith;Specter;Spectre;Skeleton;Skull;Bone;Animated Armor;Elemental;Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness", "Semicolon, comma, pipe, or newline separated terms that make a target ineligible unless whitelisted.");
+            _bloodWhitelistTerms = BindOrdered("Bloodless Filter", "BloodWhitelistTerms", "", "Optional terms that force eligibility even if a blacklist term also matches.");
 
-            _fallbackKillXp = config.Bind("5. Advanced - Corpse Rewards", "FallbackKillXP", 0.0f, "Normal kill XP to use when real corpse XP cannot be resolved. Zero skips unresolved corpses.");
-            _minimumXpToPay = config.Bind("5. Advanced - Corpse Rewards", "MinimumXPToPay", 1.0f, "Minimum computed corpse XP required to pay.");
-            _maximumXp = config.Bind("5. Advanced - Corpse Rewards", "MaximumXP", 0.0f, "Absolute maximum corpse XP per corpse. Zero or less disables this cap.");
-            _roundXpTo = config.Bind("5. Advanced - Corpse Rewards", "RoundXPTo", 1.0f, "Round corpse XP to this increment. One rounds to whole XP; zero disables rounding.");
-            _requireTargetXpRewardAllowedWhenPresent = config.Bind("5. Advanced - Corpse Rewards", "RequireTargetXPRewardAllowedWhenPresent", true, "If the corpse source exposes XpRewardAllowed, require it to be true. Sources without that property are still allowed.");
-            _rawCharacterXpPerCorpseXp = config.Bind("5. Advanced - Corpse Rewards", "RawCharacterXPPerCorpseXP", 1.0f, "Raw character XP awarded per computed corpse XP.");
-            _announceRawCharacterXp = config.Bind("5. Advanced - Corpse Rewards", "AnnounceRawCharacterXP", false, "Usually leave off; direct XP stat changes already announce themselves.");
-            _healMaxHealthPercentPerXpPercent = config.Bind("5. Advanced - Corpse Rewards", "HealMaxHealthPercentPerXpPercent", 0.5f, "Baseline healing as max-health percent per XP reward percent before enemy power scaling.");
-            _healPowerScalingMode = config.Bind("5. Advanced - Corpse Rewards", "HealPowerScalingMode", HealingPowerScalingMode.TargetMaxHealthCurve, "Off uses fixed preset healing. TargetMaxHealthCurve scales healing by the drained enemy's resolved max health.");
-            _healReferenceTargetMaxHealth = config.Bind("5. Advanced - Corpse Rewards", "HealReferenceTargetMaxHealth", 300.0f, new ConfigDescription("Enemy max HP that receives unmodified baseline healing.", new AcceptableValueRange<float>(1.0f, 100000.0f)));
-            _healPowerExponent = config.Bind("5. Advanced - Corpse Rewards", "HealPowerExponent", 0.5f, new ConfigDescription("Curve exponent for max-HP healing scaling. 0.5 is a smooth square-root curve; 1 is linear.", new AcceptableValueRange<float>(0.05f, 3.0f)));
-            _healMinimumPowerScale = config.Bind("5. Advanced - Corpse Rewards", "HealMinimumPowerScale", 0.5f, new ConfigDescription("Lowest multiplier applied to baseline healing when enemy max HP is low.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _healMaximumPowerScale = config.Bind("5. Advanced - Corpse Rewards", "HealMaximumPowerScale", 2.0f, new ConfigDescription("Highest multiplier applied to baseline healing when enemy max HP is high.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _fallbackKillXp = BindOrdered("Advanced - Corpse Rewards", "FallbackKillXP", 0.0f, "Normal kill XP to use when real corpse XP cannot be resolved. Zero skips unresolved corpses.");
+            _minimumXpToPay = BindOrdered("Advanced - Corpse Rewards", "MinimumXPToPay", 1.0f, "Minimum computed corpse XP required to pay.");
+            _maximumXp = BindOrdered("Advanced - Corpse Rewards", "MaximumXP", 0.0f, "Absolute maximum corpse XP per corpse. Zero or less disables this cap.");
+            _roundXpTo = BindOrdered("Advanced - Corpse Rewards", "RoundXPTo", 1.0f, "Round corpse XP to this increment. One rounds to whole XP; zero disables rounding.");
+            _requireTargetXpRewardAllowedWhenPresent = BindOrdered("Advanced - Corpse Rewards", "RequireTargetXPRewardAllowedWhenPresent", true, "If the corpse source exposes XpRewardAllowed, require it to be true. Sources without that property are still allowed.");
+            _rawCharacterXpPerCorpseXp = BindOrdered("Advanced - Corpse Rewards", "RawCharacterXPPerCorpseXP", 1.0f, "Raw character XP awarded per computed corpse XP.");
+            _announceRawCharacterXp = BindOrdered("Advanced - Corpse Rewards", "AnnounceRawCharacterXP", false, "Usually leave off; direct XP stat changes already announce themselves.");
+            _healMaxHealthPercentPerXpPercent = BindOrdered("Advanced - Corpse Rewards", "HealMaxHealthPercentPerXpPercent", 0.5f, "Baseline healing as max-health percent per XP reward percent before enemy power scaling.");
+            _healPowerScalingMode = BindOrdered("Advanced - Corpse Rewards", "HealPowerScalingMode", HealingPowerScalingMode.TargetMaxHealthCurve, "Off uses fixed preset healing. TargetMaxHealthCurve scales healing by the drained enemy's resolved max health.");
+            _healReferenceTargetMaxHealth = BindOrdered("Advanced - Corpse Rewards", "HealReferenceTargetMaxHealth", 300.0f, new ConfigDescription("Enemy max HP that receives unmodified baseline healing.", new AcceptableValueRange<float>(1.0f, 100000.0f)));
+            _healPowerExponent = BindOrdered("Advanced - Corpse Rewards", "HealPowerExponent", 0.5f, new ConfigDescription("Curve exponent for max-HP healing scaling. 0.5 is a smooth square-root curve; 1 is linear.", new AcceptableValueRange<float>(0.05f, 3.0f)));
+            _healMinimumPowerScale = BindOrdered("Advanced - Corpse Rewards", "HealMinimumPowerScale", 0.5f, new ConfigDescription("Lowest multiplier applied to baseline healing when enemy max HP is low.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _healMaximumPowerScale = BindOrdered("Advanced - Corpse Rewards", "HealMaximumPowerScale", 2.0f, new ConfigDescription("Highest multiplier applied to baseline healing when enemy max HP is high.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            _customPayoutPercentOfKillXp = config.Bind("6. Advanced - Custom Preset", "CustomCorpseXPPercent", 50.0f, "Corpse payout as a percent of the enemy's vanilla effective kill XP when Preset is Custom.");
-            _secondsRequired = config.Bind("6. Advanced - Custom Preset", "CustomRitualSeconds", 3.0f, "Seconds of continuous corpse focus required when Preset is Custom.");
-            _customLiveDrainXpTickIntervalSeconds = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks when Preset is Custom.");
-            _customLiveDrainXpPercentPerTick = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 7.0f, "Percent of target kill XP paid per live-drain XP tick when Preset is Custom.");
-            _customLiveDrainMaximumXpPercentPerTarget = config.Bind("6. Advanced - Custom Preset", "CustomLiveDrainXPPercentCapPerTarget", 35.0f, "Maximum percent of target kill XP paid by live-drain ticks when Preset is Custom.");
-            _customBloodSpellRangeDistanceMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellRangeMultiplier", 1.06f, "Custom preset maximum-power projectile travel and spell damage-radius multiplier.");
-            _customBloodSpellHomingTargetSearchMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHomingSearchMultiplier", 1.05f, "Custom preset maximum-power homing target-search multiplier.");
-            _customBloodSpellHeldTargetRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldRangeMultiplier", 1.03f, "Custom preset maximum-power held target-search range multiplier.");
-            _customBloodSpellBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellBleedMultiplier", 1.06f, "Custom preset maximum-power bleed buildup multiplier.");
-            _customBloodSpellTapCastSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellTapSpeedMultiplier", 1.06f, "Custom preset maximum-power tap/projectile cast-speed multiplier.");
-            _customBloodSpellHeldChannelSpeedMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomBloodSpellHeldChannelSpeedMultiplier", 1.01f, "Custom preset maximum-power held/channel delta-time multiplier.");
-            _customAbhartachExplosionDamageMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionDamageMultiplier", 1.05f, "Custom preset maximum-power explosion damage multiplier.");
-            _customAbhartachExplosionRadiusMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionRadiusMultiplier", 1.10f, "Custom preset maximum-power explosion radius multiplier.");
-            _customAbhartachExplosionBleedBuildupMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachExplosionBleedMultiplier", 1.12f, "Custom preset maximum-power explosion bleed buildup multiplier.");
-            _customAbhartachHeldCorpseHealingMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachHeldCorpseHealingMultiplier", 1.20f, "Custom preset maximum-power held corpse healing multiplier.");
-            _customAbhartachCorpseSearchRangeMultiplier = config.Bind("6. Advanced - Custom Preset", "CustomAbhartachCorpseSearchMultiplier", 1.05f, "Custom preset maximum-power corpse-search range multiplier.");
+            _customPayoutPercentOfKillXp = BindOrdered("Advanced - Custom Preset", "CustomCorpseXPPercent", 50.0f, "Corpse payout as a percent of the enemy's vanilla effective kill XP when Preset is Custom.");
+            _secondsRequired = BindOrdered("Advanced - Custom Preset", "CustomRitualSeconds", 3.0f, "Seconds of continuous corpse focus required when Preset is Custom.");
+            _customLiveDrainXpTickIntervalSeconds = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks when Preset is Custom.");
+            _customLiveDrainXpPercentPerTick = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 7.0f, "Percent of target kill XP paid per live-drain XP tick when Preset is Custom.");
+            _customLiveDrainMaximumXpPercentPerTarget = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentCapPerTarget", 35.0f, "Maximum percent of target kill XP paid by live-drain ticks when Preset is Custom.");
+            _customBloodSpellRangeDistanceMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellRangeMultiplier", 1.06f, "Custom preset maximum-power projectile travel and spell damage-radius multiplier.");
+            _customBloodSpellHomingTargetSearchMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHomingSearchMultiplier", 1.05f, "Custom preset maximum-power homing target-search multiplier.");
+            _customBloodSpellHeldTargetRangeMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHeldRangeMultiplier", 1.03f, "Custom preset maximum-power held target-search range multiplier.");
+            _customBloodSpellBleedBuildupMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellBleedMultiplier", 1.06f, "Custom preset maximum-power bleed buildup multiplier.");
+            _customBloodSpellTapCastSpeedMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellTapSpeedMultiplier", 1.06f, "Custom preset maximum-power tap/projectile cast-speed multiplier.");
+            _customBloodSpellHeldChannelSpeedMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHeldChannelSpeedMultiplier", 1.01f, "Custom preset maximum-power held/channel delta-time multiplier.");
+            _customAbhartachExplosionDamageMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionDamageMultiplier", 1.05f, "Custom preset maximum-power explosion damage multiplier.");
+            _customAbhartachExplosionRadiusMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionRadiusMultiplier", 1.10f, "Custom preset maximum-power explosion radius multiplier.");
+            _customAbhartachExplosionBleedBuildupMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionBleedMultiplier", 1.12f, "Custom preset maximum-power explosion bleed buildup multiplier.");
+            _customAbhartachHeldCorpseHealingMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachHeldCorpseHealingMultiplier", 1.20f, "Custom preset maximum-power held corpse healing multiplier.");
+            _customAbhartachCorpseSearchRangeMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachCorpseSearchMultiplier", 1.05f, "Custom preset maximum-power corpse-search range multiplier.");
 
-            _liveDrainAwardCharacterXp = config.Bind("7. Advanced - Live Drain", "AwardCharacterXP", true, "Award small character XP ticks while held Blood/Life Transfusion damages living enemies.");
-            _liveDrainRawCharacterXpMultiplier = config.Bind("7. Advanced - Live Drain", "RawCharacterXPPerComputedXP", 1.0f, "Raw character XP awarded per computed live-drain XP.");
-            _liveDrainHealingMultiplier = config.Bind("7. Advanced - Live Drain", "HeldHealingMultiplier", 2.0f, new ConfigDescription("Multiplier applied to Blood/Life Transfusion healing that follows confirmed held-channel damage. Tap projectile healing is not changed.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _liveDrainAwardCharacterXp = BindOrdered("Advanced - Live Drain", "AwardCharacterXP", true, "Award small character XP ticks while held Blood/Life Transfusion damages living enemies.");
+            _liveDrainRawCharacterXpMultiplier = BindOrdered("Advanced - Live Drain", "RawCharacterXPPerComputedXP", 1.0f, "Raw character XP awarded per computed live-drain XP.");
+            _liveDrainHealingMultiplier = BindOrdered("Advanced - Live Drain", "HeldHealingMultiplier", 2.0f, new ConfigDescription("Multiplier applied to Blood/Life Transfusion healing that follows confirmed held-channel damage. Tap projectile healing is not changed.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            _bloodSpellScaleProjectileTravel = config.Bind("8. Advanced - Blood Spell Growth", "ScaleProjectileTravel", true, "Scale Blood/Life Transfusion projectile travel distance by increasing projectile lifetime.");
-            _bloodSpellScaleHomingTargetSearch = config.Bind("8. Advanced - Blood Spell Growth", "ScaleHomingTargetSearch", true, "Scale Blood/Life Transfusion homing target-search distance when the projectile exposes one.");
-            _bloodSpellScaleHeldTargetRange = config.Bind("8. Advanced - Blood Spell Growth", "ScaleHeldTargetRange", true, "Scale Blood/Life Transfusion visual-script target-search range.");
-            _bloodSpellHomingTargetSearchMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HomingTargetSearchMaximumMultiplier", 1.75f, new ConfigDescription("Maximum final Blood/Life homing target-search multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
-            _bloodSpellHeldTargetRangeMaximumMultiplier = config.Bind("8. Advanced - Blood Spell Growth", "HeldTargetRangeMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Blood/Life held target-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
-            _bloodSpellRangeBleedTapBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "RangeBleedTapBloodPowerBonusCurve", "0:0;5:2;10:5;15:10;20:17;25:25;30:35;35:47;40:60;45:75;50:90", "Blood-Power-to-bonus-percent curve for range, bleed buildup, and tap/projectile cast speed.");
-            _bloodSpellTargetSearchBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "TargetSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for held and homing target-search range.");
-            _bloodSpellHeldBloodPowerBonusCurve = config.Bind("8. Advanced - Blood Spell Growth", "HeldChannelBloodPowerBonusCurve", "0:0;5:0;10:1;15:2;20:3;25:4;30:5;35:6;40:8;45:10;50:12", "Blood-Power-to-bonus-percent curve for held/channel speed.");
-            _bleedBuildupStatusTerms = config.Bind("8. Advanced - Blood Spell Growth", "BleedBuildupStatusTerms", "Bleed;Bleeding", "Terms used to identify bleed buildup statuses for tuning.");
+            _bloodSpellScaleProjectileTravel = BindOrdered("Advanced - Blood Spell Growth", "ScaleProjectileTravel", true, "Scale Blood/Life Transfusion projectile travel distance by increasing projectile lifetime.");
+            _bloodSpellScaleHomingTargetSearch = BindOrdered("Advanced - Blood Spell Growth", "ScaleHomingTargetSearch", true, "Scale Blood/Life Transfusion homing target-search distance when the projectile exposes one.");
+            _bloodSpellScaleHeldTargetRange = BindOrdered("Advanced - Blood Spell Growth", "ScaleHeldTargetRange", true, "Scale Blood/Life Transfusion visual-script target-search range.");
+            _bloodSpellHomingTargetSearchMaximumMultiplier = BindOrdered("Advanced - Blood Spell Growth", "HomingTargetSearchMaximumMultiplier", 1.75f, new ConfigDescription("Maximum final Blood/Life homing target-search multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _bloodSpellHeldTargetRangeMaximumMultiplier = BindOrdered("Advanced - Blood Spell Growth", "HeldTargetRangeMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Blood/Life held target-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _bloodSpellRangeBleedTapBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "RangeBleedTapBloodPowerBonusCurve", "0:0;5:2;10:5;15:10;20:17;25:25;30:35;35:47;40:60;45:75;50:90", "Blood-Power-to-bonus-percent curve for range, bleed buildup, and tap/projectile cast speed.");
+            _bloodSpellTargetSearchBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "TargetSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for held and homing target-search range.");
+            _bloodSpellHeldBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "HeldChannelBloodPowerBonusCurve", "0:0;5:0;10:1;15:2;20:3;25:4;30:5;35:6;40:8;45:10;50:12", "Blood-Power-to-bonus-percent curve for held/channel speed.");
+            _bleedBuildupStatusTerms = BindOrdered("Advanced - Blood Spell Growth", "BleedBuildupStatusTerms", "Bleed;Bleeding", "Terms used to identify bleed buildup statuses for tuning.");
 
-            _abhartachScaleExplosionDamage = config.Bind("9. Advanced - Abhartach Calling", "ScaleExplosionDamage", true, "Scale Abhartach's Calling corpse explosion damage.");
-            _abhartachScaleExplosionRadius = config.Bind("9. Advanced - Abhartach Calling", "ScaleExplosionRadius", true, "Scale Abhartach's Calling corpse explosion radius.");
-            _abhartachScaleExplosionBleed = config.Bind("9. Advanced - Abhartach Calling", "ScaleExplosionBleed", true, "Scale Abhartach's Calling corpse explosion bleed buildup.");
-            _abhartachScaleHeldCorpseHealing = config.Bind("9. Advanced - Abhartach Calling", "ScaleHeldCorpseHealing", true, "Scale Abhartach's Calling held corpse healing.");
-            _abhartachScaleCorpseSearchRange = config.Bind("9. Advanced - Abhartach Calling", "ScaleCorpseSearchRange", true, "Scale Abhartach's Calling corpse-search range.");
-            _abhartachCorpseSearchMaximumMultiplier = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Abhartach corpse-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
-            _corpseQualityEffectMemorySeconds = config.Bind("9. Advanced - Abhartach Calling", "CorpseQualityEffectMemorySeconds", 1.25f, new ConfigDescription("Seconds to remember the last Abhartach-focused corpse quality for delayed spell effects.", new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _abhartachExplosionDamageBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionDamageBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion damage.");
-            _abhartachExplosionRadiusBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionRadiusBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:7;25:10;30:14;35:18;40:23;45:29;50:35", "Blood-Power-to-bonus-percent curve for explosion radius.");
-            _abhartachExplosionBleedBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "ExplosionBleedBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion bleed buildup.");
-            _abhartachHeldHealingBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "HeldCorpseHealingBloodPowerBonusCurve", "0:0;5:1;10:4;15:7;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for held corpse healing.");
-            _abhartachCorpseSearchBloodPowerBonusCurve = config.Bind("9. Advanced - Abhartach Calling", "CorpseSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for corpse-search range.");
+            _abhartachScaleExplosionDamage = BindOrdered("Advanced - Abhartach Calling", "ScaleExplosionDamage", true, "Scale Abhartach's Calling corpse explosion damage.");
+            _abhartachScaleExplosionRadius = BindOrdered("Advanced - Abhartach Calling", "ScaleExplosionRadius", true, "Scale Abhartach's Calling corpse explosion radius.");
+            _abhartachScaleExplosionBleed = BindOrdered("Advanced - Abhartach Calling", "ScaleExplosionBleed", true, "Scale Abhartach's Calling corpse explosion bleed buildup.");
+            _abhartachScaleHeldCorpseHealing = BindOrdered("Advanced - Abhartach Calling", "ScaleHeldCorpseHealing", true, "Scale Abhartach's Calling held corpse healing.");
+            _abhartachScaleCorpseSearchRange = BindOrdered("Advanced - Abhartach Calling", "ScaleCorpseSearchRange", true, "Scale Abhartach's Calling corpse-search range.");
+            _abhartachCorpseSearchMaximumMultiplier = BindOrdered("Advanced - Abhartach Calling", "CorpseSearchMaximumMultiplier", 1.6f, new ConfigDescription("Maximum final Abhartach corpse-search range multiplier.", new AcceptableValueRange<float>(1.0f, 10.0f)));
+            _corpseQualityEffectMemorySeconds = BindOrdered("Advanced - Abhartach Calling", "CorpseQualityEffectMemorySeconds", 1.25f, new ConfigDescription("Seconds to remember the last Abhartach-focused corpse quality for delayed spell effects.", new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _abhartachExplosionDamageBloodPowerBonusCurve = BindOrdered("Advanced - Abhartach Calling", "ExplosionDamageBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion damage.");
+            _abhartachExplosionRadiusBloodPowerBonusCurve = BindOrdered("Advanced - Abhartach Calling", "ExplosionRadiusBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:7;25:10;30:14;35:18;40:23;45:29;50:35", "Blood-Power-to-bonus-percent curve for explosion radius.");
+            _abhartachExplosionBleedBloodPowerBonusCurve = BindOrdered("Advanced - Abhartach Calling", "ExplosionBleedBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for explosion bleed buildup.");
+            _abhartachHeldHealingBloodPowerBonusCurve = BindOrdered("Advanced - Abhartach Calling", "HeldCorpseHealingBloodPowerBonusCurve", "0:0;5:1;10:4;15:7;20:10;25:14;30:18;35:23;40:28;45:34;50:40", "Blood-Power-to-bonus-percent curve for held corpse healing.");
+            _abhartachCorpseSearchBloodPowerBonusCurve = BindOrdered("Advanced - Abhartach Calling", "CorpseSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for corpse-search range.");
 
-            _bloodTransfusionMatchTerms = config.Bind("10. Advanced - Matching", "BloodSpellMatchTerms", "BloodTransfusion;Blood Transfusion;ItemTemplate_Magic_Tier1_BloodTransfusion;LifeTransfusion;Life Transfusion;ItemTemplate_Magic_Tier1_LifeTransfusion", "Terms used to identify Blood Transfusion and Life Transfusion items, skills, or templates.");
-            _bloodTransfusionTemplateGuid = config.Bind("10. Advanced - Matching", "BloodSpellTemplateGuid", "", "Optional exact Blood/Life Transfusion template GUID.");
-            _abhartachMatchTerms = config.Bind("10. Advanced - Matching", "AbhartachMatchTerms", "Abhartach;Abhartach's Calling;ItemTemplate_Magic_Tier2_AbhartachsCalling", "Terms used to identify Abhartach's Calling items, skills, or templates.");
-            _abhartachTemplateGuid = config.Bind("10. Advanced - Matching", "AbhartachTemplateGuid", "", "Optional exact Abhartach's Calling template GUID.");
-            _bloodSpellSpiritualityStatTerms = config.Bind("10. Advanced - Matching", "SpiritualityStatTerms", "Spirituality;Spirit", "Terms used only when GrowthSource is explicitly set to Spirituality legacy mode.");
+            _bloodTransfusionMatchTerms = BindOrdered("Advanced - Matching", "BloodSpellMatchTerms", "BloodTransfusion;Blood Transfusion;ItemTemplate_Magic_Tier1_BloodTransfusion;LifeTransfusion;Life Transfusion;ItemTemplate_Magic_Tier1_LifeTransfusion", "Terms used to identify Blood Transfusion and Life Transfusion items, skills, or templates.");
+            _bloodTransfusionTemplateGuid = BindOrdered("Advanced - Matching", "BloodSpellTemplateGuid", "", "Optional exact Blood/Life Transfusion template GUID.");
+            _abhartachMatchTerms = BindOrdered("Advanced - Matching", "AbhartachMatchTerms", "Abhartach;Abhartach's Calling;ItemTemplate_Magic_Tier2_AbhartachsCalling", "Terms used to identify Abhartach's Calling items, skills, or templates.");
+            _abhartachTemplateGuid = BindOrdered("Advanced - Matching", "AbhartachTemplateGuid", "", "Optional exact Abhartach's Calling template GUID.");
+            _bloodSpellSpiritualityStatTerms = BindOrdered("Advanced - Matching", "SpiritualityStatTerms", "Spirituality;Spirit", "Terms used only when GrowthSource is explicitly set to Spirituality legacy mode.");
 
-            _range = config.Bind("11. Performance", "Range", 7.0f, "Maximum camera raycast distance for detecting the corpse being looked at.");
-            _checkIntervalSeconds = config.Bind("11. Performance", "CheckIntervalSeconds", 0.15f, "Seconds between corpse look checks while the required spell hold is active.");
-            _focusGraceSeconds = config.Bind("11. Performance", "FocusGraceSeconds", 0.35f, "Short grace window before losing corpse focus resets the preset ritual timer.");
-            _strongHoldGraceSeconds = config.Bind("11. Performance", "StrongHoldGraceSeconds", 0.85f, "Grace window used when converting Blood/Life spell cast/hold events into active hand state.");
-            _holdTrackerIntervalSeconds = config.Bind("11. Performance", "HoldTrackerIntervalSeconds", 0.15f, "Minimum seconds between MagicFSM held-state probes.");
-            _raycastLayerMask = config.Bind("11. Performance", "RaycastLayerMask", -1, "Unity physics layer mask used by the corpse look raycast. -1 checks all layers.");
-            _raycastParentSearchDepth = config.Bind("11. Performance", "RaycastParentSearchDepth", 20, "Maximum parent transforms checked when resolving a corpse body collider.");
-            _nearestCorpseFallbackRadius = config.Bind("11. Performance", "NearestCorpseFallbackRadius", 2.0f, "Maximum meters from an unresolved corpse-like collider to an unexhausted registered corpse for fallback matching. Zero disables fallback.");
-            _raycastAllFallbackMaxHits = config.Bind("11. Performance", "RaycastAllFallbackMaxHits", 10, "Maximum sorted RaycastAll hits checked after the primary corpse raycast cannot resolve a usable corpse. Zero disables fallback.");
-            _unresolvedCorpseRefreshIntervalSeconds = config.Bind("11. Performance", "UnresolvedCorpseRefreshIntervalSeconds", 1.5f, "Minimum seconds between cached corpse alias refreshes after an unresolved corpse-like raycast hit.");
-            _corpseHierarchyAliasMaxNodes = config.Bind("11. Performance", "CorpseHierarchyAliasMaxNodes", 96, "Maximum child transforms/colliders cached per corpse visual hierarchy.");
-            _cacheBloodTransfusionSourceMatches = config.Bind("11. Performance", "CacheBloodSpellSourceMatches", true, "Cache Blood/Life spell item, skill, and template match results by object reference.");
+            _range = BindOrdered("Performance", "Range", 7.0f, "Maximum camera raycast distance for detecting the corpse being looked at.");
+            _checkIntervalSeconds = BindOrdered("Performance", "CheckIntervalSeconds", 0.15f, "Seconds between corpse look checks while the required spell hold is active.");
+            _focusGraceSeconds = BindOrdered("Performance", "FocusGraceSeconds", 0.35f, "Short grace window before losing corpse focus resets the preset ritual timer.");
+            _strongHoldGraceSeconds = BindOrdered("Performance", "StrongHoldGraceSeconds", 0.85f, "Grace window used when converting Blood/Life spell cast/hold events into active hand state.");
+            _holdTrackerIntervalSeconds = BindOrdered("Performance", "HoldTrackerIntervalSeconds", 0.15f, "Minimum seconds between MagicFSM held-state probes.");
+            _raycastLayerMask = BindOrdered("Performance", "RaycastLayerMask", -1, "Unity physics layer mask used by the corpse look raycast. -1 checks all layers.");
+            _raycastParentSearchDepth = BindOrdered("Performance", "RaycastParentSearchDepth", 20, "Maximum parent transforms checked when resolving a corpse body collider.");
+            _nearestCorpseFallbackRadius = BindOrdered("Performance", "NearestCorpseFallbackRadius", 2.0f, "Maximum meters from an unresolved corpse-like collider to an unexhausted registered corpse for fallback matching. Zero disables fallback.");
+            _raycastAllFallbackMaxHits = BindOrdered("Performance", "RaycastAllFallbackMaxHits", 10, "Maximum sorted RaycastAll hits checked after the primary corpse raycast cannot resolve a usable corpse. Zero disables fallback.");
+            _unresolvedCorpseRefreshIntervalSeconds = BindOrdered("Performance", "UnresolvedCorpseRefreshIntervalSeconds", 1.5f, "Minimum seconds between cached corpse alias refreshes after an unresolved corpse-like raycast hit.");
+            _corpseHierarchyAliasMaxNodes = BindOrdered("Performance", "CorpseHierarchyAliasMaxNodes", 96, "Maximum child transforms/colliders cached per corpse visual hierarchy.");
+            _cacheBloodTransfusionSourceMatches = BindOrdered("Performance", "CacheBloodSpellSourceMatches", true, "Cache Blood/Life spell item, skill, and template match results by object reference.");
 
-            _playCorpseLeechSound = config.Bind("12. Audio", "PlayCorpseLeechSound", true, "Play a quality-matched FMOD WAV when a corpse ritual successfully completes.");
-            _corpseLeechSoundVolume = config.Bind("12. Audio", "CorpseLeechSoundVolume", 0.85f, new ConfigDescription("Global FMOD volume for corpse leech sounds.", new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _avoidRecentCorpseLeechRepeats = config.Bind("12. Audio", "AvoidRecentCorpseLeechRepeats", true, "Avoid replaying recently used corpse leech sounds from the same quality tier when enough alternatives are available.");
-            _recentCorpseLeechSoundMemory = config.Bind("12. Audio", "RecentCorpseLeechSoundMemory", 2, new ConfigDescription("How many recently played sounds to avoid per quality tier.", new AcceptableValueRange<int>(0, 20)));
-            _corpseLeechRandomPitchSemitones = config.Bind("12. Audio", "CorpseLeechRandomPitchSemitones", 0.20f, new ConfigDescription("Random FMOD channel pitch variation in semitones. Zero disables.", new AcceptableValueRange<float>(0.0f, 12.0f)));
+            _playCorpseLeechSound = BindOrdered("Audio", "PlayCorpseLeechSound", true, "Play a quality-matched FMOD WAV when a corpse ritual successfully completes.");
+            _corpseLeechSoundVolume = BindOrdered("Audio", "CorpseLeechSoundVolume", 0.85f, new ConfigDescription("Global FMOD volume for corpse leech sounds.", new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _avoidRecentCorpseLeechRepeats = BindOrdered("Audio", "AvoidRecentCorpseLeechRepeats", true, "Avoid replaying recently used corpse leech sounds from the same quality tier when enough alternatives are available.");
+            _recentCorpseLeechSoundMemory = BindOrdered("Audio", "RecentCorpseLeechSoundMemory", 2, new ConfigDescription("How many recently played sounds to avoid per quality tier.", new AcceptableValueRange<int>(0, 20)));
+            _corpseLeechRandomPitchSemitones = BindOrdered("Audio", "CorpseLeechRandomPitchSemitones", 0.20f, new ConfigDescription("Random FMOD channel pitch variation in semitones. Zero disables.", new AcceptableValueRange<float>(0.0f, 12.0f)));
 
-            _logStartup = config.Bind("13. Diagnostics", "LogStartup", true, "Log patch/load status.");
-            _logAwards = config.Bind("13. Diagnostics", "LogAwards", false, "Log successful corpse and live-drain XP payouts.");
-            _logRejectedCorpses = config.Bind("13. Diagnostics", "LogRejectedCorpses", false, "Log rejected or unresolved corpse ritual attempts.");
-            _logUnresolvedRaycastHits = config.Bind("13. Diagnostics", "LogUnresolvedRaycastHits", false, "Log collider details when a corpse raycast hits something that cannot be matched to a usable corpse.");
-            _logHealingResolution = config.Bind("13. Diagnostics", "LogHealingResolution", false, "Log the first hero health path used, or why healing could not resolve.");
-            _logPatchWarnings = config.Bind("13. Diagnostics", "LogPatchWarnings", true, "Log warnings if optional patches or reflection paths are unavailable.");
-            _logCorpseQuality = config.Bind("13. Diagnostics", "LogCorpseQuality", false, "Log throttled focused-corpse quality samples for reticle tuning.");
-            _logBloodSpellInnerLight = config.Bind("13. Diagnostics", "LogBloodSpellInnerLight", false, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
-            _showGrailFloatingTextDiagnostics = config.Bind("13. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When the matching diagnostic log option is enabled and Grail Floating Text is installed, show collapsed System summaries for corpse rejection, focused-corpse quality changes, and blood-spell inner-light visibility changes.");
-            _corpseQualityLogIntervalSeconds = config.Bind("13. Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
-            _overrideBloodEssence = config.Bind("13. Diagnostics", "OverrideBloodEssence", false, "Temporarily use BloodEssenceOverrideValue for Blood Power, APIs, and optional Deeds display without changing the character's saved Blood Essence.");
-            _bloodEssenceOverrideValue = config.Bind("13. Diagnostics", "BloodEssenceOverrideValue", 1000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 1500, and 2000.", new AcceptableValueRange<float>(0.0f, 1000000.0f)));
-            _claimGrailFloatingTextCorpseXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
-            _claimGrailFloatingTextLiveDrainXp = config.Bind("14. Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
-            _suppressGrailFloatingTextLiveDrainHealing = config.Bind("14. Integrations", "SuppressGrailFloatingTextLiveDrainHealing", true, "When supported by Grail Floating Text, keep frequent held-channel Blood/Life Transfusion healing ticks out of its generic Healed notifications.");
+            _logStartup = BindOrdered("Diagnostics", "LogStartup", true, "Log patch/load status.");
+            _logAwards = BindOrdered("Diagnostics", "LogAwards", false, "Log successful corpse and live-drain XP payouts.");
+            _logRejectedCorpses = BindOrdered("Diagnostics", "LogRejectedCorpses", false, "Log rejected or unresolved corpse ritual attempts.");
+            _logUnresolvedRaycastHits = BindOrdered("Diagnostics", "LogUnresolvedRaycastHits", false, "Log collider details when a corpse raycast hits something that cannot be matched to a usable corpse.");
+            _logHealingResolution = BindOrdered("Diagnostics", "LogHealingResolution", false, "Log the first hero health path used, or why healing could not resolve.");
+            _logPatchWarnings = BindOrdered("Diagnostics", "LogPatchWarnings", true, "Log warnings if optional patches or reflection paths are unavailable.");
+            _logCorpseQuality = BindOrdered("Diagnostics", "LogCorpseQuality", false, "Log throttled focused-corpse quality samples for reticle tuning.");
+            _logBloodSpellInnerLight = BindOrdered("Diagnostics", "LogBloodSpellInnerLight", false, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
+            _showGrailFloatingTextDiagnostics = BindOrdered("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When the matching diagnostic log option is enabled and Grail Floating Text is installed, show collapsed System summaries for corpse rejection, focused-corpse quality changes, and blood-spell inner-light visibility changes.");
+            _corpseQualityLogIntervalSeconds = BindOrdered("Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
+            _overrideBloodEssence = BindOrdered("Diagnostics", "OverrideBloodEssence", false, "Temporarily use BloodEssenceOverrideValue for Blood Power, APIs, and optional Deeds display without changing the character's saved Blood Essence.");
+            _bloodEssenceOverrideValue = BindOrdered("Diagnostics", "BloodEssenceOverrideValue", 1000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 1500, and 2000.", new AcceptableValueRange<float>(0.0f, 1000000.0f)));
+            _claimGrailFloatingTextCorpseXp = BindOrdered("Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
+            _claimGrailFloatingTextLiveDrainXp = BindOrdered("Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
+            _suppressGrailFloatingTextLiveDrainHealing = BindOrdered("Integrations", "SuppressGrailFloatingTextLiveDrainHealing", true, "When supported by Grail Floating Text, keep frequent held-channel Blood/Life Transfusion healing ticks out of its generic Healed notifications.");
 
             if (ShouldLogStartup())
             {
@@ -2653,7 +2785,7 @@ namespace BloodMagicExpansion
                 }
 
                 string settingName = line.Substring(0, separatorIndex).Trim();
-                string settingId = currentSection + "\n" + settingName;
+                string settingId = GetCleanConfigSection(currentSection) + "\n" + settingName;
 
                 if (IsPreservedCalibrationFloat(settingId))
                 {
@@ -2683,22 +2815,22 @@ namespace BloodMagicExpansion
 
         private static bool IsPreservedCalibrationFloat(string settingId)
         {
-            return string.Equals(settingId, "2. Blood Spell Inner Light\nIntensity", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nInteriorIntensityMultiplier", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nRange", StringComparison.Ordinal)
-                || string.Equals(settingId, "2. Blood Spell Inner Light\nFadeSeconds", StringComparison.Ordinal)
-                || string.Equals(settingId, "12. Audio\nCorpseLeechSoundVolume", StringComparison.Ordinal)
-                || string.Equals(settingId, "12. Audio\nCorpseLeechRandomPitchSemitones", StringComparison.Ordinal);
+            return string.Equals(settingId, "Blood Spell Inner Light\nIntensity", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nInteriorIntensityMultiplier", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nRange", StringComparison.Ordinal)
+                || string.Equals(settingId, "Blood Spell Inner Light\nFadeSeconds", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nCorpseLeechSoundVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nCorpseLeechRandomPitchSemitones", StringComparison.Ordinal);
         }
 
         private static bool IsPreservedManualOverride(string settingId)
         {
-            return string.Equals(settingId, "4. Bloodless Filter\nBloodWhitelistTerms", StringComparison.Ordinal)
-                || string.Equals(settingId, "10. Advanced - Matching\nBloodSpellTemplateGuid", StringComparison.Ordinal)
-                || string.Equals(settingId, "10. Advanced - Matching\nAbhartachTemplateGuid", StringComparison.Ordinal);
+            return string.Equals(settingId, "Bloodless Filter\nBloodWhitelistTerms", StringComparison.Ordinal)
+                || string.Equals(settingId, "Advanced - Matching\nBloodSpellTemplateGuid", StringComparison.Ordinal)
+                || string.Equals(settingId, "Advanced - Matching\nAbhartachTemplateGuid", StringComparison.Ordinal);
         }
 
         private void RestorePreservedConfigValues()
@@ -2712,18 +2844,18 @@ namespace BloodMagicExpansion
 
             int restoredCount = 0;
             int clampedCount = 0;
-            RestorePreservedFloat("2. Blood Spell Inner Light\nIntensity", _bloodSpellInnerLightIntensity, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", _bloodSpellInnerLightBloodTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", _bloodSpellInnerLightLifeTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", _bloodSpellInnerLightAbhartachCallingIntensityMultiplier, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nInteriorIntensityMultiplier", _bloodSpellInnerLightInteriorIntensityMultiplier, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nRange", _bloodSpellInnerLightRange, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("2. Blood Spell Inner Light\nFadeSeconds", _bloodSpellInnerLightFadeSeconds, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("12. Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("12. Audio\nCorpseLeechRandomPitchSemitones", _corpseLeechRandomPitchSemitones, ref restoredCount, ref clampedCount);
-            RestorePreservedString("4. Bloodless Filter\nBloodWhitelistTerms", _bloodWhitelistTerms, ref restoredCount);
-            RestorePreservedString("10. Advanced - Matching\nBloodSpellTemplateGuid", _bloodTransfusionTemplateGuid, ref restoredCount);
-            RestorePreservedString("10. Advanced - Matching\nAbhartachTemplateGuid", _abhartachTemplateGuid, ref restoredCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nIntensity", _bloodSpellInnerLightIntensity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nBloodTransfusionIntensityMultiplier", _bloodSpellInnerLightBloodTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nLifeTransfusionIntensityMultiplier", _bloodSpellInnerLightLifeTransfusionIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nAbhartachCallingIntensityMultiplier", _bloodSpellInnerLightAbhartachCallingIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nInteriorIntensityMultiplier", _bloodSpellInnerLightInteriorIntensityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nRange", _bloodSpellInnerLightRange, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Blood Spell Inner Light\nFadeSeconds", _bloodSpellInnerLightFadeSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Audio\nCorpseLeechRandomPitchSemitones", _corpseLeechRandomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedString("Bloodless Filter\nBloodWhitelistTerms", _bloodWhitelistTerms, ref restoredCount);
+            RestorePreservedString("Advanced - Matching\nBloodSpellTemplateGuid", _bloodTransfusionTemplateGuid, ref restoredCount);
+            RestorePreservedString("Advanced - Matching\nAbhartachTemplateGuid", _abhartachTemplateGuid, ref restoredCount);
 
             Log.LogInfo(
                 "Preserved "

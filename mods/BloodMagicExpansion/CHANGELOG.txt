@@ -1,3 +1,7 @@
+Version 2.8.2
+Reorganized the configuration into clean, unnumbered sections with explicit semantic section and setting order metadata for consistent in-game presentation.
+Advanced ConfigSchemaVersion from 17 to 18 because every active setting moved from a numbered raw section to its clean section name; compatible customized settings remain eligible for conservative recovery.
+
 Version 2.8.1
 Marked corpse-ritual, Blood/Life Transfusion, and Abhartach healing at the exact health mutation so Grail Floating Text 2.4.6 can present visible blood healing through its configurable Red group with the Blood Magic icon.
 Kept correlated held-channel healing ticks suppressed by default while leaving ordinary healing notifications unchanged.

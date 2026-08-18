@@ -1,3 +1,8 @@
+Version 0.4.4
+Removed numeric prefixes from the generated Core, Torch Light, Flame, Interior Bloom, and Audio raw sections while preserving the established semantic FoA Mod Manager layout.
+Advanced ConfigSchemaVersion from 11 to 12 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last.
+
 Version 0.4.3
 Replaced the DarkInteriors and VanillaInteriors presentation with plainly named Bright and Vanilla presets. Vanilla is described as the balance for normal interior brightness, while Bright is described as the balance for darker interiors.
 Added separate interior and exterior brightness preset selectors. Bright defaults indoors, Vanilla defaults outdoors, and the active torch updates automatically when the environment changes.

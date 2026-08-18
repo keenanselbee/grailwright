@@ -26,12 +26,12 @@ function Assert-VisualContract {
 
 foreach ($required in @(
     'src/WyrdVisualRuntime.cs',
-    '"version": "1.3.4"')) {
+    '"version": "1.3.5"')) {
     Assert-VisualContract ($manifest.Contains($required)) "manifest omits $required"
 }
 
 foreach ($required in @(
-    'private const int ConfigSchemaVersion = 21;',
+    'private const int ConfigSchemaVersion = 22;',
     'DefaultMinimumWorldThreatBrightnessScale = 0.8f;',
     'DefaultMaximumWorldThreatBrightnessScale = 1.2f;',
     'DefaultWyrdnightBrightness = 1.0f;',

@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v9
-Version: 2.8.1
+Version: 2.8.2
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -149,12 +149,11 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 16 because LogBloodSpellInnerLight
-now defaults to false and ShowGrailFloatingTextDiagnostics now defaults to true.
+The current config uses ConfigSchemaVersion 18 because its raw sections now use
+clean, unnumbered names and every visible option carries explicit semantic order metadata.
 If the schema marker is missing or outdated, the old config
 is backed up beside the active file and fresh defaults are generated. Compatible
-customized settings remain eligible for conservative recovery, while an untouched
-old inner-light diagnostic default receives the quieter new value.
+customized settings remain eligible for conservative recovery.
 
 Diagnostics can temporarily test a specific effective Essence value without
 overwriting the saved progression:

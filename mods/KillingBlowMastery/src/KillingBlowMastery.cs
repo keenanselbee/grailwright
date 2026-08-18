@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.6.3.0")]
-[assembly: AssemblyFileVersion("1.6.3.0")]
-[assembly: AssemblyInformationalVersion("1.6.3")]
+[assembly: AssemblyVersion("1.6.5.0")]
+[assembly: AssemblyFileVersion("1.6.5.0")]
+[assembly: AssemblyInformationalVersion("1.6.5")]
 
 namespace KillingBlowMastery
 {
@@ -30,7 +30,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.6.3";
+        public const string PluginVersion = "1.6.5";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -100,7 +100,7 @@ namespace KillingBlowMastery
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
-        private const int ConfigSchemaVersion = 14;
+        private const int ConfigSchemaVersion = 15;
         private const int ConfigRecoveryBaselineSchema = 13;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -169,6 +169,8 @@ namespace KillingBlowMastery
         private ConfigEntry<int> _recentSoundMemory;
         private ConfigEntry<float> _randomPitchSemitones;
         private ConfigEntry<bool> _diagnostics;
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
 
         private readonly Dictionary<string, List<RewardSoundClip>> _rewardSoundClipsByPool = new Dictionary<string, List<RewardSoundClip>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<object, KillSourceMemory> _recentKillSourcesByKey = new Dictionary<object, KillSourceMemory>(ReferenceEqualityComparer.Instance);
@@ -249,21 +251,110 @@ namespace KillingBlowMastery
             }
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return base.Config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return base.Config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    section,
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "General":
+                    return 0;
+                case "Weapon Skills":
+                    return 10;
+                case "Notifications":
+                    return 20;
+                case "Audio":
+                    return 30;
+                case "Advanced":
+                    return 40;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+                default:
+                    throw new InvalidOperationException(
+                        "Missing config section order for " + section + ".");
+            }
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
+            _configSettingOrders.Clear();
 
-            _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
-            Config.Bind(
-                "1. Core",
+            _enabled = BindOrdered("General", "Enabled", true, "Master switch.");
+            BindOrdered(
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _finisherSoundMode = Config.Bind(
-                "1. Core",
+            _finisherSoundMode = BindOrdered(
+                "General",
                 "FinisherSoundMode",
                 FinisherSoundModeWeaponSpecific,
                 new ConfigDescription(
@@ -273,92 +364,92 @@ namespace KillingBlowMastery
                         FinisherSoundModeSoulslike,
                         FinisherSoundModeGoatTest,
                         FinisherSoundModeOff)));
-            _finisherSoundRangeVolume = Config.Bind(
-                "1. Core",
+            _finisherSoundRangeVolume = BindOrdered(
+                "General",
                 "FinisherSoundRangeVolume",
                 1.0f,
                 new ConfigDescription(
-                    "How strongly finisher sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 50m+=10% curve.",
+                    "How strongly finisher sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _bonusPercentOfEnemyXp = Config.Bind(
-                "1. Core",
+            _bonusPercentOfEnemyXp = BindOrdered(
+                "General",
                 "BonusPercentOfEnemyXP",
                 4.0f,
                 new ConfigDescription(
                     "Extra combat proficiency XP awarded on a killing blow, as a percent of the enemy's XP reward.",
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
-            _maximumBonusXp = Config.Bind(
-                "1. Core",
+            _maximumBonusXp = BindOrdered(
+                "General",
                 "MaximumBonusXP",
                 100.0f,
                 "Maximum extra proficiency XP from one killing blow. Zero or less disables the cap.");
 
-            _allowOneHanded = Config.Bind("2. Weapon Skills", "AllowOneHanded", true, "Award One-Handed proficiency from one-handed weapon killing blows.");
-            _allowTwoHanded = Config.Bind("2. Weapon Skills", "AllowTwoHanded", true, "Award Two-Handed proficiency from two-handed weapon killing blows.");
-            _allowUnarmed = Config.Bind("2. Weapon Skills", "AllowUnarmed", true, "Award Unarmed proficiency from fist killing blows.");
-            _allowArchery = Config.Bind("2. Weapon Skills", "AllowArchery", true, "Award Archery proficiency from bow killing blows.");
-            _allowShield = Config.Bind("2. Weapon Skills", "AllowShield", true, "Award Shield proficiency from shield killing blows.");
-            _allowMagic = Config.Bind("2. Weapon Skills", "AllowMagic", true, "Award Magic proficiency from spell, rod, or magic-item killing blows.");
+            _allowOneHanded = BindOrdered("Weapon Skills", "AllowOneHanded", true, "Award One-Handed proficiency from one-handed weapon killing blows.");
+            _allowTwoHanded = BindOrdered("Weapon Skills", "AllowTwoHanded", true, "Award Two-Handed proficiency from two-handed weapon killing blows.");
+            _allowUnarmed = BindOrdered("Weapon Skills", "AllowUnarmed", true, "Award Unarmed proficiency from fist killing blows.");
+            _allowArchery = BindOrdered("Weapon Skills", "AllowArchery", true, "Award Archery proficiency from bow killing blows.");
+            _allowShield = BindOrdered("Weapon Skills", "AllowShield", true, "Award Shield proficiency from shield killing blows.");
+            _allowMagic = BindOrdered("Weapon Skills", "AllowMagic", true, "Award Magic proficiency from spell, rod, or magic-item killing blows.");
 
-            _minimumBonusXp = Config.Bind(
-                "3. Advanced",
+            _minimumBonusXp = BindOrdered(
+                "Advanced",
                 "MinimumBonusXP",
                 1.0f,
                 "Minimum bonus paid when the computed bonus is greater than zero.");
-            _roundBonusXpTo = Config.Bind(
-                "3. Advanced",
+            _roundBonusXpTo = BindOrdered(
+                "Advanced",
                 "RoundBonusXPTo",
                 1.0f,
                 "Round bonus proficiency XP to this increment. One rounds to whole XP; zero disables rounding.");
-            _fallbackBonusXp = Config.Bind(
-                "3. Advanced",
+            _fallbackBonusXp = BindOrdered(
+                "Advanced",
                 "FallbackBonusXP",
                 0.0f,
                 "Bonus proficiency XP to use when enemy XP cannot be resolved. Zero skips unresolved enemies.");
-            _requirePrimaryDamage = Config.Bind("3. Advanced", "RequirePrimaryDamage", true, "Only award bonuses for primary damage events, matching the game's normal weapon-proficiency rules.");
-            _allowDamageOverTimeKills = Config.Bind("3. Advanced", "AllowDamageOverTimeKills", true, "Allow bleed, burn, poison, and other delayed damage to count when it can be traced to a recent supported hero damage source.");
-            _damageOverTimeMemorySeconds = Config.Bind(
-                "3. Advanced",
+            _requirePrimaryDamage = BindOrdered("Advanced", "RequirePrimaryDamage", true, "Only award bonuses for primary damage events, matching the game's normal weapon-proficiency rules.");
+            _allowDamageOverTimeKills = BindOrdered("Advanced", "AllowDamageOverTimeKills", true, "Allow bleed, burn, poison, and other delayed damage to count when it can be traced to a recent supported hero damage source.");
+            _damageOverTimeMemorySeconds = BindOrdered(
+                "Advanced",
                 "DamageOverTimeMemorySeconds",
                 12.0f,
                 "How long a recent supported hero damage source can credit a later damage-over-time death.");
-            _ignoreThrowable = Config.Bind("3. Advanced", "IgnoreThrowable", true, "Do not award killing-blow proficiency from thrown items.");
-            _requireXpRewardAllowedWhenPresent = Config.Bind("3. Advanced", "RequireXPRewardAllowedWhenPresent", true, "If the killed target exposes XpRewardAllowed, require it to be true.");
-            _notificationsEnabled = Config.Bind("4. Notifications", "NotificationsEnabled", true, "Show an in-game HUD notification when killing-blow proficiency XP is awarded.");
-            _notificationMinimumXp = Config.Bind("4. Notifications", "NotificationMinimumXP", 1.0f, "Minimum awarded bonus XP required before showing an in-game notification.");
-            _notificationTextFormat = Config.Bind("4. Notifications", "NotificationTextFormat", DefaultNotificationTextFormat, "HUD notification text. Tokens: {xp}, {skill}, {enemy}, {weapon}, {enemyXP}.");
-            _notificationMode = Config.Bind("4. Notifications", "NotificationMode", "GrailFloatingText", "Notification route: GrailFloatingText, GameHud, Both, or Off.");
-            _rewardSoundVolume = Config.Bind(
-                "5. Audio",
+            _ignoreThrowable = BindOrdered("Advanced", "IgnoreThrowable", true, "Do not award killing-blow proficiency from thrown items.");
+            _requireXpRewardAllowedWhenPresent = BindOrdered("Advanced", "RequireXPRewardAllowedWhenPresent", true, "If the killed target exposes XpRewardAllowed, require it to be true.");
+            _notificationsEnabled = BindOrdered("Notifications", "NotificationsEnabled", true, "Show an in-game HUD notification when killing-blow proficiency XP is awarded.");
+            _notificationMinimumXp = BindOrdered("Notifications", "NotificationMinimumXP", 1.0f, "Minimum awarded bonus XP required before showing an in-game notification.");
+            _notificationTextFormat = BindOrdered("Notifications", "NotificationTextFormat", DefaultNotificationTextFormat, "HUD notification text. Tokens: {xp}, {skill}, {enemy}, {weapon}, {enemyXP}.");
+            _notificationMode = BindOrdered("Notifications", "NotificationMode", "GrailFloatingText", "Notification route: GrailFloatingText, GameHud, Both, or Off.");
+            _rewardSoundVolume = BindOrdered(
+                "Audio",
                 "RewardSoundVolume",
                 0.65f,
                 new ConfigDescription(
                     "Volume multiplier for the killing-blow reward sound.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _rewardSoundCooldownSeconds = Config.Bind("5. Audio", "RewardSoundCooldownSeconds", 0.35f, "Minimum real-time seconds between reward sounds.");
-            _useKillingBlowFallbackForClassifiedKills = Config.Bind("5. Audio", "UseKillingBlowFallbackForClassifiedKills", false, "Allow classified weapon, shield, and magic kills to fall back to the killing_blow pool when their category pool is missing.");
-            _useNonCorporealEnemySounds = Config.Bind("5. Audio", "UseNonCorporealEnemySounds", true, "Use the target-only non_corporeal sound pool for matched spirit/Wyrd enemies. This overrides weapon, magic, and _dry routing for those targets.");
-            _nonCorporealSoundTerms = Config.Bind("5. Audio", "NonCorporealSoundTerms", DefaultNonCorporealSoundTerms, "Semicolon, comma, pipe, or newline separated target terms that force the non_corporeal sound pool.");
-            _nonCorporealSoundExclusionTerms = Config.Bind("5. Audio", "NonCorporealSoundExclusionTerms", DefaultNonCorporealSoundExclusionTerms, "Optional target terms that prevent non_corporeal routing when both inclusion and exclusion terms match.");
-            _useBloodlessSoundVariants = Config.Bind("5. Audio", "UseBloodlessSoundVariants", true, "Use *_dry.wav sound variants for targets whose names, templates, or type text match the bloodless sound terms.");
-            _bloodlessSoundBlacklistTerms = Config.Bind("5. Audio", "BloodlessSoundBlacklistTerms", DefaultBloodlessSoundBlacklistTerms, "Semicolon, comma, pipe, or newline separated terms that make a killed target use bloodless sound variants when available.");
-            _bloodlessSoundWhitelistTerms = Config.Bind("5. Audio", "BloodlessSoundWhitelistTerms", "", "Optional terms that force normal sounds even if a bloodless sound term also matches.");
-            _avoidRecentSoundRepeats = Config.Bind("5. Audio", "AvoidRecentSoundRepeats", true, "Avoid replaying reward sounds that were recently used in the same sound pool.");
-            _recentSoundMemory = Config.Bind(
-                "5. Audio",
+            _rewardSoundCooldownSeconds = BindOrdered("Audio", "RewardSoundCooldownSeconds", 0.35f, "Minimum real-time seconds between reward sounds.");
+            _useKillingBlowFallbackForClassifiedKills = BindOrdered("Audio", "UseKillingBlowFallbackForClassifiedKills", false, "Allow classified weapon, shield, and magic kills to fall back to the killing_blow pool when their category pool is missing.");
+            _useNonCorporealEnemySounds = BindOrdered("Audio", "UseNonCorporealEnemySounds", true, "Use the target-only non_corporeal sound pool for matched spirit/Wyrd enemies. This overrides weapon, magic, and _dry routing for those targets.");
+            _nonCorporealSoundTerms = BindOrdered("Audio", "NonCorporealSoundTerms", DefaultNonCorporealSoundTerms, "Semicolon, comma, pipe, or newline separated target terms that force the non_corporeal sound pool.");
+            _nonCorporealSoundExclusionTerms = BindOrdered("Audio", "NonCorporealSoundExclusionTerms", DefaultNonCorporealSoundExclusionTerms, "Optional target terms that prevent non_corporeal routing when both inclusion and exclusion terms match.");
+            _useBloodlessSoundVariants = BindOrdered("Audio", "UseBloodlessSoundVariants", true, "Use *_dry.wav sound variants for targets whose names, templates, or type text match the bloodless sound terms.");
+            _bloodlessSoundBlacklistTerms = BindOrdered("Audio", "BloodlessSoundBlacklistTerms", DefaultBloodlessSoundBlacklistTerms, "Semicolon, comma, pipe, or newline separated terms that make a killed target use bloodless sound variants when available.");
+            _bloodlessSoundWhitelistTerms = BindOrdered("Audio", "BloodlessSoundWhitelistTerms", "", "Optional terms that force normal sounds even if a bloodless sound term also matches.");
+            _avoidRecentSoundRepeats = BindOrdered("Audio", "AvoidRecentSoundRepeats", true, "Avoid replaying reward sounds that were recently used in the same sound pool.");
+            _recentSoundMemory = BindOrdered(
+                "Audio",
                 "RecentSoundMemory",
                 2,
                 new ConfigDescription(
                     "How many recent sounds to avoid repeating per sound pool. Falls back gracefully when too few sounds are available.",
                     new AcceptableValueRange<int>(0, 4)));
-            _randomPitchSemitones = Config.Bind(
-                "5. Audio",
+            _randomPitchSemitones = BindOrdered(
+                "Audio",
                 "RandomPitchSemitones",
                 0.35f,
                 new ConfigDescription(
                     "Random reward-sound pitch variation in semitones. Zero disables pitch randomization.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _diagnostics = Config.Bind("6. Diagnostics", "Diagnostics", false, "Log kill source, resolved proficiency, enemy XP, and awarded bonus.");
+            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log kill source, resolved proficiency, enemy XP, and awarded bonus.");
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -529,15 +620,15 @@ namespace KillingBlowMastery
 
         private static bool IsPreservedCalibrationFloat(string settingId)
         {
-            return string.Equals(settingId, "1. Core\nFinisherSoundRangeVolume", StringComparison.Ordinal)
-                || string.Equals(settingId, "5. Audio\nRewardSoundVolume", StringComparison.Ordinal)
-                || string.Equals(settingId, "5. Audio\nRandomPitchSemitones", StringComparison.Ordinal);
+            return string.Equals(settingId, "General\nFinisherSoundRangeVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nRewardSoundVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nRandomPitchSemitones", StringComparison.Ordinal);
         }
 
         private static bool IsPreservedManualOverride(string settingId)
         {
-            return string.Equals(settingId, "4. Notifications\nNotificationTextFormat", StringComparison.Ordinal)
-                || string.Equals(settingId, "5. Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal);
+            return string.Equals(settingId, "Notifications\nNotificationTextFormat", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal);
         }
 
         private void RestorePreservedConfigValues()
@@ -551,11 +642,11 @@ namespace KillingBlowMastery
 
             int restoredCount = 0;
             int clampedCount = 0;
-            RestorePreservedFloat("1. Core\nFinisherSoundRangeVolume", _finisherSoundRangeVolume, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("5. Audio\nRewardSoundVolume", _rewardSoundVolume, ref restoredCount, ref clampedCount);
-            RestorePreservedFloat("5. Audio\nRandomPitchSemitones", _randomPitchSemitones, ref restoredCount, ref clampedCount);
-            RestorePreservedString("4. Notifications\nNotificationTextFormat", _notificationTextFormat, ref restoredCount);
-            RestorePreservedString("5. Audio\nBloodlessSoundWhitelistTerms", _bloodlessSoundWhitelistTerms, ref restoredCount);
+            RestorePreservedFloat("General\nFinisherSoundRangeVolume", _finisherSoundRangeVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Audio\nRewardSoundVolume", _rewardSoundVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Audio\nRandomPitchSemitones", _randomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedString("Notifications\nNotificationTextFormat", _notificationTextFormat, ref restoredCount);
+            RestorePreservedString("Audio\nBloodlessSoundWhitelistTerms", _bloodlessSoundWhitelistTerms, ref restoredCount);
 
             Log.LogInfo(
                 "Preserved "
@@ -2061,7 +2152,7 @@ namespace KillingBlowMastery
             }
 
             float distance = Vector3.Distance(heroPosition, targetPosition);
-            float t = Math.Max(0.0f, Math.Min(1.0f, distance / 50.0f));
+            float t = Math.Max(0.0f, Math.Min(1.0f, distance / 30.0f));
             float rangeCurveVolume = 1.0f - (0.9f * t);
             float multiplier = 1.0f + ((rangeCurveVolume - 1.0f) * strength);
             LogDiagnostic("FinisherSoundRangeVolume distance=" + distance.ToString("0.##", CultureInfo.InvariantCulture) + "m, multiplier=" + multiplier.ToString("0.###", CultureInfo.InvariantCulture) + ".");

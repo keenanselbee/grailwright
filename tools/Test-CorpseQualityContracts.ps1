@@ -59,7 +59,7 @@ Assert-Contract ($steel.Contains('CorpseQualityBuckets.ApplyThreatClassAdjustmen
 Assert-Contract ($steel.Contains('CorpseQualityBuckets.ApplyBoundedRelativeLevelAdjustment(')) "Steel and Bone does not use shared bounded level weighting."
 Assert-Contract ($steel.Contains('public const int ApiVersion = 5;')) "Steel and Bone hit-feedback API changed unexpectedly."
 
-Assert-Contract ($blood.Contains('ConfigSchemaVersion = 17')) "Blood Magic Expansion schema is not 17."
+Assert-Contract ($blood.Contains('ConfigSchemaVersion = 18')) "Blood Magic Expansion schema is not 18."
 Assert-Contract (-not $blood.Contains('"ReferenceKillXP"')) "Blood Magic Expansion still binds ReferenceKillXP."
 Assert-Contract (-not $blood.Contains('"ReferenceMaxHealth"')) "Blood Magic Expansion still binds ReferenceMaxHealth."
 Assert-Contract ($blood.Contains('TryResolveCorpseNativeTier(')) "Blood Magic Expansion does not resolve native tiers."

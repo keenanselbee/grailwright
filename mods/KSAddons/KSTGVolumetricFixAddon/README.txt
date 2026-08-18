@@ -1,7 +1,7 @@
 KS Better Volumetric Fog Addon
 ===============================
 
-Version: 0.1.2
+Version: 0.1.3
 Platforms: Windows and Linux through Proton.
 
 Original mod: Better Volumetric Fog 1.0.2-mono, which loads in BepInEx as
@@ -56,6 +56,15 @@ Common entries:
   OptimizeFogDiscovery = true
   ShowToggleNotifications = true
   Diagnostics = false
+
+FoA Mod Manager section order:
+
+  General
+  Visuals
+  Performance
+  Notifications
+  Diagnostics
+  Import Previous Settings
 
 Set Quality to Medium, High, or Ultra only when the GPU has enough headroom.
 Set InteriorsOnly to false to use the selected quality in all playable areas.

@@ -21,9 +21,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Contextual indoor and outdoor performance profiles for Global Illumination")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Global Illumination Addon")]
-[assembly: AssemblyVersion("0.1.8.0")]
-[assembly: AssemblyFileVersion("0.1.8.0")]
-[assembly: AssemblyInformationalVersion("0.1.8")]
+[assembly: AssemblyVersion("0.1.9.0")]
+[assembly: AssemblyFileVersion("0.1.9.0")]
+[assembly: AssemblyInformationalVersion("0.1.9")]
 
 namespace KSTGGlobalIlluminationAddon
 {
@@ -58,11 +58,11 @@ namespace KSTGGlobalIlluminationAddon
             "ks.tgfoa.tg-global-illumination-addon";
         public const string PluginName =
             "Global Illumination Addon";
-        public const string PluginVersion = "0.1.8";
+        public const string PluginVersion = "0.1.9";
         public const string ParentPluginGuid =
             "com.wessberg.tgglobalillumination";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -214,7 +214,7 @@ namespace KSTGGlobalIlluminationAddon
             ResetConfigIfSchemaChanged();
 
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -222,107 +222,135 @@ namespace KSTGGlobalIlluminationAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Enables contextual Global Illumination quality profiles.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Enables contextual Global Illumination quality profiles.",
+                    "General", "Enabled", 0, 0));
             _mode = Config.Bind(
-                "1. Core",
+                "General",
                 "Mode",
                 AddonMode.Adaptive,
-                "Adaptive adjusts quality up or down toward the contextual preset. Fixed modes hold one tier everywhere.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Adaptive adjusts quality up or down toward the contextual preset. Fixed modes hold one tier everywhere.",
+                    "General", "Mode", 0, 10));
             _targetFps = Config.Bind(
-                "1. Core",
+                "General",
                 "TargetFps",
                 60f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Target frame rate used by Adaptive mode.",
+                    "General", "Target FPS", 0, 20,
                     new AcceptableValueRange<float>(30f, 240f)));
             _showToggleNotifications = Config.Bind(
-                "1. Core",
+                "Notifications",
                 "ShowToggleNotifications",
                 true,
-                "Shows parent toggle confirmations through Grail Floating Text when it is installed.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Shows parent toggle confirmations through Grail Floating Text when it is installed.",
+                    "Notifications", "Show Toggle Notifications", 30, 0));
             _diagnostics = Config.Bind(
-                "1. Core",
+                "Diagnostics",
                 "Diagnostics",
                 false,
-                "Logs context, smoothed FPS, parent config reloads, and quality changes.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Logs context, smoothed FPS, parent config reloads, and quality changes.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
             _showGrailFloatingTextDiagnostics = Config.Bind(
-                "1. Core",
+                "Diagnostics",
                 "ShowGrailFloatingTextDiagnostics",
                 true,
-                "When Diagnostics is enabled and Grail Floating Text is installed, show adaptive-tier summaries. Detailed BepInEx logging remains active when this is disabled.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "When Diagnostics is enabled and Grail Floating Text is installed, show adaptive-tier summaries. Detailed BepInEx logging remains active when this is disabled.",
+                    "Diagnostics", "Show Grail Floating Text Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 10));
 
             _interiorPreset = Config.Bind(
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "InteriorPreset",
                 QualityTier.Full,
-                "Maximum quality tier used by Adaptive mode in interiors.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Maximum quality tier used by Adaptive mode in interiors.",
+                    "Adaptive Presets", "Interior Preset", 10, 0));
             _exteriorPreset = Config.Bind(
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "ExteriorPreset",
                 QualityTier.Balanced,
-                "Maximum quality tier used by Adaptive mode outdoors.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Maximum quality tier used by Adaptive mode outdoors.",
+                    "Adaptive Presets", "Exterior Preset", 10, 10));
             _startAtPerformance = Config.Bind(
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "StartAtPerformance",
                 true,
-                "Starts new scenes at Performance, then raises quality when sustained FPS meets the target. Remembered scenes resume their last successful tier.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Starts new scenes at Performance, then raises quality when sustained FPS meets the target. Remembered scenes resume their last successful tier.",
+                    "Adaptive Presets", "Start At Performance", 10, 20));
 
             _rememberSceneTier = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "RememberSceneTier",
                 true,
-                "Remembers the last successful tier for each scene during the current game session.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Remembers the last successful tier for each scene during the current game session.",
+                    "Adaptive Tuning", "Remember Scene Tier", 20, 0));
             _sampleWindowSeconds = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "SampleWindowSeconds",
                 5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Approximate rolling gameplay window used to smooth FPS decisions.",
+                    "Adaptive Tuning", "Sample Window", 20, 10,
                     new AcceptableValueRange<float>(2f, 15f)));
             _downgradeMarginFps = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "DowngradeMarginFps",
                 6f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Downgrades below TargetFps minus this margin.",
+                    "Adaptive Tuning", "Downgrade Margin", 20, 20,
                     new AcceptableValueRange<float>(1f, 30f)));
             _downgradeHoldSeconds = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "DowngradeHoldSeconds",
                 4f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How long smoothed FPS must remain low before one downgrade.",
+                    "Adaptive Tuning", "Downgrade Hold", 20, 30,
                     new AcceptableValueRange<float>(1f, 30f)));
             _upgradeMarginFps = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "UpgradeMarginFps",
                 1f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Upgrades only when FPS is within this amount of TargetFps.",
+                    "Adaptive Tuning", "Upgrade Margin", 20, 40,
                     new AcceptableValueRange<float>(0f, 15f)));
             _upgradeHoldSeconds = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "UpgradeHoldSeconds",
                 30f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How long smoothed FPS must remain recovered before one upgrade.",
+                    "Adaptive Tuning", "Upgrade Hold", 20, 50,
                     new AcceptableValueRange<float>(5f, 120f)));
             _changeCooldownSeconds = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "ChangeCooldownSeconds",
                 15f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Minimum delay between adaptive quality changes.",
+                    "Adaptive Tuning", "Change Cooldown", 20, 60,
                     new AcceptableValueRange<float>(5f, 60f)));
             _sceneWarmupSeconds = Config.Bind(
-                "2. Adaptive",
+                "Adaptive Tuning",
                 "SceneWarmupSeconds",
                 5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Ignores FPS while a newly entered scene settles.",
+                    "Adaptive Tuning", "Scene Warmup", 20, 70,
                     new AcceptableValueRange<float>(2f, 30f)));
 
             RestorePreservedSettings();
@@ -480,34 +508,34 @@ namespace KSTGGlobalIlluminationAddon
                     ConfigRecoveryKeepCurrentDefaultRules,
                     ConfigRecoveryPermanentExclusions);
 
-            CaptureCustomizedValue(profile, "1. Core", "Enabled", false);
-            CaptureCustomizedValue(profile, "1. Core", "Mode", AddonMode.Adaptive);
-            CaptureCustomizedValue(profile, "1. Core", "TargetFps", 0f);
-            CaptureCustomizedValue(profile, "1. Core", "Diagnostics", false);
-            CaptureCustomizedValue(profile, "1. Core", "ShowGrailFloatingTextDiagnostics", false);
+            CaptureCustomizedValue(profile, "General", "Enabled", false);
+            CaptureCustomizedValue(profile, "General", "Mode", AddonMode.Adaptive);
+            CaptureCustomizedValue(profile, "General", "TargetFps", 0f);
+            CaptureCustomizedValue(profile, "Diagnostics", "Diagnostics", false);
+            CaptureCustomizedValue(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics", false);
             CaptureCustomizedValue(
                 profile,
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "InteriorPreset",
                 QualityTier.Full);
             CaptureCustomizedValue(
                 profile,
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "ExteriorPreset",
                 QualityTier.Balanced);
             CaptureCustomizedValue(
                 profile,
-                "2. Adaptive Presets",
+                "Adaptive Presets",
                 "StartAtPerformance",
                 false);
-            CaptureCustomizedValue(profile, "2. Adaptive", "RememberSceneTier", false);
-            CaptureCustomizedValue(profile, "2. Adaptive", "SampleWindowSeconds", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "DowngradeMarginFps", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "DowngradeHoldSeconds", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "UpgradeMarginFps", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "UpgradeHoldSeconds", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "ChangeCooldownSeconds", 0f);
-            CaptureCustomizedValue(profile, "2. Adaptive", "SceneWarmupSeconds", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "RememberSceneTier", false);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "SampleWindowSeconds", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "DowngradeMarginFps", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "DowngradeHoldSeconds", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "UpgradeMarginFps", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "UpgradeHoldSeconds", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "ChangeCooldownSeconds", 0f);
+            CaptureCustomizedValue(profile, "Adaptive Tuning", "SceneWarmupSeconds", 0f);
         }
 
         private void CaptureCustomizedValue<T>(

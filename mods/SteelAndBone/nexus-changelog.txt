@@ -1,8 +1,8 @@
-TargetVersion=3.4.6
-BaselineVersion=3.4.3
-Reshaped standard food recovery by preset: Hardened restores 112.5% total health over 1.5x duration with 0.5 stamina per second, while Crucible restores 125% total health over 2x duration with 1 stamina per second; Tempered remains native.
-Kept food healing on the native status and queued-healing HUD path, made the added stamina nourishment replace rather than stack, and updated food tooltips live without noisy mod or preset labels.
-Added an independent ModifyFoodRecovery toggle while leaving potion recovery and Potion Poisoning unchanged.
-Added preset-scaled hostile archer aim scatter: 1.50 meters on Tempered, 1.25 meters on Hardened, and 1.00 meter on Crucible, with a freely adjustable setting and 0 restoring native accuracy.
-Applied scatter through the game's native target-point inaccuracy before movement prediction and ballistic solving while preserving larger authored scatter, native gravity, arrow damage, and non-hostile projectiles.
-Regenerated configuration defaults for the stronger preset scatter values while preserving compatible customized settings.
+TargetVersion=3.8.3
+BaselineVersion=3.7.0
+Added preset-independent Progressive Tenacity. It remains inactive through hero level 20, scales linearly to full strength at level 35, and gives later enemies bounded native-threat-class resistance to player-caused poise, force, stamina, and direct health damage.
+Confirmed native or Steel and Bone material weaknesses halve Tenacity for that hit. The system changes no enemy health pools, adds no stagger immunity or adaptive tracking, and leaves presets, damage over time, environmental damage, and unrelated NPC combat unchanged.
+Native hero-owned summon attacks count as player-caused while Hero Summon targets remain exempt. Matching Custom Difficulty, HarderLife, and Tainted Combat health or poise overlaps now identify ProgressiveTenacityEnabled in compatibility warnings.
+Added preset-aware combat food restrictions. Tempered permits food during combat, while Hardened and Crucible prevent food and dishes by default before effects, audio, events, or item removal; the setting remains freely customizable and noncombat use stays unrestricted. Blocked attempts are silent unless Grail Floating Text is installed, and Tainted Combat overlap detection covers AffectFoodAndDishes.
+Throttled repeated enemy-hearing diagnostics to prevent high-frequency log spam without changing gameplay.
+Cleaned every stored config section name and retained explicit semantic FoA Mod Manager ordering, with Diagnostics immediately before Import Previous Settings.

@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 
 [center][color=#C94A4A][size=6]Torchlight Rekindled[/size][/color]
 [i]Carry a brighter flame into Avalon's darkest places, with richer bloom, livelier fire, and immersive torch audio.[/i][/center]
@@ -58,7 +58,7 @@ The configuration is stored at:
 [code]
 BepInEx/config/ks.tgfoa.torchlight-rekindled.cfg[/code]
 
-FoA Mod Manager presents these controls in focused General, Torch Light, Visible Flame, Flame Halo, advanced alignment, Interior Bloom, Audio, and Diagnostics groups. The raw config retains FlameHaloBashRotationOffsetDegrees as the stored key for compatibility, but the manager correctly labels it Light Parry Roll Offset.
+FoA Mod Manager presents these controls in focused General, Torch Light, Visible Flame, Flame Halo, advanced alignment, Interior Bloom, Audio, and Diagnostics groups, followed by Import Previous Settings. The generated raw sections are clean and unnumbered. The raw config retains FlameHaloBashRotationOffsetDegrees as the stored key for compatibility, but the manager correctly labels it Light Parry Roll Offset.
 
 The bloom result depends on the active post-processing and bloom settings. Setting FlameBloomMultiplier to 0 removes the flame's extra HDR headroom without removing the flame.
 
@@ -117,8 +117,16 @@ BepInEx/plugins/TorchlightRekindled/TorchlightRekindled.dll[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] is compatible because it controls the separate hidden HeroLight.[/*]
+[/list]
+
+[b]Other mods[/b]
+
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/236]Torch Light Control[/url] is incompatible.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238]No Player Light[/url] is compatible because it controls the separate hidden HeroLight.[/*]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]

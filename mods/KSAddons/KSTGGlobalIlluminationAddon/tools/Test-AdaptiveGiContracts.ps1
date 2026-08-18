@@ -29,7 +29,7 @@ Assert-Contract ($source.Contains('DowngradeHoldSeconds')) 'Sustained downgrade 
 Assert-Contract ($source.Contains('UpgradeHoldSeconds')) 'Sustained upgrade timing is missing.'
 Assert-Contract ($source.Contains('ChangeCooldownSeconds')) 'Quality-change cooldown is missing.'
 Assert-Contract (
-    $source -match '(?s)_startAtPerformance = Config\.Bind\(\s*"2\. Adaptive Presets",\s*"StartAtPerformance",\s*true,'
+    $source -match '(?s)_startAtPerformance = Config\.Bind\(\s*"Adaptive Presets",\s*"StartAtPerformance",\s*true,'
 ) 'Default-on Performance-first configuration is missing.'
 Assert-Contract (
     $source -match '(?s)QualityTier initial = _startAtPerformance\.Value\s*\?\s*QualityTier\.Performance\s*:\s*maximum;'

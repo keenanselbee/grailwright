@@ -1,4 +1,3 @@
-TargetVersion=1.6.3
-BaselineVersion=1.6.2
-Added optional Versatile Weapons 0.3.0 integration so the current grip selects the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound.
-Retained native weapon proficiency when Versatile Weapons is absent, disabled, or unavailable.
+TargetVersion=1.6.5
+BaselineVersion=1.6.4
+Cleaned every generated config section and added explicit task-oriented ordering metadata, with Diagnostics penultimate and Import Previous Settings last.

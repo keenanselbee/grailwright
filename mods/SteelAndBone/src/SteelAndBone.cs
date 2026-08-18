@@ -30,9 +30,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.4.6.0")]
-[assembly: AssemblyFileVersion("3.4.6.0")]
-[assembly: AssemblyInformationalVersion("3.4.6")]
+[assembly: AssemblyVersion("3.8.3.0")]
+[assembly: AssemblyFileVersion("3.8.3.0")]
+[assembly: AssemblyInformationalVersion("3.8.3")]
 
 namespace SteelAndBone
 {
@@ -130,15 +130,16 @@ namespace SteelAndBone
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(BetterUiPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed partial class SteelAndBonePlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.4.6";
+        public const string PluginVersion = "3.8.3";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
-        private const int ConfigSchemaVersion = 19;
+        private const int ConfigSchemaVersion = 26;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -153,7 +154,22 @@ namespace SteelAndBone
                         16,
                         "1. Core",
                         "Preset",
-                        "Preset now applies stronger incoming, outgoing, and experience pressure, including on Tempered.")
+                        "Preset now applies stronger incoming, outgoing, and experience pressure, including on Tempered."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        23,
+                        "4. Target Families",
+                        "ConstructTerms",
+                        "The broad Crystal term was replaced with exact crystal-bodied enemy terms so Crystal Kyrus is not classified as a construct."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        24,
+                        "4. Target Families",
+                        "FloraTerms",
+                        "Wailcaps are now corrected to their Sea Creature identity instead of being treated as broad flora."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        24,
+                        "4. Target Families",
+                        "FleshUndeadTerms",
+                        "Wights are now corrected to their Wyrd-flora identity instead of being treated as broad flesh undead.")
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
@@ -173,14 +189,16 @@ namespace SteelAndBone
 
         private static readonly DamageRule[] DamageRules =
         {
+            new DamageRule(TargetFamily.BoneUndead, DamageTag.Cold, "Bone", "Cold", 0.66f, 60),
             new DamageRule(TargetFamily.BoneUndead, DamageTag.BloodMagic | DamageTag.Bleed, "Bone", "Blood/Bleed", 0.25f, 100),
-            new DamageRule(TargetFamily.BoneUndead, DamageTag.Slashing | DamageTag.Piercing, "Bone", "Slash/Pierce", 0.55f, 80),
-            new DamageRule(TargetFamily.BoneUndead, DamageTag.Bludgeoning, "Bone", "Blunt", 1.08f, 70),
-            new DamageRule(TargetFamily.BoneUndead, DamageTag.GenericPhysical, "Bone", "Physical", 0.85f, 40),
+            new DamageRule(TargetFamily.BoneBody, DamageTag.Slashing | DamageTag.Piercing, "Bone", "Slash/Pierce", 0.55f, 80),
+            new DamageRule(TargetFamily.BoneBody, DamageTag.Bludgeoning, "Bone", "Blunt", 1.08f, 70),
+            new DamageRule(TargetFamily.BoneBody, DamageTag.GenericPhysical, "Bone", "Physical", 0.85f, 40),
+            new DamageRule(TargetFamily.Construct, DamageTag.Cold, "Construct", "Cold", 0.66f, 60),
             new DamageRule(TargetFamily.Construct, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Construct", "Blood/Bleed/Poison", 0.25f, 100),
-            new DamageRule(TargetFamily.Construct, DamageTag.Slashing | DamageTag.Piercing, "Construct", "Slash/Pierce", 0.75f, 70),
-            new DamageRule(TargetFamily.Construct, DamageTag.Bludgeoning, "Construct", "Blunt", 1.15f, 80),
-            new DamageRule(TargetFamily.Construct, DamageTag.GenericPhysical, "Construct", "Physical", 0.85f, 40),
+            new DamageRule(TargetFamily.StoneBody, DamageTag.Slashing | DamageTag.Piercing, "Stone", "Slash/Pierce", 0.75f, 70),
+            new DamageRule(TargetFamily.StoneBody, DamageTag.Bludgeoning, "Stone", "Blunt", 1.15f, 80),
+            new DamageRule(TargetFamily.StoneBody, DamageTag.GenericPhysical, "Stone", "Physical", 0.85f, 40),
             new DamageRule(TargetFamily.Flesh, DamageTag.BloodMagic, "Flesh", "Blood", 1.10f, 25),
             new DamageRule(TargetFamily.Flesh, DamageTag.Bleed | DamageTag.Poison, "Flesh", "Bleed/Poison", 1.06f, 20),
             new DamageRule(TargetFamily.Flesh, DamageTag.Piercing, "Flesh", "Pierce", 1.06f, 16),
@@ -189,7 +207,6 @@ namespace SteelAndBone
             new DamageRule(TargetFamily.FleshUndead, DamageTag.Piercing, "Undead", "Pierce", 0.90f, 56),
             new DamageRule(TargetFamily.FleshUndead, DamageTag.Fire, "Undead", "Fire", 1.08f, 50),
             new DamageRule(TargetFamily.FleshUndead, DamageTag.Bludgeoning, "Undead", "Blunt", 1.05f, 45),
-            new DamageRule(TargetFamily.Wyrd, DamageTag.Wyrdness, "Wyrd", "Wyrdness", 0.35f, 70),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.BloodMagic | DamageTag.Bleed, "Drowned", "Blood/Bleed", 0.65f, 80),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.Electric, "Drowned", "Electric", 1.15f, 70),
             new DamageRule(TargetFamily.DrownedZombie, DamageTag.Piercing, "Drowned", "Pierce", 0.90f, 65),
@@ -207,6 +224,55 @@ namespace SteelAndBone
             new DamageRule(TargetFamily.Spirit, DamageTag.GenericPhysical | DamageTag.Slashing | DamageTag.Piercing | DamageTag.Bludgeoning, "Spirit", "Physical", 0.85f, 50),
             new DamageRule(TargetFamily.Flora, DamageTag.Poison | DamageTag.Bleed | DamageTag.Piercing, "Flora", "Poison/Bleed/Pierce", 0.70f, 70),
             new DamageRule(TargetFamily.Flora, DamageTag.Fire | DamageTag.Slashing, "Flora", "Fire/Slash", 1.15f, 70)
+        };
+
+        private static readonly ExactDamageRule[] ExactDamageRules =
+        {
+            new ExactDamageRule(ExactTarget.FrostbittenWarrior, DamageTag.Fire, "Frozen Undead", "Fire", 1.15f),
+            new ExactDamageRule(ExactTarget.FrostbittenWarrior, DamageTag.Cold, "Frozen Undead", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.Frostgrot, DamageTag.Fire, "Frostgrot", "Fire", 1.15f),
+            new ExactDamageRule(ExactTarget.Frostgrot, DamageTag.Cold, "Frostgrot", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.MissingCorpseEaterReaction, DamageTag.Fire, "Corpse Eater", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.MissingCorpseEaterReaction, DamageTag.Wyrdness, "Corpse Eater", "Wyrdness", 0.80f),
+            new ExactDamageRule(ExactTarget.ElectricStagfatherGolem, DamageTag.Poison, "Electric Stagfather Golem", "Poison", 1.33f),
+            new ExactDamageRule(ExactTarget.Mistbearer, DamageTag.Fire, "Mistbearer", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.Mistbearer, DamageTag.Wyrdness, "Mistbearer", "Wyrdness", 0.80f),
+            new ExactDamageRule(ExactTarget.WyrdheirChallenge, DamageTag.Cold, "Wyrdheir", "Cold", 0.60f),
+            new ExactDamageRule(ExactTarget.Nivera, DamageTag.Fire, "Nivera", "Fire", 1.33f),
+            new ExactDamageRule(ExactTarget.Rimefiend, DamageTag.Fire, "Rimefiend", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.FrostWolf, DamageTag.Fire, "Frost Wolf", "Fire", 1.15f),
+            new ExactDamageRule(ExactTarget.FrostWolf, DamageTag.Cold, "Frost Wolf", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.StrawParent, DamageTag.Fire, "Straw Construct", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.StrawParent, DamageTag.Slashing, "Straw Construct", "Slash", 1.15f),
+            new ExactDamageRule(ExactTarget.Wyrdspawn, DamageTag.Slashing, "Wyrdspawn", "Slash", 1.10f),
+            new ExactDamageRule(ExactTarget.Ogre, DamageTag.Piercing, "Ogre", "Pierce", 1.15f),
+            new ExactDamageRule(ExactTarget.Ogre, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Ogre", "Biological", 1.10f),
+            new ExactDamageRule(ExactTarget.Ogre, DamageTag.Bludgeoning, "Ogre", "Blunt", 0.90f),
+            new ExactDamageRule(ExactTarget.FireAligned, DamageTag.Wet, "Fire-Aligned", "Wet", 1.20f),
+            new ExactDamageRule(ExactTarget.DrownedSkeletonSailor, DamageTag.Electric, "Drowned Skeleton", "Electric", 1.12f),
+            new ExactDamageRule(ExactTarget.FrostAngel, DamageTag.Fire, "Frost Angel", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.FrostAngel, DamageTag.Cold, "Frost Angel", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.IceWeaverChampion, DamageTag.Fire, "Ice Weaver Champion", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.IceWeaverChampion, DamageTag.Cold, "Ice Weaver Champion", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.IceWeaverWolf, DamageTag.Fire, "Ice Weaver Wolf", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.IceWeaverWolf, DamageTag.Cold, "Ice Weaver Wolf", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.IceTrialWyrd, DamageTag.Fire, "Ice Trial Wyrd", "Fire", 1.15f),
+            new ExactDamageRule(ExactTarget.IceTrialWyrd, DamageTag.Cold, "Ice Trial Wyrd", "Cold", 0.75f),
+            new ExactDamageRule(ExactTarget.CharredConclaveWyrdspawn, DamageTag.Cold, "Charred Wyrdspawn", "Cold", 1.15f),
+            new ExactDamageRule(ExactTarget.CharredConclaveWyrdspawn, DamageTag.Fire, "Charred Wyrdspawn", "Fire", 0.75f),
+            new ExactDamageRule(ExactTarget.IceStatue, DamageTag.Fire, "Ice Statue", "Fire", 1.20f),
+            new ExactDamageRule(ExactTarget.IceStatue, DamageTag.Cold, "Ice Statue", "Cold", 0.60f),
+            new ExactDamageRule(ExactTarget.AncientBeholder, DamageTag.Piercing, "Ancient Beholder", "Pierce", 1.12f),
+            new ExactDamageRule(ExactTarget.AncientBeholder, DamageTag.BloodMagic | DamageTag.Bleed | DamageTag.Poison, "Ancient Beholder", "Biological", 1.08f),
+            new ExactDamageRule(ExactTarget.AncientBeholder, DamageTag.Bludgeoning, "Ancient Beholder", "Blunt", 0.90f),
+            new ExactDamageRule(ExactTarget.Singworm, DamageTag.Slashing, "Singworm", "Slash", 1.15f),
+            new ExactDamageRule(ExactTarget.Singworm, DamageTag.Bludgeoning, "Singworm", "Blunt", 0.85f),
+            new ExactDamageRule(ExactTarget.LirTentacle, DamageTag.Slashing, "Lir Tentacle", "Slash", 1.15f),
+            new ExactDamageRule(ExactTarget.LirTentacle, DamageTag.Bludgeoning, "Lir Tentacle", "Blunt", 0.85f),
+            new ExactDamageRule(ExactTarget.BloodAbomination, DamageTag.Slashing, "Blood Abomination", "Slash", 1.20f),
+            new ExactDamageRule(ExactTarget.BloodAbomination, DamageTag.Bludgeoning, "Blood Abomination", "Blunt", 0.80f),
+            new ExactDamageRule(ExactTarget.WyrdSlime, DamageTag.Bludgeoning, "Wyrd Slime", "Blunt", 0.80f),
+            new ExactDamageRule(ExactTarget.Tidewraith, DamageTag.Bludgeoning, "Tidewraith", "Blunt", 0.90f)
         };
 
         private static readonly NativeSubtypeCheck[] NativeSubtypeChecks =
@@ -228,8 +294,8 @@ namespace SteelAndBone
         private static readonly string[] PoisonTerms = { "poison", "toxic", "venom" };
         private static readonly string[] WyrdTerms = { "wyrd" };
         private static readonly string[] BloodMagicTerms = { "blood", "transfusion", "abhartach", "sanguine", "sanguis", "hematic" };
-        private static readonly string[] MetadataBoneUndeadTerms = { "HitBones", "Skeleton", "BoneMask" };
-        private static readonly string[] MetadataConstructTerms = { "HitStone", "Construct", "Automaton", "Golem" };
+        private static readonly string[] MetadataBoneUndeadTerms = { "Skeleton", "BoneMask" };
+        private static readonly string[] MetadataConstructTerms = { "Construct", "Automaton", "Golem" };
         private static readonly string[] MetadataWyrdTerms = { "WyrdnessBound" };
         private static readonly string[] MetadataDrownedZombieTerms = { "Scourge" };
         private static readonly string[] MetadataSeaFleshTerms = { "SarrasCreature", "ReefboundBody" };
@@ -240,6 +306,7 @@ namespace SteelAndBone
         private static readonly string[] MetadataEliteTerms = { "Elite", "MiniBoss", "Boss", "Type:Elite" };
         private static readonly string[] MetadataBossTerms = { "MiniBoss", "Boss" };
         private static readonly string[] MetadataConfirmedSkeletonTerms = { "Skeleton" };
+        private static readonly string[] MetadataBoneBodyTerms = { "HitBones" };
         private static readonly string[] MetadataStoneBodyTerms = { "HitStone" };
         private static readonly string[] MetadataWoodBodyTerms = { "HitWood" };
         private static readonly string[] MetadataHumanoidTerms = { "Human", "Humanoid" };
@@ -248,6 +315,80 @@ namespace SteelAndBone
         private static readonly string[] SwarmTerms = { "Swarm", "Bee Swarm", "BeeSwarm" };
         private static readonly string[] EnemyMovementBearTerms = { "AnimalBear", "Forlorn Bear" };
         private static readonly string[] EnemyMovementBulkyMonsterTerms = { "Beholder", "Slugholder" };
+        private static readonly string[] InheritedColdWeaknessTerms =
+        {
+            "Grindylow_Summon",
+            "Grindylow Summon",
+            "BloodAbominationsSummon",
+            "Blood Abominations Summon",
+            "BonemaskWarrior_Summon",
+            "Bonemask Warrior Summon"
+        };
+        private static readonly string[] FlamegobblerTerms = { "Flamegobbler" };
+        private static readonly string[] CrystalBodyTerms =
+        {
+            "CrystalCrawler",
+            "Crystal Crawler",
+            "CrystalWalker",
+            "Crystal Walker"
+        };
+        private static readonly string[] WyrdSlimeColdWeaknessTerms = { "WyrdSlime", "Wyrd Slime" };
+        private static readonly string[] RootambusherTerms = { "Rootambusher" };
+        private static readonly string[] FrostbittenWarriorTerms = { "FrostbittenWarrior", "Frostbitten Warrior" };
+        private static readonly string[] FrostgrotTerms = { "Frostgrot" };
+        private static readonly string[] WightTerms =
+        {
+            "EnemyMonster_T4_Wight",
+            "EnemyMonster_T2_WightHoS",
+            "EnemyMonster_T4_Wight_LostInLuminal",
+            "EnemyMonster_T6_Wight_Bodil"
+        };
+        private static readonly string[] GiantTerms = { "Abstract:Giant" };
+        private static readonly string[] MissingCorpseEaterReactionTerms = { "CorpseEater_Summon", "Corpse Eater Summon", "EnemyMonster_T1_CorpseEaterBig" };
+        private static readonly string[] ElectricStagfatherGolemTerms = { "StagFather_ElectricGolem", "StagFather Electric Golem" };
+        private static readonly string[] MistbearerTerms = { "EnemyBoss_T3_MistBearer_Base", "EnemyBoss_T3_MistBearer_Mimic", "MistBearer" };
+        private static readonly string[] WyrdheirChallengeTerms = { "EnemyBoss_T6_Wyrdheir_Challenge" };
+        private static readonly string[] NiveraTerms = { "Nivera" };
+        private static readonly string[] RimefiendTerms = { "EnemyMonster_T6_Rimefiend", "Rimefiend" };
+        private static readonly string[] FrostWolfTerms = { "AnimalFrostWolf_Summon", "AnimalFrostWolf_SummonCuanacht" };
+        private static readonly string[] StrawParentTerms = { "EnemyMonster_T4_StrawDad", "EnemyMonster_T4_StrawSon" };
+        private static readonly string[] StagfatherTerms = { "StagFather", "Stagfather" };
+        private static readonly string[] GhostOfBrocMealaTerms = { "GhostOfBrocMeala", "Ghost Of Broc Meala" };
+        private static readonly string[] SleepwalkerTerms = { "EnemyMonster_T6_Sleepwalker", "Sleepwalker" };
+        private static readonly string[] WailcapTerms = { "Wailcap" };
+        private static readonly string[] WyrdspawnTerms = { "Wyrdspawn" };
+        private static readonly string[] OgreTerms = { "Ogre" };
+        private static readonly string[] FireAlignedTerms =
+        {
+            "Flamegobbler",
+            "Cindermar",
+            "Forgeborn",
+            "StagFather_FireGolem",
+            "StagFather Fire Golem",
+            "ElementalGolemFire",
+            "Elemental Golem Fire"
+        };
+        private static readonly string[] ElementalStagfatherGolemTerms =
+        {
+            "StagFather_ElectricGolem",
+            "StagFather Electric Golem",
+            "StagFather_FireGolem",
+            "StagFather Fire Golem",
+            "StagFather_IceGolem",
+            "StagFather Ice Golem"
+        };
+        private static readonly string[] DrownedSkeletonSailorTerms = { "DrownedDeckhand", "DrownedMariner" };
+        private static readonly string[] FrostAngelTerms = { "Enemy_Special_FrostAngel", "Frost Angel" };
+        private static readonly string[] IceWeaverChampionTerms = { "IceWeaversChampion", "Ice Weaver's Champion", "Ice Weavers Champion" };
+        private static readonly string[] IceWeaverWolfTerms = { "AnimalIceWeaverWolf_Summon", "Ice Weaver Wolf" };
+        private static readonly string[] IceTrialWyrdTerms = { "Wyrdspawn_IceTrial", "Wyrdspirit_IceTrial" };
+        private static readonly string[] CharredConclaveWyrdspawnTerms = { "WyrdspawnCharredConclave", "Charred Conclave Wyrdspawn" };
+        private static readonly string[] IceStatueTerms = { "Special_Trial_IceStatue", "Trial Ice Statue" };
+        private static readonly string[] AncientBeholderTerms = { "EnemyMonster_T6_AncientBeholder", "Ancient Beholder" };
+        private static readonly string[] SingwormTerms = { "Singworm" };
+        private static readonly string[] LirTentacleTerms = { "Lir_Tentacle_Summon", "Lir Tentacle" };
+        private static readonly string[] BloodAbominationTerms = { "BloodAbomination", "Blood Abomination" };
+        private static readonly string[] TidewraithTerms = { "Tidewraith", "Tide Wraith" };
 
         internal static SteelAndBonePlugin Instance { get; private set; }
         internal static ManualLogSource Log { get; private set; }
@@ -262,7 +403,9 @@ namespace SteelAndBone
         private ConfigEntry<Preset> _preset;
         private ConfigEntry<bool> _respectVanillaMultipliers;
         private ConfigEntry<bool> _arrowMaterialRulesEnabled;
+        private ConfigEntry<bool> _materialImpactRulesEnabled;
         private ConfigEntry<bool> _armoredSpellWeaknessEnabled;
+        private ConfigEntry<bool> _techniqueMatchupRulesEnabled;
         private ConfigEntry<bool> _amplifyVanillaMultipliers;
         private ConfigEntry<float> _temperedVanillaAmplification;
         private ConfigEntry<float> _hardenedVanillaAmplification;
@@ -417,106 +560,108 @@ namespace SteelAndBone
         {
             ResetConfigIfSchemaChanged();
 
-            _enabled = Config.Bind("1. Core", "Enabled", true, ConfigUi("Master switch.", "General", "Enabled", 0, 0));
+            _enabled = Config.Bind("General", "Enabled", true, ConfigUi("Master switch.", "General", "Enabled", 0, 0));
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = Config.Bind("1. Core", "Preset", Preset.Hardened, ConfigUi("Difficulty profile. Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor-weight, recovery, poise, and enemy movement modifiers neutral. Hardened applies 10% damage and experience pressure plus the default 5% supporting profile. Crucible applies 15% damage and experience pressure plus the 10% supporting profile and stronger material rules.", "General", "Preset", 0, 10));
-            _respectVanillaMultipliers = Config.Bind("1. Core", "RespectVanillaMultipliers", true, ConfigUi("Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.", "Combat Rules", "Respect Native Multipliers", 10, 0));
-            _arrowMaterialRulesEnabled = Config.Bind("1. Core", "ArrowMaterialRulesEnabled", true, ConfigUi("Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.", "Combat Rules", "Arrow Material Rules", 10, 10));
-            _armoredSpellWeaknessEnabled = Config.Bind("1. Core", "ArmoredSpellWeaknessEnabled", true, ConfigUi("Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.", "Combat Rules", "Armored Spell Weaknesses", 10, 20));
-            _eliteRuleClampsEnabled = Config.Bind("1. Core", "EliteRuleClampsEnabled", true, ConfigUi("Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.", "Combat Rules", "Elite Rule Limits", 10, 30));
-            _eliteWeaknessBonusReduction = Config.Bind("1. Core", "EliteWeaknessBonusReduction", 0.10f, ConfigUi("Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets when Elite Rule Limits is enabled. 0.10 turns a 1.15 weakness into 1.05.", "Advanced - Elite Rules", "Weakness Bonus Reduction", 20, 0, new AcceptableValueRange<float>(0.0f, 0.50f)));
-            _eliteMinimumResistanceMultiplier = Config.Bind("1. Core", "EliteMinimumResistanceMultiplier", 0.20f, ConfigUi("Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets when Elite Rule Limits is enabled.", "Advanced - Elite Rules", "Minimum Resistance Multiplier", 20, 10, new AcceptableValueRange<float>(0.05f, 0.95f)));
+            _preset = Config.Bind("General", "Preset", Preset.Hardened, ConfigUi("Difficulty profile. Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor-weight, recovery, poise, and enemy movement modifiers neutral. Hardened applies 10% damage and experience pressure plus the default 5% supporting profile. Crucible applies 15% damage and experience pressure plus the 10% supporting profile and stronger material rules.", "General", "Preset", 0, 10));
+            _respectVanillaMultipliers = Config.Bind("General", "RespectVanillaMultipliers", true, ConfigUi("Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.", "Combat Rules", "Respect Native Multipliers", 10, 0));
+            _arrowMaterialRulesEnabled = Config.Bind("General", "ArrowMaterialRulesEnabled", true, ConfigUi("Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.", "Combat Rules", "Arrow Material Rules", 10, 10));
+            _materialImpactRulesEnabled = Config.Bind("General", "MaterialImpactRulesEnabled", true, ConfigUi("Let resistance shape secondary impact for direct player hits. Resistance partially reduces poise and force without amplifying weaknesses, while immunity or very strong resistance removes the routine small flinch. Genuine poise breaks, stumbles, and ragdolls remain possible.", "Combat Rules", "Material Impact Rules", 10, 15));
+            _armoredSpellWeaknessEnabled = Config.Bind("General", "ArmoredSpellWeaknessEnabled", true, ConfigUi("Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.", "Combat Rules", "Armored Spell Weaknesses", 10, 20));
+            _techniqueMatchupRulesEnabled = Config.Bind("General", "TechniqueMatchupRulesEnabled", true, ConfigUi("Enable the compact technique layer: pommel strikes count as limited Blunt against rigid targets, heavy melee attacks partially breach custom rigid resistance, and direct area hits pressure swarms.", "Combat Rules", "Technique Matchup Rules", 10, 30));
+            _eliteRuleClampsEnabled = Config.Bind("General", "EliteRuleClampsEnabled", true, ConfigUi("Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.", "Combat Rules", "Elite Rule Limits", 10, 40));
+            _eliteWeaknessBonusReduction = Config.Bind("General", "EliteWeaknessBonusReduction", 0.10f, ConfigUi("Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets when Elite Rule Limits is enabled. 0.10 turns a 1.15 weakness into 1.05.", "Advanced - Elite Rules", "Weakness Bonus Reduction", 20, 0, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _eliteMinimumResistanceMultiplier = Config.Bind("General", "EliteMinimumResistanceMultiplier", 0.20f, ConfigUi("Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets when Elite Rule Limits is enabled.", "Advanced - Elite Rules", "Minimum Resistance Multiplier", 20, 10, new AcceptableValueRange<float>(0.05f, 0.95f)));
 
-            _amplifyVanillaMultipliers = Config.Bind("2. Vanilla Multipliers", "AmplifyVanillaMultipliers", true, ConfigUi("Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.", "Advanced - Vanilla Multipliers", "Amplify Native Multipliers", 30, 0));
-            _temperedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered when Amplify Native Multipliers is enabled. 0 leaves vanilla unchanged.", "Advanced - Vanilla Multipliers", "Tempered Amplification", 30, 10, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _hardenedVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Hardened Amplification", 30, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _crucibleVanillaAmplification = Config.Bind("2. Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Crucible Amplification", 30, 30, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _minimumAmplifiedVanillaResistance = Config.Bind("2. Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Minimum Amplified Resistance", 30, 40, new AcceptableValueRange<float>(0.01f, 0.95f)));
-            _maximumAmplifiedVanillaWeakness = Config.Bind("2. Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50, new AcceptableValueRange<float>(1.05f, 3.0f)));
+            _amplifyVanillaMultipliers = Config.Bind("Vanilla Multipliers", "AmplifyVanillaMultipliers", true, ConfigUi("Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.", "Advanced - Vanilla Multipliers", "Amplify Native Multipliers", 30, 0));
+            _temperedVanillaAmplification = Config.Bind("Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered when Amplify Native Multipliers is enabled. 0 leaves vanilla unchanged.", "Advanced - Vanilla Multipliers", "Tempered Amplification", 30, 10, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _hardenedVanillaAmplification = Config.Bind("Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Hardened Amplification", 30, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _crucibleVanillaAmplification = Config.Bind("Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Crucible Amplification", 30, 30, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _minimumAmplifiedVanillaResistance = Config.Bind("Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Minimum Amplified Resistance", 30, 40, new AcceptableValueRange<float>(0.01f, 0.95f)));
+            _maximumAmplifiedVanillaWeakness = Config.Bind("Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50, new AcceptableValueRange<float>(1.05f, 3.0f)));
 
-            _damageNumbersEnabled = Config.Bind("3. Feedback", "DamageNumbersEnabled", true, ConfigUi("Show Steel and Bone floating damage numbers for outgoing player hits.", "Damage Numbers", "Enabled", 40, 0));
-            _damageNumberBaseColor = Config.Bind("3. Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, ConfigUi("When Damage Numbers is enabled, sets the neutral outgoing color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.", "Damage Numbers", "Base Color", 40, 10));
-            _damageNumberFontSize = Config.Bind("3. Feedback", "DamageNumberFontSize", 34, ConfigUi("When Damage Numbers is enabled, sets the base floating damage-number font size.", "Damage Numbers", "Font Size", 40, 20, new AcceptableValueRange<int>(12, 80)));
-            _damageNumberFontMode = Config.Bind("3. Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, ConfigUi("Font used when Damage Numbers is enabled. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.", "Damage Numbers", "Font", 40, 30));
-            _damageNumberDurationSeconds = Config.Bind("3. Feedback", "DamageNumberDurationSeconds", 0.85f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a normal number remains visible.", "Damage Numbers", "Normal Duration (Seconds)", 40, 40, new AcceptableValueRange<float>(0.35f, 2.50f)));
-            _damageNumberCriticalDurationSeconds = Config.Bind("3. Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a critical number remains visible.", "Damage Numbers", "Critical Duration (Seconds)", 40, 50, new AcceptableValueRange<float>(0.45f, 3.00f)));
-            _meleeDamageNumberDurationMultiplier = Config.Bind("3. Feedback", "MeleeDamageNumberDurationMultiplier", 2.0f, ConfigUi("When Damage Numbers is enabled, multiplies the final duration of direct melee numbers so they remain readable while the camera follows a swing. 1 uses the same duration as other damage numbers.", "Damage Numbers", "Melee Duration Multiplier", 40, 60, new AcceptableValueRange<float>(1.0f, 3.0f)));
-            _damageNumberHorizontalDrift = Config.Bind("3. Feedback", "DamageNumberHorizontalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Horizontal Drift", 40, 70, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberVerticalDrift = Config.Bind("3. Feedback", "DamageNumberVerticalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Vertical Drift", 40, 80, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageOverTimeNumberHeightMultiplier = Config.Bind("3. Feedback", "DamageOverTimeNumberHeightMultiplier", 3.0f, ConfigUi("When Damage Numbers is enabled, multiplies the initial world-space height of Bleed, Poison, Burn, and Breath status-tick numbers. 1 uses the ordinary height, while 3 starts them three times higher.", "Damage Numbers", "Damage-Over-Time Height Multiplier", 40, 90, new AcceptableValueRange<float>(0.0f, 6.0f)));
-            _damageOverTimeNumberScale = Config.Bind("3. Feedback", "DamageOverTimeNumberScale", 0.75f, ConfigUi("When Damage Numbers is enabled, scales the text size of Bleed, Poison, Burn, and Breath status-tick numbers after normal resistance, weakness, weak-spot, and critical sizing. 1 uses the ordinary size, while 0.75 makes status ticks 25% smaller.", "Damage Numbers", "Damage-Over-Time Text Scale", 40, 100, new AcceptableValueRange<float>(0.5f, 2.0f)));
-            _damageNumberSizeContrast = Config.Bind("3. Feedback", "DamageNumberSizeContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls the size difference between resisted, neutral, and weakness numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", "Damage Numbers", "Size Contrast", 40, 110, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _effectivenessFeedbackSensitivity = Config.Bind("3. Feedback", "EffectivenessFeedbackSensitivity", GetPresetEffectivenessFeedbackSensitivity(_preset.Value), ConfigUi("Scales resistance and weakness distance from neutral for hit-marker tier selection and damage-number color only. Changing Preset sets this to 1.20 for Tempered, 1.10 for Hardened, or 1.00 for Crucible; customize it afterward without changing combat damage, number size, or duration.", "Damage Numbers", "Effectiveness Feedback Sensitivity", 40, 120, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberColorContrast = Config.Bind("3. Feedback", "DamageNumberColorContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls resistance grey and weakness red-orange tinting after effectiveness sensitivity is applied. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", "Damage Numbers", "Color Contrast", 40, 130, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _damageNumberMinimumAmount = Config.Bind("3. Feedback", "DamageNumberMinimumAmount", 0.10f, ConfigUi("When Damage Numbers is enabled, suppresses non-immune numbers below this final damage amount.", "Damage Numbers", "Minimum Amount", 40, 140, new AcceptableValueRange<float>(0.0f, 1000.0f)));
-            _damageNumberMaximumActive = Config.Bind("3. Feedback", "DamageNumberMaximumActive", 36, ConfigUi("When Damage Numbers is enabled, limits how many Steel and Bone floating numbers remain on screen at once.", "Damage Numbers", "Maximum Active", 40, 150, new AcceptableValueRange<int>(1, 128)));
+            _damageNumbersEnabled = Config.Bind("Feedback", "DamageNumbersEnabled", true, ConfigUi("Show Steel and Bone floating damage numbers for outgoing player hits.", "Damage Numbers", "Enabled", 40, 0));
+            _damageNumberBaseColor = Config.Bind("Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, ConfigUi("When Damage Numbers is enabled, sets the neutral outgoing color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.", "Damage Numbers", "Base Color", 40, 10));
+            _damageNumberFontSize = Config.Bind("Feedback", "DamageNumberFontSize", 34, ConfigUi("When Damage Numbers is enabled, sets the base floating damage-number font size.", "Damage Numbers", "Font Size", 40, 20, new AcceptableValueRange<int>(12, 80)));
+            _damageNumberFontMode = Config.Bind("Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, ConfigUi("Font used when Damage Numbers is enabled. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.", "Damage Numbers", "Font", 40, 30));
+            _damageNumberDurationSeconds = Config.Bind("Feedback", "DamageNumberDurationSeconds", 0.85f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a normal number remains visible.", "Damage Numbers", "Normal Duration (Seconds)", 40, 40, new AcceptableValueRange<float>(0.35f, 2.50f)));
+            _damageNumberCriticalDurationSeconds = Config.Bind("Feedback", "DamageNumberCriticalDurationSeconds", 1.10f, ConfigUi("When Damage Numbers is enabled, sets how many seconds a critical number remains visible.", "Damage Numbers", "Critical Duration (Seconds)", 40, 50, new AcceptableValueRange<float>(0.45f, 3.00f)));
+            _meleeDamageNumberDurationMultiplier = Config.Bind("Feedback", "MeleeDamageNumberDurationMultiplier", 2.0f, ConfigUi("When Damage Numbers is enabled, multiplies the final duration of direct melee numbers so they remain readable while the camera follows a swing. 1 uses the same duration as other damage numbers.", "Damage Numbers", "Melee Duration Multiplier", 40, 60, new AcceptableValueRange<float>(1.0f, 3.0f)));
+            _damageNumberHorizontalDrift = Config.Bind("Feedback", "DamageNumberHorizontalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies left/right travel. 0 disables horizontal travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Horizontal Drift", 40, 70, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberVerticalDrift = Config.Bind("Feedback", "DamageNumberVerticalDrift", 1.0f, ConfigUi("When Damage Numbers is enabled, multiplies upward travel and curved settling. 0 disables vertical travel, 1 keeps the default motion, and values above 1 exaggerate it.", "Damage Numbers", "Vertical Drift", 40, 80, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageOverTimeNumberHeightMultiplier = Config.Bind("Feedback", "DamageOverTimeNumberHeightMultiplier", 3.0f, ConfigUi("When Damage Numbers is enabled, multiplies the initial world-space height of Bleed, Poison, Burn, and Breath status-tick numbers. 1 uses the ordinary height, while 3 starts them three times higher.", "Damage Numbers", "Damage-Over-Time Height Multiplier", 40, 90, new AcceptableValueRange<float>(0.0f, 6.0f)));
+            _damageOverTimeNumberScale = Config.Bind("Feedback", "DamageOverTimeNumberScale", 0.75f, ConfigUi("When Damage Numbers is enabled, scales the text size of Bleed, Poison, Burn, and Breath status-tick numbers after normal resistance, weakness, weak-spot, and critical sizing. 1 uses the ordinary size, while 0.75 makes status ticks 25% smaller.", "Damage Numbers", "Damage-Over-Time Text Scale", 40, 100, new AcceptableValueRange<float>(0.5f, 2.0f)));
+            _damageNumberSizeContrast = Config.Bind("Feedback", "DamageNumberSizeContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls the size difference between resisted, neutral, and weakness numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", "Damage Numbers", "Size Contrast", 40, 110, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _effectivenessFeedbackSensitivity = Config.Bind("Feedback", "EffectivenessFeedbackSensitivity", GetPresetEffectivenessFeedbackSensitivity(_preset.Value), ConfigUi("Scales resistance and weakness distance from neutral for hit-marker tier selection and damage-number color only. Changing Preset sets this to 1.20 for Tempered, 1.10 for Hardened, or 1.00 for Crucible; customize it afterward without changing combat damage, number size, or duration.", "Damage Numbers", "Effectiveness Feedback Sensitivity", 40, 120, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberColorContrast = Config.Bind("Feedback", "DamageNumberColorContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls resistance grey and weakness red-orange tinting after effectiveness sensitivity is applied. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", "Damage Numbers", "Color Contrast", 40, 130, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _damageNumberMinimumAmount = Config.Bind("Feedback", "DamageNumberMinimumAmount", 0.10f, ConfigUi("When Damage Numbers is enabled, suppresses non-immune numbers below this final damage amount.", "Damage Numbers", "Minimum Amount", 40, 140, new AcceptableValueRange<float>(0.0f, 1000.0f)));
+            _damageNumberMaximumActive = Config.Bind("Feedback", "DamageNumberMaximumActive", 36, ConfigUi("When Damage Numbers is enabled, limits how many Steel and Bone floating numbers remain on screen at once.", "Damage Numbers", "Maximum Active", 40, 150, new AcceptableValueRange<int>(1, 128)));
 
             _boneUndeadTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "BoneUndeadTerms",
                 "Skeleton;Skull;Bone;Animated Armor;JollySkeleton;Keeper Of The Barrow;KeeperOfTheBarrow",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.", "Advanced - Target Families", "Bone Undead Terms", 50, 0));
             _constructTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "ConstructTerms",
-                "Stone;Golem;Construct;Automaton;Statue;Crystal;Lost Knight;LostKnight;Forgeborn;ForgeBorn;Cairnguard;Tibby;Sentinel;Barnaclator",
+                "Stone;Golem;Construct;Automaton;Statue;CrystalCrawler;Crystal Crawler;CrystalWalker;Crystal Walker;Lost Knight;LostKnight;Forgeborn;ForgeBorn;Cairnguard;Tibby;Sentinel;Barnaclator",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.", "Advanced - Target Families", "Construct Terms", 50, 10));
             _wyrdTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "WyrdTerms",
                 "Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.", "Advanced - Target Families", "Wyrd Terms", 50, 20));
             _drownedZombieTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "DrownedZombieTerms",
                 "Drowner;Drowned;Drowned Knight;Ghost Crew;Scourge",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.", "Advanced - Target Families", "Drowned Zombie Terms", 50, 30));
             _infectedFleshTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "InfectedFleshTerms",
                 "Red Death;RedDeath;Infected",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.", "Advanced - Target Families", "Infected Flesh Terms", 50, 40));
             _seaFleshTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "SeaFleshTerms",
                 "Sarras;Finbled;Tadpole;Tidewraith;Scion;Archivist;Floatling;Reefback;Wailcap;Grindylow;Croakmaw",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.", "Advanced - Target Families", "Sea Flesh Terms", 50, 50));
             _spiritTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "SpiritTerms",
                 "Ghost;Spirit;Wraith;Banshee;Melancholy;Mistling;Mistbearer;Strawchild;Strawfather",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.", "Advanced - Target Families", "Spirit Terms", 50, 60));
             _floraTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "FloraTerms",
-                "Dryad;Gloomfrond;Fleshtree;Wailcap;Viridian",
+                "Dryad;Gloomfrond;Fleshtree",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.", "Advanced - Target Families", "Flora Terms", 50, 70));
             _fleshUndeadTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "FleshUndeadTerms",
-                "Zombie;Undead;Wight;Bloody;Frostbitten Warrior;Plaguewraith",
+                "Zombie;Undead;Bloody;Frostbitten Warrior;Plaguewraith",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.", "Advanced - Target Families", "Flesh Undead Terms", 50, 80));
             _fleshTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "FleshTerms",
                 "Bandit;Outlaw;Human;Humanoid;Remor;Redcap;Corpse Eater;Wolf;Bear",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.", "Advanced - Target Families", "Flesh Terms", 50, 90));
             _armoredHumanoidTerms = Config.Bind(
-                "4. Target Families",
+                "Target Families",
                 "ArmoredHumanoidTerms",
                 "Knight;Guard;Squire;Warrior;Deserter;Kamelot;Soldier;Armor;Armored",
                 ConfigUi("Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.", "Advanced - Target Families", "Armored Humanoid Terms", 50, 100));
 
-            _diagnostics = Config.Bind("5. Diagnostics", "Diagnostics", false, ConfigUi("Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.", "Diagnostics", "Diagnostics", 90, 0));
-            _showGrailFloatingTextDiagnostics = Config.Bind("5. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, ConfigUi("When Diagnostics is enabled and Grail Floating Text is installed, show concise damage-decision summaries. Detailed BepInEx logging remains active when this is disabled.", "Diagnostics", "Show Grail Floating Text Diagnostics", 90, 5));
-            _logPatchWarnings = Config.Bind("5. Diagnostics", "LogPatchWarnings", true, ConfigUi("Log warnings when required game methods cannot be patched.", "Diagnostics", "Patch Failure Warnings", 90, 10));
+            _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false, ConfigUi("Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.", "Diagnostics", "Diagnostics", 90, 0));
+            _showGrailFloatingTextDiagnostics = Config.Bind("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, ConfigUi("When Diagnostics is enabled and Grail Floating Text is installed, show concise damage-decision summaries. Detailed BepInEx logging remains active when this is disabled.", "Diagnostics", "Show Grail Floating Text Diagnostics", 90, 5));
+            _logPatchWarnings = Config.Bind("Diagnostics", "LogPatchWarnings", true, ConfigUi("Log warnings when required game methods cannot be patched.", "Diagnostics", "Patch Failure Warnings", 90, 10));
 
             BindDifficultyConfig();
             RestorePreservedConfigSettings();
@@ -640,7 +785,9 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _preset, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _respectVanillaMultipliers, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _arrowMaterialRulesEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _materialImpactRulesEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _armoredSpellWeaknessEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _techniqueMatchupRulesEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _passiveShieldProtectionEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteRuleClampsEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteWeaknessBonusReduction, ref restoredCount, ref clampedCount);
@@ -688,14 +835,18 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyStaminaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerPoiseDamageDealt, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _progressiveTenacityEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowVelocity, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowDrop, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _playerArrowGravityMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorWeightPenalties, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _modifyConsumableRecovery, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyPotionOverdrinking, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyFoodRecovery, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _preventFoodUseInCombat, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _staminaDepletedVignetteMode, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _staminaDepletedVignetteFadeSeconds, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
@@ -905,6 +1056,27 @@ namespace SteelAndBone
                 skippedForEliteClamp = payloadSkippedForEliteClamp;
                 matchedRule = true;
             }
+            else if (TryResolvePommelMaterialRule(
+                targetClass,
+                damageClass,
+                damage,
+                out match,
+                out skippedForVanilla))
+            {
+                skippedForEliteClamp = false;
+                matchedRule = true;
+            }
+            else if (TryResolveColdWeaknessRule(
+                targetClass,
+                damageClass,
+                damage,
+                DamageTag.None,
+                out match,
+                out skippedForVanilla,
+                out skippedForEliteClamp))
+            {
+                matchedRule = true;
+            }
             else if (TryResolveArmoredSpellRule(targetClass, damageClass, damage, out match, out skippedForVanilla))
             {
                 skippedForEliteClamp = false;
@@ -919,6 +1091,20 @@ namespace SteelAndBone
                     out match,
                     out skippedForVanilla,
                     out skippedForEliteClamp);
+            }
+            if (matchedRule)
+            {
+                TryApplyHeavyMaterialBreach(targetClass, damageClass, damage, ref match);
+            }
+            else if (TryResolveAreaSwarmRule(
+                targetClass,
+                damageClass,
+                damage,
+                out match,
+                out skippedForVanilla))
+            {
+                skippedForEliteClamp = false;
+                matchedRule = true;
             }
             if (!matchedRule && !appliedVanillaAmplification)
             {
@@ -1792,6 +1978,263 @@ namespace SteelAndBone
             return true;
         }
 
+        private bool TechniqueMatchupRulesEnabled()
+        {
+            return _techniqueMatchupRulesEnabled == null || _techniqueMatchupRulesEnabled.Value;
+        }
+
+        private bool MaterialImpactRulesEnabled()
+        {
+            return _enabled != null
+                && _enabled.Value
+                && (_materialImpactRulesEnabled == null || _materialImpactRulesEnabled.Value);
+        }
+
+        private bool TryResolvePommelMaterialRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            if (!TechniqueMatchupRulesEnabled()
+                || targetClass == null
+                || damageClass == null
+                || !damageClass.IsPommel
+                || damageClass.IsArrow
+                || !IsMeleeDamage(damage))
+            {
+                return false;
+            }
+
+            DamageTag physicalTag;
+            if (!TryGetPhysicalDamageTag(damageClass, out physicalTag))
+            {
+                return false;
+            }
+
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                physicalTag,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                return false;
+            }
+
+            string targetLabel;
+            float baseMultiplier;
+            if (TargetMatchesRule(targetClass, TargetFamily.StoneBody))
+            {
+                targetLabel = "Stone";
+                baseMultiplier = 1.15f;
+            }
+            else if (TargetMatchesRule(targetClass, TargetFamily.BoneBody))
+            {
+                targetLabel = "Bone";
+                baseMultiplier = 1.08f;
+            }
+            else
+            {
+                EnemyArmorTier armorTier;
+                string armorEvidence;
+                if (!TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence)
+                    || armorTier == EnemyArmorTier.Exposed)
+                {
+                    return false;
+                }
+
+                targetLabel = GetArmorTargetLabel(
+                    armorTier,
+                    GetOrdinaryHumanoidArmorMaterial(targetClass));
+                baseMultiplier = armorTier == EnemyArmorTier.Light
+                    ? 1.00f
+                    : armorTier == EnemyArmorTier.Medium ? 1.08f : 1.15f;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+
+            match = new DamageRuleMatch(
+                multiplier,
+                targetLabel,
+                "Pommel (Blunt)",
+                140,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
+        private bool TryApplyHeavyMaterialBreach(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            ref DamageRuleMatch match)
+        {
+            if (!TechniqueMatchupRulesEnabled()
+                || targetClass == null
+                || damageClass == null
+                || !damageClass.IsHeavyAttack
+                || damageClass.IsPommel
+                || damageClass.IsArrow
+                || !IsMeleeDamage(damage)
+                || match.Multiplier >= 0.9999f
+                || !IsRigidTechniqueTarget(targetClass))
+            {
+                return false;
+            }
+
+            DamageTag physicalTag;
+            if (!TryGetPhysicalDamageTag(damageClass, out physicalTag))
+            {
+                return false;
+            }
+
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                physicalTag,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                return false;
+            }
+
+            float presetMultiplier = 1.0f + ((match.PresetMultiplier - 1.0f) * 0.60f);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                match.TargetLabel,
+                match.DamageLabel + " (Heavy)",
+                match.Priority,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
+        private bool TryResolveAreaSwarmRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            if (!TechniqueMatchupRulesEnabled()
+                || targetClass == null
+                || !targetClass.IsSwarm
+                || damageClass == null
+                || !damageClass.IsAreaAttack
+                || damageClass.IsArrow
+                || IsDamageOverTime(damage))
+            {
+                return false;
+            }
+
+            DamageTag nativeTags = damageClass.Tags & (
+                DamageTag.Wyrdness
+                | DamageTag.GenericPhysical
+                | DamageTag.Slashing
+                | DamageTag.Piercing
+                | DamageTag.Bludgeoning
+                | DamageTag.GenericMagical
+                | DamageTag.Fire
+                | DamageTag.Cold
+                | DamageTag.Poison
+                | DamageTag.Electric
+                | DamageTag.Wet);
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                nativeTags,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(1.15f, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            if (!HasMeaningfulEffect(multiplier))
+            {
+                return false;
+            }
+
+            match = new DamageRuleMatch(
+                multiplier,
+                "Swarm",
+                "Direct Area",
+                35,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
+        private bool TryGetPhysicalDamageTag(
+            DamageClassification damageClass,
+            out DamageTag damageTag)
+        {
+            damageTag = DamageTag.None;
+            if (damageClass == null)
+            {
+                return false;
+            }
+
+            if (damageClass.IsGenericPhysical)
+            {
+                damageTag = DamageTag.GenericPhysical;
+            }
+            else if (damageClass.IsBludgeoning)
+            {
+                damageTag = DamageTag.Bludgeoning;
+            }
+            else if (damageClass.IsPiercing)
+            {
+                damageTag = DamageTag.Piercing;
+            }
+            else if (damageClass.IsSlashing)
+            {
+                damageTag = DamageTag.Slashing;
+            }
+
+            return damageTag != DamageTag.None;
+        }
+
+        private bool IsRigidTechniqueTarget(TargetClassification targetClass)
+        {
+            if (targetClass == null)
+            {
+                return false;
+            }
+            if (TargetMatchesRule(targetClass, TargetFamily.BoneBody)
+                || TargetMatchesRule(targetClass, TargetFamily.StoneBody))
+            {
+                return true;
+            }
+
+            EnemyArmorTier armorTier;
+            string armorEvidence;
+            return TryGetOrdinaryHumanoidArmorTier(targetClass, out armorTier, out armorEvidence)
+                && armorTier != EnemyArmorTier.Exposed;
+        }
+
         private bool TryResolveDamageRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
@@ -1830,6 +2273,66 @@ namespace SteelAndBone
             }
 
             Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            bool exactRuleSkippedForVanilla;
+            bool exactRuleSkippedForEliteClamp;
+            if (TryResolveExactDamageRule(
+                targetClass,
+                damageClass,
+                damage,
+                excludedTags,
+                out match,
+                out exactRuleSkippedForVanilla,
+                out exactRuleSkippedForEliteClamp))
+            {
+                return true;
+            }
+            skippedForVanilla = exactRuleSkippedForVanilla;
+            skippedForEliteClamp = exactRuleSkippedForEliteClamp;
+            if (skippedForVanilla || skippedForEliteClamp)
+            {
+                return false;
+            }
+
+            bool axeRuleSkippedForVanilla;
+            bool axeRuleSkippedForEliteClamp;
+            if (TryResolveAxeMaterialRule(
+                targetClass,
+                damageClass,
+                damage,
+                excludedTags,
+                out match,
+                out axeRuleSkippedForVanilla,
+                out axeRuleSkippedForEliteClamp))
+            {
+                return true;
+            }
+            skippedForVanilla = axeRuleSkippedForVanilla;
+            skippedForEliteClamp = axeRuleSkippedForEliteClamp;
+            if (skippedForVanilla || skippedForEliteClamp)
+            {
+                return false;
+            }
+
+            bool coldRuleSkippedForVanilla;
+            bool coldRuleSkippedForEliteClamp;
+            if (TryResolveColdWeaknessRule(
+                targetClass,
+                damageClass,
+                damage,
+                excludedTags,
+                out match,
+                out coldRuleSkippedForVanilla,
+                out coldRuleSkippedForEliteClamp))
+            {
+                return true;
+            }
+            skippedForVanilla = coldRuleSkippedForVanilla;
+            skippedForEliteClamp = coldRuleSkippedForEliteClamp;
+            if (skippedForVanilla || skippedForEliteClamp)
+            {
+                return false;
+            }
+
             bool armorTierSkippedForVanilla;
             if (TryResolveArmorTierPhysicalRule(
                 targetClass,
@@ -1928,6 +2431,230 @@ namespace SteelAndBone
             }
 
             return hasMatch;
+        }
+
+        private bool TryResolveExactDamageRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            DamageTag excludedTags,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla,
+            out bool skippedForEliteClamp)
+        {
+            match = default(DamageRuleMatch);
+            bool hasMatch = false;
+            skippedForVanilla = false;
+            skippedForEliteClamp = false;
+            if (targetClass == null || damageClass == null || targetClass.ExactTargets == ExactTarget.None)
+            {
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            for (int i = 0; i < ExactDamageRules.Length; i++)
+            {
+                ExactDamageRule rule = ExactDamageRules[i];
+                DamageTag eligibleRuleTags = rule.DamageTags & ~excludedTags;
+                if ((targetClass.ExactTargets & rule.Target) == ExactTarget.None
+                    || eligibleRuleTags == DamageTag.None
+                    || !damageClass.HasAny(eligibleRuleTags))
+                {
+                    continue;
+                }
+
+                string vanillaSubtype;
+                float vanillaMultiplier;
+                if (ShouldSkipForVanillaMultiplier(
+                    eligibleRuleTags,
+                    damageClass,
+                    damage,
+                    out vanillaSubtype,
+                    out vanillaMultiplier))
+                {
+                    skippedForVanilla = true;
+                    continue;
+                }
+
+                float presetMultiplier = ApplyPresetIntensity(rule.BaseMultiplier, preset);
+                float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+                if (!HasMeaningfulEffect(multiplier))
+                {
+                    skippedForEliteClamp |= Math.Abs(presetMultiplier - multiplier) > 0.001f;
+                    continue;
+                }
+
+                DamageRuleMatch candidate = new DamageRuleMatch(
+                    multiplier,
+                    rule.TargetLabel,
+                    rule.DamageLabel,
+                    130,
+                    GetRuleImpact(multiplier),
+                    presetMultiplier,
+                    Math.Abs(presetMultiplier - multiplier) > 0.001f);
+                if (!hasMatch || candidate.Impact > match.Impact)
+                {
+                    match = candidate;
+                    hasMatch = true;
+                }
+            }
+
+            if (hasMatch)
+            {
+                skippedForVanilla = false;
+                skippedForEliteClamp = false;
+            }
+            return hasMatch;
+        }
+
+        private bool TryResolveAxeMaterialRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            DamageTag excludedTags,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla,
+            out bool skippedForEliteClamp)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            skippedForEliteClamp = false;
+            if (targetClass == null
+                || damageClass == null
+                || !damageClass.IsAxe
+                || (!targetClass.IsFlora && !targetClass.HasWoodBody)
+                || (!damageClass.IsSlashing && !damageClass.IsGenericPhysical)
+                || (damageClass.IsSlashing && (excludedTags & DamageTag.Slashing) != DamageTag.None)
+                || (!damageClass.IsSlashing && (excludedTags & DamageTag.GenericPhysical) != DamageTag.None))
+            {
+                return false;
+            }
+
+            DamageTag physicalTag = damageClass.IsSlashing ? DamageTag.Slashing : DamageTag.GenericPhysical;
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                physicalTag,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(1.20f, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            if (!HasMeaningfulEffect(multiplier))
+            {
+                skippedForEliteClamp = Math.Abs(presetMultiplier - multiplier) > 0.001f;
+                return false;
+            }
+
+            match = new DamageRuleMatch(
+                multiplier,
+                "Flora/Wood",
+                "Axe",
+                125,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
+        private bool TryResolveColdWeaknessRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            object damage,
+            DamageTag excludedTags,
+            out DamageRuleMatch match,
+            out bool skippedForVanilla,
+            out bool skippedForEliteClamp)
+        {
+            match = default(DamageRuleMatch);
+            skippedForVanilla = false;
+            skippedForEliteClamp = false;
+            if (targetClass == null
+                || damageClass == null
+                || !damageClass.IsCold
+                || (excludedTags & DamageTag.Cold) != DamageTag.None)
+            {
+                return false;
+            }
+
+            float baseMultiplier;
+            string targetLabel;
+            if (targetClass.HasInheritedColdWeakness)
+            {
+                baseMultiplier = 1.20f;
+                targetLabel = "Inherited Cold Weakness";
+            }
+            else if (targetClass.IsFlamegobbler)
+            {
+                baseMultiplier = 1.15f;
+                targetLabel = "Flamegobbler";
+            }
+            else if (targetClass.IsCrystalBody)
+            {
+                baseMultiplier = 1.20f;
+                targetLabel = "Crystal Body";
+            }
+            else if (targetClass.IsWyrdSlime)
+            {
+                baseMultiplier = 1.10f;
+                targetLabel = "Wyrd Slime";
+            }
+            else
+            {
+                return false;
+            }
+
+            string vanillaSubtype;
+            float vanillaMultiplier;
+            if (ShouldSkipForVanillaMultiplier(
+                DamageTag.Cold,
+                damageClass,
+                damage,
+                out vanillaSubtype,
+                out vanillaMultiplier))
+            {
+                skippedForVanilla = true;
+                if (DiagnosticsEnabled())
+                {
+                    LogDiagnostic(
+                        "Skipped Steel and Bone Cold weakness because vanilla already modifies "
+                        + vanillaSubtype
+                        + ": targetFlags="
+                        + DescribeTargetFlags(targetClass)
+                        + ", targetFamily="
+                        + targetLabel
+                        + ", vanillaMultiplier="
+                        + vanillaMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                        + ".");
+                }
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            if (!HasMeaningfulEffect(multiplier))
+            {
+                skippedForEliteClamp = Math.Abs(presetMultiplier - multiplier) > 0.001f;
+                return false;
+            }
+
+            match = new DamageRuleMatch(
+                multiplier,
+                targetLabel,
+                "Cold",
+                130,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
         }
 
         private bool ShouldSkipForVanillaMultiplier(
@@ -2073,8 +2800,12 @@ namespace SteelAndBone
             {
                 case TargetFamily.BoneUndead:
                     return targetClass.IsBoneUndead;
+                case TargetFamily.BoneBody:
+                    return targetClass.IsBoneUndead || targetClass.HasBoneBody;
                 case TargetFamily.Construct:
                     return targetClass.IsConstruct;
+                case TargetFamily.StoneBody:
+                    return targetClass.IsConstruct || targetClass.HasStoneBody;
                 case TargetFamily.ArmoredHumanoid:
                     return IsEffectivelyArmoredHumanoid(targetClass);
                 case TargetFamily.Flesh:
@@ -2127,10 +2858,23 @@ namespace SteelAndBone
                 Revision = _targetTermsRevision
             };
 
+            classification.HasInheritedColdWeakness = ContainsAnyTerm(text, InheritedColdWeaknessTerms);
+            classification.IsFlamegobbler = ContainsAnyTerm(text, FlamegobblerTerms);
+            classification.IsCrystalBody = ContainsAnyTerm(text, CrystalBodyTerms);
+            classification.IsWyrdSlime = ContainsAnyTerm(text, WyrdSlimeColdWeaknessTerms);
+            if (classification.IsCrystalBody)
+            {
+                classification.IsConstruct = true;
+                classification.HasStoneBody = true;
+                AppendClassificationEvidence(classification, "terms:CrystalBody");
+            }
+
             string metadataText = BuildTargetMetadataSearchText(target, healthElement);
             classification.IsConfirmedSkeleton = ContainsAnyTerm(metadataText, MetadataConfirmedSkeletonTerms)
                 || ContainsAnyTerm(text, ConfirmedSkeletonTerms);
-            classification.HasStoneBody = ContainsAnyTerm(metadataText, MetadataStoneBodyTerms);
+            classification.HasBoneBody = ContainsAnyTerm(metadataText, MetadataBoneBodyTerms);
+            classification.HasStoneBody = classification.IsCrystalBody
+                || ContainsAnyTerm(metadataText, MetadataStoneBodyTerms);
             classification.HasWoodBody = ContainsAnyTerm(metadataText, MetadataWoodBodyTerms);
             classification.IsHumanoidFlesh = ContainsAnyTerm(metadataText, MetadataHumanoidTerms)
                 || ContainsAnyTerm(text, HumanoidFleshTerms);
@@ -2149,6 +2893,7 @@ namespace SteelAndBone
                 ApplyBroadFamilyTermOverrides(classification, text);
                 ApplySpecificTermTargetClassification(classification, text);
             }
+            ApplyExactTargetClassification(classification, text + " " + metadataText);
 
             NpcElement npc = target as NpcElement;
             if (npc != null && (classification.IsHumanoidFlesh || classification.IsArmoredHumanoid))
@@ -2164,6 +2909,253 @@ namespace SteelAndBone
 
             _targetClassifications[cacheKey] = classification;
             return classification;
+        }
+
+        private void ApplyExactTargetClassification(TargetClassification classification, string text)
+        {
+            if (classification == null || string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            if (ContainsAnyTerm(text, RootambusherTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Rootambusher;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flora);
+                AppendClassificationEvidence(classification, "exact:RootambusherFlora");
+            }
+            if (ContainsAnyTerm(text, FrostbittenWarriorTerms))
+            {
+                classification.ExactTargets |= ExactTarget.FrostbittenWarrior;
+                SetExclusiveTargetFamily(classification, TargetFamily.FleshUndead);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:FrostbittenWarriorUndead");
+            }
+            if (ContainsAnyTerm(text, FrostgrotTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Frostgrot;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:FrostgrotFlesh");
+            }
+            if (ContainsAnyTerm(text, WightTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Wight;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flora);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:WightFlora");
+            }
+            if (ContainsAnyTerm(text, GiantTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Giant;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:GiantFlesh");
+            }
+            if (ContainsAnyTerm(text, MissingCorpseEaterReactionTerms))
+            {
+                classification.ExactTargets |= ExactTarget.MissingCorpseEaterReaction;
+            }
+            if (ContainsAnyTerm(text, ElectricStagfatherGolemTerms))
+            {
+                classification.ExactTargets |= ExactTarget.ElectricStagfatherGolem;
+            }
+            if (ContainsAnyTerm(text, MistbearerTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Mistbearer;
+            }
+            if (ContainsAnyTerm(text, WyrdheirChallengeTerms))
+            {
+                classification.ExactTargets |= ExactTarget.WyrdheirChallenge;
+            }
+            if (ContainsAnyTerm(text, NiveraTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Nivera;
+            }
+            if (ContainsAnyTerm(text, RimefiendTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Rimefiend;
+            }
+            if (ContainsAnyTerm(text, FrostWolfTerms))
+            {
+                classification.ExactTargets |= ExactTarget.FrostWolf;
+            }
+            if (ContainsAnyTerm(text, StrawParentTerms))
+            {
+                classification.ExactTargets |= ExactTarget.StrawParent;
+                SetExclusiveTargetFamily(classification, TargetFamily.Spirit);
+                classification.HasBoneBody = true;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:StrawParentSpiritBoneBody");
+            }
+            if (ContainsAnyTerm(text, StagfatherTerms))
+            {
+                SetExclusiveTargetFamily(classification, TargetFamily.Spirit);
+                classification.HasBoneBody = true;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:StagfatherSpiritBoneBody");
+            }
+            if (ContainsAnyTerm(text, GhostOfBrocMealaTerms))
+            {
+                SetExclusiveTargetFamily(classification, TargetFamily.Spirit);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:GhostOfBrocMealaSpirit");
+            }
+            if (ContainsAnyTerm(text, SleepwalkerTerms))
+            {
+                SetExclusiveTargetFamily(classification, TargetFamily.Wyrd);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = true;
+                AppendClassificationEvidence(classification, "exact:SleepwalkerWyrdStoneBody");
+            }
+            if (ContainsAnyTerm(text, WailcapTerms))
+            {
+                SetExclusiveTargetFamily(classification, TargetFamily.SeaFlesh);
+                AppendClassificationEvidence(classification, "exact:WailcapSeaCreature");
+            }
+            if (ContainsAnyTerm(text, WyrdspawnTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Wyrdspawn;
+            }
+            if (ContainsAnyTerm(text, OgreTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Ogre;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:OgreFlesh");
+            }
+            if (ContainsAnyTerm(text, FireAlignedTerms))
+            {
+                classification.ExactTargets |= ExactTarget.FireAligned;
+            }
+            if (ContainsAnyTerm(text, ElementalStagfatherGolemTerms))
+            {
+                classification.ExactTargets |= ExactTarget.ElementalStagfatherGolem;
+                SetExclusiveTargetFamily(classification, TargetFamily.Construct);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = true;
+                AppendClassificationEvidence(classification, "exact:ElementalStagfatherGolemConstruct");
+            }
+            if (ContainsAnyTerm(text, DrownedSkeletonSailorTerms))
+            {
+                classification.ExactTargets |= ExactTarget.DrownedSkeletonSailor;
+                SetExclusiveTargetFamily(classification, TargetFamily.BoneUndead);
+                classification.HasBoneBody = true;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:DrownedSkeletonSailorBone");
+            }
+            if (ContainsAnyTerm(text, FrostAngelTerms))
+            {
+                classification.ExactTargets |= ExactTarget.FrostAngel;
+            }
+            if (ContainsAnyTerm(text, IceWeaverChampionTerms))
+            {
+                classification.ExactTargets |= ExactTarget.IceWeaverChampion;
+            }
+            if (ContainsAnyTerm(text, IceWeaverWolfTerms))
+            {
+                classification.ExactTargets |= ExactTarget.IceWeaverWolf;
+            }
+            if (ContainsAnyTerm(text, IceTrialWyrdTerms))
+            {
+                classification.ExactTargets |= ExactTarget.IceTrialWyrd;
+                SetExclusiveTargetFamily(classification, TargetFamily.Wyrd);
+                AppendClassificationEvidence(classification, "exact:IceTrialWyrd");
+            }
+            if (ContainsAnyTerm(text, CharredConclaveWyrdspawnTerms))
+            {
+                classification.ExactTargets |= ExactTarget.CharredConclaveWyrdspawn;
+                SetExclusiveTargetFamily(classification, TargetFamily.Wyrd);
+                AppendClassificationEvidence(classification, "exact:CharredConclaveWyrd");
+            }
+            if (ContainsAnyTerm(text, IceStatueTerms))
+            {
+                classification.ExactTargets |= ExactTarget.IceStatue;
+                SetExclusiveTargetFamily(classification, TargetFamily.Construct);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = true;
+                AppendClassificationEvidence(classification, "exact:IceStatueConstruct");
+            }
+            if (ContainsAnyTerm(text, AncientBeholderTerms))
+            {
+                classification.ExactTargets |= ExactTarget.AncientBeholder;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:AncientBeholderFlesh");
+            }
+            if (ContainsAnyTerm(text, SingwormTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Singworm;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:SingwormFlesh");
+            }
+            if (ContainsAnyTerm(text, LirTentacleTerms))
+            {
+                classification.ExactTargets |= ExactTarget.LirTentacle;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:LirTentacleFlesh");
+            }
+            if (ContainsAnyTerm(text, BloodAbominationTerms))
+            {
+                classification.ExactTargets |= ExactTarget.BloodAbomination;
+                ClearTargetFamilies(classification);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:BloodAbominationSoftBody");
+            }
+            if (ContainsAnyTerm(text, WyrdSlimeColdWeaknessTerms))
+            {
+                classification.ExactTargets |= ExactTarget.WyrdSlime;
+                SetExclusiveTargetFamily(classification, TargetFamily.Wyrd);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:WyrdSlimeSoftBody");
+            }
+            if (ContainsAnyTerm(text, TidewraithTerms))
+            {
+                classification.ExactTargets |= ExactTarget.Tidewraith;
+            }
+        }
+
+        private void SetExclusiveTargetFamily(TargetClassification classification, TargetFamily family)
+        {
+            classification.IsBoneUndead = family == TargetFamily.BoneUndead;
+            classification.IsConstruct = family == TargetFamily.Construct;
+            classification.IsArmoredHumanoid = family == TargetFamily.ArmoredHumanoid;
+            classification.IsFlesh = family == TargetFamily.Flesh;
+            classification.IsFleshUndead = family == TargetFamily.FleshUndead;
+            classification.IsWyrd = family == TargetFamily.Wyrd;
+            classification.IsDrownedZombie = family == TargetFamily.DrownedZombie;
+            classification.IsInfectedFlesh = family == TargetFamily.InfectedFlesh;
+            classification.IsSeaFlesh = family == TargetFamily.SeaFlesh;
+            classification.IsSpirit = family == TargetFamily.Spirit;
+            classification.IsFlora = family == TargetFamily.Flora;
+        }
+
+        private void ClearTargetFamilies(TargetClassification classification)
+        {
+            classification.IsBoneUndead = false;
+            classification.IsConstruct = false;
+            classification.IsArmoredHumanoid = false;
+            classification.IsFlesh = false;
+            classification.IsFleshUndead = false;
+            classification.IsWyrd = false;
+            classification.IsDrownedZombie = false;
+            classification.IsInfectedFlesh = false;
+            classification.IsSeaFlesh = false;
+            classification.IsSpirit = false;
+            classification.IsFlora = false;
         }
 
         private void ApplyMetadataTargetClassification(TargetClassification classification, string metadataText)
@@ -2412,6 +3404,7 @@ namespace SteelAndBone
             {
                 AddPhysicalWeaponTypeHints(damage, classification);
             }
+            classification.IsAxe = IsAxeDamage(damage);
             classification.IsGenericMagical = DamageHasSubtype(damage, "GenericMagical");
             classification.IsBurn = ValueNameContains(GetOptionalPropertyValue(damage, "StatusDamageType"), "Burn");
             classification.IsFire = DamageHasSubtype(damage, "Fire") || classification.IsBurn;
@@ -2421,6 +3414,10 @@ namespace SteelAndBone
             classification.IsArrow = IsArrowDamage(damage);
             classification.IsDirectSpell = ValueNameContains(GetOptionalPropertyValue(damage, "Type"), "MagicalHitSource")
                 && !IsDamageOverTime(damage);
+            Damage typedDamage = damage as Damage;
+            classification.IsPommel = typedDamage != null && typedDamage.IsPush;
+            classification.IsHeavyAttack = typedDamage != null && typedDamage.IsHeavyAttack;
+            classification.IsAreaAttack = typedDamage != null && typedDamage.Radius > 0.0001f;
 
             if (classification.IsBloodMagic)
             {
@@ -2584,6 +3581,43 @@ namespace SteelAndBone
             }
 
             TryApplyPhysicalWeaponTypeHint(GetOptionalPropertyValue(projectile, "SourceProjectile"), classification);
+        }
+
+        private bool IsAxeDamage(object damage)
+        {
+            if (damage == null)
+            {
+                return false;
+            }
+
+            if (IsAxeCandidate(GetOptionalPropertyValue(damage, "Item")))
+            {
+                return true;
+            }
+
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            return IsAxeCandidate(GetOptionalPropertyValue(projectile, "SourceWeapon"))
+                || IsAxeCandidate(GetOptionalPropertyValue(projectile, "SourceProjectile"));
+        }
+
+        private bool IsAxeCandidate(object candidate)
+        {
+            if (candidate == null || IsDestroyedUnityObject(candidate))
+            {
+                return false;
+            }
+
+            if (GetOptionalBoolProperty(candidate, "IsAxe"))
+            {
+                return true;
+            }
+
+            object item = GetOptionalPropertyValue(candidate, "Item");
+            object parent = GetOptionalPropertyValue(candidate, "ParentModel");
+            object template = GetOptionalPropertyValue(candidate, "Template");
+            return (item != null && !ReferenceEquals(item, candidate) && GetOptionalBoolProperty(item, "IsAxe"))
+                || (parent != null && !ReferenceEquals(parent, candidate) && GetOptionalBoolProperty(parent, "IsAxe"))
+                || (template != null && !ReferenceEquals(template, candidate) && GetOptionalBoolProperty(template, "IsAxe"));
         }
 
         private bool TryApplyPhysicalWeaponTypeHint(object candidate, DamageClassification classification)
@@ -3080,14 +4114,22 @@ namespace SteelAndBone
             {
                 damageDealer = GetOptionalPropertyValue(damage, "DamageDealer");
             }
-            if (IsSameModelOrOwner(damageDealer, hero))
+            if (IsSameModelOrOwner(damageDealer, hero)
+                || IsHeroSummonSource(damageDealer))
             {
                 return true;
             }
 
             object projectile = GetOptionalPropertyValue(damage, "Projectile");
             object projectileOwner = GetOptionalPropertyValue(projectile, "Owner");
-            return IsSameModelOrOwner(projectileOwner, hero);
+            return IsSameModelOrOwner(projectileOwner, hero)
+                || IsHeroSummonSource(projectileOwner);
+        }
+
+        private static bool IsHeroSummonSource(object candidate)
+        {
+            NpcElement npc = candidate as NpcElement;
+            return npc != null && npc.IsHeroSummon;
         }
 
         private bool IsSameModelOrOwner(object candidate, object expected)
@@ -3607,7 +4649,7 @@ namespace SteelAndBone
             }
         }
 
-        private bool TryConsumeDamageFeedback(object damage, out PendingDamageFeedback feedback)
+        private bool TryPeekDamageFeedback(object damage, out PendingDamageFeedback feedback)
         {
             feedback = null;
             if (damage == null)
@@ -3624,8 +4666,91 @@ namespace SteelAndBone
                 return false;
             }
 
-            _pendingDamageFeedback.Remove(key);
             feedback = pending;
+            return true;
+        }
+
+        private bool TryGetDamageEffectivenessMultiplier(Damage damage, out float multiplier)
+        {
+            multiplier = 1.0f;
+            if (damage == null)
+            {
+                return false;
+            }
+
+            if (IsFullyNativeImmune(damage))
+            {
+                multiplier = 0.0f;
+                return true;
+            }
+
+            PendingDamageFeedback feedback;
+            if (!TryPeekDamageFeedback(damage, out feedback)
+                || float.IsNaN(feedback.Multiplier)
+                || float.IsInfinity(feedback.Multiplier)
+                || feedback.Multiplier < 0.0f)
+            {
+                return false;
+            }
+
+            multiplier = feedback.Multiplier;
+            return true;
+        }
+
+        private bool IsFullyNativeImmune(Damage damage)
+        {
+            if (damage == null
+                || damage.DamageTypeData == null
+                || damage.DamageTypeData.Parts == null
+                || damage.DamageReceivedMultiplierData == null)
+            {
+                return false;
+            }
+
+            float totalWeight = 0.0f;
+            float weightedMultiplier = 0.0f;
+            var partEnumerator = damage.DamageTypeData.Parts.GetEnumerator();
+            try
+            {
+                while (partEnumerator.MoveNext())
+                {
+                    DamageTypeDataPart part = partEnumerator.Current;
+                    float weight = Math.Max(0.0f, part.PercentageAsFloat);
+                    if (weight <= 0.0001f)
+                    {
+                        continue;
+                    }
+
+                    float nativeMultiplier = damage.DamageReceivedMultiplierData.GetMultiplierForSubtype(part.SubType);
+                    if (float.IsNaN(nativeMultiplier)
+                        || float.IsInfinity(nativeMultiplier)
+                        || nativeMultiplier < 0.0f)
+                    {
+                        return false;
+                    }
+
+                    totalWeight += weight;
+                    weightedMultiplier += weight * nativeMultiplier;
+                }
+            }
+            finally
+            {
+                partEnumerator.Dispose();
+            }
+
+            return totalWeight > 0.0001f
+                && weightedMultiplier / totalWeight <= 0.0001f;
+        }
+
+        private bool TryConsumeDamageFeedback(object damage, out PendingDamageFeedback feedback)
+        {
+            if (!TryPeekDamageFeedback(damage, out feedback))
+            {
+                return false;
+            }
+
+            int key = RuntimeHelpers.GetHashCode(damage);
+            _pendingDamageFeedback.Remove(key);
             return true;
         }
 
@@ -4322,10 +5447,19 @@ namespace SteelAndBone
             StringBuilder builder = new StringBuilder();
             AppendDiagnosticLabel(builder, classification.IsEliteClass, "EliteClass");
             AppendDiagnosticLabel(builder, classification.IsConfirmedSkeleton, "ConfirmedSkeleton");
+            AppendDiagnosticLabel(builder, classification.HasBoneBody, "BoneBody");
             AppendDiagnosticLabel(builder, classification.HasStoneBody, "StoneBody");
             AppendDiagnosticLabel(builder, classification.HasWoodBody, "WoodBody");
             AppendDiagnosticLabel(builder, classification.IsHumanoidFlesh, "HumanoidFlesh");
             AppendDiagnosticLabel(builder, classification.IsSwarm, "Swarm");
+            AppendDiagnosticLabel(builder, classification.HasInheritedColdWeakness, "InheritedColdWeakness");
+            AppendDiagnosticLabel(builder, classification.IsFlamegobbler, "Flamegobbler");
+            AppendDiagnosticLabel(builder, classification.IsCrystalBody, "CrystalBody");
+            AppendDiagnosticLabel(builder, classification.IsWyrdSlime, "WyrdSlime");
+            if (classification.ExactTargets != ExactTarget.None)
+            {
+                AppendDiagnosticLabel(builder, true, "Exact:" + classification.ExactTargets);
+            }
             return builder.Length == 0 ? "None" : builder.ToString();
         }
 
@@ -4336,7 +5470,12 @@ namespace SteelAndBone
                 return "None";
             }
 
-            return classification.Tags.ToString();
+            StringBuilder builder = new StringBuilder(classification.Tags.ToString());
+            AppendDiagnosticLabel(builder, classification.IsAxe, "Axe");
+            AppendDiagnosticLabel(builder, classification.IsPommel, "Pommel");
+            AppendDiagnosticLabel(builder, classification.IsHeavyAttack, "Heavy");
+            AppendDiagnosticLabel(builder, classification.IsAreaAttack, "Area");
+            return builder.ToString();
         }
 
         private void AppendDiagnosticLabel(StringBuilder builder, bool include, string label)
@@ -4440,7 +5579,9 @@ namespace SteelAndBone
         private enum TargetFamily
         {
             BoneUndead,
+            BoneBody,
             Construct,
+            StoneBody,
             ArmoredHumanoid,
             Flesh,
             FleshUndead,
@@ -4450,6 +5591,42 @@ namespace SteelAndBone
             SeaFlesh,
             Spirit,
             Flora
+        }
+
+        [Flags]
+        private enum ExactTarget
+        {
+            None = 0,
+            Rootambusher = 1,
+            FrostbittenWarrior = 2,
+            Wight = 4,
+            Giant = 8,
+            MissingCorpseEaterReaction = 16,
+            ElectricStagfatherGolem = 32,
+            Mistbearer = 64,
+            WyrdheirChallenge = 128,
+            Nivera = 256,
+            Rimefiend = 512,
+            FrostWolf = 1024,
+            StrawParent = 2048,
+            Wyrdspawn = 4096,
+            Ogre = 8192,
+            FireAligned = 16384,
+            ElementalStagfatherGolem = 32768,
+            DrownedSkeletonSailor = 65536,
+            FrostAngel = 131072,
+            IceWeaverChampion = 262144,
+            IceWeaverWolf = 524288,
+            IceTrialWyrd = 1048576,
+            CharredConclaveWyrdspawn = 2097152,
+            IceStatue = 4194304,
+            AncientBeholder = 8388608,
+            Singworm = 16777216,
+            LirTentacle = 33554432,
+            BloodAbomination = 67108864,
+            WyrdSlime = 134217728,
+            Tidewraith = 268435456,
+            Frostgrot = 536870912
         }
 
         [Flags]
@@ -4514,6 +5691,29 @@ namespace SteelAndBone
             public bool MatchesDamageTag(DamageTag tag)
             {
                 return (DamageTags & tag) != DamageTag.None;
+            }
+        }
+
+        private sealed class ExactDamageRule
+        {
+            public readonly ExactTarget Target;
+            public readonly DamageTag DamageTags;
+            public readonly string TargetLabel;
+            public readonly string DamageLabel;
+            public readonly float BaseMultiplier;
+
+            public ExactDamageRule(
+                ExactTarget target,
+                DamageTag damageTags,
+                string targetLabel,
+                string damageLabel,
+                float baseMultiplier)
+            {
+                Target = target;
+                DamageTags = damageTags;
+                TargetLabel = targetLabel;
+                DamageLabel = damageLabel;
+                BaseMultiplier = baseMultiplier;
             }
         }
 
@@ -4796,10 +5996,16 @@ namespace SteelAndBone
             public bool IsBear;
             public bool IsBulkyMonster;
             public bool IsConfirmedSkeleton;
+            public bool HasBoneBody;
             public bool HasStoneBody;
             public bool HasWoodBody;
             public bool IsHumanoidFlesh;
             public bool IsSwarm;
+            public bool HasInheritedColdWeakness;
+            public bool IsFlamegobbler;
+            public bool IsCrystalBody;
+            public bool IsWyrdSlime;
+            public ExactTarget ExactTargets;
             public EnemyArmorProfile ArmorProfile;
 
             public bool HasAnyFamily()
@@ -4843,6 +6049,10 @@ namespace SteelAndBone
             public bool IsBurn;
             public bool IsArrow;
             public bool IsDirectSpell;
+            public bool IsAxe;
+            public bool IsPommel;
+            public bool IsHeavyAttack;
+            public bool IsAreaAttack;
             public DamageTag Tags;
             public string PhysicalTypeHint;
 
@@ -5121,6 +6331,10 @@ namespace SteelAndBone
                         damage,
                         __result,
                         ref dmgModifier);
+                    plugin.ApplyProgressiveTenacityHealthDamage(
+                        __instance,
+                        damage as Damage,
+                        ref dmgModifier);
                 }
             }
         }
@@ -5383,6 +6597,18 @@ namespace SteelAndBone
                 && partClass.IsArrow
                 && (_arrowMaterialRulesEnabled == null || _arrowMaterialRulesEnabled.Value);
 
+            bool skippedForVanilla;
+            if (physicalPart
+                && TryResolvePommelMaterialRule(
+                    targetClass,
+                    partClass,
+                    damage,
+                    out match,
+                    out skippedForVanilla))
+            {
+                return true;
+            }
+
             if (arrowRulesEnabled
                 && physicalPart
                 && TryResolveArrowMaterialRule(targetClass, damage, out match))
@@ -5404,7 +6630,6 @@ namespace SteelAndBone
                     out payloadSkippedForEliteClamp);
             }
 
-            bool skippedForVanilla;
             if (partClass != null
                 && partClass.IsDirectSpell
                 && TryResolveArmoredSpellRule(
@@ -5418,13 +6643,24 @@ namespace SteelAndBone
             }
 
             bool skippedForEliteClamp;
-            return TryResolveDamageRule(
+            if (TryResolveDamageRule(
                 targetClass,
                 partClass,
                 damage,
                 out match,
                 out skippedForVanilla,
-                out skippedForEliteClamp);
+                out skippedForEliteClamp))
+            {
+                TryApplyHeavyMaterialBreach(targetClass, partClass, damage, ref match);
+                return true;
+            }
+
+            return TryResolveAreaSwarmRule(
+                targetClass,
+                partClass,
+                damage,
+                out match,
+                out skippedForVanilla);
         }
 
         private void PopulatePartDamageClassification(
@@ -5448,6 +6684,10 @@ namespace SteelAndBone
             part.IsBurn = false;
             part.IsArrow = overall != null && overall.IsArrow;
             part.IsDirectSpell = overall != null && overall.IsDirectSpell;
+            part.IsAxe = false;
+            part.IsPommel = overall != null && overall.IsPommel;
+            part.IsHeavyAttack = overall != null && overall.IsHeavyAttack;
+            part.IsAreaAttack = overall != null && overall.IsAreaAttack;
             part.Tags = DamageTag.None;
             part.PhysicalTypeHint = "";
 
@@ -5467,6 +6707,7 @@ namespace SteelAndBone
 
             if (overall != null)
             {
+                part.IsAxe = overall.IsAxe && physicalPart;
                 bool contextualStatusPart = subtype == DamageSubType.Pure
                     || subtype == DamageSubType.Default;
                 part.IsBloodMagic = overall.IsBloodMagic

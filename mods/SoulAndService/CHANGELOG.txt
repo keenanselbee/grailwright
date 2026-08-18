@@ -1,0 +1,52 @@
+0.3.5
+-----
+- Added explicit semantic section and setting order metadata for a cleaner FoA Mod Manager layout.
+- Kept the config schema unchanged because stored section names, keys, types, meanings, and defaults are unchanged.
+
+0.3.4
+-----
+- Limited the faster AI decision interval to hero summons; unrelated NPC allies now
+  retain the native 2.5-second interval.
+- Made target sharing use the game's own NPC accept/prevent masks across the full
+  configured range, including obstruction handling beyond the native 20 m cache.
+- Reworked Invocation of Might repair around the exact native replacement event.
+  The outgoing summon must prove that scaling is active, and only missing scaling
+  is added to the incoming summon, including when SummonLimitBonus is in use.
+- Matched the game's collider-to-location lookup for Soul Salvage and restricted
+  reanimation to runtime-spawned ordinary hostiles, rejecting authored scene and
+  persistent NPC locations before cloning their templates.
+- Incremented the config schema because every section was renamed to remove numeric
+  prefixes and follow the current FoA Mod Manager ordering contract.
+
+0.3.1
+-----
+- Made heavy Soul Salvage exclusively use the corpse-reanimation path instead of
+  retaining the vanilla heavy summon-sacrifice effect.
+- Required an unobstructed corpse target and added conservative protection for
+  named, scripted, quest, merchant, guard, companion, boss, and friendly corpses.
+- Marked raised summon elements as unsaved, tightened raised-copy cleanup, and
+  restored source corpses during plugin shutdown.
+- Limited magic-gauntlet pass-through to hero-owned attacks and reduced collision
+  refresh overhead without changing runtime config responsiveness.
+
+0.3.0
+-----
+- Added responsive hero-summon AI, close-follow thresholds, native safe catch-up
+  teleporting, and an out-of-combat catch-up speed multiplier.
+- Added conservative crosshair target sharing that preserves existing targets and
+  native attacker sharing.
+- Added Summon Pass-Through for hero body collision without disabling summon combat
+  colliders or world collision.
+- Added independent Vanilla, MagicOnly, and AllProjectiles player-attack pass-through
+  modes; MagicOnly is the default.
+- Added rest persistence, a configurable summon-limit bonus, replacement-summon
+  Invocation of Might scaling repair, and percentage-based idle-loop volume.
+- Repurposed Soul Salvage light cast into a health-scaled essence sacrifice with
+  configurable Health, Mana, or Split returns.
+- Repurposed Soul Salvage heavy cast to raise strictly filtered ordinary hostile
+  corpses as unsaved hero-owned copies with restored source corpses, no XP, and no
+  scripted death rewards.
+- Added optional PermanentReanimations, disabled by default. Permanent servants have
+  no duration for the current play session but never revive original persistent NPCs.
+- Declared hard incompatibility with Avalon Summons, Better Summon, and the temporary
+  Summon Pass-Through test plugin to prevent overlapping Harmony ownership.

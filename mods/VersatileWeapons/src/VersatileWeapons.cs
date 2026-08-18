@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using Awaken.TG.Assets;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.UI;
@@ -33,9 +34,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.4.0.0")]
-[assembly: AssemblyFileVersion("0.4.0.0")]
-[assembly: AssemblyInformationalVersion("0.4.0")]
+[assembly: AssemblyVersion("0.7.4.0")]
+[assembly: AssemblyFileVersion("0.7.4.0")]
+[assembly: AssemblyInformationalVersion("0.7.4")]
 
 namespace VersatileWeapons
 {
@@ -57,9 +58,9 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.7.4";
 
-        private const int ConfigSchemaVersion = 11;
+        private const int ConfigSchemaVersion = 12;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -70,8 +71,15 @@ namespace VersatileWeapons
         private const int WeaponTransitionRefreshWindowFrames = 600;
         private const int GripFsmRecoveryFrames = 12;
         private const float PairedRefreshTimeoutSeconds = 4.0f;
+        private const float MagicVisualRecoveryDelaySeconds = 1.0f;
         private const float HiddenDrawnWeaponRecoverySeconds = 1.5f;
         private const float GripEquipInputGuardTimeoutSeconds = 3.0f;
+        private const string GripMemoryFileName =
+            "VersatileWeaponsGrips.dat";
+        private const int GripMemoryFormat = 1;
+        private const int MaximumGripMemoryRecords = 16;
+        private const string GloriousUiPluginGuid =
+            "ks.tgfoa.glorious-ui";
 
         private const string OneHandedSwordFppAddress =
             "229dcf6e54720324a8aa1cdecde8bb2c";
@@ -100,15 +108,24 @@ namespace VersatileWeapons
 
         private static readonly string[] OneHandedLayers =
             { "1H_MainHand" };
+        private static readonly string[] OffHandMeleeLayers =
+            { "Magic_MeleeOffHand" };
         private static readonly string[] TwoHandedLayers =
             { "2H" };
         private static readonly MethodInfo HeroWeaponsVisibleSetter =
             AccessTools.PropertySetter(typeof(Hero), "WeaponsVisible");
+        private static readonly MethodInfo EquipMagicGloveToHeroMethod =
+            AccessTools.Method(
+                typeof(CharacterMagic),
+                "EquipMagicGloveToHero",
+                new Type[] { typeof(Hero), typeof(bool) });
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<float> _fullPotencyStrengthMultiplier;
+        private ConfigEntry<float> _zeroRequirementFullPotencyStrength;
         private ConfigEntry<float> _gripHoldSeconds;
         private ConfigEntry<bool> _proficiencyFollowsGrip;
+        private ConfigEntry<bool> _rememberGripPerLoadout;
         private ConfigEntry<float> _twoHandedOneHandedWeaponDamageMultiplier;
         private ConfigEntry<float> _twoHandedOneHandedWeaponAttackSpeedMultiplier;
         private ConfigEntry<float> _twoHandedOneHandedWeaponPoiseMultiplier;
@@ -131,9 +148,15 @@ namespace VersatileWeapons
         private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
         private ConfigEntry<bool> _twoHandedGripUsesNormalHands;
         private ConfigEntry<bool> _singleSpellUsesNormalHands;
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly Dictionary<ConfigDefinition, object>
             _pendingPreservedConfigValues =
                 new Dictionary<ConfigDefinition, object>();
+        private readonly Dictionary<string, GripMemoryRecord>
+            _gripMemories =
+                new Dictionary<string, GripMemoryRecord>(
+                    StringComparer.Ordinal);
 
         internal static Plugin Instance { get; private set; }
 
@@ -142,23 +165,55 @@ namespace VersatileWeapons
         private bool _observedAnimationState;
         private bool _observedAnimationStateKnown;
         private int _gripFsmMismatchFrames;
-        private CharacterHand _readyMainHand;
-        private CharacterHand _readyOffHand;
+        private CharacterHandBase _readyMainHand;
+        private CharacterHandBase _readyOffHand;
+        private CharacterMagic _loadingMainHandMagicVisual;
+        private CharacterMagic _loadingOffHandMagicVisual;
+        private int _mainHandMagicVisualLoads;
+        private int _offHandMagicVisualLoads;
+        private CharacterMagic _readyMainHandMagicVisualHand;
+        private CharacterMagic _readyOffHandMagicVisualHand;
+        private GameObject _readyMainHandMagicVisual;
+        private GameObject _readyOffHandMagicVisual;
+        private CharacterMagic _magicVisualRecoveryHand;
         private bool _oneHandedReconciliationPending;
         private bool _weaponTransitionRefreshPending;
         private int _weaponTransitionRefreshFramesRemaining;
+        private float _weaponTransitionStartedAt;
         private bool _observedLoadoutIndexKnown;
         private int _observedLoadoutIndex;
         private PairedRefreshStage _pairedRefreshStage;
         private CharacterHand _pairedRefreshWeapon;
-        private CharacterHand _pairedRefreshShield;
+        private CharacterHandBase _pairedRefreshPairedHand;
         private int _pairedRefreshWaitFrames;
         private float _pairedRefreshStartedAt;
+        private EquipFsmResetStage _equipFsmResetStage;
+        private CharacterHand _equipFsmResetWeapon;
+        private Item _equipFsmResetPairedItem;
+        private GripCombatMode _equipFsmResetMode;
+        private int _equipFsmResetWaitFrames;
+        private float _equipFsmResetStartedAt;
+        private int _weaponTransitionGeneration;
+        private int _equipFsmResetGeneration;
         private Item _gripItem;
         private Item _gripPairedItem;
+        private string _gripMemoryContextKey;
+        private Item _selectedGripControllerItem;
+        private bool _selectedGripControllerTwoHanded;
+        private bool _selectedGripControllerKnown;
+        private Item _rememberedGripAnimationRefreshItem;
+        private Item _rememberedGripAnimationRefreshPairedItem;
+        private string _rememberedGripAnimationRefreshContextKey;
+        private bool _rememberedGripAnimationRefreshTwoHanded;
+        private int _rememberedGripAnimationRefreshGeneration;
+        private string _pendingGripMemoryInvalidationContextKey;
+        private int _pendingGripMemoryInvalidationStableFrames;
+        private string _activeGripMemorySaveSlot;
         private bool _twoHandedGrip;
         private CharacterHandBase _hiddenPairedHand;
+        private CharacterHandBase _pairedHandVisibilityRecoveryCandidate;
         private float _drawnWeaponHiddenSince = -1.0f;
+        private float _drawnPairedHandHiddenSince = -1.0f;
         private bool _toggleWeaponHeld;
         private bool _gripAttemptedForHold;
         private bool _gripChangedForHold;
@@ -171,13 +226,44 @@ namespace VersatileWeapons
         private Transform _adjustedFirstPersonWeaponTransform;
         private Vector3 _originalFirstPersonWeaponLocalPosition;
         private Quaternion _originalFirstPersonWeaponLocalRotation;
+        private Type _gloriousUiPluginType;
+        private MethodInfo _gloriousUiOwnsLoadoutsMethod;
+        private FieldInfo _gloriousUiCurrentLoadoutField;
+        private bool _gloriousUiReflectionUnavailable;
+        private bool _gloriousUiReflectionWarningLogged;
+
+        private sealed class GripMemoryRecord
+        {
+            public string OwnerHand;
+            public string WeaponId;
+            public string PairedItemId;
+            public bool TwoHandedGrip;
+        }
 
         private enum PairedRefreshStage
         {
             None,
             Hidden,
-            WaitingForSword,
-            WaitingForShield
+            WaitingForGripWeapon,
+            WaitingForPairedHand
+        }
+
+        private enum EquipFsmResetStage
+        {
+            None,
+            WaitingOneFrame,
+            WaitingForStableFsms
+        }
+
+
+        private enum GripCombatMode
+        {
+            None,
+            OneHanded,
+            OneHandedWithOffHandMelee,
+            OffHandMelee,
+            DualWielding,
+            TwoHanded
         }
 
         private void Awake()
@@ -189,6 +275,7 @@ namespace VersatileWeapons
                 BindConfig();
                 _harmony = new Harmony(PluginGuid);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
+                PatchGripMemoryPersistenceHooks();
                 Config.SettingChanged += OnConfigChanged;
                 Logger.LogInfo(
                     PluginName
@@ -207,183 +294,286 @@ namespace VersatileWeapons
             }
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return base.Config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return base.Config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    section,
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "General":
+                    return 0;
+                case "Grip Switching":
+                    return 10;
+                case "Native Two-Handed Weapon - One-Handed Grip":
+                    return 20;
+                case "Native One-Handed Weapon - Two-Handed Grip":
+                    return 30;
+                case "Advanced First-Person Alignment":
+                    return 40;
+                case "Reverse Hands Compatibility":
+                    return 50;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+                default:
+                    throw new InvalidOperationException(
+                        "Missing config section order for " + section + ".");
+            }
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
+            _configSettingOrders.Clear();
 
-            _enabled = Config.Bind(
-                "1. General",
+            _enabled = BindOrdered(
+                "General",
                 "Enabled",
                 true,
                 "Master switch. Disabling this restores native equipment and grip behavior after the current weapon state refreshes.");
-            Config.Bind(
-                "1. General",
+            BindOrdered(
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version. Do not edit manually; the plugin backs up stale configs and regenerates defaults when this changes.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _fullPotencyStrengthMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _fullPotencyStrengthMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "FullPotencyStrengthMultiplier",
                 2.0f,
                 new ConfigDescription(
                     "Strength at which the full-potency damage, speed, poise, and force values apply. Scaling begins at the weapon's normal Strength requirement. 2 means full potency at 200 percent of that requirement.",
                     new AcceptableValueRange<float>(1.0f, 5.0f)));
-            _gripHoldSeconds = Config.Bind(
-                "4. Grip Switching",
+            _zeroRequirementFullPotencyStrength = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
+                "ZeroRequirementFullPotencyStrength",
+                10.0f,
+                new ConfigDescription(
+                    "Strength at which a weapon with no normal Strength requirement reaches the full-potency damage, speed, poise, and force values. Scaling begins at 0 Strength. Set to 0 for immediate full potency.",
+                    new AcceptableValueRange<float>(0.0f, 100.0f)));
+            _gripHoldSeconds = BindOrdered(
+                "Grip Switching",
                 "GripHoldSeconds",
                 0.45f,
                 new ConfigDescription(
                     "Seconds the game's Toggle Weapon action must be held to change grip on a supported weapon. A shorter press keeps normal sheathe or draw behavior.",
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
-            _proficiencyFollowsGrip = Config.Bind(
-                "4. Grip Switching",
+            _proficiencyFollowsGrip = BindOrdered(
+                "Grip Switching",
                 "ProficiencyFollowsGrip",
                 true,
                 "Use One-Handed proficiency damage scaling and XP in a one-handed grip, and Two-Handed proficiency damage scaling and XP in a two-handed grip. Weapon requirements, stamina costs, and template-filtered item effects remain native.");
-            _oneHandedSwordPositionY = Config.Bind(
-                "5. Advanced First-Person Alignment",
+            _rememberGripPerLoadout = BindOrdered(
+                "Grip Switching",
+                "RememberGripPerLoadout",
+                true,
+                "Remember the last manually selected grip separately for each native or Glorious UI weapon loadout. Memory applies only while that loadout still contains the exact same grip weapon, paired item, and owning hand; changed equipment uses the normal default grip until changed manually.");
+            _oneHandedSwordPositionY = BindOrdered(
+                "Advanced First-Person Alignment",
                 "OneHandedSwordPositionY",
                 0.02f,
                 new ConfigDescription(
                     "Local weapon-space Y offset in meters for native one-handed swords used with both hands in first person. Set to 0 for no correction.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
-            _oneHandedMacePositionY = Config.Bind(
-                "5. Advanced First-Person Alignment",
+            _oneHandedMacePositionY = BindOrdered(
+                "Advanced First-Person Alignment",
                 "OneHandedMacePositionY",
                 -0.35f,
                 new ConfigDescription(
                     "Local weapon-space Y offset in meters for native one-handed maces and other blunt weapons used with both hands in first person. Set to 0 for no correction.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
-            _oneHandedAxePositionY = Config.Bind(
-                "5. Advanced First-Person Alignment",
+            _oneHandedAxePositionY = BindOrdered(
+                "Advanced First-Person Alignment",
                 "OneHandedAxePositionY",
                 -0.35f,
                 new ConfigDescription(
                     "Local weapon-space Y offset in meters for native one-handed axes used with both hands in first person. Set to 0 for no correction.",
                     new AcceptableValueRange<float>(-0.5f, 0.5f)));
-            _twoHandedOneHandedWeaponDamageMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedWeaponDamageMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "DamageMultiplier",
                 1.5f,
                 new ConfigDescription(
                     "Melee damage while a native one-handed weapon is used with both hands. 1.5 means 150 percent damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _twoHandedOneHandedWeaponAttackSpeedMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedWeaponAttackSpeedMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "AttackSpeedMultiplier",
                 1.2f,
                 new ConfigDescription(
                     "Attack-animation speed while a native one-handed weapon is used with both hands. 1.2 means 120 percent speed.",
                     new AcceptableValueRange<float>(0.5f, 1.5f)));
-            _twoHandedOneHandedWeaponPoiseMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedWeaponPoiseMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "PoiseMultiplier",
                 1.2f,
                 new ConfigDescription(
                     "Poise damage while a native one-handed weapon is used with both hands. 1.2 means 120 percent poise damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _twoHandedOneHandedWeaponForceMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedWeaponForceMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "ForceMultiplier",
                 1.1f,
                 new ConfigDescription(
                     "Impact force while a native one-handed weapon is used with both hands. 1.1 means 110 percent force.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _twoHandedOneHandedAxeMeleeRangeMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedAxeMeleeRangeMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "AxeMeleeRangeMultiplier",
                 1.5f,
                 new ConfigDescription(
                     "Melee hit-detection range for native one-handed axes used with both hands. 1.5 means 150 percent range; 1 keeps vanilla range. This does not resize or move the visible weapon.",
                     new AcceptableValueRange<float>(0.5f, 3.0f)));
-            _twoHandedOneHandedMaceMeleeRangeMultiplier = Config.Bind(
-                "3. Native One-Handed Weapon - Two-Handed Grip",
+            _twoHandedOneHandedMaceMeleeRangeMultiplier = BindOrdered(
+                "Native One-Handed Weapon - Two-Handed Grip",
                 "MaceMeleeRangeMultiplier",
                 1.5f,
                 new ConfigDescription(
                     "Melee hit-detection range for native one-handed maces and other blunt weapons used with both hands. 1.5 means 150 percent range; 1 keeps vanilla range. This does not resize or move the visible weapon.",
                     new AcceptableValueRange<float>(0.5f, 3.0f)));
-            _oneHandedTwoHandedWeaponRequirementDamageMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponRequirementDamageMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "DamageAtWeaponRequirement",
                 0.75f,
                 new ConfigDescription(
                     "Melee damage at the weapon's normal Strength requirement. 0.75 means 75 percent damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _oneHandedTwoHandedWeaponFullDamageMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponFullDamageMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "DamageAtFullPotency",
                 1.0f,
                 new ConfigDescription(
                     "Melee damage at or above FullPotencyStrengthMultiplier. 1 means full native damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _oneHandedTwoHandedWeaponRequirementAttackSpeedMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponRequirementAttackSpeedMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "AttackSpeedAtWeaponRequirement",
                 0.5f,
                 new ConfigDescription(
                     "Attack-animation speed at the weapon's normal Strength requirement. 0.5 means 50 percent speed.",
                     new AcceptableValueRange<float>(0.5f, 1.5f)));
-            _oneHandedTwoHandedWeaponFullAttackSpeedMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponFullAttackSpeedMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "AttackSpeedAtFullPotency",
                 0.75f,
                 new ConfigDescription(
                     "Attack-animation speed at or above FullPotencyStrengthMultiplier. 0.75 means 75 percent speed.",
                     new AcceptableValueRange<float>(0.5f, 1.5f)));
-            _oneHandedTwoHandedWeaponRequirementPoiseMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponRequirementPoiseMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "PoiseAtWeaponRequirement",
                 0.6f,
                 new ConfigDescription(
                     "Poise damage at the weapon's normal Strength requirement. 0.6 means 60 percent poise damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _oneHandedTwoHandedWeaponFullPoiseMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponFullPoiseMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "PoiseAtFullPotency",
                 0.95f,
                 new ConfigDescription(
                     "Poise damage at or above FullPotencyStrengthMultiplier. 0.95 means 95 percent poise damage.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _oneHandedTwoHandedWeaponRequirementForceMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponRequirementForceMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "ForceAtWeaponRequirement",
                 0.65f,
                 new ConfigDescription(
                     "Impact force at the weapon's normal Strength requirement. 0.65 means 65 percent force.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _oneHandedTwoHandedWeaponFullForceMultiplier = Config.Bind(
-                "2. Native Two-Handed Weapon - One-Handed Grip",
+            _oneHandedTwoHandedWeaponFullForceMultiplier = BindOrdered(
+                "Native Two-Handed Weapon - One-Handed Grip",
                 "ForceAtFullPotency",
                 1.0f,
                 new ConfigDescription(
                     "Impact force at or above FullPotencyStrengthMultiplier. 1 means full native force.",
                     new AcceptableValueRange<float>(0.1f, 3.0f)));
-            _diagnostics = Config.Bind(
-                "6. Diagnostics",
+            _diagnostics = BindOrdered(
+                "Diagnostics",
                 "Enabled",
                 false,
                 "Write grip recognition, input, and animation-transition details to the BepInEx log.");
-            _strengthTestMode = Config.Bind(
-                "6. Diagnostics",
+            _strengthTestMode = BindOrdered(
+                "Diagnostics",
                 "StrengthTestMode",
                 StrengthTestMode.Actual,
                 "Test native two-handed weapons used in one hand at Actual Strength, WeaponRequirement, or FullPotency. This simulation works only while Diagnostics is enabled and never changes the character's Strength.");
-            _showGrailFloatingTextDiagnostics = Config.Bind(
-                "6. Diagnostics",
+            _showGrailFloatingTextDiagnostics = BindOrdered(
+                "Diagnostics",
                 "ShowGrailFloatingTextDiagnostics",
                 true,
                 "When Diagnostics is enabled and Grail Floating Text is installed, show all Versatile Weapons System messages, including completed grip changes, weapon recognition, blocked transitions, pairing changes, and recoveries. Detailed BepInEx logging remains active when this is disabled.");
-            _twoHandedGripUsesNormalHands = Config.Bind(
-                "7. Reverse Hands Compatibility",
+            _twoHandedGripUsesNormalHands = BindOrdered(
+                "Reverse Hands Compatibility",
                 "TwoHandedGripUsesNormalHands",
                 true,
                 "When the game's Reverse Hands setting is enabled, use normal hand input while a supported weapon uses both hands and its paired spell is stowed. Disable this to retain the game's reversed input in that specific grip.");
-            _singleSpellUsesNormalHands = Config.Bind(
-                "7. Reverse Hands Compatibility",
+            _singleSpellUsesNormalHands = BindOrdered(
+                "Reverse Hands Compatibility",
                 "SingleSpellUsesNormalHands",
                 true,
                 "When the game's Reverse Hands setting is enabled, use normal hand input whenever exactly one equipped hand is a spell. Reversed input remains available for two-spell loadouts. Disable this to retain the game's behavior for one-spell loadouts.");
@@ -509,32 +699,34 @@ namespace VersatileWeapons
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
-            CapturePreservedValue<bool>(profile, "1. General", "Enabled");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "FullPotencyStrengthMultiplier");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "DamageAtWeaponRequirement");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "DamageAtFullPotency");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "AttackSpeedAtWeaponRequirement");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "AttackSpeedAtFullPotency");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "PoiseAtWeaponRequirement");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "PoiseAtFullPotency");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "ForceAtWeaponRequirement");
-            CapturePreservedValue<float>(profile, "2. Native Two-Handed Weapon - One-Handed Grip", "ForceAtFullPotency");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "DamageMultiplier");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "AttackSpeedMultiplier");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "PoiseMultiplier");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "ForceMultiplier");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "AxeMeleeRangeMultiplier");
-            CapturePreservedValue<float>(profile, "3. Native One-Handed Weapon - Two-Handed Grip", "MaceMeleeRangeMultiplier");
-            CapturePreservedValue<float>(profile, "5. Advanced First-Person Alignment", "OneHandedSwordPositionY");
-            CapturePreservedValue<float>(profile, "5. Advanced First-Person Alignment", "OneHandedMacePositionY");
-            CapturePreservedValue<float>(profile, "5. Advanced First-Person Alignment", "OneHandedAxePositionY");
-            CapturePreservedValue<float>(profile, "4. Grip Switching", "GripHoldSeconds");
-            CapturePreservedValue<bool>(profile, "4. Grip Switching", "ProficiencyFollowsGrip");
-            CapturePreservedValue<bool>(profile, "6. Diagnostics", "Enabled");
-            CapturePreservedValue<StrengthTestMode>(profile, "6. Diagnostics", "StrengthTestMode");
-            CapturePreservedValue<bool>(profile, "6. Diagnostics", "ShowGrailFloatingTextDiagnostics");
-            CapturePreservedValue<bool>(profile, "7. Reverse Hands Compatibility", "TwoHandedGripUsesNormalHands");
-            CapturePreservedValue<bool>(profile, "7. Reverse Hands Compatibility", "SingleSpellUsesNormalHands");
+            CapturePreservedValue<bool>(profile, "General", "Enabled");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "FullPotencyStrengthMultiplier");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "ZeroRequirementFullPotencyStrength");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "DamageAtWeaponRequirement");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "DamageAtFullPotency");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "AttackSpeedAtWeaponRequirement");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "AttackSpeedAtFullPotency");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "PoiseAtWeaponRequirement");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "PoiseAtFullPotency");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "ForceAtWeaponRequirement");
+            CapturePreservedValue<float>(profile, "Native Two-Handed Weapon - One-Handed Grip", "ForceAtFullPotency");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "DamageMultiplier");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "AttackSpeedMultiplier");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "PoiseMultiplier");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "ForceMultiplier");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "AxeMeleeRangeMultiplier");
+            CapturePreservedValue<float>(profile, "Native One-Handed Weapon - Two-Handed Grip", "MaceMeleeRangeMultiplier");
+            CapturePreservedValue<float>(profile, "Advanced First-Person Alignment", "OneHandedSwordPositionY");
+            CapturePreservedValue<float>(profile, "Advanced First-Person Alignment", "OneHandedMacePositionY");
+            CapturePreservedValue<float>(profile, "Advanced First-Person Alignment", "OneHandedAxePositionY");
+            CapturePreservedValue<float>(profile, "Grip Switching", "GripHoldSeconds");
+            CapturePreservedValue<bool>(profile, "Grip Switching", "ProficiencyFollowsGrip");
+            CapturePreservedValue<bool>(profile, "Grip Switching", "RememberGripPerLoadout");
+            CapturePreservedValue<bool>(profile, "Diagnostics", "Enabled");
+            CapturePreservedValue<StrengthTestMode>(profile, "Diagnostics", "StrengthTestMode");
+            CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
+            CapturePreservedValue<bool>(profile, "Reverse Hands Compatibility", "TwoHandedGripUsesNormalHands");
+            CapturePreservedValue<bool>(profile, "Reverse Hands Compatibility", "SingleSpellUsesNormalHands");
         }
 
         private void CapturePreservedValue<T>(
@@ -565,6 +757,7 @@ namespace VersatileWeapons
             int invalid = 0;
             RestorePreservedValue(_enabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_fullPotencyStrengthMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_zeroRequirementFullPotencyStrength, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_gripHoldSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_twoHandedOneHandedWeaponDamageMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_twoHandedOneHandedWeaponAttackSpeedMultiplier, ref restored, ref clamped, ref invalid);
@@ -584,6 +777,7 @@ namespace VersatileWeapons
             RestorePreservedValue(_oneHandedMacePositionY, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_oneHandedAxePositionY, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_proficiencyFollowsGrip, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_rememberGripPerLoadout, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_diagnostics, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_strengthTestMode, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_showGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
@@ -640,6 +834,17 @@ namespace VersatileWeapons
             ItemEquipEquipmentTypePatch.ClearCache();
             _lastDiagnosticWeaponSignature = null;
 
+            if (args != null
+                && _rememberGripPerLoadout != null
+                && ReferenceEquals(
+                    args.ChangedSetting,
+                    _rememberGripPerLoadout))
+            {
+                _gripMemoryContextKey = null;
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+            }
+
             if (_enabled != null && !_enabled.Value)
             {
                 CancelGripEquipInputGuard();
@@ -673,6 +878,402 @@ namespace VersatileWeapons
                     }
                 }
             }
+        }
+
+        private void PatchGripMemoryPersistenceHooks()
+        {
+            Type newGameLoadingType = AccessTools.TypeByName(
+                "Awaken.TG.Main.UI.TitleScreen.Loading.LoadingTypes.NewGameLoading");
+            PatchOptionalDeclaredMethod(
+                newGameLoadingType,
+                "DropPreviousDomains",
+                typeof(NewGameGripMemoryPatch),
+                nameof(NewGameGripMemoryPatch.Prefix));
+
+            string[] cloudServiceTypes =
+            {
+                "Awaken.TG.Main.Saving.Cloud.Services.SteamCloudService",
+                "Awaken.TG.Main.Saving.Cloud.Services.SteamNoCloudService",
+                "Awaken.TG.Main.Saving.Cloud.Services.DebugCloudService",
+                "Awaken.TG.Main.Saving.Cloud.Services.GogCloudService"
+            };
+            for (int i = 0; i < cloudServiceTypes.Length; i++)
+            {
+                Type type = AccessTools.TypeByName(cloudServiceTypes[i]);
+                PatchOptionalDeclaredMethod(
+                    type,
+                    "EndLoadSlot",
+                    typeof(CloudServiceLoadGripMemoryPatch),
+                    nameof(CloudServiceLoadGripMemoryPatch.Prefix));
+                PatchOptionalDeclaredMethod(
+                    type,
+                    "EndSave",
+                    typeof(CloudServiceSaveGripMemoryPatch),
+                    nameof(CloudServiceSaveGripMemoryPatch.Prefix));
+            }
+        }
+
+        private void PatchOptionalDeclaredMethod(
+            Type declaringType,
+            string methodName,
+            Type patchType,
+            string patchMethodName)
+        {
+            if (declaringType == null)
+            {
+                return;
+            }
+
+            MethodInfo original =
+                AccessTools.Method(declaringType, methodName);
+            MethodInfo patch =
+                AccessTools.Method(patchType, patchMethodName);
+            if (original == null
+                || original.DeclaringType != declaringType
+                || patch == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    original,
+                    prefix: new HarmonyMethod(patch));
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not install the optional grip-memory hook for "
+                    + declaringType.FullName
+                    + "."
+                    + methodName
+                    + ": "
+                    + exception.GetBaseException().Message);
+            }
+        }
+
+        internal void ClearGripMemorySession()
+        {
+            _gripMemories.Clear();
+            _activeGripMemorySaveSlot = null;
+            _gripMemoryContextKey = null;
+            _pendingGripMemoryInvalidationContextKey = null;
+            _pendingGripMemoryInvalidationStableFrames = 0;
+        }
+
+        internal void LoadGripMemoryState(
+            object cloudService,
+            string slotId)
+        {
+            _activeGripMemorySaveSlot = slotId;
+            _gripMemories.Clear();
+            _gripMemoryContextKey = null;
+            _pendingGripMemoryInvalidationContextKey = null;
+            _pendingGripMemoryInvalidationStableFrames = 0;
+
+            byte[] archiveData = null;
+            try
+            {
+                MethodInfo tryLoad = cloudService == null
+                    ? null
+                    : AccessTools.Method(
+                        cloudService.GetType(),
+                        "TryLoadSlotFile",
+                        new[]
+                        {
+                            typeof(string),
+                            typeof(byte[]).MakeByRefType()
+                        });
+                if (tryLoad != null)
+                {
+                    object[] args =
+                    {
+                        GripMemoryFileName,
+                        null
+                    };
+                    object result = tryLoad.Invoke(cloudService, args);
+                    if (result is bool && (bool)result)
+                    {
+                        archiveData = args[1] as byte[];
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not read grip memory from the save archive: "
+                    + exception.GetBaseException().Message);
+            }
+
+            bool loaded = TryParseGripMemoryState(archiveData);
+            if (!loaded)
+            {
+                try
+                {
+                    string localPath =
+                        GetGripMemoryLocalPath(slotId);
+                    if (File.Exists(localPath))
+                    {
+                        loaded = TryParseGripMemoryState(
+                            File.ReadAllBytes(localPath));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Logger.LogWarning(
+                        "Could not read the local grip-memory backup: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+
+            LogDiagnostic(
+                loaded
+                    ? "Loaded "
+                        + _gripMemories.Count.ToString(
+                            CultureInfo.InvariantCulture)
+                        + " exact-equipment grip-memory record(s) for save slot "
+                        + slotId
+                        + "."
+                    : "The loaded save has no valid Versatile Weapons grip memory; loadouts will use their normal defaults.");
+        }
+
+        internal void SaveGripMemoryState(
+            bool writeToArchive,
+            object cloudService = null,
+            string slotId = null)
+        {
+            if (!String.IsNullOrEmpty(slotId))
+            {
+                _activeGripMemorySaveSlot = slotId;
+            }
+            if (String.IsNullOrEmpty(_activeGripMemorySaveSlot))
+            {
+                return;
+            }
+
+            byte[] data = Encoding.UTF8.GetBytes(
+                SerializeGripMemoryState());
+            try
+            {
+                string localPath = GetGripMemoryLocalPath(
+                    _activeGripMemorySaveSlot);
+                Directory.CreateDirectory(
+                    Path.GetDirectoryName(localPath));
+                File.WriteAllBytes(localPath, data);
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not write the local grip-memory backup: "
+                    + exception.GetBaseException().Message);
+            }
+
+            if (!writeToArchive || cloudService == null)
+            {
+                return;
+            }
+
+            try
+            {
+                MethodInfo save = AccessTools.Method(
+                    cloudService.GetType(),
+                    "SaveSlotFile",
+                    new[] { typeof(string), typeof(byte[]) });
+                if (save != null)
+                {
+                    save.Invoke(
+                        cloudService,
+                        new object[] { GripMemoryFileName, data });
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not write grip memory into the save archive: "
+                    + exception.GetBaseException().Message);
+            }
+        }
+
+        private string SerializeGripMemoryState()
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append("Format=")
+                .Append(GripMemoryFormat)
+                .AppendLine();
+            List<string> keys =
+                new List<string>(_gripMemories.Keys);
+            keys.Sort(StringComparer.Ordinal);
+            for (int i = 0;
+                i < keys.Count && i < MaximumGripMemoryRecords;
+                i++)
+            {
+                GripMemoryRecord record = _gripMemories[keys[i]];
+                if (record == null)
+                {
+                    continue;
+                }
+                builder.Append("R.")
+                    .Append(keys[i])
+                    .Append('=')
+                    .Append(record.OwnerHand)
+                    .Append('|')
+                    .Append(EncodeGripMemoryValue(record.WeaponId))
+                    .Append('|')
+                    .Append(EncodeGripMemoryValue(record.PairedItemId))
+                    .Append('|')
+                    .Append(record.TwoHandedGrip ? '1' : '0')
+                    .AppendLine();
+            }
+            return builder.ToString();
+        }
+
+        private bool TryParseGripMemoryState(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+            {
+                return false;
+            }
+
+            Dictionary<string, GripMemoryRecord> parsed =
+                new Dictionary<string, GripMemoryRecord>(
+                    StringComparer.Ordinal);
+            bool validFormat = false;
+            try
+            {
+                string[] lines = Encoding.UTF8.GetString(data).Split(
+                    new[] { '\r', '\n' },
+                    StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (String.Equals(
+                        lines[i],
+                        "Format="
+                            + GripMemoryFormat.ToString(
+                                CultureInfo.InvariantCulture),
+                        StringComparison.Ordinal))
+                    {
+                        validFormat = true;
+                        continue;
+                    }
+                    if (!lines[i].StartsWith(
+                        "R.",
+                        StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    int separator = lines[i].IndexOf('=');
+                    if (separator <= 2)
+                    {
+                        continue;
+                    }
+                    string contextKey =
+                        lines[i].Substring(2, separator - 2);
+                    string[] fields = lines[i]
+                        .Substring(separator + 1)
+                        .Split('|');
+                    string weaponId;
+                    string pairedItemId;
+                    if (!IsValidGripMemoryContextKey(contextKey)
+                        || fields.Length != 4
+                        || (fields[0] != "M" && fields[0] != "O")
+                        || (fields[3] != "0" && fields[3] != "1")
+                        || !TryDecodeGripMemoryValue(
+                            fields[1],
+                            out weaponId)
+                        || !TryDecodeGripMemoryValue(
+                            fields[2],
+                            out pairedItemId)
+                        || String.IsNullOrEmpty(weaponId)
+                        || weaponId.Length > 512
+                        || pairedItemId.Length > 512)
+                    {
+                        continue;
+                    }
+                    parsed[contextKey] = new GripMemoryRecord
+                    {
+                        OwnerHand = fields[0],
+                        WeaponId = weaponId,
+                        PairedItemId = pairedItemId,
+                        TwoHandedGrip = fields[3] == "1"
+                    };
+                    if (parsed.Count >= MaximumGripMemoryRecords)
+                    {
+                        break;
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not parse grip memory: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+
+            if (!validFormat)
+            {
+                return false;
+            }
+            _gripMemories.Clear();
+            foreach (KeyValuePair<string, GripMemoryRecord> pair in parsed)
+            {
+                _gripMemories[pair.Key] = pair.Value;
+            }
+            return true;
+        }
+
+        private static string EncodeGripMemoryValue(string value)
+        {
+            return Convert.ToBase64String(
+                Encoding.UTF8.GetBytes(value ?? String.Empty));
+        }
+
+        private static bool TryDecodeGripMemoryValue(
+            string value,
+            out string decoded)
+        {
+            decoded = null;
+            try
+            {
+                decoded = Encoding.UTF8.GetString(
+                    Convert.FromBase64String(value ?? String.Empty));
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsValidGripMemoryContextKey(string key)
+        {
+            int index;
+            return !String.IsNullOrEmpty(key)
+                && key.Length >= 2
+                && (key[0] == 'N' || key[0] == 'G')
+                && Int32.TryParse(
+                    key.Substring(1),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out index)
+                && index >= 0
+                && index <= 99;
+        }
+
+        private static string GetGripMemoryLocalPath(string slotId)
+        {
+            string safeName = slotId ?? "Unknown";
+            foreach (char invalid in Path.GetInvalidFileNameChars())
+            {
+                safeName = safeName.Replace(invalid, '_');
+            }
+            return Path.Combine(
+                Paths.ConfigPath,
+                "VersatileWeapons",
+                "GripMemory",
+                safeName + ".grips");
         }
 
         private void LogDiagnostic(string message)
@@ -732,8 +1333,7 @@ namespace VersatileWeapons
 
             Item pairedItem = GetPairedItem(hero, item);
             bool nativeOneHanded = IsNativeOneHandedGripWeapon(weapon);
-            bool supportedPairing = pairedItem == null
-                || IsShield(pairedItem);
+            bool supportedPairing = IsSupportedPairedHandItem(pairedItem);
             string pairing = DescribeNotificationPairing(pairedItem);
             string signature = item.GetHashCode().ToString(
                     CultureInfo.InvariantCulture)
@@ -764,7 +1364,7 @@ namespace VersatileWeapons
             {
                 text = "VW detected: native two-handed "
                     + family
-                    + " | grip switching blocked: offhand occupied.";
+                    + " | grip switching blocked: paired item requires both hands.";
             }
             else
             {
@@ -986,8 +1586,7 @@ namespace VersatileWeapons
                 return "game is paused";
             }
             if (!nativeOneHandedWeapon
-                && pairedItem != null
-                && !IsShield(pairedItem))
+                && !IsSupportedPairedHandItem(pairedItem))
             {
                 return "offhand pairing is unsupported";
             }
@@ -1028,9 +1627,20 @@ namespace VersatileWeapons
                 return "offhand empty";
             }
 
-            return IsShield(pairedItem)
-                ? "shield equipped"
-                : "offhand occupied";
+            if (IsShield(pairedItem))
+            {
+                return "shield equipped";
+            }
+            if (pairedItem.IsMagic)
+            {
+                return "spell equipped";
+            }
+            if (pairedItem.IsMelee)
+            {
+                return "melee weapon equipped";
+            }
+
+            return "offhand occupied";
         }
 
         private static string DescribeWeaponFamily(ItemTemplate template)
@@ -1101,13 +1711,18 @@ namespace VersatileWeapons
                 RestoreFirstPersonWeaponPosition();
                 RestoreHiddenPairedHand();
                 ClearObservedWeapon();
+                _pairedHandVisibilityRecoveryCandidate = null;
+                _drawnPairedHandHiddenSince = -1.0f;
                 return;
             }
 
             if (_weaponTransitionRefreshPending
+                && Time.timeScale > 0.0f
                 && --_weaponTransitionRefreshFramesRemaining <= 0)
             {
                 _weaponTransitionRefreshPending = false;
+                Logger.LogWarning(
+                    "Equipment transition readiness timed out; leaving the game's loaded controllers untouched and retaining normal visibility recovery.");
             }
 
             Hero hero = Hero.Current;
@@ -1117,10 +1732,12 @@ namespace VersatileWeapons
             CharacterHand gripWeapon = FindGripSwitchWeapon(hero);
             if (gripWeapon == null || gripWeapon.Item == null)
             {
+                ObserveGripMemoryWithoutSupportedWeapon(hero);
                 _drawnWeaponHiddenSince = -1.0f;
                 if (_gripItem != null)
                 {
                     RestoreHiddenPairedHand();
+                    ClearRememberedGripAnimationRefresh();
                     _gripItem = null;
                     _gripPairedItem = null;
                     _twoHandedGrip = false;
@@ -1138,6 +1755,16 @@ namespace VersatileWeapons
                 MonitorDrawnWeaponVisibility(hero, gripWeapon);
             }
 
+            MonitorCanceledPairedHandVisibility(hero);
+            ProcessPendingGripMemoryInvalidation(hero);
+
+            if (ProcessRememberedGripAnimationRefresh(
+                    hero,
+                    gripWeapon))
+            {
+                return;
+            }
+
             if (_pairedRefreshStage != PairedRefreshStage.None
                 && ProcessPairedRefresh(
                     hero,
@@ -1146,7 +1773,14 @@ namespace VersatileWeapons
                 return;
             }
 
-            if (TryRefreshNativeOneHandedAfterWeaponTransition(
+            if (_equipFsmResetStage
+                    != EquipFsmResetStage.None
+                && ProcessEquipFsmReset(hero, gripWeapon))
+            {
+                return;
+            }
+
+            if (TryFinalizeNativeOneHandedAfterWeaponTransition(
                     hero,
                     gripWeapon))
             {
@@ -1163,8 +1797,7 @@ namespace VersatileWeapons
             {
                 Item pairedItem = GetPairedItem(hero, gripWeapon.Item);
                 bool canReconcileNativeGrip = _twoHandedGrip
-                    || pairedItem == null
-                    || IsShield(pairedItem);
+                    || IsSupportedPairedHandItem(pairedItem);
                 if (!canReconcileNativeGrip
                     || gripWeapon.IsHidden
                     || !NativeGripAnimatorIsReady(hero, gripWeapon))
@@ -1173,14 +1806,16 @@ namespace VersatileWeapons
                     return;
                 }
 
-                bool useOneHandedFsm = !_twoHandedGrip;
-                if (GripFsmMatches(hero, useOneHandedFsm))
+                GripCombatMode combatMode = GetGripCombatMode(
+                    hero,
+                    gripWeapon);
+                if (GripFsmMatches(hero, combatMode))
                 {
                     _gripFsmMismatchFrames = 0;
                     return;
                 }
 
-                ReconcileGripFsmState(hero, useOneHandedFsm);
+                ReconcileGripFsmState(hero, combatMode);
                 if (++_gripFsmMismatchFrames < GripFsmRecoveryFrames)
                 {
                     return;
@@ -1223,16 +1858,49 @@ namespace VersatileWeapons
             }
 
             if (_weaponTransitionRefreshPending
-                && desiredState
-                && _observedAnimationStateKnown
-                && _observedAnimationState
+                && Time.timeScale > 0.0f
+                && !hero.IsPerformingAction
                 && !weapon.IsHidden
-                && HandAnimationsAreSettled(
+                && HandAnimatorsAreSettled(
                     hero,
                     weapon,
                     true))
             {
-                BeginPairedRefresh(hero, weapon);
+                Item transitionedPairedItem =
+                    GetPairedItem(hero, weapon.Item);
+                if (transitionedPairedItem != null
+                    && !IsSupportedPairedHandItem(
+                        transitionedPairedItem))
+                {
+                    _weaponTransitionRefreshPending = false;
+                    return;
+                }
+
+                CharacterHandBase transitionedPairedHand =
+                    FindHandBaseForItem(
+                        hero,
+                        transitionedPairedItem);
+                if (!MagicVisualIsReady(
+                        hero,
+                        transitionedPairedHand))
+                {
+                    TryRecoverMissingMagicVisualAfterTransition(
+                        hero,
+                        transitionedPairedHand,
+                        _weaponTransitionStartedAt);
+                    return;
+                }
+
+                if (_observedAnimationStateKnown
+                    && _observedAnimationState != desiredState)
+                {
+                    return;
+                }
+
+                BeginEquipFsmReset(
+                    hero,
+                    weapon,
+                    transitionedPairedItem);
                 return;
             }
 
@@ -1249,13 +1917,15 @@ namespace VersatileWeapons
                     weapon,
                     true))
             {
-                ReconcileOneHandedAnimationState(hero);
+                ReconcileGripFsmState(
+                    hero,
+                    GetGripCombatMode(hero, weapon));
                 _observedAnimationState = true;
                 _observedAnimationStateKnown = true;
                 _oneHandedReconciliationPending = false;
 
                 Logger.LogInfo(
-                    "Finalized the one-handed sword and shield animation state after both hand animators settled.");
+                    "Finalized the one-handed grip and paired-hand animation state after both animators settled.");
             }
 
             if (!_observedAnimationStateKnown
@@ -1276,13 +1946,16 @@ namespace VersatileWeapons
                 return;
             }
 
-            if (GripFsmMatches(hero, desiredState))
+            GripCombatMode desiredCombatMode = GetGripCombatMode(
+                hero,
+                weapon);
+            if (GripFsmMatches(hero, desiredCombatMode))
             {
                 _gripFsmMismatchFrames = 0;
                 return;
             }
 
-            ReconcileGripFsmState(hero, desiredState);
+            ReconcileGripFsmState(hero, desiredCombatMode);
             if (++_gripFsmMismatchFrames < GripFsmRecoveryFrames)
             {
                 return;
@@ -1432,7 +2105,545 @@ namespace VersatileWeapons
             RestoreHiddenPairedHand();
 
             ClearObservedWeapon();
+            _pairedHandVisibilityRecoveryCandidate = null;
+            _drawnPairedHandHiddenSince = -1.0f;
             Instance = null;
+        }
+
+        private bool GripMemoryEnabled()
+        {
+            return _rememberGripPerLoadout != null
+                && _rememberGripPerLoadout.Value;
+        }
+
+        private string GetGripMemoryContextKey(Hero hero)
+        {
+            int gloriousUiSlot;
+            if (TryGetGloriousUiWeaponLoadout(
+                out gloriousUiSlot))
+            {
+                return "G"
+                    + gloriousUiSlot.ToString(
+                        CultureInfo.InvariantCulture);
+            }
+
+            HeroItems heroItems =
+                hero == null ? null : hero.TryGetElement<HeroItems>();
+            return heroItems == null
+                ? null
+                : "N"
+                    + heroItems.CurrentLoadoutIndex.ToString(
+                        CultureInfo.InvariantCulture);
+        }
+
+        private bool TryGetGloriousUiWeaponLoadout(out int slot)
+        {
+            slot = 0;
+            if (_gloriousUiReflectionUnavailable
+                || !BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey(
+                    GloriousUiPluginGuid))
+            {
+                return false;
+            }
+
+            object gloriousUi =
+                BepInEx.Bootstrap.Chainloader
+                    .PluginInfos[GloriousUiPluginGuid]
+                    .Instance;
+            if (gloriousUi == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                Type pluginType = gloriousUi.GetType();
+                if (_gloriousUiPluginType != pluginType)
+                {
+                    _gloriousUiPluginType = pluginType;
+                    _gloriousUiOwnsLoadoutsMethod =
+                        AccessTools.Method(
+                            pluginType,
+                            "ShouldControlEquipmentWeaponLoadouts");
+                    _gloriousUiCurrentLoadoutField =
+                        AccessTools.Field(
+                            pluginType,
+                            "_currentVirtualWeaponSlot");
+                }
+                if (_gloriousUiOwnsLoadoutsMethod == null
+                    || _gloriousUiCurrentLoadoutField == null)
+                {
+                    _gloriousUiReflectionUnavailable = true;
+                    if (!_gloriousUiReflectionWarningLogged)
+                    {
+                        _gloriousUiReflectionWarningLogged = true;
+                        Logger.LogWarning(
+                            "Glorious UI is loaded, but its active weapon-loadout identity could not be read. Grip memory will fall back to native loadout indices for this session.");
+                    }
+                    return false;
+                }
+
+                object ownsLoadouts =
+                    _gloriousUiOwnsLoadoutsMethod.Invoke(
+                        gloriousUi,
+                        null);
+                if (!(ownsLoadouts is bool)
+                    || !(bool)ownsLoadouts)
+                {
+                    return false;
+                }
+
+                object currentSlot =
+                    _gloriousUiCurrentLoadoutField.GetValue(
+                        gloriousUi);
+                if (!(currentSlot is int))
+                {
+                    return false;
+                }
+                slot = (int)currentSlot;
+                return slot >= 1 && slot <= 6;
+            }
+            catch (Exception exception)
+            {
+                if (!_gloriousUiReflectionWarningLogged)
+                {
+                    _gloriousUiReflectionWarningLogged = true;
+                    Logger.LogWarning(
+                        "Could not read Glorious UI's active weapon loadout; native loadout grip memory remains available. "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private static string GetGripMemoryItemId(Item item)
+        {
+            if (item == null)
+            {
+                return String.Empty;
+            }
+            Model model = item;
+            return model.ID ?? String.Empty;
+        }
+
+        private static string GetGripOwnerHand(
+            Hero hero,
+            CharacterHand weapon)
+        {
+            return hero != null
+                && ReferenceEquals(hero.OffHandWeapon, weapon)
+                ? "O"
+                : "M";
+        }
+
+        private bool TryGetRememberedGrip(
+            Hero hero,
+            CharacterHand weapon,
+            Item pairedItem,
+            string contextKey,
+            out bool twoHandedGrip)
+        {
+            twoHandedGrip = false;
+            if (!GripMemoryEnabled()
+                || hero == null
+                || weapon == null
+                || weapon.Item == null
+                || String.IsNullOrEmpty(contextKey))
+            {
+                return false;
+            }
+
+            GripMemoryRecord record;
+            if (!_gripMemories.TryGetValue(
+                contextKey,
+                out record)
+                || record == null
+                || !String.Equals(
+                    record.OwnerHand,
+                    GetGripOwnerHand(hero, weapon),
+                    StringComparison.Ordinal)
+                || !String.Equals(
+                    record.WeaponId,
+                    GetGripMemoryItemId(weapon.Item),
+                    StringComparison.Ordinal)
+                || !String.Equals(
+                    record.PairedItemId,
+                    GetGripMemoryItemId(pairedItem),
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            twoHandedGrip = record.TwoHandedGrip;
+            _pendingGripMemoryInvalidationContextKey = null;
+            _pendingGripMemoryInvalidationStableFrames = 0;
+            return true;
+        }
+
+        private void RememberCurrentGrip(
+            Hero hero,
+            CharacterHand weapon,
+            Item pairedItem)
+        {
+            if (!GripMemoryEnabled()
+                || hero == null
+                || weapon == null
+                || weapon.Item == null)
+            {
+                return;
+            }
+
+            string contextKey = GetGripMemoryContextKey(hero);
+            string weaponId = GetGripMemoryItemId(weapon.Item);
+            if (String.IsNullOrEmpty(contextKey)
+                || String.IsNullOrEmpty(weaponId))
+            {
+                return;
+            }
+
+            _gripMemories[contextKey] = new GripMemoryRecord
+            {
+                OwnerHand = GetGripOwnerHand(hero, weapon),
+                WeaponId = weaponId,
+                PairedItemId = GetGripMemoryItemId(pairedItem),
+                TwoHandedGrip = _twoHandedGrip
+            };
+            _gripMemoryContextKey = contextKey;
+            _pendingGripMemoryInvalidationContextKey = null;
+            _pendingGripMemoryInvalidationStableFrames = 0;
+            SaveGripMemoryState(writeToArchive: false);
+            LogDiagnostic(
+                "Remembered the manually selected "
+                + (_twoHandedGrip
+                    ? "two-handed"
+                    : "one-handed")
+                + " grip for "
+                + contextKey
+                + " with exact weapon and paired-item validation.");
+        }
+
+        private void ObserveGripMemoryWithoutSupportedWeapon(
+            Hero hero)
+        {
+            if (!GripMemoryEnabled())
+            {
+                _gripMemoryContextKey = null;
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+
+            string contextKey = GetGripMemoryContextKey(hero);
+            if (!String.Equals(
+                _gripMemoryContextKey,
+                contextKey,
+                StringComparison.Ordinal))
+            {
+                _gripMemoryContextKey = contextKey;
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+            }
+            ScheduleGripMemoryInvalidationIfNeeded(
+                hero,
+                contextKey);
+        }
+
+        private void ScheduleGripMemoryInvalidationIfNeeded(
+            Hero hero,
+            string contextKey)
+        {
+            if (!GripMemoryEnabled()
+                || hero == null
+                || String.IsNullOrEmpty(contextKey))
+            {
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+
+            GripMemoryRecord record;
+            if (!_gripMemories.TryGetValue(
+                contextKey,
+                out record)
+                || record == null
+                || GripMemoryRecordMatchesCurrentEquipment(
+                    hero,
+                    record))
+            {
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+            if (!String.Equals(
+                _pendingGripMemoryInvalidationContextKey,
+                contextKey,
+                StringComparison.Ordinal))
+            {
+                _pendingGripMemoryInvalidationContextKey = contextKey;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+            }
+        }
+
+        private static bool GripMemoryRecordMatchesCurrentEquipment(
+            Hero hero,
+            GripMemoryRecord record)
+        {
+            if (hero == null || record == null)
+            {
+                return false;
+            }
+
+            CharacterHandBase ownerHand = record.OwnerHand == "O"
+                ? hero.OffHandWeapon
+                : hero.MainHandWeapon;
+            Item ownerItem = ownerHand == null
+                ? null
+                : ownerHand.Item;
+            if (!String.Equals(
+                record.WeaponId,
+                GetGripMemoryItemId(ownerItem),
+                StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            Item pairedItem = GetPairedItem(hero, ownerItem);
+            return String.Equals(
+                record.PairedItemId,
+                GetGripMemoryItemId(pairedItem),
+                StringComparison.Ordinal);
+        }
+
+        private void ProcessPendingGripMemoryInvalidation(Hero hero)
+        {
+            string contextKey =
+                _pendingGripMemoryInvalidationContextKey;
+            if (!GripMemoryEnabled()
+                || hero == null
+                || String.IsNullOrEmpty(contextKey)
+                || Time.timeScale <= 0.0f
+                || !String.Equals(
+                    contextKey,
+                    GetGripMemoryContextKey(hero),
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            GripMemoryRecord record;
+            if (!_gripMemories.TryGetValue(contextKey, out record)
+                || record == null)
+            {
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+            if (GripMemoryRecordMatchesCurrentEquipment(hero, record))
+            {
+                _pendingGripMemoryInvalidationContextKey = null;
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+
+            CharacterHandBase mainHand = hero.MainHandWeapon;
+            CharacterHandBase offHand = hero.OffHandWeapon;
+            if (_pairedRefreshStage != PairedRefreshStage.None
+                || _equipFsmResetStage != EquipFsmResetStage.None
+                || (mainHand != null && mainHand.IsLoadingAnimator)
+                || (offHand != null && offHand.IsLoadingAnimator))
+            {
+                _pendingGripMemoryInvalidationStableFrames = 0;
+                return;
+            }
+            if (++_pendingGripMemoryInvalidationStableFrames < 3)
+            {
+                return;
+            }
+
+            _gripMemories.Remove(contextKey);
+            _pendingGripMemoryInvalidationContextKey = null;
+            _pendingGripMemoryInvalidationStableFrames = 0;
+            SaveGripMemoryState(writeToArchive: false);
+            LogDiagnostic(
+                "Discarded stale grip memory for "
+                + contextKey
+                + " because its exact weapon, paired item, or owning hand changed; the current equipment uses its default grip.");
+        }
+
+        private void ApplyObservedGripTransition(
+            Hero hero,
+            CharacterHand weapon,
+            Item pairedItem)
+        {
+            if (hero == null
+                || weapon == null
+                || weapon.Item == null
+                || !hero.IsWeaponEquipped
+                || weapon.IsHidden
+                || weapon.IsLoadingAnimator
+                || Time.timeScale <= 0.0f)
+            {
+                return;
+            }
+
+            StartGripEquipInputGuard(weapon.Item);
+            if (IsNativeOneHandedGripWeapon(weapon))
+            {
+                _weaponTransitionRefreshPending = false;
+                RefreshNativeOneHandedWeaponAnimations(
+                    hero,
+                    weapon,
+                    _twoHandedGrip);
+            }
+            else
+            {
+                _observedAnimationStateKnown = true;
+                _observedAnimationState = !_twoHandedGrip;
+                if (_twoHandedGrip)
+                {
+                    RefreshWeaponAnimations(hero, weapon, false);
+                }
+                else if (pairedItem == null
+                    || !BeginPairedRefresh(hero, weapon))
+                {
+                    RefreshWeaponAnimations(hero, weapon, true);
+                }
+            }
+        }
+
+        private bool RequiresRememberedGripAnimationRefresh(
+            CharacterHand weapon,
+            Item pairedItem)
+        {
+            if (_selectedGripControllerKnown
+                && ReferenceEquals(
+                    _selectedGripControllerItem,
+                    weapon.Item))
+            {
+                return _selectedGripControllerTwoHanded
+                    != _twoHandedGrip;
+            }
+
+            if (IsNativeOneHandedGripWeapon(weapon))
+            {
+                return _twoHandedGrip;
+            }
+
+            return IsConvertedTwoHandedGripWeapon(weapon)
+                && !_twoHandedGrip
+                && IsSupportedPairedHandItem(pairedItem);
+        }
+
+        private void ScheduleRememberedGripAnimationRefresh(
+            CharacterHand weapon,
+            Item pairedItem,
+            string contextKey)
+        {
+            _rememberedGripAnimationRefreshItem = weapon.Item;
+            _rememberedGripAnimationRefreshPairedItem = pairedItem;
+            _rememberedGripAnimationRefreshContextKey = contextKey;
+            _rememberedGripAnimationRefreshTwoHanded = _twoHandedGrip;
+            _rememberedGripAnimationRefreshGeneration =
+                _weaponTransitionGeneration;
+            LogDiagnostic(
+                "Scheduled a settled animator refresh because the remembered non-default grip was restored after the game's initial controller selection. generation="
+                + _rememberedGripAnimationRefreshGeneration
+                + "; "
+                + DescribeGripContext(Hero.Current, weapon));
+        }
+
+        private void ClearRememberedGripAnimationRefresh()
+        {
+            _rememberedGripAnimationRefreshItem = null;
+            _rememberedGripAnimationRefreshPairedItem = null;
+            _rememberedGripAnimationRefreshContextKey = null;
+            _rememberedGripAnimationRefreshTwoHanded = false;
+            _rememberedGripAnimationRefreshGeneration = 0;
+        }
+
+        private bool ProcessRememberedGripAnimationRefresh(
+            Hero hero,
+            CharacterHand weapon)
+        {
+            if (_rememberedGripAnimationRefreshItem == null)
+            {
+                return false;
+            }
+
+            bool exactContextStillActive = hero != null
+                && weapon != null
+                && ReferenceEquals(
+                    weapon.Item,
+                    _rememberedGripAnimationRefreshItem)
+                && ReferenceEquals(
+                    GetPairedItem(hero, weapon.Item),
+                    _rememberedGripAnimationRefreshPairedItem)
+                && String.Equals(
+                    GetGripMemoryContextKey(hero),
+                    _rememberedGripAnimationRefreshContextKey,
+                    StringComparison.Ordinal)
+                && _twoHandedGrip
+                    == _rememberedGripAnimationRefreshTwoHanded
+                && _weaponTransitionGeneration
+                    == _rememberedGripAnimationRefreshGeneration;
+            if (!exactContextStillActive)
+            {
+                ClearRememberedGripAnimationRefresh();
+                return false;
+            }
+
+            bool rememberedTwoHandedGrip;
+            if (!TryGetRememberedGrip(
+                    hero,
+                    weapon,
+                    _rememberedGripAnimationRefreshPairedItem,
+                    _rememberedGripAnimationRefreshContextKey,
+                    out rememberedTwoHandedGrip)
+                || rememberedTwoHandedGrip
+                    != _rememberedGripAnimationRefreshTwoHanded)
+            {
+                ClearRememberedGripAnimationRefresh();
+                return false;
+            }
+
+            bool waitForPairedHand =
+                !_rememberedGripAnimationRefreshTwoHanded;
+            if (!hero.IsWeaponEquipped
+                || hero.IsPerformingAction
+                || weapon.IsHidden
+                || Time.timeScale <= 0.0f
+                || !HandAnimatorsAreSettled(
+                    hero,
+                    weapon,
+                    waitForPairedHand))
+            {
+                return true;
+            }
+
+            CharacterHandBase pairedHand = FindHandBaseForItem(
+                hero,
+                _rememberedGripAnimationRefreshPairedItem);
+            if (waitForPairedHand
+                && !MagicVisualIsReady(hero, pairedHand))
+            {
+                TryRecoverMissingMagicVisualAfterTransition(
+                    hero,
+                    pairedHand,
+                    _weaponTransitionStartedAt);
+                return true;
+            }
+
+            Item pairedItem = _rememberedGripAnimationRefreshPairedItem;
+            int generation = _rememberedGripAnimationRefreshGeneration;
+            ClearRememberedGripAnimationRefresh();
+            _weaponTransitionRefreshPending = false;
+            LogDiagnostic(
+                "Applying the settled animator refresh for the remembered non-default grip. generation="
+                + generation
+                + "; "
+                + DescribeGripContext(hero, weapon));
+            ApplyObservedGripTransition(hero, weapon, pairedItem);
+            return true;
         }
 
         private void ObserveGripItem(Item item)
@@ -1440,51 +2651,95 @@ namespace VersatileWeapons
             Hero hero = Hero.Current;
             CharacterHand weapon = FindHandForItem(hero, item);
             Item pairedItem = GetPairedItem(hero, item);
-            if (ReferenceEquals(_gripItem, item))
+            string contextKey = GetGripMemoryContextKey(hero);
+            bool sameItem = ReferenceEquals(_gripItem, item);
+            bool pairingChanged =
+                !ReferenceEquals(_gripPairedItem, pairedItem);
+            bool contextChanged = !String.Equals(
+                _gripMemoryContextKey,
+                contextKey,
+                StringComparison.Ordinal);
+            if (sameItem && !pairingChanged && !contextChanged)
             {
-                if (!ReferenceEquals(_gripPairedItem, pairedItem))
-                {
-                    CancelGripEquipInputGuard();
-                    RestoreHiddenPairedHand();
-                    _gripPairedItem = pairedItem;
-                    RecordWeaponTransition();
-                    bool defaultTwoHandedGrip =
-                        IsConvertedTwoHandedGripWeapon(weapon)
-                        && pairedItem == null;
-                    if (_twoHandedGrip != defaultTwoHandedGrip)
-                    {
-                        _twoHandedGrip = defaultTwoHandedGrip;
-                        _observedAnimationStateKnown = false;
-                        if (!defaultTwoHandedGrip)
-                        {
-                            RequestOneHandedReconciliation();
-                        }
-                        LogDiagnostic(
-                            "The opposite-hand pairing changed; restored the supported weapon's default grip. "
-                            + DescribeGripContext(hero, weapon));
-                    }
-                    else
-                    {
-                        LogDiagnostic(
-                            "The observed weapon's opposite-hand pairing changed. "
-                            + DescribeGripContext(hero, weapon));
-                    }
-                }
-
                 return;
             }
 
+            Item previousPairedItem = _gripPairedItem;
+            bool previousTwoHandedGrip = _twoHandedGrip;
             CancelGripEquipInputGuard();
             RestoreHiddenPairedHand();
             _gripItem = item;
             _gripPairedItem = pairedItem;
+            _gripMemoryContextKey = contextKey;
             RecordWeaponTransition();
-            _twoHandedGrip = IsConvertedTwoHandedGripWeapon(weapon)
-                && pairedItem == null;
+
+            bool rememberedTwoHandedGrip;
+            bool restoredMemory = TryGetRememberedGrip(
+                hero,
+                weapon,
+                pairedItem,
+                contextKey,
+                out rememberedTwoHandedGrip);
+            _twoHandedGrip = restoredMemory
+                ? rememberedTwoHandedGrip
+                : IsConvertedTwoHandedGripWeapon(weapon)
+                    && pairedItem == null;
+
+            if (restoredMemory
+                && !sameItem
+                && RequiresRememberedGripAnimationRefresh(
+                    weapon,
+                    pairedItem))
+            {
+                ScheduleRememberedGripAnimationRefresh(
+                    weapon,
+                    pairedItem,
+                    contextKey);
+            }
+
+            if (!restoredMemory)
+            {
+                ScheduleGripMemoryInvalidationIfNeeded(
+                    hero,
+                    contextKey);
+            }
+
+            if (pairingChanged
+                && IsConvertedTwoHandedGripWeapon(weapon)
+                && ((previousPairedItem != null
+                        && previousPairedItem.EquipmentType
+                            == EquipmentType.Magic)
+                    || (pairedItem != null
+                        && pairedItem.EquipmentType
+                            == EquipmentType.Magic)))
+            {
+                _observedAnimationStateKnown = false;
+                RequestOneHandedReconciliation();
+                LogDiagnostic(
+                    "Invalidated the observed grip controller because the opposite-hand transition entered or left a spell pairing. "
+                    + DescribeGripContext(hero, weapon));
+            }
+
+            if (previousTwoHandedGrip != _twoHandedGrip)
+            {
+                _observedAnimationStateKnown = false;
+                if (sameItem)
+                {
+                    ApplyObservedGripTransition(hero, weapon, pairedItem);
+                }
+                else if (!_twoHandedGrip)
+                {
+                    RequestOneHandedReconciliation();
+                }
+            }
+
             _drawnWeaponHiddenSince = -1.0f;
+            _drawnPairedHandHiddenSince = -1.0f;
             ResetToggleWeaponHold();
             LogDiagnostic(
-                "Observed a supported weapon; selected its default grip. "
+                (restoredMemory
+                    ? "Observed a supported weapon; restored its exact-equipment loadout grip. "
+                    : "Observed a supported weapon; selected its default grip. ")
                 + DescribeGripContext(hero, weapon));
         }
 
@@ -1495,15 +2750,33 @@ namespace VersatileWeapons
                 return false;
             }
 
-            if (ReferenceEquals(_gripItem, item))
+            Hero hero = Hero.Current;
+            CharacterHand weapon = FindHandForItem(hero, item);
+            Item pairedItem = GetPairedItem(hero, item);
+            string contextKey = GetGripMemoryContextKey(hero);
+            if (ReferenceEquals(_gripItem, item)
+                && ReferenceEquals(_gripPairedItem, pairedItem)
+                && String.Equals(
+                    _gripMemoryContextKey,
+                    contextKey,
+                    StringComparison.Ordinal))
             {
                 return _twoHandedGrip;
             }
 
-            Hero hero = Hero.Current;
-            CharacterHand weapon = FindHandForItem(hero, item);
+            bool rememberedTwoHandedGrip;
+            if (TryGetRememberedGrip(
+                hero,
+                weapon,
+                pairedItem,
+                contextKey,
+                out rememberedTwoHandedGrip))
+            {
+                return rememberedTwoHandedGrip;
+            }
+
             return IsConvertedTwoHandedGripWeapon(weapon)
-                && GetPairedItem(hero, item) == null;
+                && pairedItem == null;
         }
 
         private bool CanClaimGripInput(Hero hero)
@@ -1522,7 +2795,7 @@ namespace VersatileWeapons
             Item pairedItem = GetPairedItem(hero, weapon.Item);
             return IsNativeOneHandedGripWeapon(weapon)
                 || (IsConvertedTwoHandedGripWeapon(weapon)
-                    && (pairedItem == null || IsShield(pairedItem)));
+                    && IsSupportedPairedHandItem(pairedItem));
         }
 
         private bool TryToggleGrip(Hero hero)
@@ -1542,8 +2815,7 @@ namespace VersatileWeapons
                 || Time.timeScale <= 0f
                 || (!nativeOneHandedWeapon
                     && (!IsConvertedTwoHandedGripWeapon(weapon)
-                        || (pairedItem != null
-                            && !IsShield(pairedItem)))))
+                        || !IsSupportedPairedHandItem(pairedItem))))
             {
                 ShowDiagnosticNotification(
                     "grip-blocked",
@@ -1565,8 +2837,10 @@ namespace VersatileWeapons
             ObserveGripItem(weapon.Item);
             bool previousTwoHandedGrip = _twoHandedGrip;
             _twoHandedGrip = !_twoHandedGrip;
+            RememberCurrentGrip(hero, weapon, pairedItem);
             StartGripEquipInputGuard(weapon.Item);
             _drawnWeaponHiddenSince = -1.0f;
+            _drawnPairedHandHiddenSince = -1.0f;
             LogDiagnostic(
                 "Grip transition started; from="
                 + (previousTwoHandedGrip ? "two-handed" : "one-handed")
@@ -1597,11 +2871,8 @@ namespace VersatileWeapons
                 }
                 else
                 {
-                    if (IsShield(pairedItem))
-                    {
-                        BeginPairedRefresh(hero, weapon);
-                    }
-                    else
+                    if (pairedItem == null
+                        || !BeginPairedRefresh(hero, weapon))
                     {
                         RefreshWeaponAnimations(
                             hero,
@@ -1619,10 +2890,14 @@ namespace VersatileWeapons
                     : (_twoHandedGrip
                         ? (IsShield(pairedItem)
                             ? "Changed the shielded two-handed weapon to its native grip and stowed its shield."
-                            : "Changed the weapon to its native two-handed grip.")
+                            : pairedItem == null
+                                ? "Changed the weapon to its native two-handed grip."
+                                : "Changed the weapon to its native two-handed grip and stowed the paired hand.")
                         : (IsShield(pairedItem)
                             ? "Changed the two-handed weapon to a one-handed grip and restored its shield."
-                            : "Changed the two-handed weapon to a one-handed grip with an empty opposite hand.")));
+                            : pairedItem == null
+                                ? "Changed the two-handed weapon to a one-handed grip with an empty opposite hand."
+                                : "Changed the two-handed weapon to a one-handed grip and restored the paired hand.")));
             ShowGripNotification(hero, weapon, nativeOneHandedWeapon, pairedItem);
             return true;
         }
@@ -1856,23 +3131,24 @@ namespace VersatileWeapons
             _toggleWeaponPressedAt = 0f;
         }
 
-        internal void RecordAnimatorLoad(CharacterHand weapon)
+        internal void RecordAnimatorLoad(CharacterHandBase hand)
         {
-            MarkHandAnimatorLoading(weapon);
+            MarkHandAnimatorLoading(hand);
 
-            if (weapon != null
-                && weapon.Item != null
-                && (ReferenceEquals(weapon.Item, _gripItem)
-                    || ReferenceEquals(weapon.Item, _gripPairedItem)))
+            if (hand != null
+                && hand.Item != null
+                && (ReferenceEquals(hand.Item, _gripItem)
+                    || ReferenceEquals(hand.Item, _gripPairedItem)))
             {
                 LogDiagnostic(
                     "Animator override reload requested for the "
-                    + (ReferenceEquals(weapon.Item, _gripItem)
+                    + (ReferenceEquals(hand.Item, _gripItem)
                         ? "grip weapon. "
                         : "paired hand. ")
                     + DescribeGripContext(Hero.Current, FindHandForItem(Hero.Current, _gripItem)));
             }
 
+            CharacterHand weapon = hand as CharacterHand;
             if (!IsConvertedTwoHandedGripWeapon(weapon))
             {
                 if (HasShieldedConvertedWeapon())
@@ -1894,8 +3170,51 @@ namespace VersatileWeapons
             }
         }
 
-        internal void RecordAnimatorLayersApplied(
+        internal void RecordAnimatorControllerSelection(
             CharacterHand hand,
+            string profile,
+            ARAssetReference controller)
+        {
+            if (hand == null
+                || hand.Item == null
+                || (!IsNativeOneHandedGripWeapon(hand)
+                    && !IsConvertedTwoHandedGripWeapon(hand)))
+            {
+                return;
+            }
+
+            _selectedGripControllerItem = hand.Item;
+            _selectedGripControllerTwoHanded =
+                IsNativeOneHandedGripWeapon(hand)
+                    ? String.Equals(
+                        profile,
+                        "converted-two-handed",
+                        StringComparison.Ordinal)
+                    : !String.Equals(
+                        profile,
+                        "converted-one-handed",
+                        StringComparison.Ordinal);
+            _selectedGripControllerKnown = true;
+
+            LogDiagnostic(
+                "Controller diagnostic: selectedProfile="
+                + profile
+                + "; selectedGrip="
+                + (_selectedGripControllerTwoHanded
+                    ? "two-handed"
+                    : "one-handed")
+                + "; controllerAddress="
+                + (controller == null
+                    ? "null"
+                    : controller.Address)
+                + "; controllerIsSet="
+                + (controller != null && controller.IsSet)
+                + "; "
+                + DescribeGripContext(Hero.Current, hand));
+        }
+
+        internal void RecordAnimatorLayersApplied(
+            CharacterHandBase hand,
             bool activate)
         {
             if (!activate || hand == null || hand.Item == null)
@@ -1935,11 +3254,166 @@ namespace VersatileWeapons
             }
         }
 
+        internal void RecordMagicVisualLoadStarted(
+            CharacterMagic hand,
+            bool mainHand)
+        {
+            if (hand == null)
+            {
+                return;
+            }
+
+            if (mainHand)
+            {
+                if (!ReferenceEquals(
+                    _loadingMainHandMagicVisual,
+                    hand))
+                {
+                    _loadingMainHandMagicVisual = hand;
+                    _mainHandMagicVisualLoads = 0;
+                }
+
+                _mainHandMagicVisualLoads++;
+                _readyMainHandMagicVisualHand = null;
+                _readyMainHandMagicVisual = null;
+            }
+            else
+            {
+                if (!ReferenceEquals(
+                    _loadingOffHandMagicVisual,
+                    hand))
+                {
+                    _loadingOffHandMagicVisual = hand;
+                    _offHandMagicVisualLoads = 0;
+                }
+
+                _offHandMagicVisualLoads++;
+                _readyOffHandMagicVisualHand = null;
+                _readyOffHandMagicVisual = null;
+            }
+        }
+
+        internal void RecordMagicVisualLoadCompleted(
+            CharacterMagic hand,
+            GameObject glove,
+            Item owningItem)
+        {
+            Hero hero = Hero.Current;
+            if (hero == null
+                || hand == null
+                || owningItem == null
+                || !ReferenceEquals(hand.Item, owningItem))
+            {
+                return;
+            }
+
+            if (ReferenceEquals(hero.MainHandWeapon, hand)
+                && ReferenceEquals(owningItem, hero.MainHandItem))
+            {
+                if (!ReferenceEquals(
+                    _loadingMainHandMagicVisual,
+                    hand))
+                {
+                    _loadingMainHandMagicVisual = hand;
+                    _mainHandMagicVisualLoads = 0;
+                }
+                else if (_mainHandMagicVisualLoads > 0)
+                {
+                    _mainHandMagicVisualLoads--;
+                }
+
+                if (_mainHandMagicVisualLoads == 0)
+                {
+                    _readyMainHandMagicVisualHand = hand;
+                    _readyMainHandMagicVisual = glove;
+                }
+            }
+            else if (ReferenceEquals(hero.OffHandWeapon, hand)
+                && ReferenceEquals(owningItem, hero.OffHandItem))
+            {
+                if (!ReferenceEquals(
+                    _loadingOffHandMagicVisual,
+                    hand))
+                {
+                    _loadingOffHandMagicVisual = hand;
+                    _offHandMagicVisualLoads = 0;
+                }
+                else if (_offHandMagicVisualLoads > 0)
+                {
+                    _offHandMagicVisualLoads--;
+                }
+
+                if (_offHandMagicVisualLoads == 0)
+                {
+                    _readyOffHandMagicVisualHand = hand;
+                    _readyOffHandMagicVisual = glove;
+                }
+            }
+            else
+            {
+                return;
+            }
+
+            if (glove != null
+                && !MagicVisualIsLoading(hero, hand))
+            {
+                LogDiagnostic(
+                    "The visible magic gauntlet became ready for the paired spell hand. "
+                    + DescribeGripContext(
+                        hero,
+                        FindHandForItem(hero, _gripItem)));
+            }
+        }
+
         internal void RecordWeaponTransition()
         {
+            ClearRememberedGripAnimationRefresh();
+            if (_pairedRefreshStage != PairedRefreshStage.None)
+            {
+                LogDiagnostic(
+                    "Canceled the ordered grip restoration because a newer equipment transition took ownership of both hands. "
+                    + DescribeGripContext(
+                        Hero.Current,
+                        _pairedRefreshWeapon));
+                _pairedHandVisibilityRecoveryCandidate =
+                    _pairedRefreshPairedHand != null
+                    && _pairedRefreshPairedHand.IsHidden
+                        ? _pairedRefreshPairedHand
+                        : null;
+                _drawnPairedHandHiddenSince = -1.0f;
+                CancelPairedRefresh();
+                _observedAnimationStateKnown = false;
+                RequestOneHandedReconciliation();
+            }
+
+            if (_equipFsmResetStage
+                != EquipFsmResetStage.None)
+            {
+                LogDiagnostic(
+                    "Canceled the settled equip-FSM reset because a newer equipment transition took ownership. generation="
+                    + _equipFsmResetGeneration
+                    + "; "
+                    + DescribeGripContext(
+                        Hero.Current,
+                        _equipFsmResetWeapon));
+                CancelEquipFsmReset();
+                _observedAnimationStateKnown = false;
+                RequestOneHandedReconciliation();
+            }
+
+            _weaponTransitionGeneration++;
             _weaponTransitionRefreshPending = true;
             _weaponTransitionRefreshFramesRemaining =
                 WeaponTransitionRefreshWindowFrames;
+            _weaponTransitionStartedAt = Time.unscaledTime;
+            _magicVisualRecoveryHand = null;
+            LogDiagnostic(
+                "Recorded equipment transition ownership. generation="
+                + _weaponTransitionGeneration
+                + "; "
+                + DescribeGripContext(
+                    Hero.Current,
+                    FindGripSwitchWeapon(Hero.Current)));
         }
 
         private void ObserveLoadoutIndex(Hero hero)
@@ -1969,7 +3443,7 @@ namespace VersatileWeapons
             RecordWeaponTransition();
         }
 
-        private bool TryRefreshNativeOneHandedAfterWeaponTransition(
+        private bool TryFinalizeNativeOneHandedAfterWeaponTransition(
             Hero hero,
             CharacterHand weapon)
         {
@@ -1977,28 +3451,35 @@ namespace VersatileWeapons
                 || hero == null
                 || weapon == null
                 || weapon.Item == null
-                || _twoHandedGrip
                 || !IsNativeOneHandedGripWeapon(weapon)
                 || !hero.IsWeaponEquipped
                 || hero.IsPerformingAction
                 || weapon.IsHidden
                 || _pairedRefreshStage != PairedRefreshStage.None
-                || !HandAnimationsAreSettled(
+                || !HandAnimatorsAreSettled(
                     hero,
                     weapon,
-                    false))
+                    true))
             {
                 return false;
             }
 
-            _weaponTransitionRefreshPending = false;
-            RefreshNativeOneHandedWeaponAnimations(
+            CharacterHandBase pairedHand = FindHandBaseForItem(
+                hero,
+                GetPairedItem(hero, weapon.Item));
+            if (!MagicVisualIsReady(hero, pairedHand))
+            {
+                TryRecoverMissingMagicVisualAfterTransition(
+                    hero,
+                    pairedHand,
+                    _weaponTransitionStartedAt);
+                return true;
+            }
+
+            BeginEquipFsmReset(
                 hero,
                 weapon,
-                false);
-            Logger.LogInfo(
-                "Refreshed a native one-handed weapon once after its equipment transition settled. "
-                + DescribeGripContext(hero, weapon));
+                GetPairedItem(hero, weapon.Item));
             return true;
         }
 
@@ -2012,7 +3493,7 @@ namespace VersatileWeapons
 
             Hero hero = Hero.Current;
             Item pairedItem = GetPairedItem(hero, weapon.Item);
-            return (pairedItem == null || IsShield(pairedItem))
+            return IsSupportedPairedHandItem(pairedItem)
                 && Instance != null
                 && Instance._enabled != null
                 && Instance._enabled.Value
@@ -2048,17 +3529,27 @@ namespace VersatileWeapons
                 && Instance._enabled.Value
                 && weapon != null
                 && weapon.Item != null
-                && (pairedItem == null || IsShield(pairedItem));
+                && IsSupportedPairedHandItem(pairedItem);
         }
 
         internal static bool ShouldSuppressDualWielding()
         {
-            if (HasSupportedConvertedPairing())
+            Hero hero = Hero.Current;
+            CharacterHand gripWeapon = FindGripSwitchWeapon(hero);
+            if (GetGripCombatMode(hero, gripWeapon)
+                == GripCombatMode.TwoHanded)
             {
                 return true;
             }
 
-            Hero hero = Hero.Current;
+            if (HasSupportedConvertedPairing())
+            {
+                CharacterHand convertedWeapon =
+                    FindConvertedTwoHandedGripWeapon(hero);
+                return GetGripCombatMode(hero, convertedWeapon)
+                    != GripCombatMode.DualWielding;
+            }
+
             return ShouldUseTwoHandedAnimations(
                 FindNativeOneHandedGripWeapon(hero));
         }
@@ -2073,7 +3564,7 @@ namespace VersatileWeapons
             }
 
             Item pairedItem = GetPairedItem(hero, item);
-            return (pairedItem == null || IsShield(pairedItem))
+            return IsSupportedPairedHandItem(pairedItem)
                 && Instance != null
                 && Instance._enabled != null
                 && Instance._enabled.Value
@@ -2132,16 +3623,23 @@ namespace VersatileWeapons
             Hero hero = Hero.Current;
             CharacterHand convertedWeapon =
                 FindConvertedTwoHandedGripWeapon(hero);
-            bool useOneHanded =
-                ShouldUseOneHandedAnimations(convertedWeapon);
-            bool useConvertedNativeTwoHanded = convertedWeapon != null
-                && convertedWeapon.Item != null
-                && Instance != null
-                && Instance.IsUsingTwoHandedGrip(convertedWeapon.Item);
-            bool useTwoHanded = useConvertedNativeTwoHanded
-                || ShouldUseTwoHandedAnimations(
-                    FindNativeOneHandedGripWeapon(hero));
-            if (!useOneHanded && !useTwoHanded)
+            CharacterHand nativeOneHandedWeapon =
+                FindNativeOneHandedGripWeapon(hero);
+            CharacterHand gripWeapon = FindGripSwitchWeapon(hero);
+            bool convertedGripActive =
+                ShouldUseOneHandedAnimations(convertedWeapon)
+                || (convertedWeapon != null
+                    && convertedWeapon.Item != null
+                    && Instance != null
+                    && Instance.IsUsingTwoHandedGrip(
+                        convertedWeapon.Item));
+            bool nativeTwoHandedGripActive =
+                ShouldUseTwoHandedAnimations(nativeOneHandedWeapon)
+                || (gripWeapon != null
+                    && gripWeapon.Item != null
+                    && Instance != null
+                    && Instance.IsUsingTwoHandedGrip(gripWeapon.Item));
+            if (!convertedGripActive && !nativeTwoHandedGripActive)
             {
                 return;
             }
@@ -2157,20 +3655,43 @@ namespace VersatileWeapons
                 hero.TryGetElement<OneHandedFSM>();
             DualHandedFSM dualHanded =
                 hero.TryGetElement<DualHandedFSM>();
+            MagicMeleeOffHandFSM offHandMelee =
+                hero.TryGetElement<MagicMeleeOffHandFSM>();
+            GripCombatMode combatMode = GetGripCombatMode(
+                hero,
+                gripWeapon);
+            bool usesOneHandedFsm =
+                combatMode == GripCombatMode.OneHanded
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee;
+            bool usesOffHandMeleeFsm =
+                combatMode == GripCombatMode.OffHandMelee
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee;
 
-            if (useOneHanded && twoHanded != null)
-            {
-                twoHanded.DisableFSM();
-            }
-
-            if (useTwoHanded && oneHanded != null)
+            if (!usesOneHandedFsm
+                && oneHanded != null
+                && oneHanded.IsLayerActive)
             {
                 oneHanded.DisableFSM();
             }
-
-            if (dualHanded != null)
+            if (combatMode != GripCombatMode.TwoHanded
+                && twoHanded != null
+                && twoHanded.IsLayerActive)
+            {
+                twoHanded.DisableFSM();
+            }
+            if (combatMode != GripCombatMode.DualWielding
+                && dualHanded != null
+                && dualHanded.IsLayerActive)
             {
                 dualHanded.DisableFSM();
+            }
+            if (!usesOffHandMeleeFsm
+                && offHandMelee != null
+                && offHandMelee.IsLayerActive)
+            {
+                offHandMelee.DisableFSM();
             }
 
             bool suppressMainHand = IsMainHandSuppressed();
@@ -2184,7 +3705,10 @@ namespace VersatileWeapons
                         || (suppressOffHand
                             && magicFsm.CastingHand == CastingHand.OffHand))
                     {
-                        magicFsm.DisableFSM();
+                        if (magicFsm.IsLayerActive)
+                        {
+                            magicFsm.DisableFSM();
+                        }
                     }
                 }
 
@@ -2192,7 +3716,8 @@ namespace VersatileWeapons
                 {
                     MagicMeleeOffHandFSM magicMeleeOffHand =
                         hero.TryGetElement<MagicMeleeOffHandFSM>();
-                    if (magicMeleeOffHand != null)
+                    if (magicMeleeOffHand != null
+                        && magicMeleeOffHand.IsLayerActive)
                     {
                         magicMeleeOffHand.DisableFSM();
                     }
@@ -2200,21 +3725,9 @@ namespace VersatileWeapons
             }
         }
 
-        private static void ReconcileOneHandedAnimationState(Hero hero)
-        {
-            DisableConflictingFsms();
-
-            OneHandedFSM oneHanded =
-                hero == null ? null : hero.TryGetElement<OneHandedFSM>();
-            if (oneHanded != null)
-            {
-                oneHanded.EnableFSM();
-            }
-        }
-
         private static void ReconcileGripFsmState(
             Hero hero,
-            bool useOneHanded)
+            GripCombatMode combatMode)
         {
             if (hero == null)
             {
@@ -2227,38 +3740,74 @@ namespace VersatileWeapons
                 hero.TryGetElement<TwoHandedFSM>();
             DualHandedFSM dualHanded =
                 hero.TryGetElement<DualHandedFSM>();
-
-            if (dualHanded != null)
-            {
-                dualHanded.DisableFSM();
-            }
-
-            if (useOneHanded)
-            {
-                if (twoHanded != null)
-                {
-                    twoHanded.DisableFSM();
-                }
-                if (oneHanded != null)
-                {
-                    oneHanded.EnableFSM();
-                }
-                return;
-            }
+            MagicMeleeOffHandFSM offHandMelee =
+                hero.TryGetElement<MagicMeleeOffHandFSM>();
+            bool usesOneHandedFsm =
+                combatMode == GripCombatMode.OneHanded
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee;
+            bool usesOffHandMeleeFsm =
+                combatMode == GripCombatMode.OffHandMelee
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee;
 
             if (oneHanded != null)
             {
-                oneHanded.DisableFSM();
+                if (usesOneHandedFsm
+                    && !oneHanded.IsLayerActive)
+                {
+                    oneHanded.EnableFSM();
+                }
+                else if (!usesOneHandedFsm
+                    && oneHanded.IsLayerActive)
+                {
+                    oneHanded.DisableFSM();
+                }
             }
             if (twoHanded != null)
             {
-                twoHanded.EnableFSM();
+                if (combatMode == GripCombatMode.TwoHanded
+                    && !twoHanded.IsLayerActive)
+                {
+                    twoHanded.EnableFSM();
+                }
+                else if (combatMode != GripCombatMode.TwoHanded
+                    && twoHanded.IsLayerActive)
+                {
+                    twoHanded.DisableFSM();
+                }
+            }
+            if (dualHanded != null)
+            {
+                if (combatMode == GripCombatMode.DualWielding
+                    && !dualHanded.IsLayerActive)
+                {
+                    dualHanded.EnableFSM();
+                }
+                else if (combatMode != GripCombatMode.DualWielding
+                    && dualHanded.IsLayerActive)
+                {
+                    dualHanded.DisableFSM();
+                }
+            }
+            if (offHandMelee != null)
+            {
+                if (usesOffHandMeleeFsm
+                    && !offHandMelee.IsLayerActive)
+                {
+                    offHandMelee.EnableFSM();
+                }
+                else if (!usesOffHandMeleeFsm
+                    && offHandMelee.IsLayerActive)
+                {
+                    offHandMelee.DisableFSM();
+                }
             }
         }
 
         private static bool GripFsmMatches(
             Hero hero,
-            bool useOneHanded)
+            GripCombatMode combatMode)
         {
             if (hero == null)
             {
@@ -2278,13 +3827,39 @@ namespace VersatileWeapons
                 && twoHanded.IsLayerActive;
             bool dualHandedActive = dualHanded != null
                 && dualHanded.IsLayerActive;
-            return useOneHanded
+            MagicMeleeOffHandFSM offHandMelee =
+                hero.TryGetElement<MagicMeleeOffHandFSM>();
+            bool offHandMeleeActive = offHandMelee != null
+                && offHandMelee.IsLayerActive;
+            if (combatMode
+                == GripCombatMode.OneHandedWithOffHandMelee)
+            {
+                return oneHandedActive
+                    && offHandMeleeActive
+                    && !twoHandedActive
+                    && !dualHandedActive;
+            }
+
+            return combatMode == GripCombatMode.OneHanded
                 ? oneHandedActive
                     && !twoHandedActive
                     && !dualHandedActive
-                : twoHandedActive
-                    && !oneHandedActive
-                    && !dualHandedActive;
+                    && !offHandMeleeActive
+                : combatMode == GripCombatMode.TwoHanded
+                    ? twoHandedActive
+                        && !oneHandedActive
+                        && !dualHandedActive
+                        && !offHandMeleeActive
+                    : combatMode == GripCombatMode.DualWielding
+                        ? dualHandedActive
+                            && !oneHandedActive
+                            && !twoHandedActive
+                            && !offHandMeleeActive
+                        : combatMode == GripCombatMode.OffHandMelee
+                            && offHandMeleeActive
+                            && !oneHandedActive
+                            && !twoHandedActive
+                            && !dualHandedActive;
         }
 
         internal static ARAssetReference CreateOneHandedWeaponController(
@@ -2405,8 +3980,17 @@ namespace VersatileWeapons
                 : current;
         }
 
-        internal static string[] GetOneHandedLayers()
+        internal static string[] GetOneHandedLayers(CharacterHand weapon)
         {
+            Hero hero = Hero.Current;
+            if (hero != null
+                && weapon != null
+                && ReferenceEquals(weapon.Item, hero.OffHandItem)
+                && !UsesNativeDualWieldingMode(hero))
+            {
+                return OffHandMeleeLayers;
+            }
+
             return OneHandedLayers;
         }
 
@@ -2531,17 +4115,37 @@ namespace VersatileWeapons
 
         private static CharacterHand FindGripSwitchWeapon(Hero hero)
         {
-            CharacterHand converted = FindConvertedTwoHandedGripWeapon(hero);
-            if (converted != null)
+            if (hero == null)
             {
-                Item pairedItem = GetPairedItem(hero, converted.Item);
-                if (pairedItem == null || IsShield(pairedItem))
+                return null;
+            }
+
+            CharacterHand mainHand = hero.MainHandWeapon as CharacterHand;
+            if (IsConvertedTwoHandedGripWeapon(mainHand))
+            {
+                Item pairedItem = GetPairedItem(hero, mainHand.Item);
+                if (IsSupportedPairedHandItem(pairedItem))
                 {
-                    return converted;
+                    return mainHand;
                 }
             }
 
-            return FindNativeOneHandedGripWeapon(hero);
+            if (IsNativeOneHandedGripWeapon(mainHand))
+            {
+                return mainHand;
+            }
+
+            CharacterHand offHand = hero.OffHandWeapon as CharacterHand;
+            if (IsConvertedTwoHandedGripWeapon(offHand))
+            {
+                Item pairedItem = GetPairedItem(hero, offHand.Item);
+                if (IsSupportedPairedHandItem(pairedItem))
+                {
+                    return offHand;
+                }
+            }
+
+            return null;
         }
 
         private static CharacterHand FindHandForItem(
@@ -2740,6 +4344,95 @@ namespace VersatileWeapons
             }
         }
 
+        private void MonitorCanceledPairedHandVisibility(Hero hero)
+        {
+            CharacterHandBase pairedHand =
+                _pairedHandVisibilityRecoveryCandidate;
+            if (pairedHand == null)
+            {
+                _drawnPairedHandHiddenSince = -1.0f;
+                return;
+            }
+
+            if (hero == null)
+            {
+                _pairedHandVisibilityRecoveryCandidate = null;
+                _drawnPairedHandHiddenSince = -1.0f;
+                return;
+            }
+
+            bool pairedHandStillCurrent = ReferenceEquals(
+                    hero.MainHandWeapon,
+                    pairedHand)
+                || ReferenceEquals(
+                    hero.OffHandWeapon,
+                    pairedHand);
+            if (!pairedHandStillCurrent)
+            {
+                _drawnPairedHandHiddenSince = -1.0f;
+                if (Time.timeScale > 0.0f
+                    && !_weaponTransitionRefreshPending
+                    && !HeroWeaponEvents.Current.IsLoadingAnimations())
+                {
+                    _pairedHandVisibilityRecoveryCandidate = null;
+                }
+                return;
+            }
+
+            if (_twoHandedGrip
+                || Time.timeScale <= 0.0f
+                || !hero.IsWeaponEquipped
+                || !pairedHand.IsHidden
+                || pairedHand.IsLoadingAnimator
+                || HeroWeaponEvents.Current.IsLoadingAnimations()
+                || MagicVisualIsLoading(
+                    hero,
+                    pairedHand as CharacterMagic)
+                || hero.IsPerformingAction
+                || _pairedRefreshStage != PairedRefreshStage.None)
+            {
+                _drawnPairedHandHiddenSince = -1.0f;
+                if (pairedHand != null && !pairedHand.IsHidden)
+                {
+                    _pairedHandVisibilityRecoveryCandidate = null;
+                }
+                return;
+            }
+
+            if (_drawnPairedHandHiddenSince < 0.0f)
+            {
+                _drawnPairedHandHiddenSince = Time.unscaledTime;
+                LogDiagnostic(
+                    "Started paired-hand visibility recovery watch. "
+                    + DescribeGripContext(
+                        hero,
+                        FindGripSwitchWeapon(hero)));
+                return;
+            }
+
+            if (Time.unscaledTime - _drawnPairedHandHiddenSince
+                < HiddenDrawnWeaponRecoverySeconds)
+            {
+                return;
+            }
+
+            Logger.LogWarning(
+                "Recovered a paired hand that remained hidden after the hero finished drawing it. "
+                + DescribeGripContext(
+                    hero,
+                    FindGripSwitchWeapon(hero)));
+            ShowDiagnosticNotification(
+                "paired-hand-visibility-recovery",
+                "VW recovered: hidden paired hand; check the BepInEx log.",
+                "High",
+                "vw-recovery");
+            _drawnPairedHandHiddenSince = -1.0f;
+            _pairedHandVisibilityRecoveryCandidate = null;
+            SetPairedHandHiddenPreservingDrawnState(
+                pairedHand,
+                false);
+        }
+
         private string DescribeGripContext(
             Hero hero,
             CharacterHand weapon)
@@ -2760,7 +4453,13 @@ namespace VersatileWeapons
                     ? "empty-fists"
                 : (pairedItem == null
                 ? "empty"
-                : (IsShield(pairedItem) ? "shield" : "other")));
+                : (IsShield(pairedItem)
+                    ? "shield"
+                    : (pairedItem.IsMagic
+                        ? "spell"
+                        : (pairedItem.IsMelee
+                            ? "melee"
+                            : "other")))));
             bool sharedHand = hero != null
                 && hero.MainHandWeapon != null
                 && ReferenceEquals(
@@ -2833,6 +4532,29 @@ namespace VersatileWeapons
                     effectiveStrengthRatio = actualStrengthRatio;
                 }
             }
+            else if (hero != null
+                && hero.HeroRPGStats != null
+                && requirements != null
+                && requirements.StrengthRequired != null)
+            {
+                float zeroRequirementFullPotencyStrength =
+                    GetZeroRequirementFullPotencyStrength();
+                if (zeroRequirementFullPotencyStrength > 0.0f)
+                {
+                    actualStrengthRatio = (
+                        hero.HeroRPGStats.Strength.ModifiedValue
+                        / zeroRequirementFullPotencyStrength)
+                            .ToString("0.00", CultureInfo.InvariantCulture)
+                        + "x-zero-floor";
+                    effectiveStrengthRatio = strengthTestMode
+                        == StrengthTestMode.WeaponRequirement
+                            ? "0.00x-zero-floor"
+                            : strengthTestMode
+                                == StrengthTestMode.FullPotency
+                                    ? "1.00x-zero-floor"
+                                    : actualStrengthRatio;
+                }
+            }
 
             return "effectiveGrip="
                 + (effectiveTwoHanded ? "two-handed" : "one-handed")
@@ -2883,6 +4605,10 @@ namespace VersatileWeapons
                 + (weapon != null && weapon.IsLoadingAnimator)
                 + "; refreshStage="
                 + _pairedRefreshStage
+                + "; equipFsmResetStage="
+                + _equipFsmResetStage
+                + "; transitionGeneration="
+                + _weaponTransitionGeneration
                 + ".";
         }
 
@@ -2895,6 +4621,112 @@ namespace VersatileWeapons
         {
             return item != null
                 && (item.IsFists || item.IsDefaultFists);
+        }
+
+        private static bool IsSupportedPairedHandItem(Item item)
+        {
+            if (item == null || IsEmptyHandPlaceholder(item))
+            {
+                return true;
+            }
+
+            EquipmentType equipmentType = item.EquipmentType;
+            return equipmentType == EquipmentType.Fists
+                || equipmentType == EquipmentType.OneHanded
+                || equipmentType == EquipmentType.Shield
+                || equipmentType == EquipmentType.Magic
+                || equipmentType == EquipmentType.Rod
+                || (item.Template != null
+                    && item.Template.IsTwoHanded
+                    && IsSupportedWeaponFamily(item.Template));
+        }
+
+        private static bool UsesNativeDualWieldingMode(Hero hero)
+        {
+            if (hero == null)
+            {
+                return false;
+            }
+
+            Item mainHandItem = hero.MainHandItem;
+            Item offHandItem = hero.OffHandItem;
+            EquipmentType mainType = mainHandItem == null
+                ? null
+                : mainHandItem.EquipmentType;
+            EquipmentType offType = offHandItem == null
+                || IsEmptyHandPlaceholder(offHandItem)
+                    ? null
+                    : offHandItem.EquipmentType;
+            bool mainHandForcesDual = mainType == EquipmentType.Shield
+                || mainType == EquipmentType.Rod;
+            bool offHandIsPassive = offType == EquipmentType.Fists
+                || offType == EquipmentType.Magic;
+            return (mainHandForcesDual
+                    && offType != null
+                    && !offHandIsPassive)
+                || (offType == EquipmentType.OneHanded
+                    && mainType != EquipmentType.Magic);
+        }
+
+        private static bool UsesParallelOffHandMeleeMode(
+            Hero hero,
+            CharacterHand gripWeapon)
+        {
+            if (hero == null
+                || gripWeapon == null
+                || gripWeapon.Item == null
+                || !ReferenceEquals(
+                    gripWeapon.Item,
+                    hero.MainHandItem)
+                || UsesNativeDualWieldingMode(hero))
+            {
+                return false;
+            }
+
+            Item offHandItem = hero.OffHandItem;
+            CharacterHand offHandWeapon =
+                hero.OffHandWeapon as CharacterHand;
+            return offHandItem != null
+                && offHandWeapon != null
+                && ReferenceEquals(offHandWeapon.Item, offHandItem)
+                && !IsEmptyHandPlaceholder(offHandItem)
+                && !IsShield(offHandItem)
+                && IsSupportedPairedHandItem(offHandItem);
+        }
+
+        private static GripCombatMode GetGripCombatMode(
+            Hero hero,
+            CharacterHand weapon)
+        {
+            if (hero == null || weapon == null || weapon.Item == null)
+            {
+                return GripCombatMode.None;
+            }
+
+            if (Instance != null
+                && Instance.IsUsingTwoHandedGrip(weapon.Item))
+            {
+                return GripCombatMode.TwoHanded;
+            }
+
+            if (UsesNativeDualWieldingMode(hero))
+            {
+                return GripCombatMode.DualWielding;
+            }
+
+            if (UsesParallelOffHandMeleeMode(hero, weapon))
+            {
+                return GripCombatMode.OneHandedWithOffHandMelee;
+            }
+
+            if (ReferenceEquals(weapon.Item, hero.OffHandItem)
+                && hero.MainHandItem != null
+                && hero.MainHandItem.EquipmentType == EquipmentType.Magic)
+            {
+                return GripCombatMode.OffHandMelee;
+            }
+
+            return GripCombatMode.OneHanded;
         }
 
         private bool NativeGripAnimatorIsReady(
@@ -2910,7 +4742,28 @@ namespace VersatileWeapons
         private bool HandAnimationsAreSettled(
             Hero hero,
             CharacterHand weapon,
-            bool desiredState)
+            bool waitForPairedHand)
+        {
+            if (!HandAnimatorsAreSettled(
+                    hero,
+                    weapon,
+                    waitForPairedHand))
+            {
+                return false;
+            }
+
+            Item pairedItem = GetPairedItem(hero, weapon.Item);
+            CharacterHandBase pairedHand =
+                FindHandBaseForItem(hero, pairedItem);
+            return !waitForPairedHand
+                || pairedItem == null
+                || MagicVisualIsReady(hero, pairedHand);
+        }
+
+        private bool HandAnimatorsAreSettled(
+            Hero hero,
+            CharacterHand weapon,
+            bool waitForPairedHand)
         {
             if (weapon == null
                 || weapon.IsLoadingAnimator
@@ -2920,24 +4773,155 @@ namespace VersatileWeapons
             }
 
             Item pairedItem = GetPairedItem(hero, weapon.Item);
-            CharacterHand pairedHand =
-                FindHandForItem(hero, pairedItem);
-            if (pairedItem == null || pairedHand == null)
+            CharacterHandBase pairedHand =
+                FindHandBaseForItem(hero, pairedItem);
+            if (!waitForPairedHand || pairedItem == null)
             {
                 return AnimatorLayersAreReady(hero, weapon);
             }
 
-            return pairedHand != null
-                && ReferenceEquals(pairedHand.Item, pairedItem)
+            if (pairedHand == null)
+            {
+                return false;
+            }
+
+            return ReferenceEquals(pairedHand.Item, pairedItem)
                 && !pairedHand.IsHidden
                 && !pairedHand.IsLoadingAnimator
                 && AnimatorLayersAreReady(hero, weapon)
                 && AnimatorLayersAreReady(hero, pairedHand);
         }
 
+        private bool MagicVisualIsReady(
+            Hero hero,
+            CharacterHandBase hand)
+        {
+            CharacterMagic magicHand = hand as CharacterMagic;
+            if (hero == null || magicHand == null || magicHand.Item == null)
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(hero.MainHandWeapon, magicHand)
+                && ReferenceEquals(magicHand.Item, hero.MainHandItem))
+            {
+                ARAssetReference glove = magicHand.mainHandMagicGlove;
+                return glove == null
+                    || !glove.IsSet
+                    || (_mainHandMagicVisualLoads == 0
+                        && ReferenceEquals(
+                            _readyMainHandMagicVisualHand,
+                            magicHand)
+                        && _readyMainHandMagicVisual != null
+                        && _readyMainHandMagicVisual.activeInHierarchy);
+            }
+
+            if (ReferenceEquals(hero.OffHandWeapon, magicHand)
+                && ReferenceEquals(magicHand.Item, hero.OffHandItem))
+            {
+                ARAssetReference glove = magicHand.offHandMagicGlove;
+                return glove == null
+                    || !glove.IsSet
+                    || (_offHandMagicVisualLoads == 0
+                        && ReferenceEquals(
+                            _readyOffHandMagicVisualHand,
+                            magicHand)
+                        && _readyOffHandMagicVisual != null
+                        && _readyOffHandMagicVisual.activeInHierarchy);
+            }
+
+            return false;
+        }
+
+        private bool TryRecoverMissingMagicVisualAfterTransition(
+            Hero hero,
+            CharacterHandBase hand,
+            float recoveryStartedAt)
+        {
+            CharacterMagic magicHand = hand as CharacterMagic;
+            if (hero == null
+                || magicHand == null
+                || magicHand.Item == null
+                || Time.timeScale <= 0.0f
+                || ReferenceEquals(_magicVisualRecoveryHand, magicHand)
+                || MagicVisualIsLoading(hero, magicHand)
+                || Time.unscaledTime - recoveryStartedAt
+                    < MagicVisualRecoveryDelaySeconds)
+            {
+                return false;
+            }
+
+            bool mainHand = ReferenceEquals(
+                hero.MainHandWeapon,
+                magicHand);
+            if ((!mainHand
+                    && !ReferenceEquals(
+                        hero.OffHandWeapon,
+                        magicHand))
+                || !ReferenceEquals(
+                    magicHand.Item,
+                    mainHand
+                        ? hero.MainHandItem
+                        : hero.OffHandItem))
+            {
+                return false;
+            }
+
+            _magicVisualRecoveryHand = magicHand;
+            try
+            {
+                if (EquipMagicGloveToHeroMethod == null)
+                {
+                    throw new MissingMethodException(
+                        typeof(CharacterMagic).FullName,
+                        "EquipMagicGloveToHero");
+                }
+
+                EquipMagicGloveToHeroMethod.Invoke(
+                    magicHand,
+                    new object[] { hero, mainHand });
+                Logger.LogWarning(
+                    "Requested a visual-only spell-hand recovery after its animator settled without a magic gauntlet. Loaded animation controllers were left untouched. "
+                    + DescribeGripContext(
+                        hero,
+                        FindHandForItem(hero, _gripItem)));
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(
+                    "Failed to request visual-only spell-hand recovery: "
+                    + exception);
+                return false;
+            }
+        }
+
+        private bool MagicVisualIsLoading(
+            Hero hero,
+            CharacterMagic hand)
+        {
+            if (hero == null || hand == null || hand.Item == null)
+            {
+                return false;
+            }
+
+            return ReferenceEquals(hero.MainHandWeapon, hand)
+                && ReferenceEquals(hand.Item, hero.MainHandItem)
+                ? ReferenceEquals(
+                        _loadingMainHandMagicVisual,
+                        hand)
+                    && _mainHandMagicVisualLoads > 0
+                : ReferenceEquals(hero.OffHandWeapon, hand)
+                    && ReferenceEquals(hand.Item, hero.OffHandItem)
+                    && ReferenceEquals(
+                        _loadingOffHandMagicVisual,
+                        hand)
+                    && _offHandMagicVisualLoads > 0;
+        }
+
         private bool AnimatorLayersAreReady(
             Hero hero,
-            CharacterHand hand)
+            CharacterHandBase hand)
         {
             if (hero == null || hand == null || hand.Item == null)
             {
@@ -2953,7 +4937,7 @@ namespace VersatileWeapons
                 && ReferenceEquals(_readyOffHand, hand);
         }
 
-        private void MarkHandAnimatorLoading(CharacterHand hand)
+        private void MarkHandAnimatorLoading(CharacterHandBase hand)
         {
             Hero hero = Hero.Current;
             if (hero == null || hand == null || hand.Item == null)
@@ -2976,15 +4960,10 @@ namespace VersatileWeapons
             _oneHandedReconciliationPending = true;
         }
 
-        private void BeginPairedRefresh(
-            Hero hero,
-            CharacterHand weapon)
+        private static void DisableActiveGripFsms(Hero hero)
         {
-            Item pairedItem = GetPairedItem(hero, weapon.Item);
-            CharacterHand shield = FindHandForItem(hero, pairedItem);
-            if (shield == null || !IsShield(pairedItem))
+            if (hero == null)
             {
-                _weaponTransitionRefreshPending = false;
                 return;
             }
 
@@ -2994,39 +4973,422 @@ namespace VersatileWeapons
                 hero.TryGetElement<TwoHandedFSM>();
             DualHandedFSM dualHanded =
                 hero.TryGetElement<DualHandedFSM>();
+            MagicMeleeOffHandFSM offHandMelee =
+                hero.TryGetElement<MagicMeleeOffHandFSM>();
 
-            if (oneHanded != null)
+            if (oneHanded != null && oneHanded.IsLayerActive)
             {
                 oneHanded.DisableFSM();
             }
-
-            if (twoHanded != null)
+            if (twoHanded != null && twoHanded.IsLayerActive)
             {
                 twoHanded.DisableFSM();
             }
-
-            if (dualHanded != null)
+            if (dualHanded != null && dualHanded.IsLayerActive)
             {
                 dualHanded.DisableFSM();
+            }
+            if (offHandMelee != null && offHandMelee.IsLayerActive)
+            {
+                offHandMelee.DisableFSM();
+            }
+        }
+
+        private static bool IsStableGripFsmState(
+            HeroAnimatorSubstateMachine fsm)
+        {
+            if (fsm == null)
+            {
+                return false;
+            }
+
+            HeroStateType currentState = fsm.CurrentStateType;
+            return currentState == HeroStateType.Idle
+                || currentState == HeroStateType.IdleAlternate
+                || currentState == HeroStateType.Movement
+                || currentState == HeroStateType.MovementAlternate;
+        }
+
+        private static void AddEquipFsm(
+            List<HeroAnimatorSubstateMachine> fsms,
+            HeroAnimatorSubstateMachine fsm)
+        {
+            if (fsm != null && !fsms.Contains(fsm))
+            {
+                fsms.Add(fsm);
+            }
+        }
+
+        private static List<HeroAnimatorSubstateMachine> GetEquipFsms(
+            Hero hero,
+            GripCombatMode combatMode,
+            Item pairedItem)
+        {
+            List<HeroAnimatorSubstateMachine> fsms =
+                new List<HeroAnimatorSubstateMachine>();
+            if (hero == null)
+            {
+                return fsms;
+            }
+
+            if (combatMode == GripCombatMode.OneHanded
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee)
+            {
+                AddEquipFsm(fsms, hero.TryGetElement<OneHandedFSM>());
+            }
+            if (combatMode == GripCombatMode.TwoHanded)
+            {
+                AddEquipFsm(fsms, hero.TryGetElement<TwoHandedFSM>());
+            }
+            if (combatMode == GripCombatMode.DualWielding)
+            {
+                AddEquipFsm(fsms, hero.TryGetElement<DualHandedFSM>());
+            }
+            if (combatMode == GripCombatMode.OffHandMelee
+                || combatMode
+                    == GripCombatMode.OneHandedWithOffHandMelee)
+            {
+                AddEquipFsm(
+                    fsms,
+                    hero.TryGetElement<MagicMeleeOffHandFSM>());
+            }
+
+            if (pairedItem != null
+                && pairedItem.EquipmentType == EquipmentType.Magic)
+            {
+                if (ReferenceEquals(pairedItem, hero.MainHandItem))
+                {
+                    AddEquipFsm(
+                        fsms,
+                        hero.TryGetElement<MagicMainHandFSM>());
+                }
+                else if (ReferenceEquals(
+                    pairedItem,
+                    hero.OffHandItem))
+                {
+                    AddEquipFsm(
+                        fsms,
+                        hero.TryGetElement<MagicOffHandFSM>());
+                }
+            }
+
+            return fsms;
+        }
+
+        private static bool EquipFsmsAreStable(
+            List<HeroAnimatorSubstateMachine> fsms)
+        {
+            if (fsms == null || fsms.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (HeroAnimatorSubstateMachine fsm in fsms)
+            {
+                if (fsm == null
+                    || !fsm.IsLayerActive
+                    || !IsStableGripFsmState(fsm))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static string DescribeEquipFsms(
+            List<HeroAnimatorSubstateMachine> fsms)
+        {
+            if (fsms == null || fsms.Count == 0)
+            {
+                return "none";
+            }
+
+            List<string> states = new List<string>();
+            foreach (HeroAnimatorSubstateMachine fsm in fsms)
+            {
+                states.Add(
+                    fsm.GetType().Name
+                    + "{active="
+                    + fsm.IsLayerActive
+                    + ",current="
+                    + fsm.CurrentStateType
+                    + ",target="
+                    + fsm.CurrentStateToEnterType
+                    + "}");
+            }
+
+            return string.Join(",", states.ToArray());
+        }
+
+        private static void EnableEquipFsms(
+            Hero hero,
+            GripCombatMode combatMode,
+            Item pairedItem)
+        {
+            ReconcileGripFsmState(hero, combatMode);
+            List<HeroAnimatorSubstateMachine> fsms =
+                GetEquipFsms(hero, combatMode, pairedItem);
+            foreach (HeroAnimatorSubstateMachine fsm in fsms)
+            {
+                if (!fsm.IsLayerActive)
+                {
+                    fsm.EnableFSM();
+                }
+            }
+        }
+
+        private bool BeginEquipFsmReset(
+            Hero hero,
+            CharacterHand weapon,
+            Item pairedItem)
+        {
+            if (hero == null
+                || weapon == null
+                || weapon.Item == null
+                || !ReferenceEquals(
+                    GetPairedItem(hero, weapon.Item),
+                    pairedItem))
+            {
+                return false;
+            }
+
+            GripCombatMode combatMode = GetGripCombatMode(hero, weapon);
+            List<HeroAnimatorSubstateMachine> equipFsms =
+                GetEquipFsms(hero, combatMode, pairedItem);
+            bool expectsMagicFsm = pairedItem != null
+                && pairedItem.EquipmentType == EquipmentType.Magic;
+            bool hasMagicFsm = equipFsms.Exists(
+                fsm => fsm is MagicMainHandFSM
+                    || fsm is MagicOffHandFSM);
+            if (combatMode == GripCombatMode.None
+                || equipFsms.Count == 0
+                || (expectsMagicFsm && !hasMagicFsm))
+            {
+                return false;
+            }
+
+            string beforeStates = DescribeEquipFsms(equipFsms);
+            DisableActiveGripFsms(hero);
+            foreach (HeroAnimatorSubstateMachine fsm in equipFsms)
+            {
+                if (fsm.IsLayerActive)
+                {
+                    fsm.DisableFSM();
+                }
             }
 
             _weaponTransitionRefreshPending = false;
             _oneHandedReconciliationPending = false;
             _observedAnimationStateKnown = false;
+            _equipFsmResetWeapon = weapon;
+            _equipFsmResetPairedItem = pairedItem;
+            _equipFsmResetMode = combatMode;
+            _equipFsmResetWaitFrames = 0;
+            _equipFsmResetStartedAt = Time.unscaledTime;
+            _equipFsmResetGeneration = _weaponTransitionGeneration;
+            _equipFsmResetStage =
+                EquipFsmResetStage.WaitingOneFrame;
+
+            Logger.LogInfo(
+                "Exact current hands settled; restarting their gameplay FSMs together without hiding or reloading either hand or animator controller. generation="
+                + _equipFsmResetGeneration
+                + "; fsmsBefore="
+                + beforeStates
+                + "; "
+                + DescribeGripContext(hero, weapon));
+            return true;
+        }
+
+        private bool ProcessEquipFsmReset(
+            Hero hero,
+            CharacterHand currentWeapon)
+        {
+            if (_equipFsmResetStage
+                == EquipFsmResetStage.None)
+            {
+                return false;
+            }
+
+            if (Time.timeScale <= 0.0f)
+            {
+                _equipFsmResetStartedAt = Time.unscaledTime;
+                return true;
+            }
+
+            if (Time.unscaledTime - _equipFsmResetStartedAt
+                >= PairedRefreshTimeoutSeconds)
+            {
+                CharacterHand timedOutWeapon =
+                    _equipFsmResetWeapon;
+                Logger.LogWarning(
+                    "Settled equip-FSM reset timed out; restoring the expected combat FSMs without touching either hand or animator controller. generation="
+                    + _equipFsmResetGeneration
+                    + "; "
+                    + DescribeGripContext(hero, timedOutWeapon));
+                if (hero != null)
+                {
+                    EnableEquipFsms(
+                        hero,
+                        _equipFsmResetMode,
+                        _equipFsmResetPairedItem);
+                }
+
+                CancelEquipFsmReset();
+                _observedAnimationStateKnown = false;
+                RequestOneHandedReconciliation();
+                return false;
+            }
+
+            if (hero == null
+                || _equipFsmResetGeneration
+                    != _weaponTransitionGeneration
+                || !ReferenceEquals(
+                    currentWeapon,
+                    _equipFsmResetWeapon)
+                || _equipFsmResetWeapon == null
+                || _equipFsmResetWeapon.Item == null
+                || !ReferenceEquals(
+                    GetPairedItem(
+                        hero,
+                        _equipFsmResetWeapon.Item),
+                    _equipFsmResetPairedItem)
+                || GetGripCombatMode(
+                    hero,
+                    _equipFsmResetWeapon)
+                    != _equipFsmResetMode)
+            {
+                CancelEquipFsmReset();
+                _observedAnimationStateKnown = false;
+                return false;
+            }
+
+            if (_equipFsmResetStage
+                == EquipFsmResetStage.WaitingOneFrame)
+            {
+                if (_equipFsmResetWaitFrames++ == 0)
+                {
+                    return true;
+                }
+
+                EnableEquipFsms(
+                    hero,
+                    _equipFsmResetMode,
+                    _equipFsmResetPairedItem);
+                _equipFsmResetStage =
+                    EquipFsmResetStage.WaitingForStableFsms;
+                List<HeroAnimatorSubstateMachine> requestedFsms =
+                    GetEquipFsms(
+                        hero,
+                        _equipFsmResetMode,
+                        _equipFsmResetPairedItem);
+                LogDiagnostic(
+                    "Settled equip-FSM diagnostic: requested the exact current hands' gameplay FSMs together; waiting for stable idle or movement states. generation="
+                    + _equipFsmResetGeneration
+                    + "; fsms="
+                    + DescribeEquipFsms(requestedFsms)
+                    + "; "
+                    + DescribeGripContext(
+                        hero,
+                        _equipFsmResetWeapon));
+                return true;
+            }
+
+            List<HeroAnimatorSubstateMachine> equipFsms =
+                GetEquipFsms(
+                    hero,
+                    _equipFsmResetMode,
+                    _equipFsmResetPairedItem);
+            if (!GripFsmMatches(hero, _equipFsmResetMode)
+                || !EquipFsmsAreStable(equipFsms))
+            {
+                return true;
+            }
+
+            _observedAnimationState =
+                ShouldUseOneHandedAnimations(_equipFsmResetWeapon);
+            _observedAnimationStateKnown = true;
+            _oneHandedReconciliationPending = false;
+            Logger.LogInfo(
+                "Completed the settled equip-FSM reset without reloading either hand or animator controller. generation="
+                + _equipFsmResetGeneration
+                + "; fsms="
+                + DescribeEquipFsms(equipFsms)
+                + "; "
+                + DescribeGripContext(
+                    hero,
+                    _equipFsmResetWeapon));
+            CancelEquipFsmReset();
+            return true;
+        }
+
+        private void CancelEquipFsmReset()
+        {
+            _equipFsmResetStage = EquipFsmResetStage.None;
+            _equipFsmResetWeapon = null;
+            _equipFsmResetPairedItem = null;
+            _equipFsmResetMode = GripCombatMode.None;
+            _equipFsmResetWaitFrames = 0;
+            _equipFsmResetStartedAt = 0.0f;
+            _equipFsmResetGeneration = 0;
+        }
+
+        private bool BeginPairedRefresh(
+            Hero hero,
+            CharacterHand weapon)
+        {
+            Item pairedItem = GetPairedItem(hero, weapon.Item);
+            if (pairedItem == null
+                || !IsSupportedPairedHandItem(pairedItem))
+            {
+                _weaponTransitionRefreshPending = false;
+                return false;
+            }
+
+            CharacterHandBase pairedHand = FindHandBaseForItem(
+                hero,
+                pairedItem);
+            if (pairedHand == null
+                && _hiddenPairedHand != null
+                && ReferenceEquals(_hiddenPairedHand.Item, pairedItem))
+            {
+                pairedHand = _hiddenPairedHand;
+            }
+            if (pairedHand == null)
+            {
+                return false;
+            }
+
+            DisableActiveGripFsms(hero);
+
+            _weaponTransitionRefreshPending = false;
+            _oneHandedReconciliationPending = false;
+            _observedAnimationStateKnown = false;
             _pairedRefreshWeapon = weapon;
-            _pairedRefreshShield = shield;
+            _pairedRefreshPairedHand = pairedHand;
             _pairedRefreshWaitFrames = 0;
             _pairedRefreshStartedAt = Time.unscaledTime;
+            _hiddenPairedHand = null;
+            _pairedHandVisibilityRecoveryCandidate = null;
+            _drawnPairedHandHiddenSince = -1.0f;
+            _magicVisualRecoveryHand = null;
 
-            MarkHandAnimatorLoading(shield);
+            MarkHandAnimatorLoading(pairedHand);
             MarkHandAnimatorLoading(weapon);
-            shield.HideWeapon(true);
+            if (!pairedHand.IsHidden)
+            {
+                SetPairedHandHiddenPreservingDrawnState(
+                    pairedHand,
+                    true);
+            }
             weapon.HideWeapon(true);
             _pairedRefreshStage = PairedRefreshStage.Hidden;
 
             Logger.LogInfo(
-                "Restarting sword and shield animations with an ordered controller reload. "
+                "Restarting grip weapon and paired-hand animations with an ordered controller reload. "
                 + DescribeGripContext(hero, weapon));
+            return true;
         }
 
         private bool ProcessPairedRefresh(
@@ -3038,11 +5400,17 @@ namespace VersatileWeapons
                 return false;
             }
 
+            if (Time.timeScale <= 0.0f)
+            {
+                _pairedRefreshStartedAt = Time.unscaledTime;
+                return true;
+            }
+
             if (Time.unscaledTime - _pairedRefreshStartedAt
                 >= PairedRefreshTimeoutSeconds)
             {
                 Logger.LogWarning(
-                    "Ordered sword and shield animation reload timed out; restoring both drawn models and allowing the normal controller state to recover. "
+                    "Ordered grip weapon and paired-hand animation reload timed out; restoring both drawn models and allowing the normal controller state to recover. "
                     + DescribeGripContext(hero, _pairedRefreshWeapon));
                 ShowDiagnosticNotification(
                     "animation-reload-timeout",
@@ -3050,7 +5418,8 @@ namespace VersatileWeapons
                     "High",
                     "vw-recovery");
                 CharacterHand timedOutWeapon = _pairedRefreshWeapon;
-                CharacterHand timedOutShield = _pairedRefreshShield;
+                CharacterHandBase timedOutPairedHand =
+                    _pairedRefreshPairedHand;
                 CancelPairedRefresh();
                 if (hero != null && hero.IsWeaponEquipped)
                 {
@@ -3059,9 +5428,12 @@ namespace VersatileWeapons
                         timedOutWeapon.ShowWeapon();
                     }
 
-                    if (timedOutShield != null && timedOutShield.IsHidden)
+                    if (timedOutPairedHand != null
+                        && timedOutPairedHand.IsHidden)
                     {
-                        timedOutShield.ShowWeapon();
+                        SetPairedHandHiddenPreservingDrawnState(
+                            timedOutPairedHand,
+                            false);
                     }
                 }
 
@@ -3072,12 +5444,12 @@ namespace VersatileWeapons
 
             if (!ReferenceEquals(currentWeapon, _pairedRefreshWeapon)
                 || _pairedRefreshWeapon == null
-                || _pairedRefreshShield == null
+                || _pairedRefreshPairedHand == null
                 || _pairedRefreshWeapon.Item == null
-                || _pairedRefreshShield.Item == null
+                || _pairedRefreshPairedHand.Item == null
                 || !ReferenceEquals(
                     GetPairedItem(hero, _pairedRefreshWeapon.Item),
-                    _pairedRefreshShield.Item))
+                    _pairedRefreshPairedHand.Item))
             {
                 CancelPairedRefresh();
                 return false;
@@ -3092,15 +5464,15 @@ namespace VersatileWeapons
 
                 _pairedRefreshWeapon.ShowWeapon();
                 _pairedRefreshStage =
-                    PairedRefreshStage.WaitingForSword;
+                    PairedRefreshStage.WaitingForGripWeapon;
                 LogDiagnostic(
-                    "Ordered animation reload advanced to WaitingForSword. "
+                    "Ordered animation reload advanced to WaitingForGripWeapon. "
                     + DescribeGripContext(hero, _pairedRefreshWeapon));
                 return true;
             }
 
             if (_pairedRefreshStage
-                == PairedRefreshStage.WaitingForSword)
+                == PairedRefreshStage.WaitingForGripWeapon)
             {
                 if (_pairedRefreshWeapon.IsHidden
                     || _pairedRefreshWeapon.IsLoadingAnimator
@@ -3111,12 +5483,29 @@ namespace VersatileWeapons
                     return true;
                 }
 
-                _pairedRefreshShield.ShowWeapon();
+                SetPairedHandHiddenPreservingDrawnState(
+                    _pairedRefreshPairedHand,
+                    false);
                 _pairedRefreshStage =
-                    PairedRefreshStage.WaitingForShield;
+                    PairedRefreshStage.WaitingForPairedHand;
                 LogDiagnostic(
-                    "Ordered animation reload advanced to WaitingForShield. "
+                    "Ordered animation reload advanced to WaitingForPairedHand. "
                     + DescribeGripContext(hero, _pairedRefreshWeapon));
+                return true;
+            }
+
+            if (HandAnimatorsAreSettled(
+                    hero,
+                    _pairedRefreshWeapon,
+                    true)
+                && !MagicVisualIsReady(
+                    hero,
+                    _pairedRefreshPairedHand))
+            {
+                TryRecoverMissingMagicVisualAfterTransition(
+                    hero,
+                    _pairedRefreshPairedHand,
+                    _pairedRefreshStartedAt);
                 return true;
             }
 
@@ -3128,14 +5517,23 @@ namespace VersatileWeapons
                 return true;
             }
 
-            ReconcileOneHandedAnimationState(hero);
-            _observedAnimationState = true;
-            _observedAnimationStateKnown = true;
-            _oneHandedReconciliationPending = false;
-            Logger.LogInfo(
-                "Completed the ordered sword and shield animation reload. "
-                + DescribeGripContext(hero, _pairedRefreshWeapon));
+            CharacterHand settledWeapon = _pairedRefreshWeapon;
+            Item settledPairedItem = _pairedRefreshPairedHand.Item;
             CancelPairedRefresh();
+            if (!BeginEquipFsmReset(
+                    hero,
+                    settledWeapon,
+                    settledPairedItem))
+            {
+                ReconcileGripFsmState(
+                    hero,
+                    GetGripCombatMode(hero, settledWeapon));
+                _observedAnimationStateKnown = false;
+                RequestOneHandedReconciliation();
+                Logger.LogWarning(
+                    "The ordered controller reload settled, but its synchronized equip-FSM reset could not start. "
+                    + DescribeGripContext(hero, settledWeapon));
+            }
             return true;
         }
 
@@ -3143,7 +5541,7 @@ namespace VersatileWeapons
         {
             _pairedRefreshStage = PairedRefreshStage.None;
             _pairedRefreshWeapon = null;
-            _pairedRefreshShield = null;
+            _pairedRefreshPairedHand = null;
             _pairedRefreshWaitFrames = 0;
             _pairedRefreshStartedAt = 0.0f;
         }
@@ -3162,32 +5560,16 @@ namespace VersatileWeapons
         {
             try
             {
-                OneHandedFSM oneHanded =
-                    hero.TryGetElement<OneHandedFSM>();
-                TwoHandedFSM twoHanded =
-                    hero.TryGetElement<TwoHandedFSM>();
-                DualHandedFSM dualHanded =
-                    hero.TryGetElement<DualHandedFSM>();
-
-                if (oneHanded != null)
-                {
-                    oneHanded.DisableFSM();
-                }
-
-                if (twoHanded != null)
-                {
-                    twoHanded.DisableFSM();
-                }
-
-                if (dualHanded != null)
-                {
-                    dualHanded.DisableFSM();
-                }
+                DisableActiveGripFsms(hero);
 
                 Item pairedItem = GetPairedItem(hero, weapon.Item);
-                CharacterHand pairedHand = IsShield(pairedItem)
-                    ? FindHandForItem(hero, pairedItem)
-                    : null;
+                CharacterHandBase pairedHand = FindHandBaseForItem(
+                    hero,
+                    pairedItem);
+                if (pairedHand == null)
+                {
+                    pairedHand = _hiddenPairedHand;
+                }
 
                 _observedAnimationStateKnown = false;
                 _oneHandedReconciliationPending = desiredState;
@@ -3196,16 +5578,27 @@ namespace VersatileWeapons
                 if (pairedHand != null
                     && !ReferenceEquals(pairedHand, weapon))
                 {
-                    pairedHand.HideWeapon(true);
+                    SetPairedHandHiddenPreservingDrawnState(
+                        pairedHand,
+                        true);
                 }
 
                 weapon.ShowWeapon();
 
-                if (desiredState
-                    && pairedHand != null
-                    && !ReferenceEquals(pairedHand, weapon))
+                if (desiredState)
                 {
-                    pairedHand.ShowWeapon();
+                    _hiddenPairedHand = null;
+                    if (pairedHand != null
+                        && !ReferenceEquals(pairedHand, weapon))
+                    {
+                        SetPairedHandHiddenPreservingDrawnState(
+                            pairedHand,
+                            false);
+                    }
+                }
+                else
+                {
+                    _hiddenPairedHand = pairedHand;
                 }
 
                 Logger.LogInfo(
@@ -3231,27 +5624,7 @@ namespace VersatileWeapons
         {
             try
             {
-                OneHandedFSM oneHanded =
-                    hero.TryGetElement<OneHandedFSM>();
-                TwoHandedFSM twoHanded =
-                    hero.TryGetElement<TwoHandedFSM>();
-                DualHandedFSM dualHanded =
-                    hero.TryGetElement<DualHandedFSM>();
-
-                if (oneHanded != null)
-                {
-                    oneHanded.DisableFSM();
-                }
-
-                if (twoHanded != null)
-                {
-                    twoHanded.DisableFSM();
-                }
-
-                if (dualHanded != null)
-                {
-                    dualHanded.DisableFSM();
-                }
+                DisableActiveGripFsms(hero);
 
                 CharacterHandBase pairedHand = FindHandBaseForItem(
                     hero,
@@ -3411,28 +5784,31 @@ namespace VersatileWeapons
                 ? null
                 : item.StatsRequirements;
             if (requirements == null
-                || requirements.StrengthRequired == null
-                || requirements.StrengthRequired.ModifiedValue <= 0.0f)
+                || requirements.StrengthRequired == null)
             {
                 return 1.0f;
             }
 
-            float fullPotencyStrengthMultiplier =
-                GetFullPotencyStrengthMultiplier();
-            if (fullPotencyStrengthMultiplier <= 1.0f)
+            float strengthRequirement = Math.Max(
+                0.0f,
+                requirements.StrengthRequired.ModifiedValue);
+            float fullPotencyStrength = strengthRequirement > 0.0f
+                ? strengthRequirement * GetFullPotencyStrengthMultiplier()
+                : GetZeroRequirementFullPotencyStrength();
+            if (fullPotencyStrength <= strengthRequirement)
             {
                 return 1.0f;
             }
 
-            float currentStrengthMultiplier;
+            float currentStrength;
             StrengthTestMode testMode = GetActiveStrengthTestMode();
             if (testMode == StrengthTestMode.WeaponRequirement)
             {
-                currentStrengthMultiplier = 1.0f;
+                currentStrength = strengthRequirement;
             }
             else if (testMode == StrengthTestMode.FullPotency)
             {
-                currentStrengthMultiplier = fullPotencyStrengthMultiplier;
+                currentStrength = fullPotencyStrength;
             }
             else
             {
@@ -3442,14 +5818,12 @@ namespace VersatileWeapons
                     return 0.0f;
                 }
 
-                currentStrengthMultiplier =
-                    hero.HeroRPGStats.Strength.ModifiedValue
-                    / requirements.StrengthRequired.ModifiedValue;
+                currentStrength = hero.HeroRPGStats.Strength.ModifiedValue;
             }
 
             return Mathf.Clamp01(
-                (currentStrengthMultiplier - 1.0f)
-                / (fullPotencyStrengthMultiplier - 1.0f));
+                (currentStrength - strengthRequirement)
+                / (fullPotencyStrength - strengthRequirement));
         }
 
         private StrengthTestMode GetActiveStrengthTestMode()
@@ -3466,6 +5840,15 @@ namespace VersatileWeapons
             return _fullPotencyStrengthMultiplier == null
                 ? 2.0f
                 : Math.Max(1.0f, _fullPotencyStrengthMultiplier.Value);
+        }
+
+        private float GetZeroRequirementFullPotencyStrength()
+        {
+            return _zeroRequirementFullPotencyStrength == null
+                ? 10.0f
+                : Math.Max(
+                    0.0f,
+                    _zeroRequirementFullPotencyStrength.Value);
         }
 
         private bool IsNativeOneHandedWeaponInTwoHandedGrip(Item item)
@@ -3492,7 +5875,7 @@ namespace VersatileWeapons
             }
 
             Item pairedItem = GetPairedItem(hero, item);
-            return (pairedItem == null || IsShield(pairedItem))
+            return IsSupportedPairedHandItem(pairedItem)
                 && !IsUsingTwoHandedGrip(item);
         }
 
@@ -3603,10 +5986,74 @@ namespace VersatileWeapons
 
         private void ClearObservedWeapon()
         {
+            CancelEquipFsmReset();
             _observedWeapon = null;
             _observedAnimationStateKnown = false;
             _oneHandedReconciliationPending = false;
             _gripFsmMismatchFrames = 0;
+        }
+
+        private static class CloudServiceLoadGripMemoryPatch
+        {
+            public static void Prefix(
+                object __instance,
+                string slotId)
+            {
+                Plugin plugin = Instance;
+                if (plugin == null)
+                {
+                    return;
+                }
+                try
+                {
+                    plugin.LoadGripMemoryState(__instance, slotId);
+                }
+                catch (Exception exception)
+                {
+                    plugin.Logger.LogWarning(
+                        "Could not restore grip memory; vanilla save loading will continue. "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private static class CloudServiceSaveGripMemoryPatch
+        {
+            public static void Prefix(
+                object __instance,
+                string slotId)
+            {
+                Plugin plugin = Instance;
+                if (plugin == null)
+                {
+                    return;
+                }
+                try
+                {
+                    plugin.SaveGripMemoryState(
+                        writeToArchive: true,
+                        cloudService: __instance,
+                        slotId: slotId);
+                }
+                catch (Exception exception)
+                {
+                    plugin.Logger.LogWarning(
+                        "Could not store grip memory; vanilla save finalization will continue. "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private static class NewGameGripMemoryPatch
+        {
+            public static void Prefix()
+            {
+                Plugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ClearGripMemorySession();
+                }
+            }
         }
     }
 
@@ -3718,11 +6165,70 @@ namespace VersatileWeapons
                 "ToggleAnimatorLayers");
         }
 
-        private static void Postfix(bool activate)
+        private static void Postfix(
+            CharacterMagic __instance,
+            bool activate)
         {
             if (activate)
             {
                 Plugin.DisableConflictingFsms();
+            }
+
+            if (Plugin.Instance != null)
+            {
+                Plugin.Instance.RecordAnimatorLayersApplied(
+                    __instance,
+                    activate);
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class CharacterMagicEquipMagicGlovePatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(
+                typeof(CharacterMagic),
+                "EquipMagicGloveToHero",
+                new Type[] { typeof(Hero), typeof(bool) });
+        }
+
+        private static void Prefix(
+            CharacterMagic __instance,
+            bool mainHand)
+        {
+            if (Plugin.Instance != null)
+            {
+                Plugin.Instance.RecordMagicVisualLoadStarted(
+                    __instance,
+                    mainHand);
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class CharacterMagicSetupMagicGauntletPatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(
+                typeof(CharacterMagic),
+                "SetupMagicGauntlet",
+                new Type[] { typeof(GameObject), typeof(Item) });
+        }
+
+        private static void Postfix(
+            CharacterMagic __instance,
+            GameObject glove,
+            Item owningItem)
+        {
+            if (Plugin.Instance != null)
+            {
+                Plugin.Instance.RecordMagicVisualLoadCompleted(
+                    __instance,
+                    glove,
+                    owningItem);
             }
         }
     }
@@ -3765,16 +6271,27 @@ namespace VersatileWeapons
             CharacterHand __instance,
             ref ARAssetReference __result)
         {
+            string selectedProfile = "native";
             if (Plugin.ShouldUseOneHandedAnimations(__instance))
             {
                 __result = Plugin.CreateOneHandedWeaponController(
                     __instance,
                     __result);
+                selectedProfile = "converted-one-handed";
             }
             else if (Plugin.ShouldUseTwoHandedAnimations(__instance))
             {
                 __result = Plugin.CreateTwoHandedWeaponController(
                     __instance);
+                selectedProfile = "converted-two-handed";
+            }
+
+            if (Plugin.Instance != null)
+            {
+                Plugin.Instance.RecordAnimatorControllerSelection(
+                    __instance,
+                    selectedProfile,
+                    __result);
             }
         }
     }
@@ -3795,7 +6312,7 @@ namespace VersatileWeapons
         {
             if (Plugin.ShouldUseOneHandedAnimations(__instance))
             {
-                __result = Plugin.GetOneHandedLayers();
+                __result = Plugin.GetOneHandedLayers(__instance);
             }
             else if (Plugin.ShouldUseTwoHandedAnimations(__instance))
             {
@@ -4166,14 +6683,17 @@ namespace VersatileWeapons
     [HarmonyPatch]
     internal static class AnimatorLoadPatch
     {
-        private static MethodBase TargetMethod()
+        private static IEnumerable<MethodBase> TargetMethods()
         {
-            return AccessTools.Method(
+            yield return AccessTools.Method(
                 typeof(CharacterHand),
+                "LoadHeroAnimatorOverrides");
+            yield return AccessTools.Method(
+                typeof(CharacterMagic),
                 "LoadHeroAnimatorOverrides");
         }
 
-        private static void Prefix(CharacterHand __instance)
+        private static void Prefix(CharacterHandBase __instance)
         {
             if (Plugin.Instance != null)
             {

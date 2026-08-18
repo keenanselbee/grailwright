@@ -1,6 +1,6 @@
 Enemy Respawn Control
 
-Version 2.2.1
+Version 2.2.2
 
 Platforms: Windows and Linux through Proton.
 
@@ -28,6 +28,13 @@ AdditionalControlledSpawnerTerms =
 IgnoredSpawnerTerms =
 Diagnostics = false
 ShowGrailFloatingTextDiagnostics = true
+
+FoA Mod Manager section order:
+
+General
+Spawner Classification
+Diagnostics
+Import Previous Settings
 
 RespawnMode values:
 

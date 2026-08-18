@@ -1,6 +1,8 @@
-TargetVersion=1.7.5
+TargetVersion=1.7.6
 BaselineVersion=1.7.1
 Added the toggleable Sensible Rest Menu with a noon-at-top clock, matching radial input, clear 12-hour or 24-hour labels, popup time formatting, and an independently toggleable quick-menu time format.
 Kept quick-menu time-format changes independent from the open rest-clock overlay and applied them directly after the native refresh without retaining discarded menu views.
 Activated Sensible Rest Menu patches only after Glorious UI's required core hook succeeds, and rolled back hooks and optional integrations before releasing partial startup state when initialization fails.
 Restored the native rest-clock layout and time text when disabled while leaving gameplay rest availability and interruption rules to their owning systems.
+Removed numeric prefixes from stored config sections while retaining explicit semantic option ordering, with Diagnostics penultimate and Import Previous Settings last.
+Advanced the config schema from 1 to 2 because stored section names changed; established HUD calibration and hotkey preservation remain supported across the reset.

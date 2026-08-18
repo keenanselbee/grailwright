@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Deeds of Avalon[/size][/color]
 [i]Save-backed character deeds and combat statistics, presented beside the quick wheel.[/i][/center]
 
@@ -53,6 +53,8 @@ Current values and authoritative totals already stored by the game or a supporte
 | Rest        | Hours rested and deaths              |
 | Combat      | Total, weapons, magic, summons       |
 | Blood Magic | Essence, Power, corpse tiers         |[/code]
+
+Food uses Grail Floating Text's Gold pool and potions use its Blue pool, matching GFT's consumable notifications.
 
 Event-backed deed counters begin when Deeds starts tracking that character. Crafted and pickpocketed entries count item quantities rather than callback occurrences. One player crime action counts once even if several crime owners report it. Active Bounty is reconciled from the save's current per-faction bounty values, including bounty that existed before Deeds was installed. Highest Bounty is the highest value Deeds has observed.
 

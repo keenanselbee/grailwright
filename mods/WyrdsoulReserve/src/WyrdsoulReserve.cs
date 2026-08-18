@@ -24,9 +24,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Adds three overflow reserves to Wyrd Power")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrdsoul Reserve")]
-[assembly: AssemblyVersion("1.0.5.0")]
-[assembly: AssemblyFileVersion("1.0.5.0")]
-[assembly: AssemblyInformationalVersion("1.0.5")]
+[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyInformationalVersion("1.0.6")]
 
 namespace WyrdsoulReserve
 {
@@ -41,9 +41,9 @@ namespace WyrdsoulReserve
     {
         public const string PluginGuid = "ks.tgfoa.wyrdsoul-reserve";
         public const string PluginName = "Wyrdsoul Reserve";
-        public const string PluginVersion = "1.0.5";
+        public const string PluginVersion = "1.0.6";
 
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -195,7 +195,7 @@ namespace WyrdsoulReserve
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -203,85 +203,100 @@ namespace WyrdsoulReserve
                     null,
                     new BrowsableAttribute(false)));
             _featureEnabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Master switch. Disabling restores vanilla Wyrd Power behavior and hides the reserve diamonds without deleting saved reserve charge.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch. Disabling restores vanilla Wyrd Power behavior and hides the reserve diamonds without deleting saved reserve charge.",
+                    "General", "Enabled", 0, 0));
             _activationCostPercent = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "ActivationCostPercent",
                 DefaultActivationCostPercent,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Percent of the main Wyrd Power bar spent immediately on every activation. This limits free repeated activation effects.",
+                    "Resource", "Activation Cost Percent", 10, 0,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
             _rechargeDelaySeconds = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "RechargeDelaySeconds",
                 DefaultRechargeDelaySeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Inactive gameplay seconds before reserve transfer or passive regeneration begins.",
+                    "Resource", "Recharge Delay Seconds", 10, 10,
                     new AcceptableValueRange<float>(0.0f, 60.0f)));
             _passiveFullRechargeMinutes = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "PassiveFullRechargeMinutes",
                 DefaultPassiveFullRechargeMinutes,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Active gameplay minutes required for passive regeneration to produce one complete main bar before the Wyrd-night multiplier. Passive regeneration fills the main bar first, then the reserves.",
+                    "Resource", "Passive Full Recharge Minutes", 10, 20,
                     new AcceptableValueRange<float>(1.0f, 240.0f)));
             _wyrdNightMultiplier = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "WyrdNightRegenerationMultiplier",
                 DefaultWyrdNightMultiplier,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Multiplier applied only to passive regeneration during a native Wyrd night.",
+                    "Resource", "Wyrd Night Regeneration Multiplier", 10, 30,
                     new AcceptableValueRange<float>(0.0f, 10.0f)));
             _reserveGainEfficiencyPercent = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "ReserveGainEfficiencyPercent",
                 DefaultReserveGainEfficiencyPercent,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Percent of overflow and passive energy retained when it fills the reserves. 100 keeps all overflow; lower values add a Hollow Knight-style reserve penalty.",
+                    "Resource", "Reserve Gain Efficiency Percent", 10, 40,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
             _transferSecondsPerReserve = Config.Bind(
-                "2. Resource",
+                "Resource",
                 "TransferSecondsPerReserve",
                 DefaultTransferSecondsPerReserve,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Seconds required for one full reserve diamond to pour back into the inactive main bar after the recharge delay.",
+                    "Resource", "Transfer Seconds Per Reserve", 10, 50,
                     new AcceptableValueRange<float>(0.05f, 10.0f)));
             _hudOffsetX = Config.Bind(
-                "3. HUD",
+                "HUD",
                 "ReserveOffsetX",
                 DefaultHudOffsetX,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Horizontal adjustment in local Wyrd-indicator pixels. Positive values move all reserve diamonds right.",
+                    "HUD", "Reserve Offset X", 20, 0,
                     new AcceptableValueRange<float>(-500.0f, 500.0f)));
             _hudOffsetY = Config.Bind(
-                "3. HUD",
+                "HUD",
                 "ReserveOffsetY",
                 DefaultHudOffsetY,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Vertical adjustment in local Wyrd-indicator pixels. Positive values move all reserve diamonds up.",
+                    "HUD", "Reserve Offset Y", 20, 10,
                     new AcceptableValueRange<float>(-500.0f, 500.0f)));
             _hudScale = Config.Bind(
-                "3. HUD",
+                "HUD",
                 "ReserveScale",
                 DefaultHudScale,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Scale of the complete reserve group relative to the owned Wyrd indicator.",
+                    "HUD", "Reserve Scale", 20, 20,
                     new AcceptableValueRange<float>(0.25f, 3.0f)));
             _iconSize = Config.Bind(
-                "3. HUD",
+                "HUD",
                 "ReserveIconSize",
                 DefaultIconSize,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Square size of each reserve diamond in local Wyrd-indicator pixels.",
+                    "HUD", "Reserve Icon Size", 20, 30,
                     new AcceptableValueRange<float>(12.0f, 160.0f)));
             _diagnostics = Config.Bind(
-                "4. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log overflow capture, reserve transfer, passive regeneration, HUD attachment, and save-data details.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log overflow capture, reserve transfer, passive regeneration, HUD attachment, and save-data details.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -318,10 +333,14 @@ namespace WyrdsoulReserve
                 }
 
                 const string schemaPrefix = "ConfigSchemaVersion =";
-                if (string.Equals(
+                if ((string.Equals(
                         currentSection,
                         "1. Core",
                         StringComparison.Ordinal)
+                    || string.Equals(
+                        currentSection,
+                        "General",
+                        StringComparison.Ordinal))
                     && line.StartsWith(
                         schemaPrefix,
                         StringComparison.Ordinal))
@@ -415,18 +434,18 @@ namespace WyrdsoulReserve
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
-            CapturePreservedValue<bool>(profile, "1. Core", "Enabled");
-            CapturePreservedValue<float>(profile, "2. Resource", "ActivationCostPercent");
-            CapturePreservedValue<float>(profile, "2. Resource", "RechargeDelaySeconds");
-            CapturePreservedValue<float>(profile, "2. Resource", "PassiveFullRechargeMinutes");
-            CapturePreservedValue<float>(profile, "2. Resource", "WyrdNightRegenerationMultiplier");
-            CapturePreservedValue<float>(profile, "2. Resource", "ReserveGainEfficiencyPercent");
-            CapturePreservedValue<float>(profile, "2. Resource", "TransferSecondsPerReserve");
-            CapturePreservedValue<float>(profile, "3. HUD", "ReserveOffsetX");
-            CapturePreservedValue<float>(profile, "3. HUD", "ReserveOffsetY");
-            CapturePreservedValue<float>(profile, "3. HUD", "ReserveScale");
-            CapturePreservedValue<float>(profile, "3. HUD", "ReserveIconSize");
-            CapturePreservedValue<bool>(profile, "4. Diagnostics", "Diagnostics");
+            CapturePreservedValue<bool>(profile, "General", "Enabled");
+            CapturePreservedValue<float>(profile, "Resource", "ActivationCostPercent");
+            CapturePreservedValue<float>(profile, "Resource", "RechargeDelaySeconds");
+            CapturePreservedValue<float>(profile, "Resource", "PassiveFullRechargeMinutes");
+            CapturePreservedValue<float>(profile, "Resource", "WyrdNightRegenerationMultiplier");
+            CapturePreservedValue<float>(profile, "Resource", "ReserveGainEfficiencyPercent");
+            CapturePreservedValue<float>(profile, "Resource", "TransferSecondsPerReserve");
+            CapturePreservedValue<float>(profile, "HUD", "ReserveOffsetX");
+            CapturePreservedValue<float>(profile, "HUD", "ReserveOffsetY");
+            CapturePreservedValue<float>(profile, "HUD", "ReserveScale");
+            CapturePreservedValue<float>(profile, "HUD", "ReserveIconSize");
+            CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
         }
 
         private void CapturePreservedValue<T>(

@@ -1,3 +1,102 @@
+Version 0.7.4
+Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
+Advanced ConfigSchemaVersion from 11 to 12 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Placed grip controls first, Reverse Hands Compatibility above the bottom diagnostics group, Diagnostics penultimate, and Import Previous Settings last.
+
+Version 0.7.3
+Fixed remembered two-handed greatweapon-and-spell loadouts waiting for the intentionally hidden spell visual before correcting the weapon controller, which could leave the restored weapon invisible.
+The settled restore now waits only for the greatweapon when the remembered grip uses both hands; remembered one-handed restores still require the paired spell visual before reloading either controller.
+
+Version 0.7.2
+Fixed a converted native two-handed weapon remembered in two-handed grip retaining the one-handed controller that the game initially selected for its equipped spell, leaving the spell correctly stowed but the weapon rendered incorrectly.
+Compared the controller actually selected during equipment loading with the subsequently restored exact-equipment grip, so either mismatch direction receives the same single settled correction.
+
+Version 0.7.1
+Fixed remembered non-default grips restoring gameplay state after the game had already selected the weapon's native animator controller, which could leave a remembered two-handed mace visibly held in one hand.
+Added one exact-equipment, settled animator refresh when a newly restored loadout grip needs a non-default controller; ordinary equipment changes still keep their loaded controllers untouched.
+
+Version 0.7.0
+Added RememberGripPerLoadout, enabled by default, to restore the last manually selected grip separately for each native weapon loadout after validating the exact weapon, paired item, and grip-owning hand.
+Changed equipment now invalidates that loadout's stale grip memory after the hands settle and uses the normal grip default until the player manually changes it again.
+Recognized Glorious UI's active six-slot virtual weapon loadout identity so identical equipment can retain independent grip choices even though Glorious UI routes every slot through native loadout row 0.
+Stored versioned grip memory inside each game save with a per-slot local fallback; missing, invalid, or mismatched data fails softly to normal grip defaults.
+Kept ConfigSchemaVersion at 11 because adding a setting is compatible with existing configs and Config.Bind supplies its current default.
+
+Version 0.6.8
+Added ZeroRequirementFullPotencyStrength with a default of 10 so native two-handed weapons with no Strength requirement scale from minimum one-handed potency at 0 Strength to full potency at 10 instead of receiving full potency immediately.
+Kept ConfigSchemaVersion at 11 because adding a setting is compatible with existing configs and Config.Bind supplies its current default.
+
+Version 0.6.7
+Removed the temporary projectile observer and exhaustive spell VFX graph dumps after successful in-game verification, retaining compact controller, transition-generation, and settled-FSM diagnostics.
+
+Version 0.6.6
+Consolidated ordinary shield, spell, converted-greatweapon, and native one-handed equipment changes behind one exact-hand settled equip barrier that restarts the relevant melee and magic FSMs together without reloading either controller.
+Added transition ownership generations so only the newest rapid equipment swap can finalize, and native one-handed weapons in two-handed grip now re-enter their equip state instead of waiting for movement to reveal the model.
+Added temporary projectile spawn and two-frame movement diagnostics to distinguish a missing projectile from an inactive, stationary, or incorrectly positioned instance.
+
+Version 0.6.5
+Expanded the temporary spell diagnostics with each live VFX graph's particle count, awake, culling, and pause state so missing effect objects can be distinguished from inactive simulations.
+
+Version 0.6.4
+Replaced the redundant spell-pair grip-weapon controller reload with a melee-FSM-only reset after both native hand loads and the visible spell gauntlet settle, preserving reparented idle spell effects.
+Added temporary component-level spell VFX diagnostics around the reset so the cube and its separate idle and arcane effects can be verified independently.
+
+Version 0.6.3
+Preserved the hero-wide drawn state while performing the spell-pair grip-weapon-only reload so the settled spell hand remains drawn and untouched throughout the correction.
+
+Version 0.6.2
+Waited for a paired spell controller and visible gauntlet to settle, then reloaded only the converted greatweapon so its one-handed controller is selected after the equipment menu's temporary empty-slot phase.
+Preserved the spell hand during that correction, guarded inactive combat FSMs from needless teardown, and added temporary controller-address and transition-stage diagnostics for verification.
+
+Version 0.6.1
+Kept canceled grip-restoration ownership through temporary empty-hand and unsupported-weapon states, then cleared it only after settled equipment proves that exact hand is obsolete.
+Runs the owned paired-hand watchdog independently of supported grip-weapon discovery so a still-equipped hidden spell can recover after any replacement weapon finishes loading.
+
+Version 0.6.0
+Restricted canceled-transition visibility recovery to the exact paired hand Versatile Weapons left hidden, preserving ordinary shield and external visibility behavior.
+Deferred the paired-hand recovery timer until gameplay resumes so an open equipment menu cannot trigger another attachment or controller load.
+
+Version 0.5.9
+Captured each spell-arm request during the game's pre-registration bind step, then still requires the exact registered current hand before accepting its completion.
+
+Version 0.5.8
+Counted overlapping spell-arm loads per slot and accepts readiness only from the exact currently equipped spell-hand instance, preventing an obsolete completion from satisfying a newer transition.
+Replaced the fixed-delay canceled-transition restore with the existing conservative drawn-visibility watchdog, extended to active paired hands after animator and spell-visual loading settle.
+
+Version 0.5.7
+Deferred spell-visual and canceled-hand recovery until gameplay resumes so the paused equipment menu cannot be mistaken for a missing or inactive hand visual.
+
+Version 0.5.6
+Reset visual-recovery ownership for each explicit grip restoration and waits for both per-hand animator loads before restoring visibility canceled by newer equipment work.
+
+Version 0.5.5
+Serialized spell-arm visual loading so recovery never overlaps an in-flight game request, and validates that the completed gauntlet is still active before declaring it ready.
+Applied the same visual-only recovery to explicit one-handed grip restoration and reports equipment transitions that never finish settling.
+Deferred restoration of hands hidden by a canceled grip reload until the newer equipment transition finishes, without touching already-visible controllers.
+
+Version 0.5.4
+Stopped every normal equipment-menu transition, including shield swaps and native one-handed replacements, from restarting already-loaded hand controllers.
+Tracked completion of the actual asynchronous spell-arm gauntlet separately from animator-layer readiness and added a visual-only recovery that never unloads either hand controller.
+Canceled an ordered grip-restoration reload when a newer equipment change takes ownership of the hands, preventing stale animation work from surviving into the replacement loadout.
+
+Version 0.5.3
+Stopped restarting already-ready weapon and spell animation controllers after equipment-menu changes, preventing Animancer invalid-playable exceptions and incomplete spell arms.
+Kept ordered paired-hand reloads for explicit grip restoration and the shield-specific equipment transition that requires controller rebinding.
+
+Version 0.5.2
+Generalized the ordered paired-hand controller reload from shields to spells and every other supported one-slot pairing, preventing menu equipment changes from leaving the paired model or arms incomplete.
+Tracked spell-hand animator loading and layer readiness explicitly, and no longer treats an equipped paired item with a missing hand object as settled.
+
+Version 0.5.1
+Restored paired-hand animator settling before native one-handed post-loadout refreshes, preventing visible spell or weapon hands from being bypassed during transitions.
+Added a parallel main-hand and offhand-melee combat mode so rods, magic gauntlets, and converted offhand greatweapons can remain active beside a main-hand versatile weapon.
+
+Version 0.5.0
+Allowed supported native two-handed weapons to use their one-handed grip beside any one-slot hand item, including spells, rods, and melee weapons, in either hand order.
+Kept both equipped items active in one-handed grip, then stowed and suppressed the paired hand only while the selected weapon uses both hands.
+Added explicit main-hand, offhand-melee, dual-wield, and two-handed combat-FSM reconciliation so spell-and-weapon and dual-melee pairings retain their correct attacks, casting, blocking, and animations.
+Made the main-hand versatile weapon own grip switching when both equipped weapons can change grip; an offhand greatweapon remains selectable when the main hand is not grip-capable.
+
 Version 0.4.0
 Added two enabled-by-default Reverse Hands compatibility settings that keep normal hand input while a paired spell is stowed by a two-handed grip and whenever exactly one spell is equipped.
 Kept the game's Reverse Hands option as the master switch; two-spell loadouts can still use reversed input.

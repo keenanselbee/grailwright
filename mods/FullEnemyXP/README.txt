@@ -1,5 +1,5 @@
 Full Enemy XP - No Overlevel Penalty
-Version 1.1.0
+Version 1.1.1
 
 Platforms: Windows and Linux through Proton.
 
@@ -32,7 +32,7 @@ Important settings
 Enabled = true
 Master switch.
 
-ConfigSchemaVersion = 1
+ConfigSchemaVersion = 2
 Configuration layout version. Do not edit this manually. If the schema changes
 in a future release, Full Enemy XP backs up the old config beside the active
 .cfg file, clears stale settings, reloads the config, and saves regenerated
@@ -69,6 +69,14 @@ patch or reflection issue.
 SummaryEveryAdjustedKills = 10
 Logs a summary after this many adjusted or dry-run adjusted kills. Set to 0 to
 disable periodic summaries.
+
+FoA Mod Manager order
+---------------------
+
+General
+Testing
+Diagnostics
+Import Previous Settings
 
 Diagnostics testing
 -------------------

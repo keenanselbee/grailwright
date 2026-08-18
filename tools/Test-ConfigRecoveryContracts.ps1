@@ -107,6 +107,7 @@ function Get-ArrayInitializer {
 }
 
 $modContracts = @(
+    @{ Mod = 'AmbushIntegrity'; Source = 'src\AmbushIntegrity.cs'; Schema = 2; Baseline = 1; AutoPreserves = $true },
     @{ Mod = 'GloriousUI'; Source = 'src\GloriousUI.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'BloodMagicExpansion'; Source = 'src\BloodMagicExpansion.cs'; Schema = 10; AutoPreserves = $true },
     @{ Mod = 'DeedsOfAvalon'; Source = 'src\DeedsOfAvalon.cs'; Schema = 1; AutoPreserves = $true },
@@ -126,6 +127,7 @@ $modContracts = @(
     @{ Mod = 'KSAddons\KSTGVolumetricFixAddon'; Source = 'src\TGVolumetricFixAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSWyrdSightAddon'; Source = 'src\WyrdSightAddon.cs'; Schema = 2; AutoPreserves = $false },
     @{ Mod = 'BattlecryVoiceTuner'; Source = 'src\BattlecryVoiceTuner.cs'; Schema = 1; AutoPreserves = $true },
+    @{ Mod = 'SoulAndService'; Source = 'src\SoulAndService.cs'; Schema = 2; Baseline = 1; AutoPreserves = $true },
     @{ Mod = 'SteelAndBone'; Source = 'src\SteelAndBone.cs'; Schema = 14; AutoPreserves = $true },
     @{ Mod = 'TorchlightRekindled'; Source = 'src\TorchlightRekindled.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'UltrawideFixes'; Source = 'src\UltrawideFixes.cs'; Schema = 1; AutoPreserves = $true },
@@ -138,18 +140,18 @@ $expectedPermanentExclusions = @{
         @{ Section = 'Diagnostics'; Key = 'BuffDebuffLayoutTestMode' }
     )
     'BloodMagicExpansion' = @(
-        @{ Section = '13. Diagnostics'; Key = 'OverrideBloodEssence' },
-        @{ Section = '13. Diagnostics'; Key = 'BloodEssenceOverrideValue' }
+        @{ Section = 'Diagnostics'; Key = 'OverrideBloodEssence' },
+        @{ Section = 'Diagnostics'; Key = 'BloodEssenceOverrideValue' }
     )
     'EyesInTheDark' = @(
-        @{ Section = '2. Gameplay Preset'; Key = 'ApplyPreset' },
-        @{ Section = '10. Diagnostics'; Key = 'EnableThreatOverride' },
-        @{ Section = '10. Diagnostics'; Key = 'ThreatOverrideValue' },
-        @{ Section = '10. Diagnostics'; Key = 'EnableTimescaleOverride' },
-        @{ Section = '10. Diagnostics'; Key = 'TimescaleOverrideMultiplier' }
+        @{ Section = 'Gameplay Preset'; Key = 'ApplyPreset' },
+        @{ Section = 'Diagnostics'; Key = 'EnableThreatOverride' },
+        @{ Section = 'Diagnostics'; Key = 'ThreatOverrideValue' },
+        @{ Section = 'Diagnostics'; Key = 'EnableTimescaleOverride' },
+        @{ Section = 'Diagnostics'; Key = 'TimescaleOverrideMultiplier' }
     )
     'BattlecryVoiceTuner' = @(
-        @{ Section = '4. Testing'; Key = 'PlayRandomTestSound' }
+        @{ Section = 'Testing'; Key = 'PlayRandomTestSound' }
     )
 }
 
@@ -267,7 +269,7 @@ namespace Grailwright.Shared
                 + Entry("Boolean", "false", "PermanentAction", "true")
                 + Entry("Int32", "1", "Removed", "8")
                 + System.Environment.NewLine
-                + "[99. Import Previous Settings]" + System.Environment.NewLine
+                + "[Import Previous Settings]" + System.Environment.NewLine
                 + Entry("Boolean", "false", "ImportPreviousSettingsNow", "true");
             System.IO.File.WriteAllText(newestSupportedBackup, supported);
 
@@ -527,7 +529,12 @@ try {
         Assert-Contract (
             $source -match '\b(?:Current)?ConfigSchemaVersion\b'
         ) "$($contract.Mod) binds config without declaring a schema version."
-        Assert-Contract ($source.Contains("ConfigRecoveryBaselineSchema = $($contract.Schema);")) "$($contract.Mod) recovery baseline changed unexpectedly."
+        $expectedBaseline = if ($contract.ContainsKey('Baseline')) {
+            $contract.Baseline
+        } else {
+            $contract.Schema
+        }
+        Assert-Contract ($source.Contains("ConfigRecoveryBaselineSchema = $expectedBaseline;")) "$($contract.Mod) recovery baseline changed unexpectedly."
         Assert-Contract ($source.Contains('ConfigRecoveryKeepCurrentDefaultRules')) "$($contract.Mod) has no per-schema safety-rule scaffold."
         Assert-Contract ($source.Contains('ConfigRecoveryPermanentExclusions')) "$($contract.Mod) has no permanent-exclusion scaffold."
 

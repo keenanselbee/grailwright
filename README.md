@@ -14,31 +14,33 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 
 | Mod | Version | Nexus |
 | --- | --- | --- |
-| [Glorious UI](mods/GloriousUI) | 1.7.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.8.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
-| [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.7.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.1.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
-| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
-| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
-| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
-| [Full Enemy XP](mods/FullEnemyXP) | 1.1.0 | Unpublished |
-| [Grail Floating Text](mods/GrailFloatingText) | 2.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.6.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
-| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
-| [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
-| [KS Better Volumetric Fog Addon](mods/KSAddons/KSTGVolumetricFixAddon) | 0.1.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Volumetric Fog](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145) |
-| [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.1.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
-| [KS All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
-| [KS Contact Shadows Addon](mods/KSAddons/KSTGContactShadowsAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Contact Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135) |
-| [KS Global Illumination Addon](mods/KSAddons/KSTGGlobalIlluminationAddon) | 0.1.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Global Illumination](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134) |
-| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.6 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
+| [Ambush Integrity - Stealth Overhaul](mods/AmbushIntegrity) | 0.1.8 | Unpublished |
+| [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.8.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.7.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.2.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
+| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
+| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.5.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
+| [Full Enemy XP](mods/FullEnemyXP) | 1.1.1 | Unpublished |
+| [Grail Floating Text](mods/GrailFloatingText) | 2.5.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.6.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
+| [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
+| [KS Better Volumetric Fog Addon](mods/KSAddons/KSTGVolumetricFixAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Volumetric Fog](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145) |
+| [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.1.1 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
+| [KS All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.2.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
+| [KS Contact Shadows Addon](mods/KSAddons/KSTGContactShadowsAddon) | 0.1.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Contact Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135) |
+| [KS Global Illumination Addon](mods/KSAddons/KSTGGlobalIlluminationAddon) | 0.1.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Global Illumination](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134) |
+| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
-| [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.1.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
-| [Steel and Bone](mods/SteelAndBone) | 3.4.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
-| [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
-| [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
-| [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |
-| [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
+| [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.1.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
+| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 0.3.5 | Unpublished |
+| [Steel and Bone](mods/SteelAndBone) | 3.8.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
+| [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
+| [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
+| [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.7.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |
+| [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
 
 ## Layout
 
@@ -108,11 +110,11 @@ Run both contracts after config or schema work:
 
 ## Release Output
 
-Release zips are not kept in a repo-local `dist` folder. For normal agent-led
-test builds, export the intermediate zip under `.codex-temp` and stage the new
-version into Vortex. When a Desktop zip is explicitly requested, export only to
-the Windows Desktop and do not stage to Vortex. Older same-package zips in the
-destination folder are removed so a Desktop export stays latest-only.
+Release zips are not kept in a repo-local `dist` folder. Ordinary builds export
+the intermediate zip under `.codex-temp` and stage the new version into Vortex
+by default. A Desktop zip requires the explicit `-DesktopOnly` mode and is not
+staged. Exporting never removes older archives from the Desktop or another
+destination; cleanup requires a separate, explicit request.
 Archive filenames use the readable display name plus version, such as
 `No Player Light 1.0.2.zip`. The zip payload still contains one compact
 top-level mod folder, such as `NoPlayerLight`, so plugin folder identity and
@@ -132,15 +134,15 @@ authored sources use language features that the legacy .NET Framework compiler
 cannot compile.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion -DestinationDirectory .\.codex-temp\builds -StageToVortex
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-All.ps1 -DestinationDirectory .\.codex-temp\builds -StageToVortex
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-All.ps1
 ```
 
 Use `-SkipCompile` to repackage the current checked-in DLL and assets without
 running a mod compile script:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod NoPlayerLight -DestinationDirectory .\.codex-temp\builds -StageToVortex -SkipCompile
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod NoPlayerLight -SkipCompile
 ```
 
 This creates a readable archive and staged Vortex variant such as
@@ -151,11 +153,15 @@ The payload inside both remains the compact plugin folder, such as
 disable, or change the active profile selection. If that exact version folder
 already exists, the script stops instead of overwriting it.
 
-For a Desktop-only zip, omit `-StageToVortex` and use the Desktop destination:
+For a Desktop-only zip, request the exception explicitly:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion -DesktopOnly
 ```
+
+For an automation workflow that needs only an archive, use `-PackageOnly` with
+an explicit destination. Nexus publishing uses this mode internally; ordinary
+test builds should not.
 
 ## Nexus Publishing
 
@@ -321,9 +327,24 @@ nexus-changelog.txt    # reviewed consolidation for a multi-version Nexus upload
 
 In `nexus-full-desc.txt`, link the first nearby mention of each published mod
 name to its Nexus page with BBCode `[url=...]Name[/url]`. Leave repeated
-mentions in the same paragraph, list, or nearby section unlinked or bold. Put
-the concise Grail Floating Text diagnostics note under Compatibility or
-Optional Integrations when present.
+mentions in the same paragraph, list, or nearby section unlinked or bold.
+Compatibility sections list linked Grailwright mods first under
+`[b]Grailwright mods[/b]`, followed by third-party mods under
+`[b]Other mods[/b]`; alphabetize each group by displayed mod name and omit an
+empty group. Do not include version numbers or `or newer` qualifiers on
+Grailwright entries in Compatibility. Put genuinely required minimum versions
+in Requirements or the relevant integration details instead. When accurate,
+begin the GFT Compatibility bullet with this standard sentence:
+
+```text
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.
+```
+
+The standard sentence is generally enough. Expand the bullet only with concise
+behavior that is useful for players to know; keep implementation detail and
+extensive integration guidance in the relevant feature, configuration, or
+requirements section. Omit the bullet from Grail Floating Text's own page and
+from mods that do not integrate with it.
 
 `Publish-NexusMod.ps1` uses `nexus-file-desc.txt` as the file upload
 description unless `-FileDescription` is passed. Keep that file to one or two

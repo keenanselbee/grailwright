@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Full Enemy XP - No Overlevel Penalty[/size][/color]
 [i]Keep enemy kill XP steady when you outlevel the fight.[/i][/center]
 
@@ -32,6 +32,8 @@ MinimumOverlevelXPMultiplier = 1
 [/code]
 
 The default value of [b]1[/b] means full enemy XP when you are above the enemy XP level. Lower values allow partial vanilla falloff.
+
+FoA Mod Manager orders the clean sections as [b]General[/b], [b]Testing[/b], [b]Diagnostics[/b], and finally [b]Import Previous Settings[/b].
 
 [b]Diagnostics[/b]
 
@@ -73,4 +75,8 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 Full Enemy XP patches the enemy death XP calculation. It should be compatible with mods that add separate bonus XP after kills, but may overlap with mods that replace or heavily transpile enemy death XP rewards.
 
-[b]Optional diagnostics:[/b] ShowGrailFloatingTextDiagnostics defaults on but remains inactive until Diagnostics is enabled. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] then shows one low-priority collapsed summary for the first adjusted or dry-run kill and each SummaryEveryAdjustedKills interval. It reports cumulative adjustments, estimated restored XP, and the latest multiplier, while disabling the GFT switch leaves full BepInEx logging active.
+[b]Grailwright mods[/b]
+
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also shows low-priority summaries of XP adjustments, estimated restored XP, and the latest multiplier.[/*]
+[/list]

@@ -1,3 +1,8 @@
+Version 2.2.2
+Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
+Advanced ConfigSchemaVersion from 16 to 17 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Placed advanced DSP near the bottom, with Diagnostics penultimate and Import Previous Settings last.
+
 Version 2.2.1
 Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.
 Improved the Import Previous Settings action text so it matches the Turn On control and clearly explains that the action turns back off automatically.

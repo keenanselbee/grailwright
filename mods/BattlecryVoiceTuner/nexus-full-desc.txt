@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Battlecry Voice Tuner[/size][/color]
 [i]A voice shaped for battle. Sneaking is for cowards, let them hear you come.[/i][/center]
 
@@ -189,11 +189,14 @@ Incompatible config updates create a backup and generate current defaults while 
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
 
+[b]Grailwright mods[/b]
+
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] is optional; no hard dependency is introduced.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can display critical load errors in-game and supports Eyes in the Dark's atmospheric Wyrdnight responses.[/*]
-[*]Battlecry Voice Tuner continues working normally when either optional mod is absent.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also displays the optional atmospheric Wyrdnight responses used with Eyes in the Dark.[/*]
 [/list]
+
+Battlecry Voice Tuner continues working normally when either optional mod is absent.
 
 [line]
 

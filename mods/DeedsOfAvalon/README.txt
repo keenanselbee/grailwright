@@ -1,5 +1,5 @@
 Deeds of Avalon - Character Statistics
-Version 1.7.5
+Version 1.7.7
 
 Platforms: Windows and Linux through Proton.
 
@@ -12,6 +12,11 @@ DLL: DeedsOfAvalon.dll
 GUID: ks.tgfoa.deeds-of-avalon
 Config: BepInEx/config/ks.tgfoa.deeds-of-avalon.cfg
 Readable files: BepInEx/config/DeedsOfAvalon/Characters/<character-id>/statistics.json
+
+FoA Mod Manager section order:
+General, Tooltip Behavior, Panel Layout, Panel Background, Panel Colors,
+Text Outline, Text Backing, Panel Content, Integrations, Diagnostics, and the
+final Import Previous Settings section.
 
 Grail Floating Text 2.3.7 or newer is required for the quick-wheel panel. The
 statistics and JSON export still work when GFT is absent.
@@ -31,7 +36,7 @@ Quests completed: Number       Limited rows show Other categories
 Locations discovered: Number
 Recipes learned: Number
 Items crafted: Number
-Food eaten / Potions used
+Food eaten (Gold) / Potions used (Blue)
 Fish caught: Number
 Total gold earned: Number
 Locks picked: Number

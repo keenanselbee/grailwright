@@ -1,21 +1,23 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Dishonored Dynamic Crosshair[/size][/color]
-[i]Reactive PNG reticles for weapons, targets, blood magic, and contextual hit feedback.[/i][/center]
+[i]Reactive PNG reticles for weapons, targets, stealth, interactions, blood magic, and contextual hit feedback.[/i][/center]
 
 [line]
 
-[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] hit feedback.
+[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, current interactions, optional [b]Ambush Integrity[/b] backstab readiness, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] hit feedback.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]Reactive reticles:[/b] Use separate hot-reloading PNGs for general, bow, magic, and blood-magic corpse contexts.[/*]
+[*][b]Reactive reticles:[/b] Use separate hot-reloading PNGs for general, bow, magic, blood-magic corpse, and context-specific center-dot visuals.[/*]
 [*][b]Flexible visibility:[/b] Choose AlwaysVisible, TargetOnly, CombatReady, or HostilesOnly, with live hostility updates and configurable target range.[/*]
-[*][b]Readable targeting:[/b] Apply shared default, hostile, and friendly or neutral colors while retaining independent crouch-indicator controls.[/*]
+[*][b]Dishonored-style awareness:[/b] Replace the vanilla crouch indicator with an eleven-frame eye that opens inside the reticle while long outer awareness lines retract toward the center.[/*]
+[*][b]Contextual interactions:[/b] Replace generic key reminders with action-aware hand, lock, tool, book, speech, rest, mount, and campfire icons.[/*]
 [*][b]Precise presentation:[/b] Set true screen-pixel or canvas-relative dimensions, texture filtering, mounted opacity, and vanilla-reticle suppression.[/*]
+[*][b]Ambush Integrity integration:[/b] Add a topmost dark-red backstab indicator only while the current target passes the stealth overhaul's authoritative backstab-ready state.[/*]
 [*][b]Blood Magic integration:[/b] Show Meager, Worthy, Potent, and Prime corpse-drain reticles through the optional [b]Blood Magic Expansion[/b] API.[/*]
-[*][b]Steel and Bone hit markers:[/b] Temporarily replace the current reticle with eight effectiveness frames, independent weak-spot and critical overlays, and a tiered killing-blow layer above them.[/*]
+[*][b]Steel and Bone hit markers:[/b] Layer seven numbered effectiveness frames plus the shared neutral reticle above the center visuals, with independent weak-spot, critical, and tiered killing-blow overlays.[/*]
 [/list]
 
 [line]
@@ -56,17 +58,21 @@ Start the game once to generate:
 
 [b]Core[/b] has [b]Enabled[/b] and [b]Preset[/b].
 
-[b]Reticles[/b] has [b]ReticleSizePixels[/b], the four PNG paths, and scale multipliers for Bow, Magic, and BloodMagic. General uses the global size directly.
+[b]Reticles[/b] has [b]ReticleSizePixels[/b], [b]ShowCenterDot[/b], the four context PNG paths, and scale multipliers for Bow, Magic, and BloodMagic. General uses the global size directly. General, Bow, and Magic use separate hot-reloading dot assets; BloodMagic shares the Magic dot.
 
 [b]Colors and Opacity[/b] has [b]DefaultColor[/b], [b]HostileColor[/b], [b]NonHostileColor[/b], [b]IdleOpacity[/b], [b]TargetOpacity[/b], and [b]MountedOpacityMultiplier[/b].
+
+[b]Interaction Icons[/b] has [b]Enabled[/b], [b]IconScale[/b], [b]IconOpacity[/b], [b]CrosshairOpacityWhileActive[/b], [b]HideVanillaInteractionKeyPrompts[/b], and [b]VanillaTextVerticalOffset[/b]. Icons default to 0.8 opacity and 1.1x size, while the underlying crosshair defaults to hidden and the interaction text defaults to 120 UI units above its vanilla position.
 
 [b]Blood Magic[/b] has [b]Mode[/b], [b]RequireRelevantBloodSpell[/b], [b]BloodMagicQualityCrosshairsEnabled[/b], [b]UseCorpseQualityScale[/b], [b]MaximumQualityScale[/b], and [b]UsableCorpseColor[/b].
 
 [b]Steel and Bone Hit Markers[/b] has [b]Enabled[/b], [b]KillingBlowOverlaysEnabled[/b], [b]SizeMultiplier[/b], [b]DamageOverTimeSizeMultiplier[/b], [b]KillingBlowSizeMultiplier[/b], [b]DurationMultiplier[/b], and [b]KillingBlowDurationMultiplier[/b]. Direct-hit frames default to 1.15x the general reticle size, damage-over-time frames default to 1.1x, and complete killing-blow compositions default to 1.3x. All frames default to 1x Steel and Bone's final feedback duration. Killing blows last another 1.5x by default before their corpse tier applies 1.00x, 1.33x, 1.67x, or 2.00x from Meager through Prime. Bow, Magic, Blood Magic, and corpse-quality scales do not affect marker size.
 
-[b]Advanced[/b] has targeting, sizing, texture filtering, crouch indicator opacity/offset, hands-down behavior, and [b]HideVanillaReticles[/b]. Most users can leave these defaults alone.
+[b]Ambush Integrity[/b] has [b]BackstabReadyOverlayEnabled[/b] and [b]BackstabReadyColor[/b]. The overlay defaults to the killing-blow dark red #8C0003FF.
 
-When [b]Enabled = false[/b], the custom reticle and background polling pause, and vanilla target-detection range/crouch opacity are restored.
+[b]Advanced[/b] has targeting, sizing, texture filtering, custom awareness-eye opacity multiplier and offset, hands-down behavior, and [b]HideVanillaReticles[/b]. The multiplier defaults to 1, making the eye and pupil match the active crosshair opacity exactly. Most users can leave these defaults alone.
+
+When [b]Enabled = false[/b], the custom reticle and background polling pause, and the vanilla target-detection range and crouch indicator are restored.
 
 [line]
 
@@ -80,9 +86,43 @@ When [b]Enabled = false[/b], the custom reticle and background polling pause, an
 
 [line]
 
+[heading][color=#C94A4A][size=5]Center Dot and Crouch Awareness[/size][/color][/heading]
+
+[b]ShowCenterDot[/b] defaults to enabled. General uses [b]dot.png[/b], Bow uses [b]dot_bow.png[/b], and Magic plus BloodMagic use [b]dot_magic.png[/b]. The ordinary dot inherits the reticle color and opacity.
+
+While crouched, the custom awareness eye replaces the ordinary dot. Frame 0 is a closed central line with long awareness lines outside the reticle. Frames 1 through 9 progressively open the eye while retracting those lines toward the center. Frame 10 is fully open with no outer lines. The eye stays small enough to fit within the Bow reticle while the complete indicator remains readable around every context.
+
+Frames 0 and 1 remain dotless. From frame 2 through frame 10, the active context dot becomes the eye's pupil even when [b]ShowCenterDot[/b] is disabled. It follows the eye's color, opacity, and vertical offset. Direct nonlethal hit feedback covers the ordinary dot, while the complete stealth eye and pupil remain underneath every hit-marker layer so awareness is never replaced by damage feedback.
+
+The complete awareness indicator inherits the active crosshair's resolved opacity, including targeting, mounting, interaction, and backstab fading. [b]CrouchIndicatorOpacityMultiplier[/b] defaults to 1 for an exact match and can make the indicator proportionally fainter without disconnecting it from those dynamic states. Blood Magic corpse reticles and routine interaction icons hide the eye and pupil while their contextual presentation is active.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Contextual Interaction Icons[/size][/color][/heading]
+
+Dishonored reads the exact action selected by the game's interaction HUD instead of guessing from localized prompt text. Mining, lumbering, fishing, digging, reading, talking, resting in beds or bedrolls, mounting, and using campfires or bonfires have dedicated 512x512 icons. Items, containers, doors, gathering, searching, and unknown interactions use the general hand.
+
+Any locked location uses the lock icon even when its lock is key-only, broken, or otherwise cannot be picked. Theft, pickpocketing, and other illegal actions use the hand in killing-blow dark red. Lock state takes priority over the illegal color.
+
+Routine interaction icons render above the normal reticle, center dot, and awareness eye. [b]IconScale[/b] is independent of weapon and corpse-quality scaling and defaults to 1.1x, [b]IconOpacity[/b] defaults to 0.8, and [b]CrosshairOpacityWhileActive[/b] hides the underlying crosshair by default. Hit feedback temporarily suppresses the routine icon and stays clear. Backstab readiness overrides the routine icon and remains topmost.
+
+[b]HideVanillaInteractionKeyPrompts[/b] defaults to enabled. It collapses the vanilla E, F, or controller-button container so its background fits the remaining action text without empty space. Locked and blocked explanations remain visible; hold-progress graphics inside the hidden button container are hidden with it. [b]VanillaTextVerticalOffset[/b] defaults to -120 UI units, placing the prompt above its vanilla just-below-center position while following the game's HUD resolution and accessibility scaling. Disabling suppression or the plugin restores the vanilla container. All interaction PNGs hot reload.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Ambush Integrity Backstab Ready[/size][/color][/heading]
+
+With [b]Ambush Integrity[/b] installed, Dishonored reads its optional API and displays [b]interaction_backstab.png[/b] only while the exact current target passes the final backstab eligibility result. The 512x512 image uses the standard reticle canvas at a fixed 1.0 scale without an activation pulse. It renders above every other reticle, interaction, and hit-marker layer, while all underlying crosshair elements are dimmed to half their normal opacity.
+
+Dishonored does not reproduce crouch, visibility, target-lock, range, or grace rules. Ambush Integrity owns that gameplay truth. Target changes, eligibility loss, or stale state remove the overlay immediately. Committed Ambush does not present itself as a guaranteed backstab action.
+
+The integration is optional. Without Ambush Integrity, all ordinary reticle behavior remains unchanged.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Blood Magic Corpse Drain Reticle[/size][/color][/heading]
 
-With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] installed, Dishonored selects a Meager, Worthy, Potent, or Prime corpse reticle from the shared corpse-quality bucket. The original [b]custom_reticle_bloodmagic.png[/b] remains the fallback when quality is unavailable, tiered reticles are disabled, or a tier asset is missing. Set [b]Mode = Off[/b] to disable the integration. Enable [b]RequireRelevantBloodSpell[/b] to show it only while Blood/Life Transfusion or Abhartach's Calling is relevant.
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] installed, Dishonored selects [b]custom_reticle_bloodmagic_0.png[/b] through [b]custom_reticle_bloodmagic_3.png[/b] for Meager, Worthy, Potent, and Prime. Frame 0 also serves as the fallback when quality is unavailable, tiered reticles are disabled, or a tier asset is missing. Set [b]Mode = Off[/b] to disable the integration. Enable [b]RequireRelevantBloodSpell[/b] to show it only while Blood/Life Transfusion or Abhartach's Calling is relevant.
 
 [list]
 [*][b]No focused corpse:[/b] No blood-magic reticle appears.[/*]
@@ -98,7 +138,7 @@ If Blood Magic Expansion is not loaded, Dishonored marks the optional API unavai
 
 [heading][color=#C94A4A][size=5]Steel and Bone Hit Markers[/size][/color][/heading]
 
-With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241?tab=description]Steel and Bone[/url] installed, each outgoing player hit briefly replaces the current reticle with a hit marker showing how effective that hit was:
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241?tab=description]Steel and Bone[/url] installed, each outgoing player hit briefly replaces the outer context reticle with a hit marker above the center visuals:
 
 [code]| Hit Marker | Visual effectiveness | Meaning                       |
 |------------|----------------------|-------------------------------|
@@ -106,23 +146,32 @@ With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241?tab=des
 |      1     | Below x0.35          | Extreme resistance            |
 |      2     | x0.35 to below x0.70 | Strong resistance             |
 |      3     | x0.70 to below x0.95 | Mild resistance               |
-|      4     | x0.95 to x1.05       | Neutral; also General default |
+|      4     | x0.95 to x1.05       | Shared custom_reticle.png     |
 |      5     | Above x1.05 to x1.10 | Mild weakness                 |
 |      6     | Above x1.10 to x1.20 | Strong weakness               |
 |      7     | Above x1.20          | Extreme weakness              |[/code]
 
-Every direct nonlethal hit adds a central diamond over its effectiveness frame, colored with Steel and Bone's final damage-feedback color. Damage-over-time ticks and killing blows omit the diamond. Steel and Bone's presentation-adjusted effectiveness and calculated red shift remain intact for weak spots and critical hits. Its single Effectiveness Feedback Sensitivity value defaults to x1.20 on Tempered, x1.10 on Hardened, and x1.00 on Crucible, and changes presentation without changing actual damage. Weak-spot and critical symbols are independent overlays above the diamond, so either or both can appear over any effectiveness frame. A killing blow adds its Meager, Worthy, Potent, or Prime corpse-tier overlay above both precision layers and turns the base frame plus every visible overlay dark red (#8C0003). Floating damage numbers can remain disabled; the hit markers still work.
+Every direct nonlethal hit adds a central diamond over its effectiveness frame, colored with Steel and Bone's final damage-feedback color. The diamond covers the ordinary dot but remains above, rather than replacing, the crouch-awareness eye. Damage-over-time ticks and killing blows omit the diamond. Steel and Bone's presentation-adjusted effectiveness and calculated red shift remain intact for weak spots and critical hits. Its single Effectiveness Feedback Sensitivity value defaults to x1.20 on Tempered, x1.10 on Hardened, and x1.00 on Crucible, and changes presentation without changing actual damage. Weak-spot and critical symbols are independent overlays above the diamond, so either or both can appear over any effectiveness frame. A killing blow adds its Meager, Worthy, Potent, or Prime corpse-tier overlay above both precision layers and turns the base frame plus every visible overlay dark red (#8C0003). Floating damage numbers can remain disabled; the hit markers still work.
 
 By default, direct-hit markers display at 1.15x the General reticle size, damage-over-time tick markers display at 1.1x, and complete killing-blow compositions display at 1.3x. All use 1x Steel and Bone's final feedback duration. Bow, Magic, Blood Magic, and corpse-quality size scales do not affect them. A new hit immediately selects the latest frame and restarts the timer. After the quick settle and fade, the current General, Bow, Magic, or Blood Magic reticle returns. Without Steel and Bone, Dishonored keeps its normal crosshair behavior.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][b]Blood Magic Expansion[/b] 2.7.6 or newer is supported for optional usable and unavailable tiered blood-magic corpse reticle feedback through API v9. Older API versions are not supported.[/*]
-[*][b]Steel and Bone[/b] 3.3.9 or newer is supported through hit-feedback API v5. Older API v4 builds are not supported.[/*]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
-[*]Owrocc ModifyColors can remain installed.[/*]
-[*]Owrocc ModifyCrosshair is redundant and should be removed.[/*]
-[*]Other mods that replace or force vanilla crosshair parts may conflict.[/*]
+[*][b]Ambush Integrity[/b] is supported through its optional backstab-state API; its overlay remains inactive when the mod is absent.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is supported for optional usable and unavailable tiered blood-magic corpse reticle feedback.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] is supported through hit-feedback API.[/*]
 [/list]
+
+[b]Other mods[/b]
+
+[list]
+[*]For [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Control and Menu Tweaks[/url], [b]ModifyColors.dll[/b] can remain installed, but [b]ModifyCrosshair.dll[/b] is redundant and should be removed.[/*]
+[/list]
+
+Other mods that replace or force vanilla crosshair parts may conflict.

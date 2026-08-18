@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -16,8 +17,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Ultrawide presentation fixes for Tainted Grail title and loading screens")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Ultrawide Fixes")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 namespace UltrawideFixes
 {
@@ -27,7 +28,7 @@ namespace UltrawideFixes
     {
         public const string PluginGuid = "ks.tgfoa.ultrawide-fixes";
         public const string PluginName = "Ultrawide Fixes";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.1";
 
         private const float SourceVideoAspect = 16.0f / 9.0f;
         private const float DefaultTargetAspect = 21.0f / 9.0f;
@@ -67,6 +68,8 @@ namespace UltrawideFixes
         private readonly HashSet<int> _patchedRawImages = new HashSet<int>();
         private readonly HashSet<int> _patchedLoadingImages = new HashSet<int>();
         private readonly HashSet<int> _hiddenBars = new HashSet<int>();
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly Dictionary<string, float> _pendingPreservedDisplayFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, bool> _pendingPreservedDisplayBools =
@@ -118,16 +121,109 @@ namespace UltrawideFixes
             }
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return base.Config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return base.Config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    section,
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "General":
+                    return 0;
+                case "Aspect":
+                    return 10;
+                case "Title Screen":
+                    return 20;
+                case "Title Rendering":
+                    return 30;
+                case "Loading Screens":
+                    return 40;
+                case "Loading Rendering":
+                    return 50;
+                case "Timing":
+                    return 60;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+                default:
+                    throw new InvalidOperationException(
+                        "Missing config section order for " + section + ".");
+            }
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
+            _configSettingOrders.Clear();
 
-            _enabled = Config.Bind(
+            _enabled = BindOrdered(
                 "General",
                 "Enabled",
                 true,
                 "Master switch.");
-            Config.Bind(
+            BindOrdered(
                 "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
@@ -135,87 +231,87 @@ namespace UltrawideFixes
                     "Configuration layout version. Older layouts are backed up and regenerated.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _patchTitleVideo = Config.Bind(
+            _patchTitleVideo = BindOrdered(
                 "Title Screen",
                 "PatchTitleVideo",
                 true,
                 "Resizes the main menu title video RawImage to an ultrawide aspect.");
-            _hideTitleBlackBars = Config.Bind(
+            _hideTitleBlackBars = BindOrdered(
                 "Title Screen",
                 "HideTitleBlackBars",
                 true,
                 "Disables title-screen black bar objects.");
-            _patchLoadingBackground = Config.Bind(
+            _patchLoadingBackground = BindOrdered(
                 "Loading Screens",
                 "PatchLoadingBackground",
                 true,
                 "Resizes the normal loading-screen background image to cover ultrawide displays. The loading bar is not touched.");
-            _patchLoadingBlurBackground = Config.Bind(
+            _patchLoadingBlurBackground = BindOrdered(
                 "Loading Screens",
                 "PatchLoadingBlurBackground",
                 true,
                 "Resizes the blurred loading-screen background image to cover ultrawide displays. The loading bar is not touched.");
-            _fillCurrentScreen = Config.Bind(
+            _fillCurrentScreen = BindOrdered(
                 "Aspect",
                 "FillCurrentScreen",
                 true,
                 "Uses the current screen aspect to remove leftover side bars. Disable this for exact TargetAspect behavior.");
-            _useScreenAspect = Config.Bind(
+            _useScreenAspect = BindOrdered(
                 "Aspect",
                 "UseScreenAspect",
                 false,
                 "Legacy alias for FillCurrentScreen. If true, uses the current screen aspect instead of TargetAspect.");
-            _targetAspect = Config.Bind(
+            _targetAspect = BindOrdered(
                 "Aspect",
                 "TargetAspect",
                 DefaultTargetAspect,
                 new ConfigDescription(
                     "Target display aspect for title and loading backgrounds. 2.333333 is 21:9.",
                     new AcceptableValueRange<float>(SourceVideoAspect, 4.0f)));
-            _minimumScreenAspect = Config.Bind(
+            _minimumScreenAspect = BindOrdered(
                 "Aspect",
                 "MinimumScreenAspect",
                 1.80f,
                 new ConfigDescription(
                     "Only applies the patch when the actual screen is wider than this.",
                     new AcceptableValueRange<float>(SourceVideoAspect, 4.0f)));
-            _cropVideoUv = Config.Bind(
+            _cropVideoUv = BindOrdered(
                 "Title Rendering",
                 "CropVideoUv",
                 true,
                 "Applies the crop/stretch UV blend to the 16:9 source video.");
-            _stretchBlend = Config.Bind(
+            _stretchBlend = BindOrdered(
                 "Title Rendering",
                 "StretchBlend",
                 0.10f,
                 new ConfigDescription(
                     "Blend between pure crop and full stretch. 0 is no stretch, 0.1 is a very light stretch, 1 is full stretch with no crop.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _verticalCropFocus = Config.Bind(
+            _verticalCropFocus = BindOrdered(
                 "Title Rendering",
                 "VerticalCropFocus",
                 0.50f,
                 new ConfigDescription(
                     "Shifts the crop window vertically. 0 is centered, positive values focus upward, negative values focus downward.",
                     new AcceptableValueRange<float>(-1.0f, 1.0f)));
-            _resizeRawImageRect = Config.Bind(
+            _resizeRawImageRect = BindOrdered(
                 "Title Rendering",
                 "ResizeRawImageRect",
                 true,
                 "Also directly sizes the RawImage RectTransform. Keep enabled unless another UI mod conflicts.");
-            _resizeVideoParents = Config.Bind(
+            _resizeVideoParents = BindOrdered(
                 "Title Rendering",
                 "ResizeVideoParents",
                 true,
                 "Also sizes the TitleScreenVideo parent RectTransforms so old 16:9 containers do not leave edge bars.");
-            _loadingStretchBlend = Config.Bind(
+            _loadingStretchBlend = BindOrdered(
                 "Loading Rendering",
                 "LoadingStretchBlend",
                 0.20f,
                 new ConfigDescription(
                     "Blend between pure crop and full stretch for loading-screen paintings. 0 keeps artwork proportions, 0.2 is a light stretch, 1 stretches to the display aspect.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _loadingVerticalCropFocus = Config.Bind(
+            _loadingVerticalCropFocus = BindOrdered(
                 "Loading Rendering",
                 "LoadingVerticalCropFocus",
                 0.50f,
@@ -225,21 +321,21 @@ namespace UltrawideFixes
 
             RestorePreservedDisplayCalibration();
 
-            _scanDurationSeconds = Config.Bind(
+            _scanDurationSeconds = BindOrdered(
                 "Timing",
                 "ScanDurationSeconds",
                 20.0f,
                 new ConfigDescription(
                     "How long after relevant UI events to keep looking for ultrawide targets.",
                     new AcceptableValueRange<float>(1.0f, 120.0f)));
-            _scanIntervalSeconds = Config.Bind(
+            _scanIntervalSeconds = BindOrdered(
                 "Timing",
                 "ScanIntervalSeconds",
                 0.25f,
                 new ConfigDescription(
                     "Seconds between title-screen patch scans.",
                     new AcceptableValueRange<float>(0.05f, 5.0f)));
-            _verboseLogging = Config.Bind(
+            _verboseLogging = BindOrdered(
                 "Diagnostics",
                 "VerboseLogging",
                 false,

@@ -52,9 +52,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Immersive HUD and expanded Equipment-panel controls for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Glorious UI")]
-[assembly: AssemblyVersion("1.7.5.0")]
-[assembly: AssemblyFileVersion("1.7.5.0")]
-[assembly: AssemblyInformationalVersion("1.7.5")]
+[assembly: AssemblyVersion("1.7.6.0")]
+[assembly: AssemblyFileVersion("1.7.6.0")]
+[assembly: AssemblyInformationalVersion("1.7.6")]
 
 namespace GloriousUI
 {
@@ -136,9 +136,9 @@ namespace GloriousUI
     {
         public const string PluginGuid = "ks.tgfoa.glorious-ui";
         public const string PluginName = "Glorious UI";
-        public const string PluginVersion = "1.7.5";
+        public const string PluginVersion = "1.7.6";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -1321,7 +1321,7 @@ namespace GloriousUI
             ResetConfigIfSchemaChanged();
 
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
                 UiDescription(
@@ -1331,7 +1331,7 @@ namespace GloriousUI
                     10,
                     10));
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -1339,7 +1339,7 @@ namespace GloriousUI
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enableSensibleRestMenu = Config.Bind(
-                "3. Rest Menu",
+                "Rest Menu",
                 "EnableSensibleRestMenu",
                 true,
                 UiDescription(
@@ -1349,7 +1349,7 @@ namespace GloriousUI
                     35,
                     10));
             _restTimeDisplayFormat = Config.Bind(
-                "3. Rest Menu",
+                "Rest Menu",
                 "RestTimeDisplayFormat",
                 RestTimeDisplayFormat.TwelveHour,
                 UiDescription(
@@ -1360,7 +1360,7 @@ namespace GloriousUI
                     20,
                     choiceLabels: "TwelveHour=12 Hour (AM/PM);TwentyFourHour=24 Hour"));
             _formatQuickMenuTime = Config.Bind(
-                "3. Rest Menu",
+                "Rest Menu",
                 "FormatQuickMenuTime",
                 true,
                 UiDescription(
@@ -1370,7 +1370,7 @@ namespace GloriousUI
                     35,
                     30));
             _pinHudToFoodSlot = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "PinHudToFoodSlot",
                 true,
                 UiDescription(
@@ -1380,7 +1380,7 @@ namespace GloriousUI
                     10,
                     20));
             _replaceSmallHudSlots = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ReplaceSmallHudSlots",
                 true,
                 UiDescription(
@@ -1390,7 +1390,7 @@ namespace GloriousUI
                     20,
                     10));
             _renderUtilityHudBehindHeroBars = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "RenderUtilityHudBehindHeroBars",
                 false,
                 UiDescription(
@@ -1400,7 +1400,7 @@ namespace GloriousUI
                     10,
                     30));
             _hideGameplayHudInQuickUseWheel = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HideGameplayHudInQuickUseWheel",
                 true,
                 UiDescription(
@@ -1410,7 +1410,7 @@ namespace GloriousUI
                     10,
                     40));
             _controlHeroHud = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ControlHeroHud",
                 true,
                 UiDescription(
@@ -1420,7 +1420,7 @@ namespace GloriousUI
                     15,
                     10));
             _heroHudAnchor = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HeroHudAnchor",
                 HudAnchor.BottomCenter,
                 UiDescription(
@@ -1431,7 +1431,7 @@ namespace GloriousUI
                     20,
                     choiceLabels: "TopLeft=Top Left;TopCenter=Top Center;TopRight=Top Right;BottomLeft=Bottom Left;BottomCenter=Bottom Center;BottomRight=Bottom Right;Center=Center"));
             _heroHudOffsetX = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HeroHudOffsetX",
                 0.0f,
                 UiDescription(
@@ -1444,7 +1444,7 @@ namespace GloriousUI
                         MinimumHorizontalHudOffset,
                         MaximumHorizontalHudOffset)));
             _heroHudOffsetY = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HeroHudOffsetY",
                 0.0f,
                 UiDescription(
@@ -1457,7 +1457,7 @@ namespace GloriousUI
                         MinimumVerticalHudOffset,
                         MaximumVerticalHudOffset)));
             _heroHudScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HeroHudScale",
                 1.0f,
                 UiDescription(
@@ -1468,7 +1468,7 @@ namespace GloriousUI
                     50,
                     new AcceptableValueRange<float>(MinimumHudScale, MaximumHudScale)));
             _heroHudVisibleSeconds = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HeroHudVisibleSeconds",
                 2.0f,
                 UiDescription(
@@ -1481,7 +1481,7 @@ namespace GloriousUI
                         MinimumHeroHudVisibleSeconds,
                         MaximumHeroHudVisibleSeconds)));
             _ownArrowSlot = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "OwnArrowSlot",
                 true,
                 UiDescription(
@@ -1491,7 +1491,7 @@ namespace GloriousUI
                     30,
                     10));
             _hideQuickSlotUsePrompt = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HideQuickSlotUsePrompt",
                 true,
                 UiDescription(
@@ -1501,7 +1501,7 @@ namespace GloriousUI
                     20,
                     20));
             _hideCyclePrompt = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HideCyclePrompt",
                 true,
                 UiDescription(
@@ -1511,7 +1511,7 @@ namespace GloriousUI
                     20,
                     30));
             _quickSlotHudAnchor = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "QuickSlotHudAnchor",
                 HudAnchor.BottomCenter,
                 UiDescription(
@@ -1522,7 +1522,7 @@ namespace GloriousUI
                     40,
                     choiceLabels: "TopLeft=Top Left;TopCenter=Top Center;TopRight=Top Right;BottomLeft=Bottom Left;BottomCenter=Bottom Center;BottomRight=Bottom Right;Center=Center"));
             _quickSlotHudOffsetX = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "QuickSlotHudOffsetX",
                 0.0f,
                 UiDescription(
@@ -1535,7 +1535,7 @@ namespace GloriousUI
                         MinimumHorizontalHudOffset,
                         MaximumHorizontalHudOffset)));
             _quickSlotHudOffsetY = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "QuickSlotHudOffsetY",
                 0.0f,
                 UiDescription(
@@ -1548,7 +1548,7 @@ namespace GloriousUI
                         MinimumVerticalHudOffset,
                         MaximumVerticalHudOffset)));
             _quickSlotHudScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "QuickSlotHudScale",
                 1.0f,
                 UiDescription(
@@ -1559,7 +1559,7 @@ namespace GloriousUI
                     70,
                     new AcceptableValueRange<float>(MinimumHudScale, MaximumHudScale)));
             _arrowSlotOffsetX = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ArrowSlotOffsetX",
                 0.0f,
                 UiDescription(
@@ -1572,7 +1572,7 @@ namespace GloriousUI
                         MinimumHorizontalHudOffset,
                         MaximumHorizontalHudOffset)));
             _arrowSlotOffsetY = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ArrowSlotOffsetY",
                 0.0f,
                 UiDescription(
@@ -1585,7 +1585,7 @@ namespace GloriousUI
                         MinimumVerticalHudOffset,
                         MaximumVerticalHudOffset)));
             _arrowSlotScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ArrowSlotScale",
                 1.0f,
                 UiDescription(
@@ -1596,7 +1596,7 @@ namespace GloriousUI
                     40,
                     new AcceptableValueRange<float>(MinimumHudScale, MaximumHudScale)));
             _ownWyrdSkillIndicator = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "OwnWyrdSkillIndicator",
                 true,
                 UiDescription(
@@ -1606,7 +1606,7 @@ namespace GloriousUI
                     40,
                     20));
             _wyrdSkillIndicatorOffsetX = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "WyrdSkillIndicatorOffsetX",
                 0.0f,
                 UiDescription(
@@ -1619,7 +1619,7 @@ namespace GloriousUI
                         MinimumHorizontalHudOffset,
                         MaximumHorizontalHudOffset)));
             _wyrdSkillIndicatorOffsetY = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "WyrdSkillIndicatorOffsetY",
                 0.0f,
                 UiDescription(
@@ -1632,7 +1632,7 @@ namespace GloriousUI
                         MinimumVerticalHudOffset,
                         MaximumVerticalHudOffset)));
             _wyrdSkillIndicatorScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "WyrdSkillIndicatorScale",
                 1.0f,
                 UiDescription(
@@ -1643,7 +1643,7 @@ namespace GloriousUI
                     50,
                     new AcceptableValueRange<float>(MinimumHudScale, MaximumHudScale)));
             _hideWyrdSkillPrompt = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "HideWyrdSkillPrompt",
                 true,
                 UiDescription(
@@ -1653,7 +1653,7 @@ namespace GloriousUI
                     40,
                     10));
             _controlBuffDebuffHud = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ControlBuffDebuffHud",
                 true,
                 UiDescription(
@@ -1663,7 +1663,7 @@ namespace GloriousUI
                     43,
                     10));
             _buffDebuffHudOffsetX = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "BuffDebuffHudOffsetX",
                 0.0f,
                 UiDescription(
@@ -1676,7 +1676,7 @@ namespace GloriousUI
                         MinimumHorizontalHudOffset,
                         MaximumHorizontalHudOffset)));
             _buffDebuffHudOffsetY = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "BuffDebuffHudOffsetY",
                 0.0f,
                 UiDescription(
@@ -1689,7 +1689,7 @@ namespace GloriousUI
                         MinimumVerticalHudOffset,
                         MaximumVerticalHudOffset)));
             _buffDebuffHudScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "BuffDebuffHudScale",
                 1.0f,
                 UiDescription(
@@ -1702,7 +1702,7 @@ namespace GloriousUI
                         MinimumHudScale,
                         MaximumHudScale)));
             _buffDebuffIconsPerRow = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "BuffDebuffIconsPerRow",
                 9,
                 UiDescription(
@@ -1713,7 +1713,7 @@ namespace GloriousUI
                     50,
                     new AcceptableValueRange<int>(1, 20)));
             _buffDebuffSpacingScale = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "BuffDebuffSpacingScale",
                 1.0f,
                 UiDescription(
@@ -1724,7 +1724,7 @@ namespace GloriousUI
                     60,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
             _controlCompass = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "ControlCompass",
                 true,
                 UiDescription(
@@ -1734,7 +1734,7 @@ namespace GloriousUI
                     45,
                     10));
             _compassVisibilityMode = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "CompassVisibilityMode",
                 CompassVisibilityMode.Hidden,
                 UiDescription(
@@ -1745,7 +1745,7 @@ namespace GloriousUI
                     20,
                     choiceLabels: "Hidden=Hidden;Always=Always Visible;ToggleHotkey=Toggle with Hotkey;HoldHotkey=Hold Hotkey to Show"));
             _compassHotkey = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "CompassHotkey",
                 KeyCode.None,
                 UiDescription(
@@ -1755,7 +1755,7 @@ namespace GloriousUI
                     45,
                     30));
             _levelNotificationMode = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "LevelNotificationMode",
                 LevelNotificationMode.Disabled,
                 UiDescription(
@@ -1766,7 +1766,7 @@ namespace GloriousUI
                     10,
                     choiceLabels: "Timed=Timed Fade;Disabled=Disabled;Vanilla=Vanilla"));
             _levelNotificationVisibleSeconds = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "LevelNotificationVisibleSeconds",
                 5.0f,
                 UiDescription(
@@ -1779,7 +1779,7 @@ namespace GloriousUI
                         0.0f,
                         60.0f)));
             _levelNotificationFadeSeconds = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "LevelNotificationFadeSeconds",
                 1.0f,
                 UiDescription(
@@ -1792,7 +1792,7 @@ namespace GloriousUI
                         0.0f,
                         5.0f)));
             _questNotificationDurationSeconds = Config.Bind(
-                "2. HUD",
+                "HUD",
                 "QuestNotificationDurationSeconds",
                 10.0f,
                 UiDescription(
@@ -1805,7 +1805,7 @@ namespace GloriousUI
                         0.0f,
                         60.0f)));
             _controlEquipmentWeaponLoadouts = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "ControlEquipmentWeaponLoadouts",
                 true,
                 UiDescription(
@@ -1815,7 +1815,7 @@ namespace GloriousUI
                     70,
                     10));
             _equipmentWeaponRowScale = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "EquipmentWeaponRowScale",
                 0.72f,
                 UiDescription(
@@ -1826,7 +1826,7 @@ namespace GloriousUI
                     20,
                     new AcceptableValueRange<float>(0.45f, 1.0f)));
             _equipmentWeaponRowSpacing = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "EquipmentWeaponRowSpacing",
                 4.0f,
                 UiDescription(
@@ -1837,7 +1837,7 @@ namespace GloriousUI
                     30,
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
             _controlQuickUseWheelLoadouts = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "ControlQuickUseWheelLoadouts",
                 true,
                 UiDescription(
@@ -1847,7 +1847,7 @@ namespace GloriousUI
                     70,
                     35));
             _hideQuickWheelCenterControl = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "HideQuickWheelCenterControl",
                 true,
                 UiDescription(
@@ -1857,7 +1857,7 @@ namespace GloriousUI
                     71,
                     20));
             _hideQuickWheelControlsLegend = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "HideQuickWheelControlsLegend",
                 true,
                 UiDescription(
@@ -1867,7 +1867,7 @@ namespace GloriousUI
                     71,
                     30));
             _quickWheelLeftClickSelect = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "QuickWheelLeftClickSelect",
                 true,
                 UiDescription(
@@ -1877,7 +1877,7 @@ namespace GloriousUI
                     71,
                     40));
             _ammoCounterEnabled = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "AmmoCounterEnabled",
                 true,
                 UiDescription(
@@ -1887,7 +1887,7 @@ namespace GloriousUI
                     71,
                     50));
             _arrowCycleEnabled = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "ArrowCycleEnabled",
                 true,
                 UiDescription(
@@ -1897,7 +1897,7 @@ namespace GloriousUI
                     71,
                     60));
             _controlEquipmentQuickSlots = Config.Bind(
-                "5. Equipment Panel",
+                "Equipment Panel",
                 "ControlEquipmentQuickSlots",
                 true,
                 UiDescription(
@@ -1910,7 +1910,7 @@ namespace GloriousUI
             {
                 int slot = i + 1;
                 _equipmentQuickSlotHotkeys[i] = Config.Bind(
-                    "5. Equipment Panel",
+                    "Equipment Panel",
                     "QuickSlot" + slot.ToString(CultureInfo.InvariantCulture) + "Hotkey",
                     KeyCode.None,
                     UiDescription(
@@ -1925,7 +1925,7 @@ namespace GloriousUI
                         50 + i * 10));
             }
             _enableOneMenuEquip = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "EnableOneMenuEquip",
                 true,
                 UiDescription(
@@ -1935,7 +1935,7 @@ namespace GloriousUI
                     72,
                     10));
             _oneMenuEquipMainHandShortcut = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "EquipHoveredToMainHand",
                 new KeyboardShortcut(KeyCode.Mouse0),
                 UiDescription(
@@ -1945,7 +1945,7 @@ namespace GloriousUI
                     72,
                     20));
             _oneMenuEquipOffHandShortcut = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "EquipHoveredToOffHand",
                 new KeyboardShortcut(KeyCode.Mouse1),
                 UiDescription(
@@ -1955,7 +1955,7 @@ namespace GloriousUI
                     72,
                     30));
             _oneMenuEquipShowNotifications = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "ShowEquipNotifications",
                 false,
                 UiDescription(
@@ -1965,7 +1965,7 @@ namespace GloriousUI
                     72,
                     40));
             _oneMenuEquipToggleEquippedItem = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "ToggleAlreadyEquippedItem",
                 true,
                 UiDescription(
@@ -1975,7 +1975,7 @@ namespace GloriousUI
                     72,
                     50));
             _oneMenuEquipApplyToOffHandPicker = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "ApplyToOffHandPicker",
                 true,
                 UiDescription(
@@ -1985,7 +1985,7 @@ namespace GloriousUI
                     72,
                     60));
             _oneMenuEquipRedirectOffHandPicker = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "RedirectOffHandPickerToMainHand",
                 false,
                 UiDescription(
@@ -1995,7 +1995,7 @@ namespace GloriousUI
                     72,
                     70));
             _oneMenuEquipInterceptWeaponClicks = Config.Bind(
-                "6. One-Menu Equip",
+                "One-Menu Equip",
                 "InterceptWeaponClicks",
                 true,
                 UiDescription(
@@ -2006,7 +2006,7 @@ namespace GloriousUI
                     80));
 
             _smartInventoryBagHotkey = Config.Bind(
-                "3. Hotkeys",
+                "Hotkeys",
                 "SmartInventoryBagHotkey",
                 KeyCode.Tab,
                 UiDescription(
@@ -2019,7 +2019,7 @@ namespace GloriousUI
             {
                 string categoryName = BagCategoryNameForHotkeyIndex(i);
                 _bagCategoryHotkeys[i] = Config.Bind(
-                    "3. Hotkeys",
+                    "Hotkeys",
                     BagCategorySettingNameForHotkeyIndex(i),
                     KeyCode.None,
                     UiDescription(
@@ -2039,7 +2039,7 @@ namespace GloriousUI
                     + VanillaWeaponLoadoutActionCount
                     + 1;
                 _extendedWeaponLoadoutHotkeys[i] = Config.Bind(
-                    "3. Hotkeys",
+                    "Hotkeys",
                     "WeaponLoadout"
                         + slot.ToString(
                             CultureInfo.InvariantCulture)
@@ -2059,7 +2059,7 @@ namespace GloriousUI
                         9 + i));
             }
             _healthPotionHotkey = Config.Bind(
-                "3. Hotkeys",
+                "Hotkeys",
                 "HealthPotionHotkey",
                 KeyCode.C,
                 UiDescription(
@@ -2069,7 +2069,7 @@ namespace GloriousUI
                     50,
                     20));
             _manaPotionHotkey = Config.Bind(
-                "3. Hotkeys",
+                "Hotkeys",
                 "ManaPotionHotkey",
                 KeyCode.V,
                 UiDescription(
@@ -2079,7 +2079,7 @@ namespace GloriousUI
                     50,
                     20));
             _ignoreHotkeysWhenCursorVisible = Config.Bind(
-                "3. Hotkeys",
+                "Hotkeys",
                 "IgnoreHotkeysWhenCursorVisible",
                 true,
                 UiDescription(
@@ -2090,7 +2090,7 @@ namespace GloriousUI
                     30));
 
             _foodSelectionMode = Config.Bind(
-                "4. Smart Selection",
+                "Smart Selection",
                 "FoodSelectionMode",
                 SmartSelectionMode.Biggest,
                 UiDescription(
@@ -2101,7 +2101,7 @@ namespace GloriousUI
                     10,
                     choiceLabels: "Biggest=Largest Available;SmallestSufficient=Smallest Sufficient"));
             _healthPotionSelectionMode = Config.Bind(
-                "4. Smart Selection",
+                "Smart Selection",
                 "HealthPotionSelectionMode",
                 SmartSelectionMode.SmallestSufficient,
                 UiDescription(
@@ -2112,7 +2112,7 @@ namespace GloriousUI
                     20,
                     choiceLabels: "Biggest=Largest Available;SmallestSufficient=Smallest Sufficient"));
             _manaPotionSelectionMode = Config.Bind(
-                "4. Smart Selection",
+                "Smart Selection",
                 "ManaPotionSelectionMode",
                 SmartSelectionMode.SmallestSufficient,
                 UiDescription(
@@ -2123,7 +2123,7 @@ namespace GloriousUI
                     30,
                     choiceLabels: "Biggest=Largest Available;SmallestSufficient=Smallest Sufficient"));
             _preventPotionWasteAtFull = Config.Bind(
-                "4. Smart Selection",
+                "Smart Selection",
                 "PreventPotionWasteAtFull",
                 true,
                 UiDescription(
@@ -2139,7 +2139,7 @@ namespace GloriousUI
                 false,
                 UiDescription(
                     "Log smart slot decisions and skipped hotkey uses.",
-                    "Advanced / Diagnostics",
+                    "Diagnostics",
                     "Diagnostics",
                     90,
                     10));
@@ -2149,7 +2149,7 @@ namespace GloriousUI
                 true,
                 UiDescription(
                     "Log the Quick Slot HUD, Wyrd Power HUD, and hero-bar sibling indices plus nested Canvas sorting overrides when draw order is applied.",
-                    "Advanced / Diagnostics",
+                    "Diagnostics",
                     "Log HUD Layering Diagnostics",
                     90,
                     20));
@@ -2159,7 +2159,7 @@ namespace GloriousUI
                 false,
                 UiDescription(
                     "Show temporary visual-only buff and debuff placeholders to test wrapping and upward expansion. This does not apply gameplay effects or alter the save.",
-                    "Advanced / Diagnostics",
+                    "Diagnostics",
                     "Buff/Debuff Layout Test Mode",
                     90,
                     30));
@@ -2169,7 +2169,7 @@ namespace GloriousUI
                 12,
                 UiDescription(
                     "Number of visual-only status placeholders shown while Buff/Debuff Layout Test Mode is enabled.",
-                    "Advanced / Diagnostics",
+                    "Diagnostics",
                     "Buff/Debuff Test Icon Count",
                     90,
                     40,
@@ -2180,7 +2180,7 @@ namespace GloriousUI
                 true,
                 UiDescription(
                     "Log warnings when optional game hooks are unavailable.",
-                    "Advanced / Diagnostics",
+                    "Diagnostics",
                     "Log Optional Hook Warnings",
                     90,
                     50));
@@ -2483,6 +2483,16 @@ namespace GloriousUI
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
+            string hudSection = storedSchemaVersion < 2
+                ? "2. HUD"
+                : "HUD";
+            string hotkeysSection = storedSchemaVersion < 2
+                ? "3. Hotkeys"
+                : "Hotkeys";
+            string equipmentPanelSection = storedSchemaVersion < 2
+                ? "5. Equipment Panel"
+                : "Equipment Panel";
+
             string currentSection = string.Empty;
             foreach (string rawLine in File.ReadLines(configPath))
             {
@@ -2506,7 +2516,7 @@ namespace GloriousUI
 
                 string settingName = line.Substring(0, separatorIndex).Trim();
 
-                if (string.Equals(currentSection, "2. HUD", StringComparison.Ordinal)
+                if (string.Equals(currentSection, hudSection, StringComparison.Ordinal)
                     && IsPreservedHudTuningSetting(settingName))
                 {
                     float parsedValue;
@@ -2523,11 +2533,11 @@ namespace GloriousUI
 
                 bool potionHotkeySection = string.Equals(
                     currentSection,
-                    "3. Hotkeys",
+                    hotkeysSection,
                     StringComparison.Ordinal);
                 bool equipmentHotkeySection = string.Equals(
                     currentSection,
-                    "5. Equipment Panel",
+                    equipmentPanelSection,
                     StringComparison.Ordinal);
                 if ((potionHotkeySection
                         || equipmentHotkeySection)

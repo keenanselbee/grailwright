@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -17,9 +18,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.2.1.0")]
-[assembly: AssemblyFileVersion("2.2.1.0")]
-[assembly: AssemblyInformationalVersion("2.2.1")]
+[assembly: AssemblyVersion("2.2.2.0")]
+[assembly: AssemblyFileVersion("2.2.2.0")]
+[assembly: AssemblyInformationalVersion("2.2.2")]
 
 namespace MainMenuMusic
 {
@@ -44,9 +45,9 @@ namespace MainMenuMusic
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.2.1";
+        public const string PluginVersion = "2.2.2";
 
-        private const int ConfigSchemaVersion = 16;
+        private const int ConfigSchemaVersion = 17;
         private const int ConfigRecoveryBaselineSchema = 16;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -128,6 +129,8 @@ namespace MainMenuMusic
         private ConfigEntry<bool> _muteOriginalTitleMusic;
         private ConfigEntry<bool> _restartWhenTitleMusicPlays;
         private ConfigEntry<bool> _verboseLogging;
+        private readonly Dictionary<string, int> _configSettingOrders =
+            new Dictionary<string, int>(StringComparer.Ordinal);
 
         private Coroutine _retryCoroutine;
         private string _loadedSignature = string.Empty;
@@ -185,239 +188,332 @@ namespace MainMenuMusic
             }
         }
 
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            string description)
+        {
+            return BindOrdered(
+                section,
+                key,
+                defaultValue,
+                new ConfigDescription(description));
+        }
+
+        private ConfigEntry<T> BindOrdered<T>(
+            string section,
+            string key,
+            T defaultValue,
+            ConfigDescription description)
+        {
+            if (String.Equals(
+                    key,
+                    "ConfigSchemaVersion",
+                    StringComparison.Ordinal))
+            {
+                return base.Config.Bind(section, key, defaultValue, description);
+            }
+
+            int order;
+            if (!_configSettingOrders.TryGetValue(section, out order))
+            {
+                order = 0;
+            }
+            _configSettingOrders[section] = order + 10;
+
+            return base.Config.Bind(
+                section,
+                key,
+                defaultValue,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    description.Description,
+                    section,
+                    HumanizeConfigKey(key),
+                    GetConfigSectionOrder(section),
+                    order,
+                    description.AcceptableValues));
+        }
+
+        private static int GetConfigSectionOrder(string section)
+        {
+            switch (section)
+            {
+                case "Playback":
+                    return 0;
+                case "Base Music":
+                    return 10;
+                case "Ambience Layers":
+                    return 20;
+                case "Custom File":
+                    return 30;
+                case "Looping":
+                    return 40;
+                case "Loading And Compatibility":
+                    return 50;
+                case "Base Music Advanced DSP":
+                    return 60;
+                case "Diagnostics":
+                    return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
+                default:
+                    throw new InvalidOperationException(
+                        "Missing config section order for " + section + ".");
+            }
+        }
+
+        private static string HumanizeConfigKey(string key)
+        {
+            StringBuilder builder = new StringBuilder(key.Length + 8);
+            for (int index = 0; index < key.Length; index++)
+            {
+                char current = key[index];
+                if (index > 0
+                    && Char.IsUpper(current)
+                    && (!Char.IsUpper(key[index - 1])
+                        || (index + 1 < key.Length
+                            && Char.IsLower(key[index + 1]))))
+                {
+                    builder.Append(' ');
+                }
+                builder.Append(current);
+            }
+            return builder.ToString();
+        }
+
         private void BindConfig()
         {
-            _enabled = Config.Bind(
-                "1. Playback",
+            _configSettingOrders.Clear();
+            _enabled = BindOrdered(
+                "Playback",
                 "Enabled",
                 true,
                 "Master switch.");
-            Config.Bind(
-                "9. Internal",
+            BindOrdered(
+                "Playback",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version. Older layouts are backed up and regenerated.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _musicMode = Config.Bind(
-                "1. Playback",
+            _musicMode = BindOrdered(
+                "Playback",
                 "MusicMode",
                 MusicMode.LayeredModifiedTaintedGrail,
                 "LayeredModifiedTaintedGrail uses the included title music, fire, and wind layers. CustomFile plays only CustomMusicFile with normal loop controls but no DSP or ambience layers. Off disables replacement music.");
 
-            _semitones = Config.Bind(
-                "2. Base Music",
+            _semitones = BindOrdered(
+                "Base Music",
                 "Semitones",
                 -7.0f,
                 new ConfigDescription(
                     "Pitch offset in semitones for the base title music layer.",
                     new AcceptableValueRange<float>(-24.0f, 0.0f)));
-            _baseMusicVolume = Config.Bind(
-                "2. Base Music",
+            _baseMusicVolume = BindOrdered(
+                "Base Music",
                 "BaseMusicVolume",
                 1.0f,
                 new ConfigDescription(
                     "Base title music relative volume. 1.0 uses the calibrated music playback level.",
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
-            _applyEffectsToBaseMusic = Config.Bind(
-                "2. Base Music",
+            _applyEffectsToBaseMusic = BindOrdered(
+                "Base Music",
                 "ApplyEffectsToBaseMusic",
                 true,
                 "Apply pitch, EQ, distortion, lowpass, and echo to the base Tainted Grail title music layer. CustomFile mode is never affected by these settings.");
-            _baseMusicFile = Config.Bind(
-                "2. Base Music",
+            _baseMusicFile = BindOrdered(
+                "Base Music",
                 "BaseMusicFile",
                 "menu_layer_01.ksaudio",
                 "Base title music layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data. Relative paths are resolved from the plugin folder first, then the audio folder.");
-            _fftSize = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _fftSize = BindOrdered(
+                "Base Music Advanced DSP",
                 "FFTSize",
                 4096,
                 new ConfigDescription(
                     "FMOD pitch-shift FFT size.",
                     new AcceptableValueRange<int>(256, 4096)));
-            _overlap = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _overlap = BindOrdered(
+                "Base Music Advanced DSP",
                 "Overlap",
                 32,
                 new ConfigDescription(
                     "FMOD pitch-shift overlap.",
                     new AcceptableValueRange<int>(1, 32)));
-            _enableHighFrequencyRestore = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _enableHighFrequencyRestore = BindOrdered(
+                "Base Music Advanced DSP",
                 "EnableHighFrequencyRestore",
                 true,
                 "Adds a light high-band EQ after pitch shifting so the treated base music keeps some brightness.");
-            _highFrequencyGainDb = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _highFrequencyGainDb = BindOrdered(
+                "Base Music Advanced DSP",
                 "HighFrequencyGainDb",
                 1.5f,
                 new ConfigDescription(
                     "High-band gain in dB for the restore EQ.",
                     new AcceptableValueRange<float>(0.0f, 6.0f)));
-            _highFrequencyCrossoverHz = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _highFrequencyCrossoverHz = BindOrdered(
+                "Base Music Advanced DSP",
                 "HighFrequencyCrossoverHz",
                 5000.0f,
                 new ConfigDescription(
                     "Frequency where the restore EQ high band begins.",
                     new AcceptableValueRange<float>(1000.0f, 12000.0f)));
-            _demonicMode = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _demonicMode = BindOrdered(
+                "Base Music Advanced DSP",
                 "DemonicMode",
                 true,
                 "Adds a subtle distortion, lowpass, and short echo chain after the pitch shift.");
-            _enableDistortion = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _enableDistortion = BindOrdered(
+                "Base Music Advanced DSP",
                 "EnableDistortion",
                 true,
                 "Adds a small amount of FMOD distortion.");
-            _distortionLevel = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _distortionLevel = BindOrdered(
+                "Base Music Advanced DSP",
                 "DistortionLevel",
                 0.1f,
                 new ConfigDescription(
                     "FMOD distortion level.",
                     new AcceptableValueRange<float>(0.0f, 0.5f)));
-            _enableLowpass = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _enableLowpass = BindOrdered(
+                "Base Music Advanced DSP",
                 "EnableLowpass",
                 true,
                 "Darkens the pitched audio by reducing harsh high frequencies.");
-            _lowpassCutoffHz = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _lowpassCutoffHz = BindOrdered(
+                "Base Music Advanced DSP",
                 "LowpassCutoffHz",
                 5500.0f,
                 new ConfigDescription(
                     "Lowpass cutoff in Hz.",
                     new AcceptableValueRange<float>(1000.0f, 22000.0f)));
-            _enableEcho = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _enableEcho = BindOrdered(
+                "Base Music Advanced DSP",
                 "EnableEcho",
                 true,
                 "Adds a quiet short echo for a supernatural tail.");
-            _echoDelayMs = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _echoDelayMs = BindOrdered(
+                "Base Music Advanced DSP",
                 "EchoDelayMs",
                 100.0f,
                 new ConfigDescription(
                     "Echo delay in milliseconds.",
                     new AcceptableValueRange<float>(10.0f, 250.0f)));
-            _echoFeedbackPercent = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _echoFeedbackPercent = BindOrdered(
+                "Base Music Advanced DSP",
                 "EchoFeedbackPercent",
                 10.0f,
                 new ConfigDescription(
                     "Echo feedback percent.",
                     new AcceptableValueRange<float>(0.0f, 50.0f)));
-            _echoWetLevelDb = Config.Bind(
-                "3. Base Music Advanced DSP",
+            _echoWetLevelDb = BindOrdered(
+                "Base Music Advanced DSP",
                 "EchoWetLevelDb",
                 -36.0f,
                 new ConfigDescription(
                     "Echo wet level in decibels. More negative is subtler.",
                     new AcceptableValueRange<float>(-80.0f, 0.0f)));
 
-            _enableFireAmbience = Config.Bind(
-                "4. Ambience Layers",
+            _enableFireAmbience = BindOrdered(
+                "Ambience Layers",
                 "EnableFireAmbience",
                 true,
                 "Play the included fire ambience layer in LayeredModifiedTaintedGrail mode.");
-            _fireAmbienceVolume = Config.Bind(
-                "4. Ambience Layers",
+            _fireAmbienceVolume = BindOrdered(
+                "Ambience Layers",
                 "FireAmbienceVolume",
                 1.0f,
                 new ConfigDescription(
                     "Fire ambience relative volume. 1.0 uses the calibrated music playback level.",
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
-            _fireAmbienceFile = Config.Bind(
-                "4. Ambience Layers",
+            _fireAmbienceFile = BindOrdered(
+                "Ambience Layers",
                 "FireAmbienceFile",
                 "menu_layer_02.ksaudio",
                 "Fire ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
-            _enableWindAmbience = Config.Bind(
-                "4. Ambience Layers",
+            _enableWindAmbience = BindOrdered(
+                "Ambience Layers",
                 "EnableWindAmbience",
                 true,
                 "Play the included wind ambience layer in LayeredModifiedTaintedGrail mode.");
-            _windAmbienceVolume = Config.Bind(
-                "4. Ambience Layers",
+            _windAmbienceVolume = BindOrdered(
+                "Ambience Layers",
                 "WindAmbienceVolume",
                 1.0f,
                 new ConfigDescription(
                     "Wind ambience relative volume. 1.0 uses the calibrated music playback level.",
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
-            _windAmbienceFile = Config.Bind(
-                "4. Ambience Layers",
+            _windAmbienceFile = BindOrdered(
+                "Ambience Layers",
                 "WindAmbienceFile",
                 "menu_layer_03.ksaudio",
                 "Wind ambience layer file for LayeredModifiedTaintedGrail mode. The packaged file contains WAV data.");
 
-            _customMusicFile = Config.Bind(
-                "5. Custom File",
+            _customMusicFile = BindOrdered(
+                "Custom File",
                 "CustomMusicFile",
                 "main_menu_music.wav",
                 "WAV to play when MusicMode is CustomFile. Custom playback is affected by Looping settings but not by layered ambience or DSP settings.");
-            _customMusicVolume = Config.Bind(
-                "5. Custom File",
+            _customMusicVolume = BindOrdered(
+                "Custom File",
                 "CustomMusicVolume",
                 1.0f,
                 new ConfigDescription(
                     "Custom file relative volume. 1.0 uses the calibrated music playback level.",
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
-            _loop = Config.Bind(
-                "6. Looping",
+            _loop = BindOrdered(
+                "Looping",
                 "Loop",
                 true,
                 "Loop the active title music while the title menu is open.");
-            _loopStartSeconds = Config.Bind(
-                "6. Looping",
+            _loopStartSeconds = BindOrdered(
+                "Looping",
                 "LoopStartSeconds",
                 0.0f,
                 new ConfigDescription(
                     "Optional loop start point in seconds. The first play starts at the beginning; repeated loops start here.",
                     new AcceptableValueRange<float>(0.0f, 6000.0f)));
-            _loopEndTrimSeconds = Config.Bind(
-                "6. Looping",
+            _loopEndTrimSeconds = BindOrdered(
+                "Looping",
                 "LoopEndTrimSeconds",
                 0.0f,
                 new ConfigDescription(
                     "Seconds to trim from the end before looping. Useful for removing silence, tails, or export padding.",
                     new AcceptableValueRange<float>(0.0f, 600.0f)));
-            _crossfadeSeconds = Config.Bind(
-                "6. Looping",
+            _crossfadeSeconds = BindOrdered(
+                "Looping",
                 "CrossfadeSeconds",
                 3.0f,
                 new ConfigDescription(
                     "Optional loop crossfade duration in seconds. 0 uses FMOD loop points without crossfade.",
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
-            _fadeOutOnGameLoad = Config.Bind(
-                "7. Loading And Compatibility",
+            _fadeOutOnGameLoad = BindOrdered(
+                "Loading And Compatibility",
                 "FadeOutOnGameLoad",
                 true,
                 "Fade out replacement title music when a real game load begins.");
-            _gameLoadFadeSeconds = Config.Bind(
-                "7. Loading And Compatibility",
+            _gameLoadFadeSeconds = BindOrdered(
+                "Loading And Compatibility",
                 "GameLoadFadeSeconds",
                 10.0f,
                 new ConfigDescription(
                     "Replacement title music fade-out duration when gameplay/loading starts.",
                     new AcceptableValueRange<float>(0.0f, 10.0f)));
-            _muteOriginalTitleMusic = Config.Bind(
-                "7. Loading And Compatibility",
+            _muteOriginalTitleMusic = BindOrdered(
+                "Loading And Compatibility",
                 "MuteOriginalTitleMusic",
                 true,
                 "Set the game's original title music emitters to volume 0 while replacement music is active.");
-            _restartWhenTitleMusicPlays = Config.Bind(
-                "7. Loading And Compatibility",
+            _restartWhenTitleMusicPlays = BindOrdered(
+                "Loading And Compatibility",
                 "RestartWhenTitleMusicPlays",
                 false,
                 "Restart replacement music each time the game's title music PlayMusic method runs.");
-            _verboseLogging = Config.Bind(
-                "8. Diagnostics",
+            _verboseLogging = BindOrdered(
+                "Diagnostics",
                 "VerboseLogging",
                 false,
                 "Log title music routing, layer playback, DSP, and transition details.");

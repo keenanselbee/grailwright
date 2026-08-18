@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Glorious UI[/size][/color]
 [i]A centered gameplay HUD, smarter utilities, and a six-loadout Equipment and quick-use suite.[/i][/center]
 
@@ -193,36 +193,33 @@ Eyes in the Dark and Grail Floating Text integrations are optional. Neither is r
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
-[b]Eyes in the Dark:[/b] Optional soft dependency. Eyes creates and controls its Wyrd Threat meter and Wyrdnight rest availability. Glorious UI requests below-resource-bars meter placement and independently controls only the rest clock and time presentation.
 
-Do not load these older plugins alongside Glorious UI:
+[b]Grailwright mods[/b]
 
 [list]
-[*][b]owrocc.ModifyHeroHUD.dll[/b][/*]
-[*][b]owrocc.ModifyQuickSlotsHud.dll[/b][/*]
-[*][b]owrocc.HideLevelUp.dll[/b][/*]
-[*][b]owrocc.MoreWeaponSlots.dll[/b] / More Weapon Loadouts[/*]
-[*][b]owrocc.OneMenuEquip.dll[/b][/*]
-[*][b]owrocc.RebindQuickWheel.dll[/b][/*]
-[*][b]owrocc.BagHotkeys.dll[/b] / Bag Category Hotkeys[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url]: Optional soft dependency. Eyes creates and controls its Wyrd Threat meter and Wyrdnight rest availability. Glorious UI requests below-resource-bars meter placement and independently controls only the rest clock and time presentation.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
 [/list]
 
-[b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/169]Immersive HUD[/url]:[/b] Partially compatible. Keep [b]ForceVanillaHeroHud=false[/b]. Its bar and quick-slot visibility settings may still cause uneven or delayed fading.
+[b]Other mods[/b]
 
-[b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/111]Better UI[/url]:[/b] Compatible outside its Quick Wheel replacements. When Glorious UI's six-loadout wheel is enabled, set these Better UI options to false because Glorious UI removes the consumable wheel slots and supplies virtual-loadout-aware ammo counters and arrow cycling:
+[list]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/111]Better UI[/url]:[/b] Compatible outside its Quick Wheel replacements. When Glorious UI's six-loadout wheel is enabled, set these Better UI options to false because Glorious UI removes the consumable wheel slots and supplies virtual-loadout-aware ammo counters and arrow cycling:
 
 [code]
 QuickSlotEffectEnabled = false
 AmmoCounterEnabled = false
 ArrowCycleEnabled = false
 [/code]
-
-[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.
+[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Control and Menu Tweaks[/url] is partially compatible. Its unrelated DLLs can remain installed, but remove [b]owrocc.BagHotkeys.dll[/b], [b]owrocc.HideLevelUp.dll[/b], [b]owrocc.ModifyHeroHUD.dll[/b], [b]owrocc.ModifyQuickSlotsHud.dll[/b], [b]owrocc.MoreWeaponSlots.dll[/b], [b]owrocc.OneMenuEquip.dll[/b], and [b]owrocc.RebindQuickWheel.dll[/b] before enabling Glorious UI.[/*]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/169]Immersive HUD[/url]:[/b] Partially compatible. Keep [b]ForceVanillaHeroHud=false[/b]. Its bar and quick-slot visibility settings may still cause uneven or delayed fading.[/*]
+[/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
-If HUD elements appear twice or fight for position, remove the older plugins listed above and verify that another mod is not controlling the same Hero HUD, quick-slot, status-icon, compass, notification, arrow, Wyrd Power, Equipment, or quick-use component.
+If HUD elements appear twice or fight for position, remove the overlapping Control and Menu Tweaks DLLs listed above and verify that another mod is not controlling the same Hero HUD, quick-slot, status-icon, compass, notification, arrow, Wyrd Power, Equipment, or quick-use component.
 
 If Better UI is installed and the wheel shows overlapping consumable effects or ammo controls, confirm that its three compatibility settings are disabled. If an individual Glorious UI feature causes trouble, disable that feature's ownership setting to restore the corresponding vanilla control while testing.
 

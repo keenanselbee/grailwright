@@ -1,3 +1,142 @@
+Version 3.8.3
+Removed numeric prefixes from every stored config section while preserving the established semantic FoA Mod Manager order, with Diagnostics penultimate and Import Previous Settings last.
+Advanced the config schema to 26 because the stored section names changed; schema-25 configs are backed up and regenerated through the standard recovery path.
+
+Version 3.8.2
+Throttled EnemyHearingRange diagnostics to one representative message every two seconds while leaving the gameplay modifier and all other diagnostic categories unchanged.
+Kept the config schema unchanged because no setting, default, or value meaning changed.
+
+Version 3.8.1
+Excluded damage-over-time control damage from Progressive Tenacity so health, poise, force, and stamina effects all honor the documented direct-hit boundary.
+Counted attacks from native hero-owned summons as player-caused while keeping Hero Summon targets exempt.
+Added Progressive Tenacity to matching Custom Difficulty, HarderLife, and Tainted Combat overlap warnings so stacked health or poise modifiers identify the exact setting to disable.
+Kept the config schema unchanged.
+
+Version 3.8.0
+Added preset-independent Progressive Tenacity. It remains inactive through hero level 20, scales linearly to full strength at level 35, and gives later Trash, Normal, Elite, MiniBoss, and Boss enemies progressively stronger resistance to player-caused poise, force, stamina, and direct health damage.
+Kept the curve bounded by native NPC threat class: maximum Tenacity is 10% for Trash, 15% for Normal, 25% for Elite, 30% for MiniBoss, and 40% for Boss enemies. Direct health damage uses half that strength, while Critters and Hero Summons receive none.
+Made confirmed native or Steel and Bone material weaknesses halve Tenacity for that hit. Criticals, weak spots, backstabs, generic damage bonuses, damage over time, environmental damage, and unrelated NPC combat do not bypass or receive Tenacity.
+Covered direct stamina damage and parry stamina damage alongside the existing poise and force routes so late-game control resistance applies consistently without adding stagger immunity, timers, adaptive tracking, enemy health inflation, or preset changes.
+Added ProgressiveTenacityEnabled without resetting the config schema.
+
+Version 3.7.3
+Removed the native HUD notification for food blocked during combat. Blocked attempts are now silent unless Grail Floating Text is installed, where a brief gold message with the food icon explains the restriction.
+
+Version 3.7.2
+Made PreventFoodUseInCombat follow Preset changes like the other preset-dependent settings: Tempered sets it off, while Hardened and Crucible set it on. The value remains freely customizable after selecting a preset.
+
+Version 3.7.1
+Prevented food and dishes from being consumed during combat on Hardened and Crucible by default. The new PreventFoodUseInCombat setting is independent from food recovery; Tempered, noncombat use, potions, and other consumables remain unrestricted.
+Blocked food before use audio, effects, events, or item removal and added a brief native HUD explanation with duplicate suppression.
+Expanded Tainted Combat compatibility detection to warn when its AffectFoodAndDishes cooldown overlaps Steel and Bone's food recovery or combat-use restriction.
+Added the new setting without resetting the config schema.
+
+Version 3.7.0
+Added configurable Stamina Depleted vignette presentation. Smooth is the default and replaces the native repeating flash plus abrupt disappearance with a single eased fade in and fade out using the game's own vignette image; Native preserves the original effect, while Off hides both the HUD vignette and stamina-depleted post-process.
+Kept native exhaustion audio, snapshots, movement penalties, action restrictions, status timing, and food recovery behavior unchanged across all three presentation modes. Smooth uses a configurable 0.30-second unscaled fade by default.
+Added StaminaDepletedVignetteMode and StaminaDepletedVignetteFadeSeconds without resetting the config schema.
+
+Version 3.6.9
+Shortened the first post-Overexertion food stamina delay from 0.5 seconds to 0.1 seconds so recovery follows the native lock almost immediately. Later food stamina points retain their normal one-second cadence.
+
+Version 3.6.8
+Changed food's first post-exhaustion stamina point from a complete fresh one-second wait to a reliable half-second recovery beat. Later food stamina points retain their normal one-second cadence.
+Tracked the actual transition out of native Overexertion rather than inferring it from zero stamina, and discard the pending recovery point if food recovery is disabled or the marked food status expires during exhaustion.
+
+Version 3.6.7
+Made active food deliberately support native stamina exhaustion. True Overexertion now applies half of the game's calculated regeneration lock and matching Stamina Depleted duration, while Steel and Bone's added food-stamina ticks pause for the complete lock and restart from a fresh one-second interval afterward.
+Kept food health recovery and its overall status duration running normally during exhaustion. Exact-zero stamina and Potion Poisoning remain distinct because neither creates native Overexertion.
+
+Version 3.6.6
+Added x0.66 Cold resistance on Hardened to Bone Undead and Constructs whenever their native Cold reaction is neutral. Ordinary skeletons, Lost Knights, and similar inert bodies now follow the same readable rule while native and exact fire, crystal, ice, and other elemental reactions remain authoritative.
+Kept Cold damage resistance separate from native spell effects. Spells that apply Chill can still build Chill and slow these targets unless the game gives that target a separate status immunity.
+
+Version 3.6.5
+Completed the material-impact rule for every direct player hit. Resistance now carries 60% of its strength into reduced poise and force, capped at neutral so weaknesses never amplify control; genuine accumulated poise breaks, force stumbles, and ragdolls remain possible.
+Corrected full native immunities so they cannot fall back to neutral impact feedback, and moved routine-flinch interception ahead of enemy virtual dispatch so custom poise handlers follow the same immunity and severe-resistance rule.
+Advanced ConfigSchemaVersion from 24 to 25 because MaterialImpactRulesEnabled now shapes poise and force for every resisted direct hit instead of only resisted arrows against rigid bodies; compatible durable settings remain recoverable.
+
+Version 3.6.4
+Added material-aware impact rules. Resisted arrows against rigid bone and stone bodies now inherit 60% of their damage resistance as reduced poise and force.
+Immune or very strongly resisted direct hits no longer cause the routine small flinch, regardless of delivery type; genuine poise breaks, force stumbles, ragdolls, damage processing, effects, and aggro remain unchanged.
+Added MaterialImpactRulesEnabled as one grouped toggle without resetting the config schema.
+
+Version 3.6.3
+Added the initial material-impact implementation. Arrows retained their small physical flinch while resisted arrows dealt less poise and force to rigid bodies, and immune or very strongly resisted direct magic no longer caused the routine small flinch.
+
+Version 3.6.2
+Raised the Blood Abomination's authored Slash matchup from x1.10 to x1.20 on Hardened. Its MiniBoss elite clamp now leaves a meaningful final x1.10 Slash weakness instead of neutralizing the old bonus; native Cold weakness, Wyrdness resistance, and x0.80 Blunt resistance remain unchanged.
+
+Version 3.6.1
+Removed the Generic Magical bone-and-stone resonance after a live spell-template audit found that only The Hollow Core actually consumes Generic Magical for direct player damage. The technique layer now contains only the broadly useful pommel, heavy-melee, and direct-area swarm rules.
+
+Version 3.6.0
+Added a compact technique-matchup layer. Pommel strikes borrow the existing Blunt matchup against bone, stone, and ordinary armor; heavy melee attacks recover 40% of custom rigid resistance; direct area hits gain a modest fallback against otherwise-neutral swarms; and direct non-status Arcane damage gains a modest edge against bone and stone.
+Added TechniqueMatchupRulesEnabled as one grouped toggle. The new rules retain native-reaction precedence, per-part mixed-hit resolution, preset intensity, elite clamps, and existing combat feedback.
+
+Version 3.5.9
+Separated bone and stone body material from Bone Undead and Construct identity. Stagfather and the Straw spirits now retain bone-body weapon reactions as Spirits, while Sleepwalker retains stone-body reactions as a Wyrd creature without inheriting Construct biological resistance.
+Corrected Ghost of Broc Meala to Spirit, Wights to Flora, Wailcaps to Sea Creatures, and Wyrd Slimes to Wyrd soft bodies; exact flesh corrections now clear misleading stone material so Ancient Beholders, Giants, Frostbitten Warriors, and other soft bodies no longer inherit construct-like arrow resistance.
+Removed the unsupported blanket Cold weakness from Curlghast, Marrowghast, Slugholder, and Snail. Frostgrot now resists Cold at 75% and takes 115% Fire damage on Hardened, while existing native reactions remain authoritative.
+Removed the blanket 35% Wyrdness resistance from Wyrd creatures so neutral Wyrd enemies no longer invalidate Wyrd-specialist casters; enemies with authored native Wyrdness reactions retain them.
+Advanced ConfigSchemaVersion from 23 to 24 because FloraTerms no longer treats Wailcaps as broad flora and FleshUndeadTerms no longer treats Wights as broad flesh undead; compatible durable settings remain recoverable, while the obsolete customized family-term values are not restored.
+
+Version 3.5.8
+Added exact soft-body reactions to Blood Abominations, Wyrd Slimes, and Tidewraiths. Blood Abominations now take 110% Slash and 80% Blunt damage, Wyrd Slimes take 80% Blunt damage, and Tidewraiths take 90% Blunt damage on Hardened before preset scaling and elite clamps.
+Corrected Blood Abominations so their misleading BoneMask metadata no longer applies Bone Undead physical rules; their native Cold and Wyrdness reactions remain authoritative.
+
+Version 3.5.7
+Added focused Fire and Cold reactions to the Frost Angel, Ice Weaver's Champion and wolf summon, Ice Trial Wyrd creatures, the Charred Conclave Wyrdspawn, and the Trial Ice Statue.
+Gave Wet damage a focused weakness against explicitly fire-aligned enemies, and added a modest Electric weakness to drowned skeleton Deckhands and Mariners while retaining their Bone Undead identity.
+Corrected elemental Stagfather golems and the Trial Ice Statue to Constructs, corrected the Ancient Beholder to living Flesh with precise and biological answers, and added Slash weakness with Blunt resistance to Singworms and Lir's summoned tentacle.
+
+Version 3.5.6
+Corrected Rootambushers to flora, Frostbitten Warriors and Wights to flesh undead, and true Giants and Ogres to living flesh so their material matchups follow their bodies rather than misleading bone or stone metadata.
+Added focused Fire, Cold, Poison, Wyrdness, Slash, Pierce, biological, and Blunt reactions to selected elemental and special enemies: the two Corpse Eater gaps, electric Stagfather golems, Mistbearers, the Wyrdheir challenge, Nivera, Rimefiends, Frost Wolves, Straw Dad and Son, Wyrdspawn, and Ogres.
+Added a non-stacking x1.20 Hardened axe matchup against wood-bodied and flora enemies. It replaces the ordinary flora Slash matchup for axe hits and continues to respect native reactions, preset intensity, and elite clamps.
+
+Version 3.5.4
+Added focused Cold weaknesses for Flamegobblers and crystal bodies, plus modest Cold advantages against Wyrd Slimes, Slugholders, and Snail.
+Restored the missing 120% Cold reactions on the Grindylow, Blood Abomination, and Bonemask Warrior summon templates to match their ordinary families while continuing to preserve native elemental multipliers.
+Replaced the broad Crystal construct term with exact Crystal Crawler and Crystal Walker terms so Crystal Kyrus is no longer at risk of inheriting construct rules.
+Advanced ConfigSchemaVersion from 22 to 23 because ConstructTerms now replaces the unsafe broad Crystal match with exact crystal-bodied enemy terms; compatible durable settings remain recoverable, while the obsolete customized ConstructTerms value is not restored.
+
+Version 3.5.3
+Reworked Potion Poisoning penalties around the class that completed buildup. Health, Mana, or Stamina poisoning now drains 30% of that resource's snapshotted maximum across the native status lifetime, while Utility poisoning drains 15% of maximum HP, MP, and SP; a multi-resource trigger drains every completed resource.
+Kept potion restoration fully functional during poisoning so food, regeneration, and potions can offset the drain. Health poisoning is nonlethal and stops at 1 HP, while Mana and Stamina can reach zero.
+Metered each drain from actual native BuildupProgress loss instead of assuming a fixed timer, preserving the intended total under debuff-duration changes and stopping cleanly if the status is removed early.
+Simplified Better UI's added food-stamina overlay from a resource-labeled form such as "+120ST/120s" to its native-style green total and duration, such as "+120/120s".
+Advanced ConfigSchemaVersion from 21 to 22 because ModifyPotionOverdrinking now selects class-specific timed resource drains instead of maximum-resource penalties; compatible durable settings remain recoverable.
+
+Version 3.5.2
+Standardized the combined stamina line to native-style prose, such as "Restores 1 stamina per second for 120s."
+Replaced the single shared overdrinking meter with independent Health, Mana, Stamina, and Utility potion buckets. Each bucket decays at the native 10 points per second and receives 60/65/70 buildup by preset, so rapidly mixing classes is safe while repeating one class within 2/3/4 seconds triggers Potion Poisoning.
+Classified direct flat, percentage, and timed Health, Mana, or Stamina restoration from the potion's actual effect graphs. Multi-resource restoratives contribute once to every restored-resource bucket; all other consumed potions share the Utility bucket.
+Kept the native Potion Poisoning status, icon, and ten-second decay while replacing its flat 20-point maximum-Mana penalty with a 20% reduction to both maximum MP and SP. Triggering any bucket clears all four, and buildup pauses while poisoning is active.
+Advanced ConfigSchemaVersion from 20 to 21 because ModifyPotionOverdrinking now selects independent potion-class meters and replaces the native poisoning penalty; compatible durable settings remain recoverable.
+
+Version 3.5.1
+Made standard food recovery strictly non-stacking. When native source separation creates several food-health statuses, Steel and Bone keeps only the status with the greatest remaining queued healing and uses remaining duration as the tie-breaker; removed statuses also leave the health-bar prediction and stamina channel.
+Shortened the combined stamina line to the requested format, such as "Restores 1 stamina/s over 120s."
+Corrected the audited native Potion Poisoning graph value from 8 to 60 and added transactional observation for every potion carrying that graph. When the native graph invokes Potion Poisoning, Steel and Bone tunes that one call; when it does not, Steel and Bone supplies exactly one fallback buildup after consumption.
+Retained the exact ordinary Health Potion exception because its item graph omits overdrinking, while leaving other graphless potions unchanged.
+
+Version 3.5.0
+Flattened standard food duration to four times native on every preset. Health rate is now 50% on Tempered, 37.5% on Hardened, and 25% on Crucible, producing 200%, 150%, and 100% total healing while preserving the native status and queued-healing prediction.
+Changed all added food stamina recovery to one discrete point per second. Whole-point ticks remain effective through native regeneration lockouts without continuously leaving fractional stamina available for another combat action, and simultaneous food statuses no longer stack their recovery rate.
+Corrected native Potion Poisoning tuning by accepting its deliberately itemless status source. Potion buildup is now 60 on Tempered, 65 on Hardened, and 70 on Crucible, making a second potion trigger within 2, 3, or 4 seconds under the native 10-points-per-second decay.
+Added a narrowly scoped Potion Poisoning fallback for the ordinary Health Potion, whose item graph uniquely omits overdrinking among the normal health-potion progression. The fallback is skipped if that exact potion gains the native graph in a future game update and does not affect other graphless potions.
+Updated food tooltips, the combined active-effect entry, Better UI overlay values, config descriptions, and player documentation for the shared duration and whole stamina ticks.
+
+Version 3.4.9
+Moved added food stamina recovery onto the actual native standard-food health status so health and stamina share the adjusted duration, active-effect entry, and food icon. Status capture now selects the status created by the current meal instead of an older active food effect.
+Changed food stamina from a bonus to vanilla StaminaRegen into direct restoration. Hardened restores 0.5 stamina per second and Crucible restores 1 stamina per second even while sprinting, blocking, attacking, drawing a ranged weapon, overexerted, or otherwise subject to a native regeneration lockout; simultaneous native food statuses contribute their marked rates normally.
+Added the stamina sentence to the combined active food effect and retained live item-tooltip updates without mod or preset labels.
+Added soft Better UI compatibility for food overlays. Adjusted health values and the matching green stamina total use the shared duration and follow Better UI's normal slot-refresh timing.
+Restored all potion healing, auxiliary effects, tooltips, and Better UI presentation to their native paths. Steel and Bone now modifies only native Potion Poisoning buildup: 60 per potion on Tempered, 75 on Hardened, and 90 on Crucible, while native decay and poisoning penalties remain unchanged.
+Added bounded diagnostics for successful food-status marking, the first direct stamina tick, and Potion Poisoning buildup adjustment.
+Advanced ConfigSchemaVersion from 19 to 20 because ModifyConsumableRecovery was removed and replaced with ModifyPotionOverdrinking, whose native buildup tuning has a different meaning from the old blanket consumable-recovery setting.
+
 Version 3.4.6
 Reshaped standard food healing on Hardened to 75% rate for 1.5x duration (112.5% total) and on Crucible to 62.5% rate for 2x duration (125% total), while Tempered remains native.
 Added one non-stacking food stamina effect using each food's original duration: 0.5 stamina per second on Hardened and 1 stamina per second on Crucible. Existing food effects remain intact, and eating another qualifying food replaces only Steel and Bone's stamina effect.

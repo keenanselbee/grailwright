@@ -13,8 +13,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Terrain-aware slide audio companion for Better Movement")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Better Movement Addon")]
-[assembly: AssemblyVersion("0.1.6.0")]
-[assembly: AssemblyFileVersion("0.1.6.0")]
+[assembly: AssemblyVersion("0.1.7.0")]
+[assembly: AssemblyFileVersion("0.1.7.0")]
 
 namespace Keenan.TGFoA.BetterMovementAddon
 {
@@ -25,10 +25,10 @@ namespace Keenan.TGFoA.BetterMovementAddon
     {
         public const string PluginGuid = "ks.tgfoa.better-movement-addon";
         public const string PluginName = "BetterMovement Addon";
-        public const string PluginVersion = "0.1.6";
+        public const string PluginVersion = "0.1.7";
         public const string ParentPluginGuid = "BetterMovement";
 
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -371,7 +371,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -379,64 +379,76 @@ namespace Keenan.TGFoA.BetterMovementAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Master switch for terrain-aware Better Movement slide audio.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch for terrain-aware Better Movement slide audio.",
+                    "General", "Enabled", 0, 0));
             _volume = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "Volume",
                 0.40f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Overall slide-audio volume.",
+                    "Audio", "Volume", 10, 0,
                     new AcceptableValueRange<float>(0f, 1f)));
             _minimumSpeedVolumeScale = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "MinimumSpeedVolumeScale",
                 0.55f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Volume scale near the minimum sliding speed. Faster slides rise toward full configured volume.",
+                    "Audio", "Minimum Speed Volume Scale", 10, 10,
                     new AcceptableValueRange<float>(0f, 1f)));
             _pitchBySpeed = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "PitchBySpeed",
                 0.12f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum pitch movement above or below normal as slide speed changes.",
+                    "Audio", "Pitch By Speed", 10, 20,
                     new AcceptableValueRange<float>(0f, 0.35f)));
             _crossfadeSeconds = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "SurfaceCrossfadeSeconds",
                 0.1f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Fade time when a slide begins, ends, or crosses onto another terrain.",
+                    "Audio", "Surface Crossfade Seconds", 10, 30,
                     new AcceptableValueRange<float>(0f, 0.5f)));
             _minimumDistance = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "MinimumDistance",
                 1.5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Distance over which positional slide audio remains at full volume.",
+                    "Audio", "Minimum Distance", 10, 40,
                     new AcceptableValueRange<float>(0.1f, 20f)));
             _maximumDistance = Config.Bind(
-                "2. Audio",
+                "Audio",
                 "MaximumDistance",
                 14f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Distance at which positional slide audio finishes fading out.",
+                    "Audio", "Maximum Distance", 10, 50,
                     new AcceptableValueRange<float>(1f, 100f)));
             _surfaceCheckInterval = Config.Bind(
-                "3. Terrain",
+                "Terrain Detection",
                 "SurfaceCheckIntervalSeconds",
                 0.15f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How often a continuing slide checks the ground beneath the player.",
+                    "Terrain Detection", "Surface Check Interval Seconds", 20, 0,
                     new AcceptableValueRange<float>(0.05f, 1f)));
             _diagnostics = Config.Bind(
-                "4. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log surface transitions and audio fallback details.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log surface transitions and audio fallback details.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
 
             RestorePreservedSettings();
         }
@@ -539,29 +551,29 @@ namespace Keenan.TGFoA.BetterMovementAddon
                         ConfigRecoveryPermanentExclusions);
 
             _hasPendingEnabled = profile.TryGetCustomizedValue(
-                "1. Core", "Enabled", out _pendingEnabled);
+                "General", "Enabled", out _pendingEnabled);
             _hasPendingVolume = profile.TryGetCustomizedValue(
-                "2. Audio", "Volume", out _pendingVolume);
+                "Audio", "Volume", out _pendingVolume);
             _hasPendingMinimumSpeedVolumeScale = profile.TryGetCustomizedValue(
-                "2. Audio",
+                "Audio",
                 "MinimumSpeedVolumeScale",
                 out _pendingMinimumSpeedVolumeScale);
             _hasPendingPitchBySpeed = profile.TryGetCustomizedValue(
-                "2. Audio", "PitchBySpeed", out _pendingPitchBySpeed);
+                "Audio", "PitchBySpeed", out _pendingPitchBySpeed);
             _hasPendingCrossfadeSeconds = profile.TryGetCustomizedValue(
-                "2. Audio",
+                "Audio",
                 "SurfaceCrossfadeSeconds",
                 out _pendingCrossfadeSeconds);
             _hasPendingMinimumDistance = profile.TryGetCustomizedValue(
-                "2. Audio", "MinimumDistance", out _pendingMinimumDistance);
+                "Audio", "MinimumDistance", out _pendingMinimumDistance);
             _hasPendingMaximumDistance = profile.TryGetCustomizedValue(
-                "2. Audio", "MaximumDistance", out _pendingMaximumDistance);
+                "Audio", "MaximumDistance", out _pendingMaximumDistance);
             _hasPendingSurfaceCheckInterval = profile.TryGetCustomizedValue(
-                "3. Terrain",
+                "Terrain Detection",
                 "SurfaceCheckIntervalSeconds",
                 out _pendingSurfaceCheckInterval);
             _hasPendingDiagnostics = profile.TryGetCustomizedValue(
-                "4. Diagnostics", "Diagnostics", out _pendingDiagnostics);
+                "Diagnostics", "Diagnostics", out _pendingDiagnostics);
         }
 
         private void RestorePreservedSettings()

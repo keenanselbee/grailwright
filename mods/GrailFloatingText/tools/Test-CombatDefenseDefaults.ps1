@@ -10,13 +10,13 @@ $source = Get-Content -LiteralPath $sourcePath -Raw
 
 if (-not [regex]::IsMatch(
     $source,
-    'Config\.Bind\("9\. Default Game Events",\s*"NotifyBlockedDamage",\s*false,')) {
+    'BindOrdered\("Default Game Events",\s*"NotifyBlockedDamage",\s*false,')) {
     throw "NotifyBlockedDamage must be disabled by default."
 }
 
 if (-not [regex]::IsMatch(
     $source,
-    'Config\.Bind\("9\. Default Game Events",\s*"NotifyParriedDamage",\s*true,')) {
+    'BindOrdered\("Default Game Events",\s*"NotifyParriedDamage",\s*true,')) {
     throw "NotifyParriedDamage must remain enabled by default."
 }
 

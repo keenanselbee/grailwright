@@ -1,4 +1,4 @@
-Glorious UI 1.7.5
+Glorious UI 1.7.6
 
 Platforms: Windows and Linux through Proton.
 

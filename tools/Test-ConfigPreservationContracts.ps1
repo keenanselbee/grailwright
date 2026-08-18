@@ -39,7 +39,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedVisualProfile('
         Restore = 'RestorePreservedVisualProfile();'
         Save = 'Config.Save();'
-        Tokens = @('GeneralSprite', 'BloodMagicScale', 'IdleOpacity', 'CrouchIndicatorVerticalOffset')
+        Tokens = @('GeneralSprite', 'BloodMagicScale', 'IdleOpacity', 'BackstabReadyColor', 'CrouchIndicatorOpacity', 'CrouchIndicatorVerticalOffset')
     },
     [pscustomobject]@{
         Name = 'Ultrawide Fixes'
@@ -63,7 +63,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedSettings('
         Restore = 'RestorePreservedSettings();'
         Save = 'Config.Save();'
-        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset')
+        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset', 'EnableHeadBob', 'HeadBobPreset', 'HeadBobSmoothness', 'SprintEmphasis')
     },
     [pscustomobject]@{
         Name = 'Blood Magic Expansion'
@@ -144,6 +144,14 @@ $sourceContracts = @(
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
         Tokens = @('ActivationCostPercent', 'PassiveFullRechargeMinutes', 'ReserveGainEfficiencyPercent', 'ReserveOffsetX')
+    },
+    [pscustomobject]@{
+        Name = 'Soul and Service'
+        Source = 'mods\SoulAndService\src\SoulAndService.cs'
+        Capture = 'CapturePreservedConfigValues('
+        Restore = 'RestorePreservedConfigValues();'
+        Save = 'Config.Save();'
+        Tokens = @('Summon Pass-Through', 'Player Attack Pass-Through', 'IdleSoundVolumePercent', 'PermanentReanimations')
     },
     [pscustomobject]@{
         Name = 'Versatile Weapons'

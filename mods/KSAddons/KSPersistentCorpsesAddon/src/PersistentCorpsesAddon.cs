@@ -19,8 +19,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Improves restored Persistent Corpses ragdolls and limits loaded full corpses")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Persistent Corpses Addon")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 namespace Keenan.TGFoA.PersistentCorpsesAddon
 {
@@ -43,11 +43,11 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         public const string PluginGuid =
             "ks.tgfoa.persistent-corpses-addon";
         public const string PluginName = "PersistentCorpses Addon";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.1";
         public const string ParentPluginGuid =
             "VirusAlex.PersistentCorpses";
 
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -238,7 +238,7 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -246,53 +246,63 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Master switch. When disabled, restored corpses use the original visible restoration behavior.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch. When disabled, restored corpses use the original visible restoration behavior.",
+                    "General", "Enabled", 0, 0));
             _minimumSettleSeconds = Config.Bind(
-                "2. Settle Timing",
+                "Settle Timing",
                 "MinimumSettleSeconds",
                 DefaultMinimumSettleSeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Minimum amount of active ragdoll physics time to conceal a restored corpse before it can be revealed.",
+                    "Settle Timing", "Minimum Settle Time", 10, 0,
                     new AcceptableValueRange<float>(
                         MinimumAllowedSettleSeconds,
                         MaximumAllowedSettleSeconds)));
             _maximumSettleSeconds = Config.Bind(
-                "2. Settle Timing",
+                "Settle Timing",
                 "MaximumSettleSeconds",
                 DefaultMaximumSettleSeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum amount of active physics time to conceal a restored corpse, including bodies that keep moving on slopes.",
+                    "Settle Timing", "Maximum Settle Time", 10, 10,
                     new AcceptableValueRange<float>(
                         MinimumAllowedSettleSeconds,
                         MaximumAllowedSettleSeconds)));
             _retentionMode = Config.Bind(
-                "3. Corpse Retention",
+                "Corpse Retention",
                 "RetentionMode",
                 CorpseRetentionMode.Limited,
-                "All keeps every corpse through Persistent Corpses. Limited keeps up to MaximumLoadedFullCorpses and lets excess distant corpses use vanilla cleanup. Vanilla lets every eligible distant corpse use vanilla cleanup.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "All keeps every corpse through Persistent Corpses. Limited keeps up to MaximumLoadedFullCorpses and lets excess distant corpses use vanilla cleanup. Vanilla lets every eligible distant corpse use vanilla cleanup.",
+                    "Corpse Retention", "Retention Mode", 20, 0));
             _maximumLoadedFullCorpses = Config.Bind(
-                "3. Corpse Retention",
+                "Corpse Retention",
                 "MaximumLoadedFullCorpses",
                 DefaultMaximumLoadedFullCorpses,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum number of full loaded corpses retained in Limited mode. Excess bodies simplify only when the game already considers them distant enough for vanilla ragdoll cleanup.",
+                    "Corpse Retention", "Maximum Loaded Full Corpses", 20, 10,
                     new AcceptableValueRange<int>(
                         MinimumAllowedLoadedFullCorpses,
                         MaximumAllowedLoadedFullCorpses)));
             _cleanupAfterLongBonfireRest = Config.Bind(
-                "3. Bonfire Cleanup",
+                "Bonfire Cleanup",
                 "CleanupAfterLongBonfireRest",
                 true,
-                "Replace loaded full corpses with the game's lightweight loot-preserving bodies after a sufficiently long bonfire rest. Empty corpses are removed.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Replace loaded full corpses with the game's lightweight loot-preserving bodies after a sufficiently long bonfire rest. Empty corpses are removed.",
+                    "Bonfire Cleanup", "Cleanup After Long Bonfire Rest", 30, 0));
             _minimumRestHoursForCleanup = Config.Bind(
-                "3. Bonfire Cleanup",
+                "Bonfire Cleanup",
                 "MinimumRestHoursForCleanup",
                 DefaultMinimumRestHoursForCleanup,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Minimum actual bonfire-rest duration required to clean up loaded corpses.",
+                    "Bonfire Cleanup", "Minimum Rest Hours", 30, 10,
                     new AcceptableValueRange<int>(
                         MinimumAllowedRestHoursForCleanup,
                         MaximumAllowedRestHoursForCleanup)));
@@ -300,7 +310,10 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                 "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log restored-corpse concealment and reveal details.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log restored-corpse concealment and reveal details.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
 
             RestorePreservedSettings();
         }
@@ -410,25 +423,25 @@ namespace Keenan.TGFoA.PersistentCorpsesAddon
                         ConfigRecoveryPermanentExclusions);
 
             _hasPendingEnabled = profile.TryGetCustomizedValue(
-                "1. Core", "Enabled", out _pendingEnabled);
+                "General", "Enabled", out _pendingEnabled);
             _hasPendingMinimumSettleSeconds =
                 profile.TryGetCustomizedValue(
-                    "2. Settle Timing",
+                    "Settle Timing",
                     "MinimumSettleSeconds",
                     out _pendingMinimumSettleSeconds);
             _hasPendingMaximumSettleSeconds =
                 profile.TryGetCustomizedValue(
-                    "2. Settle Timing",
+                    "Settle Timing",
                     "MaximumSettleSeconds",
                     out _pendingMaximumSettleSeconds);
             _hasPendingCleanupAfterLongBonfireRest =
                 profile.TryGetCustomizedValue(
-                    "3. Bonfire Cleanup",
+                    "Bonfire Cleanup",
                     "CleanupAfterLongBonfireRest",
                     out _pendingCleanupAfterLongBonfireRest);
             _hasPendingMinimumRestHoursForCleanup =
                 profile.TryGetCustomizedValue(
-                    "3. Bonfire Cleanup",
+                    "Bonfire Cleanup",
                     "MinimumRestHoursForCleanup",
                     out _pendingMinimumRestHoursForCleanup);
             _hasPendingDiagnostics = profile.TryGetCustomizedValue(

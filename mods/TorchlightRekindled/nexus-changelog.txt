@@ -1,5 +1,3 @@
-TargetVersion=0.4.3
-BaselineVersion=0.4.2
-Replaces the old preset names with plainly named Bright and Vanilla balances. Vanilla is for normal interior brightness, while Bright is for darker interiors.
-Adds separate interior and exterior preset selectors, with Bright as the interior default and Vanilla as the exterior default. Active torches update automatically when the environment changes.
-Resets the configuration because the interior preset was renamed and given a new generic type and meaning. The old file is backed up, compatible customizations are restored automatically, and both preset selectors begin from their new defaults.
+TargetVersion=0.4.4
+BaselineVersion=0.4.3
+Removed numeric prefixes from the generated config while preserving the established semantic FoA Mod Manager ordering, with Diagnostics penultimate and Import Previous Settings last.

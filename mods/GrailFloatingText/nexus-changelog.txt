@@ -1,5 +1,8 @@
-TargetVersion=2.4.6
-BaselineVersion=2.4.5
-Added API v12 source-scoped built-in event presentation claims so integrations can restyle an exact synchronous event without bypassing Grail Floating Text healing settings.
-Separated buffered and queued healing by event, style, and icon so Blood Magic healing cannot merge into ordinary green healing.
-Integrated Blood Magic Expansion 2.8.1 healing with the configurable Red group and Blood Magic icon while retaining default suppression of frequent held-channel ticks.
+TargetVersion=2.5.4
+BaselineVersion=2.4.6
+Added default-on food and potion consumption lines using the built-in food and potion icons, with gold food and blue potion presentation.
+Suppressed the food-consumed line when Steel and Bone prevents that food from being used during combat, leaving only Steel and Bone's brief restriction feedback.
+Added a separate default-on red Potion Poisoning activation line using the potion icon, without showing overdrink buildup progress.
+Suppressed native potion-use and Potion Poisoning announcements only when Grail Floating Text successfully shows their replacements, preserving native fallback when an event is disabled or rejected.
+Added the default-off IncludeConsumableDescription option for appending the full resolved native item description, and folded synchronous consumable healing into the owned consumption line to avoid duplicate GFT healing text.
+Cleaned all static and runtime-created config sections and added explicit semantic FoA Mod Manager ordering, with Diagnostics immediately before Import Previous Settings.

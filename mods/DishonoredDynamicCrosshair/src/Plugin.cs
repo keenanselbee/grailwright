@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.1.4.0")]
-[assembly: AssemblyFileVersion("3.1.4.0")]
+[assembly: AssemblyVersion("3.2.8.0")]
+[assembly: AssemblyFileVersion("3.2.8.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -95,15 +95,42 @@ namespace DishonoredDynamicCrosshair
         ExtremeWeakness = 7
     }
 
+    internal enum InteractionIconKind
+    {
+        None,
+        Hand,
+        Lockpick,
+        Mining,
+        Lumbering,
+        Fishing,
+        Digging,
+        Read,
+        Talk,
+        Rest,
+        Mount,
+        Campfire
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("ks.tgfoa.ambush-integrity", BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DishonoredDynamicCrosshairPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.1.4";
-        private const int ConfigSchemaVersion = 9;
+        public const string PluginVersion = "3.2.8";
+        private const int ConfigSchemaVersion = 15;
+
+        private const int CoreSectionOrder = 0;
+        private const int ReticlesSectionOrder = 10;
+        private const int ColorsSectionOrder = 20;
+        private const int InteractionIconsSectionOrder = 30;
+        private const int BloodMagicSectionOrder = 40;
+        private const int HitMarkersSectionOrder = 50;
+        private const int AmbushIntegritySectionOrder = 60;
+        private const int AdvancedSectionOrder = 70;
+        private const int DiagnosticsSectionOrder = 90;
         private const int ConfigRecoveryBaselineSchema = 3;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -117,8 +144,14 @@ namespace DishonoredDynamicCrosshair
         private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
         private const string SteelAndBoneHitFeedbackApiTypeName =
             "SteelAndBone.SteelAndBoneHitFeedbackApi";
+        private const string AmbushIntegrityPluginGuid =
+            "ks.tgfoa.ambush-integrity";
+        private const string AmbushIntegrityApiTypeName =
+            "AmbushIntegrity.AmbushIntegrityApi";
         private const float HitMarkerFadeFraction = 0.25f;
         private const float HitMarkerInitialScale = 1.12f;
+        private const float BackstabUnderlyingOpacityMultiplier = 0.5f;
+        private const int StealthEyeFrameCount = 11;
 
         internal static DishonoredDynamicCrosshairPlugin Instance { get; private set; }
 
@@ -136,6 +169,7 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<ReticleSizeMode> _sizeMode;
         private ConfigEntry<ReticleFilteringMode> _textureFiltering;
         private ConfigEntry<float> _baseSizePixels;
+        private ConfigEntry<bool> _showCenterDot;
         private ConfigEntry<float> _targetDetectionRangeMultiplier;
         private ConfigEntry<float> _hostilityRefreshIntervalSeconds;
         private ConfigEntry<float> _defaultOpacity;
@@ -143,7 +177,7 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<float> _nonHostileOpacity;
         private ConfigEntry<float> _mountedOpacityMultiplier;
         private ConfigEntry<bool> _showCrouchIndicator;
-        private ConfigEntry<float> _crouchIndicatorOpacity;
+        private ConfigEntry<float> _crouchIndicatorOpacityMultiplier;
         private ConfigEntry<float> _crouchIndicatorVerticalOffset;
         private ConfigEntry<bool> _hideDefaultReticle;
         private ConfigEntry<bool> _hideMeleeReticle;
@@ -156,6 +190,14 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<float> _killingBlowSizeMultiplier;
         private ConfigEntry<float> _hitMarkerDurationMultiplier;
         private ConfigEntry<float> _killingBlowDurationMultiplier;
+        private ConfigEntry<bool> _ambushIntegrityBackstabOverlayEnabled;
+        private ConfigEntry<string> _backstabReadyColor;
+        private ConfigEntry<bool> _interactionIconsEnabled;
+        private ConfigEntry<float> _interactionIconScale;
+        private ConfigEntry<float> _interactionIconOpacity;
+        private ConfigEntry<float> _interactionCrosshairOpacity;
+        private ConfigEntry<bool> _hideVanillaInteractionKeyPrompts;
+        private ConfigEntry<float> _interactionTextVerticalOffset;
         private readonly Dictionary<string, float> _pendingPreservedVisualFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedVisualStrings =
@@ -184,6 +226,40 @@ namespace DishonoredDynamicCrosshair
         private readonly ReticleAsset _directHitMarkerOverlay = new ReticleAsset();
         private readonly ReticleAsset _weakSpotHitMarkerOverlay = new ReticleAsset();
         private readonly ReticleAsset _criticalHitMarkerOverlay = new ReticleAsset();
+        private readonly ReticleAsset _backstabReadyOverlay = new ReticleAsset();
+        private readonly Dictionary<InteractionIconKind, ReticleAsset>
+            _interactionIconAssets =
+                new Dictionary<InteractionIconKind, ReticleAsset>
+                {
+                    { InteractionIconKind.Hand, new ReticleAsset() },
+                    { InteractionIconKind.Lockpick, new ReticleAsset() },
+                    { InteractionIconKind.Mining, new ReticleAsset() },
+                    { InteractionIconKind.Lumbering, new ReticleAsset() },
+                    { InteractionIconKind.Fishing, new ReticleAsset() },
+                    { InteractionIconKind.Digging, new ReticleAsset() },
+                    { InteractionIconKind.Read, new ReticleAsset() },
+                    { InteractionIconKind.Talk, new ReticleAsset() },
+                    { InteractionIconKind.Rest, new ReticleAsset() },
+                    { InteractionIconKind.Mount, new ReticleAsset() },
+                    { InteractionIconKind.Campfire, new ReticleAsset() }
+                };
+        private readonly ReticleAsset _generalDot = new ReticleAsset();
+        private readonly ReticleAsset _bowDot = new ReticleAsset();
+        private readonly ReticleAsset _magicDot = new ReticleAsset();
+        private readonly ReticleAsset[] _stealthEyeAssets =
+        {
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset(),
+            new ReticleAsset()
+        };
         private readonly Dictionary<int, ReticleAsset> _bloodMagicQualityAssets =
             new Dictionary<int, ReticleAsset>
             {
@@ -218,10 +294,14 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _refreshCrosshairMethod;
         private MethodInfo _targetChangedMethod;
         private MethodInfo _loadImageMethod;
+        private MethodInfo _interactionFillInfoMethod;
+        private Type _interactionKeyIconType;
         private EventInfo _steelAndBoneHitResolvedEvent;
         private Delegate _steelAndBoneHitResolvedHandler;
         private EventInfo _steelAndBoneKillingBlowResolvedEvent;
         private Delegate _steelAndBoneKillingBlowResolvedHandler;
+        private MethodInfo _ambushIntegrityGetBackstabStateMethod;
+        private MethodInfo _tryRefreshCrouchVisibilityMethod;
         private FieldInfo _allEquipmentSlotsField;
         private FieldInfo _npcDetectionMaxDistanceField;
         private object _defaultTargetType;
@@ -237,19 +317,29 @@ namespace DishonoredDynamicCrosshair
         private GameObject _reticleObject;
         private RectTransform _reticleRect;
         private Image _reticleImage;
+        private Image _dotImage;
+        private Image _stealthEyeImage;
+        private Image _stealthPupilImage;
+        private RectTransform _interactionIconRect;
+        private Image _interactionIconImage;
+        private RectTransform _hitMarkerRootRect;
+        private Image _hitMarkerImage;
         private Image _directHitMarkerImage;
         private Image _weakSpotHitMarkerImage;
         private Image _criticalHitMarkerImage;
         private Image _killingBlowHitMarkerImage;
+        private Image _backstabReadyOverlayImage;
         private CanvasGroup _crouchCanvasGroup;
         private RectTransform _crouchRect;
         private GameObject _crouchViewObject;
+        private Component _crouchViewComponent;
         private float _originalCrouchAlpha = 1f;
         private Vector2 _originalCrouchAnchoredPosition;
         private bool _hasOriginalCrouchAnchoredPosition;
         private bool _ownsCrouchCanvasGroup;
         private ReticleContext _currentContext;
         private TargetState _currentTargetState;
+        private int _currentStealthEyeFrame = -1;
         private float _nextSpriteCheckTime;
         private float _nextContextCheckTime;
         private float _nextTargetRefreshTime;
@@ -266,6 +356,7 @@ namespace DishonoredDynamicCrosshair
         private bool _equipmentReadFailureLogged;
         private bool _weaponsVisibilityReadFailureLogged;
         private bool _mountedReadFailureLogged;
+        private bool _crouchVisibilityReadFailureLogged;
         private bool _bloodMagicApiFailureLogged;
         private bool _lastBloodMagicCorpseActive;
         private int _lastBloodMagicCorpseState;
@@ -279,6 +370,19 @@ namespace DishonoredDynamicCrosshair
         private bool _bloodMagicApiUnavailableLogged;
         private bool _steelAndBoneApiUnavailableForSession;
         private bool _steelAndBoneApiFailureLogged;
+        private bool _ambushIntegrityApiUnavailableForSession;
+        private bool _ambushIntegrityApiFailureLogged;
+        private bool _ambushIntegrityApiUnavailableLogged;
+        private bool _currentBackstabReady;
+        private bool _backstabPresentationActive;
+        private Component _currentInteractionView;
+        private RectTransform _interactionPromptRect;
+        private Vector2 _originalInteractionPromptAnchoredPosition;
+        private bool _hasOriginalInteractionPromptAnchoredPosition;
+        private InteractionIconKind _currentInteractionIconKind;
+        private bool _currentInteractionIsIllegal;
+        private bool _interactionPresentationActive;
+        private bool _interactionReadFailureLogged;
         private bool _hitMarkerActive;
         private HitMarkerFrame _activeHitMarkerFrame;
         private bool _activeHitMarkerWeakSpot;
@@ -323,12 +427,12 @@ namespace DishonoredDynamicCrosshair
         private void BindConfig()
         {
             _enabled = Config.Bind(
-                "1. Core",
+                "Core",
                 "Enabled",
                 true,
-                "Enable Dishonored Dynamic Crosshair.");
+                ConfigUi("Enable Dishonored Dynamic Crosshair.", "Core", "Enabled", CoreSectionOrder, 0));
             Config.Bind(
-                "1. Core",
+                "Core",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -336,54 +440,75 @@ namespace DishonoredDynamicCrosshair
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _preset = Config.Bind(
-                "1. Core",
+                "Core",
                 "Preset",
                 ReticlePreset.AlwaysVisible,
-                "Main visibility profile. AlwaysVisible keeps reticles present; TargetOnly hides them unless an NPC is targeted; CombatReady keeps bow and magic visible; HostilesOnly shows only hostile targets.");
+                ConfigUi(
+                    "Main visibility profile. AlwaysVisible keeps reticles present; TargetOnly hides them unless an NPC is targeted; CombatReady keeps bow and magic visible; HostilesOnly shows only hostile targets.",
+                    "Core", "Preset", CoreSectionOrder, 10));
             _baseSizePixels = Config.Bind(
-                "2. Reticles",
+                "Reticles",
                 "ReticleSizePixels",
                 80f,
-                new ConfigDescription(
+                ConfigUi(
                     "Default square reticle size before Bow, Magic, or Blood Magic scale multipliers.",
+                    "Reticles", "Reticle Size Pixels", ReticlesSectionOrder, 0,
                     new AcceptableValueRange<float>(4f, 256f)));
+            _showCenterDot = Config.Bind(
+                "Reticles",
+                "ShowCenterDot",
+                true,
+                ConfigUi(
+                    "Show the context-specific center dot. The crouch awareness eye replaces it while active, and the direct-hit marker temporarily covers it.",
+                    "Reticles", "Show Center Dot", ReticlesSectionOrder, 10));
 
             _bloodMagicCorpseReticleMode = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "Mode",
                 BloodMagicCorpseReticleMode.Auto,
-                "Auto shows the blood-magic reticle when Blood Magic Expansion reports a focused corpse. Off disables this integration.");
+                ConfigUi(
+                    "Auto shows the blood-magic reticle when Blood Magic Expansion reports a focused corpse. Off disables this integration.",
+                    "Blood Magic", "Mode", BloodMagicSectionOrder, 0));
             _bloodMagicRequireRelevantSpell = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "RequireRelevantBloodSpell",
                 true,
-                "Only show the corpse reticle when Blood/Life Transfusion or Abhartach's Calling is relevant and available.");
+                ConfigUi(
+                    "Only show the corpse reticle when Blood/Life Transfusion or Abhartach's Calling is relevant and available.",
+                    "Blood Magic", "Require Relevant Blood Spell", BloodMagicSectionOrder, 10));
             _bloodMagicUseQualityScale = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "UseCorpseQualityScale",
                 true,
-                "Scale the Blood Magic corpse reticle from Blood Magic Expansion's reported corpse quality.");
+                ConfigUi(
+                    "Scale the Blood Magic corpse reticle from Blood Magic Expansion's reported corpse quality.",
+                    "Blood Magic", "Use Corpse Quality Scale", BloodMagicSectionOrder, 30));
             _bloodMagicQualityCrosshairsEnabled = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "BloodMagicQualityCrosshairsEnabled",
                 true,
-                "Use tier-specific Blood Magic corpse reticles when their PNG assets are available.");
+                ConfigUi(
+                    "Use tier-specific Blood Magic corpse reticles when their PNG assets are available.",
+                    "Blood Magic", "Blood Magic Quality Crosshairs Enabled", BloodMagicSectionOrder, 20));
             _bloodMagicMaximumQualityScale = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "MaximumQualityScale",
                 2f,
-                new ConfigDescription(
+                ConfigUi(
                     "Reticle scale multiplier for a high-quality usable corpse. Low-quality, blocked, and spent corpses stay at 1x.",
+                    "Blood Magic", "Maximum Quality Scale", BloodMagicSectionOrder, 40,
                     new AcceptableValueRange<float>(0.1f, 5f)));
             _bloodMagicUsableCorpseColor = Config.Bind(
-                "4. Blood Magic",
+                "Blood Magic",
                 "UsableCorpseColor",
                 "#E8583CFF",
-                "Color for usable blood-magic corpses in #RRGGBBAA format. Corpse quality changes scale only, not color.");
+                ConfigUi(
+                    "Color for usable blood-magic corpses in #RRGGBBAA format. Corpse quality changes scale only, not color.",
+                    "Blood Magic", "Usable Corpse Color", BloodMagicSectionOrder, 50));
             _general = BindContext(
                 ReticleContext.General,
                 "General",
-                "custom_reticle_4.png",
+                "custom_reticle.png",
                 1f);
             _bow = BindContext(
                 ReticleContext.Bow,
@@ -398,138 +523,231 @@ namespace DishonoredDynamicCrosshair
             _bloodMagic = BindContext(
                 ReticleContext.BloodMagic,
                 "BloodMagic",
-                "custom_reticle_bloodmagic.png",
+                "custom_reticle_bloodmagic_0.png",
                 1f);
 
             _defaultOpacity = Config.Bind(
-                "3. Colors and Opacity",
+                "Colors and Opacity",
                 "IdleOpacity",
                 0.1f,
-                OpacityDescription("Opacity when no NPC is targeted."));
+                OpacityDescription(
+                    "Opacity when no NPC is targeted.",
+                    "Colors and Opacity", "Idle Opacity", ColorsSectionOrder, 30));
             _hostileOpacity = Config.Bind(
-                "3. Colors and Opacity",
+                "Colors and Opacity",
                 "TargetOpacity",
                 0.3f,
-                OpacityDescription("Opacity while targeting a hostile, friendly, or neutral NPC."));
+                OpacityDescription(
+                    "Opacity while targeting a hostile, friendly, or neutral NPC.",
+                    "Colors and Opacity", "Target Opacity", ColorsSectionOrder, 40));
             _nonHostileOpacity = _hostileOpacity;
             _mountedOpacityMultiplier = Config.Bind(
-                "3. Colors and Opacity",
+                "Colors and Opacity",
                 "MountedOpacityMultiplier",
                 0f,
                 OpacityDescription(
-                    "Additional opacity multiplier while the hero is mounted. Set to 1 to keep custom reticles visible on mounts."));
+                    "Additional opacity multiplier while the hero is mounted. Set to 1 to keep custom reticles visible on mounts.",
+                    "Colors and Opacity", "Mounted Opacity Multiplier", ColorsSectionOrder, 50));
 
             _steelAndBoneHitMarkersEnabled = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "Enabled",
                 true,
-                "Temporarily replace the current reticle with Steel and Bone hit feedback when Steel and Bone is installed.");
+                ConfigUi(
+                    "Temporarily replace the current reticle with Steel and Bone hit feedback when Steel and Bone is installed.",
+                    "Steel and Bone Hit Markers", "Enabled", HitMarkersSectionOrder, 0));
             _killingBlowOverlaysEnabled = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "KillingBlowOverlaysEnabled",
                 true,
-                "Show the tier-specific Steel and Bone killing-blow overlay when its PNG asset is available.");
+                ConfigUi(
+                    "Show the tier-specific Steel and Bone killing-blow overlay when its PNG asset is available.",
+                    "Steel and Bone Hit Markers", "Killing Blow Overlays Enabled", HitMarkersSectionOrder, 10));
             _hitMarkerSizeMultiplier = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "SizeMultiplier",
                 1.15f,
-                new ConfigDescription(
+                ConfigUi(
                     "Hit-marker size relative to ReticleSizePixels. Bow, Magic, Blood Magic, and corpse-quality scales do not affect it.",
+                    "Steel and Bone Hit Markers", "Size Multiplier", HitMarkersSectionOrder, 20,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _hitMarkerDamageOverTimeSizeMultiplier = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "DamageOverTimeSizeMultiplier",
                 1.1f,
-                new ConfigDescription(
+                ConfigUi(
                     "Damage-over-time hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for Bleed, Poison, Burn, and Breath ticks.",
+                    "Steel and Bone Hit Markers", "Damage Over Time Size Multiplier", HitMarkersSectionOrder, 30,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _killingBlowSizeMultiplier = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "KillingBlowSizeMultiplier",
                 1.3f,
-                new ConfigDescription(
+                ConfigUi(
                     "Killing-blow hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for the complete killing-blow marker composition.",
+                    "Steel and Bone Hit Markers", "Killing Blow Size Multiplier", HitMarkersSectionOrder, 40,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _hitMarkerDurationMultiplier = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "DurationMultiplier",
                 1f,
-                new ConfigDescription(
+                ConfigUi(
                     "Multiplier applied to Steel and Bone's final damage-number duration for each hit marker.",
+                    "Steel and Bone Hit Markers", "Duration Multiplier", HitMarkersSectionOrder, 50,
                     new AcceptableValueRange<float>(0.1f, 2f)));
             _killingBlowDurationMultiplier = Config.Bind(
-                "5. Steel and Bone Hit Markers",
+                "Steel and Bone Hit Markers",
                 "KillingBlowDurationMultiplier",
                 1.5f,
-                new ConfigDescription(
+                ConfigUi(
                     "Additional multiplier applied to the normal hit-marker duration for killing blows.",
+                    "Steel and Bone Hit Markers", "Killing Blow Duration Multiplier", HitMarkersSectionOrder, 60,
                     new AcceptableValueRange<float>(0.1f, 3f)));
 
+            _ambushIntegrityBackstabOverlayEnabled = Config.Bind(
+                "Ambush Integrity",
+                "BackstabReadyOverlayEnabled",
+                true,
+                ConfigUi(
+                    "Show the backstab-ready dagger overlay when Ambush Integrity reports that the current target can be backstabbed.",
+                    "Ambush Integrity", "Backstab Ready Overlay Enabled", AmbushIntegritySectionOrder, 0));
+            _backstabReadyColor = Config.Bind(
+                "Ambush Integrity",
+                "BackstabReadyColor",
+                "#8C0003FF",
+                ConfigUi(
+                    "Backstab-ready overlay color in #RRGGBBAA format.",
+                    "Ambush Integrity", "Backstab Ready Color", AmbushIntegritySectionOrder, 10));
+
+            _interactionIconsEnabled = Config.Bind(
+                "Interaction Icons",
+                "Enabled",
+                true,
+                ConfigUi(
+                    "Show a contextual icon for the exact interaction currently offered by the game.",
+                    "Interaction Icons", "Enabled", InteractionIconsSectionOrder, 0));
+            _interactionIconScale = Config.Bind(
+                "Interaction Icons",
+                "IconScale",
+                1.1f,
+                ConfigUi(
+                    "Interaction-icon size relative to ReticleSizePixels, independent of Bow, Magic, Blood Magic, and corpse-quality scales.",
+                    "Interaction Icons", "Icon Scale", InteractionIconsSectionOrder, 10,
+                    new AcceptableValueRange<float>(0.1f, 3f)));
+            _interactionIconOpacity = Config.Bind(
+                "Interaction Icons",
+                "IconOpacity",
+                0.8f,
+                OpacityDescription(
+                    "Opacity of the contextual interaction icon.",
+                    "Interaction Icons", "Icon Opacity", InteractionIconsSectionOrder, 20));
+            _interactionCrosshairOpacity = Config.Bind(
+                "Interaction Icons",
+                "CrosshairOpacityWhileActive",
+                0f,
+                OpacityDescription(
+                    "Opacity multiplier for the ordinary reticle, center dot, and crouch-awareness eye while an interaction icon is active.",
+                    "Interaction Icons", "Crosshair Opacity While Active", InteractionIconsSectionOrder, 30));
+            _hideVanillaInteractionKeyPrompts = Config.Bind(
+                "Interaction Icons",
+                "HideVanillaInteractionKeyPrompts",
+                true,
+                ConfigUi(
+                    "Hide and collapse the vanilla E, F, or controller-button container so the prompt background fits its remaining action text. Blocked explanations remain visible, while hold progress inside the hidden button container is suppressed.",
+                    "Interaction Icons", "Hide Vanilla Interaction Key Prompts", InteractionIconsSectionOrder, 40));
+            _interactionTextVerticalOffset = Config.Bind(
+                "Interaction Icons",
+                "VanillaTextVerticalOffset",
+                -120f,
+                ConfigUi(
+                    "Vertical adjustment from the game's just-below-center interaction-text position in UI units. Positive values move the text lower; negative values move it higher.",
+                    "Interaction Icons", "Vanilla Text Vertical Offset", InteractionIconsSectionOrder, 50,
+                    new AcceptableValueRange<float>(-600f, 600f)));
+
             _magicDetection = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "MagicDetection",
                 MagicDetectionMode.CastMagicOnly,
-                "CastMagicOnly detects aimed magic. AnyMagic treats every equipped magic item as magic context.");
+                ConfigUi(
+                    "CastMagicOnly detects aimed magic. AnyMagic treats every equipped magic item as magic context.",
+                    "Advanced", "Magic Detection", AdvancedSectionOrder, 0));
             _useGeneralWhenHandsDown = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "UseGeneralWhenHandsDown",
                 true,
-                "Use the General reticle whenever the game's weapons are hidden, even if a bow or magic item is equipped.");
+                ConfigUi(
+                    "Use the General reticle whenever the game's weapons are hidden, even if a bow or magic item is equipped.",
+                    "Advanced", "Use General When Hands Down", AdvancedSectionOrder, 10));
             _targetDetectionRangeMultiplier = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "RangeMultiplier",
                 1.2f,
-                new ConfigDescription(
+                ConfigUi(
                     "Multiplier for the game's NPC target-detection range. This affects NPC coloring and health-bar targeting, not interaction distance. Set to 1 for the vanilla range.",
+                    "Advanced", "Range Multiplier", AdvancedSectionOrder, 20,
                     new AcceptableValueRange<float>(0.1f, 5f)));
             _hostilityRefreshIntervalSeconds = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "HostilityRefreshIntervalSeconds",
                 0.1f,
-                new ConfigDescription(
+                ConfigUi(
                     "How often to re-evaluate a hovered NPC so hostility changes update without moving the reticle.",
+                    "Advanced", "Hostility Refresh Interval Seconds", AdvancedSectionOrder, 30,
                     new AcceptableValueRange<float>(0.02f, 1f)));
             _sizeMode = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "SizeMode",
                 ReticleSizeMode.ScreenPixels,
-                "ScreenPixels compensates for the HUD canvas scale. UIUnits follows the game's canvas scaling.");
+                ConfigUi(
+                    "ScreenPixels compensates for the HUD canvas scale. UIUnits follows the game's canvas scaling.",
+                    "Advanced", "Size Mode", AdvancedSectionOrder, 40));
             _textureFiltering = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "TextureFiltering",
                 ReticleFilteringMode.MipmappedTrilinear,
-                "MipmappedTrilinear improves minification quality. Bilinear preserves the legacy filtering.");
+                ConfigUi(
+                    "MipmappedTrilinear improves minification quality. Bilinear preserves the legacy filtering.",
+                    "Advanced", "Texture Filtering", AdvancedSectionOrder, 50));
             _showCrouchIndicator = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "ShowCrouchIndicator",
                 true,
-                "Keep the game's crouching and detection indicator available.");
-            _crouchIndicatorOpacity = Config.Bind(
-                "5. Advanced",
-                "CrouchIndicatorOpacity",
-                0.15f,
+                ConfigUi(
+                    "Keep the game's crouching and detection indicator available.",
+                    "Advanced", "Show Crouch Indicator", AdvancedSectionOrder, 60));
+            _crouchIndicatorOpacityMultiplier = Config.Bind(
+                "Advanced",
+                "CrouchIndicatorOpacityMultiplier",
+                1f,
                 OpacityDescription(
-                    "Opacity multiplier for the complete crouching and detection indicator."));
+                    "Multiplier for the active crosshair opacity used by the complete crouching and detection indicator. Set to 1 to match the crosshair exactly.",
+                    "Advanced", "Crouch Indicator Opacity Multiplier", AdvancedSectionOrder, 70));
             _crouchIndicatorVerticalOffset = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "CrouchIndicatorVerticalOffset",
                 0f,
-                "Vertical offset for the complete crouching and detection indicator in UI units. Positive values move it lower; negative values move it higher.");
+                ConfigUi(
+                    "Vertical offset for the complete crouching and detection indicator in UI units. Positive values move it lower; negative values move it higher.",
+                    "Advanced", "Crouch Indicator Vertical Offset", AdvancedSectionOrder, 80));
 
             _hideDefaultReticle = Config.Bind(
-                "5. Advanced",
+                "Advanced",
                 "HideVanillaReticles",
                 true,
-                "Hide the game's default, melee, bow, and item-provided reticles while this plugin is enabled.");
+                ConfigUi(
+                    "Hide the game's default, melee, bow, and item-provided reticles while this plugin is enabled.",
+                    "Advanced", "Hide Vanilla Reticles", AdvancedSectionOrder, 90));
             _hideMeleeReticle = _hideDefaultReticle;
             _hideBowReticle = _hideDefaultReticle;
             _hideItemSpecificReticles = _hideDefaultReticle;
 
             _bloodMagicLogScaleDiagnostics = Config.Bind(
-                "6. Diagnostics",
+                "Diagnostics",
                 "LogBloodMagicScaleDiagnostics",
                 false,
-                "Log throttled Blood Magic reticle state, quality, and final scale math.");
+                ConfigUi(
+                    "Log throttled Blood Magic reticle state, quality, and final scale math.",
+                    "Diagnostics", "Log Blood Magic Scale Diagnostics", DiagnosticsSectionOrder, 0));
             RestorePreservedVisualProfile();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -562,7 +780,8 @@ namespace DishonoredDynamicCrosshair
                 }
 
                 const string schemaPrefix = "ConfigSchemaVersion =";
-                if ((string.Equals(currentSection, "1. Core", StringComparison.Ordinal)
+                if ((string.Equals(currentSection, "Core", StringComparison.Ordinal)
+                    || string.Equals(currentSection, "1. Core", StringComparison.Ordinal)
                     || string.Equals(currentSection, "General", StringComparison.Ordinal))
                     && line.StartsWith(schemaPrefix, StringComparison.Ordinal))
                 {
@@ -671,8 +890,10 @@ namespace DishonoredDynamicCrosshair
 
                 string settingName = line.Substring(0, separatorIndex).Trim();
                 string settingId = currentSection + "\n" + settingName;
+                string preservedSettingId =
+                    NormalizePreservedVisualSettingId(settingId);
 
-                if (IsPreservedVisualFloat(settingId))
+                if (IsPreservedVisualFloat(preservedSettingId))
                 {
                     float parsedValue;
                     if (profile.TryGetCustomizedValue(
@@ -680,13 +901,13 @@ namespace DishonoredDynamicCrosshair
                         settingName,
                         out parsedValue))
                     {
-                        _pendingPreservedVisualFloats[settingId] = parsedValue;
+                        _pendingPreservedVisualFloats[preservedSettingId] = parsedValue;
                     }
 
                     continue;
                 }
 
-                if (IsPreservedVisualString(settingId))
+                if (IsPreservedVisualString(preservedSettingId))
                 {
                     string preservedValue;
                     if (profile.TryGetCustomizedValue(
@@ -694,14 +915,14 @@ namespace DishonoredDynamicCrosshair
                         settingName,
                         out preservedValue))
                     {
-                        _pendingPreservedVisualStrings[settingId] =
+                        _pendingPreservedVisualStrings[preservedSettingId] =
                             preservedValue;
                     }
                     continue;
                 }
 
                 if (string.Equals(
-                        settingId,
+                        preservedSettingId,
                         "4. Blood Magic\nUseCorpseQualityScale",
                         StringComparison.Ordinal))
                 {
@@ -711,14 +932,14 @@ namespace DishonoredDynamicCrosshair
                         settingName,
                         out parsedValue))
                     {
-                        _pendingPreservedVisualBools[settingId] = parsedValue;
+                        _pendingPreservedVisualBools[preservedSettingId] = parsedValue;
                     }
 
                     continue;
                 }
 
                 if (string.Equals(
-                        settingId,
+                        preservedSettingId,
                         "5. Advanced\nSizeMode",
                         StringComparison.Ordinal))
                 {
@@ -739,6 +960,32 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
+        private static string NormalizePreservedVisualSettingId(
+            string settingId)
+        {
+            string[] sectionMappings =
+            {
+                "Reticles\n", "2. Reticles\n",
+                "Colors and Opacity\n", "3. Colors and Opacity\n",
+                "Blood Magic\n", "4. Blood Magic\n",
+                "Ambush Integrity\n", "5. Ambush Integrity\n",
+                "Advanced\n", "5. Advanced\n",
+                "Interaction Icons\n", "6. Interaction Icons\n"
+            };
+            for (int index = 0; index < sectionMappings.Length; index += 2)
+            {
+                if (settingId.StartsWith(
+                    sectionMappings[index],
+                    StringComparison.Ordinal))
+                {
+                    return sectionMappings[index + 1]
+                        + settingId.Substring(sectionMappings[index].Length);
+                }
+            }
+
+            return settingId;
+        }
+
         private static bool IsPreservedVisualFloat(string settingId)
         {
             switch (settingId)
@@ -751,8 +998,12 @@ namespace DishonoredDynamicCrosshair
                 case "3. Colors and Opacity\nTargetOpacity":
                 case "3. Colors and Opacity\nMountedOpacityMultiplier":
                 case "4. Blood Magic\nMaximumQualityScale":
-                case "5. Advanced\nCrouchIndicatorOpacity":
+                case "5. Advanced\nCrouchIndicatorOpacityMultiplier":
                 case "5. Advanced\nCrouchIndicatorVerticalOffset":
+                case "6. Interaction Icons\nIconScale":
+                case "6. Interaction Icons\nIconOpacity":
+                case "6. Interaction Icons\nCrosshairOpacityWhileActive":
+                case "6. Interaction Icons\nVanillaTextVerticalOffset":
                     return true;
                 default:
                     return false;
@@ -771,6 +1022,7 @@ namespace DishonoredDynamicCrosshair
                 case "3. Colors and Opacity\nHostileColor":
                 case "3. Colors and Opacity\nNonHostileColor":
                 case "4. Blood Magic\nUsableCorpseColor":
+                case "5. Ambush Integrity\nBackstabReadyColor":
                     return true;
                 default:
                     return false;
@@ -811,6 +1063,7 @@ namespace DishonoredDynamicCrosshair
             RestorePreservedBool("4. Blood Magic\nUseCorpseQualityScale", _bloodMagicUseQualityScale, ref restoredCount);
             RestorePreservedFloat("4. Blood Magic\nMaximumQualityScale", _bloodMagicMaximumQualityScale, ref restoredCount, ref clampedCount);
             RestorePreservedString("4. Blood Magic\nUsableCorpseColor", _bloodMagicUsableCorpseColor, ref restoredCount);
+            RestorePreservedString("5. Ambush Integrity\nBackstabReadyColor", _backstabReadyColor, ref restoredCount);
             if (_pendingPreservedSizeMode.HasValue)
             {
                 bool clamped;
@@ -826,8 +1079,12 @@ namespace DishonoredDynamicCrosshair
                     _pendingPreservedInvalidValueCount++;
                 }
             }
-            RestorePreservedFloat("5. Advanced\nCrouchIndicatorOpacity", _crouchIndicatorOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("5. Advanced\nCrouchIndicatorOpacityMultiplier", _crouchIndicatorOpacityMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("5. Advanced\nCrouchIndicatorVerticalOffset", _crouchIndicatorVerticalOffset, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("6. Interaction Icons\nIconScale", _interactionIconScale, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("6. Interaction Icons\nIconOpacity", _interactionIconOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("6. Interaction Icons\nCrosshairOpacityWhileActive", _interactionCrosshairOpacity, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("6. Interaction Icons\nVanillaTextVerticalOffset", _interactionTextVerticalOffset, ref restoredCount, ref clampedCount);
 
             Logger.LogInfo(
                 "Preserved "
@@ -938,13 +1195,31 @@ namespace DishonoredDynamicCrosshair
             float defaultScale)
         {
             ContextSettings settings = new ContextSettings(context);
-            string reticleSection = "2. Reticles";
+            string reticleSection = "Reticles";
+            int spriteOrder = 20;
+            int scaleOrder = 60;
+            if (context == ReticleContext.Bow)
+            {
+                spriteOrder = 30;
+            }
+            else if (context == ReticleContext.Magic)
+            {
+                spriteOrder = 40;
+                scaleOrder = 70;
+            }
+            else if (context == ReticleContext.BloodMagic)
+            {
+                spriteOrder = 50;
+                scaleOrder = 80;
+            }
 
             settings.SpriteFile = Config.Bind(
                 reticleSection,
                 name + "Sprite",
                 defaultSpriteFile,
-                "PNG beside this plugin, or an absolute PNG path. Bow and Magic fall back to the general PNG if unavailable.");
+                ConfigUi(
+                    "PNG beside this plugin, or an absolute PNG path. Bow and Magic fall back to the general PNG if unavailable.",
+                    reticleSection, name + " Sprite", ReticlesSectionOrder, spriteOrder));
 
             if (context != ReticleContext.General)
             {
@@ -952,37 +1227,73 @@ namespace DishonoredDynamicCrosshair
                     reticleSection,
                     name + "Scale",
                     defaultScale,
-                    new ConfigDescription(
+                    ConfigUi(
                         name + " scale multiplier applied after ReticleSizePixels.",
+                        reticleSection, name + " Scale", ReticlesSectionOrder, scaleOrder,
                         new AcceptableValueRange<float>(0.1f, 10f)));
             }
 
             if (context == ReticleContext.General)
             {
                 settings.DefaultColor = Config.Bind(
-                    "3. Colors and Opacity",
+                    "Colors and Opacity",
                     "DefaultColor",
                     "#FFFFFFFF",
-                    "Default-state color in #RRGGBBAA format.");
+                    ConfigUi(
+                        "Default-state color in #RRGGBBAA format.",
+                        "Colors and Opacity", "Default Color", ColorsSectionOrder, 0));
                 settings.HostileColor = Config.Bind(
-                    "3. Colors and Opacity",
+                    "Colors and Opacity",
                     "HostileColor",
                     "#E8583CFF",
-                    "Hostile-target color in #RRGGBBAA format.");
+                    ConfigUi(
+                        "Hostile-target color in #RRGGBBAA format.",
+                        "Colors and Opacity", "Hostile Color", ColorsSectionOrder, 10));
                 settings.NonHostileColor = Config.Bind(
-                    "3. Colors and Opacity",
+                    "Colors and Opacity",
                     "NonHostileColor",
                     "#8DD57AFF",
-                    "Friendly and neutral-target color in #RRGGBBAA format.");
+                    ConfigUi(
+                        "Friendly and neutral-target color in #RRGGBBAA format.",
+                        "Colors and Opacity", "Non-Hostile Color", ColorsSectionOrder, 20));
             }
 
             return settings;
         }
 
-        private static ConfigDescription OpacityDescription(string text)
+        private static ConfigDescription ConfigUi(
+            string description,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order,
+            AcceptableValueBase acceptableValues = null)
         {
             return new ConfigDescription(
+                description,
+                acceptableValues,
+                new Grailwright.Shared.ConfigRecoveryUiMetadata
+                {
+                    DisplaySection = displaySection,
+                    DisplayName = displayName,
+                    SectionOrder = sectionOrder,
+                    Order = order
+                });
+        }
+
+        private static ConfigDescription OpacityDescription(
+            string text,
+            string displaySection,
+            string displayName,
+            int sectionOrder,
+            int order)
+        {
+            return ConfigUi(
                 text,
+                displaySection,
+                displayName,
+                sectionOrder,
+                order,
                 new AcceptableValueRange<float>(0f, 1f));
         }
 
@@ -1007,6 +1318,7 @@ namespace DishonoredDynamicCrosshair
             _textureFiltering.SettingChanged +=
                 OnTextureFilteringSettingChanged;
             _baseSizePixels.SettingChanged += OnBehaviorSettingChanged;
+            _showCenterDot.SettingChanged += OnBehaviorSettingChanged;
             _targetDetectionRangeMultiplier.SettingChanged +=
                 OnTargetDetectionRangeSettingChanged;
             _defaultOpacity.SettingChanged += OnBehaviorSettingChanged;
@@ -1028,8 +1340,21 @@ namespace DishonoredDynamicCrosshair
             _hitMarkerDurationMultiplier.SettingChanged += OnBehaviorSettingChanged;
             _killingBlowDurationMultiplier.SettingChanged +=
                 OnBehaviorSettingChanged;
+            _ambushIntegrityBackstabOverlayEnabled.SettingChanged +=
+                OnBehaviorSettingChanged;
+            _backstabReadyColor.SettingChanged += OnBehaviorSettingChanged;
+            _interactionIconsEnabled.SettingChanged +=
+                OnInteractionSettingChanged;
+            _interactionIconScale.SettingChanged += OnBehaviorSettingChanged;
+            _interactionIconOpacity.SettingChanged += OnBehaviorSettingChanged;
+            _interactionCrosshairOpacity.SettingChanged +=
+                OnBehaviorSettingChanged;
+            _hideVanillaInteractionKeyPrompts.SettingChanged +=
+                OnInteractionSettingChanged;
+            _interactionTextVerticalOffset.SettingChanged +=
+                OnInteractionSettingChanged;
             _showCrouchIndicator.SettingChanged += OnBehaviorSettingChanged;
-            _crouchIndicatorOpacity.SettingChanged += OnBehaviorSettingChanged;
+            _crouchIndicatorOpacityMultiplier.SettingChanged += OnBehaviorSettingChanged;
             _crouchIndicatorVerticalOffset.SettingChanged +=
                 OnBehaviorSettingChanged;
             _hideDefaultReticle.SettingChanged += OnBehaviorSettingChanged;
@@ -1086,6 +1411,7 @@ namespace DishonoredDynamicCrosshair
             Unsubscribe(_sizeMode, OnBehaviorSettingChanged);
             Unsubscribe(_textureFiltering, OnTextureFilteringSettingChanged);
             Unsubscribe(_baseSizePixels, OnBehaviorSettingChanged);
+            Unsubscribe(_showCenterDot, OnBehaviorSettingChanged);
             Unsubscribe(
                 _targetDetectionRangeMultiplier,
                 OnTargetDetectionRangeSettingChanged);
@@ -1107,8 +1433,24 @@ namespace DishonoredDynamicCrosshair
             Unsubscribe(_killingBlowSizeMultiplier, OnBehaviorSettingChanged);
             Unsubscribe(_hitMarkerDurationMultiplier, OnBehaviorSettingChanged);
             Unsubscribe(_killingBlowDurationMultiplier, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _ambushIntegrityBackstabOverlayEnabled,
+                OnBehaviorSettingChanged);
+            Unsubscribe(_backstabReadyColor, OnBehaviorSettingChanged);
+            Unsubscribe(_interactionIconsEnabled, OnInteractionSettingChanged);
+            Unsubscribe(_interactionIconScale, OnBehaviorSettingChanged);
+            Unsubscribe(_interactionIconOpacity, OnBehaviorSettingChanged);
+            Unsubscribe(
+                _interactionCrosshairOpacity,
+                OnBehaviorSettingChanged);
+            Unsubscribe(
+                _hideVanillaInteractionKeyPrompts,
+                OnInteractionSettingChanged);
+            Unsubscribe(
+                _interactionTextVerticalOffset,
+                OnInteractionSettingChanged);
             Unsubscribe(_showCrouchIndicator, OnBehaviorSettingChanged);
-            Unsubscribe(_crouchIndicatorOpacity, OnBehaviorSettingChanged);
+            Unsubscribe(_crouchIndicatorOpacityMultiplier, OnBehaviorSettingChanged);
             Unsubscribe(_crouchIndicatorVerticalOffset, OnBehaviorSettingChanged);
             Unsubscribe(_hideDefaultReticle, OnBehaviorSettingChanged);
             if (!ReferenceEquals(_hideMeleeReticle, _hideDefaultReticle))
@@ -1203,6 +1545,10 @@ namespace DishonoredDynamicCrosshair
                 "Awaken.TG.Main.Heroes.Items.EquipmentSlotType");
             Type inventoryExtensionsType = RequireType(
                 "Awaken.TG.Main.Character.CharacterInventoryExtension");
+            Type interactionViewType = RequireType(
+                "Awaken.TG.Main.Heroes.Interactions.VHeroInteractionUI");
+            _interactionKeyIconType = RequireType(
+                "Awaken.TG.Main.Utility.UI.Keys.Components.KeyIcon");
 
             MethodInfo setActiveMethod = RequireMethod(
                 crosshairPartType,
@@ -1239,6 +1585,10 @@ namespace DishonoredDynamicCrosshair
             MethodInfo raycasterDiscardingMethod = RequireMethod(
                 heroRaycasterType,
                 "OnDiscard",
+                Type.EmptyTypes);
+            _interactionFillInfoMethod = RequireMethod(
+                interactionViewType,
+                "FillInfo",
                 Type.EmptyTypes);
 
             _refreshCrosshairMethod = RequireMethod(
@@ -1325,6 +1675,11 @@ namespace DishonoredDynamicCrosshair
                 prefix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
                     nameof(DishonoredDynamicCrosshairPatches.HeroRaycasterDiscardingPrefix)));
+            _harmony.Patch(
+                _interactionFillInfoMethod,
+                postfix: new HarmonyMethod(
+                    typeof(DishonoredDynamicCrosshairPatches),
+                    nameof(DishonoredDynamicCrosshairPatches.InteractionViewFilledPostfix)));
         }
 
         internal void FilterVanillaPartActivation(object part, ref bool active)
@@ -1337,11 +1692,6 @@ namespace DishonoredDynamicCrosshair
             string partName = part.GetType().Name;
             if (partName == "CrouchCrosshairPart")
             {
-                if (!_showCrouchIndicator.Value)
-                {
-                    active = false;
-                }
-
                 return;
             }
 
@@ -1372,7 +1722,7 @@ namespace DishonoredDynamicCrosshair
 
                 if (part.GetType().Name == "CrouchCrosshairPart")
                 {
-                    AttachCrouchIndicator(mainView.gameObject);
+                    AttachCrouchIndicator(mainView);
                 }
 
                 if (mainView.transform.parent != null)
@@ -1443,6 +1793,440 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
+        internal void OnInteractionViewFilled(object interactionView)
+        {
+            if (interactionView == null)
+            {
+                return;
+            }
+
+            ApplyInteractionPromptLayout(interactionView);
+            SuppressInteractionKeyPrompts(interactionView);
+
+            try
+            {
+                object target = ReadReflectedProperty(
+                    interactionView,
+                    "Target");
+                object targetVisible = ReadReflectedProperty(target, "Visible");
+                if (targetVisible is bool && !(bool)targetVisible)
+                {
+                    _currentInteractionView = interactionView as Component;
+                    _currentInteractionIconKind = InteractionIconKind.None;
+                    _currentInteractionIsIllegal = false;
+                    ApplyReticleState();
+                    return;
+                }
+                object interactable = ReadReflectedProperty(
+                    target,
+                    "Interactable");
+                object hero = ReadReflectedProperty(target, "ParentModel");
+                object action = InvokeSingleArgumentMethod(
+                    interactable,
+                    "DefaultAction",
+                    hero);
+                if (action == null)
+                {
+                    FieldInfo actionField = AccessTools.Field(
+                        target.GetType(),
+                        "action");
+                    action = actionField == null
+                        ? null
+                        : actionField.GetValue(target);
+                }
+
+                bool locked = HasLockedAction(interactable, hero, action);
+                bool illegal = !locked && IsIllegalInteraction(target, action);
+                InteractionIconKind iconKind = locked
+                    ? InteractionIconKind.Lockpick
+                    : illegal
+                        ? InteractionIconKind.Hand
+                        : ClassifyInteractionAction(action);
+
+                _currentInteractionView = interactionView as Component;
+                _currentInteractionIconKind = iconKind;
+                _currentInteractionIsIllegal = illegal;
+                ApplyReticleState();
+            }
+            catch (Exception exception)
+            {
+                _currentInteractionView = null;
+                _currentInteractionIconKind = InteractionIconKind.None;
+                _currentInteractionIsIllegal = false;
+                ApplyReticleState();
+
+                if (!_interactionReadFailureLogged)
+                {
+                    _interactionReadFailureLogged = true;
+                    Exception cause = exception is TargetInvocationException
+                        && exception.InnerException != null
+                            ? exception.InnerException
+                            : exception;
+                    Logger.LogWarning(
+                        "Could not read the current interaction action: "
+                        + cause.Message);
+                }
+            }
+        }
+
+        private static object ReadReflectedProperty(
+            object instance,
+            string propertyName)
+        {
+            if (instance == null)
+            {
+                return null;
+            }
+
+            MethodInfo getter = AccessTools.PropertyGetter(
+                instance.GetType(),
+                propertyName);
+            return getter == null ? null : getter.Invoke(instance, null);
+        }
+
+        private static object InvokeSingleArgumentMethod(
+            object instance,
+            string methodName,
+            object argument)
+        {
+            if (instance == null)
+            {
+                return null;
+            }
+
+            MethodInfo method = AccessTools.Method(instance.GetType(), methodName);
+            return method == null
+                ? null
+                : method.Invoke(instance, new[] { argument });
+        }
+
+        private static bool HasLockedAction(
+            object interactable,
+            object hero,
+            object selectedAction)
+        {
+            if (IsLockedAction(selectedAction))
+            {
+                return true;
+            }
+
+            IEnumerable actions = InvokeSingleArgumentMethod(
+                interactable,
+                "AvailableActions",
+                hero) as IEnumerable;
+            if (actions == null)
+            {
+                return false;
+            }
+
+            foreach (object action in actions)
+            {
+                if (IsLockedAction(action))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsLockedAction(object action)
+        {
+            if (!IsTypeOrBaseNamed(action, "LockAction"))
+            {
+                return false;
+            }
+
+            object locked = ReadReflectedProperty(action, "Locked");
+            return locked is bool && (bool)locked;
+        }
+
+        private static bool IsIllegalInteraction(object target, object action)
+        {
+            if (target != null
+                && (target.GetType().Name == "HeroIllegalInteractionUI"
+                    || target.GetType().Name.IndexOf(
+                        "Pickpocket",
+                        StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                return true;
+            }
+
+            object illegal = ReadReflectedProperty(action, "IsIllegal");
+            return illegal is bool && (bool)illegal;
+        }
+
+        private static InteractionIconKind ClassifyInteractionAction(
+            object action)
+        {
+            if (action == null)
+            {
+                return InteractionIconKind.None;
+            }
+
+            if (IsTypeOrBaseNamed(action, "ToolInteractAction"))
+            {
+                object requiredTool = ReadReflectedProperty(
+                    action,
+                    "RequiredToolType");
+                string toolName = requiredTool == null
+                    ? string.Empty
+                    : requiredTool.ToString();
+                switch (toolName)
+                {
+                    case "Mining":
+                        return InteractionIconKind.Mining;
+                    case "Lumbering":
+                        return InteractionIconKind.Lumbering;
+                    case "Digging":
+                        return InteractionIconKind.Digging;
+                    case "Fishing":
+                        return InteractionIconKind.Fishing;
+                    default:
+                        return InteractionIconKind.Hand;
+                }
+            }
+
+            if (IsTypeOrBaseNamed(action, "WaterFishingAction"))
+            {
+                return InteractionIconKind.Fishing;
+            }
+            if (IsTypeOrBaseNamed(action, "ReadAction"))
+            {
+                return InteractionIconKind.Read;
+            }
+            if (IsTypeOrBaseNamed(action, "DialogueAction"))
+            {
+                return InteractionIconKind.Talk;
+            }
+            if (IsTypeOrBaseNamed(action, "BedElement"))
+            {
+                return InteractionIconKind.Rest;
+            }
+            if (IsTypeOrBaseNamed(action, "MountAction"))
+            {
+                return InteractionIconKind.Mount;
+            }
+            if (IsTypeOrBaseNamed(action, "StartFireplaceBaseAction"))
+            {
+                return InteractionIconKind.Campfire;
+            }
+
+            return InteractionIconKind.Hand;
+        }
+
+        private static bool IsTypeOrBaseNamed(object instance, string typeName)
+        {
+            for (Type type = instance == null ? null : instance.GetType();
+                type != null;
+                type = type.BaseType)
+            {
+                if (type.Name == typeName)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void SuppressInteractionKeyPrompts(object interactionView)
+        {
+            if (_enabled == null
+                || !_enabled.Value
+                || _hideVanillaInteractionKeyPrompts == null
+                || !_hideVanillaInteractionKeyPrompts.Value)
+            {
+                return;
+            }
+
+            string[] frameNames =
+            {
+                "nameFrame",
+                "actionFrame",
+                "infoFrame1",
+                "infoFrame2"
+            };
+            foreach (string frameName in frameNames)
+            {
+                FieldInfo frameField = AccessTools.Field(
+                    interactionView.GetType(),
+                    frameName);
+                object frame = frameField == null
+                    ? null
+                    : frameField.GetValue(interactionView);
+                FieldInfo buttonParentField = frame == null
+                    ? null
+                    : AccessTools.Field(frame.GetType(), "buttonParent");
+                GameObject buttonParent = buttonParentField == null
+                    ? null
+                    : buttonParentField.GetValue(frame) as GameObject;
+                if (buttonParent != null)
+                {
+                    SetInteractionKeyGlyphsEnabled(buttonParent, false);
+                    buttonParent.SetActive(false);
+                }
+            }
+        }
+
+        private void ApplyInteractionPromptLayout(object interactionView)
+        {
+            Component view = interactionView as Component;
+            RectTransform rect = view == null
+                ? null
+                : view.transform as RectTransform;
+            if (rect == null)
+            {
+                return;
+            }
+
+            if (_interactionPromptRect != rect)
+            {
+                RestoreInteractionPromptLayout();
+                _interactionPromptRect = rect;
+                _originalInteractionPromptAnchoredPosition =
+                    rect.anchoredPosition;
+                _hasOriginalInteractionPromptAnchoredPosition = true;
+            }
+
+            float verticalOffset = _enabled != null
+                && _enabled.Value
+                && _interactionTextVerticalOffset != null
+                    ? _interactionTextVerticalOffset.Value
+                    : 0f;
+            rect.anchoredPosition =
+                _originalInteractionPromptAnchoredPosition
+                + Vector2.down * verticalOffset;
+        }
+
+        private void RestoreInteractionPromptLayout()
+        {
+            if (_interactionPromptRect != null
+                && _hasOriginalInteractionPromptAnchoredPosition)
+            {
+                _interactionPromptRect.anchoredPosition =
+                    _originalInteractionPromptAnchoredPosition;
+            }
+
+            _interactionPromptRect = null;
+            _hasOriginalInteractionPromptAnchoredPosition = false;
+        }
+
+        private void RestoreInteractionKeyPrompts(object interactionView)
+        {
+            if (interactionView == null)
+            {
+                return;
+            }
+
+            string[] frameNames =
+            {
+                "nameFrame",
+                "actionFrame",
+                "infoFrame1",
+                "infoFrame2"
+            };
+            foreach (string frameName in frameNames)
+            {
+                FieldInfo frameField = AccessTools.Field(
+                    interactionView.GetType(),
+                    frameName);
+                object frame = frameField == null
+                    ? null
+                    : frameField.GetValue(interactionView);
+                FieldInfo buttonParentField = frame == null
+                    ? null
+                    : AccessTools.Field(frame.GetType(), "buttonParent");
+                GameObject buttonParent = buttonParentField == null
+                    ? null
+                    : buttonParentField.GetValue(frame) as GameObject;
+                if (buttonParent != null)
+                {
+                    SetInteractionKeyGlyphsEnabled(buttonParent, true);
+                }
+            }
+        }
+
+        private void SetInteractionKeyGlyphsEnabled(
+            GameObject buttonParent,
+            bool enabled)
+        {
+            if (buttonParent == null || _interactionKeyIconType == null)
+            {
+                return;
+            }
+
+            Component[] keyIcons = buttonParent.GetComponentsInChildren(
+                _interactionKeyIconType,
+                true);
+            foreach (Component keyIcon in keyIcons)
+            {
+                if (enabled)
+                {
+                    MethodInfo refreshIcons = AccessTools.Method(
+                        keyIcon.GetType(),
+                        "RefreshIcons");
+                    if (refreshIcons != null)
+                    {
+                        refreshIcons.Invoke(keyIcon, null);
+                    }
+                }
+
+                SetReflectedGraphicEnabled(keyIcon, "icon", enabled);
+                SetReflectedGraphicEnabled(
+                    keyIcon,
+                    "additionalImage",
+                    enabled);
+                SetReflectedGraphicEnabled(keyIcon, "text", enabled);
+            }
+        }
+
+        private static void SetReflectedGraphicEnabled(
+            Component owner,
+            string fieldName,
+            bool enabled)
+        {
+            FieldInfo field = owner == null
+                ? null
+                : AccessTools.Field(owner.GetType(), fieldName);
+            Behaviour graphic = field == null
+                ? null
+                : field.GetValue(owner) as Behaviour;
+            if (graphic != null)
+            {
+                graphic.enabled = enabled;
+            }
+        }
+
+        private void RefreshInteractionPromptView()
+        {
+            if (_currentInteractionView == null
+                || _interactionFillInfoMethod == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _interactionFillInfoMethod.Invoke(
+                    _currentInteractionView,
+                    null);
+                if (_enabled == null
+                    || !_enabled.Value
+                    || _hideVanillaInteractionKeyPrompts == null
+                    || !_hideVanillaInteractionKeyPrompts.Value)
+                {
+                    RestoreInteractionKeyPrompts(_currentInteractionView);
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(
+                    "Could not refresh the vanilla interaction prompt: "
+                    + exception.Message);
+            }
+        }
+
         internal void OnCrosshairChanged(object heroCrosshair)
         {
             _heroCrosshair = heroCrosshair;
@@ -1490,19 +2274,50 @@ namespace DishonoredDynamicCrosshair
             _reticleImage.raycastTarget = false;
             _reticleImage.preserveAspect = true;
             _reticleImage.type = Image.Type.Simple;
-            _directHitMarkerImage = CreateHitMarkerOverlayImage(
+            _dotImage = CreateHitMarkerOverlayImage(
                 _reticleObject.transform,
+                "DishonoredCenterDot");
+            _stealthEyeImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredStealthEye");
+            _stealthPupilImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredStealthPupil");
+            _interactionIconImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredInteractionIcon");
+            _interactionIconRect = _interactionIconImage.rectTransform;
+            _interactionIconRect.anchorMin = new Vector2(0.5f, 0.5f);
+            _interactionIconRect.anchorMax = new Vector2(0.5f, 0.5f);
+            _interactionIconRect.pivot = new Vector2(0.5f, 0.5f);
+            _interactionIconRect.anchoredPosition = Vector2.zero;
+            _interactionIconRect.sizeDelta = Vector2.zero;
+            _hitMarkerImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredHitMarkerBase");
+            _hitMarkerRootRect = _hitMarkerImage.rectTransform;
+            _hitMarkerRootRect.anchorMin = new Vector2(0.5f, 0.5f);
+            _hitMarkerRootRect.anchorMax = new Vector2(0.5f, 0.5f);
+            _hitMarkerRootRect.pivot = new Vector2(0.5f, 0.5f);
+            _hitMarkerRootRect.anchoredPosition = Vector2.zero;
+            _hitMarkerRootRect.sizeDelta = Vector2.zero;
+            _directHitMarkerImage = CreateHitMarkerOverlayImage(
+                _hitMarkerRootRect,
                 "DishonoredDirectHitMarkerOverlay");
             _weakSpotHitMarkerImage = CreateHitMarkerOverlayImage(
-                _reticleObject.transform,
+                _hitMarkerRootRect,
                 "DishonoredWeakSpotHitMarkerOverlay");
             _criticalHitMarkerImage = CreateHitMarkerOverlayImage(
-                _reticleObject.transform,
+                _hitMarkerRootRect,
                 "DishonoredCriticalHitMarkerOverlay");
             _killingBlowHitMarkerImage = CreateHitMarkerOverlayImage(
-                _reticleObject.transform,
+                _hitMarkerRootRect,
                 "DishonoredKillingBlowHitMarkerOverlay");
             _killingBlowHitMarkerImage.transform.SetAsLastSibling();
+            _backstabReadyOverlayImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredBackstabReadyOverlay");
+            _backstabReadyOverlayImage.transform.SetAsLastSibling();
 
             ApplyReticleState();
         }
@@ -1573,16 +2388,7 @@ namespace DishonoredDynamicCrosshair
                 == ReticleSizeMode.ScreenPixels
                     ? 1f / canvasScaleFactor
                     : 1f;
-            float hitMarkerSizeMultiplier = _activeKillingBlowTier >= 1
-                ? _killingBlowSizeMultiplier.Value
-                : _activeHitMarkerDamageOverTime
-                    ? _hitMarkerDamageOverTimeSizeMultiplier.Value
-                    : _hitMarkerSizeMultiplier.Value;
-            float finalSize = IsHitMarkerActive()
-                ? baseSize
-                    * Mathf.Clamp(hitMarkerSizeMultiplier, 0.5f, 3f)
-                    * unitConversion
-                : baseSize * scale * unitConversion;
+            float finalSize = baseSize * scale * unitConversion;
 
             _reticleRect.sizeDelta = new Vector2(finalSize, finalSize);
             _reticleRect.localScale = Vector3.one;
@@ -1699,6 +2505,9 @@ namespace DishonoredDynamicCrosshair
             if (_enabled == null || !_enabled.Value)
             {
                 _hitMarkerActive = false;
+                _currentBackstabReady = false;
+                _backstabPresentationActive = false;
+                _interactionPresentationActive = false;
                 _lastBloodMagicCorpseActive = false;
                 _lastBloodMagicCorpseState = 0;
                 _lastBloodMagicCorpseQualityTier = 0;
@@ -1709,11 +2518,18 @@ namespace DishonoredDynamicCrosshair
                 {
                     _reticleImage.enabled = false;
                 }
+                SetCenterVisualsEnabled(false, false, false);
+                SetInteractionIconEnabled(false);
+                SetHitMarkerVisualsEnabled(false);
                 SetHitMarkerOverlaysEnabled(false, false, false, false);
+                SetBackstabReadyOverlayEnabled(false);
 
                 return;
             }
 
+            bool backstabReady = ReadAmbushIntegrityBackstabReady();
+            _currentBackstabReady = backstabReady;
+            _backstabPresentationActive = false;
             bool bloodMagicActive = ReadBloodMagicCorpseActive();
             ReticleContext displayContext = bloodMagicActive
                 ? ReticleContext.BloodMagic
@@ -1739,14 +2555,6 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
-            if (IsHitMarkerActive())
-            {
-                ApplyHitMarkerVisual();
-                return;
-            }
-
-            SetHitMarkerOverlaysEnabled(false, false, false, false);
-
             ContextSettings settings = SettingsFor(displayContext);
             Sprite sprite = settings.Asset.Sprite;
             if (bloodMagicActive)
@@ -1758,17 +2566,17 @@ namespace DishonoredDynamicCrosshair
                 sprite = _general.Asset.Sprite;
             }
 
-            if (sprite == null)
-            {
-                _reticleImage.enabled = false;
-                return;
-            }
-
             ReticleMode mode = bloodMagicActive
                 ? ReticleMode.AlwaysVisibleSmart
                 : ResolveMode(settings);
             bool visible = bloodMagicActive
                 || IsVisible(mode, settings, displayTargetState);
+            _backstabPresentationActive = ShouldShowBackstabReadyOverlay(
+                backstabReady,
+                visible);
+            bool hitMarkerActive = IsHitMarkerActive();
+            _interactionPresentationActive =
+                ShouldShowInteractionIcon(hitMarkerActive);
             ContextSettings colorSettings = bloodMagicActive
                 ? ColorSettingsFor(ReticleContext.Magic, _magic)
                 : ColorSettingsFor(displayContext, settings);
@@ -1789,12 +2597,305 @@ namespace DishonoredDynamicCrosshair
             {
                 color.a *= Mathf.Clamp01(_mountedOpacityMultiplier.Value);
             }
+            color.a *= UnderlyingCrosshairOpacityMultiplier();
 
             _reticleObject.SetActive(true);
             _reticleImage.sprite = sprite;
             _reticleImage.color = color;
-            _reticleImage.enabled = visible && color.a > 0f;
+            _reticleImage.enabled = sprite != null && visible && color.a > 0f;
             ApplyReticleLayout(displayContext);
+            ApplyCenterVisuals(
+                displayContext,
+                visible,
+                color,
+                hitMarkerActive);
+            ApplyInteractionIcon(hitMarkerActive);
+            if (hitMarkerActive)
+            {
+                ApplyHitMarkerVisual();
+            }
+            else
+            {
+                SetHitMarkerVisualsEnabled(false);
+                SetHitMarkerOverlaysEnabled(false, false, false, false);
+            }
+            ApplyBackstabReadyOverlay(backstabReady, visible, heroMounted);
+        }
+
+        private void ApplyCenterVisuals(
+            ReticleContext context,
+            bool reticleVisible,
+            Color reticleColor,
+            bool hitMarkerActive)
+        {
+            bool stealthEyeVisible = ApplyStealthEyeVisual(
+                reticleColor.a,
+                context == ReticleContext.BloodMagic
+                    || _interactionPresentationActive);
+            if (_dotImage == null
+                || _stealthEyeImage == null
+                || _stealthPupilImage == null)
+            {
+                return;
+            }
+
+            ReticleAsset dotAsset = DotAssetFor(context);
+            bool showStealthPupil = stealthEyeVisible
+                && _currentStealthEyeFrame >= 2;
+            bool directHitMarkerVisible = hitMarkerActive
+                && !_activeHitMarkerDamageOverTime
+                && _activeKillingBlowTier == 0;
+            bool showOrdinaryDot = _showCenterDot != null
+                && _showCenterDot.Value
+                && reticleVisible
+                && !stealthEyeVisible
+                && !directHitMarkerVisible;
+            _dotImage.sprite = dotAsset.Sprite;
+            _dotImage.color = reticleColor;
+            _dotImage.rectTransform.anchoredPosition = Vector2.zero;
+            _dotImage.enabled = dotAsset.Sprite != null
+                && showOrdinaryDot
+                && reticleColor.a > 0f;
+
+            _stealthPupilImage.sprite = dotAsset.Sprite;
+            _stealthPupilImage.color = _stealthEyeImage.color;
+            _stealthPupilImage.rectTransform.anchoredPosition =
+                _stealthEyeImage.rectTransform.anchoredPosition;
+            _stealthPupilImage.enabled = dotAsset.Sprite != null
+                && showStealthPupil
+                && _stealthPupilImage.color.a > 0f;
+        }
+
+        private bool ApplyStealthEyeVisual(
+            float reticleOpacity,
+            bool presentationSuppressed)
+        {
+            if (_stealthEyeImage == null
+                || presentationSuppressed
+                || _showCrouchIndicator == null
+                || !_showCrouchIndicator.Value
+                || _crouchViewObject == null
+                || !_crouchViewObject.activeInHierarchy)
+            {
+                if (_stealthEyeImage != null)
+                {
+                    _stealthEyeImage.enabled = false;
+                }
+                _currentStealthEyeFrame = -1;
+                return false;
+            }
+
+            float visibility;
+            if (!TryReadCrouchVisibility(out visibility))
+            {
+                _stealthEyeImage.enabled = false;
+                _currentStealthEyeFrame = -1;
+                return false;
+            }
+
+            int frame = visibility >= 0.999f
+                ? StealthEyeFrameCount - 1
+                : Mathf.Min(
+                    StealthEyeFrameCount - 2,
+                    Mathf.RoundToInt(
+                        Mathf.Clamp01(visibility)
+                        * (StealthEyeFrameCount - 1)));
+            Sprite sprite = ResolveStealthEyeSprite(frame);
+            if (sprite == null)
+            {
+                _stealthEyeImage.enabled = false;
+                _currentStealthEyeFrame = -1;
+                return false;
+            }
+
+            Color color = Color.white;
+            color.a = Mathf.Clamp01(reticleOpacity)
+                * Mathf.Clamp01(_crouchIndicatorOpacityMultiplier.Value);
+
+            _stealthEyeImage.sprite = sprite;
+            _stealthEyeImage.color = color;
+            _stealthEyeImage.rectTransform.anchoredPosition = new Vector2(
+                0f,
+                -SafeCrouchIndicatorOffset());
+            _stealthEyeImage.enabled = color.a > 0f;
+            _currentStealthEyeFrame = _stealthEyeImage.enabled ? frame : -1;
+            return _stealthEyeImage.enabled;
+        }
+
+        private Sprite ResolveStealthEyeSprite(int preferredFrame)
+        {
+            for (int distance = 0; distance < StealthEyeFrameCount; distance++)
+            {
+                int lower = preferredFrame - distance;
+                if (lower >= 0 && _stealthEyeAssets[lower].Sprite != null)
+                {
+                    return _stealthEyeAssets[lower].Sprite;
+                }
+
+                int upper = preferredFrame + distance;
+                if (distance > 0
+                    && upper < StealthEyeFrameCount
+                    && _stealthEyeAssets[upper].Sprite != null)
+                {
+                    return _stealthEyeAssets[upper].Sprite;
+                }
+            }
+
+            return null;
+        }
+
+        private static void SetImageEnabled(Image image, bool enabled)
+        {
+            if (image != null)
+            {
+                image.enabled = enabled;
+            }
+        }
+
+        private void SetCenterVisualsEnabled(
+            bool dot,
+            bool stealthEye,
+            bool stealthPupil)
+        {
+            SetImageEnabled(_dotImage, dot);
+            SetImageEnabled(_stealthEyeImage, stealthEye);
+            SetImageEnabled(_stealthPupilImage, stealthPupil);
+        }
+
+        private void ApplyInteractionIcon(bool hitMarkerActive)
+        {
+            if (_interactionIconImage == null || _interactionIconRect == null)
+            {
+                return;
+            }
+
+            if (!ShouldShowInteractionIcon(hitMarkerActive))
+            {
+                SetInteractionIconEnabled(false);
+                return;
+            }
+
+            Sprite sprite = ResolveInteractionIconSprite(
+                _currentInteractionIconKind);
+            Color color = Color.white;
+            if (_currentInteractionIsIllegal)
+            {
+                color = new Color32(0x8C, 0x00, 0x03, 0xFF);
+            }
+            color.a *= Mathf.Clamp01(_interactionIconOpacity.Value);
+
+            float canvasScaleFactor = GetCanvasScaleFactor();
+            float unitConversion = _sizeMode.Value
+                == ReticleSizeMode.ScreenPixels
+                    ? 1f / canvasScaleFactor
+                    : 1f;
+            float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
+                * Mathf.Clamp(_interactionIconScale.Value, 0.1f, 3f)
+                * unitConversion;
+
+            _interactionIconImage.sprite = sprite;
+            _interactionIconImage.color = color;
+            _interactionIconRect.sizeDelta = new Vector2(size, size);
+            _interactionIconRect.anchoredPosition = Vector2.zero;
+            _interactionIconRect.localRotation = Quaternion.identity;
+            _interactionIconRect.localScale = Vector3.one;
+            _interactionIconImage.enabled = color.a > 0f;
+        }
+
+        private bool ShouldShowInteractionIcon(bool hitMarkerActive)
+        {
+            return _interactionIconsEnabled != null
+                && _interactionIconsEnabled.Value
+                && _currentInteractionView != null
+                && _currentInteractionIconKind != InteractionIconKind.None
+                && ResolveInteractionIconSprite(
+                    _currentInteractionIconKind) != null
+                && !_backstabPresentationActive
+                && !hitMarkerActive;
+        }
+
+        private Sprite ResolveInteractionIconSprite(
+            InteractionIconKind iconKind)
+        {
+            ReticleAsset asset;
+            if (_interactionIconAssets.TryGetValue(iconKind, out asset)
+                && asset.Sprite != null)
+            {
+                return asset.Sprite;
+            }
+
+            return _interactionIconAssets[InteractionIconKind.Hand].Sprite;
+        }
+
+        private void SetInteractionIconEnabled(bool enabled)
+        {
+            if (_interactionIconImage != null)
+            {
+                _interactionIconImage.enabled = enabled;
+            }
+        }
+
+        private void ApplyBackstabReadyOverlay(
+            bool backstabReady,
+            bool reticleVisible,
+            bool heroMounted)
+        {
+            if (_backstabReadyOverlayImage == null)
+            {
+                return;
+            }
+
+            bool show = ShouldShowBackstabReadyOverlay(
+                backstabReady,
+                reticleVisible);
+            if (!show)
+            {
+                SetBackstabReadyOverlayEnabled(false);
+                return;
+            }
+
+            Color color = ParseColor(_backstabReadyColor.Value);
+            if (heroMounted)
+            {
+                color.a *= Mathf.Clamp01(_mountedOpacityMultiplier.Value);
+            }
+
+            _backstabReadyOverlayImage.sprite = _backstabReadyOverlay.Sprite;
+            _backstabReadyOverlayImage.color = color;
+            _backstabReadyOverlayImage.rectTransform.localScale = Vector3.one;
+            _backstabReadyOverlayImage.enabled = color.a > 0f;
+            _backstabReadyOverlayImage.transform.SetAsLastSibling();
+        }
+
+        private bool ShouldShowBackstabReadyOverlay(
+            bool backstabReady,
+            bool reticleVisible)
+        {
+            return _ambushIntegrityBackstabOverlayEnabled != null
+                && _ambushIntegrityBackstabOverlayEnabled.Value
+                && backstabReady
+                && reticleVisible
+                && _backstabReadyOverlay.Sprite != null;
+        }
+
+        private float UnderlyingCrosshairOpacityMultiplier()
+        {
+            if (_backstabPresentationActive)
+            {
+                return BackstabUnderlyingOpacityMultiplier;
+            }
+
+            return _interactionPresentationActive
+                ? Mathf.Clamp01(_interactionCrosshairOpacity.Value)
+                : 1f;
+        }
+
+        private void SetBackstabReadyOverlayEnabled(bool enabled)
+        {
+            if (_backstabReadyOverlayImage != null)
+            {
+                _backstabReadyOverlayImage.enabled = enabled;
+            }
         }
 
         private ContextSettings ColorSettingsFor(
@@ -2074,6 +3175,118 @@ namespace DishonoredDynamicCrosshair
             return _general == null || _general.DefaultColor == null
                 ? fallback
                 : _general.DefaultColor.Value;
+        }
+
+        private bool ReadAmbushIntegrityBackstabReady()
+        {
+            if (_ambushIntegrityBackstabOverlayEnabled == null
+                || !_ambushIntegrityBackstabOverlayEnabled.Value
+                || !ResolveAmbushIntegrityApi())
+            {
+                return false;
+            }
+
+            try
+            {
+                return Convert.ToInt32(
+                    _ambushIntegrityGetBackstabStateMethod.Invoke(
+                        null,
+                        null),
+                    CultureInfo.InvariantCulture) == 1;
+            }
+            catch (Exception exception)
+            {
+                _ambushIntegrityGetBackstabStateMethod = null;
+                _ambushIntegrityApiUnavailableForSession = true;
+                if (!_ambushIntegrityApiFailureLogged)
+                {
+                    _ambushIntegrityApiFailureLogged = true;
+                    Logger.LogWarning(
+                        "Ambush Integrity backstab-ready integration failed and is disabled for this session: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private bool ResolveAmbushIntegrityApi()
+        {
+            if (_ambushIntegrityGetBackstabStateMethod != null)
+            {
+                return true;
+            }
+            if (_ambushIntegrityApiUnavailableForSession)
+            {
+                return false;
+            }
+
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    AmbushIntegrityPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null)
+            {
+                _ambushIntegrityApiUnavailableForSession = true;
+                LogAmbushIntegrityApiUnavailable(
+                    "Ambush Integrity is not loaded; the optional backstab-ready overlay is inactive for this session.");
+                return false;
+            }
+
+            BaseUnityPlugin plugin = pluginInfo.Instance as BaseUnityPlugin;
+            if (plugin == null)
+            {
+                return false;
+            }
+
+            Type apiType = plugin.GetType().Assembly.GetType(
+                AmbushIntegrityApiTypeName,
+                false);
+            if (apiType == null)
+            {
+                _ambushIntegrityApiUnavailableForSession = true;
+                LogAmbushIntegrityApiUnavailable(
+                    "Ambush Integrity is loaded, but its backstab state API was not found; the optional overlay is inactive for this session.");
+                return false;
+            }
+
+            FieldInfo apiVersionField = apiType.GetField(
+                "ApiVersion",
+                BindingFlags.Public | BindingFlags.Static);
+            if (apiVersionField == null
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 1))
+            {
+                _ambushIntegrityApiUnavailableForSession = true;
+                LogAmbushIntegrityApiUnavailable(
+                    "Ambush Integrity is loaded, but backstab state API v1 is unavailable; the optional overlay is inactive for this session.");
+                return false;
+            }
+
+            _ambushIntegrityGetBackstabStateMethod = AccessTools.Method(
+                apiType,
+                "GetBackstabOpportunityState",
+                new Type[0]);
+            if (_ambushIntegrityGetBackstabStateMethod == null)
+            {
+                _ambushIntegrityApiUnavailableForSession = true;
+                LogAmbushIntegrityApiUnavailable(
+                    "Ambush Integrity API v1 did not expose GetBackstabOpportunityState; the optional overlay is inactive for this session.");
+                return false;
+            }
+
+            Logger.LogInfo(
+                "Ambush Integrity backstab-ready reticle integration is active.");
+            return true;
+        }
+
+        private void LogAmbushIntegrityApiUnavailable(string message)
+        {
+            if (_ambushIntegrityApiUnavailableLogged)
+            {
+                return;
+            }
+
+            _ambushIntegrityApiUnavailableLogged = true;
+            Logger.LogInfo(message);
         }
 
         private bool ResolveBloodMagicCorpseApi()
@@ -2458,6 +3671,11 @@ namespace DishonoredDynamicCrosshair
 
         private void ApplyHitMarkerVisual()
         {
+            if (_hitMarkerImage == null || _hitMarkerRootRect == null)
+            {
+                return;
+            }
+
             ReticleAsset baseAsset;
             _hitMarkerAssets.TryGetValue(_activeHitMarkerFrame, out baseAsset);
             Sprite sprite = baseAsset == null ? null : baseAsset.Sprite;
@@ -2471,14 +3689,15 @@ namespace DishonoredDynamicCrosshair
 
             if (sprite == null)
             {
-                _reticleImage.enabled = false;
+                SetHitMarkerVisualsEnabled(false);
                 SetHitMarkerOverlaysEnabled(false, false, false, false);
                 return;
             }
 
             _reticleObject.SetActive(true);
-            _reticleImage.sprite = sprite;
-            _reticleImage.enabled = true;
+            _reticleImage.enabled = false;
+            _hitMarkerImage.sprite = sprite;
+            _hitMarkerImage.enabled = true;
             ApplyHitMarkerLayer(
                 _directHitMarkerImage,
                 _directHitMarkerOverlay.Sprite,
@@ -2507,8 +3726,34 @@ namespace DishonoredDynamicCrosshair
             {
                 _killingBlowHitMarkerImage.transform.SetAsLastSibling();
             }
-            ApplyReticleLayout(_currentContext);
+            ApplyHitMarkerLayout();
             UpdateHitMarkerAnimation();
+        }
+
+        private void ApplyHitMarkerLayout()
+        {
+            if (_hitMarkerRootRect == null)
+            {
+                return;
+            }
+
+            float sizeMultiplier = _activeKillingBlowTier >= 1
+                ? _killingBlowSizeMultiplier.Value
+                : _activeHitMarkerDamageOverTime
+                    ? _hitMarkerDamageOverTimeSizeMultiplier.Value
+                    : _hitMarkerSizeMultiplier.Value;
+            float canvasScaleFactor = GetCanvasScaleFactor();
+            float unitConversion = _sizeMode.Value
+                == ReticleSizeMode.ScreenPixels
+                    ? 1f / canvasScaleFactor
+                    : 1f;
+            float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
+                * Mathf.Clamp(sizeMultiplier, 0.5f, 3f)
+                * unitConversion;
+            _hitMarkerRootRect.sizeDelta = new Vector2(size, size);
+            _hitMarkerRootRect.anchoredPosition = Vector2.zero;
+            _hitMarkerRootRect.localRotation = Quaternion.identity;
+            _hitMarkerRootRect.SetAsLastSibling();
         }
 
         private void ApplyHitMarkerLayer(
@@ -2527,7 +3772,7 @@ namespace DishonoredDynamicCrosshair
 
         private void UpdateHitMarkerAnimation()
         {
-            if (!_hitMarkerActive || _reticleImage == null)
+            if (!_hitMarkerActive || _hitMarkerImage == null)
             {
                 return;
             }
@@ -2550,7 +3795,8 @@ namespace DishonoredDynamicCrosshair
                 : 1f - Mathf.InverseLerp(fadeStart, 1f, progress);
             Color color = _activeHitMarkerColor;
             color.a *= alpha;
-            _reticleImage.color = color;
+            color.a *= UnderlyingCrosshairOpacityMultiplier();
+            _hitMarkerImage.color = color;
             if (_directHitMarkerImage != null)
             {
                 _directHitMarkerImage.color = color;
@@ -2570,7 +3816,19 @@ namespace DishonoredDynamicCrosshair
 
             float settle = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(progress / 0.2f));
             float scale = Mathf.Lerp(HitMarkerInitialScale, 1f, settle);
-            _reticleRect.localScale = new Vector3(scale, scale, 1f);
+            if (_hitMarkerRootRect != null)
+            {
+                _hitMarkerRootRect.localScale = new Vector3(scale, scale, 1f);
+            }
+        }
+
+        private void SetHitMarkerVisualsEnabled(bool enabled)
+        {
+            SetImageEnabled(_hitMarkerImage, enabled);
+            if (!enabled && _hitMarkerRootRect != null)
+            {
+                _hitMarkerRootRect.localScale = Vector3.one;
+            }
         }
 
         private void SetHitMarkerOverlaysEnabled(
@@ -2844,16 +4102,42 @@ namespace DishonoredDynamicCrosshair
             return context == ReticleContext.BloodMagic ? _bloodMagic : _general;
         }
 
-        private void AttachCrouchIndicator(GameObject viewObject)
+        private ReticleAsset DotAssetFor(ReticleContext context)
         {
-            if (viewObject == null || _crouchViewObject == viewObject)
+            if (context == ReticleContext.Bow)
+            {
+                return _bowDot;
+            }
+
+            return context == ReticleContext.General ? _generalDot : _magicDot;
+        }
+
+        private void AttachCrouchIndicator(Component viewComponent)
+        {
+            if (viewComponent == null)
+            {
+                return;
+            }
+
+            GameObject viewObject = viewComponent.gameObject;
+            if (_crouchViewComponent == viewComponent)
             {
                 ApplyCrouchIndicatorState();
                 return;
             }
 
             RestoreCrouchIndicator();
+            _crouchViewComponent = viewComponent;
             _crouchViewObject = viewObject;
+            _tryRefreshCrouchVisibilityMethod = AccessTools.Method(
+                viewComponent.GetType(),
+                "TryRefreshVisibility",
+                new[] { typeof(float).MakeByRefType() });
+            if (_tryRefreshCrouchVisibilityMethod == null)
+            {
+                Logger.LogWarning(
+                    "Could not resolve the vanilla crouch visibility sampler; the custom stealth eye will remain hidden.");
+            }
             _crouchRect = viewObject.transform as RectTransform;
             if (_crouchRect != null)
             {
@@ -2889,10 +4173,9 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
-            _crouchCanvasGroup.alpha = !_enabled.Value
-                ? _originalCrouchAlpha
-                : _originalCrouchAlpha
-                    * Mathf.Clamp01(_crouchIndicatorOpacity.Value);
+            _crouchCanvasGroup.alpha = _enabled != null && _enabled.Value
+                ? 0f
+                : _originalCrouchAlpha;
         }
 
         private void ApplyCrouchIndicatorPosition()
@@ -2908,16 +4191,57 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            _crouchRect.anchoredPosition = _originalCrouchAnchoredPosition;
+        }
+
+        private float SafeCrouchIndicatorOffset()
+        {
             float offset = _crouchIndicatorVerticalOffset == null
                 ? 0f
                 : _crouchIndicatorVerticalOffset.Value;
-            if (float.IsNaN(offset) || float.IsInfinity(offset))
+            return float.IsNaN(offset) || float.IsInfinity(offset) ? 0f : offset;
+        }
+
+        private bool TryReadCrouchVisibility(out float visibility)
+        {
+            visibility = 0f;
+            if (_crouchViewComponent == null
+                || _tryRefreshCrouchVisibilityMethod == null)
             {
-                offset = 0f;
+                return false;
             }
 
-            _crouchRect.anchoredPosition =
-                _originalCrouchAnchoredPosition + new Vector2(0f, -offset);
+            try
+            {
+                object[] arguments = { 0f };
+                _tryRefreshCrouchVisibilityMethod.Invoke(
+                    _crouchViewComponent,
+                    arguments);
+                float easedVisibility = Convert.ToSingle(
+                    arguments[0],
+                    CultureInfo.InvariantCulture);
+                visibility = UneaseCrouchVisibility(easedVisibility);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (!_crouchVisibilityReadFailureLogged)
+                {
+                    _crouchVisibilityReadFailureLogged = true;
+                    Logger.LogWarning(
+                        "Could not read crouch awareness for the custom stealth eye: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private static float UneaseCrouchVisibility(float easedVisibility)
+        {
+            float eased = Mathf.Clamp01(easedVisibility);
+            return eased < 0.5f
+                ? eased * 0.1f
+                : 0.05f + (eased - 0.5f) * 1.9f;
         }
 
         private void RestoreCrouchIndicator()
@@ -2940,6 +4264,8 @@ namespace DishonoredDynamicCrosshair
             _crouchCanvasGroup = null;
             _crouchRect = null;
             _crouchViewObject = null;
+            _crouchViewComponent = null;
+            _tryRefreshCrouchVisibilityMethod = null;
             _ownsCrouchCanvasGroup = false;
             _originalCrouchAlpha = 1f;
             _originalCrouchAnchoredPosition = Vector2.zero;
@@ -2952,8 +4278,72 @@ namespace DishonoredDynamicCrosshair
             LoadSprite(_bow);
             LoadSprite(_magic);
             LoadSprite(_bloodMagic);
+            LoadCenterVisualSprites();
+            LoadAllInteractionIconSprites();
+            LoadBackstabReadyOverlay();
             LoadAllBloodMagicQualitySprites();
             LoadAllHitMarkerSprites();
+        }
+
+        private void LoadCenterVisualSprites()
+        {
+            LoadPngAsset(
+                _generalDot,
+                ResolveHitMarkerPath("dot.png"),
+                "general center dot",
+                "The General reticle will remain dotless.",
+                "DishonoredDynamicCrosshairGeneralDot");
+            LoadPngAsset(
+                _bowDot,
+                ResolveHitMarkerPath("dot_bow.png"),
+                "bow center dot",
+                "The Bow reticle will remain dotless.",
+                "DishonoredDynamicCrosshairBowDot");
+            LoadPngAsset(
+                _magicDot,
+                ResolveHitMarkerPath("dot_magic.png"),
+                "magic center dot",
+                "Magic and Blood Magic reticles will remain dotless.",
+                "DishonoredDynamicCrosshairMagicDot");
+
+            for (int frame = 0; frame < StealthEyeFrameCount; frame++)
+            {
+                LoadStealthEyeSprite(frame);
+            }
+        }
+
+        private void LoadStealthEyeSprite(int frame)
+        {
+            LoadPngAsset(
+                _stealthEyeAssets[frame],
+                ResolveHitMarkerPath(StealthEyeFileName(frame)),
+                "stealth-eye frame " + frame.ToString(CultureInfo.InvariantCulture),
+                "The custom crouch awareness eye will use the nearest available frame.",
+                "DishonoredDynamicCrosshairStealthEye" + frame.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private void LoadBackstabReadyOverlay()
+        {
+            LoadPngAsset(
+                _backstabReadyOverlay,
+                ResolveHitMarkerPath("interaction_backstab.png"),
+                "Ambush Integrity backstab-ready overlay",
+                "Backstab readiness will use the normal reticle only.",
+                "DishonoredDynamicCrosshairBackstabReadyOverlay");
+        }
+
+        private void LoadAllInteractionIconSprites()
+        {
+            foreach (KeyValuePair<InteractionIconKind, ReticleAsset> pair in
+                _interactionIconAssets)
+            {
+                LoadPngAsset(
+                    pair.Value,
+                    ResolveHitMarkerPath(InteractionIconFileName(pair.Key)),
+                    pair.Key + " interaction icon",
+                    "That interaction will use the general hand icon when available.",
+                    "DishonoredDynamicCrosshairInteraction" + pair.Key);
+            }
         }
 
         private void LoadAllBloodMagicQualitySprites()
@@ -3188,9 +4578,53 @@ namespace DishonoredDynamicCrosshair
 
         private static string HitMarkerFileName(HitMarkerFrame frame)
         {
-            return "custom_reticle_"
+            if (frame == HitMarkerFrame.Neutral)
+            {
+                return "custom_reticle.png";
+            }
+
+            return "hitmarker_"
                 + ((int)frame).ToString(CultureInfo.InvariantCulture)
                 + ".png";
+        }
+
+        private static string StealthEyeFileName(int frame)
+        {
+            return "stealth_eye_"
+                + frame.ToString(CultureInfo.InvariantCulture)
+                + ".png";
+        }
+
+        private static string InteractionIconFileName(
+            InteractionIconKind iconKind)
+        {
+            switch (iconKind)
+            {
+                case InteractionIconKind.Hand:
+                    return "interaction_hand.png";
+                case InteractionIconKind.Lockpick:
+                    return "interaction_lockpick.png";
+                case InteractionIconKind.Mining:
+                    return "interaction_mining.png";
+                case InteractionIconKind.Lumbering:
+                    return "interaction_lumbering.png";
+                case InteractionIconKind.Fishing:
+                    return "interaction_fishing.png";
+                case InteractionIconKind.Digging:
+                    return "interaction_digging.png";
+                case InteractionIconKind.Read:
+                    return "interaction_read.png";
+                case InteractionIconKind.Talk:
+                    return "interaction_talk.png";
+                case InteractionIconKind.Rest:
+                    return "interaction_rest.png";
+                case InteractionIconKind.Mount:
+                    return "interaction_mount.png";
+                case InteractionIconKind.Campfire:
+                    return "interaction_campfire.png";
+                default:
+                    throw new ArgumentOutOfRangeException("iconKind");
+            }
         }
 
         private static string BloodMagicQualityReticleFileName(int tier)
@@ -3198,13 +4632,13 @@ namespace DishonoredDynamicCrosshair
             switch (tier)
             {
                 case 1:
-                    return "custom_reticle_bloodmagic_meager.png";
+                    return "custom_reticle_bloodmagic_0.png";
                 case 2:
-                    return "custom_reticle_bloodmagic_worthy.png";
+                    return "custom_reticle_bloodmagic_1.png";
                 case 3:
-                    return "custom_reticle_bloodmagic_potent.png";
+                    return "custom_reticle_bloodmagic_2.png";
                 case 4:
-                    return "custom_reticle_bloodmagic_prime.png";
+                    return "custom_reticle_bloodmagic_3.png";
                 default:
                     throw new ArgumentOutOfRangeException("tier");
             }
@@ -3255,6 +4689,51 @@ namespace DishonoredDynamicCrosshair
 
         private void CheckAllHitMarkerSprites()
         {
+            string generalDotPath = ResolveHitMarkerPath("dot.png");
+            string bowDotPath = ResolveHitMarkerPath("dot_bow.png");
+            string magicDotPath = ResolveHitMarkerPath("dot_magic.png");
+            if (AssetChanged(_generalDot, generalDotPath)
+                || AssetChanged(_bowDot, bowDotPath)
+                || AssetChanged(_magicDot, magicDotPath))
+            {
+                LoadCenterVisualSprites();
+            }
+            else
+            {
+                for (int frame = 0; frame < StealthEyeFrameCount; frame++)
+                {
+                    string path = ResolveHitMarkerPath(
+                        StealthEyeFileName(frame));
+                    if (AssetChanged(_stealthEyeAssets[frame], path))
+                    {
+                        LoadStealthEyeSprite(frame);
+                    }
+                }
+            }
+
+            foreach (KeyValuePair<InteractionIconKind, ReticleAsset> pair in
+                _interactionIconAssets)
+            {
+                string path = ResolveHitMarkerPath(
+                    InteractionIconFileName(pair.Key));
+                if (AssetChanged(pair.Value, path))
+                {
+                    LoadPngAsset(
+                        pair.Value,
+                        path,
+                        pair.Key + " interaction icon",
+                        "That interaction will use the general hand icon when available.",
+                        "DishonoredDynamicCrosshairInteraction" + pair.Key);
+                }
+            }
+
+            string backstabReadyPath = ResolveHitMarkerPath(
+                "interaction_backstab.png");
+            if (AssetChanged(_backstabReadyOverlay, backstabReadyPath))
+            {
+                LoadBackstabReadyOverlay();
+            }
+
             foreach (KeyValuePair<int, ReticleAsset> pair in
                 _bloodMagicQualityAssets)
             {
@@ -3361,11 +4840,25 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            if (_currentInteractionView == null
+                && _currentInteractionIconKind != InteractionIconKind.None)
+            {
+                _currentInteractionIconKind = InteractionIconKind.None;
+                _currentInteractionIsIllegal = false;
+                ApplyReticleState();
+            }
+
             ResolveSteelAndBoneHitFeedbackApi();
+            bool backstabReady = ReadAmbushIntegrityBackstabReady();
+            if (backstabReady != _currentBackstabReady)
+            {
+                ApplyReticleState();
+            }
             if (_hitMarkerActive)
             {
                 UpdateHitMarkerAnimation();
             }
+            UpdateStealthEyeAnimation();
 
             if (Time.unscaledTime >= _nextSpriteCheckTime)
             {
@@ -3390,6 +4883,13 @@ namespace DishonoredDynamicCrosshair
             if (Time.unscaledTime >= _nextContextCheckTime)
             {
                 _nextContextCheckTime = Time.unscaledTime + 0.25f;
+                if (_currentInteractionView != null)
+                {
+                    ApplyInteractionPromptLayout(
+                        _currentInteractionView);
+                    SuppressInteractionKeyPrompts(
+                        _currentInteractionView);
+                }
                 ReticleContext context = ReadCurrentContext();
                 TargetState targetState = ReadCurrentTargetState();
                 bool bloodMagicActive = ReadBloodMagicCorpseActive();
@@ -3439,6 +4939,29 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
+        private void UpdateStealthEyeAnimation()
+        {
+            if (_reticleObject == null || _stealthEyeImage == null)
+            {
+                return;
+            }
+
+            bool wasVisible = _stealthEyeImage.enabled;
+            int previousFrame = _currentStealthEyeFrame;
+            float reticleOpacity = _reticleImage == null
+                ? 0f
+                : _reticleImage.color.a;
+            bool isVisible = ApplyStealthEyeVisual(
+                reticleOpacity,
+                _currentContext == ReticleContext.BloodMagic
+                    || _interactionPresentationActive);
+            if (wasVisible != isVisible
+                || previousFrame != _currentStealthEyeFrame)
+            {
+                ApplyReticleState();
+            }
+        }
+
         private void RefreshHoveredTargetState()
         {
             if (_heroCrosshair == null
@@ -3485,6 +5008,15 @@ namespace DishonoredDynamicCrosshair
             ApplyReticleState();
             ApplyTargetDetectionRange();
             RefreshVanillaCrosshair();
+            RefreshInteractionPromptView();
+        }
+
+        private void OnInteractionSettingChanged(
+            object sender,
+            EventArgs eventArgs)
+        {
+            ApplyReticleState();
+            RefreshInteractionPromptView();
         }
 
         private void OnHitMarkerSettingChanged(
@@ -3641,10 +5173,18 @@ namespace DishonoredDynamicCrosshair
             _reticleObject = null;
             _reticleRect = null;
             _reticleImage = null;
+            _dotImage = null;
+            _stealthEyeImage = null;
+            _stealthPupilImage = null;
+            _interactionIconRect = null;
+            _interactionIconImage = null;
+            _hitMarkerRootRect = null;
+            _hitMarkerImage = null;
             _directHitMarkerImage = null;
             _weakSpotHitMarkerImage = null;
             _criticalHitMarkerImage = null;
             _killingBlowHitMarkerImage = null;
+            _backstabReadyOverlayImage = null;
             _crosshairParent = null;
         }
 
@@ -3659,6 +5199,10 @@ namespace DishonoredDynamicCrosshair
                 _harmony.UnpatchSelf();
             }
 
+            RefreshInteractionPromptView();
+            RestoreInteractionKeyPrompts(_currentInteractionView);
+            RestoreInteractionPromptLayout();
+
             RestoreCrouchIndicator();
             RefreshVanillaCrosshair();
             DestroyReticleObject();
@@ -3666,6 +5210,13 @@ namespace DishonoredDynamicCrosshair
             ClearAsset(_bow.Asset);
             ClearAsset(_magic.Asset);
             ClearAsset(_bloodMagic.Asset);
+            ClearAsset(_generalDot);
+            ClearAsset(_bowDot);
+            ClearAsset(_magicDot);
+            foreach (ReticleAsset asset in _stealthEyeAssets)
+            {
+                ClearAsset(asset);
+            }
             foreach (ReticleAsset asset in _bloodMagicQualityAssets.Values)
             {
                 ClearAsset(asset);
@@ -3677,10 +5228,17 @@ namespace DishonoredDynamicCrosshair
             ClearAsset(_directHitMarkerOverlay);
             ClearAsset(_weakSpotHitMarkerOverlay);
             ClearAsset(_criticalHitMarkerOverlay);
+            ClearAsset(_backstabReadyOverlay);
+            foreach (ReticleAsset asset in _interactionIconAssets.Values)
+            {
+                ClearAsset(asset);
+            }
             foreach (ReticleAsset asset in _killingBlowOverlayAssets.Values)
             {
                 ClearAsset(asset);
             }
+            _currentInteractionView = null;
+            _currentInteractionIconKind = InteractionIconKind.None;
             Instance = null;
         }
 
@@ -3940,6 +5498,16 @@ namespace DishonoredDynamicCrosshair
             if (plugin != null)
             {
                 plugin.OnHeroRaycasterDiscarding(__instance);
+            }
+        }
+
+        internal static void InteractionViewFilledPostfix(object __instance)
+        {
+            DishonoredDynamicCrosshairPlugin plugin =
+                DishonoredDynamicCrosshairPlugin.Instance;
+            if (plugin != null)
+            {
+                plugin.OnInteractionViewFilled(__instance);
             }
         }
     }

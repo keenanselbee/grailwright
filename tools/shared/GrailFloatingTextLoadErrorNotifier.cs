@@ -126,6 +126,61 @@ namespace Grailwright.Shared
             }
         }
 
+        internal static bool TryShowEventNotification(
+            string sourceId,
+            string eventId,
+            string text,
+            string style,
+            string category,
+            string priority,
+            string collapseKey,
+            string iconId,
+            string durationBucket,
+            float fadeSeconds = -1.0f,
+            float opacity = 1.0f)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                sourceId = "grailwright";
+            }
+            if (string.IsNullOrWhiteSpace(eventId)
+                || string.IsNullOrWhiteSpace(text)
+                || !TryResolve())
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(collapseKey))
+            {
+                collapseKey = eventId;
+            }
+
+            try
+            {
+                object result = _tryShowEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        eventId,
+                        text.Trim(),
+                        style,
+                        category,
+                        priority,
+                        collapseKey,
+                        iconId,
+                        durationBucket,
+                        fadeSeconds,
+                        opacity
+                    });
+
+                return result is bool && (bool)result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         internal static bool TryShowDiagnosticNotification(
             string sourceId,
             string eventId,

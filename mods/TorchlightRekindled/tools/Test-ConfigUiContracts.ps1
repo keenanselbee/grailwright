@@ -51,7 +51,7 @@ foreach ($label in $expectedLabels) {
     }
 }
 
-if (-not $source.Contains('private const int ConfigSchemaVersion = 11;')) {
+if (-not $source.Contains('private const int ConfigSchemaVersion = 12;')) {
     throw "Expected config schema 11."
 }
 if ($source -notmatch '"InteriorBrightnessPreset",\s+TorchBrightnessPreset\.Bright,') {

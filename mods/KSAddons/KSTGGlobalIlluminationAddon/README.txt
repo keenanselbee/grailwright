@@ -1,7 +1,7 @@
 KS Global Illumination Addon
 ============================
 
-Version: 0.1.8
+Version: 0.1.9
 Platforms: Windows and Linux through Proton.
 
 Original mod: Global Illumination 1.0.0
@@ -103,6 +103,15 @@ Common entries:
   ChangeCooldownSeconds = 15
   SceneWarmupSeconds = 5
   Diagnostics = false
+
+FoA Mod Manager section order:
+
+  General
+  Adaptive Presets
+  Adaptive Tuning
+  Notifications
+  Diagnostics
+  Import Previous Settings
 
 Mode can also be set to Full, Balanced, or Performance to hold one tier in all
 locations.

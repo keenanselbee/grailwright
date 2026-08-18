@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.1.4
+Version 3.2.8
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.1.4
+  Version: 3.2.8
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -27,21 +27,36 @@ GUID, and generated config all use the Dishonored Dynamic Crosshair identity.
 
 Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\DishonoredDynamicCrosshair.dll
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_0.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_1.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_2.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_3.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_4.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_5.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_6.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_7.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_0.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_1.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_2.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_3.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_5.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_6.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_7.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bow.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_magic.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_meager.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_worthy.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_potent.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_prime.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\dot.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\dot_bow.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\dot_magic.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\stealth_eye_0.png through stealth_eye_10.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_0.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_1.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_2.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_3.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_backstab.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_campfire.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_digging.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_fishing.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_hand.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_lockpick.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_lumbering.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_mining.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_mount.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_read.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_rest.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_talk.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_weakspot_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_critical_overlay.png
@@ -53,35 +68,36 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.1.4 uses ConfigSchemaVersion 9. The schema last changed because the
-default Steel and Bone hit-marker KillingBlowSizeMultiplier increased from
-1.2x to 1.3x. Existing configs are backed up and regenerated; untouched old defaults
-receive the new value while compatible customized settings remain eligible for
-automatic recovery. On first launch from an older
-schema, the previous config is backed up beside the active config as a dated
-.bak file and fresh defaults are generated. Reticle PNG paths, sizes, scales,
-colors, opacities, size mode, Blood Magic quality scaling, and crouch-indicator
-visual tuning survive schema resets. Behavioral and diagnostic settings receive
-fresh defaults.
+Version 3.2.8 uses ConfigSchemaVersion 15. The schema last changed because the old
+absolute CrouchIndicatorOpacity setting was replaced by the safer
+CrouchIndicatorOpacityMultiplier. Compatible customized visual values remain
+recoverable across the reset, but the obsolete absolute value is not imported.
+On first launch from an older schema, the previous config is backed up beside
+the active config as a dated .bak file and fresh defaults are generated.
+Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
+quality scaling, and crouch-indicator visual tuning survive schema resets.
+Behavioral and diagnostic settings receive fresh defaults.
 
 Design Goal
 -----------
 
 The mod replaces the vanilla crosshair with a small set of readable controls:
 choose when the reticle appears, choose the reticle PNGs, choose the shared
-colors and opacity, and optionally add Blood Magic Expansion corpse feedback
-or Steel and Bone hit markers. More technical behavior is kept in the Advanced
-section.
+colors and opacity, replace interaction prompts with contextual icons, and
+optionally add Blood Magic Expansion corpse feedback, Ambush Integrity
+backstab readiness, or Steel and Bone hit markers. More technical behavior is
+kept in the Advanced section.
 
 Configuration Sections
 ----------------------
 
-1. Core
+Core
   Enabled
   Preset
 
-2. Reticles
+Reticles
   ReticleSizePixels
+  ShowCenterDot
   GeneralSprite
   BowSprite
   MagicSprite
@@ -90,7 +106,7 @@ Configuration Sections
   MagicScale
   BloodMagicScale
 
-3. Colors and Opacity
+Colors and Opacity
   DefaultColor
   HostileColor
   NonHostileColor
@@ -98,7 +114,15 @@ Configuration Sections
   TargetOpacity
   MountedOpacityMultiplier
 
-4. Blood Magic
+Interaction Icons
+  Enabled
+  IconScale
+  IconOpacity
+  CrosshairOpacityWhileActive
+  HideVanillaInteractionKeyPrompts
+  VanillaTextVerticalOffset
+
+Blood Magic
   Mode
   RequireRelevantBloodSpell
   BloodMagicQualityCrosshairsEnabled
@@ -106,7 +130,7 @@ Configuration Sections
   MaximumQualityScale
   UsableCorpseColor
 
-5. Steel and Bone Hit Markers
+Steel and Bone Hit Markers
   Enabled
   KillingBlowOverlaysEnabled
   SizeMultiplier
@@ -115,7 +139,11 @@ Configuration Sections
   DurationMultiplier
   KillingBlowDurationMultiplier
 
-5. Advanced
+Ambush Integrity
+  BackstabReadyOverlayEnabled
+  BackstabReadyColor
+
+Advanced
   MagicDetection
   UseGeneralWhenHandsDown
   RangeMultiplier
@@ -123,22 +151,98 @@ Configuration Sections
   SizeMode
   TextureFiltering
   ShowCrouchIndicator
-  CrouchIndicatorOpacity
+  CrouchIndicatorOpacityMultiplier
+  CrouchIndicatorVerticalOffset
   HideVanillaReticles
 
-6. Diagnostics
+Diagnostics
   LogBloodMagicScaleDiagnostics
+
+Import Previous Settings
+  CurrentSchema
+  AvailableBackupSchema
+  ImportPreviousSettingsNow
 
 Contexts
 --------
 
 Context priority is BloodMagic corpse override, Bow, Magic, then General.
+Steel and Bone hit markers temporarily replace the outer context reticle but
+render in a dedicated layer above the center dot or crouch-awareness eye.
+Routine interaction icons render above the reticle and awareness eye but below
+hit markers. Hit feedback temporarily suppresses a routine interaction icon.
+Ambush Integrity's backstab-ready state adds its own topmost overlay above the
+active reticle, routine interaction icon, and all hit-marker feedback.
 
 Bow uses the same IsRanged classification as the game's bow crosshair.
 MagicDetection defaults to CastMagicOnly for aimed magic and can be changed
 to AnyMagic. A missing Bow, Magic, or BloodMagic PNG falls back to the general
 PNG when possible. All reticle PNG files reload automatically after they are
 replaced.
+
+Center Dot
+----------
+
+ShowCenterDot defaults to true. General uses dot.png, Bow uses dot_bow.png,
+and Magic plus BloodMagic use dot_magic.png. While the custom crouch-awareness
+eye is active, frames 0 and 1 remain dotless; from frame 2 through frame 10 the
+active context dot becomes the eye's pupil even when ShowCenterDot is false.
+The pupil follows the eye's color, opacity, and vertical offset. Direct
+nonlethal hitmarker.png feedback covers the ordinary dot, while the complete
+eye and pupil remain underneath every hit-marker layer. Dot and eye assets hot
+reload with the other PNGs.
+
+Interaction Icons
+-----------------
+
+Interaction icons are enabled by default and follow the exact action selected
+by the game's interaction HUD. Mining, lumbering, fishing, digging, reading,
+talking, resting in a bed or bedroll, mounting, and using a campfire or bonfire
+have dedicated PNGs. Items, containers, doors, gathering, searching, and other
+ordinary or unknown interactions use interaction_hand.png.
+
+Any currently locked door, container, or other location uses
+interaction_lockpick.png even when the lock is key-only, broken, or cannot be
+picked. Illegal actions and pickpocketing use the hand icon in the same dark red
+as killing-blow feedback. Lock state takes priority over the illegal color.
+
+Only one routine interaction icon is shown. It uses a fixed square based on
+ReticleSizePixels instead of Bow, Magic, Blood Magic, or corpse-quality scales.
+IconScale defaults to 1.1 and IconOpacity defaults to 0.8. While active,
+it dims the ordinary reticle, dot, and crouch-awareness eye according to
+CrosshairOpacityWhileActive, which defaults to 0. Hit markers temporarily
+hide the routine icon and remain undimmed. The backstab indicator overrides all
+routine icons and remains the topmost layer.
+
+HideVanillaInteractionKeyPrompts defaults to true. It removes the complete E, F,
+or controller-button container so the prompt background fits the remaining
+action text without empty space. Locked and blocked explanations remain visible;
+vanilla hold-progress graphics inside that button container are hidden with it.
+VanillaTextVerticalOffset defaults to -120 UI units, moving the prompt upward
+from the game's default just-below-center position. The offset follows the HUD
+canvas scaling across resolutions and the player's HUD Scale setting. Turning
+suppression or the plugin off restores the vanilla button container. All interaction
+PNGs use the standard 512x512 canvas and hot reload while the game is running.
+
+Ambush Integrity Backstab Ready
+-------------------------------
+
+When Ambush Integrity is installed, Dishonored reads its versioned state API
+and shows interaction_backstab.png only while the exact current target passes Ambush
+Integrity's final backstab eligibility result. The 512x512 image uses the same
+reticle canvas as the other PNGs at a fixed 1.0 scale, with no special scaling
+or activation pulse.
+
+BackstabReadyOverlayEnabled controls the optional integration.
+BackstabReadyColor defaults to the killing-blow dark red #8C0003FF. The
+indicator renders above every reticle and hit-marker layer; while it is active,
+all underlying crosshair elements render at half their normal opacity.
+Replacing the PNG while the game is running hot-reloads the overlay. The state
+disappears on target changes, eligibility loss, or stale data. Committed Ambush
+does not falsely claim that the backstab action itself is available.
+
+Without Ambush Integrity, the integration remains inactive and the normal
+reticles are unchanged.
 
 UseGeneralWhenHandsDown defaults to true. When the game hides the hero's
 weapons, the plugin uses the General reticle even if a bow or magic item is
@@ -215,23 +319,25 @@ Steel and Bone Hit Markers
 --------------------------
 
 When Steel and Bone 3.3.9 or newer is installed, successful outgoing player
-damage can temporarily replace the current reticle with contextual hit
-feedback. Dishonored Dynamic Crosshair keeps its existing target colors and
-reticle behavior unchanged when Steel and Bone is absent.
+damage can temporarily replace the outer context reticle with contextual hit
+feedback. Its dedicated layer stays above the center dot or stealth eye.
+Dishonored Dynamic Crosshair keeps its existing target colors and reticle
+behavior unchanged when Steel and Bone is absent.
 
 The numbered frame reports the material result:
-  custom_reticle_0.png       Zero damage or immunity
-  custom_reticle_1.png       Extreme resistance below x0.35
-  custom_reticle_2.png       Strong resistance from x0.35 to below x0.70
-  custom_reticle_3.png       Mild resistance from x0.70 to below x0.95
-  custom_reticle_4.png       Neutral from x0.95 through x1.05; General default
-  custom_reticle_5.png       Mild weakness above x1.05 through x1.10
-  custom_reticle_6.png       Strong weakness above x1.10 through x1.20
-  custom_reticle_7.png       Extreme weakness above x1.20
+  hitmarker_0.png            Zero damage or immunity
+  hitmarker_1.png            Extreme resistance below x0.35
+  hitmarker_2.png            Strong resistance from x0.35 to below x0.70
+  hitmarker_3.png            Mild resistance from x0.70 to below x0.95
+  custom_reticle.png         Neutral from x0.95 through x1.05 in every context
+  hitmarker_5.png            Mild weakness above x1.05 through x1.10
+  hitmarker_6.png            Strong weakness above x1.10 through x1.20
+  hitmarker_7.png            Extreme weakness above x1.20
 
 Direct nonlethal hits add a central diamond over the base result marker. The
-diamond uses the hit's calculated color and is omitted for damage-over-time
-ticks and all killing blows:
+diamond uses the hit's calculated color, covers the ordinary center dot, stays
+above the stealth eye, and is omitted for damage-over-time ticks and all
+killing blows:
   hitmarker.png
 
 Weak-spot and critical feedback are independent overlays above that diamond
@@ -255,7 +361,7 @@ KillingBlowOverlaysEnabled:
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
 All marker layers use Steel and Bone's final damage-number color. A new hit
 immediately replaces the active marker and restarts its timer. Missing
-numbered frames fall back to neutral custom_reticle_4.png; missing overlays
+numbered frames fall back to neutral custom_reticle.png; missing overlays
 are simply skipped. All numbered frames and overlays hot reload like the
 normal reticle assets.
 
@@ -280,13 +386,14 @@ that unavailable state for the current game session instead of repeatedly
 searching for the optional API.
 
 No focused corpse shows no blood reticle. Registered corpses, including
-blocked, bloodless, and spent corpses, select custom_reticle_bloodmagic_meager.png,
-custom_reticle_bloodmagic_worthy.png, custom_reticle_bloodmagic_potent.png, or
-custom_reticle_bloodmagic_prime.png. Usable or channeling corpses use
+blocked, bloodless, and spent corpses, select custom_reticle_bloodmagic_0.png,
+custom_reticle_bloodmagic_1.png, custom_reticle_bloodmagic_2.png, or
+custom_reticle_bloodmagic_3.png for Meager, Worthy, Potent, or Prime. Usable or channeling corpses use
 UsableCorpseColor and can also scale from 1x to MaximumQualityScale. Unavailable
 corpses retain their tier shape at 1x and use the ordinary DefaultColor and
 IdleOpacity. An
-unregistered corpse without a resolved tier uses custom_reticle_bloodmagic.png.
+unregistered corpse without a resolved tier uses custom_reticle_bloodmagic_0.png,
+the same asset as Meager.
 Living enemies keep the normal hostile or magic reticle. Set
 BloodMagicQualityCrosshairsEnabled to false to retain the single fallback
 appearance.
@@ -298,20 +405,30 @@ internal tuning values in 2.8.3, not user-facing config options.
 Crouch Indicator
 ----------------
 
-The crouching and detection indicator remains enabled by default. Its
-CrouchIndicatorOpacity defaults to 0.15 and is applied to the whole indicator
-without replacing the game's internal detection colors or animations.
-CrouchIndicatorVerticalOffset defaults to 0. Positive values move the whole
-indicator lower; negative values move it higher. The offset is intentionally
-uncapped.
+The custom eleven-frame crouch-awareness eye replaces the vanilla indicator
+while preserving the game's awareness calculation. stealth_eye_0.png is a
+closed center line with the longest horizontal awareness lines outside the
+reticle. Frames 1 through 9 progressively open the eye while retracting those
+lines toward the center. stealth_eye_10.png is fully open with no awareness
+lines. The eye itself remains small enough to fit inside the Bow reticle.
+
+CrouchIndicatorOpacityMultiplier defaults to 1, making the custom eye and pupil
+match the active crosshair opacity exactly. Lower values retain all dynamic
+crosshair fading while making the complete awareness indicator proportionally
+fainter. Blood Magic corpse reticles and routine interaction icons hide the
+complete awareness eye and pupil while their presentation is active.
+CrouchIndicatorVerticalOffset defaults to 0. Positive values move the complete
+custom indicator lower; negative values move it higher. The offset is
+intentionally uncapped. Disabling ShowCrouchIndicator hides both the custom and
+vanilla indicators.
 
 Vanilla Reticles
 ----------------
 
 HideVanillaReticles controls the game's default, melee, bow, and item-provided
 reticles together. It is enabled by default while this plugin is enabled.
-Disabling or unloading the plugin restores vanilla activation and crouch
-indicator opacity. While disabled, the custom reticle and background polling
+Disabling or unloading the plugin restores vanilla activation and the original
+crouch indicator. While disabled, the custom reticle and background polling
 pause. While enabled, the plugin owns crosshair visibility and does not use the
 game's general crosshair setting as a visibility rule.
 

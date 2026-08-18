@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Killing Blow Mastery[/size][/color]
 [i]Finisher sounds and modest proficiency XP for the skill that lands the kill.[/i][/center]
 
@@ -85,16 +85,16 @@ The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matchin
 | Off            | silent            |
 [/code]
 
-[b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. The default 1 uses the full 0m = 100%, 50m+ = 10% curve:
+[b]FinisherSoundRangeVolume[/b] applies to all active sound modes, including [b]WeaponSpecific[/b], [b]Soulslike[/b], and [b]GoatTest[/b]. Set it to 0 to disable distance fade. The default 1 uses the full 0m = 100%, 30m+ = 10% curve:
 
 [code]
 | Distance | Volume |
 |----------|--------|
 | 0m       | 100%   |
-| 12.5m    | 78%    |
-| 25m      | 55%    |
-| 37.5m    | 33%    |
-| 50m+     | 10%    |
+| 7.5m     | 78%    |
+| 15m      | 55%    |
+| 22.5m    | 33%    |
+| 30m+     | 10%    |
 [/code]
 
 If FMOD playback fails, the mod falls back to the older Unity AudioSource path and logs the failure when Diagnostics is enabled.
@@ -257,7 +257,10 @@ BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] is optional, but required for the default shared reward text route.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] 0.3.0 or newer makes the current grip select the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound. Native weapon proficiency remains the fallback without the integration.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It is also optional but required for the default shared reward text route.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] makes the current grip select the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound. Native weapon proficiency remains the fallback without the integration.[/*]
 [/list]

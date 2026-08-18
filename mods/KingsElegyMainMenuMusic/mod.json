@@ -2,7 +2,7 @@
   "id": "KingsElegyMainMenuMusic",
   "displayName": "King's Elegy - Main Menu Music",
   "packageName": "KingsElegyMainMenuMusic",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "pluginGuid": "ks.tgfoa.main-menu-music",
   "dll": "MainMenuMusic.dll",
   "sourceFiles": [

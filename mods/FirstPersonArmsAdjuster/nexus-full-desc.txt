@@ -1,10 +1,10 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]First Person Arms Adjuster[/size][/color]
-[i]Get weapons away from your face. Adjust their position without changing FOV or aim.[/i][/center]
+[i]Get weapons away from your face and add camera-only movement without changing FOV or aim.[/i][/center]
 
 [line]
 
-[b]First Person Arms Adjuster[/b] moves the rendered first-person body, arms, weapons, shields, and held arrows in camera space while leaving the world camera and gameplay transforms alone.
+[b]First Person Arms Adjuster[/b] lets you reposition the first-person body, arms, and held equipment on screen, reduce animation clipping, and add configurable head bob without changing combat or aiming.
 
 Use it to push an oversized viewmodel farther away, bring it closer, or make small horizontal and vertical corrections without replacing the game's field of view.
 
@@ -12,14 +12,12 @@ Use it to push an oversized viewmodel farther away, bring it closer, or make sma
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]Full position control:[/b] Move your first-person body, arms, and equipment farther away, closer, left, right, up, or down.[/*]
-[*][b]Equipment-specific depth:[/b] Set separate forward positions for melee weapons, bows, and magic, with one general value for everything else.[/*]
-[*][b]Stable weapons and effects:[/b] Keep multi-part weapons, two-handed equipment, and attached visual effects aligned through movement and animation.[/*]
-[*][b]Cleaner melee attacks:[/b] Use separate held-heavy adjustments and an automatic sprint-attack vanilla return to keep intrusive shoulder and torso geometry out of view.[/*]
-[*][b]Smooth transitions:[/b] Ease toward the vanilla position during two-handed sheathing and bonfire interactions, then smoothly restore your chosen offsets.[/*]
-[*][b]Live tuning:[/b] See positioning changes immediately without restarting the game.[/*]
-[*][b]Visual changes only:[/b] Leave FOV, aiming, projectile origins, hit detection, physics, and saved player position untouched.[/*]
-[*][b]Optional mod integration:[/b] Let compatible effects follow adjusted hands without moving gameplay attachment points.[/*]
+[*][b]Reposition your first-person view:[/b] Move your body, arms, weapons, shields, and held arrows farther away, closer, left, right, up, or down.[/*]
+[*][b]Tune each equipment type:[/b] Set separate depth positions for melee weapons, bows, and magic, with one general position for everything else.[/*]
+[*][b]Reduce body and weapon clipping:[/b] Apply automatic corrections during heavy attacks, sprint attacks, two-handed sheathing, and bonfire interactions.[/*]
+[*][b]Advanced head-bob settings:[/b] Add smooth movement to your view without shaking your arms. Choose Subtle, Balanced, or Strong, then adjust smoothness and sprint emphasis.[/*]
+[*][b]Keep everything visually connected:[/b] Multi-part weapons, held equipment, and supported visual effects remain aligned with your hands during movement and animation.[/*]
+[*][b]Change presentation without changing gameplay:[/b] Adjustments apply immediately without affecting FOV, aiming, projectiles, hit detection, physics, or player movement.[/*]
 [/list]
 
 [line]
@@ -37,6 +35,15 @@ Category offsets are enabled by default. Melee weapons and magic use 0.30, while
 
 [line]
 
+[heading][color=#C94A4A][size=5]Head Bob[/size][/color][/heading]
+The game's vanilla first-person head bob moves the same arm and body rig that FPAA repositions. With adjusted arms, this can pull shoulders and torso into the camera and cause severe clipping.
+
+FPAA therefore suppresses the vanilla first-person bob and replaces it with custom movement applied only to your view. Your arms and body stay steady, while aiming, camera depth, and third person remain unchanged.
+
+The game's [b]Accessibility / Head Bob[/b] toggle remains the global master switch. FPAA provides its own local toggle, Subtle/Balanced/Strong presets, adjustable smoothness, and sprint emphasis. Balanced strength, 0.7 smoothness, and 0.75 sprint emphasis are the defaults.
+
+[line]
+
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 Start the game once to generate:
 
@@ -44,25 +51,29 @@ Start the game once to generate:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 [/code]
 
-FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b], [b]Equipment Depth[/b], [b]Advanced - Melee Guards[/b], [b]Advanced - Effects[/b], and [b]Diagnostics[/b]. Friendly labels show metres and signed directions, while the stored config keys in the table remain unchanged.
+FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b], [b]Equipment Depth[/b], [b]Head Bob[/b], [b]Advanced - Melee Guards[/b], [b]Advanced - Effects[/b], and [b]Diagnostics[/b]. Friendly labels show metres and signed directions, while the stored config keys in the table remain unchanged.
 
 [code]
-| Setting                    | Default | Purpose                                      |
-|----------------------------|---------|----------------------------------------------|
-| Enabled                    | true    | Master switch                                |
-| UseCategoryForwardOffsets  | true    | Use separate melee, bow, and magic values    |
-| AdjustAttachedEffects      | true    | Align equipped presentation effects          |
-| ForwardOffset              | 0.30    | General and unrecognized-equipment depth     |
-| HorizontalOffset           | 0.0     | Right or left camera-space adjustment        |
-| VerticalOffset             | 0.0     | Up or down camera-space adjustment           |
-| MeleeForwardOffset         | 0.30    | Melee weapon depth                           |
-| BowForwardOffset           | 0.10    | Bow depth                                    |
-| MagicForwardOffset         | 0.30    | Equipped-magic depth                         |
-| MitigateHeldMeleeBodyIntrusion | true | Guard held-heavy and sprint attack poses    |
-| HeldMeleeOffsetScale       | 1.0     | Fraction of the normal offset kept while held|
-| HeldMeleeExtraForwardOffset| -0.05   | Held-only depth correction after scaling    |
-| HeldMeleeExtraVerticalOffset| -0.05  | Held-only vertical correction after scaling |
-| Diagnostics                | false   | Log render paths, offsets, and melee states   |
+| Setting                          | Default  | Purpose                                        |
+|----------------------------------|----------|------------------------------------------------|
+| Enabled                          | true     | Master switch                                  |
+| UseCategoryForwardOffsets        | true     | Use separate melee, bow, and magic values      |
+| AdjustAttachedEffects            | true     | Align equipped presentation effects            |
+| ForwardOffset                    | 0.30     | General and unrecognized-equipment depth       |
+| HorizontalOffset                 | 0.0      | Right or left camera-space adjustment          |
+| VerticalOffset                   | 0.0      | Up or down camera-space adjustment             |
+| MeleeForwardOffset               | 0.30     | Melee weapon depth                             |
+| BowForwardOffset                 | 0.10     | Bow depth                                      |
+| MagicForwardOffset               | 0.30     | Equipped-magic depth                           |
+| EnableHeadBob                    | true     | Enable camera-only first-person head bob       |
+| HeadBobPreset                    | Balanced | Subtle, Balanced, or Strong movement           |
+| HeadBobSmoothness                | 0.7      | Soften the generated movement path             |
+| SprintEmphasis                   | 0.75     | Increase movement and cadence while sprinting  |
+| MitigateHeldMeleeBodyIntrusion   | true     | Guard held-heavy and sprint attack poses       |
+| HeldMeleeOffsetScale             | 1.0      | Fraction of the normal offset kept while held  |
+| HeldMeleeExtraForwardOffset      | -0.05    | Held-only depth correction after scaling       |
+| HeldMeleeExtraVerticalOffset     | -0.05    | Held-only vertical correction after scaling    |
+| Diagnostics                      | false    | Log render paths, offsets, and melee states    |
 [/code]
 
 All position values accept a range from -0.50 to 0.50 meters.
@@ -70,7 +81,9 @@ All position values accept a range from -0.50 to 0.50 meters.
 [line]
 
 [heading][color=#C94A4A][size=5]Rendering Scope And Limitations[/size][/color][/heading]
-The game uses one first-person body hierarchy, so visible torso or leg geometry may move with the arms. Held one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are handled specially: the complete offset eases toward the configured held-melee scale while the attack is raised or held, then applies the held-only forward and vertical corrections. The default scale retains the normal offset and pulls the held pose 0.05 metres toward the camera near plane and 0.05 metres down. One-handed and two-handed sprint attacks use the game's dedicated LightAttackForward state to return the complete presentation offset rapidly to vanilla, then restore it smoothly after the attack. When a melee weapon is sheathed in its active two-handed grip, the complete presentation offset eases to the vanilla position before the game hides the viewmodel, then restores safely after the transition or an interruption. One-handed grips, bows, spells, and unarmed states retain their normal presentation throughout sheathing. Versatile Weapons is supported automatically through its live grip classification. Bonfire interactions similarly ease to zero during the crouch, remain at the vanilla position through bonfire submenus and the complete controller stand-up transition, then ease back in. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
+Head bob applies only a vertical and side-to-side translation while the main first-person camera renders, then restores the camera immediately. It is distance-driven, uses the Hero's sprint state, and never changes camera depth, rotation, aim, arms, or third person. Balanced with the default 0.75 Sprint Emphasis adds about 56% movement and 19% cadence during sprinting. Subtle lowers the movement ceiling; Strong raises it. Head Bob Smoothness adds up to 0.18 seconds of filtering.
+
+Held one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are handled specially: the complete offset eases toward the configured held-melee scale while the attack is raised or held, then applies the held-only forward and vertical corrections. The default scale retains the normal offset and pulls the held pose 0.05 metres toward the camera near plane and 0.05 metres down. One-handed and two-handed sprint attacks use the game's dedicated LightAttackForward state to return the complete presentation offset rapidly to vanilla, then restore it smoothly after the attack. When a melee weapon is sheathed in its active two-handed grip, the complete presentation offset eases to the vanilla position before the game hides the viewmodel, then restores safely after the transition or an interruption. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
 
 The plugin refreshes the active rig and equipment regions repeatedly, caches only the small active set of equipped presentation-effect roots, clears cached rig and render references during scene changes, and briefly suspends offsets while a replacement scene settles. Effects beneath the first-person body keep an adjusted emitter position between frames, then temporarily remove that child offset while the body-root render translation is active so local-space effects move exactly once. It changes presentation data only; the live animation skeleton and gameplay transforms remain untouched. AdjustAttachedEffects can disable the effect correction independently.
 
@@ -94,7 +107,7 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
-Automatically preserved: Enabled, MitigateHeldMeleeBodyIntrusion, ForwardOffset, HorizontalOffset, VerticalOffset, MeleeForwardOffset, BowForwardOffset, MagicForwardOffset, HeldMeleeOffsetScale, HeldMeleeExtraForwardOffset, HeldMeleeExtraVerticalOffset, and Diagnostics.
+Automatically preserved: Enabled, EnableHeadBob, HeadBobPreset, HeadBobSmoothness, SprintEmphasis, MitigateHeldMeleeBodyIntrusion, ForwardOffset, HorizontalOffset, VerticalOffset, MeleeForwardOffset, BowForwardOffset, MagicForwardOffset, HeldMeleeOffsetScale, HeldMeleeExtraForwardOffset, HeldMeleeExtraVerticalOffset, and Diagnostics.
 
 [line]
 
@@ -108,15 +121,27 @@ Automatically preserved: Enabled, MitigateHeldMeleeBodyIntrusion, ForwardOffset,
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*]The plugin does not change world FOV and does not require a camera or FOV replacement.[/*]
-[*][b]Compatible rendering boundary:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/259]VFPB - Visible First Person Body[/url] keeps its camera-anchored torso and legs at their native placement while this mod offsets the game's first-person arms and held equipment.[/*]
-[*][b]Tested compatible:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/255]VSG - Visible Sheathed Gear[/url].[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.4.3+ can use the optional visual-offset API to keep its blood-spell lights aligned with adjusted hands.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] can use the optional visual-offset API to keep its blood-spell lights aligned with adjusted hands.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272]Torchlight Rekindled[/url] benefits automatically: the vanilla torch flame and embers nested beneath the first-person body, plus its added corona and attached fire audio, follow the adjusted held torch.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons - Dynamic Grip[/url] is supported automatically: the sheathing blend follows its active one-handed or two-handed grip classification instead of the weapon's native type.[/*]
+[/list]
+
+[b]Other mods[/b]
+
+[list]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/188]True Third Person[/url]:[/b] Compatible. FPAA's camera-only head bob operates exclusively in first person and continues to respect the game's Accessibility / Head Bob setting. Third-person camera motion remains entirely under True Third Person's control.[/*]
+[*][b]Compatible rendering boundary:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/259]VFPB - Visible First Person Body[/url] keeps its camera-anchored torso and legs at their native placement while this mod offsets the game's first-person arms and held equipment.[/*]
+[*][b]Tested compatible:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/255]VSG - Visible Sheathed Gear[/url].[/*]
+[/list]
+
+[list]
+[*]The plugin does not change world FOV and does not require a camera or FOV replacement.[/*]
 [*]Mods that write to the same first-person Kandra, Drake, culling, or hierarchy presentation data may conflict.[/*]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]
@@ -124,4 +149,4 @@ Automatically preserved: Enabled, MitigateHeldMeleeBodyIntrusion, ForwardOffset,
 [heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
 If arms or equipment appear clipped, hidden, or too distant, reduce the active category offset first. Set all offsets to 0 or disable [b]Enabled[/b] to confirm the vanilla presentation before testing another value.
 
-Enable [b]Diagnostics[/b] to log the resolved first-person hierarchy, the Kandra rig, culling and linked Drake equipment paths receiving the offset, the cached equipped-effect count, and melee FSM state changes with independent held-heavy and sprint-attack mitigation results. Full details are written to [b]BepInEx/LogOutput.log[/b].
+Enable [b]Diagnostics[/b] to log head bob, the resolved first-person hierarchy, the Kandra rig, culling and linked Drake equipment paths receiving the offset, the cached equipped-effect count, and melee FSM state changes with independent held-heavy and sprint-attack mitigation results. Full details are written to [b]BepInEx/LogOutput.log[/b].

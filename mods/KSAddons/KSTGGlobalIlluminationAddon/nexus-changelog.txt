@@ -1,4 +1,3 @@
-TargetVersion=0.1.8
-BaselineVersion=0.1.7
-Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so adaptive-tier notices can be disabled without losing detailed BepInEx logging.
-Kept ShowToggleNotifications and actual parent runtime-state confirmations independent of Diagnostics.
+TargetVersion=0.1.9
+BaselineVersion=0.1.8
+Cleaned the generated config into unnumbered task-oriented sections with explicit option ordering, keeping Diagnostics penultimate and Import Previous Settings last.

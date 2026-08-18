@@ -1,3 +1,8 @@
+Version 0.1.9
+Removed numeric prefixes from the generated config and split mixed Core settings into clean General, Notifications, and Diagnostics sections with explicit ordering throughout.
+Advanced ConfigSchemaVersion from 1 to 2 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired layout.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 0.1.8
 Added ShowGrailFloatingTextDiagnostics, enabled by default and active only while Diagnostics is enabled, so adaptive-tier notices can be disabled without losing detailed BepInEx logging.
 Kept ShowToggleNotifications and actual parent runtime-state confirmations independent of Diagnostics.

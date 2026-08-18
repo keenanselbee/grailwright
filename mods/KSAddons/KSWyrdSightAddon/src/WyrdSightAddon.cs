@@ -12,8 +12,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Pulse-key and quest-giver companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.2.6.0")]
-[assembly: AssemblyFileVersion("1.2.6.0")]
+[assembly: AssemblyVersion("1.2.7.0")]
+[assembly: AssemblyFileVersion("1.2.7.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
@@ -24,10 +24,10 @@ namespace Keenan.TGFoA.WyrdSightAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.2.6";
+        public const string PluginVersion = "1.2.7";
         public const string ParentPluginGuid = "WyrdSight";
 
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 2;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -279,7 +279,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -287,82 +287,97 @@ namespace Keenan.TGFoA.WyrdSightAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Master switch. When disabled, Wyrd Sight keeps its original highlight-key toggle behavior and quest-giver highlighting is inactive.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch. When disabled, Wyrd Sight keeps its original highlight-key toggle behavior and quest-giver highlighting is inactive.",
+                    "General", "Enabled", 0, 0));
             _pulseDurationSeconds = Config.Bind(
-                "2. Pulse Timing",
+                "Pulse Timing",
                 "PulseDurationSeconds",
                 DefaultPulseDurationSeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How long a Wyrd Sight pulse stays active before the addon turns it off and lets Wyrd Sight fade normally.",
+                    "Pulse Timing", "Pulse Duration", 10, 0,
                     new AcceptableValueRange<float>(MinimumPulseDurationSeconds, MaximumPulseDurationSeconds)));
             _pulseStateCheckIntervalSeconds = Config.Bind(
-                "2. Pulse Timing",
+                "Pulse Timing",
                 "PulseStateCheckIntervalSeconds",
                 DefaultPulseStateCheckIntervalSeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How often the addon checks whether an addon-owned pulse was already turned off outside the addon.",
+                    "Pulse Timing", "State Check Interval", 10, 10,
                     new AcceptableValueRange<float>(MinimumPulseStateCheckIntervalSeconds, MaximumPulseStateCheckIntervalSeconds)));
             _offRetryDelaySeconds = Config.Bind(
-                "2. Pulse Timing",
+                "Pulse Timing",
                 "OffRetryDelaySeconds",
                 DefaultOffRetryDelaySeconds,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How long to wait between off-toggle retries when Wyrd Sight still reports active or its state cannot be read.",
+                    "Pulse Timing", "Off Retry Delay", 10, 20,
                     new AcceptableValueRange<float>(MinimumOffRetryDelaySeconds, MaximumOffRetryDelaySeconds)));
             _maximumOffAttempts = Config.Bind(
-                "2. Pulse Timing",
+                "Pulse Timing",
                 "MaximumOffAttempts",
                 DefaultMaximumOffAttempts,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How many off-toggle attempts the addon may make before it clears pulse ownership and leaves Wyrd Sight alone.",
+                    "Pulse Timing", "Maximum Off Attempts", 10, 30,
                     new AcceptableValueRange<int>(MinimumOffAttemptCount, MaximumOffAttemptCount)));
             _highlightQuestGivers = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "HighlightQuestGivers",
                 true,
-                "Show outlines on NPCs with untaken quests while Wyrd Sight is actively on.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Show outlines on NPCs with untaken quests while Wyrd Sight is actively on.",
+                    "Quest Givers", "Highlight Quest Givers", 20, 0));
             _questGiverMode = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestGiverMode",
                 QuestGiverMode.Balanced,
-                "Quest selection preset. Thorough hides nothing, Balanced hides grants blocked by durable story progress, and Precise shows only grants confirmed available now.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Quest selection preset. Thorough hides nothing, Balanced hides grants blocked by durable story progress, and Precise shows only grants confirmed available now.",
+                    "Quest Givers", "Quest Giver Mode", 20, 10));
             _questGiverMaxDistance = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestGiverMaxDistance",
                 20f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum distance in metres for drawing quest-giver outlines. Lower values reduce outline work.",
+                    "Quest Givers", "Maximum Distance", 20, 20,
                     new AcceptableValueRange<float>(5f, 100f)));
             _questScanFrameBudgetMilliseconds = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestScanFrameBudgetMilliseconds",
                 5,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Target frame slice for the background story scan. Individual graph or setup operations can exceed it; lower values are usually smoother but finish more slowly.",
+                    "Quest Givers", "Story Scan Frame Budget", 20, 30,
                     new AcceptableValueRange<int>(1, 10)));
             _questOutlineBakeFrameBudgetMilliseconds = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestOutlineBakeFrameBudgetMilliseconds",
                 1.5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Target frame slice for preparing golden outline meshes while Wyrd Sight is active. One NPC mesh operation can exceed it.",
+                    "Quest Givers", "Outline Bake Frame Budget", 20, 40,
                     new AcceptableValueRange<float>(0.25f, 4f)));
             _questOutlineRefreshRate = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestOutlineRefreshRate",
                 30,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum animated-pose refresh rate for golden quest-giver outlines. Lower values reduce CPU mesh-baking work without changing the render style.",
+                    "Quest Givers", "Outline Refresh Rate", 20, 50,
                     new AcceptableValueRange<int>(10, 60)));
             _questAvailabilityRefreshSeconds = Config.Bind(
-                "3. Quest Givers",
+                "Quest Givers",
                 "QuestAvailabilityRefreshSeconds",
                 15f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How often quest availability is refreshed while Wyrd Sight remains continuously active. Every new pulse also requests a refresh.",
+                    "Quest Givers", "Availability Refresh Interval", 20, 60,
                     new AcceptableValueRange<float>(5f, 60f)));
             _enabled.SettingChanged += QuestGiverSettingChanged;
             _highlightQuestGivers.SettingChanged += QuestGiverSettingChanged;
@@ -371,7 +386,10 @@ namespace Keenan.TGFoA.WyrdSightAddon
                 "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log pulse ownership and parent-state details.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log pulse ownership and parent-state details.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
         }
 
         private void ResetConfigIfSchemaChanged()

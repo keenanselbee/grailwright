@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.3.4
+Version: 1.3.5
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in

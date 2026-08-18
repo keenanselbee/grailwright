@@ -1,3 +1,6 @@
+Version 1.1.1
+Added explicit semantic section and setting order metadata for a cleaner FoA Mod Manager layout without changing the stored config schema.
+
 Version 1.1.0
 Stops repeated global Unity object scans as soon as every enabled title or loading-screen target category has been found.
 

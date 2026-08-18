@@ -1,3 +1,8 @@
+Version 0.1.4
+Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
+Advanced ConfigSchemaVersion from 1 to 2 because settings moved to the clean General, Light Selection, Visuals, Notifications, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 0.1.3
 Increased the default interior contact-shadow budget from one stable light to four.
 Added MaximumContactShadowLights so the active budget can be tuned from one to eight lights.

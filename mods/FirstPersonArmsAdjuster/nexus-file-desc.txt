@@ -1,1 +1,1 @@
-Configurable first-person body, weapon, and attached-effect positioning without changing world FOV or gameplay origins.
+Shape a cleaner, more grounded first-person view with adjustable gear placement, smooth camera-only head bob, and automatic clipping guards.

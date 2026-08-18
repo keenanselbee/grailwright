@@ -1,5 +1,5 @@
 Wyrdsoul Reserve
-Version 1.0.5
+Version 1.0.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -60,6 +60,9 @@ Defaults:
 - Reserve HUD scale: 1
 - Reserve icon size: 42 pixels
 - Diagnostics: false
+
+FoA Mod Manager presents these settings as General, Resource, HUD,
+Diagnostics, and finally Import Previous Settings.
 
 Config schema changes back up and regenerate incompatible layouts. The final
 Import Previous Settings tab can conservatively recover compatible customized

@@ -1,3 +1,8 @@
+Version 0.1.3
+Removed numeric prefixes from the generated config and split its mixed Core section into clean General, Visuals, Performance, Notifications, and Diagnostics sections with explicit FoA Mod Manager ordering.
+Advanced ConfigSchemaVersion from 1 to 2 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired layout.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
+
 Version 0.1.2
 Added optional Grail Floating Text System confirmations for the parent's actual runtime toggle state, including the active interior-only scope.
 Added ShowToggleNotifications and keeps ordinary interior and exterior transitions silent.

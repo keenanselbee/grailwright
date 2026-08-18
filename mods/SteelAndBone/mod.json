@@ -2,7 +2,7 @@
   "id": "SteelAndBone",
   "displayName": "Steel and Bone",
   "packageName": "SteelAndBone",
-  "version": "3.4.6",
+  "version": "3.8.3",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [
@@ -17,6 +17,7 @@
     "%BEPINEX%/BepInEx/core/BepInEx.dll",
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/DOTween.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",

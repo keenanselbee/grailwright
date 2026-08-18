@@ -1,7 +1,7 @@
 All Lights Cast Shadows Addon
 =============================
 
-Version: 1.2.8
+Version: 1.2.9
 Platforms: Windows and Linux through Proton.
 
 Original mod: All Lights Cast Shadows 1.2.0
@@ -59,7 +59,7 @@ Start the game once to generate:
 
   BepInEx\config\ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg
 
-The current release uses ConfigSchemaVersion 2. Older configs are backed up
+The current release uses ConfigSchemaVersion 3. Older configs are backed up
 and regenerated once so defaults apply cleanly. Compatible customized settings
 are preserved by exact current setting name across future schema resets.
 
@@ -82,6 +82,15 @@ Defaults:
   ShowToggleNotifications = true
   ShowGrailFloatingTextDiagnostics = true
   Diagnostics = false
+
+FoA Mod Manager section order:
+
+  Excluded Lights
+  Shadow Atlas
+  Combat Performance
+  Notifications
+  Diagnostics
+  Import Previous Settings
 
 Default excluded light path fragments:
 

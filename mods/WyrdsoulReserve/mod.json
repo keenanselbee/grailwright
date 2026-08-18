@@ -2,7 +2,7 @@
   "id": "WyrdsoulReserve",
   "displayName": "Wyrdsoul Reserve",
   "packageName": "WyrdsoulReserve",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "pluginGuid": "ks.tgfoa.wyrdsoul-reserve",
   "dll": "WyrdsoulReserve.dll",
   "sourceFiles": [

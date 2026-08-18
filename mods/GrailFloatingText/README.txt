@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.4.6
+Version 2.5.4
 
 Platforms: Windows and Linux through Proton.
 
@@ -27,7 +27,18 @@ time rested as the sleep transition ends, including short sleeps caused by inter
 encumbrance and near-capacity warnings, newly available progression points,
 location clear, pickpocket, bounty totals, throttled block/parry combat
 feedback, optional weak spot/sneak attack combat feedback, hero healing, XP
-gains, and vanilla Wyrd state changes. Built-in healing uses the configurable
+gains, food and potion use, Potion Poisoning activation, and vanilla Wyrd state
+changes. Food and potion lines show only the consumed item's name by default,
+using the built-in food and potion icons with gold and blue presentation.
+When Steel and Bone prevents food use during combat, GFT suppresses its
+consumption line so only Steel and Bone's brief restriction message appears.
+Potion Poisoning is always a separate red line with the potion icon and appears
+only when poisoning activates; GFT never reports overdrink buildup progress.
+GFT suppresses the matching native potion-use or poisoning announcement only
+after its replacement is accepted, so disabled or rejected events retain the
+native fallback. This supports vanilla potions and Steel and Bone's native
+overdrink adjustments without depending on Steel and Bone's potion data.
+Built-in healing uses the configurable
     Green group and the heart-and-spark Healing icon. Blood Magic Expansion 2.8.1
     can mark its healing at the exact mutation, routing visible blood healing through
     the configurable Red group with the Blood Magic icon. Presentation-aware healing
@@ -58,7 +69,7 @@ BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 Default settings:
 
 Enabled = true
-ConfigSchemaVersion = 25
+ConfigSchemaVersion = 27
 NotifyModCompatibility = true
 Successful schema resets wait for fully visible loaded gameplay, then appear with
 the system icon and use the configurable System duration bucket. Integrated
@@ -147,6 +158,11 @@ ConsolidateHealing = true
 HealingMinimumAmount = 1
 HealingTextFormat = Healed {health}
 HealingDurationBucket = Short
+NotifyFoodConsumed = true
+NotifyPotionConsumed = true
+IncludeConsumableDescription = false
+NotifyPotionOverdrinkTrigger = true
+SuppressVanillaPotionNotifications = true
 
 VanillaWyrdEventsEnabled = true
 NotifyWyrdNightChange = true
@@ -156,11 +172,11 @@ NotifyWyrdSoulFragmentCollected = true
 NotifyWyrdSkillToggle = false
 VanillaWyrdEventCooldownSeconds = 0.75
 RedColor = #FF3D2E
-RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack
+RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack; default-potion-poisoning
 GoldColor = #FFC03A
-GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
+GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment; default-food-consumed
 BlueColor = #9EE0FF
-BlueEvents = default-burden-lifted
+BlueEvents = default-burden-lifted; default-potion-consumed
 GreenColor = #8FD36B
 GreenEvents =
 PurpleColor = #C294FF

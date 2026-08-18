@@ -20,11 +20,14 @@ $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\Blo
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.1.4") "mod.json is not version 3.1.4."
-Assert-Contract ($source.Contains('PluginVersion = "3.1.4"')) "PluginVersion is not 3.1.4."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 9')) "Config schema is not 9."
+Assert-Contract ($manifest.version -eq "3.2.8") "mod.json is not version 3.2.8."
+Assert-Contract ($source.Contains('PluginVersion = "3.2.8"')) "PluginVersion is not 3.2.8."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 15')) "Config schema is not 15."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
-Assert-Contract ($source.Contains('"custom_reticle_4.png"')) "The general reticle default is not custom_reticle_4.png."
+Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
+Assert-Contract (-not $source.Contains('hitmarker_4.png')) "The removed numbered neutral hitmarker is still referenced."
+Assert-Contract ([regex]::IsMatch($source, 'frame == HitMarkerFrame\.Neutral[\s\S]*?return "custom_reticle\.png";')) "Neutral hits do not always resolve to custom_reticle.png."
+Assert-Contract ([regex]::IsMatch($source, '"ShowCenterDot",\s*true,')) "The center dot is not enabled by default."
 Assert-Contract ($source.Contains('[BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]')) "Steel and Bone is not a soft dependency."
 Assert-Contract ($source.Contains('"SizeMultiplier",') -and $source.Contains('1.15f,')) "The 1.15x default hit-marker size is missing."
 Assert-Contract ($source.Contains('"DamageOverTimeSizeMultiplier",') -and $source.Contains('1.1f,')) "The 1.1x default DoT hit-marker size is missing."
@@ -36,7 +39,20 @@ Assert-Contract ($source.Contains('OnSteelAndBoneHitResolved')) "The hit-feedbac
 Assert-Contract ($source.Contains('_activeHitMarkerDamageOverTime = damageOverTime;')) "Dishonored does not retain the DoT hit flag."
 Assert-Contract ($source.Contains('? _hitMarkerDamageOverTimeSizeMultiplier.Value')) "DoT hits do not use their separate size setting."
 Assert-Contract ([regex]::IsMatch($source, '_activeKillingBlowTier >= 1\s*\? _killingBlowSizeMultiplier\.Value')) "Killing blows do not replace normal and DoT sizing with their separate size setting."
-Assert-Contract ($source.Contains('ApplyHitMarkerVisual')) "The reticle replacement path is missing."
+Assert-Contract ($source.Contains('ApplyHitMarkerVisual')) "The layered hit-marker path is missing."
+Assert-Contract ($source.Contains('_hitMarkerImage.sprite = sprite;')) "The effectiveness frame does not use its dedicated layer."
+Assert-Contract (-not $source.Contains('_reticleImage.sprite = sprite;\r\n            _reticleImage.enabled = true;')) "Hit feedback still replaces the center-eye layer through the base reticle image."
+Assert-Contract ([regex]::IsMatch($source, '"DishonoredStealthEye"[\s\S]*?"DishonoredHitMarkerBase"')) "The hit-marker layer is not created above the stealth eye."
+Assert-Contract ($source.Contains('StealthEyeFrameCount = 11')) "The eleven-frame stealth-eye sequence is missing."
+Assert-Contract ($source.Contains('UneaseCrouchVisibility')) "The stealth eye does not use steadily normalized awareness."
+Assert-Contract ([regex]::IsMatch($source, '"CrouchIndicatorOpacityMultiplier",\s*1f,')) "The stealth-eye opacity multiplier does not default to an exact crosshair match."
+Assert-Contract ([regex]::IsMatch($source, 'color\.a = Mathf\.Clamp01\(reticleOpacity\)\s*\* Mathf\.Clamp01\(_crouchIndicatorOpacityMultiplier\.Value\);')) "The stealth eye does not multiply the resolved crosshair opacity."
+Assert-Contract (-not $source.Contains('"CrouchIndicatorOpacity",')) "The obsolete absolute stealth-eye opacity setting remains."
+Assert-Contract ([regex]::IsMatch($source, 'bool showStealthPupil = stealthEyeVisible\s*&& _currentStealthEyeFrame >= 2;')) "The contextual stealth pupil does not begin at frame 2."
+Assert-Contract ([regex]::IsMatch($source, 'bool showOrdinaryDot = _showCenterDot != null\s*&& _showCenterDot\.Value[\s\S]*?&& !stealthEyeVisible[\s\S]*?&& !directHitMarkerVisible;')) "The ordinary dot no longer obeys its visibility and direct-hit rules."
+Assert-Contract ([regex]::IsMatch($source, '_stealthEyeImage = CreateHitMarkerOverlayImage\([\s\S]*?"DishonoredStealthEye"\);\s*_stealthPupilImage = CreateHitMarkerOverlayImage\([\s\S]*?"DishonoredStealthPupil"\);[\s\S]*?"DishonoredHitMarkerBase"')) "The stealth pupil is not layered above the eye and below hit markers."
+Assert-Contract ([regex]::IsMatch($source, '_stealthPupilImage\.sprite = dotAsset\.Sprite;[\s\S]*?_stealthPupilImage\.color = _stealthEyeImage\.color;[\s\S]*?_stealthEyeImage\.rectTransform\.anchoredPosition;')) "The contextual dot does not follow the stealth eye as its pupil."
+Assert-Contract ([regex]::IsMatch($source, '_stealthPupilImage\.enabled = dotAsset\.Sprite != null\s*&& showStealthPupil')) "The stealth pupil is incorrectly gated by the ordinary dot setting or hit-marker suppression."
 Assert-Contract ($source.Contains('ResolveHitMarkerFrame')) "The numbered effectiveness mapping is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.35f')) "Extreme resistance threshold is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.70f')) "Strong resistance threshold is missing."
@@ -56,10 +72,12 @@ Assert-Contract ([regex]::IsMatch($source, 'ColorForBloodMagicCorpseState\(strin
 Assert-Contract ([regex]::IsMatch($source, 'TargetState displayTargetState = bloodMagicActive[\s\S]*?BloodMagicCorpseUsesUsableVisuals[\s\S]*?TargetState\.Hostile\s*:\s*TargetState\.Default')) "Unavailable corpses do not use the ordinary idle-opacity state."
 Assert-Contract ([regex]::IsMatch($source, 'BloodMagicExpansionApiTypeName[\s\S]*GetRawConstantValue\(\),\s*9\)\)')) "Dishonored does not require Blood Magic Expansion API v9."
 Assert-Contract ($source.Contains('GetFocusedCorpseQualityTier')) "Blood Magic corpse-quality tier API resolution is missing."
-Assert-Contract ($source.Contains('custom_reticle_bloodmagic_meager.png')) "The meager Blood Magic quality reticle is not loaded."
-Assert-Contract ($source.Contains('custom_reticle_bloodmagic_worthy.png')) "The worthy Blood Magic quality reticle is not loaded."
-Assert-Contract ($source.Contains('custom_reticle_bloodmagic_potent.png')) "The potent Blood Magic quality reticle is not loaded."
-Assert-Contract ($source.Contains('custom_reticle_bloodmagic_prime.png')) "The prime Blood Magic quality reticle is not loaded."
+Assert-Contract ([regex]::IsMatch($source, 'case 1:\s*return "custom_reticle_bloodmagic_0\.png";')) "Meager Blood Magic does not use frame 0."
+Assert-Contract ([regex]::IsMatch($source, 'case 2:\s*return "custom_reticle_bloodmagic_1\.png";')) "Worthy Blood Magic does not use frame 1."
+Assert-Contract ([regex]::IsMatch($source, 'case 3:\s*return "custom_reticle_bloodmagic_2\.png";')) "Potent Blood Magic does not use frame 2."
+Assert-Contract ([regex]::IsMatch($source, 'case 4:\s*return "custom_reticle_bloodmagic_3\.png";')) "Prime Blood Magic does not use frame 3."
+Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.BloodMagic,\s*"BloodMagic",\s*"custom_reticle_bloodmagic_0\.png"')) "The Blood Magic fallback does not share frame 0 with Meager."
+Assert-Contract (-not [regex]::IsMatch($source, 'custom_reticle_bloodmagic(_(meager|worthy|potent|prime))?\.png')) "Legacy Blood Magic asset names are still referenced."
 Assert-Contract ($source.Contains('ResolveBloodMagicQualitySprite')) "Blood Magic quality reticle fallback is missing."
 Assert-Contract ($source.Contains('"KillingBlowOverlaysEnabled"') -and $source.Contains('true,')) "Killing-blow overlays are not enabled by default."
 Assert-Contract ($source.Contains('"KillingBlowDurationMultiplier"') -and $source.Contains('1.5f,')) "The 1.5x killing-blow duration default is missing."
@@ -100,22 +118,35 @@ Assert-Contract ($bloodMagicSource.Contains('public static int GetFocusedCorpseQ
 Assert-Contract ([regex]::IsMatch($bloodMagicSource, 'GetFocusedCorpseQualityTierForInterop\(\)[\s\S]*?return GetCorpseQualityTier\(CalculateCorpseQuality01\(state, false\)\);')) "Blood Magic Expansion does not expose quality tiers for resolved unavailable corpses."
 
 $assetNames = @(
-    "custom_reticle_0.png",
-    "custom_reticle_1.png",
-    "custom_reticle_2.png",
-    "custom_reticle_3.png",
-    "custom_reticle_4.png",
-    "custom_reticle_5.png",
-    "custom_reticle_6.png",
-    "custom_reticle_7.png",
+    "custom_reticle.png",
+    "hitmarker_0.png",
+    "hitmarker_1.png",
+    "hitmarker_2.png",
+    "hitmarker_3.png",
+    "hitmarker_5.png",
+    "hitmarker_6.png",
+    "hitmarker_7.png",
+    "dot.png",
+    "dot_bow.png",
+    "dot_magic.png",
+    "stealth_eye_0.png",
+    "stealth_eye_1.png",
+    "stealth_eye_2.png",
+    "stealth_eye_3.png",
+    "stealth_eye_4.png",
+    "stealth_eye_5.png",
+    "stealth_eye_6.png",
+    "stealth_eye_7.png",
+    "stealth_eye_8.png",
+    "stealth_eye_9.png",
+    "stealth_eye_10.png",
     "hitmarker.png",
     "hitmarker_weakspot_overlay.png",
     "hitmarker_critical_overlay.png",
-    "custom_reticle_bloodmagic.png",
-    "custom_reticle_bloodmagic_meager.png",
-    "custom_reticle_bloodmagic_worthy.png",
-    "custom_reticle_bloodmagic_potent.png",
-    "custom_reticle_bloodmagic_prime.png",
+    "custom_reticle_bloodmagic_0.png",
+    "custom_reticle_bloodmagic_1.png",
+    "custom_reticle_bloodmagic_2.png",
+    "custom_reticle_bloodmagic_3.png",
     "hitmarker_killingblow_meager_overlay.png",
     "hitmarker_killingblow_worthy_overlay.png",
     "hitmarker_killingblow_potent_overlay.png",
@@ -148,7 +179,11 @@ foreach ($assetName in $assetNames) {
 }
 
 Assert-Contract ($readme.Contains("Steel and Bone Hit Markers")) "README lacks the Steel and Bone hit-marker section."
-Assert-Contract ($readme.Contains("custom_reticle_0.png") -and $readme.Contains("custom_reticle_7.png")) "README lacks the complete numbered frame list."
+Assert-Contract ($readme.Contains("hitmarker_0.png") -and $readme.Contains("hitmarker_7.png")) "README lacks the renamed effectiveness-frame list."
+Assert-Contract ($readme.Contains("custom_reticle.png") -and -not $readme.Contains("hitmarker_4.png")) "README does not document the shared neutral reticle."
+Assert-Contract ($readme.Contains("dot_bow.png") -and $readme.Contains("dot_magic.png")) "README lacks the context-specific dot assets."
+Assert-Contract ($readme.Contains("stealth_eye_0.png") -and $readme.Contains("stealth_eye_10.png")) "README lacks the complete stealth-eye frame range."
+Assert-Contract ($readme.Contains("frames 0 and 1 remain dotless") -and $readme.Contains("even when ShowCenterDot is false")) "README lacks the frame-2 contextual pupil behavior."
 Assert-Contract ($readme.Contains("hitmarker.png")) "README lacks the direct-hit diamond."
 Assert-Contract ($readme.Contains("hitmarker_critical_overlay.png")) "README lacks the critical overlay."
 

@@ -30,8 +30,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Torchlight Rekindled")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.4.3.0")]
-[assembly: AssemblyFileVersion("0.4.3.0")]
+[assembly: AssemblyVersion("0.4.4.0")]
+[assembly: AssemblyFileVersion("0.4.4.0")]
 
 namespace TorchlightRekindled
 {
@@ -51,9 +51,9 @@ namespace TorchlightRekindled
         public const string PluginGuid =
             "ks.tgfoa.torchlight-rekindled";
         public const string PluginName = "Torchlight Rekindled";
-        public const string PluginVersion = "0.4.3";
+        public const string PluginVersion = "0.4.4";
 
-        private const int ConfigSchemaVersion = 11;
+        private const int ConfigSchemaVersion = 12;
         private const int ConfigRecoveryBaselineSchema = 1;
         private const float InteriorBloomCheckIntervalSeconds = 1f;
         private const float InteriorBloomPriority = 10010f;
@@ -449,7 +449,7 @@ namespace TorchlightRekindled
         private void BindConfig()
         {
             Config.Bind(
-                "1. Core",
+                "Core",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -457,7 +457,7 @@ namespace TorchlightRekindled
                     null,
                     new BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "Core",
                 "Enabled",
                 true,
                 new ConfigDescription(
@@ -465,7 +465,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("General", "Enabled", 0, 0)));
             _interiorBrightnessPreset = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "InteriorBrightnessPreset",
                 TorchBrightnessPreset.Bright,
                 new ConfigDescription(
@@ -473,7 +473,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("General", "Interior Brightness Preset", 0, 10)));
             _exteriorBrightnessPreset = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "ExteriorBrightnessPreset",
                 TorchBrightnessPreset.Vanilla,
                 new ConfigDescription(
@@ -481,7 +481,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("General", "Exterior Brightness Preset", 0, 20)));
             _rangeBonusMeters = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "RangeBonusMeters",
                 20f,
                 new ConfigDescription(
@@ -489,7 +489,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 70f),
                     ConfigUi("Torch Light", "Range Bonus (m)", 10, 0)));
             _lightBrightnessMultiplier = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "BrightnessMultiplier",
                 1f,
                 new ConfigDescription(
@@ -497,7 +497,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0.25f, 3f),
                     ConfigUi("Torch Light", "World Illumination", 10, 10)));
             _lightFlickerStrength = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "LightFlickerStrength",
                 1f,
                 new ConfigDescription(
@@ -505,7 +505,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 2f),
                     ConfigUi("Torch Light", "Flicker Amount", 10, 20)));
             _lightFlickerSpeed = Config.Bind(
-                "2. Torch Light",
+                "Torch Light",
                 "LightFlickerSpeed",
                 1f,
                 new ConfigDescription(
@@ -513,7 +513,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0.5f, 2f),
                     ConfigUi("Torch Light", "Flicker Speed", 10, 30)));
             _flameBrightnessMultiplier = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameBrightnessMultiplier",
                 0.75f,
                 new ConfigDescription(
@@ -521,7 +521,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0.25f, 3f),
                     ConfigUi("Visible Flame", "Visible Flame Brightness", 20, 0)));
             _flameBloomMultiplier = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameBloomMultiplier",
                 0.75f,
                 new ConfigDescription(
@@ -529,7 +529,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 3f),
                     ConfigUi("Visible Flame", "Flame Bloom Strength", 20, 10)));
             _flameHaloStrength = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloStrength",
                 5f,
                 new ConfigDescription(
@@ -537,7 +537,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 10f),
                     ConfigUi("Flame Halo", "Halo Strength", 30, 0)));
             _flameHaloSize = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloSize",
                 0.07f,
                 new ConfigDescription(
@@ -545,7 +545,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0.02f, 0.25f),
                     ConfigUi("Flame Halo", "Halo Size (m)", 30, 10)));
             _flameHaloVerticalScale = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloVerticalScale",
                 2.2f,
                 new ConfigDescription(
@@ -553,7 +553,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0.25f, 4f),
                     ConfigUi("Flame Halo", "Halo Height Scale", 30, 20)));
             _flameHaloVerticalOffset = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloVerticalOffset",
                 0.45f,
                 new ConfigDescription(
@@ -561,7 +561,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-1f, 1f),
                     ConfigUi("Flame Halo", "Vertical Offset (scaled height)", 30, 30)));
             _flameHaloHorizontalOffset = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloHorizontalOffset",
                 -0.12f,
                 new ConfigDescription(
@@ -569,7 +569,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-1f, 1f),
                     ConfigUi("Flame Halo", "Torch-Local Side Offset (width)", 30, 40)));
             _flameHaloAxisPitchOffsetDegrees = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloAxisPitchOffsetDegrees",
                 0f,
                 new ConfigDescription(
@@ -577,7 +577,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-45f, 45f),
                     ConfigUi("Halo Alignment - Advanced", "Axis Pitch Offset (deg)", 40, 0)));
             _flameHaloAxisYawOffsetDegrees = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloAxisYawOffsetDegrees",
                 0f,
                 new ConfigDescription(
@@ -585,7 +585,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-45f, 45f),
                     ConfigUi("Halo Alignment - Advanced", "Axis Yaw Offset (deg)", 40, 10)));
             _flameHaloRotationOffsetDegrees = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloRotationOffsetDegrees",
                 -20f,
                 new ConfigDescription(
@@ -593,7 +593,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-180f, 180f),
                     ConfigUi("Halo Alignment - Advanced", "Screen Roll Offset (deg)", 40, 20)));
             _flameHaloLightParryRotationOffsetDegrees = Config.Bind(
-                "3. Flame",
+                "Flame",
                 "FlameHaloBashRotationOffsetDegrees",
                 90f,
                 new ConfigDescription(
@@ -601,7 +601,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(-180f, 180f),
                     ConfigUi("Halo Alignment - Advanced", "Light Parry Roll Offset (deg)", 40, 30)));
             _enhanceInteriorBloom = Config.Bind(
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "EnhanceInteriorBloom",
                 true,
                 new ConfigDescription(
@@ -609,7 +609,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("Interior Bloom", "Enabled", 50, 0)));
             _interiorBloomOnlyWhileTorchEquipped = Config.Bind(
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomOnlyWhileTorchEquipped",
                 false,
                 new ConfigDescription(
@@ -617,7 +617,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("Interior Bloom", "Only While Torch Equipped", 50, 10)));
             _interiorBloomThreshold = Config.Bind(
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomThreshold",
                 1f,
                 new ConfigDescription(
@@ -625,7 +625,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 4f),
                     ConfigUi("Interior Bloom", "Threshold", 50, 20)));
             _interiorBloomIntensity = Config.Bind(
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomIntensity",
                 0.25f,
                 new ConfigDescription(
@@ -633,7 +633,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 1f),
                     ConfigUi("Interior Bloom", "Intensity", 50, 30)));
             _interiorBloomScatter = Config.Bind(
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomScatter",
                 0.65f,
                 new ConfigDescription(
@@ -641,7 +641,7 @@ namespace TorchlightRekindled
                     new AcceptableValueRange<float>(0f, 1f),
                     ConfigUi("Interior Bloom", "Scatter", 50, 40)));
             _loopingFireAudio = Config.Bind(
-                "4. Audio",
+                "Audio",
                 "LoopingFireAudio",
                 true,
                 new ConfigDescription(
@@ -649,7 +649,7 @@ namespace TorchlightRekindled
                     null,
                     ConfigUi("Audio", "Enabled", 60, 0)));
             _loopingFireVolume = Config.Bind(
-                "4. Audio",
+                "Audio",
                 "LoopingFireVolume",
                 1f,
                 new ConfigDescription(
@@ -1432,125 +1432,125 @@ namespace TorchlightRekindled
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
-            CaptureCustomizedValue(profile, "1. Core", "Enabled", false);
+            CaptureCustomizedValue(profile, "Core", "Enabled", false);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "InteriorBrightnessPreset",
                 TorchBrightnessPreset.Bright);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "ExteriorBrightnessPreset",
                 TorchBrightnessPreset.Vanilla);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "RangeBonusMeters",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "BrightnessMultiplier",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "LightFlickerStrength",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "2. Torch Light",
+                "Torch Light",
                 "LightFlickerSpeed",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameBrightnessMultiplier",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameBloomMultiplier",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloStrength",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloSize",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloVerticalScale",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloVerticalOffset",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloHorizontalOffset",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloAxisPitchOffsetDegrees",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloAxisYawOffsetDegrees",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloRotationOffsetDegrees",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Flame",
+                "Flame",
                 "FlameHaloBashRotationOffsetDegrees",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "EnhanceInteriorBloom",
                 false);
             CaptureCustomizedValue(
                 profile,
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomOnlyWhileTorchEquipped",
                 false);
             CaptureCustomizedValue(
                 profile,
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomThreshold",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomIntensity",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "3. Interior Bloom",
+                "Interior Bloom",
                 "InteriorBloomScatter",
                 0f);
             CaptureCustomizedValue(
                 profile,
-                "4. Audio",
+                "Audio",
                 "LoopingFireAudio",
                 false);
             CaptureCustomizedValue(
                 profile,
-                "4. Audio",
+                "Audio",
                 "LoopingFireVolume",
                 0f);
             CaptureCustomizedValue(

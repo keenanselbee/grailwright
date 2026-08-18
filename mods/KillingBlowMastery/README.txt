@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.6.3
+Version 1.6.5
 
 Platforms: Windows and Linux through Proton.
 
@@ -22,7 +22,7 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 Killing Blow Mastery starts from a clean plugin identity and uses
-ConfigSchemaVersion 14. Older KS Killing Blow configs are ignored. Future
+ConfigSchemaVersion 15. Older KS Killing Blow configs are ignored. Future
 schema resets preserve finisher distance fade, reward volume and pitch,
 notification format, and bloodless whitelist terms by exact current setting
 name. Numeric values are clamped to their
@@ -31,7 +31,7 @@ current supported ranges and invalid values are skipped.
 Default behavior:
 
 Enabled = true
-ConfigSchemaVersion = 14
+ConfigSchemaVersion = 15
 FinisherSoundMode = WeaponSpecific
 FinisherSoundRangeVolume = 1
 BonusPercentOfEnemyXP = 4
@@ -55,6 +55,10 @@ BloodlessSoundWhitelistTerms =
 AvoidRecentSoundRepeats = true
 RecentSoundMemory = 2
 RandomPitchSemitones = 0.35
+
+FoA Mod Manager section order:
+General, Weapon Skills, Notifications, Audio, Advanced, Diagnostics, and the
+final Import Previous Settings section.
 
 Eligible combat skills:
 
@@ -88,13 +92,13 @@ Off -> no finisher sound.
 
 FinisherSoundRangeVolume controls realistic distance fade for active finisher
 sound modes. Zero disables distance fade. The default 1 uses the full 0m = 100%,
-50m+ = 10% curve:
+30m+ = 10% curve:
 
 0m -> 100%
-12.5m -> 78%
-25m -> 55%
-37.5m -> 33%
-50m+ -> 10%
+7.5m -> 78%
+15m -> 55%
+22.5m -> 33%
+30m+ -> 10%
 
 FMOD is used for reward sounds. If FMOD playback fails, the mod falls back to the
 older Unity AudioSource path and logs the failure when Diagnostics is enabled.

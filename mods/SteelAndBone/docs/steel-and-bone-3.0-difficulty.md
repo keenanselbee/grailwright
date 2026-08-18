@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 3.4.6.
+Current release: 3.8.3.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -27,13 +27,31 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Enemy attack recovery | 1.00 | 0.95 | 0.90 | `ModifyEnemyAttackRecovery` |
 | Common enemy combat movement | 1.00 | Up to 1.05 | Up to 1.10 | `ModifyEnemyMovementSpeed` |
 | Player poise damage dealt | 1.00 | 0.95 | 0.90 | `ModifyPlayerPoiseDamageDealt` |
-| Restorative consumable recovery | 1.00 | 0.90 | 0.80 | `ModifyConsumableRecovery` |
-| Standard food health rate | 1.00 | 0.75 | 0.625 | `ModifyFoodRecovery` |
-| Standard food health duration | 1.00 | 1.50 | 2.00 | `ModifyFoodRecovery` |
-| Added food stamina per second | 0 | 0.5 | 1.0 | `ModifyFoodRecovery` |
+| Potion Poisoning buildup per matching class | 60 | 65 | 70 | `ModifyPotionOverdrinking` |
+| Standard food health rate | 0.50 | 0.375 | 0.25 | `ModifyFoodRecovery` |
+| Standard food health duration | 4.00 | 4.00 | 4.00 | `ModifyFoodRecovery` |
+| Discrete food stamina per second | 1 | 1 | 1 | `ModifyFoodRecovery` |
 | Kill, quest, and proficiency XP | 0.95 | 0.90 | 0.85 | Separate XP toggles |
 
 `DifficultyModifiersEnabled` disables this entire table without disabling material rules or feedback. Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset.
+
+## Progressive Tenacity
+
+Progressive Tenacity is preset-independent and controlled only by `ProgressiveTenacityEnabled`. It remains inactive through hero level 20 and scales linearly to full strength at level 35:
+
+`progress = clamp((hero level - 20) / 15, 0, 1)`
+
+| Native NPC type | Maximum Tenacity | Maximum direct-health reduction |
+|---|---:|---:|
+| Critter | 0% | 0% |
+| Trash | 10% | 5% |
+| Normal | 15% | 7.5% |
+| Elite | 25% | 12.5% |
+| MiniBoss | 30% | 15% |
+| Boss | 40% | 20% |
+| HeroSummon | 0% | 0% |
+
+Tenacity reduces player-caused poise, force, and enemy stamina damage at full strength. Direct non-damage-over-time health damage uses half strength. Native hero-owned summon attacks count as player-caused, while Hero Summon targets remain exempt. A confirmed native or Steel and Bone material weakness halves Tenacity for that hit; criticals, weak spots, backstabs, and generic damage bonuses do not count as weaknesses. Tenacity does not change enemy maximum health, apply stagger immunity, track performance, alter presets, or affect damage over time, environmental damage, or unrelated NPC damage.
 
 ## Native-System Contract
 
@@ -51,8 +69,9 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Passive shields | Hero-target branch of `HealthElement.ApplyDamageModifiers` | For direct physical hits within native `BlockAngle`, reduce damage by effective Block multiplied by the preset share. Require a readied shield, cap coverage to the forward 180 degrees, and skip active blocks, rear hits, magic, status effects, and damage over time. |
 | Weak-spot reward | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Add the preset's `WeakSpotDamageBonus` beside native critical, weak-spot, sneak, and backstab components, then apply outgoing pressure and material matchups. Do not alter native critical damage, hero stats, item stats, or hitbox definitions. |
 | Resources | Non-saved stat tweaks | Keep exactly one owned tweak per active lever. |
-| Restorative consumables | Transactional `ItemSkillsInvoker.PerformImmediate` prefix/postfix | Scale only positive health, stamina, and mana deltas on hero-owned items carrying the matching native consumable marker. Leave non-restorative effects and negative deltas unchanged. |
-| Standard food | Temporary overrides around `ItemSkillsInvoker.PerformImmediate` and `ExistingItemDescriptor.ItemDescription` | Match only the native `Consumable_ApplyStatus_FoodHealForDuration` graph on edible non-potions. Scale health rate and duration before the native status is created, restore serialized skill overrides transactionally, and preserve the native queued-healing prediction. Add one marked, replace-on-eat stamina status for the food's original duration. |
+| Potion overdrinking | Transaction around `ItemSkillsInvoker.PerformImmediate`, suppression at `CharacterStatuses.BuildupStatus`, exact-status activation postfix, and `BuildupStatus.Decay` progress postfix | Classify direct flat, percentage, and timed restoration into independent Health, Mana, and Stamina buckets; send every other consumed potion to Utility. Add 60/65/70 to each matching bucket, decay all buckets at the native 10 points per second, and do not combine different classes. On completion, clear all buckets and activate the single native buildup status at its exact threshold. Snapshot the relevant maxima and meter a 30% matching-resource drain, or 15% all-resource Utility drain, from actual native progress loss. Preserve healing, auxiliary effects, tooltips, Better UI presentation, icon, and active decay. |
+| Standard food | Temporary overrides around `ItemSkillsInvoker.PerformImmediate` and `ExistingItemDescriptor.ItemDescription`, saved variables on the resulting native food status, and a narrow `PreventStaminaRegenDuration.PreventWithStatus` prefix | Match only the native `Consumable_ApplyStatus_FoodHealForDuration` graph on edible non-potions. Scale health rate to 0.50/0.375/0.25 and duration to x4 before the native status is created, restore item-skill overrides transactionally, and preserve native queued-healing prediction. Permit only one food-health status, selecting the greatest remaining predicted healing and then remaining time. Store 1 stamina per second on that same status and apply whole-point ticks during the player-stat update. For hero `Overexertion` only, halve both native duration arguments while food is active and suppress food stamina for the complete lock. Detect the transition out, preload 0.9 seconds of the next interval, and then retain normal one-second cadence. |
+| Stamina Depleted vignette | Postfix `VHeroStaminaUsedUpEffect.StartFlash`; prefix/postfix `StopFlash`; reuse the native image and dedicated post-process volume | Smooth kills only the native repeating image tween after native audio starts, then performs one eased unscaled fade in and out. Native performs no presentation override. Off hides the image and zeros the dedicated stamina-depleted volume. Preserve movement, action gating, status timing, audio, and snapshots in every mode. |
 | Attack slots and recovery | Native `Difficulty` property postfixes | Add to current slots and scale current recovery without lowering another source's value. |
 | Experience | Native reward getters and proficiency prefix | Scale positive rewards once at their authoritative route. |
 
@@ -94,7 +113,7 @@ The full template audit remains varied under this formula. At hero levels 10, 20
 | Tainted Combat | Conditionally compatible. Detect stamina, slots, recovery, poise, and armor-penalty overlaps. |
 | Better Movement | Compatible. Its movement multiplier can stack with Light mobility; disclose that behavior without warning. |
 | Flat Arrows | Conditionally compatible. Detect its active arrow modifications and warn for active Steel and Bone player velocity or gravity controls. Its bow timing and instant-fire options do not directly overlap. |
-| HarderLife | Conditionally compatible. Detect active damage, stamina, mana, sight, hearing, aggro-persistence, and restorative-consumable overlaps; keep its parry health, backstab, extended chase boundary, and debuff duration distinct. |
+| HarderLife | Conditionally compatible. Detect active damage, stamina, mana, sight, hearing, aggro-persistence, and food-effectiveness overlaps. Potion Poisoning buildup is distinct from its potion-effectiveness scaling; keep its parry health, backstab, extended chase boundary, and debuff duration distinct. |
 | Tainted Instincts | Flag as incompatible publicly. Detect active sight-range, damage-taken, attack-slot, attack-cadence, and pursuit conflicts; allow individual Steel and Bone toggles to remove those overlaps. |
 
 Normal operation is silent. A confirmed overlap produces one short native notification per unique signature and one detailed BepInEx warning naming the Steel and Bone toggles to disable.
@@ -125,15 +144,21 @@ Normal operation is silent. A confirmed overlap produces one short native notifi
 | Critical without a weak spot | Uses native critical damage only; Steel and Bone adds no critical damage. |
 | Critical plus weak spot | Native critical, native weak spot, and Steel and Bone weak-spot bonuses are summed once before outgoing and matchup multipliers. |
 | Rear, magical, status, damage-over-time, or sheathed-shield hit | No passive shield reduction. |
-| Restorative item with health, stamina, or mana marker | Positive recovered deltas retain 100%/90%/80%; costs and non-restorative effects remain unchanged. |
-| Standard food health effect | Tempered remains native; Hardened is 0.75 rate for 1.5x duration (1.125 total); Crucible is 0.625 rate for 2x duration (1.25 total). The native health status still drives queued-healing prediction. |
-| Standard food stamina effect | Tempered adds none; Hardened adds 0.5 per second; Crucible adds 1 per second. Duration is the food's original authored duration, and a later qualifying food replaces only this marked effect. |
+| Any native potion healing or auxiliary effect | Remains native, including tooltip and Better UI presentation. No Steel and Bone healing queue or health-bar prediction is created. |
+| Potion Poisoning buildup | Tempered adds 60; Hardened adds 65; Crucible adds 70 to every matching class bucket. With 10 buildup decaying per second, a second potion in the same class triggers poisoning within 2/3/4 seconds respectively, while Health, Mana, Stamina, and Utility do not combine. Multi-resource restoratives contribute once to each restored resource. Triggering clears every bucket and pauses buildup while the native status is active. Health, Mana, and Stamina triggers drain 30% of each completed resource's snapshotted maximum; Utility drains 15% of maximum HP, MP, and SP. Recovery can offset the drain, Health stops at 1 HP, and Mana or Stamina can reach zero. |
+| Standard food health effect | Every preset uses x4 duration. Tempered is 0.50 rate (2.00 total), Hardened is 0.375 rate (1.50 total), and Crucible is 0.25 rate (1.00 total). The native health status still drives queued-healing prediction. |
+| Standard food stamina effect | Every preset restores exactly 1 stamina per elapsed second. It shares the adjusted health duration and native food status, remains effective during ordinary action regeneration lockouts, and disappears with that single status. Native Overexertion lasts half as long while food is active; food stamina pauses for that lock and discards partial tick progress. The first point follows 0.1 seconds after the lock ends, then normal one-second cadence resumes. Health recovery and the shared food timer are not paused. No fractional per-frame stamina is added. |
+| Smooth Stamina Depleted vignette | The native repeating image tween is stopped without suppressing the native StartFlash or StopFlash audio paths. The existing image performs one 0.30-second eased unscaled fade in and fade out by default. |
+| Off Stamina Depleted vignette | Both the native HUD image and dedicated stamina-depleted post-process stay hidden while native audio, movement penalty, continuous-action restriction, and status timing remain active. |
+| Multiple native food-health statuses | Keep only the status with the greatest remaining queued health recovery; use remaining duration as the tie-breaker. Removing the others also removes their native health-bar prediction and stamina channel. |
 | Food tooltip after a preset change | The next descriptor resolution uses the current preset, retains unrelated/native text, replaces the native health values through graph tokens, and appends exactly one unlabeled stamina line. Already-active statuses keep their consumed values. |
+| Better UI food overlay | When Better UI is present, its existing consumable helper resolves the temporary adjusted health values and receives a green stamina-total token over the same duration. Refresh timing remains owned by Better UI. |
 | HarderLife overlap active | Warning lists only the matching active Steel and Bone toggles, including hearing, persistence, or consumable recovery when applicable. |
 | Tainted Instincts sight tuning disabled | No sight-range overlap warning. |
 | Tainted Instincts sight tuning active | Warning names `ModifyEnemySightRange`; other active exact overlaps are listed. |
+| Progressive Tenacity external overlap | Matching Custom Difficulty or HarderLife outgoing-health changes and Tainted Combat poise changes name `ProgressiveTenacityEnabled` in the warning. |
 | External overlap inactive | No in-game notification. |
 | Schema reset from a supported backup | Restore compatible customized values automatically, retain the current Preset default through its schema-16 meaning-change rule, skip removed settings, and clamp restored values to current ranges. |
 | Package | One top-level `SteelAndBone` folder with DLL and installed-user docs only. |
 
-Config schema remains 19. Version 3.4.6 adds ModifyFoodRecovery with a compatible default and therefore does not require a reset. The fixed recovery baseline remains 14.
+Config schema is 25. Version 3.6.5 expanded `MaterialImpactRulesEnabled` from its earlier arrow-specific behavior to every resisted direct hit, requiring regenerated defaults so the setting's changed meaning could not be inherited silently. Compatible durable settings remain recoverable, and the fixed recovery baseline remains 14. Progressive Tenacity adds one new setting without changing the schema.

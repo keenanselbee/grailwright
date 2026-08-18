@@ -18,9 +18,9 @@ using UnityEngine.Rendering.HighDefinition;
 [assembly: AssemblyDescription("Stable interior contact shadows with exact runtime restoration")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Contact Shadows Addon")]
-[assembly: AssemblyVersion("0.1.3.0")]
-[assembly: AssemblyFileVersion("0.1.3.0")]
-[assembly: AssemblyInformationalVersion("0.1.3")]
+[assembly: AssemblyVersion("0.1.4.0")]
+[assembly: AssemblyFileVersion("0.1.4.0")]
+[assembly: AssemblyInformationalVersion("0.1.4")]
 
 namespace TGContactShadowsAddon
 {
@@ -36,11 +36,11 @@ namespace TGContactShadowsAddon
         public const string PluginGuid =
             "ks.tgfoa.tg-contact-shadows-addon";
         public const string PluginName = "Contact Shadows Addon";
-        public const string PluginVersion = "0.1.3";
+        public const string PluginVersion = "0.1.4";
         public const string ParentPluginGuid =
             "com.wessberg.tgcontactshadows";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private const float SelectionIntervalSeconds = 0.25f;
         private static readonly BindingFlags InstanceFlags =
@@ -189,7 +189,7 @@ namespace TGContactShadowsAddon
             ResetConfigIfSchemaChanged();
 
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -197,88 +197,106 @@ namespace TGContactShadowsAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Enables stable contact-shadow management while the parent mod is enabled.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Enables stable contact-shadow management while the parent mod is enabled.",
+                    "General", "Enabled", 0, 0));
             _interiorsOnly = Config.Bind(
-                "1. Core",
+                "General",
                 "InteriorsOnly",
                 true,
-                "Enables contact shadows only in interiors and restores all touched state outdoors.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Enables contact shadows only in interiors and restores all touched state outdoors.",
+                    "General", "Interiors Only", 0, 10));
             _maximumLightDistanceMeters = Config.Bind(
-                "2. Stable Light",
+                "Light Selection",
                 "MaximumLightDistanceMeters",
                 15f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum camera distance for selected point or spot lights.",
+                    "Light Selection", "Maximum Light Distance", 10, 0,
                     new AcceptableValueRange<float>(5f, 50f)));
             _maximumContactShadowLights = Config.Bind(
-                "2. Stable Light",
+                "Light Selection",
                 "MaximumContactShadowLights",
                 4,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum number of stable point or spot lights that can use contact shadows at once.",
+                    "Light Selection", "Maximum Contact Shadow Lights", 10, 10,
                     new AcceptableValueRange<int>(1, 8)));
             _minimumLightHoldSeconds = Config.Bind(
-                "2. Stable Light",
+                "Light Selection",
                 "MinimumLightHoldSeconds",
                 1f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Minimum time a valid selected light remains active before a stronger candidate may replace it.",
+                    "Light Selection", "Minimum Light Hold", 10, 20,
                     new AcceptableValueRange<float>(0.25f, 5f)));
             _switchAdvantagePercent = Config.Bind(
-                "2. Stable Light",
+                "Light Selection",
                 "SwitchAdvantagePercent",
                 25f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How much better a challenger must score before replacing the weakest selected light.",
+                    "Light Selection", "Switch Advantage", 10, 30,
                     new AcceptableValueRange<float>(0f, 100f)));
             _candidateRefreshSeconds = Config.Bind(
-                "2. Stable Light",
+                "Light Selection",
                 "CandidateRefreshSeconds",
                 5f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "How often the active scene light cache is refreshed. Selection from the cache remains responsive between refreshes.",
+                    "Light Selection", "Candidate Refresh Interval", 10, 40,
                     new AcceptableValueRange<float>(1f, 30f)));
             _contactShadowMaxDistance = Config.Bind(
-                "3. Visuals",
+                "Visuals",
                 "ContactShadowMaxDistance",
                 20f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Camera distance at which contact shadows finish fading out.",
+                    "Visuals", "Contact Shadow Max Distance", 20, 0,
                     new AcceptableValueRange<float>(5f, 50f)));
             _sampleCount = Config.Bind(
-                "3. Visuals",
+                "Visuals",
                 "SampleCount",
                 16,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Screen-space ray samples. Sixteen favors visual stability; eight is a lighter manual alternative.",
+                    "Visuals", "Sample Count", 20, 10,
                     new AcceptableValueList<int>(4, 8, 16, 32)));
             _length = Config.Bind(
-                "3. Visuals",
+                "Visuals",
                 "Length",
                 0.075f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Contact-shadow ray length. The conservative default reduces long screen-space artifacts.",
+                    "Visuals", "Length", 20, 20,
                     new AcceptableValueRange<float>(0f, 0.25f)));
             _opacity = Config.Bind(
-                "3. Visuals",
+                "Visuals",
                 "Opacity",
                 0.6f,
-                new ConfigDescription(
+                Grailwright.Shared.ConfigUiDescription.Create(
                     "Contact-shadow opacity. The softer default makes residual screen-space artifacts less distracting.",
+                    "Visuals", "Opacity", 20, 30,
                     new AcceptableValueRange<float>(0f, 1f)));
             _showToggleNotifications = Config.Bind(
-                "4. Notifications",
+                "Notifications",
                 "ShowToggleNotifications",
                 true,
-                "Shows parent toggle confirmations through Grail Floating Text when it is installed.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Shows parent toggle confirmations through Grail Floating Text when it is installed.",
+                    "Notifications", "Show Toggle Notifications", 30, 0));
             _diagnostics = Config.Bind(
-                "4. Diagnostics",
+                "Diagnostics",
                 "Diagnostics",
                 false,
-                "Logs context changes, candidate counts, selected light paths, and exact restoration activity.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Logs context changes, candidate counts, selected light paths, and exact restoration activity.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
 
             RestorePreservedSettings();
             SubscribeConfigEvents();
@@ -395,18 +413,18 @@ namespace TGContactShadowsAddon
                         ConfigRecoveryKeepCurrentDefaultRules,
                         ConfigRecoveryPermanentExclusions);
 
-            CaptureCustomizedValue(profile, "1. Core", "Enabled", false);
-            CaptureCustomizedValue(profile, "1. Core", "InteriorsOnly", false);
-            CaptureCustomizedValue(profile, "2. Stable Light", "MaximumContactShadowLights", 0);
-            CaptureCustomizedValue(profile, "2. Stable Light", "MaximumLightDistanceMeters", 0f);
-            CaptureCustomizedValue(profile, "2. Stable Light", "MinimumLightHoldSeconds", 0f);
-            CaptureCustomizedValue(profile, "2. Stable Light", "SwitchAdvantagePercent", 0f);
-            CaptureCustomizedValue(profile, "2. Stable Light", "CandidateRefreshSeconds", 0f);
-            CaptureCustomizedValue(profile, "3. Visuals", "ContactShadowMaxDistance", 0f);
-            CaptureCustomizedValue(profile, "3. Visuals", "SampleCount", 0);
-            CaptureCustomizedValue(profile, "3. Visuals", "Length", 0f);
-            CaptureCustomizedValue(profile, "3. Visuals", "Opacity", 0f);
-            CaptureCustomizedValue(profile, "4. Diagnostics", "Diagnostics", false);
+            CaptureCustomizedValue(profile, "General", "Enabled", false);
+            CaptureCustomizedValue(profile, "General", "InteriorsOnly", false);
+            CaptureCustomizedValue(profile, "Light Selection", "MaximumContactShadowLights", 0);
+            CaptureCustomizedValue(profile, "Light Selection", "MaximumLightDistanceMeters", 0f);
+            CaptureCustomizedValue(profile, "Light Selection", "MinimumLightHoldSeconds", 0f);
+            CaptureCustomizedValue(profile, "Light Selection", "SwitchAdvantagePercent", 0f);
+            CaptureCustomizedValue(profile, "Light Selection", "CandidateRefreshSeconds", 0f);
+            CaptureCustomizedValue(profile, "Visuals", "ContactShadowMaxDistance", 0f);
+            CaptureCustomizedValue(profile, "Visuals", "SampleCount", 0);
+            CaptureCustomizedValue(profile, "Visuals", "Length", 0f);
+            CaptureCustomizedValue(profile, "Visuals", "Opacity", 0f);
+            CaptureCustomizedValue(profile, "Diagnostics", "Diagnostics", false);
         }
 
         private void CaptureCustomizedValue<T>(

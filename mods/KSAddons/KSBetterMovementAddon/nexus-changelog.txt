@@ -1,3 +1,3 @@
-TargetVersion=0.1.6
-BaselineVersion=0.1.4
-Changed the FoA Mod Manager config-menu title to BetterMovement Addon so it groups with the parent mod.
+TargetVersion=0.1.7
+BaselineVersion=0.1.6
+Cleaned the generated config into unnumbered task-oriented sections with explicit option ordering, keeping Diagnostics penultimate and Import Previous Settings last.

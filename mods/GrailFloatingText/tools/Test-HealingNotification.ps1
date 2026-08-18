@@ -32,19 +32,19 @@ foreach ($requiredToken in @(
     '"Green"',
     '"healing"',
     '.Replace("{health}", formattedAmount)',
-    'private const int ConfigSchemaVersion = 25;')) {
+    'private const int ConfigSchemaVersion = 27;')) {
     if ($source.IndexOf($requiredToken, [StringComparison]::Ordinal) -lt 0) {
         throw "Healing notification contract is missing $requiredToken."
     }
 }
 
 foreach ($binding in @(
-    'Config.Bind("9. Default Game Events", "NotifyHealing", true,',
-    'Config.Bind("9. Default Game Events", "NotifyHealingOverTime", false,',
-    'Config.Bind("9. Default Game Events", "ConsolidateHealing", true,',
-    'Config.Bind("9. Default Game Events", "HealingMinimumAmount", 1.0f,',
-    'Config.Bind("9. Default Game Events", "HealingTextFormat", "Healed {health}",',
-    'Config.Bind("9. Default Game Events", "HealingDurationBucket", "Short",')) {
+    'BindOrdered("Default Game Events", "NotifyHealing", true,',
+    'BindOrdered("Default Game Events", "NotifyHealingOverTime", false,',
+    'BindOrdered("Default Game Events", "ConsolidateHealing", true,',
+    'BindOrdered("Default Game Events", "HealingMinimumAmount", 1.0f,',
+    'BindOrdered("Default Game Events", "HealingTextFormat", "Healed {health}",',
+    'BindOrdered("Default Game Events", "HealingDurationBucket", "Short",')) {
     if ($source.IndexOf($binding, [StringComparison]::Ordinal) -lt 0) {
         throw "Healing config contract is missing $binding."
     }

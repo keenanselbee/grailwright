@@ -1,0 +1,62 @@
+[center][size=6][b]Ambush Integrity - Stealth Overhaul[/b][/size]
+[i]The first blade from the shadows should count.[/i][/center]
+
+[b]Ambush Integrity[/b] is an experimental, configurable stealth overhaul for Tainted Grail: The Fall of Avalon. Version 0.1.7 makes armor matter to ordinary footsteps, keeps valid native melee stealth opportunities reliable, and makes isolated lethal sneak attacks quiet without rewriting combat AI.
+
+[size=4][b]What 0.1.7 changes[/b][/size]
+
+[b]Committed Ambush[/b]
+When the native backstab check finds a valid target, Ambush Integrity commits that exact target for a short window. A primary melee hit inside the window retains the game's sneak classification and current sneak bonus even if alert state changes during the final attack frames.
+
+[b]Backstab forgiveness[/b]
+The native backstab interaction receives a modest configurable range multiplier and brief same-target availability grace. Every other native condition remains in place.
+
+[b]Footstep awareness[/b]
+Normal walking and running preserve the game's current noise modifiers while armor increases footstep strength: Light or no armor uses 1.2x, Medium uses 1.6x, and Heavy or Overload uses 2.0x. From the default normal step, that produces 0.60, 0.80, and 1.00 strength. Crouched armor noise remains entirely native. Enemies hear and investigate more readily, but still require the game's normal visual confirmation before combat.
+
+[b]Clean Executions[/b]
+A lethal sneak melee strike can suppress the dead victim's immediate hit noise and ally notification when a conservative check finds no nearby friendly witness. Other NPC perception, corpse discovery, patrols, and later investigation remain native.
+
+[b]Awareness feedback[/b]
+Optional semantic notifications mark meaningful transitions into Searching, Detected, and Hidden Again states. Ambush results explain when the mod preserved an opener or when a witness prevented a clean execution.
+
+[b]Backstab-ready presentation[/b]
+Ambush Integrity exposes a small versioned API containing only the final current-target Backstab Ready state. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] can consume it to show a dedicated lower-dagger overlay without reproducing stealth eligibility rules. Exact-target and freshness guards remove stale signals when the target or opportunity changes.
+
+[size=4][b]Default tuning[/b][/size]
+
+[code]
+| Setting | Default | Purpose |
+| --- | ---: | --- |
+| Commitment Seconds | 0.45 | Exact-target ambush window |
+| Backstab Range Multiplier | 1.20 | Native prompt range multiplier |
+| Backstab Grace Seconds | 0.18 | Same-target prompt grace |
+| Standing Footstep Strength | 0.60 / 0.80 / 1.00 | Light / Medium / Heavy-Overload |
+| Witness Range | 18 m | Clean Execution observer search |
+[/code]
+
+Every experiment has its own toggle. Settings are available in FoA Mod Manager and in:
+[code]BepInEx\config\ks.tgfoa.ambush-integrity.cfg[/code]
+
+[size=4][b]Compatibility[/b][/size]
+
+[b]Grailwright mods[/b]
+
+- [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] can show an optional backstab-ready dagger overlay driven by Ambush Integrity's authoritative state.
+- [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also presents Ambush Integrity's awareness and ambush-result events.
+- [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] independently scales footstep hearing range by difficulty while Ambush Integrity scales only normal-step strength by armor. When both mods touch the same damage calculation, Ambush Integrity adds any preserved sneak bonus first and Steel and Bone applies its final player-damage and material multipliers afterward, regardless of plugin load order.
+
+Grail Floating Text and Steel and Bone are optional.
+
+[size=4][b]Deliberate 0.1.7 limits[/b][/size]
+
+- Primary melee hits only.
+- No ranged, magic, damage-over-time, or secondary-effect damage buffs.
+- No hearing-based forced combat; native sight confirmation still governs combat entry.
+- No crouched footstep, patrol, perception-curve, quest, cutscene, perk, or combat-AI rewrites.
+- No boss or scripted-encounter opener exceptions.
+- Conservative witness uncertainty counts against Clean Execution.
+
+[size=4][b]Testing and reports[/b][/size]
+
+This release is intentionally experimental. Enable Diagnostics, reproduce one encounter, and include the enemy, location, attack type, whether the backstab prompt appeared, and whether another NPC had line of sight. Ambush Integrity logs why it applied, denied, or skipped each special case.

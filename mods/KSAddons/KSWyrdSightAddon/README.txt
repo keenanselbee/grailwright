@@ -1,5 +1,5 @@
 Wyrd Sight Addon
-Version 1.2.6
+Version 1.2.7
 
 Platforms: Windows and Linux through Proton.
 
@@ -51,7 +51,7 @@ Config file: BepInEx/config/ks.tgfoa.wyrd-sight-addon.cfg
 
 Defaults:
 
-ConfigSchemaVersion = 2
+ConfigSchemaVersion = 3
 Enabled = true
 PulseDurationSeconds = 3
 PulseStateCheckIntervalSeconds = 0.25
@@ -65,6 +65,14 @@ QuestOutlineBakeFrameBudgetMilliseconds = 1.5
 QuestOutlineRefreshRate = 30
 QuestAvailabilityRefreshSeconds = 15
 Diagnostics = false
+
+FoA Mod Manager section order:
+
+General
+Pulse Timing
+Quest Givers
+Diagnostics
+Import Previous Settings
 
 Pulse timing lives in the addon's own config, not Wyrd Sight's config. Lower
 PulseDurationSeconds for a shorter flash, or raise it for a longer scan. The
@@ -80,9 +88,9 @@ cached outlines, and render resources. If archive parsing has already started,
 that read may finish in the background and is retained so re-enabling cannot
 start a duplicate parse.
 
-Version 1.2.6 appears as Wyrd Sight Addon in BepInEx and Configuration
+Version 1.2.7 appears as Wyrd Sight Addon in BepInEx and Configuration
 Manager while keeping the existing ks.tgfoa.wyrd-sight-addon.cfg config path.
-It still uses ConfigSchemaVersion 2. Older configs are backed up and a fresh
+It uses ConfigSchemaVersion 3. Older configs are backed up and a fresh
 default config is regenerated when the schema changes.
 
 Requires BepInEx 5 Mono and Wyrd Sight 1.2.0. Quest-giver highlighting is

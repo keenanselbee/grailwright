@@ -602,7 +602,7 @@ foreach ($required in @(
     'GameplayTuningPreset.CursedNight',
     '_gameplayPreset.Value = GameplayTuningPreset.Custom;',
     'new ConfigDefinition(',
-    '"2. Gameplay Preset"',
+    '"Gameplay Preset"',
     '"ApplyPreset"',
     'selection.FilterSummary',
     'selection.WeightSummary',

@@ -2,7 +2,7 @@
   "id": "TGVolumetricFixAddon",
   "displayName": "KS Better Volumetric Fog Addon",
   "packageName": "TGVolumetricFixAddon",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "pluginGuid": "ks.tgfoa.tg-volumetric-fix-addon",
   "dll": "TGVolumetricFixAddon.dll",
   "sourceFiles": [

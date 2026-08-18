@@ -1,7 +1,7 @@
 Ultrawide Fixes
 ===============
 
-Version 1.1.0
+Version 1.1.1
 
 Platforms: Windows and Linux through Proton.
 
@@ -41,7 +41,7 @@ The config is generated after the game starts once:
 
   BepInEx\config\ks.tgfoa.ultrawide-fixes.cfg
 
-Version 1.1.0 uses ConfigSchemaVersion 1. Older configs are backed up and a
+Version 1.1.1 uses ConfigSchemaVersion 1. Older configs are backed up and a
 fresh config is generated once so defaults apply cleanly. Display aspect,
 crop/stretch, crop focus, and title-rendering compatibility calibration survive
 schema resets.

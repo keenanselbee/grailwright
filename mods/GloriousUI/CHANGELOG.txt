@@ -1,3 +1,7 @@
+Version 1.7.6
+Removed numeric prefixes from the stored config sections and kept explicit semantic FoA Mod Manager ordering, with Diagnostics penultimate and Import Previous Settings last.
+Advanced the config schema to 2 because the stored section names changed; existing schema-1 configs are backed up and regenerated, with the established HUD calibration and hotkey preservation policy retained.
+
 Version 1.7.5
 Fails closed before releasing partial startup state so installed callbacks cannot observe an active Glorious UI during cleanup.
 

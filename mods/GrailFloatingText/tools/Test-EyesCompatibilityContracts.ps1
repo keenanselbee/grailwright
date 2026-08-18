@@ -20,7 +20,7 @@ foreach ($required in @(
     'ResolveEyesWyrdStyle()',
     '"WyrdnessPalette"',
     '"NativeOrange"',
-    'private const int ConfigSchemaVersion = 25;',
+    'private const int ConfigSchemaVersion = 27;',
     'public const int ApiVersion = 12;',
     '"BuiltInEventClaims"',
     'TrySetBuiltInEventClaim(',

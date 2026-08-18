@@ -1,0 +1,79 @@
+[center][size=6][b]Soul and Service - Summon Overhaul[/b][/size][/center]
+
+Soul and Service turns summoning into a disciplined dark-fantasy playstyle. Servants respond quickly, keep formation without shoving the hero, share sensible targets, and preserve the game's native combat identity. Soul Salvage becomes the heart of the fantasy: reclaim essence from a bound servant or press an ordinary enemy corpse into temporary service.
+
+[b]Responsive servants[/b]
+
+[list]
+[*]Faster, configurable summon AI decisions and spawn recovery.
+[*]Close-follow trot, run, and native safe-teleport thresholds.
+[*]An out-of-combat catch-up multiplier that never changes combat speed.
+[*]Conservative hostile crosshair target sharing that does not overwrite an existing target.
+[*]Rest persistence and an optional summon-limit bonus.
+[/list]
+
+[b]Clean collision[/b]
+
+Summon Pass-Through ignores only collision between the hero and owned summon bodies. It does not shrink or disable summon combat colliders, enemy collision, or world collision.
+
+Player Attack Pass-Through is separate. The default MagicOnly mode covers confirmed hero magic-projectile and magic-gauntlet contacts while arrows keep vanilla behavior. Bespoke scripted ray spells retain their native collision unless separately confirmed. Vanilla and AllProjectiles modes are also available.
+
+[b]Balanced identity[/b]
+
+Replacement summons recover missing Invocation of Might scaling only when the outgoing summon proves that the native effect is active. Already-scaled stats are left unchanged, and no second generic damage multiplier is added. Summon attacks retain native damage types and attribution, including compatibility with material-sensitive combat overhauls.
+
+Idle sound is a percentage rather than a toggle. The default is 60%, and only the idle loop is scaled.
+
+[b]Soul Salvage[/b]
+
+[list]
+[*][b]Light cast:[/b] Dismisses an owned summon and returns essence based on its original mana investment and current health. The default return is 50%, split evenly between health and mana; Health and Mana modes are configurable.
+[*][b]Heavy cast:[/b] Raises an eligible ordinary runtime-spawned hostile corpse as a hero-owned servant at 50% health for 120 seconds.
+[/list]
+
+Heavy cast rejects authored scene locations used by persistent NPCs. For an eligible runtime-spawned hostile, it hides the source corpse, creates an unsaved runtime copy, suppresses XP and scripted death rewards, and restores the source when service ends. Bosses, minibosses, friendly corpses, already claimed corpses, and unresolved templates are also rejected.
+
+PermanentReanimations is disabled by default. Enabling it removes the servant duration for the current play session while retaining the restricted, unsaved-copy design.
+
+[b]Defaults[/b]
+
+[code]
+| Setting | Default |
+| --- | --- |
+| AI tick | 0.25 seconds |
+| Spawn recovery | 0.10 seconds |
+| Trot / Run / Teleport | 4 m / 8 m / 35 m |
+| Catch-up speed | 1.25x, out of combat only |
+| Target sharing range | 30 m |
+| Summon Pass-Through | Enabled |
+| Player attacks | MagicOnly |
+| Persist through rest | Enabled |
+| Summon limit bonus | 0 |
+| Idle volume | 60% |
+| Soul Salvage essence | 50%, Split |
+| Raised health / duration | 50% / 120 seconds |
+| Permanent reanimations | Disabled |
+[/code]
+
+[b]Requirements[/b]
+
+[list]
+[*]BepInEx 5 Mono
+[/list]
+
+[b]Compatibility[/b]
+
+[b]Grailwright mods[/b]
+
+[list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] is compatible. Soul and Service preserves native summon damage types and does not add a late flat damage multiplier.
+[/list]
+
+[b]Other mods[/b]
+
+Soul and Service replaces Avalon Summons, Better Summon, and the temporary Summon Pass-Through test plugin. BepInEx marks them as incompatible so overlapping Harmony patches cannot silently fight over summon behavior. Remove or disable them before loading Soul and Service.
+
+[b]Configuration[/b]
+
+The config is written to [code]BepInEx/config/ks.tgfoa.soul-and-service.cfg[/code] and is supported by FoA Mod Manager. A final Import Previous Settings tab safely recovers compatible customized values after future config resets.

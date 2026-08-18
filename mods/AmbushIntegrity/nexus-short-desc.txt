@@ -1,0 +1,1 @@
+An experimental stealth overhaul that makes armor matter to ordinary footsteps, protects committed ambushes, smooths native backstab range and timing, quiets truly unwitnessed executions, and exposes precise backstab-ready state.

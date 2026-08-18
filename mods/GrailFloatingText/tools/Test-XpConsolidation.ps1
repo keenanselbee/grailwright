@@ -11,7 +11,7 @@ $bloodMagicSource = Get-Content -LiteralPath (Join-Path $repoRoot "mods\BloodMag
 
 if (-not [regex]::IsMatch(
     $gftSource,
-    'Config\.Bind\("9\. Default Game Events",\s*"ConsolidateXpGains",\s*true,')) {
+    'BindOrdered\("Default Game Events",\s*"ConsolidateXpGains",\s*true,')) {
     throw "ConsolidateXpGains must be enabled by default."
 }
 

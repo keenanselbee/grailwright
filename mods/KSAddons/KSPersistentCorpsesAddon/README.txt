@@ -1,7 +1,7 @@
 Persistent Corpses Addon
 ========================
 
-Version: 1.1.0
+Version: 1.1.1
 Platforms: Windows and Linux through Proton.
 
 Original mod: Persistent Corpses 1.0.0
@@ -67,7 +67,7 @@ Start the game once to generate:
 
 Defaults:
 
-  ConfigSchemaVersion = 2
+  ConfigSchemaVersion = 3
   Enabled = true
   MinimumSettleSeconds = 0.75
   MaximumSettleSeconds = 2
@@ -76,6 +76,15 @@ Defaults:
   CleanupAfterLongBonfireRest = true
   MinimumRestHoursForCleanup = 6
   Diagnostics = false
+
+FoA Mod Manager section order:
+
+  General
+  Settle Timing
+  Corpse Retention
+  Bonfire Cleanup
+  Diagnostics
+  Import Previous Settings
 
 MinimumSettleSeconds is the shortest active-physics window before a sleeping
 ragdoll can be shown. MaximumSettleSeconds prevents a body on a slope or in an

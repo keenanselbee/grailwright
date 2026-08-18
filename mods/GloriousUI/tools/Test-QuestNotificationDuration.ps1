@@ -26,7 +26,7 @@ foreach ($fragment in $requiredFragments) {
 
 if (-not [regex]::IsMatch(
     $source,
-    'Config\.Bind\(\s*"2\. HUD",\s*"QuestNotificationDurationSeconds",\s*10\.0f,')) {
+    'Config\.Bind\(\s*"HUD",\s*"QuestNotificationDurationSeconds",\s*10\.0f,')) {
     throw "QuestNotificationDurationSeconds must default to 10 seconds."
 }
 

@@ -20,9 +20,9 @@ using UnityEngine.Rendering.HighDefinition;
 [assembly: AssemblyDescription("Interior-only volumetric quality and cached fog discovery for Better Volumetric Fog")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Better Volumetric Fog Addon")]
-[assembly: AssemblyVersion("0.1.2.0")]
-[assembly: AssemblyFileVersion("0.1.2.0")]
-[assembly: AssemblyInformationalVersion("0.1.2")]
+[assembly: AssemblyVersion("0.1.3.0")]
+[assembly: AssemblyFileVersion("0.1.3.0")]
+[assembly: AssemblyInformationalVersion("0.1.3")]
 
 namespace KSTGVolumetricFixAddon
 {
@@ -61,11 +61,11 @@ namespace KSTGVolumetricFixAddon
             "ks.tgfoa.tg-volumetric-fix-addon";
         public const string PluginName =
             "Better Volumetric Fog Addon";
-        public const string PluginVersion = "0.1.2";
+        public const string PluginVersion = "0.1.3";
         public const string ParentPluginGuid =
             "com.wessberg.tgvolumetricfix";
 
-        private const int ConfigSchemaVersion = 1;
+        private const int ConfigSchemaVersion = 2;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -207,7 +207,7 @@ namespace KSTGVolumetricFixAddon
             ResetConfigIfSchemaChanged();
 
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
@@ -215,35 +215,48 @@ namespace KSTGVolumetricFixAddon
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
             _enabled = Config.Bind(
-                "1. Core",
+                "General",
                 "Enabled",
                 true,
-                "Enables contextual volumetric quality and optimized fog discovery.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Enables contextual volumetric quality and optimized fog discovery.",
+                    "General", "Enabled", 0, 0));
             _interiorsOnly = Config.Bind(
-                "1. Core",
+                "General",
                 "InteriorsOnly",
                 true,
-                "Applies Better Volumetric Fog only in interiors and restores vanilla volumetrics elsewhere.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Applies Better Volumetric Fog only in interiors and restores vanilla volumetrics elsewhere.",
+                    "General", "Interiors Only", 0, 10));
             _quality = Config.Bind(
-                "1. Core",
+                "Visuals",
                 "Quality",
                 VolumetricQuality.Low,
-                "Quality applied while the addon allows Better Volumetric Fog to run. Low is the recommended gameplay balance.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Quality applied while the addon allows Better Volumetric Fog to run. Low is the recommended gameplay balance.",
+                    "Visuals", "Quality", 10, 0));
             _optimizeFogDiscovery = Config.Bind(
-                "1. Core",
+                "Performance",
                 "OptimizeFogDiscovery",
                 true,
-                "Replaces the parent's repeated all-resources fog search with a cached, event-fed snapshot.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Replaces the parent's repeated all-resources fog search with a cached, event-fed snapshot.",
+                    "Performance", "Optimize Fog Discovery", 20, 0));
             _showToggleNotifications = Config.Bind(
-                "1. Core",
+                "Notifications",
                 "ShowToggleNotifications",
                 true,
-                "Shows parent toggle confirmations through Grail Floating Text when it is installed.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Shows parent toggle confirmations through Grail Floating Text when it is installed.",
+                    "Notifications", "Show Toggle Notifications", 30, 0));
             _diagnostics = Config.Bind(
-                "1. Core",
+                "Diagnostics",
                 "Diagnostics",
                 false,
-                "Logs environment changes, fog-cache changes, parent application decisions, and restoration.");
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Logs environment changes, fog-cache changes, parent application decisions, and restoration.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
 
             RestorePreservedSettings();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -387,19 +400,19 @@ namespace KSTGVolumetricFixAddon
                     ConfigRecoveryKeepCurrentDefaultRules,
                     ConfigRecoveryPermanentExclusions);
 
-            CaptureCustomizedValue(profile, "1. Core", "Enabled", false);
-            CaptureCustomizedValue(profile, "1. Core", "InteriorsOnly", false);
+            CaptureCustomizedValue(profile, "General", "Enabled", false);
+            CaptureCustomizedValue(profile, "General", "InteriorsOnly", false);
             CaptureCustomizedValue(
                 profile,
-                "1. Core",
+                "Visuals",
                 "Quality",
                 VolumetricQuality.Low);
             CaptureCustomizedValue(
                 profile,
-                "1. Core",
+                "Notifications",
                 "OptimizeFogDiscovery",
                 false);
-            CaptureCustomizedValue(profile, "1. Core", "Diagnostics", false);
+            CaptureCustomizedValue(profile, "Diagnostics", "Diagnostics", false);
         }
 
         private void CaptureCustomizedValue<T>(

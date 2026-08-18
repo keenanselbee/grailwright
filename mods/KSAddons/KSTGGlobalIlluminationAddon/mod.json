@@ -2,7 +2,7 @@
   "id": "TGGlobalIlluminationAddon",
   "displayName": "KS Global Illumination Addon",
   "packageName": "TGGlobalIlluminationAddon",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "pluginGuid": "ks.tgfoa.tg-global-illumination-addon",
   "dll": "TGGlobalIlluminationAddon.dll",
   "sourceFiles": [

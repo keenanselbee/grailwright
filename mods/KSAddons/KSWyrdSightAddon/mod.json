@@ -2,7 +2,7 @@
   "id": "WyrdSightAddon",
   "displayName": "KS Wyrd Sight Addon",
   "packageName": "WyrdSightAddon",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "pluginGuid": "ks.tgfoa.wyrd-sight-addon",
   "dll": "WyrdSightAddon.dll",
   "sourceFiles": [

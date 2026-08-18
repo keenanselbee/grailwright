@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Eyes in the Dark - Wyrdnight Overhaul[/size][/color]
 [i]A dynamic Wyrdnight that notices what you do and lasts longer when it notices you.[/i][/center]
 
@@ -249,16 +249,26 @@ When a visual-default reset is required, compatible durable customizations are r
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] is incompatible with Eyes in the Dark.[/b] Do not run both night directors together.[/*]
-[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/76]Custom Timescale[/url] is incompatible with Eyes in the Dark.[/b] Both plugins control the GameRealTime weather rate. GFT shows one compatibility notice when both are loaded but does not disable or reconfigure either plugin.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] provides optional atmospheric messages and concise diagnostic summaries. ShowGrailFloatingTextDiagnostics defaults on but remains inactive until Diagnostics is enabled, and can disable only those summaries without affecting detailed logging or atmospheric messages. GFT is not required for threat calculation or encounter behavior.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] can add diminishing exposed-Wyrdnight threat and unlock restrained battlecry-response atmosphere. It remains fully optional.[/*]
-[*]Blood Magic Expansion can add 4-to-12 quality-scaled threat after successfully completed exposed-Wyrdnight corpse rituals. It remains fully optional.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] can add 4-to-12 quality-scaled threat after successfully completed exposed-Wyrdnight corpse rituals. It remains fully optional.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] provides optional below-resource-bars placement for the Eyes-owned Wyrd Threat meter plus an independently toggleable rest clock and time display. It is not required for threat calculation, rest safety, or encounter behavior.[/*]
-[*]Purple Moon Test is fully integrated and retired. Do not install its standalone DLL alongside Eyes.[/*]
-[*]Other mods that replace outdoor Wyrdnight encounter direction or spawn the same kinds of hunters may conflict.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also provides optional atmospheric messages without affecting threat calculation or encounter behavior.[/*]
 [/list]
+
+[b]Other mods[/b]
+
+[list]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/76]Custom Timescale[/url] is incompatible with Eyes in the Dark.[/b] Both plugins control the GameRealTime weather rate. GFT shows one compatibility notice when both are loaded but does not disable or reconfigure either plugin.[/*]
+[*][b][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/201]Wyrd Hunt[/url] is incompatible with Eyes in the Dark.[/b] Do not run both night directors together.[/*]
+[/list]
+
+Purple Moon Test is fully integrated and retired. Do not install its standalone DLL alongside Eyes.
+
+Other mods that replace outdoor Wyrdnight encounter direction or spawn the same kinds of hunters may conflict.
 
 [line]
 

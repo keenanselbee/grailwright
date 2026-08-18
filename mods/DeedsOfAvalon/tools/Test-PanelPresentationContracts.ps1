@@ -14,6 +14,8 @@ $requiredContracts = @(
     'case "Blood Power": return 21;',
     '+ " (" + displayedBloodPower.ToString("N0", CultureInfo.InvariantCulture) + ")"',
     '"Fish caught", "fish", "Gold"',
+    '"Food eaten", "food", "Gold"',
+    '"Potions used", "potion", "Blue"',
     'Stat.Events.StatChangedBy(CurrencyStatType.Wealth)',
     'change.value <= 0.0f',
     'AddCounter(facts, "deeds.total_gold_earned", earned);',

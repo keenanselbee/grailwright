@@ -1,3 +1,27 @@
+Version 2.5.4
+Moved the consumable event controls into the clean Default Game Events section and applied the same explicit semantic setting metadata as every other visible option.
+Advanced ConfigSchemaVersion from 26 to 27 because those five controls moved from the remaining numbered raw section to its clean name; compatible customized settings remain eligible for recovery.
+
+Version 2.5.3
+Removed numeric prefixes from all static and runtime-created config sections, including source, color-group, and icon-color controls, and added explicit semantic ordering metadata to every visible setting.
+Updated compatibility lookups for the clean Glorious UI, Steel and Bone, and Eyes in the Dark section names.
+Advanced the config schema to 26 because stored section names changed; schema-25 configs are backed up and calibrated presentation and per-source values are translated into the clean layout during recovery.
+
+Version 2.5.2
+Suppressed GFT's food-consumed message when Steel and Bone prevents that food from being used during combat, leaving only Steel and Bone's brief restriction feedback.
+
+Version 2.5.1
+Changed food consumption notifications from Green to Gold, pairing their warmer presentation with Blue potion notifications and Red Potion Poisoning activation.
+
+Version 2.5.0
+Added default-on food and potion consumption lines using the built-in food and potion icons, with green food and blue potion presentation.
+Added a separate default-on red Potion Poisoning activation line using the potion icon, without showing overdrink buildup progress.
+Suppressed native potion-use and Potion Poisoning announcements only when Grail Floating Text successfully shows their replacements, preserving native fallback when an event is disabled or rejected.
+Added the default-off IncludeConsumableDescription option for appending the full resolved native item description, and folded synchronous consumable healing into the owned consumption line to avoid duplicate GFT healing text.
+
+Version 2.4.9
+Added opt-in, consumable-scoped diagnostics for identifying the native HUD path behind food and potion use notifications without changing or suppressing them.
+
 Version 2.4.6
 Added API v12 source-scoped built-in event presentation claims so integrations can restyle an exact synchronous event without bypassing GFT healing settings.
 Separated buffered and queued healing by event, style, and icon so Blood Magic healing cannot merge into ordinary green healing.

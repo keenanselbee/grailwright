@@ -41,9 +41,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Save-bounded character statistics and quick-wheel presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.7.5.0")]
-[assembly: AssemblyFileVersion("1.7.5.0")]
-[assembly: AssemblyInformationalVersion("1.7.5")]
+[assembly: AssemblyVersion("1.7.7.0")]
+[assembly: AssemblyFileVersion("1.7.7.0")]
+[assembly: AssemblyInformationalVersion("1.7.7")]
 
 namespace DeedsOfAvalon
 {
@@ -158,12 +158,12 @@ namespace DeedsOfAvalon
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
         public const string PluginName = "Deeds of Avalon - Character Statistics";
-        public const string PluginVersion = "1.7.5";
+        public const string PluginVersion = "1.7.7";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
         private const string BloodMagicPluginGuid = "ks.tgfoa.blood-magic-expansion";
-        private const int ConfigSchemaVersion = 11;
+        private const int ConfigSchemaVersion = 12;
         private const float ReferenceScreenHeight = 1440.0f;
         private const float PanelHeaderHeight = 66.0f;
         private const float PanelRowHeight = 24.0f;
@@ -382,45 +382,45 @@ namespace DeedsOfAvalon
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
-            _enabled = Config.Bind("1. Core", "Enabled", true, ConfigUi("Master switch for tracking, export, and quick-wheel presentation.", "General", "Enabled", 0, 0));
-            Config.Bind("1. Core", "ConfigSchemaVersion", ConfigSchemaVersion, new ConfigDescription("Configuration layout version. Do not edit manually.", null, new System.ComponentModel.BrowsableAttribute(false)));
-            _trackStatistics = Config.Bind("1. Core", "TrackStatistics", true, ConfigUi("Record character statistics in the active save game's GameplayMemory.", "General", "Track Statistics", 0, 10));
-            _exportOnSuccessfulSave = Config.Bind("1. Core", "ExportOnSuccessfulSave", true, ConfigUi("Write the readable character file only after a save succeeds, and refresh it after loading saved data.", "General", "Export After Successful Save", 0, 20));
+            _enabled = Config.Bind("General", "Enabled", true, ConfigUi("Master switch for tracking, export, and quick-wheel presentation.", "General", "Enabled", 0, 0));
+            Config.Bind("General", "ConfigSchemaVersion", ConfigSchemaVersion, new ConfigDescription("Configuration layout version. Do not edit manually.", null, new System.ComponentModel.BrowsableAttribute(false)));
+            _trackStatistics = Config.Bind("General", "TrackStatistics", true, ConfigUi("Record character statistics in the active save game's GameplayMemory.", "General", "Track Statistics", 0, 10));
+            _exportOnSuccessfulSave = Config.Bind("General", "ExportOnSuccessfulSave", true, ConfigUi("Write the readable character file only after a save succeeds, and refresh it after loading saved data.", "General", "Export After Successful Save", 0, 20));
 
-            _showQuickWheelStatistics = Config.Bind("2. Quick Wheel", "ShowCharacterStatistics", true, ConfigUi("Show the two-column Deeds of Avalon panel while the quick wheel is open. Requires Grail Floating Text.", "General", "Show Character Statistics", 0, 30));
-            _hideItemTooltipText = Config.Bind("2. Quick Wheel", "HideItemTooltipText", false, ConfigUi("Hide the normal weapon and spell tooltip on the quick wheel. Disabled by default.", "Tooltip Behavior", "Hide Item Tooltip Text", 10, 0));
-            _tooltipPanelOpacity = Config.Bind("2. Quick Wheel", "TooltipPanelOpacity", 0.0f, ConfigUi("Multiplier applied to the statistics panel while a weapon or spell tooltip is visible.", "Tooltip Behavior", "Panel Opacity With Tooltip", 10, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _tooltipFadeSeconds = Config.Bind("2. Quick Wheel", "TooltipFadeSeconds", 0.15f, ConfigUi("Seconds used to fade the statistics panel when tooltips open or close.", "Tooltip Behavior", "Tooltip Fade Seconds", 10, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _panelOpacity = Config.Bind("2. Quick Wheel", "PanelOpacity", 1.0f, ConfigUi("Normal statistics-panel opacity.", "Panel Layout", "Panel Opacity", 20, 0, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _panelScale = Config.Bind("2. Quick Wheel", "PanelScale", 1.5f, ConfigUi("Statistics panel scale at 1440p. Shorter displays automatically reduce it to preserve the same vertical proportions.", "Panel Layout", "Panel Scale", 20, 10, new AcceptableValueRange<float>(0.5f, 2.0f)));
-            _panelColumnWidth = Config.Bind("2. Quick Wheel", "PanelColumnWidth", 190.0f, ConfigUi("Width of each statistics column in 1440p reference pixels.", "Panel Layout", "Column Width", 20, 20, new AcceptableValueRange<float>(160.0f, 400.0f)));
-            _columnGap = Config.Bind("2. Quick Wheel", "ColumnGap", 30.0f, ConfigUi("Space between the two statistics columns in 1440p reference pixels.", "Panel Layout", "Column Gap", 20, 30, new AcceptableValueRange<float>(0.0f, 200.0f)));
-            _rightOffset = Config.Bind("2. Quick Wheel", "RightOffset", 28.0f, ConfigUi("Distance in pixels from the right edge.", "Panel Layout", "Right Offset", 20, 40, new AcceptableValueRange<float>(0.0f, 800.0f)));
-            _verticalOffset = Config.Bind("2. Quick Wheel", "VerticalOffset", 0.0f, ConfigUi("Vertical adjustment from automatic centering in 1440p reference pixels. Positive values move the panel down.", "Panel Layout", "Vertical Offset", 20, 50, new AcceptableValueRange<float>(-600.0f, 600.0f)));
-            _panelBackgroundOpacity = Config.Bind("2. Quick Wheel", "PanelBackgroundOpacity", 0.95f, ConfigUi("Opacity of the two charcoal column backplates behind the statistics panel. Set to zero to disable them.", "Panel Background", "Background Opacity", 30, 0, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _panelBackgroundPadding = Config.Bind("2. Quick Wheel", "PanelBackgroundPadding", 16.0f, ConfigUi("Padding around each charcoal column backplate in 1440p reference pixels.", "Panel Background", "Background Padding", 30, 10, new AcceptableValueRange<float>(0.0f, 32.0f)));
-            _headerColor = Config.Bind("2. Quick Wheel", "HeaderColor", "#D88B38", ConfigUi("Color shared by the character-name and Foes Defeated headers. Enter a Grail Floating Text color-pool name or an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Panel Colors", "Header Color", 40, 0));
-            _subheaderColor = Config.Bind("2. Quick Wheel", "SubheaderColor", "White", ConfigUi("Color shared by the Level/XP and Total subheaders. Enter a Grail Floating Text color-pool name or an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Panel Colors", "Subheader Color", 40, 10));
-            _textOutlineEnabled = Config.Bind("2. Quick Wheel", "TextOutlineEnabled", true, ConfigUi("Draw a native signed-distance-field outline around all statistics-panel text.", "Text Outline", "Enabled", 50, 0));
-            _textOutlineColor = Config.Bind("2. Quick Wheel", "TextOutlineColor", "#000000", ConfigUi("Statistics-panel text-outline color. Enter an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Text Outline", "Color", 50, 10));
-            _textOutlineOpacity = Config.Bind("2. Quick Wheel", "TextOutlineOpacity", 0.5f, ConfigUi("Opacity of the statistics-panel text outline.", "Text Outline", "Opacity", 50, 20, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _textOutlineWidth = Config.Bind("2. Quick Wheel", "TextOutlineWidth", 5.0f, ConfigUi("Approximate statistics-panel outline reach. Five is the readability baseline; sixteen is the maximum native SDF expansion.", "Text Outline", "Width", 50, 30, new AcceptableValueRange<float>(0.0f, 16.0f)));
-            _textOutlineStrength = Config.Bind("2. Quick Wheel", "TextOutlineStrength", 2, ConfigUi("Native outline weight. Two is the readability baseline; eight is the maximum weight without copied text geometry.", "Text Outline", "Strength", 50, 40, new AcceptableValueRange<int>(1, 8)));
-            _textShadowEnabled = Config.Bind("2. Quick Wheel", "TextShadowEnabled", true, ConfigUi("Draw a native soft black SDF backing behind all statistics-panel text.", "Text Backing", "Enabled", 60, 0));
-            _textShadowOpacity = Config.Bind("2. Quick Wheel", "TextShadowOpacity", 1.0f, ConfigUi("Opacity of the soft black text backing.", "Text Backing", "Opacity", 60, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _textShadowOffset = Config.Bind("2. Quick Wheel", "TextShadowOffset", 4.0f, ConfigUi("Diagonal offset of the black backing. Zero centers it behind the text; higher values turn it into a conventional drop shadow.", "Text Backing", "Offset", 60, 20, new AcceptableValueRange<float>(0.0f, 16.0f)));
-            _textShadowSoftness = Config.Bind("2. Quick Wheel", "TextShadowSoftness", 0.5f, ConfigUi("Blur-like softness of the black text backing.", "Text Backing", "Softness", 60, 30, new AcceptableValueRange<float>(0.0f, 1.0f)));
-            _textShadowStrength = Config.Bind("2. Quick Wheel", "TextShadowStrength", 8, ConfigUi("Native backing spread. Eight is the broadest backing without copied text geometry.", "Text Backing", "Spread", 60, 40, new AcceptableValueRange<int>(1, 8)));
-            _maximumDeedRows = Config.Bind("2. Quick Wheel", "MaximumDeedRows", 32, ConfigUi("Maximum non-XP rows in the left column.", "Panel Content", "Maximum Deed Rows", 70, 0, new AcceptableValueRange<int>(1, 32)));
-            _maximumWeaponRows = Config.Bind("2. Quick Wheel", "MaximumWeaponRows", 28, ConfigUi("Maximum weapon-category rows in Foes Defeated.", "Panel Content", "Maximum Weapon Rows", 70, 10, new AcceptableValueRange<int>(1, 28)));
-            _maximumMagicRows = Config.Bind("2. Quick Wheel", "MaximumMagicRows", 20, ConfigUi("Maximum magic-category rows in Foes Defeated.", "Panel Content", "Maximum Magic Rows", 70, 20, new AcceptableValueRange<int>(1, 20)));
-            _weaponStatisticsMode = Config.Bind("2. Quick Wheel", "WeaponStatisticsMode", WeaponStatisticsMode.Detailed, ConfigUi("Choose Detailed for individual weapon types or Grouped for combined One-Handed, Two-Handed, and Bows rows. Tracking remains detailed in either mode.", "Panel Content", "Weapon Statistics Mode", 70, 30));
-            _sortFoesByKillCount = Config.Bind("2. Quick Wheel", "SortFoesByKillCount", true, ConfigUi("Order the visible Foes Defeated rows from highest to lowest displayed kill count. Disable to retain the authored weapon and magic grouping order.", "Panel Content", "Sort Foes By Kill Count", 70, 40));
-            _showCollapsedRows = Config.Bind("2. Quick Wheel", "ShowCollapsedOtherRows", true, ConfigUi("Combine positive categories beyond a column limit into an Other row.", "Panel Content", "Show Collapsed Other Rows", 70, 50));
-            _hidePointsAvailable = Config.Bind("2. Quick Wheel", "HidePointsAvailable", true, ConfigUi("Hide the top-right Points available widget only while the quick wheel is open. Defers to Glorious UI when Glorious UI owns this behavior.", "Panel Content", "Hide Points Available", 70, 60));
-            _showBloodMagicStatistics = Config.Bind("3. Integrations", "ShowBloodMagicStatistics", true, ConfigUi("Show Blood Essence and Blood Power above Corpses Drained in the Grail Floating Text quick-wheel panel.", "Integrations", "Show Blood Magic Statistics", 80, 0));
-            _bloodMagicStatisticsMode = Config.Bind("3. Integrations", "BloodMagicStatisticsMode", BloodMagicStatisticsMode.Detailed, ConfigUi("Choose Simple for Blood Essence and Blood Power plus the total Corpses Drained row, or Detailed for the progression row plus Meager, Worthy, Potent, and Prime rows. The total and tiers are never shown together.", "Integrations", "Blood Magic Statistics Mode", 80, 10));
-            _diagnostics = Config.Bind("4. Diagnostics", "Diagnostics", false, ConfigUi("Log event binding, panel integration, save export, and compatibility details.", "Diagnostics", "Diagnostics", 90, 0));
+            _showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true, ConfigUi("Show the two-column Deeds of Avalon panel while the quick wheel is open. Requires Grail Floating Text.", "General", "Show Character Statistics", 0, 30));
+            _hideItemTooltipText = Config.Bind("Quick Wheel", "HideItemTooltipText", false, ConfigUi("Hide the normal weapon and spell tooltip on the quick wheel. Disabled by default.", "Tooltip Behavior", "Hide Item Tooltip Text", 10, 0));
+            _tooltipPanelOpacity = Config.Bind("Quick Wheel", "TooltipPanelOpacity", 0.0f, ConfigUi("Multiplier applied to the statistics panel while a weapon or spell tooltip is visible.", "Tooltip Behavior", "Panel Opacity With Tooltip", 10, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _tooltipFadeSeconds = Config.Bind("Quick Wheel", "TooltipFadeSeconds", 0.15f, ConfigUi("Seconds used to fade the statistics panel when tooltips open or close.", "Tooltip Behavior", "Tooltip Fade Seconds", 10, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _panelOpacity = Config.Bind("Quick Wheel", "PanelOpacity", 1.0f, ConfigUi("Normal statistics-panel opacity.", "Panel Layout", "Panel Opacity", 20, 0, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _panelScale = Config.Bind("Quick Wheel", "PanelScale", 1.5f, ConfigUi("Statistics panel scale at 1440p. Shorter displays automatically reduce it to preserve the same vertical proportions.", "Panel Layout", "Panel Scale", 20, 10, new AcceptableValueRange<float>(0.5f, 2.0f)));
+            _panelColumnWidth = Config.Bind("Quick Wheel", "PanelColumnWidth", 190.0f, ConfigUi("Width of each statistics column in 1440p reference pixels.", "Panel Layout", "Column Width", 20, 20, new AcceptableValueRange<float>(160.0f, 400.0f)));
+            _columnGap = Config.Bind("Quick Wheel", "ColumnGap", 30.0f, ConfigUi("Space between the two statistics columns in 1440p reference pixels.", "Panel Layout", "Column Gap", 20, 30, new AcceptableValueRange<float>(0.0f, 200.0f)));
+            _rightOffset = Config.Bind("Quick Wheel", "RightOffset", 28.0f, ConfigUi("Distance in pixels from the right edge.", "Panel Layout", "Right Offset", 20, 40, new AcceptableValueRange<float>(0.0f, 800.0f)));
+            _verticalOffset = Config.Bind("Quick Wheel", "VerticalOffset", 0.0f, ConfigUi("Vertical adjustment from automatic centering in 1440p reference pixels. Positive values move the panel down.", "Panel Layout", "Vertical Offset", 20, 50, new AcceptableValueRange<float>(-600.0f, 600.0f)));
+            _panelBackgroundOpacity = Config.Bind("Quick Wheel", "PanelBackgroundOpacity", 0.95f, ConfigUi("Opacity of the two charcoal column backplates behind the statistics panel. Set to zero to disable them.", "Panel Background", "Background Opacity", 30, 0, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _panelBackgroundPadding = Config.Bind("Quick Wheel", "PanelBackgroundPadding", 16.0f, ConfigUi("Padding around each charcoal column backplate in 1440p reference pixels.", "Panel Background", "Background Padding", 30, 10, new AcceptableValueRange<float>(0.0f, 32.0f)));
+            _headerColor = Config.Bind("Quick Wheel", "HeaderColor", "#D88B38", ConfigUi("Color shared by the character-name and Foes Defeated headers. Enter a Grail Floating Text color-pool name or an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Panel Colors", "Header Color", 40, 0));
+            _subheaderColor = Config.Bind("Quick Wheel", "SubheaderColor", "White", ConfigUi("Color shared by the Level/XP and Total subheaders. Enter a Grail Floating Text color-pool name or an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Panel Colors", "Subheader Color", 40, 10));
+            _textOutlineEnabled = Config.Bind("Quick Wheel", "TextOutlineEnabled", true, ConfigUi("Draw a native signed-distance-field outline around all statistics-panel text.", "Text Outline", "Enabled", 50, 0));
+            _textOutlineColor = Config.Bind("Quick Wheel", "TextOutlineColor", "#000000", ConfigUi("Statistics-panel text-outline color. Enter an HTML hex color such as #RRGGBB or #RRGGBBAA.", "Text Outline", "Color", 50, 10));
+            _textOutlineOpacity = Config.Bind("Quick Wheel", "TextOutlineOpacity", 0.5f, ConfigUi("Opacity of the statistics-panel text outline.", "Text Outline", "Opacity", 50, 20, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _textOutlineWidth = Config.Bind("Quick Wheel", "TextOutlineWidth", 5.0f, ConfigUi("Approximate statistics-panel outline reach. Five is the readability baseline; sixteen is the maximum native SDF expansion.", "Text Outline", "Width", 50, 30, new AcceptableValueRange<float>(0.0f, 16.0f)));
+            _textOutlineStrength = Config.Bind("Quick Wheel", "TextOutlineStrength", 2, ConfigUi("Native outline weight. Two is the readability baseline; eight is the maximum weight without copied text geometry.", "Text Outline", "Strength", 50, 40, new AcceptableValueRange<int>(1, 8)));
+            _textShadowEnabled = Config.Bind("Quick Wheel", "TextShadowEnabled", true, ConfigUi("Draw a native soft black SDF backing behind all statistics-panel text.", "Text Backing", "Enabled", 60, 0));
+            _textShadowOpacity = Config.Bind("Quick Wheel", "TextShadowOpacity", 1.0f, ConfigUi("Opacity of the soft black text backing.", "Text Backing", "Opacity", 60, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _textShadowOffset = Config.Bind("Quick Wheel", "TextShadowOffset", 4.0f, ConfigUi("Diagonal offset of the black backing. Zero centers it behind the text; higher values turn it into a conventional drop shadow.", "Text Backing", "Offset", 60, 20, new AcceptableValueRange<float>(0.0f, 16.0f)));
+            _textShadowSoftness = Config.Bind("Quick Wheel", "TextShadowSoftness", 0.5f, ConfigUi("Blur-like softness of the black text backing.", "Text Backing", "Softness", 60, 30, new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _textShadowStrength = Config.Bind("Quick Wheel", "TextShadowStrength", 8, ConfigUi("Native backing spread. Eight is the broadest backing without copied text geometry.", "Text Backing", "Spread", 60, 40, new AcceptableValueRange<int>(1, 8)));
+            _maximumDeedRows = Config.Bind("Quick Wheel", "MaximumDeedRows", 32, ConfigUi("Maximum non-XP rows in the left column.", "Panel Content", "Maximum Deed Rows", 70, 0, new AcceptableValueRange<int>(1, 32)));
+            _maximumWeaponRows = Config.Bind("Quick Wheel", "MaximumWeaponRows", 28, ConfigUi("Maximum weapon-category rows in Foes Defeated.", "Panel Content", "Maximum Weapon Rows", 70, 10, new AcceptableValueRange<int>(1, 28)));
+            _maximumMagicRows = Config.Bind("Quick Wheel", "MaximumMagicRows", 20, ConfigUi("Maximum magic-category rows in Foes Defeated.", "Panel Content", "Maximum Magic Rows", 70, 20, new AcceptableValueRange<int>(1, 20)));
+            _weaponStatisticsMode = Config.Bind("Quick Wheel", "WeaponStatisticsMode", WeaponStatisticsMode.Detailed, ConfigUi("Choose Detailed for individual weapon types or Grouped for combined One-Handed, Two-Handed, and Bows rows. Tracking remains detailed in either mode.", "Panel Content", "Weapon Statistics Mode", 70, 30));
+            _sortFoesByKillCount = Config.Bind("Quick Wheel", "SortFoesByKillCount", true, ConfigUi("Order the visible Foes Defeated rows from highest to lowest displayed kill count. Disable to retain the authored weapon and magic grouping order.", "Panel Content", "Sort Foes By Kill Count", 70, 40));
+            _showCollapsedRows = Config.Bind("Quick Wheel", "ShowCollapsedOtherRows", true, ConfigUi("Combine positive categories beyond a column limit into an Other row.", "Panel Content", "Show Collapsed Other Rows", 70, 50));
+            _hidePointsAvailable = Config.Bind("Quick Wheel", "HidePointsAvailable", true, ConfigUi("Hide the top-right Points available widget only while the quick wheel is open. Defers to Glorious UI when Glorious UI owns this behavior.", "Panel Content", "Hide Points Available", 70, 60));
+            _showBloodMagicStatistics = Config.Bind("Integrations", "ShowBloodMagicStatistics", true, ConfigUi("Show Blood Essence and Blood Power above Corpses Drained in the Grail Floating Text quick-wheel panel.", "Integrations", "Show Blood Magic Statistics", 80, 0));
+            _bloodMagicStatisticsMode = Config.Bind("Integrations", "BloodMagicStatisticsMode", BloodMagicStatisticsMode.Detailed, ConfigUi("Choose Simple for Blood Essence and Blood Power plus the total Corpses Drained row, or Detailed for the progression row plus Meager, Worthy, Potent, and Prime rows. The total and tiers are never shown together.", "Integrations", "Blood Magic Statistics Mode", 80, 10));
+            _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false, ConfigUi("Log event binding, panel integration, save export, and compatibility details.", "Diagnostics", "Diagnostics", 90, 0));
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(Config, Logger, PluginName, ConfigSchemaVersion, ConfigRecoveryBaselineSchema, ConfigRecoveryKeepCurrentDefaultRules, ConfigRecoveryPermanentExclusions);
             Config.Save();
@@ -444,7 +444,7 @@ namespace DeedsOfAvalon
                     continue;
                 }
                 const string prefix = "ConfigSchemaVersion =";
-                if (string.Equals(section, "1. Core", StringComparison.Ordinal) && line.StartsWith(prefix, StringComparison.Ordinal))
+                if (string.Equals(section, "General", StringComparison.Ordinal) && line.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     int.TryParse(line.Substring(prefix.Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out stored);
                     break;
@@ -1611,7 +1611,7 @@ namespace DeedsOfAvalon
             AddRow(rows, facts.Get("deeds.recipes_learned", 0), "Recipes learned", "recipe", "Gold");
             AddRow(rows, facts.Get("deeds.items_crafted", 0), "Items crafted", "craft", "Gold");
             AddRow(rows, facts.Get("deeds.food_eaten", 0), "Food eaten", "food", "Gold");
-            AddRow(rows, facts.Get("deeds.potions_used", 0), "Potions used", "potion", "Gold");
+            AddRow(rows, facts.Get("deeds.potions_used", 0), "Potions used", "potion", "Blue");
             AddRow(rows, facts.Get("deeds.fishes_caught", 0), "Fish caught", "fish", "Gold");
             int totalGoldEarned = Math.Max(0, facts.Get("deeds.total_gold_earned", 0));
             AddRow(

@@ -12,9 +12,9 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 
-[assembly: AssemblyVersion("2.2.1.0")]
-[assembly: AssemblyFileVersion("2.2.1.0")]
-[assembly: AssemblyInformationalVersion("2.2.1")]
+[assembly: AssemblyVersion("2.2.2.0")]
+[assembly: AssemblyFileVersion("2.2.2.0")]
+[assembly: AssemblyInformationalVersion("2.2.2")]
 
 namespace EnemyRespawnControl
 {
@@ -24,8 +24,8 @@ namespace EnemyRespawnControl
     {
         public const string PluginGuid = "ks.tgfoa.enemy-respawn-control";
         public const string PluginName = "Enemy Respawn Control";
-        public const string PluginVersion = "2.2.1";
-        private const int ConfigSchemaVersion = 6;
+        public const string PluginVersion = "2.2.2";
+        private const int ConfigSchemaVersion = 7;
         private const int ConfigRecoveryBaselineSchema = 4;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -266,23 +266,52 @@ namespace EnemyRespawnControl
         {
             ResetConfigIfSchemaChanged();
 
-            _enabled = Config.Bind("1. Core", "Enabled", true, "Master switch.");
+            _enabled = Config.Bind("General", "Enabled", true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Master switch.", "General", "Enabled", 0, 0));
             Config.Bind(
-                "1. Core",
+                "General",
                 "ConfigSchemaVersion",
                 ConfigSchemaVersion,
                 new ConfigDescription(
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _respawnMode = Config.Bind("1. Core", "RespawnMode", RespawnMode.Default24Hours, "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. VeryShort2Hours=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled. Turn off Enabled for unmodified vanilla behavior.");
-            _customRespawnHours = Config.Bind("1. Core", "CustomRespawnHours", 168f, "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.");
-            _controlFactionNeutralNpcSpawners = Config.Bind("2. Spawner Classification", "ControlFactionNeutralNpcSpawners", true, "Control NPC-template spawners with killed-state even when the current faction hostility check is false. This catches regular world mobs whose hostility is conditional or not restored yet.");
-            _additionalControlledSpawnerTerms = Config.Bind("2. Spawner Classification", "AdditionalControlledSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force into respawn control when the built-in classifier misses a regular mob family.");
-            _ignoredSpawnerTerms = Config.Bind("2. Spawner Classification", "IgnoredSpawnerTerms", "", "Optional semicolon-separated spawner/template terms to force out of respawn control when a world object or passive spawner is misclassified.");
-            _diagnostics = Config.Bind("3. Diagnostics", "Diagnostics", false, "Log spawner keys, lock creation, blocked cooldown and rest checks, special-spawn bypasses, skipped spawners with classification reasons, repairs, and expiry decisions.");
-            _showGrailFloatingTextDiagnostics = Config.Bind("3. Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "Show deduplicated Grail Floating Text lifecycle messages when an encounter is locked, a rest is blocked, its ERC delay ends, or it respawns. Simultaneous events are summarized while Diagnostics is enabled.");
-            _blockedLogIntervalSeconds = Config.Bind("3. Diagnostics", "BlockedLogIntervalSeconds", 15f, "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.");
+            _respawnMode = Config.Bind("General", "RespawnMode", RespawnMode.Default24Hours,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Respawn delay after a spawner has produced killed enemies. All durations use in-game/weather time. VeryShort2Hours=2h, Fast6Hours=6h, Default24Hours=24h, Slow72Hours=72h, VerySlow168Hours=168h, Custom, or Disabled. Turn off Enabled for unmodified vanilla behavior.",
+                    "General", "Respawn Mode", 0, 10));
+            _customRespawnHours = Config.Bind("General", "CustomRespawnHours", 168f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Used when RespawnMode is Custom. Interpreted as in-game/weather hours.",
+                    "General", "Custom Respawn Hours", 0, 20));
+            _controlFactionNeutralNpcSpawners = Config.Bind("Spawner Classification", "ControlFactionNeutralNpcSpawners", true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Control NPC-template spawners with killed-state even when the current faction hostility check is false. This catches regular world mobs whose hostility is conditional or not restored yet.",
+                    "Spawner Classification", "Control Faction-Neutral NPC Spawners", 10, 0));
+            _additionalControlledSpawnerTerms = Config.Bind("Spawner Classification", "AdditionalControlledSpawnerTerms", "",
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Optional semicolon-separated spawner/template terms to force into respawn control when the built-in classifier misses a regular mob family.",
+                    "Spawner Classification", "Additional Controlled Spawner Terms", 10, 10));
+            _ignoredSpawnerTerms = Config.Bind("Spawner Classification", "IgnoredSpawnerTerms", "",
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Optional semicolon-separated spawner/template terms to force out of respawn control when a world object or passive spawner is misclassified.",
+                    "Spawner Classification", "Ignored Spawner Terms", 10, 20));
+            _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Log spawner keys, lock creation, blocked cooldown and rest checks, special-spawn bypasses, skipped spawners with classification reasons, repairs, and expiry decisions.",
+                    "Diagnostics", "Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 0));
+            _showGrailFloatingTextDiagnostics = Config.Bind("Diagnostics", "ShowGrailFloatingTextDiagnostics", true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Show deduplicated Grail Floating Text lifecycle messages when an encounter is locked, a rest is blocked, its ERC delay ends, or it respawns. Simultaneous events are summarized while Diagnostics is enabled.",
+                    "Diagnostics", "Show Grail Floating Text Diagnostics",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 10));
+            _blockedLogIntervalSeconds = Config.Bind("Diagnostics", "BlockedLogIntervalSeconds", 15f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Minimum real seconds between repeated blocked-respawn diagnostics for the same spawner.",
+                    "Diagnostics", "Blocked Log Interval Seconds",
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder, 20));
             RestorePreservedSpawnerOverrides();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -412,7 +441,7 @@ namespace EnemyRespawnControl
                     continue;
                 }
 
-                if (!String.Equals(currentSection, "2. Spawner Classification", StringComparison.Ordinal))
+                if (!String.Equals(currentSection, "Spawner Classification", StringComparison.Ordinal))
                 {
                     continue;
                 }

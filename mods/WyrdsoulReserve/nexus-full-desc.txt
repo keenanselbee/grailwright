@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Wyrdsoul Reserve[/size][/color]
 [i]Store a second bar of Wyrd Power in three visible overflow diamonds.[/i][/center]
 
@@ -70,6 +70,8 @@ BepInEx/config/ks.tgfoa.wyrdsoul-reserve.cfg
 | Diagnostics                       | false   | Detailed runtime logging                     |
 [/code]
 
+FoA Mod Manager orders the clean sections as [b]General[/b], [b]Resource[/b], [b]HUD[/b], [b]Diagnostics[/b], and finally [b]Import Previous Settings[/b].
+
 [line]
 
 [heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
@@ -102,11 +104,17 @@ Automatically preserved: Enabled, all resource tuning, all HUD layout settings, 
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*]Glorious UI HUD ownership is supported. Wyrdsoul Reserve follows the live Wyrd indicator instead of competing for its screen position.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] HUD ownership is supported. Wyrdsoul Reserve follows the live Wyrd indicator instead of competing for its screen position.[/*]
+[/list]
+
+[list]
 [*]The plugin intercepts only the live hero's Wyrd duration stat and guards loading and discarded models during scene transitions.[/*]
 [*]Mods that replace the Wyrd Power resource, activation lifecycle, or save behavior may conflict.[/*]
-[*][b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.[/*]
 [/list]
 
 [line]

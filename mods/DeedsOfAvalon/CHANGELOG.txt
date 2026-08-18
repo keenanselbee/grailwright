@@ -1,3 +1,11 @@
+Version 1.7.7
+Removed numeric prefixes from the generated General, Quick Wheel, Integrations, and Diagnostics raw sections while preserving the established semantic FoA Mod Manager layout.
+Advanced ConfigSchemaVersion from 11 to 12 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last.
+
+Version 1.7.6
+Changed the Potions Used quick-wheel statistic from Gold to Grail Floating Text's Blue pool while Food Eaten remains Gold, matching GFT's consumable notification colors.
+
 Version 1.7.5
 Changed the Blood Essence and Blood Power progression row to use Grail Floating Text's blood-magic icon while Simple-mode Corpses Drained retains its average corpse-quality icon.
 

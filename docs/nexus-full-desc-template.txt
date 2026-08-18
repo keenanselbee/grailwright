@@ -1,4 +1,4 @@
-[center][url=https://www.nexusmods.com/profile/MandalfBaldog/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
+[center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]{{Mod Display Name}}[/size][/color]
 [i]{{Short one-line subtitle focused on the player-facing benefit.}}[/i][/center]
 
@@ -58,9 +58,19 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 [line]
 
 [heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+
+[b]Grailwright mods[/b]
+
 [list]
-[*]{{Known supported integrations, dependencies, or conflicts.}}[/*]
-[*]{{Mention incompatible old DLLs, branch/runtime limits, or mod conflicts when relevant.}}[/*]
+[*]{{Published Grailwright mod name and its relevant integration, dependency, or conflict. Do not include a version number or "or newer" qualifier.}}[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
+[/list]
+
+[b]Other mods[/b]
+
+[list]
+[*]{{Other supported integration, dependency, or conflict.}}[/*]
+[*]{{Mention incompatible old DLLs or third-party mod conflicts when relevant.}}[/*]
 [/list]
 
 [line]
@@ -83,7 +93,9 @@ Template rules:
 - Avoid em dashes as comma substitutes. Prefer a comma unless the sentence genuinely requires stronger punctuation.
 - Use `ks.tgfoa.<mod-slug>` for BepInEx plugin GUIDs and config file names.
 - Link the first nearby mention of each published mod name with `[url=...]Mod Name[/url]`; leave close repeats unlinked or bold so the page does not become link-noisy.
-- Use the optional Grail Floating Text diagnostics sentence only when the page has no more useful linked Grail Floating Text integration or dependency description. When used, put it in Compatibility or Optional Integrations: `[b]Optional diagnostics:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors in-game, with details in the BepInEx log.`
+- In Compatibility, list linked Grailwright mods first under `[b]Grailwright mods[/b]`, then third-party mods under `[b]Other mods[/b]`. Alphabetize each group by displayed mod name and omit a group when it would be empty.
+- Do not put version numbers or phrases such as `or newer` on Grailwright mod entries in Compatibility. Put a genuinely required minimum API or dependency version in Requirements or the relevant integration details instead.
+- Use this standard opening for the Grail Floating Text bullet in Compatibility when it accurately describes the mod: `[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.` This sentence is generally enough. Expand the bullet only with concise behavior that is useful for players to know; keep implementation detail and extensive integration guidance in the relevant feature, configuration, or requirements section. Omit the bullet from Grail Floating Text's own page and from mods that do not integrate with it.
 - Include Updating only for config-owning mods and place it directly after Install.
 - Keep the Config updates and Import Previous Settings paragraphs identical to the template. Tailor only the optional Automatically preserved line.
 - List only settings the mod actually restores automatically. Omit Automatically preserved when the mod has no automatic durable-setting allowlist.

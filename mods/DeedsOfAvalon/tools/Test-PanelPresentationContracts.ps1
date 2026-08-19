@@ -9,6 +9,8 @@ $source = Get-Content -LiteralPath (Join-Path $modRoot "src\DeedsOfAvalon.cs") -
 
 $requiredContracts = @(
     'facts.Set("blood.essence", Math.Max(0, Mathf.RoundToInt(bloodEssence)));',
+    'facts.Set("blood.power", Mathf.Clamp(bloodPower, 0.0f, 200.0f));',
+    'int bloodPower = Mathf.Clamp(Mathf.RoundToInt(facts.Get("blood.power", 0.0f)), 0, 200);',
     'int displayedBloodEssence = DisplayInteger("Blood Essence", bloodEssence);',
     'int displayedBloodPower = DisplayInteger("Blood Power", bloodPower);',
     'case "Blood Power": return 21;',
@@ -69,6 +71,12 @@ $requiredContracts = @(
     'GetParameters().Length != 38',
     '[HarmonyPatch(typeof(VQuickUseWheelUI), "Appear")]',
     '[HarmonyPatch(typeof(VQuickUseWheelUI), "Disappear")]',
+    '[HarmonyPatch(typeof(VMenuUI), "OnInitialize")]',
+    '[HarmonyPatch(typeof(VMenuUI), "OnDiscard")]',
+    '_showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true',
+    '_showPauseMenuStatistics = Config.Bind("Pause Menu", "ShowCharacterStatistics", true',
+    '&& _pauseMenuView.gameObject.activeInHierarchy;',
+    'ShouldShowPanel(pauseMenuVisible)',
     'World.Events.ModelDiscarded<QuickUseWheelUI>()',
     '_nextPanelRefresh = now + 0.2f;',
     'new Category("foes.magic.damage.other", "Other", "magic", "White")',
@@ -97,6 +105,10 @@ foreach ($contract in $requiredContracts) {
 
 if ($source.IndexOf('" | Blood Power: "', [StringComparison]::Ordinal) -ge 0) {
     throw "The obsolete long Blood Power label remains in the panel source."
+}
+if (($source.IndexOf('Mathf.Clamp(bloodPower, 0.0f, 120.0f)', [StringComparison]::Ordinal) -ge 0) -or
+    ($source.IndexOf('Mathf.Clamp(Mathf.RoundToInt(facts.Get("blood.power", 0.0f)), 0, 120)', [StringComparison]::Ordinal) -ge 0)) {
+    throw "Blood Power still uses the obsolete 120 cap."
 }
 if ($source.IndexOf('"Fishes Caught"', [StringComparison]::Ordinal) -ge 0) {
     throw "The obsolete Fishes Caught label remains in the panel source."

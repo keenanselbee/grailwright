@@ -1,1 +1,1 @@
-Tracks per-save character statistics and presents them in panels beside the quick wheel.
+Tracks per-save character statistics and presents them beside the quick wheel and pause menu.

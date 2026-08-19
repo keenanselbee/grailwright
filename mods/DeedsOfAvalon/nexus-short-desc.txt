@@ -1,1 +1,1 @@
-Save-backed character deeds, live resources, and detailed weapon, magic, and summon kill statistics in a configurable two-column quick-wheel panel, with Blood Magic Expansion integration and readable per-character exports.
+Save-backed character deeds, live resources, and detailed weapon, magic, and summon kill statistics in configurable two-column quick-wheel and pause-menu panels, with Blood Magic Expansion integration and readable per-character exports.

@@ -1,3 +1,8 @@
+Version 1.8.0
+Added the same right-anchored character-statistics panel to the root ESC system/pause menu while keeping it hidden on nested save, load, settings, and other overlay screens.
+Added independent default-on Show In Quick Wheel and Show In Pause Menu toggles without changing the config schema; the existing quick-wheel setting retains its saved value.
+Updated Blood Magic Expansion progression presentation to retain Blood Power through its new 200 cap while normal mastery remains at 100.
+
 Version 1.7.7
 Removed numeric prefixes from the generated General, Quick Wheel, Integrations, and Diagnostics raw sections while preserving the established semantic FoA Mod Manager layout.
 Advanced ConfigSchemaVersion from 11 to 12 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

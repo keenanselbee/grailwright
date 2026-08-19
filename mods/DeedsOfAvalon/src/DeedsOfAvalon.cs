@@ -30,6 +30,7 @@ using Awaken.TG.Main.Locations.Gems.GemManagement;
 using Awaken.TG.Main.Memories;
 using Awaken.TG.Main.Saving.Cloud.Services;
 using Awaken.TG.Main.Stories.Quests;
+using Awaken.TG.Main.UI.Menu;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -38,12 +39,12 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Deeds of Avalon - Character Statistics")]
-[assembly: AssemblyDescription("Save-bounded character statistics and quick-wheel presentation for Tainted Grail: The Fall of Avalon")]
+[assembly: AssemblyDescription("Save-bounded character statistics and menu presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.7.7.0")]
-[assembly: AssemblyFileVersion("1.7.7.0")]
-[assembly: AssemblyInformationalVersion("1.7.7")]
+[assembly: AssemblyVersion("1.8.0.0")]
+[assembly: AssemblyFileVersion("1.8.0.0")]
+[assembly: AssemblyInformationalVersion("1.8.0")]
 
 namespace DeedsOfAvalon
 {
@@ -158,7 +159,7 @@ namespace DeedsOfAvalon
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
         public const string PluginName = "Deeds of Avalon - Character Statistics";
-        public const string PluginVersion = "1.7.7";
+        public const string PluginVersion = "1.8.0";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -203,6 +204,7 @@ namespace DeedsOfAvalon
         private IEventListener _quickWheelDiscardListener;
         private bool _globalEventsBound;
         private bool _wheelWasOpen;
+        private VMenuUI _pauseMenuView;
         private float _nextPanelRefresh;
         private float _nextBindAttempt;
         private float _pendingLoadedExportAt = -1.0f;
@@ -218,6 +220,7 @@ namespace DeedsOfAvalon
         private MethodInfo _gftSetTooltipActiveMethod;
         private MethodInfo _gftClearMethod;
         private bool _gftIconsRegistered;
+        private bool _panelPresentationActive;
         private MethodInfo _bloodMagicIsDamageMethod;
         private MethodInfo _bloodMagicIsDisplayNameMethod;
         private FieldInfo _characterPointsCanvasGroupField;
@@ -228,6 +231,7 @@ namespace DeedsOfAvalon
         private ConfigEntry<bool> _trackStatistics;
         private ConfigEntry<bool> _exportOnSuccessfulSave;
         private ConfigEntry<bool> _showQuickWheelStatistics;
+        private ConfigEntry<bool> _showPauseMenuStatistics;
         private ConfigEntry<bool> _hideItemTooltipText;
         private ConfigEntry<float> _panelOpacity;
         private ConfigEntry<float> _tooltipPanelOpacity;
@@ -295,10 +299,9 @@ namespace DeedsOfAvalon
             if (_enabled == null || !_enabled.Value)
             {
                 _statisticsWereTracking = false;
-                if (_wheelWasOpen)
-                {
-                    CloseWheelPresentation();
-                }
+                _visibleTooltipIds.Clear();
+                RestoreCharacterPoints();
+                ClearGftPanel();
                 return;
             }
 
@@ -323,18 +326,23 @@ namespace DeedsOfAvalon
                     : now + 1.0f;
             }
 
-            if (!_wheelWasOpen)
+            bool pauseMenuVisible = IsPauseMenuVisible();
+            if (!_wheelWasOpen && !pauseMenuVisible)
             {
+                ClearGftPanel();
                 return;
             }
 
-            ApplyPointsAvailableVisibility();
-            if (_showQuickWheelStatistics.Value && now >= _nextPanelRefresh)
+            if (_wheelWasOpen)
+            {
+                ApplyPointsAvailableVisibility();
+            }
+            if (ShouldShowPanel(pauseMenuVisible) && now >= _nextPanelRefresh)
             {
                 _nextPanelRefresh = now + 0.2f;
                 PublishPanel();
             }
-            else if (!_showQuickWheelStatistics.Value)
+            else if (!ShouldShowPanel(pauseMenuVisible))
             {
                 ClearGftPanel();
             }
@@ -342,7 +350,11 @@ namespace DeedsOfAvalon
 
         private void OnDestroy()
         {
-            CloseWheelPresentation();
+            _wheelWasOpen = false;
+            _pauseMenuView = null;
+            _visibleTooltipIds.Clear();
+            RestoreCharacterPoints();
+            ClearGftPanel();
             DisposeHeroListeners();
             RemoveListener(ref _questListener);
             RemoveListener(ref _locationListener);
@@ -382,12 +394,13 @@ namespace DeedsOfAvalon
         private void BindConfig()
         {
             ResetConfigIfSchemaChanged();
-            _enabled = Config.Bind("General", "Enabled", true, ConfigUi("Master switch for tracking, export, and quick-wheel presentation.", "General", "Enabled", 0, 0));
+            _enabled = Config.Bind("General", "Enabled", true, ConfigUi("Master switch for tracking, export, and menu presentation.", "General", "Enabled", 0, 0));
             Config.Bind("General", "ConfigSchemaVersion", ConfigSchemaVersion, new ConfigDescription("Configuration layout version. Do not edit manually.", null, new System.ComponentModel.BrowsableAttribute(false)));
             _trackStatistics = Config.Bind("General", "TrackStatistics", true, ConfigUi("Record character statistics in the active save game's GameplayMemory.", "General", "Track Statistics", 0, 10));
             _exportOnSuccessfulSave = Config.Bind("General", "ExportOnSuccessfulSave", true, ConfigUi("Write the readable character file only after a save succeeds, and refresh it after loading saved data.", "General", "Export After Successful Save", 0, 20));
 
-            _showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true, ConfigUi("Show the two-column Deeds of Avalon panel while the quick wheel is open. Requires Grail Floating Text.", "General", "Show Character Statistics", 0, 30));
+            _showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true, ConfigUi("Show the two-column Deeds of Avalon panel while the quick wheel is open. Requires Grail Floating Text.", "General", "Show In Quick Wheel", 0, 30));
+            _showPauseMenuStatistics = Config.Bind("Pause Menu", "ShowCharacterStatistics", true, ConfigUi("Show the same Deeds of Avalon panel on the root ESC system menu. Requires Grail Floating Text.", "General", "Show In Pause Menu", 0, 40));
             _hideItemTooltipText = Config.Bind("Quick Wheel", "HideItemTooltipText", false, ConfigUi("Hide the normal weapon and spell tooltip on the quick wheel. Disabled by default.", "Tooltip Behavior", "Hide Item Tooltip Text", 10, 0));
             _tooltipPanelOpacity = Config.Bind("Quick Wheel", "TooltipPanelOpacity", 0.0f, ConfigUi("Multiplier applied to the statistics panel while a weapon or spell tooltip is visible.", "Tooltip Behavior", "Panel Opacity With Tooltip", 10, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
             _tooltipFadeSeconds = Config.Bind("Quick Wheel", "TooltipFadeSeconds", 0.15f, ConfigUi("Seconds used to fade the statistics panel when tooltips open or close.", "Tooltip Behavior", "Tooltip Fade Seconds", 10, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
@@ -418,7 +431,7 @@ namespace DeedsOfAvalon
             _sortFoesByKillCount = Config.Bind("Quick Wheel", "SortFoesByKillCount", true, ConfigUi("Order the visible Foes Defeated rows from highest to lowest displayed kill count. Disable to retain the authored weapon and magic grouping order.", "Panel Content", "Sort Foes By Kill Count", 70, 40));
             _showCollapsedRows = Config.Bind("Quick Wheel", "ShowCollapsedOtherRows", true, ConfigUi("Combine positive categories beyond a column limit into an Other row.", "Panel Content", "Show Collapsed Other Rows", 70, 50));
             _hidePointsAvailable = Config.Bind("Quick Wheel", "HidePointsAvailable", true, ConfigUi("Hide the top-right Points available widget only while the quick wheel is open. Defers to Glorious UI when Glorious UI owns this behavior.", "Panel Content", "Hide Points Available", 70, 60));
-            _showBloodMagicStatistics = Config.Bind("Integrations", "ShowBloodMagicStatistics", true, ConfigUi("Show Blood Essence and Blood Power above Corpses Drained in the Grail Floating Text quick-wheel panel.", "Integrations", "Show Blood Magic Statistics", 80, 0));
+            _showBloodMagicStatistics = Config.Bind("Integrations", "ShowBloodMagicStatistics", true, ConfigUi("Show Blood Essence and Blood Power above Corpses Drained in the Grail Floating Text statistics panel.", "Integrations", "Show Blood Magic Statistics", 80, 0));
             _bloodMagicStatisticsMode = Config.Bind("Integrations", "BloodMagicStatisticsMode", BloodMagicStatisticsMode.Detailed, ConfigUi("Choose Simple for Blood Essence and Blood Power plus the total Corpses Drained row, or Detailed for the progression row plus Meager, Worthy, Potent, and Prime rows. The total and tiers are never shown together.", "Integrations", "Blood Magic Statistics Mode", 80, 10));
             _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false, ConfigUi("Log event binding, panel integration, save export, and compatibility details.", "Diagnostics", "Diagnostics", 90, 0));
             RestorePreservedConfigValues();
@@ -499,6 +512,7 @@ namespace DeedsOfAvalon
             RestorePreserved(_trackStatistics, ref restoredCount, ref clampedCount);
             RestorePreserved(_exportOnSuccessfulSave, ref restoredCount, ref clampedCount);
             RestorePreserved(_showQuickWheelStatistics, ref restoredCount, ref clampedCount);
+            RestorePreserved(_showPauseMenuStatistics, ref restoredCount, ref clampedCount);
             RestorePreserved(_hideItemTooltipText, ref restoredCount, ref clampedCount);
             RestorePreserved(_panelOpacity, ref restoredCount, ref clampedCount);
             RestorePreserved(_tooltipPanelOpacity, ref restoredCount, ref clampedCount);
@@ -1191,7 +1205,7 @@ namespace DeedsOfAvalon
                 return false;
             }
             facts.Set("blood.essence", Math.Max(0, Mathf.RoundToInt(bloodEssence)));
-            facts.Set("blood.power", Mathf.Clamp(bloodPower, 0.0f, 120.0f));
+            facts.Set("blood.power", Mathf.Clamp(bloodPower, 0.0f, 200.0f));
             return true;
         }
 
@@ -1593,7 +1607,11 @@ namespace DeedsOfAvalon
             try
             {
                 _gftTrySetMethod.Invoke(null, args.ToArray());
-                SetGftTooltipActive(_visibleTooltipIds.Count > 0 && !_hideItemTooltipText.Value);
+                _panelPresentationActive = true;
+                SetGftTooltipActive(
+                    _wheelWasOpen
+                    && _visibleTooltipIds.Count > 0
+                    && !_hideItemTooltipText.Value);
             }
             catch (Exception ex)
             {
@@ -1623,7 +1641,7 @@ namespace DeedsOfAvalon
             if (_showBloodMagicStatistics.Value)
             {
                 int bloodEssence = Math.Max(0, Mathf.RoundToInt(facts.Get("blood.essence", 0.0f)));
-                int bloodPower = Mathf.Clamp(Mathf.RoundToInt(facts.Get("blood.power", 0.0f)), 0, 120);
+                int bloodPower = Mathf.Clamp(Mathf.RoundToInt(facts.Get("blood.power", 0.0f)), 0, 200);
                 int displayedBloodEssence = DisplayInteger("Blood Essence", bloodEssence);
                 int displayedBloodPower = DisplayInteger("Blood Power", bloodPower);
                 string corpseIcon = CorpseTierIcon(facts);
@@ -2168,10 +2186,15 @@ namespace DeedsOfAvalon
 
         private void ClearGftPanel()
         {
+            if (!_panelPresentationActive)
+            {
+                return;
+            }
             if (ResolveGftApi() && _gftClearMethod != null)
             {
                 try { _gftClearMethod.Invoke(null, new object[] { PluginGuid }); } catch { }
             }
+            _panelPresentationActive = false;
         }
 
         internal bool BeforeTooltipShown(VCQuickItemTooltipUI tooltip)
@@ -2274,7 +2297,40 @@ namespace DeedsOfAvalon
             _nextPanelRefresh = 0.0f;
             _visibleTooltipIds.Clear();
             RestoreCharacterPoints();
-            ClearGftPanel();
+            RefreshPanelPresentation();
+        }
+
+        private bool IsPauseMenuVisible()
+        {
+            return _pauseMenuView != null
+                && _pauseMenuView.gameObject != null
+                && _pauseMenuView.gameObject.activeInHierarchy;
+        }
+
+        private bool ShouldShowPanel(bool pauseMenuVisible)
+        {
+            return (_wheelWasOpen
+                    && _showQuickWheelStatistics != null
+                    && _showQuickWheelStatistics.Value)
+                || (pauseMenuVisible
+                    && _showPauseMenuStatistics != null
+                    && _showPauseMenuStatistics.Value);
+        }
+
+        private void RefreshPanelPresentation()
+        {
+            float now = Time.unscaledTime;
+            _nextPanelRefresh = now + 0.2f;
+            if (_enabled != null
+                && _enabled.Value
+                && ShouldShowPanel(IsPauseMenuVisible()))
+            {
+                PublishPanel();
+            }
+            else
+            {
+                ClearGftPanel();
+            }
         }
 
         internal void OnQuickWheelAppearing()
@@ -2286,16 +2342,7 @@ namespace DeedsOfAvalon
 
             _wheelWasOpen = true;
             ApplyPointsAvailableVisibility();
-            float now = Time.unscaledTime;
-            _nextPanelRefresh = now + 0.2f;
-            if (_showQuickWheelStatistics.Value)
-            {
-                PublishPanel();
-            }
-            else
-            {
-                ClearGftPanel();
-            }
+            RefreshPanelPresentation();
         }
 
         internal void OnQuickWheelDisappearing()
@@ -2311,6 +2358,24 @@ namespace DeedsOfAvalon
             if (_wheelWasOpen)
             {
                 CloseWheelPresentation();
+            }
+        }
+
+        internal void OnPauseMenuAppearing(VMenuUI view)
+        {
+            _pauseMenuView = view;
+            if (_enabled != null && _enabled.Value)
+            {
+                RefreshPanelPresentation();
+            }
+        }
+
+        internal void OnPauseMenuDisappearing(VMenuUI view)
+        {
+            if (view == null || ReferenceEquals(_pauseMenuView, view))
+            {
+                _pauseMenuView = null;
+                RefreshPanelPresentation();
             }
         }
 
@@ -2539,6 +2604,30 @@ namespace DeedsOfAvalon
             if (DeedsOfAvalonPlugin.Instance != null)
             {
                 DeedsOfAvalonPlugin.Instance.OnQuickWheelDisappearing();
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(VMenuUI), "OnInitialize")]
+    internal static class PauseMenuInitializePatch
+    {
+        private static void Postfix(VMenuUI __instance)
+        {
+            if (DeedsOfAvalonPlugin.Instance != null)
+            {
+                DeedsOfAvalonPlugin.Instance.OnPauseMenuAppearing(__instance);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(VMenuUI), "OnDiscard")]
+    internal static class PauseMenuDiscardPatch
+    {
+        private static void Prefix(VMenuUI __instance)
+        {
+            if (DeedsOfAvalonPlugin.Instance != null)
+            {
+                DeedsOfAvalonPlugin.Instance.OnPauseMenuDisappearing(__instance);
             }
         }
     }

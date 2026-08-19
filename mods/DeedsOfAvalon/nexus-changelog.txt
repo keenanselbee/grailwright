@@ -1,3 +1,4 @@
-TargetVersion=1.7.7
-BaselineVersion=1.7.6
-Removed numeric prefixes from the generated config while preserving the established semantic FoA Mod Manager ordering, with Diagnostics penultimate and Import Previous Settings last.
+TargetVersion=1.8.0
+BaselineVersion=1.7.7
+Added the character-statistics panel to the root ESC system/pause menu, with independent default-on visibility toggles for the pause menu and quick wheel. The panel stays clear on nested save, load, settings, and other overlay screens.
+Updated Blood Magic Expansion progression presentation to retain Blood Power through its new 200 cap while normal mastery remains at 100.

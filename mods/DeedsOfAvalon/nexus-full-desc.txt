@@ -1,19 +1,19 @@
 [center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Deeds of Avalon[/size][/color]
-[i]Save-backed character deeds and combat statistics, presented beside the quick wheel.[/i][/center]
+[i]Save-backed character deeds and combat statistics, presented beside the quick wheel and pause menu.[/i][/center]
 
 [line]
 
-[b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save and presents them through a responsive two-column quick-wheel panel.
+[b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save and presents them through a responsive two-column panel beside the quick wheel and root ESC system menu.
 
-The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for its fonts, semantic colors, icons, text effects, and charcoal backplates. Version 2.4.4+ supplies the quality-tier corpse icons. Statistics tracking and readable JSON export continue to work when GFT is absent; only the quick-wheel panel requires it.
+The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for its fonts, semantic colors, icons, text effects, and charcoal backplates. Version 2.4.4+ supplies the quality-tier corpse icons. Statistics tracking and readable JSON export continue to work when GFT is absent; only the menu panels require it.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Statistics that belong to the save:[/b] Counters are stored per character in the active save instead of a global config or external report.[/*]
-[*][b]Quick-wheel character summary:[/b] See level, XP, resources, available points, deeds, progression, and combat totals without opening another menu.[/*]
+[*][b]At-a-glance character summary:[/b] See level, XP, resources, available points, deeds, progression, and combat totals beside the quick wheel or on the root pause menu.[/*]
 [*][b]Detailed foe attribution:[/b] Track individual one-handed and two-handed weapon types, bows, shields, unarmed attacks, throwables, named spells, damage types, Blood Magic, summons, and fallbacks.[/*]
 [*][b]Useful activity records:[/b] Follow exploration, crafting, consumption, fishing, thievery, crime, bounty, rest, deaths, and total Gold earned. Statistics at zero stay hidden, except Deaths.[/*]
 [*][b]Highest kills first:[/b] Foe rows sort from highest to lowest by default. Disable the option to restore the authored weapon and magic grouping.[/*]
@@ -23,7 +23,7 @@ The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/2
 
 [line]
 
-[heading][color=#C94A4A][size=5]Quick-Wheel Panel[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Quick-Wheel and Pause-Menu Panel[/size][/color][/heading]
 [code]
 | Area  | Contents                         |
 |-------|----------------------------------|
@@ -142,7 +142,7 @@ Total foes, corpse-drain totals, and current bounty reconcile from their authori
 [*][b]Charcoal backplates:[/b] Two separately seeded procedural black alpha masks provide different mottling, fibers, transparent gutters, and softly irregular edges. Their subtractive design keeps contrast without becoming gray rectangles in black interiors.[/*]
 [*][b]Native text effects:[/b] Configurable SDF outlines and underlays provide strong contrast without the dozens of copied text objects required by layered UI shadows.[/*]
 [*][b]Tooltip-aware fading:[/b] Normal weapon and spell tooltips remain enabled. The statistics panel fades out by default while either tooltip is visible, then returns smoothly.[/*]
-[*][b]Direct wheel lifecycle:[/b] The panel appears as the quick wheel opens and clears as closing begins. Values refresh five times per second only while open; Deeds does not search the world for the wheel every frame.[/*]
+[*][b]Direct menu lifecycle:[/b] The panel appears as the quick wheel or root ESC menu opens and clears as closing begins. It also clears when a nested save, load, settings, or other overlay hides the root pause menu. Values refresh five times per second only while a supported surface is open.[/*]
 [/list]
 
 Semantic White text receives a small fixed outline-strength adjustment for Level/XP, HP/MP/SP, Total, and contextual point rows. This does not affect icons or Pale text.
@@ -155,12 +155,12 @@ Deeds supports [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/2
 [code]
 | Mod         | Adds                          |
 |-------------|-------------------------------|
-| GFT         | Quick-wheel panel             |
+| GFT         | Quick-wheel and pause panels   |
 | Blood Magic | Essence, Power, corpse tiers  |
 | Eyes        | Semantic Wyrd colors          |
 | Glorious UI | Points widget ownership       |[/code]
 
-[b]Blood Magic Expansion 2.6.7+:[/b] Deeds displays [b]Blood Essence: X (Y)[/b], where X is integer Blood Essence and Y is Blood Power. Blood Essence remains uncapped; Blood Power reaches normal mastery at 100 and its hard cap at 120.
+[b]Blood Magic Expansion 2.6.7+:[/b] Deeds displays [b]Blood Essence: X (Y)[/b], where X is integer Blood Essence and Y is Blood Power. Blood Essence remains uncapped; Blood Power reaches normal mastery at 100 and its hard cap at 200.
 
 [b]BloodMagicStatisticsMode[/b] chooses mutually exclusive corpse rows:
 
@@ -195,7 +195,8 @@ BepInEx/config/ks.tgfoa.deeds-of-avalon.cfg[/code]
 | Enabled                  | true     |
 | TrackStatistics          | true     |
 | ExportOnSuccessfulSave   | true     |
-| ShowCharacterStatistics  | true     |
+| Show In Quick Wheel      | true     |
+| Show In Pause Menu       | true     |
 | HideItemTooltipText      | false    |
 | PanelScale               | 1.5      |
 | PanelColumnWidth         | 190      |
@@ -223,7 +224,7 @@ BepInEx/plugins/DeedsOfAvalon/DeedsOfAvalon.dll[/code]
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
 [*]Supports Windows and Linux.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for the quick-wheel panel.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for the quick-wheel and pause-menu panels.[/*]
 [/list]
 
 [line]

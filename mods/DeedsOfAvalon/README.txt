@@ -1,10 +1,11 @@
 Deeds of Avalon - Character Statistics
-Version 1.7.7
+Version 1.8.0
 
 Platforms: Windows and Linux through Proton.
 
 Deeds of Avalon records character statistics inside the active save game and
-shows a right-anchored, two-column summary while the quick wheel is open.
+shows a right-anchored, two-column summary while the quick wheel or root ESC
+system menu is open.
 
 Identity:
 
@@ -18,10 +19,10 @@ General, Tooltip Behavior, Panel Layout, Panel Background, Panel Colors,
 Text Outline, Text Backing, Panel Content, Integrations, Diagnostics, and the
 final Import Previous Settings section.
 
-Grail Floating Text 2.3.7 or newer is required for the quick-wheel panel. The
+Grail Floating Text 2.3.7 or newer is required for the menu panels. The
 statistics and JSON export still work when GFT is absent.
 
-Quick-wheel layout:
+Panel layout:
 
 <CHARACTER NAME IN ALL CAPS>   FOES DEFEATED
 Level and current/required XP  Total foes
@@ -80,9 +81,13 @@ tall row sets shrink further to stay on-screen. The full rendered text block is
 centered vertically against the quick wheel. RightOffset
 keeps the panel anchored to the right edge, while VerticalOffset provides an
 optional adjustment from the centered position.
-The panel publishes immediately when the quick wheel appears and clears as its
-close begins. Deeds does not search the world for the wheel each frame; only its
-live values refresh five times per second while the panel is open.
+The panel publishes immediately when the quick wheel or root ESC system menu
+appears and clears as its close begins. It also clears while a nested save,
+load, settings, or other overlay screen hides the root pause menu. Show In
+Quick Wheel and Show In Pause Menu independently control the two surfaces and
+both default to enabled. Deeds does not search the world for either menu each
+frame; only its live values refresh five times per second while a panel surface
+is open.
 
 WeaponStatisticsMode defaults to Detailed for individual weapon types. Grouped
 combines the same saved counters into One-Handed, Two-Handed, and Bows while

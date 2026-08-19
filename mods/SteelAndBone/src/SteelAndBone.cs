@@ -31,9 +31,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.8.8.0")]
-[assembly: AssemblyFileVersion("3.8.8.0")]
-[assembly: AssemblyInformationalVersion("3.8.8")]
+[assembly: AssemblyVersion("3.9.0.0")]
+[assembly: AssemblyFileVersion("3.9.0.0")]
+[assembly: AssemblyInformationalVersion("3.9.0")]
 
 namespace SteelAndBone
 {
@@ -136,7 +136,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.8.8";
+        public const string PluginVersion = "3.9.0";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -417,6 +417,7 @@ namespace SteelAndBone
         private ConfigEntry<float> _eliteWeaknessBonusReduction;
         private ConfigEntry<float> _eliteMinimumResistanceMultiplier;
         private ConfigEntry<bool> _damageNumbersEnabled;
+        private ConfigEntry<DamageNumberMode> _damageNumberMode;
         private ConfigEntry<string> _damageNumberBaseColor;
         private ConfigEntry<int> _damageNumberFontSize;
         private ConfigEntry<DamageNumberFontMode> _damageNumberFontMode;
@@ -587,7 +588,8 @@ namespace SteelAndBone
             _minimumAmplifiedVanillaResistance = Config.Bind("Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Minimum Amplified Resistance", 30, 40, new AcceptableValueRange<float>(0.01f, 0.95f)));
             _maximumAmplifiedVanillaWeakness = Config.Bind("Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50, new AcceptableValueRange<float>(1.05f, 3.0f)));
 
-            _damageNumbersEnabled = Config.Bind("Feedback", "DamageNumbersEnabled", true, ConfigUi("Show Steel and Bone floating damage numbers for outgoing player hits.", "Damage Numbers", "Enabled", 40, 0));
+            _damageNumbersEnabled = Config.Bind("Feedback", "DamageNumbersEnabled", true, ConfigUi("Master switch for Steel and Bone floating combat text. Damage Number Mode controls whether this shows numbers or only resistance and immunity notices.", "Damage Numbers", "Enabled", 40, 0));
+            _damageNumberMode = Config.Bind("Feedback", "DamageNumberMode", DamageNumberMode.AllDamage, ConfigUi("AllDamage shows the current outgoing damage numbers. ResistAndImmuneOnly replaces numbers with RESISTED or IMMUNE on every qualifying direct hit. ResistAndImmuneOnlyOnce shows each notice only once per enemy. Damage-over-time ticks never produce notice-only text.", "Damage Numbers", "Mode", 40, 5));
             _damageNumberBaseColor = Config.Bind("Feedback", "DamageNumberBaseColor", DefaultDamageNumberBaseColor, ConfigUi("When Damage Numbers is enabled, sets the neutral outgoing color and baseline for resistance/weakness tinting. Use a hex color such as #E3BD02.", "Damage Numbers", "Base Color", 40, 10));
             _damageNumberFontSize = Config.Bind("Feedback", "DamageNumberFontSize", 34, ConfigUi("When Damage Numbers is enabled, sets the base floating damage-number font size.", "Damage Numbers", "Font Size", 40, 20, new AcceptableValueRange<int>(12, 80)));
             _damageNumberFontMode = Config.Bind("Feedback", "DamageNumberFontMode", DamageNumberFontMode.GameDefault, ConfigUi("Font used when Damage Numbers is enabled. GameDefault follows the game's Accessibility font choice, Sans forces the simple game font, Serif forces the stylized game font, and ImguiDefault keeps Unity's IMGUI fallback font.", "Damage Numbers", "Font", 40, 30));
@@ -800,6 +802,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _minimumAmplifiedVanillaResistance, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _maximumAmplifiedVanillaWeakness, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumbersEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _damageNumberMode, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberBaseColor, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberFontSize, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumberFontMode, ref restoredCount, ref clampedCount);
@@ -4461,11 +4464,82 @@ namespace SteelAndBone
                 }
             }
 
-            if (DamageNumbersActive()
-                && (immune || finalAmount > GetDamageNumberMinimumAmount()))
+            if (TryPrepareDamageNumberForDisplay(
+                resolvedTarget,
+                healthElement,
+                visual,
+                finalAmount,
+                visualEffectivenessMultiplier,
+                immune,
+                oneDamageDirectAttack,
+                damageOverTime))
             {
                 _damageNumberRenderer.ShowDamageNumber(position, visual);
             }
+        }
+
+        private bool TryPrepareDamageNumberForDisplay(
+            object target,
+            object healthElement,
+            DamageNumberVisual visual,
+            float finalAmount,
+            float visualEffectivenessMultiplier,
+            bool immune,
+            bool oneDamageDirectAttack,
+            bool damageOverTime)
+        {
+            if (!DamageNumbersActive())
+            {
+                return false;
+            }
+
+            DamageNumberMode mode = GetDamageNumberMode();
+            if (mode == DamageNumberMode.AllDamage)
+            {
+                return immune || finalAmount > GetDamageNumberMinimumAmount();
+            }
+
+            if (damageOverTime)
+            {
+                return false;
+            }
+
+            bool resisted = oneDamageDirectAttack || visualEffectivenessMultiplier < 0.95f;
+            if (!immune && !resisted)
+            {
+                return false;
+            }
+
+            visual.Text = immune ? "IMMUNE" : "RESISTED";
+            if (mode != DamageNumberMode.ResistAndImmuneOnlyOnce)
+            {
+                return true;
+            }
+
+            TargetClassification classification = GetTargetClassification(target, healthElement);
+            if (ReferenceEquals(classification, TargetClassification.Empty))
+            {
+                return true;
+            }
+
+            if (immune)
+            {
+                if (classification.ImmunityNoticeShown)
+                {
+                    return false;
+                }
+
+                classification.ImmunityNoticeShown = true;
+                return true;
+            }
+
+            if (classification.ResistanceNoticeShown)
+            {
+                return false;
+            }
+
+            classification.ResistanceNoticeShown = true;
+            return true;
         }
 
         private bool DamageNumbersActive()
@@ -4475,6 +4549,13 @@ namespace SteelAndBone
                 && _damageNumbersEnabled != null
                 && _damageNumbersEnabled.Value
                 && _damageNumberRenderer != null;
+        }
+
+        private DamageNumberMode GetDamageNumberMode()
+        {
+            return _damageNumberMode == null
+                ? DamageNumberMode.AllDamage
+                : _damageNumberMode.Value;
         }
 
         private bool IsOutgoingHeroDamageOutcome(object healthElement, object damage)
@@ -5606,6 +5687,13 @@ namespace SteelAndBone
             ImguiDefault
         }
 
+        private enum DamageNumberMode
+        {
+            AllDamage,
+            ResistAndImmuneOnly,
+            ResistAndImmuneOnlyOnce
+        }
+
         private enum TargetFamily
         {
             BoneUndead,
@@ -6021,6 +6109,8 @@ namespace SteelAndBone
             public bool IsSeaFlesh;
             public bool IsSpirit;
             public bool IsFlora;
+            public bool ResistanceNoticeShown;
+            public bool ImmunityNoticeShown;
             public bool IsEliteClass;
             public bool IsBossClass;
             public bool IsBear;

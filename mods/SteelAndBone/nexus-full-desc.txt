@@ -6,9 +6,9 @@
 
 [b]Steel and Bone[/b] is a lightweight, native-first difficulty overhaul built around one idea: knowing your enemy should matter.
 
-Its material system gives bone, flesh, stone, spirit, armor, and other identities distinct reactions to physical, elemental, and status damage. Tainted Grail's existing weaknesses, resistances, and immunities remain authoritative; Steel and Bone adds focused rules only where they sharpen the matchup.
+At its core, the material system gives bone, flesh, stone, spirit, armor, and other identities distinct reactions to physical, elemental, and status damage. Tainted Grail's native weaknesses, resistances, and immunities remain authoritative; Steel and Bone adds focused rules only where they sharpen the matchup.
 
-The result is a modular difficulty layer that rewards preparation and understanding without replacing enemy AI, rewriting encounters, or inflating health bars.
+Around that foundation, optional systems improve combat feedback, enemy pressure, projectiles, armor and shields, stamina, food and potions, and late-game challenge. Together they reward preparation and strong builds without replacing enemy AI, rewriting encounters, or inflating health bars.
 
 [line]
 
@@ -44,22 +44,20 @@ This philosophy is inspired by [url=https://www.nexusmods.com/skyrimspecialediti
 Steel and Bone classifies enemies through reachable runtime and template evidence before using editable name terms as fallback. Stronger and more specific families take precedence over broad categories, and elite enemies soften custom extremes without losing their identity.
 
 [code]
-| Enemy family      | Better answers                  | Poor answers                               |
-|-------------------|---------------------------------|--------------------------------------------|
-| Bone bodies       | Blunt                           | Slash, pierce, arrows                      |
-| Bone undead       | Blunt                           | Blood, bleed, Cold, slash, pierce, arrows  |
-| Stone bodies      | Blunt; exact elemental counters | Edges, arrows                              |
-| Constructs        | Blunt; exact elemental counters | Blood, bleed, poison, Cold, edges, arrows  |
-| Armored humanoids | Blunt, spells                   | Slash, untyped physical, arrows vs Heavy   |
-| Ordinary flesh    | Blood, poison, edges            | No broad resistance                        |
-| Flesh undead      | Fire, blunt                     | Blood, bleed, poison, pierce, arrows       |
-| Wyrd creatures    | Cold vs Slimes; slash vs spawn  | No broad resistance; native reactions vary |
-| Drowned corpses   | Electric, blunt                 | Blood, bleed, pierce, arrows               |
-| Infected flesh    | Fire, slash, arrows             | Poison                                     |
-| Sea creatures     | Electric, slash, arrows         | Cold                                       |
-| Spirits           | Wyrdness                        | Biological and ordinary physical attacks   |
-| Flora and fungus  | Fire, slash, axes               | Poison, bleed, pierce, arrows              |
-| Swarms            | Area and non-arrow attacks      | Individual arrow impacts                   |[/code]
+| Enemy family              | Better answers                  | Poor answers                                      |
+|---------------------------|---------------------------------|---------------------------------------------------|
+| Bone bodies / undead      | Blunt                           | Blood, bleed, Cold, slash, pierce, arrows         |
+| Stone bodies / constructs | Blunt; exact elemental counters | Blood, bleed, poison, Cold, slash, pierce, arrows |
+| Armored humanoids         | Blunt, direct spells            | Slash, untyped physical, arrows vs Heavy armor    |
+| Ordinary flesh            | Blood, poison, slash, pierce    | No broad resistance                               |
+| Flesh undead              | Fire, blunt                     | Blood, bleed, poison, pierce, arrows              |
+| Wyrd creatures            | Exact reactions vary            | No broad resistance                               |
+| Drowned corpses           | Electric, blunt                 | Blood, bleed, pierce, arrows                      |
+| Infected flesh            | Fire, slash, arrows             | Poison                                            |
+| Sea creatures             | Electric, slash, arrows         | Cold                                              |
+| Spirits                   | Wyrdness                        | Biological and ordinary physical attacks          |
+| Flora and fungus          | Fire, slash, axes               | Poison, bleed, pierce, arrows                     |
+| Swarms                    | Area and non-arrow attacks      | Individual arrow impacts                          |[/code]
 
 Exact strength depends on the preset and each enemy's native data. Existing reactions are preserved or strengthened rather than duplicated, and true immunities remain intact.
 
@@ -91,6 +89,8 @@ Magic follows material identity rather than ignoring armor. On Hardened, direct 
 
 Material impact keeps reactions proportional to effectiveness. Every resisted direct player hit carries 60% of its resistance into reduced poise and force, without letting weaknesses amplify control. Immune or very strongly resisted hits also lose the routine small flinch. Genuine poise breaks, force stumbles, ragdolls, damage processing, effects, and aggro remain intact.
 
+Focused techniques provide fallback options without replacing material counters: pommel strikes count as Blunt against bone, stone, and armor; heavy melee attacks partially breach rigid resistance; and area hits pressure neutral swarms. Native reactions still take priority.
+
 [line]
 
 [heading][color=#C94A4A][size=5]Readable Combat Feedback[/size][/color][/heading]
@@ -98,7 +98,7 @@ Material impact keeps reactions proportional to effectiveness. Every resisted di
 
 [b]Floating damage numbers[/b]
 
-Built-in damage numbers make matchups easy to read: resisted hits appear smaller and greyer, weaknesses larger and warmer, immunities use distinct styling, and critical or weak-spot hits gain a red tint. Damage-over-time ticks appear higher and smaller to reduce clutter.
+Built-in damage numbers make matchups easy to read: resisted hits appear smaller and greyer, weaknesses larger and warmer, immunities use distinct styling, and critical or weak-spot hits gain a red tint. Damage-over-time ticks appear higher and smaller to reduce clutter. Optional notice-only modes can replace numbers with RESISTED and IMMUNE text on every qualifying direct hit or only once per enemy.
 
 [b]Effectiveness Feedback Sensitivity[/b] controls visual emphasis without changing damage. Confirmed weak spots add 10-30% base damage depending on the preset, while native critical damage remains unchanged. Size, color, font, timing, drift, damage-over-time display, and active-number limits are configurable.
 
@@ -113,14 +113,12 @@ Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quali
 
 [heading][color=#C94A4A][size=5]Expanded Combat Systems[/size][/color][/heading]
 
-Steel and Bone increases combat pressure without replacing Tainted Grail's native AI or encounter design. Enemies become more alert and coordinated, projectiles become more dangerous, and armor choices gain clearer roles. Each major system remains independently configurable.
+Steel and Bone raises combat pressure without replacing Tainted Grail's native AI or encounter design. Late-game enemies hold their ground longer, groups become more aggressive, projectiles pose a greater threat, and armor choices gain clearer roles. Each system remains independently configurable.
 
 
 [b]Progressive Tenacity - Smoother late-game difficulty curve[/b]
 
-Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. It works with every preset, leaves the early game unchanged, avoids inflated health bars and ability immunities, and can be disabled with [b]ProgressiveTenacityEnabled[/b].
-
-Strong builds and material weaknesses remain effective. Pommel strikes offer the Blunt matchup against bone, stone, and ordinary armor; heavy melee attacks partially breach rigid resistance; and direct area hits pressure otherwise-neutral swarms. Native reactions still take priority.
+Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. Strong builds and material weaknesses remain effective. It works with every preset, leaves the early game unchanged, avoids inflated health bars and ability immunities, and can be disabled with [b]ProgressiveTenacityEnabled[/b].
 
 
 [b]Enemy awareness and pressure[/b]
@@ -191,7 +189,7 @@ Food becomes sustained preparation instead of a rapid combat heal. Its native he
 Repeatedly drinking the same class of potion builds toward Potion Poisoning. Health, Mana, Stamina, and Utility potions each use their own buildup, so mixing different classes is safer than repeatedly relying on one resource.
 
 [list]
-[*]Repeating one class within 2 seconds on Tempered, 3 seconds on Hardened, or 4 seconds on Crucible triggers poisoning.[/*]
+[*]Two potions from the same class are safe. A third triggers poisoning when the first-to-third span is within 5 seconds on Tempered, 10 seconds on Hardened, or 15 seconds on Crucible.[/*]
 [*]Health, Mana, and Stamina poisoning drain 30% of the corresponding maximum resource over the status duration.[/*]
 [*]Utility poisoning drains 15% of maximum Health, Mana, and Stamina together. Buffs, cures, locks, regeneration potions, resets, and miscellaneous consumables share this class.[/*]
 [*]A potion that restores more than one resource counts toward each matching class but can produce only one poisoning status.[/*]
@@ -200,7 +198,7 @@ Repeatedly drinking the same class of potion builds toward Potion Poisoning. Hea
 [*]Potion restoration, unrelated effects, item text, and Better UI presentation otherwise remain native.[/*]
 [/list]
 
-Potion Poisoning uses the game's native status icon and decay. Its purpose is to discourage rapid repetition, not to prevent careful or varied potion use.
+Potion Poisoning uses the game's native status icon and duration. Class buildup clears gradually according to the preset, giving careful or varied potion use room without removing the danger of repeated reliance on one class.
 
 [line]
 
@@ -226,7 +224,8 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 | Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
 | Positive combat mana regen      | x1.00    | x0.75       | x0.50       |
 | Positive parry-window bonus     | x1.00    | x0.75       | x0.50       |
-| Potion Poisoning per class      | 60       | 65          | 70          |
+| Safe same-class potions         | 2        | 2           | 2           |
+| Third-potion poisoning window   | 5 sec    | 10 sec      | 15 sec      |
 | Standard food health rate       | x0.50    | x0.375      | x0.25       |
 | Standard food health duration   | x4.00    | x4.00       | x4.00       |
 | Discrete food stamina / second  | 1        | 1           | 1           |

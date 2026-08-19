@@ -72,7 +72,7 @@ namespace SteelAndBone
         private const string TimedPotionRestorationGraphGuid = "4d431d204820819429d8f7bac4177644";
         private const float NativePotionPoisoningBuildup = 60.0f;
         private const float NativePotionPoisoningThreshold = 100.0f;
-        private const float NativePotionPoisoningDecayPerSecond = 10.0f;
+        private const float PotionPoisoningBuildupPerPotion = 40.0f;
         private const float ResourcePotionPoisoningDrainFraction = 0.30f;
         private const float UtilityPotionPoisoningDrainFraction = 0.15f;
         private const float FoodStaminaTickSeconds = 1.0f;
@@ -453,7 +453,7 @@ namespace SteelAndBone
                 "Difficulty - Player",
                 "ModifyPotionOverdrinking",
                 true,
-                ConfigUi("Track Potion Poisoning separately for Health, Mana, Stamina, and Utility potions at 60, 65, or 70 buildup according to the preset when Difficulty Modifiers is enabled. A Health, Mana, or Stamina trigger drains 30% of that resource over the native status; Utility drains 15% of all three. Mixing classes does not combine their buildup.", "Difficulty - Player", "Potion Overdrinking", 60, 120));
+                ConfigUi("Track Potion Poisoning separately for Health, Mana, Stamina, and Utility potions when Difficulty Modifiers is enabled. Two same-class potions are safe; a third triggers poisoning when the first-to-third span is within 5, 10, or 15 seconds according to the preset. A Health, Mana, or Stamina trigger drains 30% of that resource over the native status; Utility drains 15% of all three. Mixing classes does not combine their buildup.", "Difficulty - Player", "Potion Overdrinking", 60, 120));
             _modifyFoodRecovery = Config.Bind(
                 "Difficulty - Player",
                 "ModifyFoodRecovery",
@@ -1504,22 +1504,22 @@ namespace SteelAndBone
             }
         }
 
-        private float PresetPotionPoisoningBuildup()
+        private float PresetPotionPoisoningDecayPerSecond()
         {
             if (_preset == null)
             {
-                return NativePotionPoisoningBuildup;
+                return 2.0f;
             }
 
             switch (_preset.Value)
             {
                 case Preset.Hardened:
-                    return 65.0f;
+                    return 2.0f;
                 case Preset.Crucible:
-                    return 70.0f;
+                    return 4.0f / 3.0f;
                 case Preset.Tempered:
                 default:
-                    return 60.0f;
+                    return 4.0f;
             }
         }
 
@@ -2263,7 +2263,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float buildup = PresetPotionPoisoningBuildup();
+            float buildup = PotionPoisoningBuildupPerPotion;
             if ((state.PotionPoisoningBuckets & PotionPoisoningBucket.Health) != 0)
             {
                 _healthPotionPoisoningBuildup += buildup;
@@ -2365,7 +2365,7 @@ namespace SteelAndBone
             }
 
             float decay = (now - _potionPoisoningBucketUpdatedAt)
-                * NativePotionPoisoningDecayPerSecond;
+                * PresetPotionPoisoningDecayPerSecond();
             _healthPotionPoisoningBuildup = Mathf.Max(0.0f, _healthPotionPoisoningBuildup - decay);
             _manaPotionPoisoningBuildup = Mathf.Max(0.0f, _manaPotionPoisoningBuildup - decay);
             _staminaPotionPoisoningBuildup = Mathf.Max(0.0f, _staminaPotionPoisoningBuildup - decay);

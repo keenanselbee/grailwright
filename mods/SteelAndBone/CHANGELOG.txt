@@ -1,3 +1,13 @@
+Version 3.9.0
+Changed Potion Poisoning so two potions from the same class are safe and a third triggers only when the first-to-third span is within 5 seconds on Tempered, 10 seconds on Hardened, or 15 seconds on Crucible.
+Set every potion to 40 class buildup and moved preset difficulty into buildup decay at 4, 2, or 1.333 points per second, giving a single potion a 10, 20, or 30-second full-clear time.
+Kept the four independent potion classes, multi-resource classification, native status, resource drains, and ConfigSchemaVersion 26 unchanged.
+
+Version 3.8.9
+Added DamageNumberMode with AllDamage, ResistAndImmuneOnly, and ResistAndImmuneOnlyOnce options. The notice-only modes suppress numeric, neutral, weakness, and damage-over-time text while preserving direct-hit RESISTED and IMMUNE feedback.
+Made the once mode remember resistance and immunity separately per enemy, so discovering resistance does not hide a later immunity result.
+Kept Dishonored Dynamic Crosshair hit markers independent from floating combat text and kept ConfigSchemaVersion at 26 because the new mode is additive and safe for existing configs.
+
 Version 3.8.8
 Added preset-scaled positive combat mana regeneration at x1.00 on Tempered, x0.75 on Hardened, and x0.50 on Crucible. Mana Shield proportionally relieves only Steel and Bone's added penalty, while native Mana Shield reduction and post-hit regeneration locks remain authoritative.
 Added matching x1.00/x0.75/x0.50 scaling for accumulated positive parry-window bonuses while preserving the native 0.05-second base and every non-positive total bonus. Both new systems are independently toggleable and adjustable after a preset change.

@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.3.3.0")]
-[assembly: AssemblyFileVersion("3.3.3.0")]
+[assembly: AssemblyVersion("3.3.4.0")]
+[assembly: AssemblyFileVersion("3.3.4.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -116,11 +116,12 @@ namespace DishonoredDynamicCrosshair
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.ambush-integrity", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DishonoredDynamicCrosshairPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.3.3";
+        public const string PluginVersion = "3.3.4";
         private const int ConfigSchemaVersion = 17;
         private const float ReferenceScreenHeight = 1440f;
 
@@ -150,6 +151,10 @@ namespace DishonoredDynamicCrosshair
             "ks.tgfoa.ambush-integrity";
         private const string AmbushIntegrityApiTypeName =
             "AmbushIntegrity.AmbushIntegrityApi";
+        private const string VersatileWeaponsPluginGuid =
+            "ks.tgfoa.versatile-weapons";
+        private const string VersatileWeaponsApiTypeName =
+            "VersatileWeapons.VersatileWeaponsApi";
         private const float HitMarkerFadeFraction = 0.25f;
         private const float HitMarkerInitialScale = 1.12f;
         private const float BackstabUnderlyingOpacityMultiplier = 0.5f;
@@ -282,6 +287,8 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _getCurrentLocationTypeMethod;
         private MethodInfo _getHeroMethod;
         private MethodInfo _getHeroItemsMethod;
+        private MethodInfo _mainHandItemGetter;
+        private MethodInfo _offHandItemGetter;
         private MethodInfo _weaponsVisibleGetter;
         private MethodInfo _mountedGetter;
         private MethodInfo _equippedItemMethod;
@@ -303,6 +310,8 @@ namespace DishonoredDynamicCrosshair
         private EventInfo _steelAndBoneKillingBlowResolvedEvent;
         private Delegate _steelAndBoneKillingBlowResolvedHandler;
         private MethodInfo _ambushIntegrityGetBackstabStateMethod;
+        private Func<bool> _versatileWeaponsIsMainHandSuppressed;
+        private Func<bool> _versatileWeaponsIsOffHandSuppressed;
         private MethodInfo _tryRefreshCrouchVisibilityMethod;
         private FieldInfo _allEquipmentSlotsField;
         private FieldInfo _npcDetectionMaxDistanceField;
@@ -375,6 +384,9 @@ namespace DishonoredDynamicCrosshair
         private bool _ambushIntegrityApiUnavailableForSession;
         private bool _ambushIntegrityApiFailureLogged;
         private bool _ambushIntegrityApiUnavailableLogged;
+        private bool _versatileWeaponsApiUnavailableForSession;
+        private bool _versatileWeaponsApiFailureLogged;
+        private bool _versatileWeaponsApiUnavailableLogged;
         private bool _currentBackstabReady;
         private bool _backstabPresentationActive;
         private Component _currentInteractionView;
@@ -1623,6 +1635,8 @@ namespace DishonoredDynamicCrosshair
                 "CurrentLocationType");
             _getHeroMethod = RequirePropertyGetter(heroCrosshairType, "Hero");
             _getHeroItemsMethod = RequirePropertyGetter(heroType, "HeroItems");
+            _mainHandItemGetter = OptionalPropertyGetter(heroType, "MainHandItem");
+            _offHandItemGetter = OptionalPropertyGetter(heroType, "OffHandItem");
             _weaponsVisibleGetter = RequirePropertyGetter(
                 heroType,
                 "WeaponsVisible");
@@ -4171,6 +4185,141 @@ namespace DishonoredDynamicCrosshair
             _hasLastHeroMounted = true;
         }
 
+        private void ReadVersatileWeaponsSuppressedItems(
+            object hero,
+            out object suppressedMainHandItem,
+            out object suppressedOffHandItem)
+        {
+            suppressedMainHandItem = null;
+            suppressedOffHandItem = null;
+            if (hero == null || !ResolveVersatileWeaponsApi())
+            {
+                return;
+            }
+
+            try
+            {
+                if (_mainHandItemGetter != null
+                    && _versatileWeaponsIsMainHandSuppressed())
+                {
+                    suppressedMainHandItem = _mainHandItemGetter.Invoke(
+                        hero,
+                        null);
+                }
+
+                if (_offHandItemGetter != null
+                    && _versatileWeaponsIsOffHandSuppressed())
+                {
+                    suppressedOffHandItem = _offHandItemGetter.Invoke(
+                        hero,
+                        null);
+                }
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsIsMainHandSuppressed = null;
+                _versatileWeaponsIsOffHandSuppressed = null;
+                _versatileWeaponsApiUnavailableForSession = true;
+                if (!_versatileWeaponsApiFailureLogged)
+                {
+                    _versatileWeaponsApiFailureLogged = true;
+                    Logger.LogWarning(
+                        "Versatile Weapons hand-suppression integration failed and is disabled for this session: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private bool ResolveVersatileWeaponsApi()
+        {
+            if (_versatileWeaponsIsMainHandSuppressed != null
+                && _versatileWeaponsIsOffHandSuppressed != null)
+            {
+                return true;
+            }
+            if (_versatileWeaponsApiUnavailableForSession)
+            {
+                return false;
+            }
+
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    VersatileWeaponsPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                _versatileWeaponsApiUnavailableForSession = true;
+                LogVersatileWeaponsApiUnavailable(
+                    "Versatile Weapons is not loaded; optional stowed-hand reticle awareness is inactive for this session.");
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                VersatileWeaponsApiTypeName,
+                false);
+            MethodInfo mainMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsMainHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            MethodInfo offMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsOffHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            if (mainMethod == null
+                || mainMethod.ReturnType != typeof(bool)
+                || offMethod == null
+                || offMethod.ReturnType != typeof(bool))
+            {
+                _versatileWeaponsApiUnavailableForSession = true;
+                LogVersatileWeaponsApiUnavailable(
+                    "Versatile Weapons is loaded, but its hand-suppression API is unavailable; stowed-hand reticle awareness is inactive for this session.");
+                return false;
+            }
+
+            try
+            {
+                _versatileWeaponsIsMainHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        mainMethod);
+                _versatileWeaponsIsOffHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        offMethod);
+                Logger.LogInfo(
+                    "Versatile Weapons stowed-hand reticle awareness is active.");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsApiUnavailableForSession = true;
+                LogVersatileWeaponsApiUnavailable(
+                    "Versatile Weapons hand-suppression API binding failed; stowed-hand reticle awareness is inactive for this session: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private void LogVersatileWeaponsApiUnavailable(string message)
+        {
+            if (_versatileWeaponsApiUnavailableLogged)
+            {
+                return;
+            }
+
+            _versatileWeaponsApiUnavailableLogged = true;
+            Logger.LogInfo(message);
+        }
+
         private ReticleContext ReadCurrentContext()
         {
             if (_heroCrosshair == null
@@ -4199,6 +4348,13 @@ namespace DishonoredDynamicCrosshair
                     return ReticleContext.General;
                 }
 
+                object suppressedMainHandItem;
+                object suppressedOffHandItem;
+                ReadVersatileWeaponsSuppressedItems(
+                    hero,
+                    out suppressedMainHandItem,
+                    out suppressedOffHandItem);
+
                 bool hasMagic = false;
                 foreach (object slot in slots)
                 {
@@ -4206,6 +4362,11 @@ namespace DishonoredDynamicCrosshair
                         null,
                         new[] { inventory, slot });
                     if (item == null)
+                    {
+                        continue;
+                    }
+                    if (ReferenceEquals(item, suppressedMainHandItem)
+                        || ReferenceEquals(item, suppressedOffHandItem))
                     {
                         continue;
                     }
@@ -4780,13 +4941,13 @@ namespace DishonoredDynamicCrosshair
             switch (tier)
             {
                 case 1:
-                    return "hitmarker_killingblow_meager_overlay.png";
+                    return "hitmarker_killingblow_3_overlay.png";
                 case 2:
-                    return "hitmarker_killingblow_worthy_overlay.png";
+                    return "hitmarker_killingblow_2_overlay.png";
                 case 3:
-                    return "hitmarker_killingblow_potent_overlay.png";
+                    return "hitmarker_killingblow_0_overlay.png";
                 case 4:
-                    return "hitmarker_killingblow_prime_overlay.png";
+                    return "hitmarker_killingblow_1_overlay.png";
                 default:
                     throw new ArgumentOutOfRangeException("tier");
             }

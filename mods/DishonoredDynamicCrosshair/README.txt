@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.3.3
+Version 3.3.4
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.3.3
+  Version: 3.3.4
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -56,15 +56,15 @@ Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_weakspot_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_critical_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_meager_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_worthy_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_potent_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_prime_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_3_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_2_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_0_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_1_overlay.png
 
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.3.3 uses ConfigSchemaVersion 17. The schema last changed because
+Version 3.3.4 uses ConfigSchemaVersion 17. The schema last changed because
 SizeMode now defaults to Reference1440p instead of ScreenPixels. Compatible
 customized visual values remain recoverable across the reset.
 On first launch from an older schema, the previous config is backed up beside
@@ -271,6 +271,16 @@ Presets
 Presets control visibility only. They do not overwrite sprites, colors,
 opacity, size, Blood Magic behavior, or crouch settings.
 
+Equipment Context
+-----------------
+
+Dishonored normally chooses General, Bow, or Magic from the equipped items.
+When Versatile Weapons - Dynamic Grip is installed, Dishonored ignores the
+item in any hand that Versatile Weapons currently suppresses. A one-handed
+melee weapon using a two-handed grip therefore returns to the General reticle
+and default melee scale while its paired magic hand is stowed, then restores
+the Magic reticle when that hand becomes active again.
+
 Target Detection
 ----------------
 
@@ -361,10 +371,10 @@ and every visible overlay dark red (#8C0003). KillingBlowDurationMultiplier defa
 1.5x the normal marker duration, after which Meager, Worthy, Potent, and Prime
 apply another 1.00x, 1.33x, 1.67x, or 2.00x respectively. These overlays are enabled independently through
 KillingBlowOverlaysEnabled:
-  hitmarker_killingblow_meager_overlay.png
-  hitmarker_killingblow_worthy_overlay.png
-  hitmarker_killingblow_potent_overlay.png
-  hitmarker_killingblow_prime_overlay.png
+  hitmarker_killingblow_3_overlay.png
+  hitmarker_killingblow_2_overlay.png
+  hitmarker_killingblow_0_overlay.png
+  hitmarker_killingblow_1_overlay.png
 
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
 All marker layers use Steel and Bone's final damage-number color. A new hit
@@ -452,6 +462,10 @@ Steel and Bone 3.3.9 or newer is supported for optional contextual hit-marker
 and corpse-tier killing-blow feedback through
 `SteelAndBone.SteelAndBoneHitFeedbackApi` v5. API v4 is not supported. Damage
 numbers may be disabled in Steel and Bone without disabling the hit markers.
+
+Versatile Weapons - Dynamic Grip is supported through its optional
+hand-suppression API. Stowed equipment does not keep a Bow or Magic reticle
+context active, and ordinary behavior remains unchanged when the mod is absent.
 
 Owrocc ModifyColors can remain installed because this plugin owns the colors
 of its separate Unity UI Image. Owrocc ModifyCrosshair is redundant and

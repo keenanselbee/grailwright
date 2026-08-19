@@ -20,8 +20,8 @@ $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\Blo
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.3.3") "mod.json is not version 3.3.3."
-Assert-Contract ($source.Contains('PluginVersion = "3.3.3"')) "PluginVersion is not 3.3.3."
+Assert-Contract ($manifest.version -eq "3.3.4") "mod.json is not version 3.3.4."
+Assert-Contract ($source.Contains('PluginVersion = "3.3.4"')) "PluginVersion is not 3.3.4."
 Assert-Contract ($source.Contains('ConfigSchemaVersion = 17')) "Config schema is not 17."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
 Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
@@ -111,10 +111,10 @@ Assert-Contract ($source.Contains('case 2: return 1.33f;')) "Worthy killing blow
 Assert-Contract ($source.Contains('case 3: return 1.67f;')) "Potent killing blows do not use 1.67x tier duration."
 Assert-Contract ($source.Contains('case 4: return 2.00f;')) "Prime killing blows do not use 2.00x tier duration."
 Assert-Contract ($source.Contains('default: return 1.0f;')) "Meager killing blows do not retain the current duration."
-Assert-Contract ($source.Contains('hitmarker_killingblow_meager_overlay.png')) "The meager killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_worthy_overlay.png')) "The worthy killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_potent_overlay.png')) "The potent killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_prime_overlay.png')) "The prime killing-blow overlay is not loaded."
+Assert-Contract ($source.Contains('hitmarker_killingblow_3_overlay.png')) "The meager killing-blow overlay is not loaded."
+Assert-Contract ($source.Contains('hitmarker_killingblow_2_overlay.png')) "The worthy killing-blow overlay is not loaded."
+Assert-Contract ($source.Contains('hitmarker_killingblow_0_overlay.png')) "The potent killing-blow overlay is not loaded."
+Assert-Contract ($source.Contains('hitmarker_killingblow_1_overlay.png')) "The prime killing-blow overlay is not loaded."
 Assert-Contract ($source.Contains('_killingBlowHitMarkerImage.transform.SetAsLastSibling();')) "The killing-blow overlay is not kept above other hit-marker layers."
 
 Assert-Contract ($steelSource.Contains('public static class SteelAndBoneHitFeedbackApi')) "Steel and Bone's public feedback API is missing."
@@ -158,10 +158,10 @@ $assetNames = @(
     "custom_reticle_bloodmagic_1.png",
     "custom_reticle_bloodmagic_2.png",
     "custom_reticle_bloodmagic_3.png",
-    "hitmarker_killingblow_meager_overlay.png",
-    "hitmarker_killingblow_worthy_overlay.png",
-    "hitmarker_killingblow_potent_overlay.png",
-    "hitmarker_killingblow_prime_overlay.png"
+    "hitmarker_killingblow_3_overlay.png",
+    "hitmarker_killingblow_2_overlay.png",
+    "hitmarker_killingblow_0_overlay.png",
+    "hitmarker_killingblow_1_overlay.png"
 )
 
 Add-Type -AssemblyName System.Drawing

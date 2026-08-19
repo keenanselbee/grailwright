@@ -18,6 +18,7 @@
 [*][b]Ambush Integrity integration:[/b] Add a topmost dark-red backstab indicator only while the current target passes the stealth overhaul's authoritative backstab-ready state.[/*]
 [*][b]Blood Magic integration:[/b] Show Meager, Worthy, Potent, and Prime corpse-drain reticles through the optional [b]Blood Magic Expansion[/b] API.[/*]
 [*][b]Steel and Bone hit markers:[/b] Layer seven numbered effectiveness frames plus the shared neutral reticle above the center visuals, with independent weak-spot, critical, and tiered killing-blow overlays.[/*]
+[*][b]Versatile Weapons awareness:[/b] Ignore equipment in a hand stowed by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons - Dynamic Grip[/url] so hidden magic does not keep the enlarged Magic reticle active.[/*]
 [/list]
 
 [line]
@@ -166,6 +167,7 @@ By default, direct-hit markers display at 1.15x the General reticle size, damage
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is supported for optional usable and unavailable tiered blood-magic corpse reticle feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] is supported through hit-feedback API.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons - Dynamic Grip[/url] is supported through its optional hand-suppression API so stowed equipment does not keep a Bow or Magic context active.[/*]
 [/list]
 
 [b]Other mods[/b]

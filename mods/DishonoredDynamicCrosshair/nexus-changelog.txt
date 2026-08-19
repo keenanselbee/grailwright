@@ -1,8 +1,6 @@
-TargetVersion=3.3.3
-BaselineVersion=3.2.8
-Added a default 1440p-reference size mode that scales every crosshair layer by screen height for consistent proportions across 1080p, 1440p, 4K, and ultrawide resolutions.
-Made live resolution and HUD-scale changes refresh the complete presentation immediately.
-Made every context use the shared dot.png at one consistent size, removing the Bow and Magic dot assets and their context-based scaling.
-Kept the hand visible while non-empty corpse, chest, and container quick-loot panels are open, hiding it once the container is empty.
-Fixed mining interactions such as iron ore resolving to the hand instead of the pickaxe.
-Made Bow and Magic share the General reticle by default at 0.9x and 1.1x, removing two redundant context-reticle assets while retaining independent center dots and configurable sprite paths.
+TargetVersion=3.3.4
+BaselineVersion=3.3.0
+Unified every General, Bow, Magic, and Blood Magic center dot and stealth-eye pupil on the shared dot artwork at a consistent context-independent size.
+Added the default Reference1440p size mode, which preserves the authored 2560x1440 presentation while scaling every crosshair layer consistently by screen height across 1080p, 4K, ultrawide, and live resolution changes.
+Added optional Versatile Weapons awareness so stowed equipment no longer keeps the Bow or Magic reticle context active.
+Made one-handed melee with a stowed magic hand return to the General reticle and default melee scale until that hand becomes active again.

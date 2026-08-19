@@ -1,3 +1,8 @@
+Version 3.3.4
+Added optional Versatile Weapons awareness so equipment in a stowed hand no longer selects the Bow or Magic reticle context.
+Made a one-handed melee weapon with stowed offhand magic return immediately to the General reticle and its default melee scale, with symmetric handling for a stowed main hand.
+Kept ConfigSchemaVersion at 17 because this is an optional compatibility behavior change with no setting or default migration.
+
 Version 3.3.3
 Added the default Reference1440p size mode, which preserves the authored 2560x1440 presentation while scaling all crosshair visuals by screen height for consistent proportions at 1080p, 4K, and ultrawide resolutions.
 Centralized reticle, shared-dot and pupil, interaction-icon, and hit-marker size conversion so every layer follows the selected size mode consistently.

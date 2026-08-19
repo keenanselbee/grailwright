@@ -1,5 +1,3 @@
 TargetVersion=0.7.7
-BaselineVersion=0.7.4
-Expanded low-potency attack-speed tuning down to 25 percent and capped both one-handed greatweapon damage endpoints at 150 percent.
-Advanced the config schema because the tighter damage range invalidates prior values above 150 percent; migration backs up the prior config, regenerates current defaults, and conservatively restores compatible customized settings with current range clamping.
-Fixed converted greatweapons becoming invisible and stuck when removing their paired item caused the final native two-handed grip to disagree with the controller selected earlier in the equipment transition.
+BaselineVersion=0.7.6
+Rebuilt the unchanged gameplay package to validate stable Vortex version grouping and Nexus metadata promotion. There are no gameplay or configuration changes from 0.7.6.

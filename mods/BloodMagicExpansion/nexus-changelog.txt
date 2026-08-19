@@ -1,3 +1,5 @@
 TargetVersion=2.8.7
-BaselineVersion=2.8.3
-Separated Blood/Life projectile travel, radius, Bleed buildup, and tap-speed growth into independently balanced curves. Successful player-sourced Blood/Life and Abhartach Bleed procs now last up to twice their native duration at Power 200, Abhartach radius and held-healing quality scaling are narrower, and the blood inner light now uses a restrained 1.5-to-4.5-meter Power range.
+BaselineVersion=2.8.2
+Extended Blood Power beyond mastery 100 at 1,000 Essence into a linear overmastery track reaching 200 at 5,000 Essence, with fully unlocked gameplay bonuses continuing to twice their Power-100 bonus at the cap.
+Separated Blood/Life projectile travel, radius, Bleed buildup, and tap-speed growth into independently balanced curves. Successful player-sourced Blood/Life and Abhartach Bleed procs now last up to twice their native duration at Power 200, while ordinary weapon, enemy, and incomplete buildup Bleeds remain native.
+Narrowed Abhartach radius and held-healing quality scaling, and rebalanced the blood inner light to a restrained 1.5-to-4.5-meter Power range while brightness still reaches 3x at Power 200.

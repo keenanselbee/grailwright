@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 3.8.3.
+Current release: 3.8.8.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -12,12 +12,14 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Added weak-spot base damage | +0.10 | +0.20 | +0.30 | `WeakSpotDamageBonus` |
 | Player health damage taken | 1.05 | 1.10 | 1.15 | `ModifyPlayerDamageTaken` |
 | Stamina and mana usage | 1.00 | 1.05 | 1.10 | Separate resource toggles |
+| Positive combat mana regeneration | 1.00 | 0.75 | 0.50 | `ModifyCombatManaRegeneration` plus adjustable multiplier |
+| Accumulated positive parry-window bonus | 1.00 | 0.75 | 0.50 | `ModifyParryWindowBonus` plus adjustable multiplier |
 | Player and hostile arrow velocity | 1.10 | 1.30 | 1.50 | Separate projectile toggles |
 | Player arrow gravity | 0.75 | 0.75 | 0.75 | `ModifyPlayerArrowDrop` plus independent multiplier |
 | Hostile archer aim scatter (meters) | 1.50 | 1.25 | 1.00 | `HostileArcherAimScatter`; 0 restores native accuracy |
-| Hostile enemy sight distance | 1.10 | 1.30 | 1.50 | `ModifyEnemySightRange` |
-| Hero footstep hearing range | 1.10 | 1.20 | 1.30 | `ModifyEnemyHearingRange` |
-| Native combat aggro persistence | 1.00 | 1.10 | 1.20 | `ModifyEnemyAggroPersistence` |
+| Hostile enemy sight distance | 1.20 | 1.40 | 1.60 | `ModifyEnemySightRange` |
+| Hero footstep hearing range | 1.20 | 1.40 | 1.60 | `ModifyEnemyHearingRange` |
+| Native combat aggro persistence | 1.20 | 1.40 | 1.60 | `ModifyEnemyAggroPersistence` |
 | Native armor-weight penalties | 1.00 | 1.05 | 1.10 | `ModifyArmorWeightPenalties` |
 | Light armor movement | 1.00 | 1.025 | 1.05 | `ModifyLightArmorMobility` |
 | Medium physical armor | 1.00 | 1.05 | 1.10 | `ModifyArmorPhysicalProtection` |
@@ -69,6 +71,8 @@ Tenacity reduces player-caused poise, force, and enemy stamina damage at full st
 | Passive shields | Hero-target branch of `HealthElement.ApplyDamageModifiers` | For direct physical hits within native `BlockAngle`, reduce damage by effective Block multiplied by the preset share. Require a readied shield, cap coverage to the forward 180 degrees, and skip active blocks, rear hits, magic, status effects, and damage over time. |
 | Weak-spot reward | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Add the preset's `WeakSpotDamageBonus` beside native critical, weak-spot, sneak, and backstab components, then apply outgoing pressure and material matchups. Do not alter native critical damage, hero stats, item stats, or hitbox definitions. |
 | Resources | Non-saved stat tweaks | Keep exactly one owned tweak per active lever. |
+| Combat mana regeneration | `Hero.ManaRegen` and `Hero.PredictedManaRegen` postfixes | Scale positive regeneration only while native hero combat state is active. Apply 1.00/0.75/0.50 by preset, then proportionally relieve only Steel and Bone's added penalty as native `ManaShield` rises. Preserve native Mana Shield reduction, post-hit regeneration locks, and all out-of-combat regeneration. |
+| Positive parry-window bonus | `HeroParry.Parry(Hero, IDuration)` prefix | Scale only the duration above the native 0.05-second base by 1.00/0.75/0.50. Preserve the base, non-positive total bonuses, unscaled-time identity, and every unrelated parry consequence. |
 | Potion overdrinking | Transaction around `ItemSkillsInvoker.PerformImmediate`, suppression at `CharacterStatuses.BuildupStatus`, exact-status activation postfix, and `BuildupStatus.Decay` progress postfix | Classify direct flat, percentage, and timed restoration into independent Health, Mana, and Stamina buckets; send every other consumed potion to Utility. Add 60/65/70 to each matching bucket, decay all buckets at the native 10 points per second, and do not combine different classes. On completion, clear all buckets and activate the single native buildup status at its exact threshold. Snapshot the relevant maxima and meter a 30% matching-resource drain, or 15% all-resource Utility drain, from actual native progress loss. Preserve healing, auxiliary effects, tooltips, Better UI presentation, icon, and active decay. |
 | Standard food | Temporary overrides around `ItemSkillsInvoker.PerformImmediate` and `ExistingItemDescriptor.ItemDescription`, saved variables on the resulting native food status, and a narrow `PreventStaminaRegenDuration.PreventWithStatus` prefix | Match only the native `Consumable_ApplyStatus_FoodHealForDuration` graph on edible non-potions. Scale health rate to 0.50/0.375/0.25 and duration to x4 before the native status is created, restore item-skill overrides transactionally, and preserve native queued-healing prediction. Permit only one food-health status, selecting the greatest remaining predicted healing and then remaining time. Store 1 stamina per second on that same status and apply whole-point ticks during the player-stat update. For hero `Overexertion` only, halve both native duration arguments while food is active and suppress food stamina for the complete lock. Detect the transition out, preload 0.9 seconds of the next interval, and then retain normal one-second cadence. |
 | Stamina Depleted vignette | Postfix `VHeroStaminaUsedUpEffect.StartFlash`; prefix/postfix `StopFlash`; reuse the native image and dedicated post-process volume | Smooth kills only the native repeating image tween after native audio starts, then performs one eased unscaled fade in and out. Native performs no presentation override. Off hides the image and zeros the dedicated stamina-depleted volume. Preserve movement, action gating, status timing, audio, and snapshots in every mode. |
@@ -110,13 +114,14 @@ The full template audit remains varied under this formula. At hero levels 10, 20
 | Plugin | Policy |
 |---|---|
 | Custom Difficulty | Flag as incompatible publicly. Allow both to load; warn only for confirmed active overlapping values. |
-| Tainted Combat | Conditionally compatible. Detect stamina, slots, recovery, poise, and armor-penalty overlaps. |
+| Tainted Combat | Conditionally compatible. Detect stamina, parry-window, slots, recovery, poise, and armor-penalty overlaps. |
+| Avalon AI Overhaul | Conditionally compatible. Detect active sight, standing-footstep hearing, and combat-pursuit overlaps while leaving its camp response, investigation, and alert behavior distinct. |
 | Better Movement | Compatible. Its movement multiplier can stack with Light mobility; disclose that behavior without warning. |
 | Flat Arrows | Conditionally compatible. Detect its active arrow modifications and warn for active Steel and Bone player velocity or gravity controls. Its bow timing and instant-fire options do not directly overlap. |
 | HarderLife | Conditionally compatible. Detect active damage, stamina, mana, sight, hearing, aggro-persistence, and food-effectiveness overlaps. Potion Poisoning buildup is distinct from its potion-effectiveness scaling; keep its parry health, backstab, extended chase boundary, and debuff duration distinct. |
 | Tainted Instincts | Flag as incompatible publicly. Detect active sight-range, damage-taken, attack-slot, attack-cadence, and pursuit conflicts; allow individual Steel and Bone toggles to remove those overlaps. |
 
-Normal operation is silent. A confirmed overlap produces one short native notification per unique signature and one detailed BepInEx warning naming the Steel and Bone toggles to disable.
+Normal operation is silent. With Grail Floating Text installed, a confirmed overlap produces one deferred Warning-styled System notice at the main menu and one detailed BepInEx warning naming the Steel and Bone toggles to disable.
 
 ## Acceptance Matrix
 
@@ -153,6 +158,7 @@ Normal operation is silent. A confirmed overlap produces one short native notifi
 | Multiple native food-health statuses | Keep only the status with the greatest remaining queued health recovery; use remaining duration as the tie-breaker. Removing the others also removes their native health-bar prediction and stamina channel. |
 | Food tooltip after a preset change | The next descriptor resolution uses the current preset, retains unrelated/native text, replaces the native health values through graph tokens, and appends exactly one unlabeled stamina line. Already-active statuses keep their consumed values. |
 | Better UI food overlay | When Better UI is present, its existing consumable helper resolves the temporary adjusted health values and receives a green stamina-total token over the same duration. Refresh timing remains owned by Better UI. |
+| Avalon AI Overhaul overlap active | Warning lists only the matching effective Steel and Bone sight, hearing, or aggro-persistence toggles. Avalon-neutral settings remain silent. |
 | HarderLife overlap active | Warning lists only the matching active Steel and Bone toggles, including hearing, persistence, or consumable recovery when applicable. |
 | Tainted Instincts sight tuning disabled | No sight-range overlap warning. |
 | Tainted Instincts sight tuning active | Warning names `ModifyEnemySightRange`; other active exact overlaps are listed. |

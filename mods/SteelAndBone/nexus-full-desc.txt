@@ -67,7 +67,7 @@ Body material and creature identity are resolved independently. Stagfather and t
 
 Bone Undead and Constructs resist Cold at x0.66 on Hardened where their native data is neutral. This changes Cold damage and impact rather than independent spell effects, so spells that apply Chill can still slow them unless the target has a separate status immunity. Cold retains focused positive matchups against Flamegobblers, crystal bodies, Wyrd Slimes, and the Charred Conclave Wyrdspawn, and completes missing reactions on Grindylow, Blood Abomination, and Bonemask Warrior summons. Curlghasts, Marrowghasts, Slugholders, and Snail remain neutral unless their native data says otherwise. Frostgrot, Frostbitten Warriors, Frost Wolves, Ice Trial Wyrd creatures, and other exact frost-aligned enemies instead resist Cold, while Fire provides their natural counter. Wet answers explicitly fire-aligned bodies and golems, and Electric gains a modest lane against drowned skeleton Deckhands and Mariners without weakening Bone Undead broadly. Singworms and Lir's summoned tentacle favor Slash over Blunt; Blood Abominations favor Slash and resist Blunt, while Wyrd Slimes and Tidewraiths absorb Blunt impact through exact soft-body profiles. These remain exact archetype rules rather than universal weaknesses for Wyrd creatures, flora, or animals.
 
-When a physical hit lacks a clear subtype, weapon identity fills the gap: swords and axes lean Slashing, daggers, polearms, and bows lean Piercing, and blunt weapons remain Bludgeoning. Axes receive x1.20 against wood and flora on Hardened, replacing rather than stacking with the ordinary flora Slash rule.
+When a physical hit lacks a clear subtype, weapon identity fills the gap: swords and axes lean Slashing, daggers, polearms, and bows lean Piercing, and blunt weapons remain Bludgeoning. Axes receive x1.20 against wood and flora on Hardened, replacing rather than stacking with the ordinary flora Slash rule. A pickaxe instead counts as Pierce when it strikes an enemy, receives no Axe-versus-flora bonus, and continues to mine normally through the game's separate interaction route.
 
 [b]Humanoid armor[/b]
 
@@ -183,6 +183,8 @@ Active blocking remains fully native and never receives the passive reduction tw
 
 Across the presets, incoming damage rises while outgoing damage falls. Higher presets also increase stamina and mana costs and reduce repeated stagger pressure, making defense and resource management more important.
 
+Positive mana regeneration during combat and accumulated positive parry-window bonuses use x1.00 / x0.75 / x0.50 across Tempered, Hardened, and Crucible. Mana Shield proportionally relieves only Steel and Bone's added regeneration penalty, while the game's native Mana Shield reduction and post-hit lock remain active. Parry scaling preserves the native 0.05-second base window and every non-positive total bonus. Both systems have separate toggles and adjustable multipliers.
+
 
 [line]
 
@@ -239,11 +241,13 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 | Player and hostile arrow speed  | x1.10    | x1.30       | x1.50       |
 | Player arrow gravity            | x0.75    | x0.75       | x0.75       |
 | Hostile archer aim scatter      | 1.50 m   | 1.25 m      | 1.00 m      |
-| Hostile enemy sight distance    | x1.10    | x1.30       | x1.50       |
-| Hero footstep hearing range     | x1.10    | x1.20       | x1.30       |
-| Native combat aggro persistence | x1.00    | x1.10       | x1.20       |
+| Hostile enemy sight distance    | x1.20    | x1.40       | x1.60       |
+| Hero footstep hearing range     | x1.20    | x1.40       | x1.60       |
+| Native combat aggro persistence | x1.20    | x1.40       | x1.60       |
 | Light/agile enemy movement      | x1.00    | Up to x1.05 | Up to x1.10 |
 | Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
+| Positive combat mana regen      | x1.00    | x0.75       | x0.50       |
+| Positive parry-window bonus     | x1.00    | x0.75       | x0.50       |
 | Potion Poisoning per class      | 60       | 65          | 70          |
 | Standard food health rate       | x0.50    | x0.375      | x0.25       |
 | Standard food health duration   | x4.00    | x4.00       | x4.00       |
@@ -304,6 +308,10 @@ WeakSpotDamageBonus = 0.20
 ModifyPlayerDamageTaken = true
 ModifyStaminaUsage = true
 ModifyManaUsage = true
+ModifyCombatManaRegeneration = true
+CombatManaRegenerationMultiplier = 0.75
+ModifyParryWindowBonus = true
+PositiveParryWindowBonusMultiplier = 0.75
 ModifyPlayerPoiseDamageDealt = true
 ModifyPlayerArrowVelocity = true
 ModifyPlayerArrowDrop = true
@@ -345,12 +353,13 @@ FoA Mod Manager presents common controls first, keeps related toggles and values
 [b]Other mods[/b]
 
 [list]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/284]Avalon AI Overhaul[/url] is conditionally compatible. Disable Steel and Bone's [b]ModifyEnemySightRange[/b], [b]ModifyEnemyHearingRange[/b], and [b]ModifyEnemyAggroPersistence[/b] settings so Avalon AI Overhaul can control enemy perception and pursuit without stacking modifiers. Its camp response, investigation, and alert behavior do not otherwise overlap, and Steel and Bone's remaining combat and difficulty features continue to work normally.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] is compatible. Its movement multipliers stack with the optional Light armor bonus; disable either modifier if the combined speed is not desired.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/111]Better UI[/url] is softly supported. Its consumable overlays use Steel and Bone's adjusted food health values and append the matching stamina total over the shared duration. Overlay changes follow Better UI's normal inventory or slot refresh timing.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/57]Custom Difficulty[/url] is incompatible because it changes many of the same difficulty systems. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/105]Flat Arrows[/url] is conditionally compatible. Its bow pull, release, and instant-fire options do not directly overlap, but its arrow modifications stack with Steel and Bone's player velocity and gravity changes. Disable Flat Arrows' [b]EnableArrowModifications[/b] or disable both [b]ModifyPlayerArrowVelocity[/b] and [b]ModifyPlayerArrowDrop[/b] in Steel and Bone.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/164]HarderLife[/url] is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and consumable-effectiveness modifiers can stack with Steel and Bone's matching food or difficulty systems, including Progressive Tenacity's direct-health reduction. Steel and Bone's Potion Poisoning buildup tuning is distinct from HarderLife's potion effectiveness. Set matching multipliers to 1.0, or disable the corresponding Steel and Bone setting when an overlap warning appears. Its parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Progressive Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, parry-window, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Progressive Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/219]Tainted Instincts[/url] is incompatible because it can modify enemy sight, damage, attack cadence, pursuit, and combat-slot behavior. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [/list]
 

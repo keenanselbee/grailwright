@@ -15,6 +15,7 @@ using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Heroes.Items.Attachments;
 using Awaken.TG.Main.Heroes.Items.Attachments.Audio;
 using Awaken.TG.Main.Settings.Accessibility;
 using Awaken.TG.Main.Utility.Animations;
@@ -30,9 +31,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.8.3.0")]
-[assembly: AssemblyFileVersion("3.8.3.0")]
-[assembly: AssemblyInformationalVersion("3.8.3")]
+[assembly: AssemblyVersion("3.8.8.0")]
+[assembly: AssemblyFileVersion("3.8.8.0")]
+[assembly: AssemblyInformationalVersion("3.8.8")]
 
 namespace SteelAndBone
 {
@@ -135,7 +136,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.8.3";
+        public const string PluginVersion = "3.8.8";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -834,6 +835,10 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyPlayerDamageTaken, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyStaminaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyCombatManaRegeneration, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _combatManaRegenerationMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyParryWindowBonus, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _positiveParryWindowBonusMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerPoiseDamageDealt, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _progressiveTenacityEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowVelocity, ref restoredCount, ref clampedCount);
@@ -3399,12 +3404,21 @@ namespace SteelAndBone
             classification.IsPiercing = DamageHasSubtype(damage, "Piercing");
             classification.IsBludgeoning = DamageHasSubtype(damage, "Bludgeoning");
             classification.IsGenericPhysical = DamageHasSubtype(damage, "GenericPhysical");
-            if (!classification.HasSpecificPhysicalType()
+            classification.IsMiningToolCombatHit = IsMiningToolCombatHit(damage);
+            if (classification.IsMiningToolCombatHit)
+            {
+                classification.IsSlashing = false;
+                classification.IsPiercing = true;
+                classification.IsBludgeoning = false;
+                classification.IsGenericPhysical = false;
+                classification.PhysicalTypeHint = "Piercing from Mining tool combat hit";
+            }
+            else if (!classification.HasSpecificPhysicalType()
                 && (classification.IsGenericPhysical || ValueNameContains(GetOptionalPropertyValue(damage, "Type"), "PhysicalHitSource")))
             {
                 AddPhysicalWeaponTypeHints(damage, classification);
             }
-            classification.IsAxe = IsAxeDamage(damage);
+            classification.IsAxe = !classification.IsMiningToolCombatHit && IsAxeDamage(damage);
             classification.IsGenericMagical = DamageHasSubtype(damage, "GenericMagical");
             classification.IsBurn = ValueNameContains(GetOptionalPropertyValue(damage, "StatusDamageType"), "Burn");
             classification.IsFire = DamageHasSubtype(damage, "Fire") || classification.IsBurn;
@@ -3598,6 +3612,22 @@ namespace SteelAndBone
             object projectile = GetOptionalPropertyValue(damage, "Projectile");
             return IsAxeCandidate(GetOptionalPropertyValue(projectile, "SourceWeapon"))
                 || IsAxeCandidate(GetOptionalPropertyValue(projectile, "SourceProjectile"));
+        }
+
+        private bool IsMiningToolCombatHit(object damage)
+        {
+            Damage typedDamage = damage as Damage;
+            if (typedDamage == null
+                || typedDamage.Type != DamageType.PhysicalHitSource
+                || typedDamage.Item == null)
+            {
+                return false;
+            }
+
+            Tool tool;
+            return typedDamage.Item.TryGetElement(out tool)
+                && tool != null
+                && tool.Type == ToolType.Mining;
         }
 
         private bool IsAxeCandidate(object candidate)
@@ -6050,6 +6080,7 @@ namespace SteelAndBone
             public bool IsArrow;
             public bool IsDirectSpell;
             public bool IsAxe;
+            public bool IsMiningToolCombatHit;
             public bool IsPommel;
             public bool IsHeavyAttack;
             public bool IsAreaAttack;
@@ -6695,7 +6726,15 @@ namespace SteelAndBone
                 || part.IsPiercing
                 || part.IsBludgeoning
                 || part.IsGenericPhysical;
-            if (part.IsGenericPhysical
+            if (physicalPart && overall != null && overall.IsMiningToolCombatHit)
+            {
+                part.IsSlashing = false;
+                part.IsPiercing = true;
+                part.IsBludgeoning = false;
+                part.IsGenericPhysical = false;
+                part.PhysicalTypeHint = overall.PhysicalTypeHint;
+            }
+            else if (part.IsGenericPhysical
                 && overall != null
                 && !string.IsNullOrEmpty(overall.PhysicalTypeHint))
             {

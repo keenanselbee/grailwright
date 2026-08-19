@@ -1,8 +1,6 @@
-TargetVersion=3.8.3
-BaselineVersion=3.7.0
-Added preset-independent Progressive Tenacity. It remains inactive through hero level 20, scales linearly to full strength at level 35, and gives later enemies bounded native-threat-class resistance to player-caused poise, force, stamina, and direct health damage.
-Confirmed native or Steel and Bone material weaknesses halve Tenacity for that hit. The system changes no enemy health pools, adds no stagger immunity or adaptive tracking, and leaves presets, damage over time, environmental damage, and unrelated NPC combat unchanged.
-Native hero-owned summon attacks count as player-caused while Hero Summon targets remain exempt. Matching Custom Difficulty, HarderLife, and Tainted Combat health or poise overlaps now identify ProgressiveTenacityEnabled in compatibility warnings.
-Added preset-aware combat food restrictions. Tempered permits food during combat, while Hardened and Crucible prevent food and dishes by default before effects, audio, events, or item removal; the setting remains freely customizable and noncombat use stays unrestricted. Blocked attempts are silent unless Grail Floating Text is installed, and Tainted Combat overlap detection covers AffectFoodAndDishes.
-Throttled repeated enemy-hearing diagnostics to prevent high-frequency log spam without changing gameplay.
-Cleaned every stored config section name and retained explicit semantic FoA Mod Manager ordering, with Diagnostics immediately before Import Previous Settings.
+TargetVersion=3.8.8
+BaselineVersion=3.8.5
+Raised enemy sight distance, hero footstep hearing range, and native combat aggro persistence to x1.20 on Tempered, x1.40 on Hardened, and x1.60 on Crucible while preserving native chase boundaries and combat-exit rules.
+Added configurable positive combat mana regeneration and positive parry-window bonus scaling at x1.00/x0.75/x0.50 across Tempered, Hardened, and Crucible. Mana Shield relieves only the added mana penalty, while the native 0.05-second parry base and non-positive bonuses remain unchanged.
+Added Tainted Combat parry-window overlap guidance.
+Made pickaxe combat hits count as Pierce without Axe/Slash identity or the special Axe-versus-flora bonus, while native mining interactions remain unchanged.

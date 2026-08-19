@@ -34,13 +34,18 @@ $nexusShort = (Get-Content -LiteralPath $nexusShortPath -Raw).Trim()
 $nexusFile = (Get-Content -LiteralPath $nexusFilePath -Raw).Trim()
 $qualityBuckets = Get-Content -LiteralPath $qualityBucketsPath -Raw
 
-Assert-Contract ($manifest.version -eq "3.8.3") "mod.json is not version 3.8.3."
+Assert-Contract ($manifest.version -eq "3.8.8") "mod.json is not version 3.8.8."
 Assert-Contract ($manifest.sourceFiles -contains "src/DifficultyOverhaul.cs") "DifficultyOverhaul.cs is missing from sourceFiles."
 Assert-Contract ($manifest.sourceFiles -contains "../../tools/shared/CorpseQualityBuckets.cs") "The shared corpse-quality bucket helper is missing from sourceFiles."
-Assert-Contract ($mainSource.Contains('PluginVersion = "3.8.3"')) "PluginVersion is not 3.8.3."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.8.3.0")]')) "AssemblyVersion is not 3.8.3.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.8.3.0")]')) "AssemblyFileVersion is not 3.8.3.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.8.3")]')) "AssemblyInformationalVersion is not 3.8.3."
+Assert-Contract ($mainSource.Contains('PluginVersion = "3.8.8"')) "PluginVersion is not 3.8.8."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.8.8.0")]')) "AssemblyVersion is not 3.8.8.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.8.8.0")]')) "AssemblyFileVersion is not 3.8.8.0."
+Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.8.8")]')) "AssemblyInformationalVersion is not 3.8.8."
+Assert-Contract ($difficultySource.Contains('AvalonAiOverhaulPluginGuid = "AvalonAIOverhaul"')) "Avalon AI Overhaul plugin detection is missing."
+Assert-Contract ($difficultySource.Contains('EvaluateAvalonAiOverhaulOverlap();')) "Avalon AI Overhaul overlap evaluation is not wired into the compatibility pass."
+Assert-Contract ($difficultySource.Contains('"NpcVisionDistanceMultiplier"') -and $difficultySource.Contains('"EnableStandingFootstepAwareness"') -and $difficultySource.Contains('"CombatLeashMode"')) "Avalon AI Overhaul overlap detection does not cover sight, hearing, and combat pursuit."
+Assert-Contract ($difficultySource.Contains('TryShowCompatibilityWarning(') -and $difficultySource.Contains('"compatibility-avalon-ai-overhaul"')) "Compatibility overlaps do not use stable Grail Floating Text main-menu warning events."
+Assert-Contract (-not $difficultySource.Contains('buffer.PushNotification(PluginName, null, string.Empty, message, null, false)')) "Compatibility overlaps still use the superseded native notification buffer path."
 Assert-Contract ($manifest.references -contains '%GAME%/Fall of Avalon_Data/Managed/DOTween.dll') "mod.json does not reference the native vignette tween assembly."
 Assert-Contract ($mainSource.Contains('IsTrueMember(modifiersInfo, "IsCritical")')) "Hit feedback does not use the specific critical modifier."
 Assert-Contract (-not $mainSource.Contains('IsTrueMember(modifiersInfo, "AnyCritical")')) "Hit feedback still treats weak spots, sneak attacks, or backstabs as true critical hits."
@@ -96,7 +101,10 @@ Assert-Contract (-not $mainSource.Contains('new DamageRule(TargetFamily.Wyrd, Da
 Assert-Contract ($mainSource.Contains('classification.HasStoneBody = false;') -and $mainSource.Contains('exact:AncientBeholderFlesh') -and $mainSource.Contains('exact:GiantFlesh')) "False HitStone bodies are not cleared from exact flesh corrections."
 Assert-Contract ($mainSource.Contains('private bool TryResolveAxeMaterialRule(') -and $mainSource.Contains('ApplyPresetIntensity(1.20f, preset)')) "The axe versus wood/flora rule is missing or not x1.20 on Hardened."
 Assert-Contract ($mainSource.IndexOf('TryResolveAxeMaterialRule(', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('for (int i = 0; i < DamageRules.Length; i++)', [StringComparison]::Ordinal)) "The axe material rule does not replace the ordinary flora Slash rule."
-Assert-Contract ($mainSource.Contains('classification.IsAxe = IsAxeDamage(damage);') -and $mainSource.Contains('part.IsAxe = overall.IsAxe && physicalPart;')) "Axe identity is not retained through weighted damage parts."
+Assert-Contract ($mainSource.Contains('classification.IsAxe = !classification.IsMiningToolCombatHit && IsAxeDamage(damage);') -and $mainSource.Contains('part.IsAxe = overall.IsAxe && physicalPart;')) "Axe identity is not retained through weighted damage parts or suppressed for mining-tool combat hits."
+Assert-Contract ($mainSource.Contains('typedDamage.Type != DamageType.PhysicalHitSource') -and $mainSource.Contains('tool.Type == ToolType.Mining')) "Mining-tool classification is not limited to direct PhysicalHitSource combat attacks."
+Assert-Contract ($mainSource.Contains('classification.IsMiningToolCombatHit = IsMiningToolCombatHit(damage);') -and $mainSource.Contains('classification.IsPiercing = true;') -and $mainSource.Contains('classification.IsSlashing = false;')) "Mining-tool combat hits are not forced to Pierce before normal weapon fallback."
+Assert-Contract ($mainSource.Contains('physicalPart && overall != null && overall.IsMiningToolCombatHit')) "Weighted physical parts do not preserve the mining-tool Pierce override."
 Assert-Contract ($mainSource.Contains('typedDamage.Type == DamageType.Interact')) "Non-combat interaction damage is not excluded from Steel and Bone modifiers."
 Assert-Contract ($mainSource.IndexOf('typedDamage.Type == DamageType.Interact', [StringComparison]::Ordinal) -lt $mainSource.IndexOf('ApplyOutgoingHealthDamageModifier(ref damageModifier);', [StringComparison]::Ordinal)) "Interaction damage is not excluded before outgoing player-damage pressure."
 Assert-Contract ($mainSource.Contains('ConfigRecoveryBaselineSchema = 14')) "Recovery baseline moved from 14."
@@ -317,6 +325,10 @@ $requiredSettings = @(
     "PassiveShieldProtectionEnabled",
     "ModifyStaminaUsage",
     "ModifyManaUsage",
+    "ModifyCombatManaRegeneration",
+    "CombatManaRegenerationMultiplier",
+    "ModifyParryWindowBonus",
+    "PositiveParryWindowBonusMultiplier",
     "ModifyPlayerPoiseDamageDealt",
     "ProgressiveTenacityEnabled",
     "ModifyPlayerArrowVelocity",
@@ -349,6 +361,13 @@ Assert-Contract ($difficultySource.Contains('return 0.05f;')) "Hardened 5 percen
 Assert-Contract ($difficultySource.Contains('return 0.10f;')) "Crucible 10 percent preset value is missing."
 Assert-Contract ($difficultySource.Contains('return 1.0f - PresetPenaltyAmount();')) "Preset reduction math is missing."
 Assert-Contract ($difficultySource.Contains('return 1.0f + PresetPenaltyAmount();')) "Preset cost math is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'GetPresetCombatSustainabilityMultiplier[\s\S]*?case Preset\.Hardened:\s*return 0\.75f;[\s\S]*?case Preset\.Crucible:\s*return 0\.50f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 1\.0f;')) "Combat mana regeneration and positive parry-window bonuses are not x1.00/x0.75/x0.50 by preset."
+Assert-Contract ($difficultySource.Contains('ApplyPresetCombatSustainabilityMultipliers();')) "Preset changes do not reset the combat-sustainability multipliers."
+Assert-Contract ($difficultySource.Contains('nameof(Hero.ManaRegen)') -and $difficultySource.Contains('nameof(Hero.PredictedManaRegen)')) "Actual and predicted mana-regeneration getters are not both patched."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyCombatManaRegeneration[\s\S]*?!hero\.HeroCombat\.IsHeroInFight[\s\S]*?regeneration <= 0\.0f[\s\S]*?Mathf\.Lerp\(configuredMultiplier, 1\.0f, manaShield\)[\s\S]*?regeneration \*= effectiveMultiplier;')) "Combat mana regeneration does not preserve noncombat and non-positive values or proportionally relieve its penalty with Mana Shield."
+Assert-Contract ($difficultySource.Contains('nameof(HeroParry.Parry)') -and $difficultySource.Contains('NativeBaseParryWindowSeconds = 0.05f')) "The native HeroParry route or 0.05-second base is not recorded."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyPositiveParryWindowBonus[\s\S]*?OriginalTime <= NativeBaseParryWindowSeconds \+ NeutralTolerance[\s\S]*?float positiveBonus = timeDuration\.OriginalTime - NativeBaseParryWindowSeconds;[\s\S]*?NativeBaseParryWindowSeconds \+ \(positiveBonus \* multiplier\)')) "Positive parry-window scaling does not preserve the native base and non-positive totals."
+Assert-Contract ($mainSource.Contains('RestorePreservedSetting(profile, _modifyCombatManaRegeneration') -and $mainSource.Contains('RestorePreservedSetting(profile, _combatManaRegenerationMultiplier') -and $mainSource.Contains('RestorePreservedSetting(profile, _modifyParryWindowBonus') -and $mainSource.Contains('RestorePreservedSetting(profile, _positiveParryWindowBonusMultiplier')) "New combat-sustainability settings are not included in previous-settings recovery."
 Assert-Contract ([regex]::IsMatch($difficultySource, 'private float PresetPlayerPressureAmount\(\)[\s\S]*?case Preset\.Hardened:\s*return 0\.10f;[\s\S]*?case Preset\.Crucible:\s*return 0\.15f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 0\.05f;')) "Player pressure is not 5/10/15 percent for Tempered/Hardened/Crucible."
 Assert-Contract (-not $difficultySource.Contains('_playerDamageDealtMultiplier')) "Removed PlayerDamageDealtMultiplier field or runtime reference remains."
 Assert-Contract (-not [regex]::IsMatch($difficultySource, 'Config\.Bind\(\s*"6\. Difficulty - Player",\s*"PlayerDamageDealtMultiplier"')) "Removed PlayerDamageDealtMultiplier config binding remains."
@@ -364,7 +383,7 @@ Assert-Contract ($difficultySource.Contains('return 1.50f;')) "Crucible arrow ve
 Assert-Contract ([regex]::IsMatch($difficultySource, 'GetPresetHostileArcherAimScatter[\s\S]*?case Preset\.Tempered:\s*return 1\.50f;[\s\S]*?case Preset\.Crucible:\s*return 1\.00f;[\s\S]*?case Preset\.Hardened:[\s\S]*?return 1\.25f;')) "Hostile archer aim scatter is not 1.50/1.25/1.00 meters by preset."
 Assert-Contract ($difficultySource.Contains('ApplyPresetHostileArcherAimScatter();')) "Preset changes do not reset hostile archer aim scatter."
 Assert-Contract ($difficultySource.Contains('new AcceptableValueRange<float>(0.0f, 2.0f)')) "Hostile archer aim-scatter range is not 0.00 to 2.00 meters."
-Assert-Contract ($difficultySource.Contains('PresetEnemySightRangeMultiplier')) "Enemy sight-range preset mapping is missing."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemySightRangeMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.40f;[\s\S]*?case Preset\.Crucible:\s*return 1\.60f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 1\.20f;')) "Enemy sight range is not x1.20/x1.40/x1.60 by preset."
 Assert-Contract ($difficultySource.Contains('return heavy ? 1.10f : 1.05f;')) "Hardened physical armor values are missing."
 Assert-Contract ($difficultySource.Contains('return heavy ? 1.20f : 1.10f;')) "Crucible physical armor values are missing."
 Assert-Contract ($difficultySource.Contains('return 1.025f;')) "Hardened Light armor mobility is not x1.025."
@@ -417,13 +436,13 @@ Assert-Contract ($difficultySource.Contains("npc.NpcAI.Working")) "Enemy sight e
 Assert-Contract ($difficultySource.Contains("WithFactionUtils.IsHostileToHero(npc)")) "Enemy sight eligibility lacks hostility filtering."
 Assert-Contract ($difficultySource.Contains("RemoveAllEnemySightRangeTweaks")) "Enemy sight-range shutdown cleanup is missing."
 Assert-Contract ($difficultySource.Contains('private float PresetEnemyHearingRangeMultiplier()')) "Enemy hearing-range preset mapping is missing."
-Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyHearingRangeMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.20f;[\s\S]*?case Preset\.Crucible:\s*return 1\.30f;')) "Enemy hearing range is not x1.10/x1.20/x1.30 by preset."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyHearingRangeMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.40f;[\s\S]*?case Preset\.Crucible:\s*return 1\.60f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 1\.20f;')) "Enemy hearing range is not x1.20/x1.40/x1.60 by preset."
 Assert-Contract ($difficultySource.Contains('typeof(AINoises)') -and $difficultySource.Contains('"MakeHeroFootstepNoise"')) "Enemy hearing does not patch the native hero-footstep noise route."
 Assert-Contract ($difficultySource.Contains('noiseRange *= multiplier;')) "Enemy hearing does not preserve native noise strength while scaling range."
 Assert-Contract ($difficultySource.Contains('EnemyHearingRangeDiagnosticIntervalSeconds = 2.0f')) "Enemy hearing diagnostics are not capped at one message every two seconds."
 Assert-Contract ($difficultySource.Contains('LogEnemyHearingRangeDiagnostic(before, noiseRange, multiplier);')) "Enemy hearing bypasses its dedicated diagnostic throttle."
 Assert-Contract ($difficultySource.Contains('private float PresetEnemyAggroPersistenceMultiplier()')) "Enemy aggro-persistence preset mapping is missing."
-Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyAggroPersistenceMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.10f;[\s\S]*?case Preset\.Crucible:\s*return 1\.20f;')) "Enemy aggro persistence is not x1.00/x1.10/x1.20 by preset."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyAggroPersistenceMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.40f;[\s\S]*?case Preset\.Crucible:\s*return 1\.60f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 1\.20f;')) "Enemy aggro persistence is not x1.20/x1.40/x1.60 by preset."
 Assert-Contract ($difficultySource.Contains('aggroDecreaseModifier /= multiplier;')) "Enemy aggro persistence does not scale native aggro decay."
 Assert-Contract (-not [regex]::IsMatch($difficultySource, 'AccessTools\.Method\([^\)]*"ShouldForceEnd(?:Combat|Alert)"')) "Enemy aggro persistence patches a forced combat or alert exit route."
 Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetPotionPoisoningBuildup[\s\S]*?case Preset\.Hardened:\s*return 65\.0f;[\s\S]*?case Preset\.Crucible:\s*return 70\.0f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 60\.0f;')) "Potion Poisoning buildup is not 60/65/70 by preset."
@@ -542,6 +561,7 @@ Assert-Contract ($difficultySource.Contains('ReadExternalBool(') -and $difficult
 Assert-Contract ($difficultySource.Contains('FoodRecoveryModifierIsEffective() && foodCooldownOverlap') -and $difficultySource.Contains('FoodCombatRestrictionIsEffective() && foodCooldownOverlap')) "Tainted Combat food cooldown is not compared with both Steel and Bone food systems."
 Assert-Contract ($difficultySource.Contains('staminaOverlap = momentumOverlap')) "Tainted Combat momentum does not report stamina overlap."
 Assert-Contract ($difficultySource.Contains('recoveryOverlap = momentumOverlap')) "Tainted Combat momentum does not report enemy-recovery overlap."
+Assert-Contract ($difficultySource.Contains('"Custom Guard"') -and $difficultySource.Contains('"ParryWindowBonus"') -and $difficultySource.Contains('ParryWindowBonusModifierIsEffective() && parryWindowOverlap') -and $difficultySource.Contains('"ModifyParryWindowBonus"')) "Tainted Combat parry-window overlap detection is missing."
 Assert-Contract ($mainSource.Contains('"ArrowMaterialRulesEnabled"')) "Arrow material rules are not independently toggleable."
 Assert-Contract ($mainSource.Contains('"ArmoredSpellWeaknessEnabled"')) "Armored spell weakness is not independently toggleable."
 Assert-Contract ($mainSource.Contains('classification.IsArrow = IsArrowDamage(damage)')) "Direct arrow delivery is not classified separately from Pierce."
@@ -606,12 +626,16 @@ Assert-Contract ($nexusFull.Contains("mods/111]Better UI[/url] is softly support
 Assert-Contract ($nexusFull.Contains("Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.")) "Standard Grail Floating Text compatibility guidance is missing."
 Assert-Contract (-not $nexusFull.Contains("ShowGrailFloatingTextDiagnostics defaults on")) "Nexus compatibility guidance still contains the verbose Grail Floating Text diagnostics explanation."
 Assert-Contract ($nexusFull.Contains("mods/105]Flat Arrows[/url] is conditionally compatible")) "Flat Arrows conditional compatibility note is missing."
+Assert-Contract ($nexusFull.Contains("mods/284]Avalon AI Overhaul[/url] is conditionally compatible") -and $readme.Contains("Avalon AI Overhaul is conditionally compatible")) "Avalon AI Overhaul compatibility guidance is missing."
 Assert-Contract ($nexusFull.Contains("PlayerArrowGravityMultiplier") -and $nexusFull.Contains("x0.75 gravity")) "Nexus description lacks the preset-independent player-arrow gravity control."
 Assert-Contract ($nexusFull.Contains("HostileArcherAimScatter") -and $nexusFull.Contains("1.50 m") -and $nexusFull.Contains("1.00 m")) "Nexus description lacks hostile archer aim-scatter tuning."
+Assert-Contract ($nexusFull.Contains("| Hostile enemy sight distance    | x1.20    | x1.40       | x1.60       |") -and $nexusFull.Contains("| Hero footstep hearing range     | x1.20    | x1.40       | x1.60       |") -and $nexusFull.Contains("| Native combat aggro persistence | x1.20    | x1.40       | x1.60       |")) "Nexus description lacks the strengthened enemy-awareness preset curve."
 Assert-Contract ($nexusFull.Contains("Tainted Instincts") -and $nexusFull.Contains("enemy sight")) "Tainted Instincts incompatibility or enemy-awareness description is missing."
 Assert-Contract ($nexusFull.Contains("HarderLife") -and $nexusFull.Contains("hearing") -and $nexusFull.Contains("potion effectiveness")) "HarderLife compatibility note does not distinguish Potion Poisoning from potion effectiveness."
 Assert-Contract ($readme.Contains("Potion healing, auxiliary effects, item tooltips, and Better UI presentation remain native")) "Packaged README does not document native potion presentation and healing."
 Assert-Contract ($readme.Contains("60 buildup on Tempered, 65 on Hardened, or 70 on Crucible")) "Packaged README does not document Potion Poisoning buildup."
+Assert-Contract ($readme.Contains("positive combat mana regeneration and accumulated positive parry-window bonuses use x0.75") -and $readme.Contains("Pickaxes count as Pierce on combat hits")) "Packaged README does not document the new sustain or pickaxe combat rules."
+Assert-Contract ($nexusFull.Contains("Positive combat mana regen") -and $nexusFull.Contains("Positive parry-window bonus") -and $nexusFull.Contains("continues to mine normally")) "Nexus description does not document the new preset values and pickaxe behavior."
 Assert-Contract ($readme.Contains("Health, Mana, Stamina, and Utility potions")) "Packaged README does not document independent potion-class buckets."
 Assert-Contract ($readme.Contains("Health, Mana, or Stamina poisoning drains 30%") -and $readme.Contains("Utility drains 15%")) "Packaged README does not document class-specific Potion Poisoning drains."
 Assert-Contract ($readme.Contains("Food does not stack")) "Packaged README does not document single-status food arbitration."
@@ -622,4 +646,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.8.3 difficulty contracts passed."
+Write-Output "Steel and Bone 3.8.8 difficulty contracts passed."

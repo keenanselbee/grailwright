@@ -1,3 +1,22 @@
+Version 3.8.8
+Added preset-scaled positive combat mana regeneration at x1.00 on Tempered, x0.75 on Hardened, and x0.50 on Crucible. Mana Shield proportionally relieves only Steel and Bone's added penalty, while native Mana Shield reduction and post-hit regeneration locks remain authoritative.
+Added matching x1.00/x0.75/x0.50 scaling for accumulated positive parry-window bonuses while preserving the native 0.05-second base and every non-positive total bonus. Both new systems are independently toggleable and adjustable after a preset change.
+Added Tainted Combat overlap detection for its parry-window modifier so active stacked timing changes identify ModifyParryWindowBonus as the setting to disable.
+Classified PhysicalHitSource combat attacks from Mining tools as Pierce before the ordinary Axe fallback and suppressed their Axe/Slash identity, preventing pickaxes from receiving the special Axe-versus-flora bonus while leaving DamageType.Interact mining unchanged.
+Kept ConfigSchemaVersion at 26 because the new settings are additive and safe for existing configs.
+
+Version 3.8.6
+Raised enemy sight distance, hero footstep hearing range, and native combat aggro persistence to x1.20 on Tempered, x1.40 on Hardened, and x1.60 on Crucible.
+Strengthened long-range pursuit pressure by slowing positive native combat-aggro decay more substantially while preserving authored chase boundaries, forced combat exits, target-loss rules, and alert behavior.
+Kept the config schema unchanged because no settings were added, removed, renamed, moved, or retyped.
+
+Version 3.8.5
+Added conditional Avalon AI Overhaul detection for active enemy sight, standing-footstep hearing, and combat-pursuit overlaps.
+Added one deferred Grail Floating Text main-menu compatibility warning for confirmed overlaps and listed only the effective Steel and Bone settings to disable in the BepInEx log.
+Moved existing compatibility warnings to the same Warning-styled, System-category, High-priority main-menu convention with stable event IDs and the warning icon.
+Documented the three Steel and Bone settings that should be disabled when Avalon AI Overhaul owns enemy perception and pursuit.
+Kept the config schema unchanged.
+
 Version 3.8.3
 Removed numeric prefixes from every stored config section while preserving the established semantic FoA Mod Manager order, with Diagnostics penultimate and Import Previous Settings last.
 Advanced the config schema to 26 because the stored section names changed; schema-25 configs are backed up and regenerated through the standard recovery path.

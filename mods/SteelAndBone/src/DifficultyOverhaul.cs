@@ -52,6 +52,7 @@ namespace SteelAndBone
 {
     public sealed partial class SteelAndBonePlugin
     {
+        private const string AvalonAiOverhaulPluginGuid = "AvalonAIOverhaul";
         private const string CustomDifficultyPluginGuid = "jonanoj.CustomDifficulty";
         private const string FlatArrowsPluginGuid = "RedJohn260.FlatArrows";
         private const string HarderLifePluginGuid = "fuwuvi.HarderLife";
@@ -60,6 +61,7 @@ namespace SteelAndBone
         private const string VersatileWeaponsApiTypeName =
             "VersatileWeapons.VersatileWeaponsApi";
         private const float NeutralTolerance = 0.0001f;
+        private const float NativeBaseParryWindowSeconds = 0.05f;
         private const float DifficultyRefreshIntervalSeconds = 1.0f;
         private const float EnemyHearingRangeDiagnosticIntervalSeconds = 2.0f;
         private const string StandardFoodRecoveryGraphGuid = "1c2da8428b5a74142b93ed84593676a9";
@@ -106,6 +108,10 @@ namespace SteelAndBone
         private ConfigEntry<bool> _passiveShieldProtectionEnabled;
         private ConfigEntry<bool> _modifyStaminaUsage;
         private ConfigEntry<bool> _modifyManaUsage;
+        private ConfigEntry<bool> _modifyCombatManaRegeneration;
+        private ConfigEntry<float> _combatManaRegenerationMultiplier;
+        private ConfigEntry<bool> _modifyParryWindowBonus;
+        private ConfigEntry<float> _positiveParryWindowBonusMultiplier;
         private ConfigEntry<bool> _modifyPlayerPoiseDamageDealt;
         private ConfigEntry<bool> _progressiveTenacityEnabled;
         private ConfigEntry<bool> _modifyPlayerArrowVelocity;
@@ -370,6 +376,38 @@ namespace SteelAndBone
                 "ModifyManaUsage",
                 true,
                 ConfigUi("Increase player mana usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Mana Usage", 60, 40));
+            _modifyCombatManaRegeneration = Config.Bind(
+                "Difficulty - Player",
+                "ModifyCombatManaRegeneration",
+                true,
+                ConfigUi("Apply Combat Mana Regeneration Multiplier only while the hero is in combat and regenerating positive mana. Mana Shield proportionally relieves this added penalty while its native combat-regeneration reduction and post-hit regeneration lock remain in control.", "Difficulty - Player", "Combat Mana Regeneration", 60, 45));
+            _combatManaRegenerationMultiplier = Config.Bind(
+                "Difficulty - Player",
+                "CombatManaRegenerationMultiplier",
+                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                ConfigUi(
+                    "Multiplier for positive mana regeneration during combat when Combat Mana Regeneration and Difficulty Modifiers are enabled. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. Out-of-combat regeneration is unchanged.",
+                    "Difficulty - Player",
+                    "Combat Mana Regeneration Multiplier",
+                    60,
+                    46,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+            _modifyParryWindowBonus = Config.Bind(
+                "Difficulty - Player",
+                "ModifyParryWindowBonus",
+                true,
+                ConfigUi("Apply Positive Parry Window Bonus Multiplier to the part of each parry window above the native 0.05-second base when Difficulty Modifiers are enabled. Negative total bonuses remain unchanged.", "Difficulty - Player", "Positive Parry Window Bonus", 60, 47));
+            _positiveParryWindowBonusMultiplier = Config.Bind(
+                "Difficulty - Player",
+                "PositiveParryWindowBonusMultiplier",
+                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                ConfigUi(
+                    "Multiplier for the accumulated positive parry-window bonus from skills, equipment, and other effects. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. The native 0.05-second base window is not reduced.",
+                    "Difficulty - Player",
+                    "Positive Parry Window Bonus Multiplier",
+                    60,
+                    48,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
             _modifyPlayerPoiseDamageDealt = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerPoiseDamageDealt",
@@ -478,17 +516,17 @@ namespace SteelAndBone
                 "Difficulty - Enemies",
                 "ModifyEnemySightRange",
                 true,
-                ConfigUi("Multiply the native sight distance of active hostile NPCs by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled. Line of sight, visibility, alert behavior, and authored perception distances remain native.", "Difficulty - Enemies", "Hostile Enemy Sight Distance", 70, 50));
+                ConfigUi("Multiply the native sight distance of active hostile NPCs by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Line of sight, visibility, alert behavior, and authored perception distances remain native.", "Difficulty - Enemies", "Hostile Enemy Sight Distance", 70, 50));
             _modifyEnemyHearingRange = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyHearingRange",
                 true,
-                ConfigUi("Multiply the native range of hero footstep noise by 1.10, 1.20, or 1.30 according to the preset when Difficulty Modifiers is enabled. Native hearing strength, wall checks, armor noise, and NPC hearing differences remain in control.", "Difficulty - Enemies", "Hostile Enemy Hearing Range", 70, 60));
+                ConfigUi("Multiply the native range of hero footstep noise by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Native hearing strength, wall checks, armor noise, and NPC hearing differences remain in control.", "Difficulty - Enemies", "Hostile Enemy Hearing Range", 70, 60));
             _modifyEnemyAggroPersistence = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyAggroPersistence",
                 true,
-                ConfigUi("Multiply native combat aggro persistence by 1.00, 1.10, or 1.20 according to the preset when Difficulty Modifiers is enabled. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.", "Difficulty - Enemies", "Enemy Aggro Persistence", 70, 70));
+                ConfigUi("Multiply native combat aggro persistence by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.", "Difficulty - Enemies", "Enemy Aggro Persistence", 70, 70));
 
             _modifyKillExperience = Config.Bind(
                 "Difficulty - Progression",
@@ -553,6 +591,7 @@ namespace SteelAndBone
                 ApplyPresetWeakSpotDamageBonus();
                 ApplyPresetHostileArcherAimScatter();
                 ApplyPresetPreventFoodUseInCombat();
+                ApplyPresetCombatSustainabilityMultipliers();
             }
             if (args != null
                 && (ReferenceEquals(args.ChangedSetting, _enabled)
@@ -569,6 +608,27 @@ namespace SteelAndBone
 
         private void PatchDifficultyOverhaul()
         {
+            PatchOptionalPostfix(
+                AccessTools.PropertyGetter(typeof(Hero), nameof(Hero.ManaRegen)),
+                typeof(CombatManaRegenerationPatch),
+                nameof(CombatManaRegenerationPatch.Postfix),
+                "Hero.ManaRegen",
+                "combat mana-regeneration modifier");
+            PatchOptionalPostfix(
+                AccessTools.PropertyGetter(typeof(Hero), nameof(Hero.PredictedManaRegen)),
+                typeof(PredictedCombatManaRegenerationPatch),
+                nameof(PredictedCombatManaRegenerationPatch.Postfix),
+                "Hero.PredictedManaRegen",
+                "predicted combat mana-regeneration modifier");
+            PatchOptionalPrefix(
+                AccessTools.Method(
+                    typeof(HeroParry),
+                    nameof(HeroParry.Parry),
+                    new[] { typeof(Hero), typeof(IDuration) }),
+                typeof(PositiveParryWindowBonusPatch),
+                nameof(PositiveParryWindowBonusPatch.Prefix),
+                "HeroParry.Parry",
+                "positive parry-window bonus modifier");
             _resourceStatsPatchAvailable = PatchOptionalPostfix(
                 AccessTools.Method(typeof(CharacterStats.CharacterStatsWrapper), "Initialize"),
                 typeof(CharacterStatsInitializePatch),
@@ -1190,6 +1250,40 @@ namespace SteelAndBone
             return 1.0f + PresetPenaltyAmount();
         }
 
+        private static float GetPresetCombatSustainabilityMultiplier(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Hardened:
+                    return 0.75f;
+                case Preset.Crucible:
+                    return 0.50f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private void ApplyPresetCombatSustainabilityMultipliers()
+        {
+            if (_preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetCombatSustainabilityMultiplier(_preset.Value);
+            if (_combatManaRegenerationMultiplier != null
+                && Math.Abs(_combatManaRegenerationMultiplier.Value - presetValue) > NeutralTolerance)
+            {
+                _combatManaRegenerationMultiplier.Value = presetValue;
+            }
+            if (_positiveParryWindowBonusMultiplier != null
+                && Math.Abs(_positiveParryWindowBonusMultiplier.Value - presetValue) > NeutralTolerance)
+            {
+                _positiveParryWindowBonusMultiplier.Value = presetValue;
+            }
+        }
+
         private float PresetReductionMultiplier()
         {
             return 1.0f - PresetPenaltyAmount();
@@ -1222,6 +1316,61 @@ namespace SteelAndBone
         private float PresetPlayerPressureReductionMultiplier()
         {
             return 1.0f - PresetPlayerPressureAmount();
+        }
+
+        private void ApplyCombatManaRegeneration(Hero hero, ref float regeneration)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyCombatManaRegeneration)
+                || _combatManaRegenerationMultiplier == null
+                || hero == null
+                || hero.HasBeenDiscarded
+                || hero.HeroCombat == null
+                || !hero.HeroCombat.IsHeroInFight
+                || regeneration <= 0.0f)
+            {
+                return;
+            }
+
+            float configuredMultiplier = Mathf.Clamp01(_combatManaRegenerationMultiplier.Value);
+            if (ApproximatelyNeutral(configuredMultiplier))
+            {
+                return;
+            }
+
+            float manaShield = hero.ManaShield == null
+                ? 0.0f
+                : Mathf.Clamp01(hero.ManaShield.ModifiedValue);
+            float effectiveMultiplier = Mathf.Lerp(configuredMultiplier, 1.0f, manaShield);
+            regeneration *= effectiveMultiplier;
+        }
+
+        private void ApplyPositiveParryWindowBonus(Hero hero, ref IDuration duration)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyParryWindowBonus)
+                || _positiveParryWindowBonusMultiplier == null
+                || hero == null
+                || !ReferenceEquals(hero, Hero.Current))
+            {
+                return;
+            }
+
+            TimeDuration timeDuration = duration as TimeDuration;
+            if (timeDuration == null
+                || timeDuration.OriginalTime <= NativeBaseParryWindowSeconds + NeutralTolerance)
+            {
+                return;
+            }
+
+            float multiplier = Mathf.Clamp01(_positiveParryWindowBonusMultiplier.Value);
+            if (ApproximatelyNeutral(multiplier))
+            {
+                return;
+            }
+
+            float positiveBonus = timeDuration.OriginalTime - NativeBaseParryWindowSeconds;
+            duration = new TimeDuration(
+                NativeBaseParryWindowSeconds + (positiveBonus * multiplier),
+                timeDuration.UnscaledTime);
         }
 
         private float PresetArrowVelocityMultiplier()
@@ -1302,18 +1451,18 @@ namespace SteelAndBone
         {
             if (_preset == null)
             {
-                return 1.10f;
+                return 1.20f;
             }
 
             switch (_preset.Value)
             {
                 case Preset.Hardened:
-                    return 1.30f;
+                    return 1.40f;
                 case Preset.Crucible:
-                    return 1.50f;
+                    return 1.60f;
                 case Preset.Tempered:
                 default:
-                    return 1.10f;
+                    return 1.20f;
             }
         }
 
@@ -1321,18 +1470,18 @@ namespace SteelAndBone
         {
             if (_preset == null)
             {
-                return 1.10f;
+                return 1.20f;
             }
 
             switch (_preset.Value)
             {
                 case Preset.Hardened:
-                    return 1.20f;
+                    return 1.40f;
                 case Preset.Crucible:
-                    return 1.30f;
+                    return 1.60f;
                 case Preset.Tempered:
                 default:
-                    return 1.10f;
+                    return 1.20f;
             }
         }
 
@@ -1340,18 +1489,18 @@ namespace SteelAndBone
         {
             if (_preset == null)
             {
-                return 1.0f;
+                return 1.20f;
             }
 
             switch (_preset.Value)
             {
                 case Preset.Hardened:
-                    return 1.10f;
+                    return 1.40f;
                 case Preset.Crucible:
-                    return 1.20f;
+                    return 1.60f;
                 case Preset.Tempered:
                 default:
-                    return 1.0f;
+                    return 1.20f;
             }
         }
 
@@ -4337,6 +4486,7 @@ namespace SteelAndBone
         {
             try
             {
+                EvaluateAvalonAiOverhaulOverlap();
                 EvaluateCustomDifficultyOverlap();
                 EvaluateFlatArrowsOverlap();
                 EvaluateHarderLifeOverlap();
@@ -4350,6 +4500,61 @@ namespace SteelAndBone
                     LogDiagnostic("Compatibility overlap check failed: " + ex.GetBaseException().Message);
                 }
             }
+        }
+
+        private void EvaluateAvalonAiOverhaulOverlap()
+        {
+            BaseUnityPlugin plugin;
+            if (!TryGetEnabledPlugin(AvalonAiOverhaulPluginGuid, out plugin)
+                || !ReadExternalBool(plugin, "General", "Enabled", true))
+            {
+                return;
+            }
+
+            bool sightOverlap = ExternalFloatIsNonNeutral(
+                plugin,
+                "Vision",
+                "NpcVisionDistanceMultiplier",
+                1.0f);
+            bool hearingOverlap = ReadExternalBool(
+                    plugin,
+                    "Movement Awareness",
+                    "EnableStandingFootstepAwareness",
+                    true)
+                && (ExternalFloatIsNonNeutral(
+                        plugin,
+                        "Movement Awareness",
+                        "OpenWorldFootstepRangeMultiplier",
+                        1.0f)
+                    || ExternalFloatIsNonNeutral(
+                        plugin,
+                        "Movement Awareness",
+                        "InteriorFootstepRangeMultiplier",
+                        1.0f));
+            string combatLeashMode = ReadExternalString(
+                plugin,
+                "Return Distance",
+                "CombatLeashMode",
+                "Vanilla");
+            bool persistenceOverlap = string.Equals(
+                    combatLeashMode,
+                    "FixedDistance",
+                    StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(
+                        combatLeashMode,
+                        "ScalePerNpc",
+                        StringComparison.OrdinalIgnoreCase)
+                    && ExternalFloatIsNonNeutral(
+                        plugin,
+                        "Return Distance",
+                        "CombatLeashScale",
+                        1.0f));
+
+            List<string> conflicts = new List<string>();
+            AddConflictIf(conflicts, EnemySightRangeModifierIsEffective() && sightOverlap, "ModifyEnemySightRange");
+            AddConflictIf(conflicts, EnemyHearingRangeModifierIsEffective() && hearingOverlap, "ModifyEnemyHearingRange");
+            AddConflictIf(conflicts, EnemyAggroPersistenceModifierIsEffective() && persistenceOverlap, "ModifyEnemyAggroPersistence");
+            ReportCompatibilityOverlap("Avalon AI Overhaul", conflicts);
         }
 
         private void EvaluateCustomDifficultyOverlap()
@@ -4522,6 +4727,7 @@ namespace SteelAndBone
             bool recoveryOverlap;
             bool poiseOverlap;
             bool armorOverlap;
+            bool parryWindowOverlap;
 
             if (custom)
             {
@@ -4538,6 +4744,10 @@ namespace SteelAndBone
                     || momentumOverlap;
                 recoveryOverlap = momentumOverlap
                     || ExternalFloatIsNonNeutral(plugin, "Custom", "EnemyAttackRecoveryMultiplier", 1.0f);
+                parryWindowOverlap = ExternalFloatIsNonZero(
+                    plugin,
+                    "Custom Guard",
+                    "ParryWindowBonus");
                 armorOverlap = ExternalFloatIsNonNeutral(plugin, "Custom Armor", "ArmorPenaltyMultiplier", 1.0f);
                 poiseOverlap = ExternalFloatIsNonNeutral(plugin, "Custom Poise", "PlayerPoiseDamageMultiplier", 1.0f)
                     || ExternalFloatIsNonNeutral(plugin, "Custom Poise", "HeavyAttackPoiseMultiplier", 1.0f)
@@ -4553,10 +4763,15 @@ namespace SteelAndBone
                 poiseOverlap = true;
                 slotOverlap = !string.Equals(preset, "VanillaPlus", StringComparison.OrdinalIgnoreCase) || momentum;
                 armorOverlap = !string.Equals(preset, "VanillaPlus", StringComparison.OrdinalIgnoreCase);
+                parryWindowOverlap = !string.Equals(
+                    preset,
+                    "VanillaPlus",
+                    StringComparison.OrdinalIgnoreCase);
             }
 
             List<string> conflicts = new List<string>();
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyStaminaUsage) && staminaOverlap, "ModifyStaminaUsage");
+            AddConflictIf(conflicts, ParryWindowBonusModifierIsEffective() && parryWindowOverlap, "ModifyParryWindowBonus");
             AddConflictIf(conflicts, AttackSlotsModifierIsEffective() && slotOverlap, "ModifyEnemyAttackSlots");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyEnemyAttackRecovery) && recoveryOverlap, "ModifyEnemyAttackRecovery");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyPlayerPoiseDamageDealt) && poiseOverlap, "ModifyPlayerPoiseDamageDealt");
@@ -4685,6 +4900,13 @@ namespace SteelAndBone
                 && _playerArrowGravityMultiplier.Value < 1.0f - NeutralTolerance;
         }
 
+        private bool ParryWindowBonusModifierIsEffective()
+        {
+            return DifficultyModifierIsEnabled(_modifyParryWindowBonus)
+                && _positiveParryWindowBonusMultiplier != null
+                && _positiveParryWindowBonusMultiplier.Value < 1.0f - NeutralTolerance;
+        }
+
         private bool EnemySightRangeModifierIsEffective()
         {
             return DifficultyModifierIsEnabled(_modifyEnemySightRange)
@@ -4758,34 +4980,42 @@ namespace SteelAndBone
                 return;
             }
 
-            NotificationBuffer buffer = World.Any<NotificationBuffer>();
-            if (buffer == null)
-            {
-                return;
-            }
-
+            string eventId;
             string message;
-            if (string.Equals(pluginName, "Tainted Combat", StringComparison.Ordinal))
+            if (string.Equals(pluginName, "Avalon AI Overhaul", StringComparison.Ordinal))
             {
+                eventId = "compatibility-avalon-ai-overhaul";
+                message = "Overlapping enemy perception or pursuit modifiers are active with Avalon AI Overhaul. See the BepInEx log for the settings to disable.";
+            }
+            else if (string.Equals(pluginName, "Tainted Combat", StringComparison.Ordinal))
+            {
+                eventId = "compatibility-tainted-combat";
                 message = "Overlapping combat or food-use modifiers are active with Tainted Combat. See the BepInEx log for details.";
             }
             else if (string.Equals(pluginName, "Flat Arrows", StringComparison.Ordinal))
             {
+                eventId = "compatibility-flat-arrows";
                 message = "Overlapping player-arrow modifiers are active with Flat Arrows. See the BepInEx log for the settings to disable.";
             }
             else if (string.Equals(pluginName, "HarderLife", StringComparison.Ordinal))
             {
+                eventId = "compatibility-harder-life";
                 message = "Overlapping difficulty modifiers are active with HarderLife. See the BepInEx log for the settings to disable.";
             }
             else if (string.Equals(pluginName, "Tainted Instincts", StringComparison.Ordinal))
             {
+                eventId = "compatibility-tainted-instincts";
                 message = "Overlapping enemy modifiers are active with Tainted Instincts. See the BepInEx log for the settings to disable.";
             }
             else
             {
+                eventId = "compatibility-custom-difficulty";
                 message = "Overlapping modifiers are active with Custom Difficulty. See the BepInEx log for the settings to disable.";
             }
-            if (buffer.PushNotification(PluginName, null, string.Empty, message, null, false) != null)
+            if (Grailwright.Shared.GrailFloatingTextLoadErrorNotifier.TryShowCompatibilityWarning(
+                PluginGuid,
+                eventId,
+                message))
             {
                 _notifiedOverlapSignatures.Add(signature);
             }
@@ -5031,6 +5261,42 @@ namespace SteelAndBone
             {
                 _velocityMultiplier = 1.0f;
                 return __exception;
+            }
+        }
+
+        private static class CombatManaRegenerationPatch
+        {
+            public static void Postfix(Hero __instance, ref float __result)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyCombatManaRegeneration(__instance, ref __result);
+                }
+            }
+        }
+
+        private static class PredictedCombatManaRegenerationPatch
+        {
+            public static void Postfix(Hero __instance, ref float __result)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyCombatManaRegeneration(__instance, ref __result);
+                }
+            }
+        }
+
+        private static class PositiveParryWindowBonusPatch
+        {
+            public static void Prefix(Hero hero, ref IDuration duration)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyPositiveParryWindowBonus(hero, ref duration);
+                }
             }
         }
 

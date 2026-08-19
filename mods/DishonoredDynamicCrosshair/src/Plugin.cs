@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.3.1.0")]
-[assembly: AssemblyFileVersion("3.3.1.0")]
+[assembly: AssemblyVersion("3.3.3.0")]
+[assembly: AssemblyFileVersion("3.3.3.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -43,6 +43,7 @@ namespace DishonoredDynamicCrosshair
 
     public enum ReticleSizeMode
     {
+        Reference1440p,
         ScreenPixels,
         UIUnits
     }
@@ -119,8 +120,9 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.3.1";
-        private const int ConfigSchemaVersion = 16;
+        public const string PluginVersion = "3.3.3";
+        private const int ConfigSchemaVersion = 17;
+        private const float ReferenceScreenHeight = 1440f;
 
         private const int CoreSectionOrder = 0;
         private const int ReticlesSectionOrder = 10;
@@ -701,9 +703,9 @@ namespace DishonoredDynamicCrosshair
             _sizeMode = Config.Bind(
                 "Advanced",
                 "SizeMode",
-                ReticleSizeMode.ScreenPixels,
+                ReticleSizeMode.Reference1440p,
                 ConfigUi(
-                    "ScreenPixels compensates for the HUD canvas scale. UIUnits follows the game's canvas scaling.",
+                    "Reference1440p preserves the authored 2560x1440 presentation by scaling with screen height. ScreenPixels uses fixed physical pixels. UIUnits follows the game's canvas scaling.",
                     "Advanced", "Size Mode", AdvancedSectionOrder, 40));
             _textureFiltering = Config.Bind(
                 "Advanced",
@@ -2487,10 +2489,7 @@ namespace DishonoredDynamicCrosshair
             }
 
             float canvasScaleFactor = GetCanvasScaleFactor();
-            float unitConversion = _sizeMode.Value
-                == ReticleSizeMode.ScreenPixels
-                    ? 1f / canvasScaleFactor
-                    : 1f;
+            float unitConversion = GetSizeUnitConversion(canvasScaleFactor);
             float finalSize = baseSize * scale * unitConversion;
 
             _reticleRect.sizeDelta = new Vector2(finalSize, finalSize);
@@ -2589,6 +2588,25 @@ namespace DishonoredDynamicCrosshair
                 ? rootCanvas.scaleFactor
                 : canvas.scaleFactor;
             return scaleFactor > 0.0001f ? scaleFactor : 1f;
+        }
+
+        private float GetSizeUnitConversion(float canvasScaleFactor)
+        {
+            if (_sizeMode.Value == ReticleSizeMode.UIUnits)
+            {
+                return 1f;
+            }
+
+            float physicalPixelConversion = 1f / canvasScaleFactor;
+            if (_sizeMode.Value == ReticleSizeMode.Reference1440p)
+            {
+                float screenHeight = Mathf.Max(Screen.height, 1);
+                return physicalPixelConversion
+                    * screenHeight
+                    / ReferenceScreenHeight;
+            }
+
+            return physicalPixelConversion;
         }
 
         private void ApplyReticleState()
@@ -2774,11 +2792,8 @@ namespace DishonoredDynamicCrosshair
             RectTransform rect,
             Vector2 anchoredPosition)
         {
-            float canvasScaleFactor = GetCanvasScaleFactor();
-            float unitConversion = _sizeMode.Value
-                == ReticleSizeMode.ScreenPixels
-                    ? 1f / canvasScaleFactor
-                    : 1f;
+            float unitConversion = GetSizeUnitConversion(
+                GetCanvasScaleFactor());
             float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
                 * unitConversion;
             rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -2908,11 +2923,8 @@ namespace DishonoredDynamicCrosshair
             }
             color.a *= Mathf.Clamp01(_interactionIconOpacity.Value);
 
-            float canvasScaleFactor = GetCanvasScaleFactor();
-            float unitConversion = _sizeMode.Value
-                == ReticleSizeMode.ScreenPixels
-                    ? 1f / canvasScaleFactor
-                    : 1f;
+            float unitConversion = GetSizeUnitConversion(
+                GetCanvasScaleFactor());
             float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
                 * Mathf.Clamp(_interactionIconScale.Value, 0.1f, 3f)
                 * unitConversion;
@@ -3886,11 +3898,8 @@ namespace DishonoredDynamicCrosshair
                 : _activeHitMarkerDamageOverTime
                     ? _hitMarkerDamageOverTimeSizeMultiplier.Value
                     : _hitMarkerSizeMultiplier.Value;
-            float canvasScaleFactor = GetCanvasScaleFactor();
-            float unitConversion = _sizeMode.Value
-                == ReticleSizeMode.ScreenPixels
-                    ? 1f / canvasScaleFactor
-                    : 1f;
+            float unitConversion = GetSizeUnitConversion(
+                GetCanvasScaleFactor());
             float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
                 * Mathf.Clamp(sizeMultiplier, 0.5f, 3f)
                 * unitConversion;
@@ -5044,7 +5053,7 @@ namespace DishonoredDynamicCrosshair
                     ApplyReticleState(context, targetState);
                 }
 
-                if (_sizeMode.Value == ReticleSizeMode.ScreenPixels)
+                if (_sizeMode.Value != ReticleSizeMode.UIUnits)
                 {
                     float canvasScaleFactor = GetCanvasScaleFactor();
                     if (Screen.width != _lastScreenWidth
@@ -5053,7 +5062,7 @@ namespace DishonoredDynamicCrosshair
                             canvasScaleFactor,
                             _lastCanvasScaleFactor))
                     {
-                        ApplyReticleLayout(_currentContext);
+                        ApplyReticleState(context, targetState);
                     }
                 }
             }

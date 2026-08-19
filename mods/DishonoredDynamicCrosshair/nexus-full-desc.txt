@@ -14,7 +14,7 @@
 [*][b]Flexible visibility:[/b] Choose AlwaysVisible, TargetOnly, CombatReady, or HostilesOnly, with live hostility updates and configurable target range.[/*]
 [*][b]Dishonored-style awareness:[/b] Replace the vanilla crouch indicator with an eleven-frame eye that opens inside the reticle while long outer awareness lines retract toward the center.[/*]
 [*][b]Contextual interactions:[/b] Replace generic key reminders with action-aware hand, lock, tool, book, speech, rest, mount, and campfire icons.[/*]
-[*][b]Precise presentation:[/b] Set true screen-pixel or canvas-relative dimensions, texture filtering, mounted opacity, and vanilla-reticle suppression.[/*]
+[*][b]Precise presentation:[/b] Use 1440p-reference, fixed screen-pixel, or canvas-relative dimensions with texture filtering, mounted opacity, and vanilla-reticle suppression.[/*]
 [*][b]Ambush Integrity integration:[/b] Add a topmost dark-red backstab indicator only while the current target passes the stealth overhaul's authoritative backstab-ready state.[/*]
 [*][b]Blood Magic integration:[/b] Show Meager, Worthy, Potent, and Prime corpse-drain reticles through the optional [b]Blood Magic Expansion[/b] API.[/*]
 [*][b]Steel and Bone hit markers:[/b] Layer seven numbered effectiveness frames plus the shared neutral reticle above the center visuals, with independent weak-spot, critical, and tiered killing-blow overlays.[/*]
@@ -70,7 +70,7 @@ Start the game once to generate:
 
 [b]Ambush Integrity[/b] has [b]BackstabReadyOverlayEnabled[/b] and [b]BackstabReadyColor[/b]. The overlay defaults to the killing-blow dark red #8C0003FF.
 
-[b]Advanced[/b] has targeting, sizing, texture filtering, custom awareness-eye opacity multiplier and offset, hands-down behavior, and [b]HideVanillaReticles[/b]. The multiplier defaults to 1, making the eye and pupil match the active crosshair opacity exactly. Most users can leave these defaults alone.
+[b]Advanced[/b] has targeting, sizing, texture filtering, custom awareness-eye opacity multiplier and offset, hands-down behavior, and [b]HideVanillaReticles[/b]. [b]SizeMode[/b] defaults to Reference1440p, preserving the authored 2560x1440 presentation while scaling every crosshair layer by screen height at 1080p, 4K, and ultrawide resolutions. ScreenPixels keeps fixed physical pixels, while UIUnits follows the game's HUD canvas and HUD Scale. The awareness multiplier defaults to 1, making the eye and pupil match the active crosshair opacity exactly. Most users can leave these defaults alone.
 
 When [b]Enabled = false[/b], the custom reticle and background polling pause, and the vanilla target-detection range and crouch indicator are restored.
 
@@ -88,7 +88,7 @@ When [b]Enabled = false[/b], the custom reticle and background polling pause, an
 
 [heading][color=#C94A4A][size=5]Center Dot and Crouch Awareness[/size][/color][/heading]
 
-[b]ShowCenterDot[/b] defaults to enabled. General, Bow, Magic, and BloodMagic all use [b]dot.png[/b] at the unscaled [b]ReticleSizePixels[/b] canvas size. The ordinary dot inherits the reticle color and opacity but not context scale multipliers.
+[b]ShowCenterDot[/b] defaults to enabled. General, Bow, Magic, and BloodMagic all use [b]dot.png[/b] at the base [b]ReticleSizePixels[/b] size before context multipliers, while still following the selected [b]SizeMode[/b] and reference-height scaling. The ordinary dot inherits the reticle color and opacity but not Bow, Magic, Blood Magic, or corpse-quality scale multipliers.
 
 While crouched, the custom awareness eye replaces the ordinary dot. Frame 0 is a closed central line with long awareness lines outside the reticle. Frames 1 through 9 progressively open the eye while retracting those lines toward the center. Frame 10 is fully open with no outer lines. The eye stays small enough to fit within the Bow reticle while the complete indicator remains readable around every context.
 

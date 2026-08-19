@@ -18,9 +18,9 @@ $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
 $manifest = $manifestText | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.3.1") "mod.json is not version 3.3.1."
-Assert-Contract ($source.Contains('PluginVersion = "3.3.1"')) "PluginVersion is not 3.3.1."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 16')) "Config schema is not 16."
+Assert-Contract ($manifest.version -eq "3.3.3") "mod.json is not version 3.3.3."
+Assert-Contract ($source.Contains('PluginVersion = "3.3.3"')) "PluginVersion is not 3.3.3."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 17')) "Config schema is not 17."
 Assert-Contract (-not $manifestText.Contains('TG.Main.dll')) "The reflected integration acquired a hard game-assembly reference."
 
 Assert-Contract ([regex]::IsMatch($source, '"Interaction Icons",\s*"Enabled",\s*true,')) "Interaction icons are not enabled by default."

@@ -20,7 +20,7 @@ $ambushSource = Get-Content -Raw -LiteralPath (
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
 $assetPath = Join-Path $modRoot "interaction_backstab.png"
 
-Assert-Contract ($manifest.version -eq "3.3.1") "mod.json is not version 3.3.1."
+Assert-Contract ($manifest.version -eq "3.3.3") "mod.json is not version 3.3.3."
 Assert-Contract ($source.Contains('[BepInDependency("ks.tgfoa.ambush-integrity", BepInDependency.DependencyFlags.SoftDependency)]')) "Ambush Integrity is not a soft dependency."
 Assert-Contract (-not ((Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")).Contains("AmbushIntegrity.dll"))) "The integration must not take a hard Ambush Integrity assembly reference."
 foreach ($token in @(

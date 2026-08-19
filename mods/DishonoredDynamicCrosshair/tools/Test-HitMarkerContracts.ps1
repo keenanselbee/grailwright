@@ -20,9 +20,9 @@ $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\Blo
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.3.1") "mod.json is not version 3.3.1."
-Assert-Contract ($source.Contains('PluginVersion = "3.3.1"')) "PluginVersion is not 3.3.1."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 16')) "Config schema is not 16."
+Assert-Contract ($manifest.version -eq "3.3.3") "mod.json is not version 3.3.3."
+Assert-Contract ($source.Contains('PluginVersion = "3.3.3"')) "PluginVersion is not 3.3.3."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 17')) "Config schema is not 17."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
 Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
 Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Bow,\s*"Bow",\s*"custom_reticle\.png",\s*0\.9f\);')) "Bow does not default to the shared reticle at 0.9x."
@@ -61,6 +61,11 @@ Assert-Contract ($source.Contains('ReticleAsset dotAsset = _generalDot;')) "Cent
 Assert-Contract (-not $source.Contains('_bowDot') -and -not $source.Contains('_magicDot')) "Context-specific dot asset slots remain."
 Assert-Contract (-not $source.Contains('dot_bow.png') -and -not $source.Contains('dot_magic.png')) "Context-specific dot filenames remain."
 Assert-Contract ([regex]::IsMatch($source, 'ApplySharedDotLayout\([\s\S]*?Mathf\.Clamp\(_baseSizePixels\.Value, 4f, 256f\)[\s\S]*?rect\.sizeDelta = new Vector2\(size, size\);')) "Dot sizing is not fixed to the unscaled ReticleSizePixels canvas size."
+Assert-Contract ([regex]::IsMatch($source, '"SizeMode",\s*ReticleSizeMode\.Reference1440p,')) "Reference1440p is not the default size mode."
+Assert-Contract ($source.Contains('ReferenceScreenHeight = 1440f')) "The 1440p reference height is missing."
+Assert-Contract ([regex]::IsMatch($source, 'GetSizeUnitConversion\(float canvasScaleFactor\)[\s\S]*?Screen\.height[\s\S]*?/ ReferenceScreenHeight;')) "Reference1440p does not scale physical pixels by screen height."
+Assert-Contract ([regex]::Matches($source, 'GetSizeUnitConversion\(').Count -eq 5) "Not every visual size path uses the shared size conversion."
+Assert-Contract ([regex]::IsMatch($source, '_sizeMode\.Value != ReticleSizeMode\.UIUnits[\s\S]*?Screen\.width != _lastScreenWidth[\s\S]*?ApplyReticleState\(context, targetState\);')) "Resolution changes do not refresh the complete presentation."
 Assert-Contract ($source.Contains('ResolveHitMarkerFrame')) "The numbered effectiveness mapping is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.35f')) "Extreme resistance threshold is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.70f')) "Strong resistance threshold is missing."
@@ -188,6 +193,7 @@ Assert-Contract ($readme.Contains("Steel and Bone Hit Markers")) "README lacks t
 Assert-Contract ($readme.Contains("hitmarker_0.png") -and $readme.Contains("hitmarker_7.png")) "README lacks the renamed effectiveness-frame list."
 Assert-Contract ($readme.Contains("custom_reticle.png") -and -not $readme.Contains("hitmarker_4.png")) "README does not document the shared neutral reticle."
 Assert-Contract ($readme.Contains("all use") -and $readme.Contains("dot.png") -and -not $readme.Contains("dot_bow.png") -and -not $readme.Contains("dot_magic.png")) "README does not document the shared dot asset."
+Assert-Contract ($readme.Contains("SizeMode defaults to Reference1440p") -and $readme.Contains("becomes 120 at 4K")) "README does not document reference-resolution scaling."
 Assert-Contract ($readme.Contains("stealth_eye_0.png") -and $readme.Contains("stealth_eye_10.png")) "README lacks the complete stealth-eye frame range."
 Assert-Contract ($readme.Contains("frames 0 and 1 remain dotless") -and $readme.Contains("even when ShowCenterDot is false")) "README lacks the frame-2 contextual pupil behavior."
 Assert-Contract ($readme.Contains("hitmarker.png")) "README lacks the direct-hit diamond."

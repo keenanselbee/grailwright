@@ -1,3 +1,9 @@
+Version 3.3.3
+Added the default Reference1440p size mode, which preserves the authored 2560x1440 presentation while scaling all crosshair visuals by screen height for consistent proportions at 1080p, 4K, and ultrawide resolutions.
+Centralized reticle, shared-dot and pupil, interaction-icon, and hit-marker size conversion so every layer follows the selected size mode consistently.
+Made live resolution and HUD canvas-scale changes refresh the complete presentation immediately, including the fixed-size shared dot and pupil.
+Advanced ConfigSchemaVersion from 16 to 17 because SizeMode now defaults to Reference1440p instead of ScreenPixels; compatible customized visual values remain recoverable.
+
 Version 3.3.1
 Made every General, Bow, Magic, and Blood Magic center dot and stealth-eye pupil use the shared dot.png asset at the unscaled ReticleSizePixels canvas size.
 Removed dot_bow.png and dot_magic.png so weapon and magic reticle scales no longer change the dot or pupil artwork.

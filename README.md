@@ -18,7 +18,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
 | [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.8.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.8.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.3.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.3.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.5.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |

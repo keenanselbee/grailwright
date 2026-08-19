@@ -1,5 +1,7 @@
-TargetVersion=3.3.1
+TargetVersion=3.3.3
 BaselineVersion=3.2.8
+Added a default 1440p-reference size mode that scales every crosshair layer by screen height for consistent proportions across 1080p, 1440p, 4K, and ultrawide resolutions.
+Made live resolution and HUD-scale changes refresh the complete presentation immediately.
 Made every context use the shared dot.png at one consistent size, removing the Bow and Magic dot assets and their context-based scaling.
 Kept the hand visible while non-empty corpse, chest, and container quick-loot panels are open, hiding it once the container is empty.
 Fixed mining interactions such as iron ore resolving to the hand instead of the pickaxe.

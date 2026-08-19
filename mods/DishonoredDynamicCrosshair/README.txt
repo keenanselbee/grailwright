@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.3.1
+Version 3.3.3
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.3.1
+  Version: 3.3.3
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -64,9 +64,9 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.3.1 uses ConfigSchemaVersion 16. The schema last changed because Bow
-and Magic now default to the General custom_reticle.png at 0.9x and 1.1x.
-Compatible customized visual values remain recoverable across the reset.
+Version 3.3.3 uses ConfigSchemaVersion 17. The schema last changed because
+SizeMode now defaults to Reference1440p instead of ScreenPixels. Compatible
+customized visual values remain recoverable across the reset.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -181,8 +181,10 @@ Center Dot
 ----------
 
 ShowCenterDot defaults to true. General, Bow, Magic, and BloodMagic all use
-dot.png at the unscaled ReticleSizePixels canvas size, so context scale
-multipliers do not change the dot. While the custom crouch-awareness eye is
+dot.png at the base ReticleSizePixels size before context multipliers, while
+still following the selected SizeMode and reference-height scaling. Bow,
+Magic, Blood Magic, and corpse-quality multipliers do not change the dot.
+While the custom crouch-awareness eye is
 active, frames 0 and 1 remain dotless; from frame 2 through frame 10 the shared
 dot becomes the eye's pupil even when ShowCenterDot is false. The pupil uses
 the same context-independent size and follows the eye's color, opacity, and
@@ -308,9 +310,13 @@ Appearance
 
 ReticleSizePixels defaults to 80. General uses that size directly. Bow and
 Magic reuse the General reticle by default at 0.9x and 1.1x, while BloodMagic
-applies its own scale multiplier. SizeMode defaults to ScreenPixels, which
-compensates for the HUD canvas scale so the final reticle size is measured in
-physical screen pixels. UIUnits preserves canvas-relative sizing.
+applies its own scale multiplier. SizeMode defaults to Reference1440p, which
+preserves the authored 2560x1440 appearance and scales every visual by screen
+height: 80 becomes 60 physical pixels at 1080p, remains 80 at any 1440p
+resolution including ultrawide, and becomes 120 at 4K. ScreenPixels keeps the
+configured size fixed in physical pixels. UIUnits follows the game's HUD
+canvas and HUD Scale. Live resolution and HUD-scale changes refresh the full
+presentation immediately.
 
 TextureFiltering defaults to MipmappedTrilinear. Runtime mipmaps are generated
 for all reticle PNGs and trilinear filtering is used when they are displayed

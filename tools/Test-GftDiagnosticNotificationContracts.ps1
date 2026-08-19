@@ -54,18 +54,6 @@ $contracts = @(
             "_pendingGftRespawned")
     },
     @{
-        Name = "Full Enemy XP"
-        Path = "mods\FullEnemyXP\src\FullEnemyXP.cs"
-        Tokens = @(
-            '"ShowGrailFloatingTextDiagnostics", true',
-            "ShowAdjustmentDiagnostic(",
-            "_diagnostics.Value",
-            "_showGrailFloatingTextDiagnostics.Value",
-            '"full-enemy-xp-adjustment"',
-            '"full-enemy-xp-diagnostics"',
-            "SummaryEveryAdjustedKills")
-    },
-    @{
         Name = "Blood Magic Expansion"
         Path = "mods\BloodMagicExpansion\src\BloodMagicExpansion.cs"
         Tokens = @(

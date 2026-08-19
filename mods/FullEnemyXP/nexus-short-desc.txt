@@ -1,1 +1,0 @@
-Removes the enemy overlevel XP penalty so lower-level enemies keep giving their normal kill XP, while preserving vanilla base XP, multipliers, XP-blocked targets, summons, and non-player kill rules.

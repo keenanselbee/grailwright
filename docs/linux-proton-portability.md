@@ -32,7 +32,6 @@ runtime path concatenation requiring an OS branch were found.
 | Enemy Respawn Control | BepInEx config and managed game types | No mod-owned runtime asset path issue |
 | Eyes in the Dark | BepInEx config and managed game types | No mod-owned runtime asset path issue |
 | First Person Arms Adjuster | BepInEx config and managed game types | No mod-owned runtime asset path issue |
-| Full Enemy XP | BepInEx config and managed game types | No mod-owned runtime asset path issue |
 | Glorious UI | Config-local cache files and managed game types | Uses `Path.Combine` under the BepInEx config path |
 | Grail Floating Text | Packaged icon PNG loading | Uses `Path.Combine`; packaged names and casing match |
 | Killing Blow Mastery | Packaged WAV loading through FMOD and Unity URI APIs | Uses `Path.Combine` and `Uri`; packaged names and casing match |

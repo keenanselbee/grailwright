@@ -1,1 +1,0 @@
-Keeps enemy kill XP from falling off when the player outlevels the enemy, with dry-run diagnostics for testing the adjusted reward math.

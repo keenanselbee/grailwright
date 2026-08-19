@@ -115,7 +115,6 @@ $modContracts = @(
     @{ Mod = 'EnemyRespawnControl'; Source = 'src\EnemyRespawnControl.cs'; Schema = 4; AutoPreserves = $true },
     @{ Mod = 'EyesInTheDark'; Source = 'src\EyesInTheDark.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'FirstPersonArmsAdjuster'; Source = 'src\FirstPersonArmsAdjuster.cs'; Schema = 1; AutoPreserves = $true },
-    @{ Mod = 'FullEnemyXP'; Source = 'src\FullEnemyXP.cs'; Schema = 1; AutoPreserves = $false },
     @{ Mod = 'GrailFloatingText'; Source = 'src\GrailFloatingText.cs'; Schema = 15; AutoPreserves = $true },
     @{ Mod = 'KillingBlowMastery'; Source = 'src\KillingBlowMastery.cs'; Schema = 13; AutoPreserves = $true },
     @{ Mod = 'KingsElegyMainMenuMusic'; Source = 'src\MainMenuMusic.cs'; Schema = 16; AutoPreserves = $false },

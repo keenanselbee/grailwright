@@ -64,7 +64,7 @@ try {
     $ksPlan = @(Invoke-PublishDryRun `
         -ModRoot (Join-Path $repoRoot "mods\KSAddons\KSPersistentCorpsesAddon") `
         -ArchivePath $archivePath `
-        -BaselineVersion "1.0.9")
+        -BaselineVersion "1.1.0")
     Assert-Contract ($ksPlan.Count -eq 1) "KS Addons dry run returned no publish plan."
     $ksEntries = @($ksPlan[0].ChangelogEntries)
     Assert-Contract (
@@ -77,9 +77,9 @@ try {
     ) "KS Addons payload did not add exactly one heading line."
 
     $ordinaryPlan = @(Invoke-PublishDryRun `
-        -ModRoot (Join-Path $repoRoot "mods\FullEnemyXP") `
+        -ModRoot (Join-Path $repoRoot "mods\VersatileWeapons") `
         -ArchivePath $archivePath `
-        -BaselineVersion "1.0.9")
+        -BaselineVersion "0.7.6")
     Assert-Contract ($ordinaryPlan.Count -eq 1) "Ordinary mod dry run returned no publish plan."
     $ordinaryEntries = @($ordinaryPlan[0].ChangelogEntries)
     Assert-Contract (

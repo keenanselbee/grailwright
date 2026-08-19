@@ -10,7 +10,7 @@
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
-[*][b]Reactive reticles:[/b] Use separate hot-reloading PNGs for general, bow, magic, blood-magic corpse, and context-specific center-dot visuals.[/*]
+[*][b]Reactive reticles:[/b] Scale the shared hot-reloading reticle for general, bow, and magic contexts, with specialized blood-magic corpse frames and one consistently sized center dot.[/*]
 [*][b]Flexible visibility:[/b] Choose AlwaysVisible, TargetOnly, CombatReady, or HostilesOnly, with live hostility updates and configurable target range.[/*]
 [*][b]Dishonored-style awareness:[/b] Replace the vanilla crouch indicator with an eleven-frame eye that opens inside the reticle while long outer awareness lines retract toward the center.[/*]
 [*][b]Contextual interactions:[/b] Replace generic key reminders with action-aware hand, lock, tool, book, speech, rest, mount, and campfire icons.[/*]
@@ -58,7 +58,7 @@ Start the game once to generate:
 
 [b]Core[/b] has [b]Enabled[/b] and [b]Preset[/b].
 
-[b]Reticles[/b] has [b]ReticleSizePixels[/b], [b]ShowCenterDot[/b], the four context PNG paths, and scale multipliers for Bow, Magic, and BloodMagic. General uses the global size directly. General, Bow, and Magic use separate hot-reloading dot assets; BloodMagic shares the Magic dot.
+[b]Reticles[/b] has [b]ReticleSizePixels[/b], [b]ShowCenterDot[/b], the four configurable context PNG paths, and scale multipliers for Bow, Magic, and BloodMagic. Bow and Magic default to the General PNG at 0.9x and 1.1x. Every context uses the same hot-reloading dot asset without context scale multipliers.
 
 [b]Colors and Opacity[/b] has [b]DefaultColor[/b], [b]HostileColor[/b], [b]NonHostileColor[/b], [b]IdleOpacity[/b], [b]TargetOpacity[/b], and [b]MountedOpacityMultiplier[/b].
 
@@ -88,11 +88,11 @@ When [b]Enabled = false[/b], the custom reticle and background polling pause, an
 
 [heading][color=#C94A4A][size=5]Center Dot and Crouch Awareness[/size][/color][/heading]
 
-[b]ShowCenterDot[/b] defaults to enabled. General uses [b]dot.png[/b], Bow uses [b]dot_bow.png[/b], and Magic plus BloodMagic use [b]dot_magic.png[/b]. The ordinary dot inherits the reticle color and opacity.
+[b]ShowCenterDot[/b] defaults to enabled. General, Bow, Magic, and BloodMagic all use [b]dot.png[/b] at the unscaled [b]ReticleSizePixels[/b] canvas size. The ordinary dot inherits the reticle color and opacity but not context scale multipliers.
 
 While crouched, the custom awareness eye replaces the ordinary dot. Frame 0 is a closed central line with long awareness lines outside the reticle. Frames 1 through 9 progressively open the eye while retracting those lines toward the center. Frame 10 is fully open with no outer lines. The eye stays small enough to fit within the Bow reticle while the complete indicator remains readable around every context.
 
-Frames 0 and 1 remain dotless. From frame 2 through frame 10, the active context dot becomes the eye's pupil even when [b]ShowCenterDot[/b] is disabled. It follows the eye's color, opacity, and vertical offset. Direct nonlethal hit feedback covers the ordinary dot, while the complete stealth eye and pupil remain underneath every hit-marker layer so awareness is never replaced by damage feedback.
+Frames 0 and 1 remain dotless. From frame 2 through frame 10, the shared dot becomes the eye's pupil even when [b]ShowCenterDot[/b] is disabled. It keeps the same context-independent size and follows the eye's color, opacity, and vertical offset. Direct nonlethal hit feedback covers the ordinary dot, while the complete stealth eye and pupil remain underneath every hit-marker layer so awareness is never replaced by damage feedback.
 
 The complete awareness indicator inherits the active crosshair's resolved opacity, including targeting, mounting, interaction, and backstab fading. [b]CrouchIndicatorOpacityMultiplier[/b] defaults to 1 for an exact match and can make the indicator proportionally fainter without disconnecting it from those dynamic states. Blood Magic corpse reticles and routine interaction icons hide the eye and pupil while their contextual presentation is active.
 
@@ -100,7 +100,7 @@ The complete awareness indicator inherits the active crosshair's resolved opacit
 
 [heading][color=#C94A4A][size=5]Contextual Interaction Icons[/size][/color][/heading]
 
-Dishonored reads the exact action selected by the game's interaction HUD instead of guessing from localized prompt text. Mining, lumbering, fishing, digging, reading, talking, resting in beds or bedrolls, mounting, and using campfires or bonfires have dedicated 512x512 icons. Items, containers, doors, gathering, searching, and unknown interactions use the general hand.
+Dishonored reads the exact action selected by the game's interaction HUD instead of guessing from localized prompt text. Mining, lumbering, fishing, digging, reading, talking, resting in beds or bedrolls, mounting, and using campfires or bonfires have dedicated 512x512 icons. Items, containers, doors, gathering, searching, and unknown interactions use the general hand. A non-empty corpse, chest, or container keeps the hand visible while its quick-loot panel is open; the icon disappears when the container is empty.
 
 Any locked location uses the lock icon even when its lock is key-only, broken, or otherwise cannot be picked. Theft, pickpocketing, and other illegal actions use the hand in killing-blow dark red. Lock state takes priority over the illegal color.
 

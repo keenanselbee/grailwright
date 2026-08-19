@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.2.8.0")]
-[assembly: AssemblyFileVersion("3.2.8.0")]
+[assembly: AssemblyVersion("3.3.1.0")]
+[assembly: AssemblyFileVersion("3.3.1.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -119,8 +119,8 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.2.8";
-        private const int ConfigSchemaVersion = 15;
+        public const string PluginVersion = "3.3.1";
+        private const int ConfigSchemaVersion = 16;
 
         private const int CoreSectionOrder = 0;
         private const int ReticlesSectionOrder = 10;
@@ -244,8 +244,6 @@ namespace DishonoredDynamicCrosshair
                     { InteractionIconKind.Campfire, new ReticleAsset() }
                 };
         private readonly ReticleAsset _generalDot = new ReticleAsset();
-        private readonly ReticleAsset _bowDot = new ReticleAsset();
-        private readonly ReticleAsset _magicDot = new ReticleAsset();
         private readonly ReticleAsset[] _stealthEyeAssets =
         {
             new ReticleAsset(),
@@ -295,6 +293,8 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _targetChangedMethod;
         private MethodInfo _loadImageMethod;
         private MethodInfo _interactionFillInfoMethod;
+        private MethodInfo _containerIsEmptyGetter;
+        private MethodInfo _containerIsIllegalGetter;
         private Type _interactionKeyIconType;
         private EventInfo _steelAndBoneHitResolvedEvent;
         private Delegate _steelAndBoneHitResolvedHandler;
@@ -381,8 +381,12 @@ namespace DishonoredDynamicCrosshair
         private bool _hasOriginalInteractionPromptAnchoredPosition;
         private InteractionIconKind _currentInteractionIconKind;
         private bool _currentInteractionIsIllegal;
+        private object _quickLootContainer;
+        private bool _quickLootHasItems;
+        private bool _quickLootIsIllegal;
         private bool _interactionPresentationActive;
         private bool _interactionReadFailureLogged;
+        private bool _quickLootReadFailureLogged;
         private bool _hitMarkerActive;
         private HitMarkerFrame _activeHitMarkerFrame;
         private bool _activeHitMarkerWeakSpot;
@@ -513,13 +517,13 @@ namespace DishonoredDynamicCrosshair
             _bow = BindContext(
                 ReticleContext.Bow,
                 "Bow",
-                "custom_reticle_bow.png",
-                1f);
+                "custom_reticle.png",
+                0.9f);
             _magic = BindContext(
                 ReticleContext.Magic,
                 "Magic",
-                "custom_reticle_magic.png",
-                1f);
+                "custom_reticle.png",
+                1.1f);
             _bloodMagic = BindContext(
                 ReticleContext.BloodMagic,
                 "BloodMagic",
@@ -1547,6 +1551,8 @@ namespace DishonoredDynamicCrosshair
                 "Awaken.TG.Main.Character.CharacterInventoryExtension");
             Type interactionViewType = RequireType(
                 "Awaken.TG.Main.Heroes.Interactions.VHeroInteractionUI");
+            Type containerUiType = RequireType(
+                "Awaken.TG.Main.Locations.Containers.ContainerUI");
             _interactionKeyIconType = RequireType(
                 "Awaken.TG.Main.Utility.UI.Keys.Components.KeyIcon");
 
@@ -1590,6 +1596,20 @@ namespace DishonoredDynamicCrosshair
                 interactionViewType,
                 "FillInfo",
                 Type.EmptyTypes);
+            MethodInfo containerEnableMainViewMethod = RequireMethod(
+                containerUiType,
+                "EnableMainView",
+                new[] { typeof(bool) });
+            MethodInfo containerDiscardMethod = RequireMethod(
+                containerUiType,
+                "OnDiscard",
+                new[] { typeof(bool) });
+            _containerIsEmptyGetter = RequirePropertyGetter(
+                containerUiType,
+                "IsEmpty");
+            _containerIsIllegalGetter = RequirePropertyGetter(
+                containerUiType,
+                "IsIllegal");
 
             _refreshCrosshairMethod = RequireMethod(
                 heroCrosshairType,
@@ -1680,6 +1700,16 @@ namespace DishonoredDynamicCrosshair
                 postfix: new HarmonyMethod(
                     typeof(DishonoredDynamicCrosshairPatches),
                     nameof(DishonoredDynamicCrosshairPatches.InteractionViewFilledPostfix)));
+            _harmony.Patch(
+                containerEnableMainViewMethod,
+                postfix: new HarmonyMethod(
+                    typeof(DishonoredDynamicCrosshairPatches),
+                    nameof(DishonoredDynamicCrosshairPatches.QuickLootOpenedPostfix)));
+            _harmony.Patch(
+                containerDiscardMethod,
+                prefix: new HarmonyMethod(
+                    typeof(DishonoredDynamicCrosshairPatches),
+                    nameof(DishonoredDynamicCrosshairPatches.QuickLootDiscardingPrefix)));
         }
 
         internal void FilterVanillaPartActivation(object part, ref bool active)
@@ -1869,6 +1899,74 @@ namespace DishonoredDynamicCrosshair
             }
         }
 
+        internal void OnQuickLootOpened(object containerUi)
+        {
+            _quickLootContainer = containerUi;
+            RefreshQuickLootState(true);
+        }
+
+        internal void OnQuickLootDiscarding(object containerUi)
+        {
+            if (!ReferenceEquals(_quickLootContainer, containerUi))
+            {
+                return;
+            }
+
+            _quickLootContainer = null;
+            _quickLootHasItems = false;
+            _quickLootIsIllegal = false;
+            ApplyReticleState();
+        }
+
+        private void RefreshQuickLootState(bool forceApply = false)
+        {
+            if (_quickLootContainer == null
+                || _containerIsEmptyGetter == null
+                || _containerIsIllegalGetter == null)
+            {
+                return;
+            }
+
+            try
+            {
+                bool hasItems = !(bool)_containerIsEmptyGetter.Invoke(
+                    _quickLootContainer,
+                    null);
+                bool illegal = (bool)_containerIsIllegalGetter.Invoke(
+                    _quickLootContainer,
+                    null);
+                if (!forceApply
+                    && hasItems == _quickLootHasItems
+                    && illegal == _quickLootIsIllegal)
+                {
+                    return;
+                }
+
+                _quickLootHasItems = hasItems;
+                _quickLootIsIllegal = illegal;
+                ApplyReticleState();
+            }
+            catch (Exception exception)
+            {
+                _quickLootContainer = null;
+                _quickLootHasItems = false;
+                _quickLootIsIllegal = false;
+                ApplyReticleState();
+
+                if (!_quickLootReadFailureLogged)
+                {
+                    _quickLootReadFailureLogged = true;
+                    Exception cause = exception is TargetInvocationException
+                        && exception.InnerException != null
+                            ? exception.InnerException
+                            : exception;
+                    Logger.LogWarning(
+                        "Could not read the current quick-loot container: "
+                        + cause.Message);
+                }
+            }
+        }
+
         private static object ReadReflectedProperty(
             object instance,
             string propertyName)
@@ -1969,9 +2067,14 @@ namespace DishonoredDynamicCrosshair
                 object requiredTool = ReadReflectedProperty(
                     action,
                     "RequiredToolType");
-                string toolName = requiredTool == null
-                    ? string.Empty
-                    : requiredTool.ToString();
+                object enumName = ReadReflectedProperty(
+                    requiredTool,
+                    "EnumName");
+                string toolName = enumName as string;
+                if (string.IsNullOrEmpty(toolName) && requiredTool != null)
+                {
+                    toolName = requiredTool.ToString();
+                }
                 switch (toolName)
                 {
                     case "Mining":
@@ -2639,7 +2742,7 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
-            ReticleAsset dotAsset = DotAssetFor(context);
+            ReticleAsset dotAsset = _generalDot;
             bool showStealthPupil = stealthEyeVisible
                 && _currentStealthEyeFrame >= 2;
             bool directHitMarkerVisible = hitMarkerActive
@@ -2652,18 +2755,39 @@ namespace DishonoredDynamicCrosshair
                 && !directHitMarkerVisible;
             _dotImage.sprite = dotAsset.Sprite;
             _dotImage.color = reticleColor;
-            _dotImage.rectTransform.anchoredPosition = Vector2.zero;
+            ApplySharedDotLayout(_dotImage.rectTransform, Vector2.zero);
             _dotImage.enabled = dotAsset.Sprite != null
                 && showOrdinaryDot
                 && reticleColor.a > 0f;
 
             _stealthPupilImage.sprite = dotAsset.Sprite;
             _stealthPupilImage.color = _stealthEyeImage.color;
-            _stealthPupilImage.rectTransform.anchoredPosition =
-                _stealthEyeImage.rectTransform.anchoredPosition;
+            ApplySharedDotLayout(
+                _stealthPupilImage.rectTransform,
+                _stealthEyeImage.rectTransform.anchoredPosition);
             _stealthPupilImage.enabled = dotAsset.Sprite != null
                 && showStealthPupil
                 && _stealthPupilImage.color.a > 0f;
+        }
+
+        private void ApplySharedDotLayout(
+            RectTransform rect,
+            Vector2 anchoredPosition)
+        {
+            float canvasScaleFactor = GetCanvasScaleFactor();
+            float unitConversion = _sizeMode.Value
+                == ReticleSizeMode.ScreenPixels
+                    ? 1f / canvasScaleFactor
+                    : 1f;
+            float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
+                * unitConversion;
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(size, size);
+            rect.anchoredPosition = anchoredPosition;
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one;
         }
 
         private bool ApplyStealthEyeVisual(
@@ -2775,10 +2899,10 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
-            Sprite sprite = ResolveInteractionIconSprite(
-                _currentInteractionIconKind);
+            InteractionIconKind iconKind = CurrentInteractionIconKind();
+            Sprite sprite = ResolveInteractionIconSprite(iconKind);
             Color color = Color.white;
-            if (_currentInteractionIsIllegal)
+            if (CurrentInteractionIsIllegal())
             {
                 color = new Color32(0x8C, 0x00, 0x03, 0xFF);
             }
@@ -2804,14 +2928,34 @@ namespace DishonoredDynamicCrosshair
 
         private bool ShouldShowInteractionIcon(bool hitMarkerActive)
         {
+            InteractionIconKind iconKind = CurrentInteractionIconKind();
             return _interactionIconsEnabled != null
                 && _interactionIconsEnabled.Value
-                && _currentInteractionView != null
-                && _currentInteractionIconKind != InteractionIconKind.None
-                && ResolveInteractionIconSprite(
-                    _currentInteractionIconKind) != null
+                && (_quickLootContainer != null
+                    || _currentInteractionView != null)
+                && iconKind != InteractionIconKind.None
+                && ResolveInteractionIconSprite(iconKind) != null
                 && !_backstabPresentationActive
                 && !hitMarkerActive;
+        }
+
+        private InteractionIconKind CurrentInteractionIconKind()
+        {
+            if (_quickLootContainer != null)
+            {
+                return _quickLootHasItems
+                    ? InteractionIconKind.Hand
+                    : InteractionIconKind.None;
+            }
+
+            return _currentInteractionIconKind;
+        }
+
+        private bool CurrentInteractionIsIllegal()
+        {
+            return _quickLootContainer != null
+                ? _quickLootIsIllegal
+                : _currentInteractionIsIllegal;
         }
 
         private Sprite ResolveInteractionIconSprite(
@@ -4102,16 +4246,6 @@ namespace DishonoredDynamicCrosshair
             return context == ReticleContext.BloodMagic ? _bloodMagic : _general;
         }
 
-        private ReticleAsset DotAssetFor(ReticleContext context)
-        {
-            if (context == ReticleContext.Bow)
-            {
-                return _bowDot;
-            }
-
-            return context == ReticleContext.General ? _generalDot : _magicDot;
-        }
-
         private void AttachCrouchIndicator(Component viewComponent)
         {
             if (viewComponent == null)
@@ -4290,21 +4424,9 @@ namespace DishonoredDynamicCrosshair
             LoadPngAsset(
                 _generalDot,
                 ResolveHitMarkerPath("dot.png"),
-                "general center dot",
-                "The General reticle will remain dotless.",
+                "shared center dot",
+                "All reticle contexts will remain dotless.",
                 "DishonoredDynamicCrosshairGeneralDot");
-            LoadPngAsset(
-                _bowDot,
-                ResolveHitMarkerPath("dot_bow.png"),
-                "bow center dot",
-                "The Bow reticle will remain dotless.",
-                "DishonoredDynamicCrosshairBowDot");
-            LoadPngAsset(
-                _magicDot,
-                ResolveHitMarkerPath("dot_magic.png"),
-                "magic center dot",
-                "Magic and Blood Magic reticles will remain dotless.",
-                "DishonoredDynamicCrosshairMagicDot");
 
             for (int frame = 0; frame < StealthEyeFrameCount; frame++)
             {
@@ -4690,11 +4812,7 @@ namespace DishonoredDynamicCrosshair
         private void CheckAllHitMarkerSprites()
         {
             string generalDotPath = ResolveHitMarkerPath("dot.png");
-            string bowDotPath = ResolveHitMarkerPath("dot_bow.png");
-            string magicDotPath = ResolveHitMarkerPath("dot_magic.png");
-            if (AssetChanged(_generalDot, generalDotPath)
-                || AssetChanged(_bowDot, bowDotPath)
-                || AssetChanged(_magicDot, magicDotPath))
+            if (AssetChanged(_generalDot, generalDotPath))
             {
                 LoadCenterVisualSprites();
             }
@@ -4839,6 +4957,8 @@ namespace DishonoredDynamicCrosshair
             {
                 return;
             }
+
+            RefreshQuickLootState();
 
             if (_currentInteractionView == null
                 && _currentInteractionIconKind != InteractionIconKind.None)
@@ -5211,8 +5331,6 @@ namespace DishonoredDynamicCrosshair
             ClearAsset(_magic.Asset);
             ClearAsset(_bloodMagic.Asset);
             ClearAsset(_generalDot);
-            ClearAsset(_bowDot);
-            ClearAsset(_magicDot);
             foreach (ReticleAsset asset in _stealthEyeAssets)
             {
                 ClearAsset(asset);
@@ -5239,6 +5357,9 @@ namespace DishonoredDynamicCrosshair
             }
             _currentInteractionView = null;
             _currentInteractionIconKind = InteractionIconKind.None;
+            _quickLootContainer = null;
+            _quickLootHasItems = false;
+            _quickLootIsIllegal = false;
             Instance = null;
         }
 
@@ -5508,6 +5629,26 @@ namespace DishonoredDynamicCrosshair
             if (plugin != null)
             {
                 plugin.OnInteractionViewFilled(__instance);
+            }
+        }
+
+        internal static void QuickLootOpenedPostfix(object __instance)
+        {
+            DishonoredDynamicCrosshairPlugin plugin =
+                DishonoredDynamicCrosshairPlugin.Instance;
+            if (plugin != null)
+            {
+                plugin.OnQuickLootOpened(__instance);
+            }
+        }
+
+        internal static void QuickLootDiscardingPrefix(object __instance)
+        {
+            DishonoredDynamicCrosshairPlugin plugin =
+                DishonoredDynamicCrosshairPlugin.Instance;
+            if (plugin != null)
+            {
+                plugin.OnQuickLootDiscarding(__instance);
             }
         }
     }

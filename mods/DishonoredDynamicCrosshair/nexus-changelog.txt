@@ -1,16 +1,6 @@
-TargetVersion=3.2.8
-BaselineVersion=3.1.4
-Added an optional Ambush Integrity backstab-ready overlay driven by the stealth mod's authoritative API rather than duplicated eligibility rules.
-Added a complete hot-reloading interaction icon set driven by the game's selected action, including dedicated tool, reading, talking, resting, mounting, campfire, lock, and hand visuals.
-Made locked locations take priority even when they cannot be picked, made illegal interactions use a dark-red hand, and kept a white hand as the fallback for gathering, searching, doors, containers, items, and unknown actions.
-Added independent interaction icon scale and opacity, with a 1.1x default size, 0.8 opacity, and complete underlying-crosshair replacement while an icon is active.
-Collapsed hidden vanilla interaction-button containers so prompt backgrounds fit their remaining text, and placed the interaction text 120 scalable UI units above its vanilla position by default.
-Removed numeric prefixes from authored config section names and gave every visible setting explicit semantic ordering, with Diagnostics plus Import Previous Settings at the bottom.
-Renamed the hot-reloading standard-size backstab asset to interaction_backstab.png and kept it above every other layer while dimming the underlying crosshair and hit markers to half opacity.
-Separated the General, Bow, and Magic center dots into their own hot-reloading assets with a default-on visibility setting.
-Added an eleven-frame Dishonored-style crouch-awareness eye that opens inside the reticle while its outer awareness lines retract and disappear at full detection.
-Made the context-specific dot become the stealth eye's pupil from frame 2 onward, independent of the ordinary dot setting and underneath every hit-marker layer.
-Made the awareness eye and pupil inherit the active crosshair opacity by default, with an optional proportional multiplier for separate tuning.
-Made Blood Magic corpse reticles and routine interaction icons hide the complete awareness eye and pupil while active.
-Moved Steel and Bone feedback above the center visuals, using custom_reticle.png for every neutral hit while direct hit feedback covers only the ordinary dot and leaves the stealth eye underneath.
-Renamed the four Blood Magic quality assets to numbered frames 0 through 3 and made frame 0 the shared Meager and fallback reticle.
+TargetVersion=3.3.1
+BaselineVersion=3.2.8
+Made every context use the shared dot.png at one consistent size, removing the Bow and Magic dot assets and their context-based scaling.
+Kept the hand visible while non-empty corpse, chest, and container quick-loot panels are open, hiding it once the container is empty.
+Fixed mining interactions such as iron ore resolving to the hand instead of the pickaxe.
+Made Bow and Magic share the General reticle by default at 0.9x and 1.1x, removing two redundant context-reticle assets while retaining independent center dots and configurable sprite paths.

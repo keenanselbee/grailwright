@@ -18,9 +18,9 @@ $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
 $manifest = $manifestText | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.2.8") "mod.json is not version 3.2.8."
-Assert-Contract ($source.Contains('PluginVersion = "3.2.8"')) "PluginVersion is not 3.2.8."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 15')) "Config schema is not 15."
+Assert-Contract ($manifest.version -eq "3.3.1") "mod.json is not version 3.3.1."
+Assert-Contract ($source.Contains('PluginVersion = "3.3.1"')) "PluginVersion is not 3.3.1."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 16')) "Config schema is not 16."
 Assert-Contract (-not $manifestText.Contains('TG.Main.dll')) "The reflected integration acquired a hard game-assembly reference."
 
 Assert-Contract ([regex]::IsMatch($source, '"Interaction Icons",\s*"Enabled",\s*true,')) "Interaction icons are not enabled by default."
@@ -56,6 +56,7 @@ Assert-Contract ($source.Contains('"DefaultAction"')) "The icon does not follow 
 Assert-Contract ($source.Contains('"AvailableActions"')) "Locked-state inspection does not cover the location's available actions."
 Assert-Contract ([regex]::IsMatch($source, 'bool locked = HasLockedAction[\s\S]*?bool illegal = !locked[\s\S]*?iconKind = locked\s*\? InteractionIconKind\.Lockpick[\s\S]*?: illegal\s*\? InteractionIconKind\.Hand')) "Locked and illegal interaction priorities changed."
 Assert-Contract ($source.Contains('IsTypeOrBaseNamed(action, "ToolInteractAction")')) "Tool actions are not classified structurally."
+Assert-Contract ($source.Contains('ReadReflectedProperty(') -and $source.Contains('requiredTool,') -and $source.Contains('"EnumName"')) "Tool actions do not read the rich enum's authoritative identity."
 foreach ($token in @(
     'case "Mining":',
     'case "Lumbering":',
@@ -74,6 +75,11 @@ Assert-Contract ([regex]::IsMatch($source, '"DishonoredStealthPupil"[\s\S]*?"Dis
 Assert-Contract ([regex]::IsMatch($source, 'ShouldShowInteractionIcon\(bool hitMarkerActive\)[\s\S]*?!_backstabPresentationActive[\s\S]*?&& !hitMarkerActive;')) "Hit markers or backstab readiness no longer suppress the routine interaction icon."
 Assert-Contract ([regex]::IsMatch($source, '_interactionPresentationActive\s*\? Mathf\.Clamp01\(_interactionCrosshairOpacity\.Value\)')) "The routine interaction state does not dim the underlying crosshair."
 Assert-Contract ([regex]::IsMatch($source, 'context == ReticleContext\.BloodMagic\s*\|\| _interactionPresentationActive')) "Blood Magic and interaction presentations do not suppress the awareness eye."
+Assert-Contract ($source.Contains('"Awaken.TG.Main.Locations.Containers.ContainerUI"')) "Quick-loot container state is not resolved."
+Assert-Contract ($source.Contains('"IsEmpty"')) "Quick-loot emptiness is not read."
+Assert-Contract ([regex]::IsMatch($source, '_quickLootContainer != null[\s\S]*?_quickLootHasItems\s*\? InteractionIconKind\.Hand\s*:\s*InteractionIconKind\.None')) "Quick loot does not show a hand only while non-empty."
+Assert-Contract ($source.Contains('QuickLootOpenedPostfix')) "Quick-loot opening is not patched."
+Assert-Contract ($source.Contains('QuickLootDiscardingPrefix')) "Quick-loot closing is not patched."
 Assert-Contract ($source.Contains('new Color32(0x8C, 0x00, 0x03, 0xFF)')) "Illegal interactions do not use killing-blow dark red."
 Assert-Contract ($source.Contains('SetReflectedGraphicEnabled(keyIcon, "icon", enabled);')) "The vanilla key-icon image is not selectively suppressed."
 Assert-Contract ($source.Contains('SetReflectedGraphicEnabled(keyIcon, "text", enabled);')) "The vanilla keyboard-letter text is not selectively suppressed."

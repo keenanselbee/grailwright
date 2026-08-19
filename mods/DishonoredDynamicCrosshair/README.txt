@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.2.8
+Version 3.3.1
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.2.8
+  Version: 3.3.1
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -35,11 +35,7 @@ Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_5.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_6.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_7.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bow.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_magic.png
   BepInEx\plugins\DishonoredDynamicCrosshair\dot.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\dot_bow.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\dot_magic.png
   BepInEx\plugins\DishonoredDynamicCrosshair\stealth_eye_0.png through stealth_eye_10.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_0.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_1.png
@@ -68,10 +64,9 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.2.8 uses ConfigSchemaVersion 15. The schema last changed because the old
-absolute CrouchIndicatorOpacity setting was replaced by the safer
-CrouchIndicatorOpacityMultiplier. Compatible customized visual values remain
-recoverable across the reset, but the obsolete absolute value is not imported.
+Version 3.3.1 uses ConfigSchemaVersion 16. The schema last changed because Bow
+and Magic now default to the General custom_reticle.png at 0.9x and 1.1x.
+Compatible customized visual values remain recoverable across the reset.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -176,18 +171,22 @@ active reticle, routine interaction icon, and all hit-marker feedback.
 
 Bow uses the same IsRanged classification as the game's bow crosshair.
 MagicDetection defaults to CastMagicOnly for aimed magic and can be changed
-to AnyMagic. A missing Bow, Magic, or BloodMagic PNG falls back to the general
-PNG when possible. All reticle PNG files reload automatically after they are
+to AnyMagic. Bow and Magic use the General custom_reticle.png by default at
+0.9x and 1.1x, while their sprite paths and scales remain configurable. A
+missing Bow, Magic, or BloodMagic PNG falls back to the general PNG when
+possible. All reticle PNG files reload automatically after they are
 replaced.
 
 Center Dot
 ----------
 
-ShowCenterDot defaults to true. General uses dot.png, Bow uses dot_bow.png,
-and Magic plus BloodMagic use dot_magic.png. While the custom crouch-awareness
-eye is active, frames 0 and 1 remain dotless; from frame 2 through frame 10 the
-active context dot becomes the eye's pupil even when ShowCenterDot is false.
-The pupil follows the eye's color, opacity, and vertical offset. Direct
+ShowCenterDot defaults to true. General, Bow, Magic, and BloodMagic all use
+dot.png at the unscaled ReticleSizePixels canvas size, so context scale
+multipliers do not change the dot. While the custom crouch-awareness eye is
+active, frames 0 and 1 remain dotless; from frame 2 through frame 10 the shared
+dot becomes the eye's pupil even when ShowCenterDot is false. The pupil uses
+the same context-independent size and follows the eye's color, opacity, and
+vertical offset. Direct
 nonlethal hitmarker.png feedback covers the ordinary dot, while the complete
 eye and pupil remain underneath every hit-marker layer. Dot and eye assets hot
 reload with the other PNGs.
@@ -200,6 +199,9 @@ by the game's interaction HUD. Mining, lumbering, fishing, digging, reading,
 talking, resting in a bed or bedroll, mounting, and using a campfire or bonfire
 have dedicated PNGs. Items, containers, doors, gathering, searching, and other
 ordinary or unknown interactions use interaction_hand.png.
+While a corpse, chest, or other container's quick-loot panel is open, a
+non-empty container uses the hand icon and an empty container uses no routine
+interaction icon.
 
 Any currently locked door, container, or other location uses
 interaction_lockpick.png even when the lock is key-only, broken, or cannot be
@@ -304,11 +306,11 @@ visible on mounts.
 Appearance
 ----------
 
-ReticleSizePixels defaults to 80. General uses that size directly. Bow, Magic,
-and BloodMagic then apply their scale multipliers. SizeMode defaults to
-ScreenPixels, which compensates for the HUD canvas scale so the final reticle
-size is measured in physical screen pixels. UIUnits preserves canvas-relative
-sizing.
+ReticleSizePixels defaults to 80. General uses that size directly. Bow and
+Magic reuse the General reticle by default at 0.9x and 1.1x, while BloodMagic
+applies its own scale multiplier. SizeMode defaults to ScreenPixels, which
+compensates for the HUD canvas scale so the final reticle size is measured in
+physical screen pixels. UIUnits preserves canvas-relative sizing.
 
 TextureFiltering defaults to MipmappedTrilinear. Runtime mipmaps are generated
 for all reticle PNGs and trilinear filtering is used when they are displayed

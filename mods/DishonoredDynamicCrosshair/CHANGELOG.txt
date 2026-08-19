@@ -1,3 +1,18 @@
+Version 3.3.1
+Made every General, Bow, Magic, and Blood Magic center dot and stealth-eye pupil use the shared dot.png asset at the unscaled ReticleSizePixels canvas size.
+Removed dot_bow.png and dot_magic.png so weapon and magic reticle scales no longer change the dot or pupil artwork.
+Kept ConfigSchemaVersion at 16 because the center-dot assets and sizing are not configurable settings.
+
+Version 3.3.0
+Show the hand interaction icon while a non-empty corpse, chest, or container quick-loot panel is open, and hide it when the container is empty.
+Fixed mining interactions, including iron ore, falling back to the hand because the game's rich tool enum was read through its serialized string instead of its Mining identity.
+Kept ConfigSchemaVersion at 16 because these are interaction-state and classification fixes with no setting or default migration.
+
+Version 3.2.9
+Made Bow and Magic use the General custom_reticle.png by default, scaled to 0.9x for Bow and 1.1x for Magic.
+Removed the redundant custom_reticle_bow.png and custom_reticle_magic.png assets while retaining separate context-specific center dots and configurable sprite paths.
+Advanced ConfigSchemaVersion from 15 to 16 because the BowSprite, MagicSprite, BowScale, and MagicScale defaults changed; compatible customized visual values remain recoverable.
+
 Version 3.2.8
 Made Blood Magic corpse-reticle and routine interaction-icon presentations hide the complete crouch-awareness eye and pupil so their contextual symbols remain uncluttered.
 Kept ConfigSchemaVersion at 15 because this is a presentation-only behavior change with no setting or default migration.

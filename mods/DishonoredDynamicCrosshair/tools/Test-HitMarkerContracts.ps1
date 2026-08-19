@@ -20,11 +20,15 @@ $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\Blo
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.2.8") "mod.json is not version 3.2.8."
-Assert-Contract ($source.Contains('PluginVersion = "3.2.8"')) "PluginVersion is not 3.2.8."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 15')) "Config schema is not 15."
+Assert-Contract ($manifest.version -eq "3.3.1") "mod.json is not version 3.3.1."
+Assert-Contract ($source.Contains('PluginVersion = "3.3.1"')) "PluginVersion is not 3.3.1."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 16')) "Config schema is not 16."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
 Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
+Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Bow,\s*"Bow",\s*"custom_reticle\.png",\s*0\.9f\);')) "Bow does not default to the shared reticle at 0.9x."
+Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Magic,\s*"Magic",\s*"custom_reticle\.png",\s*1\.1f\);')) "Magic does not default to the shared reticle at 1.1x."
+Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $modRoot "custom_reticle_bow.png"))) "The redundant Bow reticle asset remains."
+Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $modRoot "custom_reticle_magic.png"))) "The redundant Magic reticle asset remains."
 Assert-Contract (-not $source.Contains('hitmarker_4.png')) "The removed numbered neutral hitmarker is still referenced."
 Assert-Contract ([regex]::IsMatch($source, 'frame == HitMarkerFrame\.Neutral[\s\S]*?return "custom_reticle\.png";')) "Neutral hits do not always resolve to custom_reticle.png."
 Assert-Contract ([regex]::IsMatch($source, '"ShowCenterDot",\s*true,')) "The center dot is not enabled by default."
@@ -51,8 +55,12 @@ Assert-Contract (-not $source.Contains('"CrouchIndicatorOpacity",')) "The obsole
 Assert-Contract ([regex]::IsMatch($source, 'bool showStealthPupil = stealthEyeVisible\s*&& _currentStealthEyeFrame >= 2;')) "The contextual stealth pupil does not begin at frame 2."
 Assert-Contract ([regex]::IsMatch($source, 'bool showOrdinaryDot = _showCenterDot != null\s*&& _showCenterDot\.Value[\s\S]*?&& !stealthEyeVisible[\s\S]*?&& !directHitMarkerVisible;')) "The ordinary dot no longer obeys its visibility and direct-hit rules."
 Assert-Contract ([regex]::IsMatch($source, '_stealthEyeImage = CreateHitMarkerOverlayImage\([\s\S]*?"DishonoredStealthEye"\);\s*_stealthPupilImage = CreateHitMarkerOverlayImage\([\s\S]*?"DishonoredStealthPupil"\);[\s\S]*?"DishonoredHitMarkerBase"')) "The stealth pupil is not layered above the eye and below hit markers."
-Assert-Contract ([regex]::IsMatch($source, '_stealthPupilImage\.sprite = dotAsset\.Sprite;[\s\S]*?_stealthPupilImage\.color = _stealthEyeImage\.color;[\s\S]*?_stealthEyeImage\.rectTransform\.anchoredPosition;')) "The contextual dot does not follow the stealth eye as its pupil."
+Assert-Contract ([regex]::IsMatch($source, '_stealthPupilImage\.sprite = dotAsset\.Sprite;[\s\S]*?_stealthPupilImage\.color = _stealthEyeImage\.color;[\s\S]*?ApplySharedDotLayout\([\s\S]*?_stealthEyeImage\.rectTransform\.anchoredPosition\);')) "The shared dot does not follow the stealth eye as its pupil."
 Assert-Contract ([regex]::IsMatch($source, '_stealthPupilImage\.enabled = dotAsset\.Sprite != null\s*&& showStealthPupil')) "The stealth pupil is incorrectly gated by the ordinary dot setting or hit-marker suppression."
+Assert-Contract ($source.Contains('ReticleAsset dotAsset = _generalDot;')) "Center visuals do not always use the shared dot asset."
+Assert-Contract (-not $source.Contains('_bowDot') -and -not $source.Contains('_magicDot')) "Context-specific dot asset slots remain."
+Assert-Contract (-not $source.Contains('dot_bow.png') -and -not $source.Contains('dot_magic.png')) "Context-specific dot filenames remain."
+Assert-Contract ([regex]::IsMatch($source, 'ApplySharedDotLayout\([\s\S]*?Mathf\.Clamp\(_baseSizePixels\.Value, 4f, 256f\)[\s\S]*?rect\.sizeDelta = new Vector2\(size, size\);')) "Dot sizing is not fixed to the unscaled ReticleSizePixels canvas size."
 Assert-Contract ($source.Contains('ResolveHitMarkerFrame')) "The numbered effectiveness mapping is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.35f')) "Extreme resistance threshold is missing."
 Assert-Contract ($source.Contains('effectivenessMultiplier < 0.70f')) "Strong resistance threshold is missing."
@@ -127,8 +135,6 @@ $assetNames = @(
     "hitmarker_6.png",
     "hitmarker_7.png",
     "dot.png",
-    "dot_bow.png",
-    "dot_magic.png",
     "stealth_eye_0.png",
     "stealth_eye_1.png",
     "stealth_eye_2.png",
@@ -181,7 +187,7 @@ foreach ($assetName in $assetNames) {
 Assert-Contract ($readme.Contains("Steel and Bone Hit Markers")) "README lacks the Steel and Bone hit-marker section."
 Assert-Contract ($readme.Contains("hitmarker_0.png") -and $readme.Contains("hitmarker_7.png")) "README lacks the renamed effectiveness-frame list."
 Assert-Contract ($readme.Contains("custom_reticle.png") -and -not $readme.Contains("hitmarker_4.png")) "README does not document the shared neutral reticle."
-Assert-Contract ($readme.Contains("dot_bow.png") -and $readme.Contains("dot_magic.png")) "README lacks the context-specific dot assets."
+Assert-Contract ($readme.Contains("all use") -and $readme.Contains("dot.png") -and -not $readme.Contains("dot_bow.png") -and -not $readme.Contains("dot_magic.png")) "README does not document the shared dot asset."
 Assert-Contract ($readme.Contains("stealth_eye_0.png") -and $readme.Contains("stealth_eye_10.png")) "README lacks the complete stealth-eye frame range."
 Assert-Contract ($readme.Contains("frames 0 and 1 remain dotless") -and $readme.Contains("even when ShowCenterDot is false")) "README lacks the frame-2 contextual pupil behavior."
 Assert-Contract ($readme.Contains("hitmarker.png")) "README lacks the direct-hit diamond."

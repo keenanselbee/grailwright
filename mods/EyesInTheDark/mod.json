@@ -2,7 +2,7 @@
   "id": "EyesInTheDark",
   "displayName": "Eyes in the Dark - Wyrdnight Overhaul",
   "packageName": "EyesInTheDark",
-  "version": "1.3.5",
+  "version": "1.3.9",
   "pluginGuid": "ks.tgfoa.eyes-in-the-dark",
   "dll": "EyesInTheDark.dll",
   "sourceFiles": [
@@ -22,6 +22,7 @@
     "src/HunterCatalog.cs",
     "src/AmbientStalkerDirector.cs",
     "src/AmbientStalkerRuntime.cs",
+    "src/GuardAwarenessCoordinator.cs",
     "src/FirstHunterRuntime.cs",
     "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],

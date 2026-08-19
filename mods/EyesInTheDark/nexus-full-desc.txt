@@ -76,6 +76,8 @@ Every regional profile has an exact player-level gate, reviewed danger cost, fam
 
 Mixed encounters prefer weaker sidecars, penalize same-tier and same-family repetition, respect player-level and danger-budget caps, and support curated Wyrdspirit clusters. Killing the exact primary resolves the official hunt; surviving sidecars become ordinary enemies and release the director lock.
 
+Nearby ordinary guards can optionally join an active official hunt against every exact Eyes-spawned member, including sidecars. Assistance uses native combat behavior, is capped and deduplicated per hunt, and excludes unique, quest, story, bodyguard, and other special actors. It does not permanently change factions, recruit a whole settlement, or target ambient stalkers. By default, both the guard's distance from the Hero and its distance from the hunter must be within 24 metres, with at most four distinct assisting guards.
+
 [line]
 
 [heading][color=#C94A4A][size=5]Ambient Stalkers[/size][/color][/heading]

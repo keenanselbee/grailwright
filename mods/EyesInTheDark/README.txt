@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.3.5
+Version: 1.3.9
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
@@ -156,6 +156,13 @@ Current Features
   atomic composition is confirmed. A nearby disengaged official hunter may
   receive at most three native combat reacquisition requests, two active
   seconds apart and only while the Hero remains exposed in the same exterior.
+  By default, up to four nearby ordinary non-unique guards within 24 meters of
+  the Hero may join against exact active official-hunt members that are also
+  within 24 meters of that guard, including sidecars. Unique, quest, story,
+  bodyguard, and other special actors are excluded; no factions are permanently
+  changed and ambient stalkers are never targeted. A hunter already fighting
+  an assisting guard is not forced back onto the Hero by Eyes' limited
+  reacquisition safeguard.
 - Killing the official hunter grants the greatest threat relief. Sustained
   outdoor escape or entering an interior grants less relief and a longer
   Recently Pursued recovery. Failed placement spends no danger budget.
@@ -236,6 +243,8 @@ Defaults:
   use the 50-to-below-75 band, while reviewed official elites still require
   threat greater than 75 percent and can never be sidecars
 - Hunter requested spawn distance: 35 meters
+- Nearby guard assistance: enabled; 24-meter Hero-to-guard and guard-to-hunter
+  radius, with four distinct guards per official hunt
 - Outdoor escape: 80 meters sustained for 10 active real-time seconds
 - Official hunter kill/escape threat relief: 35, 15
 - Kill/escape recovery: 90, 180 active real-time seconds

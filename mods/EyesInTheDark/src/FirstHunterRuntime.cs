@@ -91,6 +91,32 @@ namespace EyesInTheDark
 
         public string LastFailedProfileId { get; private set; }
 
+        public void CopyLiveMembers(List<NpcElement> destination)
+        {
+            if (destination == null)
+            {
+                return;
+            }
+
+            destination.Clear();
+            if (!_active)
+            {
+                return;
+            }
+
+            for (int index = 0; index < _members.Count; index++)
+            {
+                NpcElement npc = _members[index].Npc;
+                if (npc != null
+                    && !npc.HasBeenDiscarded
+                    && npc.IsAlive
+                    && !npc.IsDying)
+                {
+                    destination.Add(npc);
+                }
+            }
+        }
+
         public FirstHunterRuntime(
             ManualLogSource log,
             int seed)
@@ -237,6 +263,7 @@ namespace EyesInTheDark
             float activeSeconds,
             Hero hero,
             bool allowReacquisition,
+            Func<NpcElement, NpcElement, bool> isAssistedEngagement,
             bool allowEscape,
             float escapeDistanceMeters,
             float escapeSustainSeconds)
@@ -295,7 +322,8 @@ namespace EyesInTheDark
             AdvanceReacquisition(
                 delta,
                 hero,
-                allowReacquisition);
+                allowReacquisition,
+                isAssistedEngagement);
 
             if (!allowEscape
                 || hero == null
@@ -335,7 +363,8 @@ namespace EyesInTheDark
         private void AdvanceReacquisition(
             float activeSeconds,
             Hero hero,
-            bool allowReacquisition)
+            bool allowReacquisition,
+            Func<NpcElement, NpcElement, bool> isAssistedEngagement)
         {
             if (!allowReacquisition
                 || hero == null
@@ -356,6 +385,9 @@ namespace EyesInTheDark
             for (int index = 0; index < _members.Count; index++)
             {
                 SpawnedMember member = _members[index];
+                NpcElement currentNpcTarget = member.Npc == null
+                    ? null
+                    : member.Npc.GetCurrentTarget() as NpcElement;
                 if (member.ReacquisitionAttempts
                         >= MaximumReacquisitionAttemptsPerMember
                     || member.Location == null
@@ -367,6 +399,11 @@ namespace EyesInTheDark
                         hero.Coords,
                         member.Location.Coords)
                         > ReacquisitionDistanceMeters
+                    || (currentNpcTarget != null
+                        && isAssistedEngagement != null
+                        && isAssistedEngagement(
+                            member.Npc,
+                            currentNpcTarget))
                     || HasExactHeroTarget(member, hero))
                 {
                     continue;

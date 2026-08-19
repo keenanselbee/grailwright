@@ -14,12 +14,12 @@ $bloodMagicSource = Get-Content -LiteralPath (
 $bloodMagicManifest = Get-Content -LiteralPath (
     Join-Path $bloodMagicRoot "mod.json") -Raw | ConvertFrom-Json
 
-if ($eyesManifest.version -ne "1.3.5") {
-    throw "Eyes in the Dark corpse-drain integration requires manifest version 1.3.5."
+if ($eyesManifest.version -ne "1.3.9") {
+    throw "Eyes in the Dark corpse-drain integration requires manifest version 1.3.9."
 }
 
-if ($bloodMagicManifest.version -ne "2.8.2") {
-    throw "Blood Magic Expansion corpse-drain integration requires manifest version 2.8.2."
+if ($bloodMagicManifest.version -ne "2.8.7") {
+    throw "Blood Magic Expansion corpse-drain integration requires manifest version 2.8.7."
 }
 
 foreach ($required in @(

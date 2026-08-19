@@ -39,9 +39,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.3.5.0")]
-[assembly: AssemblyFileVersion("1.3.5.0")]
-[assembly: AssemblyInformationalVersion("1.3.5")]
+[assembly: AssemblyVersion("1.3.9.0")]
+[assembly: AssemblyFileVersion("1.3.9.0")]
+[assembly: AssemblyInformationalVersion("1.3.9")]
 
 namespace EyesInTheDark
 {
@@ -115,7 +115,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.3.5";
+        public const string PluginVersion = "1.3.9";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -228,6 +228,8 @@ namespace EyesInTheDark
         private const int DefaultMaximumPackSize = 2;
         private const float DefaultSidecarChance = 0.55f;
         private const float DefaultHunterSpawnDistance = 35.0f;
+        private const float DefaultGuardAssistRadius = 24.0f;
+        private const int DefaultMaximumAssistingGuards = 4;
         private const float DefaultEscapeDistance = 80.0f;
         private const float DefaultEscapeSustainSeconds = 10.0f;
         private const float DefaultKillThreatRelief = 35.0f;
@@ -320,6 +322,8 @@ namespace EyesInTheDark
         private readonly Dictionary<ConfigDefinition, object>
             _pendingPreservedConfigValues =
                 new Dictionary<ConfigDefinition, object>();
+        private readonly List<NpcElement> _liveOfficialHunters =
+            new List<NpcElement>();
         private int _pendingPreservedConfigSourceSchema;
 
         private ConfigEntry<bool> _featureEnabled;
@@ -369,6 +373,9 @@ namespace EyesInTheDark
         private ConfigEntry<int> _maximumPackSize;
         private ConfigEntry<float> _sidecarChance;
         private ConfigEntry<bool> _allowEliteEnemies;
+        private ConfigEntry<bool> _enableGuardAssistance;
+        private ConfigEntry<float> _guardAssistRadius;
+        private ConfigEntry<int> _maximumAssistingGuards;
         private ConfigEntry<bool> _enableAmbientStalkers;
         private ConfigEntry<float> _stalkerMinimumCooldown;
         private ConfigEntry<float> _stalkerMaximumCooldown;
@@ -445,6 +452,9 @@ namespace EyesInTheDark
         private BoundaryController _boundary;
         private GrailFloatingTextBridge _gft;
         private FirstHunterRuntime _hunterRuntime;
+        private GuardAwarenessCoordinator _guardAwareness;
+        private Func<NpcElement, NpcElement, bool>
+            _isAssistedGuardEngagement;
         private AmbientStalkerRuntime _stalkerRuntime;
         private WorldTimescaleController _worldTimescale;
         private WyrdVisualRuntime _wyrdVisuals;
@@ -546,6 +556,9 @@ namespace EyesInTheDark
                 _hunterRuntime = new FirstHunterRuntime(
                     Logger,
                     unchecked(Environment.TickCount * 911));
+                _guardAwareness = new GuardAwarenessCoordinator(Logger);
+                _isAssistedGuardEngagement =
+                    _guardAwareness.IsAssistedEngagement;
                 _stalkerRuntime = new AmbientStalkerRuntime(
                     Logger,
                     unchecked(Environment.TickCount * 1013));
@@ -2045,10 +2058,9 @@ namespace EyesInTheDark
             }
 
             Hero hero = _trackedHero;
-            bool allowReacquisition = _hunterRuntime.IsActive
+            bool allowGuardAwareness = _hunterRuntime.IsActive
                 && IsKnownValidWyrdNight(context)
                 && observation.IsOutdoor
-                && context.IsExposed
                 && !transient
                 && observation.SceneKnown
                 && observation.SceneInitialized
@@ -2057,10 +2069,33 @@ namespace EyesInTheDark
                     _activeHuntSceneName,
                     context.SceneName,
                     StringComparison.Ordinal);
+            bool allowReacquisition = allowGuardAwareness
+                && context.IsExposed;
+            if (_hunterRuntime.IsActive)
+            {
+                _hunterRuntime.CopyLiveMembers(_liveOfficialHunters);
+                if (_guardAwareness != null
+                    && _enableGuardAssistance != null
+                    && _enableGuardAssistance.Value
+                    && allowGuardAwareness)
+                {
+                    _guardAwareness.Tick(
+                        activeDelta,
+                        hero,
+                        _liveOfficialHunters,
+                        ValueOrDefault(
+                            _guardAssistRadius,
+                            DefaultGuardAssistRadius),
+                        _maximumAssistingGuards == null
+                            ? DefaultMaximumAssistingGuards
+                            : _maximumAssistingGuards.Value);
+                }
+            }
             _hunterRuntime.Tick(
                 activeDelta,
                 hero,
                 allowReacquisition,
+                _isAssistedGuardEngagement,
                 _hunterRuntime.IsActive
                     && IsKnownValidWyrdNight(context)
                     && observation.IsOutdoor,
@@ -2647,6 +2682,10 @@ namespace EyesInTheDark
 
             HuntEncounterPlan plan = selection.Plan;
             _pendingHuntPlan = plan;
+            if (_guardAwareness != null)
+            {
+                _guardAwareness.Reset("new official hunt requested");
+            }
             string reason;
             if (!_hunterRuntime.TryStart(
                 hero,
@@ -2956,6 +2995,11 @@ namespace EyesInTheDark
             _activeHuntDangerCost = 0f;
             _pendingHuntPlan = null;
             _activeHuntSceneName = string.Empty;
+            _liveOfficialHunters.Clear();
+            if (_guardAwareness != null)
+            {
+                _guardAwareness.Reset("official hunt resolved");
+            }
         }
 
         private void ResetHuntRuntime(
@@ -2965,6 +3009,11 @@ namespace EyesInTheDark
             if (_hunterRuntime != null)
             {
                 _hunterRuntime.Cancel(reason, discardLiveTarget);
+            }
+            _liveOfficialHunters.Clear();
+            if (_guardAwareness != null)
+            {
+                _guardAwareness.Reset(reason);
             }
             _huntDirector.ResetNight(CurrentHuntTuning());
             _activeHuntBudgetSpent = false;
@@ -5482,6 +5531,13 @@ namespace EyesInTheDark
                 UiDescription(
                     "Allow reviewed high-pressure ambient stalkers from 50% to below 75% threat and reviewed elite official hunters only above 75%. Bosses, minibosses, story actors, summons, and challenge or trial variants remain excluded.",
                     "General", "Allow Elite Enemies", 0, 40));
+            _enableGuardAssistance = Config.Bind(
+                "Encounters",
+                "EnableGuardAssistance",
+                true,
+                UiDescription(
+                    "Allow nearby ordinary settlement guards to join active official hunts against every exact Eyes-spawned hunter. Unique, quest, story, bodyguard, and other special actors remain excluded; ambient stalkers are never targeted.",
+                    "General", "Nearby Guards Assist Official Hunts", 0, 42));
             _hunterSpawnDistance = Config.Bind(
                 "Encounters",
                 "HunterSpawnDistanceMeters",
@@ -5490,6 +5546,22 @@ namespace EyesInTheDark
                     "Requested distance for curated official hunters. Native navigation placement and member separation are verified before spawning.",
                     "Advanced - Hunt Composition", "Hunter Spawn Distance (Meters)", 220, 40,
                     new AcceptableValueRange<float>(20f, 60f)));
+            _guardAssistRadius = Config.Bind(
+                "Encounters",
+                "GuardAssistRadiusMeters",
+                DefaultGuardAssistRadius,
+                UiDescription(
+                    "Maximum response distance used for both checks: the eligible ordinary guard must be within this distance of the Hero, and the exact official hunter must be within this distance of that guard.",
+                    "Advanced - Hunt Composition", "Guard Assistance Radius (Meters)", 220, 50,
+                    new AcceptableValueRange<float>(10f, 50f)));
+            _maximumAssistingGuards = Config.Bind(
+                "Encounters",
+                "MaximumAssistingGuards",
+                DefaultMaximumAssistingGuards,
+                UiDescription(
+                    "Maximum number of distinct eligible guards that may assist during one official hunt. Each guard and exact hunter pair is engaged only once.",
+                    "Advanced - Hunt Composition", "Maximum Assisting Guards", 220, 60,
+                    new AcceptableValueRange<int>(0, 8)));
             _escapeDistance = Config.Bind(
                 "Encounters",
                 "EscapeDistanceMeters",
@@ -6498,7 +6570,10 @@ namespace EyesInTheDark
             CapturePreservedValue<int>(profile, "4. Encounters", "MaximumEncounterSize");
             CapturePreservedValue<float>(profile, "4. Encounters", "SidecarChance");
             CapturePreservedValue<bool>(profile, "4. Encounters", "AllowEliteEnemies");
+            CapturePreservedValue<bool>(profile, "4. Encounters", "EnableGuardAssistance");
             CapturePreservedValue<float>(profile, "4. Encounters", "HunterSpawnDistanceMeters");
+            CapturePreservedValue<float>(profile, "4. Encounters", "GuardAssistRadiusMeters");
+            CapturePreservedValue<int>(profile, "4. Encounters", "MaximumAssistingGuards");
             CapturePreservedValue<float>(profile, "4. Encounters", "EscapeDistanceMeters");
             CapturePreservedValue<float>(profile, "4. Encounters", "EscapeSustainSeconds");
             CapturePreservedValue<float>(profile, "4. Encounters", "OfficialHunterKillThreatRelief");
@@ -6675,7 +6750,10 @@ namespace EyesInTheDark
             RestorePreservedValue(_maximumPackSize, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_sidecarChance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_allowEliteEnemies, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_enableGuardAssistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_hunterSpawnDistance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_guardAssistRadius, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_maximumAssistingGuards, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_escapeDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_escapeSustainSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_killThreatRelief, ref restored, ref clamped, ref invalid);

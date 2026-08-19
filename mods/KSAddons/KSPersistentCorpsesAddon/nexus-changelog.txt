@@ -1,7 +1,6 @@
 TargetVersion=1.1.1
-BaselineVersion=1.0.9
+BaselineVersion=1.1.0
 
 Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
 Advanced ConfigSchemaVersion from 2 to 3 because settings moved to clean General, Settle Timing, Corpse Retention, Bonfire Cleanup, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
 Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
-Renamed the FoA Mod Manager config-menu title to PersistentCorpses Addon so it sorts directly below the parent PersistentCorpses entry.

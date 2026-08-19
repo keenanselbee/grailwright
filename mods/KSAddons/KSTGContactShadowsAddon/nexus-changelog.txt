@@ -1,0 +1,5 @@
+TargetVersion=0.1.4
+BaselineVersion=0.1.3
+Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
+Advanced the config schema to 2 because settings moved to clean General, Light Selection, Visuals, Notifications, and Diagnostics sections; this one-time cleanup regenerates defaults rather than guessing mappings from retired section names.
+Kept Diagnostics penultimate and Import Previous Settings last in the config menu.

@@ -1,0 +1,5 @@
+TargetVersion=2.2.2
+BaselineVersion=2.2.1
+Removed numeric prefixes from every generated config section and added explicit semantic ordering metadata to every visible setting.
+Advanced the config schema to 17 because settings moved to clean raw sections; this one-time cleanup regenerates defaults rather than guessing mappings from retired section names.
+Placed advanced DSP near the bottom, with Diagnostics penultimate and Import Previous Settings last.

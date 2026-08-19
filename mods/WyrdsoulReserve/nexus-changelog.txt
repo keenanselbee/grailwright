@@ -1,0 +1,4 @@
+TargetVersion=1.0.6
+BaselineVersion=1.0.5
+Removed numeric prefixes from raw config sections and added explicit semantic ordering metadata to every visible setting: General, Resource, HUD, Diagnostics, then Import Previous Settings.
+Advanced the config schema to 3 because settings moved to clean section names; the previous config is backed up and this release intentionally regenerates current defaults rather than mapping old numbered sections.

@@ -1,0 +1,3 @@
+TargetVersion=1.1.1
+BaselineVersion=1.1.0
+Added explicit semantic section and setting order metadata for a cleaner FoA Mod Manager layout without changing the stored config schema.

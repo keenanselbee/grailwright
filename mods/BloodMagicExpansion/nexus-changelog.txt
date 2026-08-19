@@ -1,6 +1,3 @@
 TargetVersion=2.8.2
-BaselineVersion=2.7.9
-Integrated corpse-ritual, Blood/Life Transfusion, and Abhartach healing with Grail Floating Text 2.4.6 so visible blood healing uses the configurable Red group and Blood Magic icon.
-Kept frequent held-channel healing ticks suppressed by default while leaving ordinary healing notifications unchanged.
-Simplified corpse reward text to "+X XP | +X Blood Essence" while retaining the matching corpse-quality icon.
-Reorganized the configuration into clean, semantically ordered sections.
+BaselineVersion=2.8.1
+Reorganized the configuration into clean, unnumbered sections with explicit semantic ordering while preserving compatible customized settings through the standard recovery path.

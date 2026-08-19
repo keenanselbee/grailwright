@@ -1,5 +1,3 @@
 TargetVersion=1.3.5
-BaselineVersion=1.3.2
-Prevented duplicate Wyrdnight transition text by owning Grail Floating Text's built-in falls/fades event whenever Atmospheric or Detailed Eyes notifications are active, with automatic fallback when they are not.
-Added default-on ShowGrailFloatingTextDiagnostics as a subordinate Diagnostics switch, leaving detailed logs and independently configured atmospheric messages active when diagnostic summaries are disabled.
-Cleaned every stored config section and standardized explicit semantic ordering, with Diagnostics immediately before Import Previous Settings.
+BaselineVersion=1.3.4
+Cleaned every stored config section and standardized explicit semantic ordering, with Diagnostics immediately before Import Previous Settings and compatible customized values translated through the standard recovery path.

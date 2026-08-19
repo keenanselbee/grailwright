@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.5.5
+Version 2.5.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -226,7 +226,16 @@ Compatibility detection:
 GFT checks only exact loaded DLL or setting conflicts it can verify. It reports a
 concise orange Warning-styled System notice without changing either mod. These
 notices use High priority, the warning icon, the System duration, and OnMainMenu
-delivery. Authors should log the full evidence to BepInEx/LogOutput.log.
+delivery. NotificationApi v13 lets any loaded mod submit this standardized notice
+with concise player text and exact diagnostic evidence. GFT writes that evidence
+to BepInEx/LogOutput.log.
+
+When BepInEx rejects a plugin before its code can run because of a declared hard
+incompatibility, GFT reads the verified loader error directly. It identifies the
+rejected and conflicting plugins, tells the player to remove or disable one and
+restart, and keeps the original BepInEx error in the log. This covers Soul and
+Service conflicts with Avalon Summons or Better Summon without requiring Soul and
+Service to start or hard-coding those pairs into GFT.
 
 When Eyes in the Dark is loaded, GFT flags Wyrd Hunt and Custom Timescale as
 incompatible counterparts using this same one-notice convention. It does not
@@ -235,7 +244,8 @@ disable, unload, or reconfigure any of the detected plugins.
 Mods can integrate with Grail Floating Text as an optional dependency. The
 installed docs/API.md contains a copy-ready reflection resolver, exact overload
 signatures, capability names, invocation examples, and the complete icon list.
-NotificationApi v12 adds source-scoped presentation claims for restyling one
+NotificationApi v13 adds TryShowCompatibilityNotice for standardized, deferred
+main-menu compatibility warnings. API v12 adds source-scoped presentation claims for restyling one
 exact built-in event without bypassing its user settings. API v11 adds scoped
 built-in event ownership for integrations that provide or suppress a replacement.
 NotificationApi v10 adds cancellable XP claims so a producer can remove its

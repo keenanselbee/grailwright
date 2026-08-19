@@ -1,3 +1,9 @@
+Version 2.5.6
+Added NotificationApi v13 TryShowCompatibilityNotice so any loaded mod can submit one standardized, deferred main-menu compatibility warning with concise player text and exact logged evidence.
+Added generic BepInEx hard-incompatibility reporting for plugins rejected before startup, resolving conflicting plugin GUIDs to friendly names when possible and directing players to remove or disable one mod before restarting.
+Documented the shared compatibility platform and its rejected-plugin fallback throughout the packaged author guide, installed README, and Nexus description.
+Kept config defaults and ConfigSchemaVersion unchanged.
+
 Version 2.5.5
 Packaged docs/API.md with every release so external mod authors receive the complete reflection resolver, overload signatures, feature probes, examples, and icon reference.
 Expanded the Nexus and installed author guidance with the exact soft-dependency declaration, safe optional fallback behavior, and current NotificationApi v11 and v12 surfaces.

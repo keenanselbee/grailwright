@@ -24,6 +24,7 @@ private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
 private MethodInfo _grailFloatingTextTryCancelXpGainClaimMethod;
 private MethodInfo _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod;
 private MethodInfo _grailFloatingTextTrySetBuiltInEventClaimMethod;
+private MethodInfo _grailFloatingTextTryShowCompatibilityNoticeMethod;
 private MethodInfo _grailFloatingTextTryShowDeferredEventMethod;
 private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
 private MethodInfo _grailFloatingTextTryShowWithIconMethod;
@@ -120,6 +121,17 @@ private bool TryResolveGrailFloatingText()
             typeof(bool)
         });
 
+    _grailFloatingTextTryShowCompatibilityNoticeMethod = AccessTools.Method(
+        apiType,
+        "TryShowCompatibilityNotice",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string)
+        });
+
     _grailFloatingTextTryShowDeferredEventMethod = AccessTools.Method(
         apiType,
         "TryShowEvent",
@@ -195,6 +207,7 @@ private bool TryResolveGrailFloatingText()
         _grailFloatingTextTryClaimXpGainMethod != null ||
         _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null ||
         _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
+        _grailFloatingTextTryShowCompatibilityNoticeMethod != null ||
         _grailFloatingTextTryShowDeferredEventMethod != null ||
         _grailFloatingTextTryShowEventWithIconMethod != null ||
         _grailFloatingTextTryShowWithIconMethod != null ||
@@ -202,7 +215,7 @@ private bool TryResolveGrailFloatingText()
 }
 ```
 
-Use these wrappers for feature checks and the two most common notification calls. They resolve lazily, return `false` when GFT or the exact overload is unavailable, and never make GFT a hard dependency:
+Use these wrappers for feature checks, compatibility notices, and the two most common general notification calls. They resolve lazily, return `false` when GFT or the exact overload is unavailable, and never make GFT a hard dependency:
 
 ```csharp
 private bool SupportsGrailFloatingTextFeature(string feature)
@@ -281,6 +294,41 @@ private bool InvokeTryShowDeferredEvent(
     }
 }
 
+private bool InvokeTryShowCompatibilityNotice(
+    string sourceId,
+    string conflictId,
+    string text,
+    string diagnosticDetails)
+{
+    if (_grailFloatingTextTryShowCompatibilityNoticeMethod == null
+        && !TryResolveGrailFloatingText())
+    {
+        return false;
+    }
+    if (_grailFloatingTextTryShowCompatibilityNoticeMethod == null)
+    {
+        return false;
+    }
+
+    try
+    {
+        object result = _grailFloatingTextTryShowCompatibilityNoticeMethod.Invoke(
+            null,
+            new object[]
+            {
+                sourceId,
+                conflictId,
+                text,
+                diagnosticDetails
+            });
+        return result is bool && (bool)result;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
 private bool InvokeTryShowEvent(
     string sourceId,
     string eventId,
@@ -331,7 +379,7 @@ private bool InvokeTryShowEvent(
 }
 ```
 
-For optional versioned behavior, probe the named capability (for example, `OnMainMenuDelivery` or `BuiltInEventPresentationClaims`) and still verify the exact reflected method before invoking it. A missing feature, missing method, exception, or `false` result should leave your mod on its normal safe path.
+For optional versioned behavior, probe the named capability (for example, `CompatibilityNotices`, `OnMainMenuDelivery`, or `BuiltInEventPresentationClaims`) and still verify the exact reflected method before invoking it. A missing feature, missing method, exception, or `false` result should leave your mod on its normal safe path.
 
 QuickWheelPanelApi v15 exposes `GrailFloatingText.QuickWheelPanelApi` for a persistent
 right-anchored two-column surface. Call `TrySet` while your quick-wheel owner is
@@ -396,6 +444,16 @@ Delivery points:
 - `OnLoad`: wait until the hero and world are initialized, loading and camera transitions have ended, no fullscreen video or cutscene covers the view, and the game window is focused.
 
 Deferred messages persist until shown. Their duration starts on the first eligible IMGUI repaint, not when the API call is made.
+
+NotificationApi v13 compatibility notice:
+
+```csharp
+TryShowCompatibilityNotice(sourceId, conflictId, text, diagnosticDetails)
+```
+
+Use this after your mod has verified a real incompatibility. GFT applies the shared Warning style, System category and duration, High priority, warning icon, stable collapse key, and `OnMainMenu` delivery. `sourceId` should be your plugin GUID, and `conflictId` should be a stable identifier scoped to your mod, such as `incompatible-other-mod`. Keep `text` concise and player-facing. Put the exact detected GUID, DLL, setting, or other evidence in `diagnosticDetails`; GFT writes it to `BepInEx/LogOutput.log`. The call respects `NotifyModCompatibility`, category controls, and per-source controls, and it never disables or changes either mod.
+
+If BepInEx rejects a plugin before its code can run because of a declared hard incompatibility, that plugin cannot call the API. GFT separately translates BepInEx's verified incompatibility dependency errors into the same main-menu notice format, resolves loaded conflicting GUIDs to their plugin names when possible, and tells the player to remove or disable one mod before restarting.
 
 API v8 consolidated XP claim call shape:
 
@@ -489,6 +547,7 @@ Built-in icon IDs:
 
 Feature probes:
 
+- `ApiVersion13` and `CompatibilityNotices`: provider supports standardized main-menu compatibility warnings through `TryShowCompatibilityNotice` and automatically surfaces verified BepInEx hard-incompatibility rejections.
 - `ApiVersion12` and `BuiltInEventPresentationClaims`: provider supports source-scoped restyling of exact built-in events through `TrySetBuiltInEventPresentationClaim`.
 - `ApiVersion11` and `BuiltInEventClaims`: provider supports source-isolated ownership of built-in event presentation through `TrySetBuiltInEventClaim`.
 - `ApiVersion10` and `XpClaimCancellation`: provider supports canceling an unconsumed XP claim through `TryCancelXpGainClaim`.
@@ -531,7 +590,7 @@ Examples:
 InvokeTryShowDeferredEvent(PluginGuid, "startup-ready", text, "System", "System", "High", "", "system", "System", "OnLoad", 0.25f, 0.9f);
 
 // Show a confirmed compatibility warning once the main menu can be used.
-InvokeTryShowDeferredEvent(PluginGuid, "compatibility-warning", text, "Warning", "System", "High", "compatibility-warning", "warning", "System", "OnMainMenu", -1.0f, 1.0f);
+InvokeTryShowCompatibilityNotice(PluginGuid, "incompatible-other-mod", text, diagnosticDetails);
 
 // Stack killing-blow reward messages with a skill icon. The default RedEvents config colors this event red.
 InvokeTryShowEvent(PluginGuid, "killing-blow", text, "Reward", "Reward", "Normal", "", "archery", "Medium", 0.25f, 0.9f);

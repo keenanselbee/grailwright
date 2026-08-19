@@ -14,9 +14,9 @@ $exportScript = Get-Content -LiteralPath (
 
 $methodMatch = [regex]::Match(
     $source,
-    '(?s)private void ShowCompatibilityNotice\(.+?(?=\r?\n\s*private static bool IsPluginOrAssemblyLoaded\()')
+    '(?s)internal bool TryShowCompatibilityNotice\(.+?(?=\r?\n\s*internal bool TryClaimXpGain\()')
 if (!$methodMatch.Success) {
-    throw "GFT ShowCompatibilityNotice method was not found."
+    throw "GFT TryShowCompatibilityNotice method was not found."
 }
 
 $method = $methodMatch.Value
@@ -65,7 +65,8 @@ foreach ($required in @(
 
 foreach ($required in @(
     '[BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]',
-    'NotificationApi is currently v12',
+    'NotificationApi is currently v13',
+    'TryShowCompatibilityNotice',
     'TrySetBuiltInEventPresentationClaim',
     'TrySetBuiltInEventClaim',
     'GrailFloatingText/docs/API.md')) {

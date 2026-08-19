@@ -1,5 +1,7 @@
-TargetVersion=2.5.5
+TargetVersion=2.5.6
 BaselineVersion=2.5.1
+Added a purpose-built compatibility notice API so any loaded mod can send the standard warning-style main-menu message with exact diagnostic evidence preserved in the log.
+Added automatic main-menu notices for verified BepInEx hard-incompatibility rejections, including conflicts that prevent the affected mod from starting at all.
 Suppressed the food-consumed line when Steel and Bone prevents that food from being used during combat, leaving only Steel and Bone's brief restriction feedback.
 Removed numeric prefixes from all static and runtime-created config sections and added explicit semantic ordering metadata to every visible setting.
 Updated compatibility lookups for the clean Glorious UI, Steel and Bone, and Eyes in the Dark section names.

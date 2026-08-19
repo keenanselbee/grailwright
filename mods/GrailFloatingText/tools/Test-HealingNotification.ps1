@@ -25,7 +25,7 @@ foreach ($requiredToken in @(
     'EndHealingOverTimeScope();',
     'private void AdvanceHealingQueue()',
     'AdvanceHealingQueue();',
-    'public const int ApiVersion = 12;',
+    'public const int ApiVersion = 13;',
     'TrySetBuiltInEventPresentationClaim(',
     '"BuiltInEventPresentationClaims"',
     'blood-magic-healed',

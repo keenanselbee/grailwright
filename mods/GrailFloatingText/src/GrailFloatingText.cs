@@ -46,15 +46,15 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.5.5.0")]
-[assembly: AssemblyFileVersion("2.5.5.0")]
-[assembly: AssemblyInformationalVersion("2.5.5")]
+[assembly: AssemblyVersion("2.5.6.0")]
+[assembly: AssemblyFileVersion("2.5.6.0")]
+[assembly: AssemblyInformationalVersion("2.5.6")]
 
 namespace GrailFloatingText
 {
     public static class NotificationApi
     {
-        public const int ApiVersion = 12;
+        public const int ApiVersion = 13;
 
         public static bool SupportsFeature(string feature)
         {
@@ -164,6 +164,21 @@ namespace GrailFloatingText
                 opacity);
         }
 
+        public static bool TryShowCompatibilityNotice(
+            string sourceId,
+            string conflictId,
+            string text,
+            string diagnosticDetails)
+        {
+            GrailFloatingTextPlugin plugin = GrailFloatingTextPlugin.Instance;
+            return plugin != null
+                && plugin.TryShowCompatibilityNotice(
+                    sourceId,
+                    conflictId,
+                    text,
+                    diagnosticDetails);
+        }
+
         public static bool TryClaimXpGain(
             string sourceId,
             string eventId,
@@ -261,7 +276,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.5.5";
+        public const string PluginVersion = "2.5.6";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -723,6 +738,8 @@ namespace GrailFloatingText
                 string.Equals(feature, "ApiVersion10", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion11", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "ApiVersion12", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "ApiVersion13", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(feature, "CompatibilityNotices", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "QuickWheelPanels", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "quick-wheel-panels-v1", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(feature, "Categories", StringComparison.OrdinalIgnoreCase) ||
@@ -2993,6 +3010,44 @@ namespace GrailFloatingText
                 opacity);
         }
 
+        internal bool TryShowCompatibilityNotice(
+            string sourceId,
+            string conflictId,
+            string text,
+            string diagnosticDetails)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId)
+                || string.IsNullOrWhiteSpace(conflictId)
+                || string.IsNullOrWhiteSpace(text)
+                || _notifyModCompatibility == null
+                || !_notifyModCompatibility.Value)
+            {
+                return false;
+            }
+
+            string eventId = ModCompatibilityEventIdPrefix
+                + NormalizeEventId(conflictId);
+            bool accepted = TryShowEvent(
+                sourceId,
+                eventId,
+                text,
+                "Warning",
+                "System",
+                "High",
+                eventId,
+                "warning",
+                "System",
+                "OnMainMenu",
+                -1.0f,
+                1.0f);
+            Logger.LogWarning(
+                string.IsNullOrWhiteSpace(diagnosticDetails)
+                    ? "[" + sourceId + "] " + text
+                    : "[" + sourceId + "] " + text + " "
+                        + diagnosticDetails);
+            return accepted;
+        }
+
         internal bool TryClaimXpGain(
             string sourceId,
             string eventId,
@@ -4462,10 +4517,51 @@ namespace GrailFloatingText
                 return;
             }
 
+            ScanBepInExIncompatibilityErrors();
             ScanGloriousUiCompatibility();
             ScanEyesInTheDarkCompatibility();
             ScanDamageNumberCompatibility();
             ScanDynamicCrosshairCompatibility();
+        }
+
+        private void ScanBepInExIncompatibilityErrors()
+        {
+            foreach (string dependencyError in Chainloader.DependencyErrors)
+            {
+                string rejectedPluginName;
+                string[] incompatiblePluginGuids;
+                if (!TryParseBepInExIncompatibilityError(
+                        dependencyError,
+                        out rejectedPluginName,
+                        out incompatiblePluginGuids))
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < incompatiblePluginGuids.Length; i++)
+                {
+                    string incompatiblePluginGuid = incompatiblePluginGuids[i];
+                    string incompatiblePluginName = incompatiblePluginGuid;
+                    PluginInfo pluginInfo;
+                    if (Chainloader.PluginInfos.TryGetValue(
+                            incompatiblePluginGuid,
+                            out pluginInfo)
+                        && pluginInfo != null
+                        && pluginInfo.Metadata != null
+                        && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.Name))
+                    {
+                        incompatiblePluginName = pluginInfo.Metadata.Name.Trim();
+                    }
+
+                    ShowCompatibilityNotice(
+                        "bepinex-" + rejectedPluginName + "-"
+                            + incompatiblePluginGuid,
+                        rejectedPluginName + " could not load because it is "
+                            + "incompatible with " + incompatiblePluginName
+                            + ". Remove or disable one, then restart the game.",
+                        "BepInEx dependency error: " + dependencyError);
+                }
+            }
         }
 
         private void ScanEyesInTheDarkCompatibility()
@@ -4742,25 +4838,89 @@ namespace GrailFloatingText
             string text,
             string diagnosticDetails = null)
         {
-            string eventId = ModCompatibilityEventIdPrefix
-                + NormalizeEventId(ruleId);
-            NotificationApi.TryShowEvent(
+            TryShowCompatibilityNotice(
                 PluginGuid,
-                eventId,
+                ruleId,
                 text,
-                "Warning",
-                "System",
-                "High",
-                eventId,
-                "warning",
-                "System",
-                "OnMainMenu",
-                -1.0f,
-                1.0f);
-            Logger.LogWarning(
-                string.IsNullOrWhiteSpace(diagnosticDetails)
-                    ? text
-                    : text + " " + diagnosticDetails);
+                diagnosticDetails);
+        }
+
+        private static bool TryParseBepInExIncompatibilityError(
+            string dependencyError,
+            out string rejectedPluginName,
+            out string[] incompatiblePluginGuids)
+        {
+            rejectedPluginName = string.Empty;
+            incompatiblePluginGuids = new string[0];
+            if (string.IsNullOrWhiteSpace(dependencyError))
+            {
+                return false;
+            }
+
+            const string rejectedPluginPrefix = "Could not load [";
+            const string incompatibilityMarker =
+                "] because it is incompatible with: ";
+            int rejectedPluginStart = dependencyError.IndexOf(
+                rejectedPluginPrefix,
+                StringComparison.OrdinalIgnoreCase);
+            if (rejectedPluginStart < 0)
+            {
+                return false;
+            }
+
+            rejectedPluginStart += rejectedPluginPrefix.Length;
+            int incompatibilityStart = dependencyError.IndexOf(
+                incompatibilityMarker,
+                rejectedPluginStart,
+                StringComparison.OrdinalIgnoreCase);
+            if (incompatibilityStart <= rejectedPluginStart)
+            {
+                return false;
+            }
+
+            string rejectedPluginIdentity = dependencyError.Substring(
+                rejectedPluginStart,
+                incompatibilityStart - rejectedPluginStart).Trim();
+            rejectedPluginName = RemoveTrailingPluginVersion(
+                rejectedPluginIdentity);
+            string incompatibleList = dependencyError.Substring(
+                incompatibilityStart + incompatibilityMarker.Length).Trim();
+            string[] candidates = incompatibleList.Split(',');
+            List<string> parsedGuids = new List<string>();
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                string candidate = candidates[i].Trim();
+                if (!string.IsNullOrWhiteSpace(candidate))
+                {
+                    parsedGuids.Add(candidate);
+                }
+            }
+
+            incompatiblePluginGuids = parsedGuids.ToArray();
+            return !string.IsNullOrWhiteSpace(rejectedPluginName)
+                && incompatiblePluginGuids.Length > 0;
+        }
+
+        private static string RemoveTrailingPluginVersion(
+            string pluginIdentity)
+        {
+            if (string.IsNullOrWhiteSpace(pluginIdentity))
+            {
+                return string.Empty;
+            }
+
+            int lastSpace = pluginIdentity.LastIndexOf(' ');
+            if (lastSpace <= 0 || lastSpace >= pluginIdentity.Length - 1)
+            {
+                return pluginIdentity;
+            }
+
+            Version parsedVersion;
+            return Version.TryParse(
+                    pluginIdentity.Substring(lastSpace + 1),
+                    out parsedVersion)
+                ? pluginIdentity.Substring(0, lastSpace).TrimEnd()
+                : pluginIdentity;
         }
 
         private static bool IsPluginOrAssemblyLoaded(
@@ -5591,7 +5751,7 @@ namespace GrailFloatingText
                 "General",
                 "NotifyModCompatibility",
                 true,
-                "Show warning-styled system notices when a loaded Grailwright mod has documented incompatible DLLs loaded alongside it. Detection treats the Grailwright mod as the preferred implementation but never disables another plugin automatically.");
+                "Show standardized main-menu warnings submitted by loaded mods, verified BepInEx hard-incompatibility rejections, and built-in documented conflict checks. Notices never disable another plugin automatically.");
             BindOrdered(
                 "General",
                 "ConfigSchemaVersion",

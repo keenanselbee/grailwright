@@ -277,6 +277,23 @@ function Copy-DirectoryContentsToScratch {
     return $copied
 }
 
+function Copy-ApiReferenceToPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$PackageRoot
+    )
+
+    $apiReference = Join-Path $Root "docs\API.md"
+    if (-not (Test-Path -LiteralPath $apiReference -PathType Leaf)) {
+        return 0
+    }
+
+    Copy-FileIntoScratch `
+        -SourceFile $apiReference `
+        -DestinationFile (Join-Path $PackageRoot "docs\API.md")
+    return 1
+}
+
 function Copy-TopLevelCompanionsToPackage {
     param(
         [Parameter(Mandatory = $true)][string]$Root,
@@ -291,6 +308,8 @@ function Copy-TopLevelCompanionsToPackage {
             $copied++
         }
     }
+
+    $copied += Copy-ApiReferenceToPackage -Root $Root -PackageRoot $PackageRoot
 
     return $copied
 }
@@ -458,6 +477,7 @@ try {
 
         if ($directDlls.Count -gt 0) {
             $copiedFiles += Copy-DirectoryContentsToScratch -SourceDirectory $ModRoot -DestinationDirectory $packageRoot
+            $copiedFiles += Copy-ApiReferenceToPackage -Root $ModRoot -PackageRoot $packageRoot
         } elseif ($topLevelPluginDirs.Count -eq 1) {
             $packageRoot = Join-Path $scratch (Convert-ToPackageFileName $topLevelPluginDirs[0].Name)
             $copiedFiles += Copy-DirectoryContentsToScratch -SourceDirectory $topLevelPluginDirs[0].FullName -DestinationDirectory $packageRoot

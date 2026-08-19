@@ -1,3 +1,8 @@
+Version 2.5.5
+Packaged docs/API.md with every release so external mod authors receive the complete reflection resolver, overload signatures, feature probes, examples, and icon reference.
+Expanded the Nexus and installed author guidance with the exact soft-dependency declaration, safe optional fallback behavior, and current NotificationApi v11 and v12 surfaces.
+Kept runtime behavior, API version, config defaults, and config schema unchanged.
+
 Version 2.5.4
 Moved the consumable event controls into the clean Default Game Events section and applied the same explicit semantic setting metadata as every other visible option.
 Advanced ConfigSchemaVersion from 26 to 27 because those five controls moved from the remaining numbered raw section to its clean name; compatible customized settings remain eligible for recovery.

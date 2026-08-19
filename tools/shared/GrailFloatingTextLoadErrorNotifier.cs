@@ -12,6 +12,7 @@ namespace Grailwright.Shared
         private const float LoadErrorOpacity = 1.0f;
 
         private static bool _resolved;
+        private static MethodInfo _tryShowDeferredEventWithIconMethod;
         private static MethodInfo _tryShowEventWithIconMethod;
 
         internal static bool TryShowConfigReset(
@@ -181,6 +182,51 @@ namespace Grailwright.Shared
             }
         }
 
+        internal static bool TryShowCompatibilityWarning(
+            string sourceId,
+            string eventId,
+            string text)
+        {
+            if (string.IsNullOrWhiteSpace(sourceId))
+            {
+                sourceId = "grailwright";
+            }
+            if (string.IsNullOrWhiteSpace(eventId)
+                || string.IsNullOrWhiteSpace(text)
+                || !TryResolve()
+                || _tryShowDeferredEventWithIconMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _tryShowDeferredEventWithIconMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        sourceId,
+                        eventId,
+                        text.Trim(),
+                        "Warning",
+                        "System",
+                        "High",
+                        eventId,
+                        "warning",
+                        "System",
+                        "OnMainMenu",
+                        -1.0f,
+                        1.0f
+                    });
+
+                return result is bool && (bool)result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         internal static bool TryShowDiagnosticNotification(
             string sourceId,
             string eventId,
@@ -324,6 +370,27 @@ namespace Grailwright.Shared
                 null,
                 new[]
                 {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float)
+                },
+                null);
+
+            _tryShowDeferredEventWithIconMethod = apiType.GetMethod(
+                "TryShowEvent",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[]
+                {
+                    typeof(string),
                     typeof(string),
                     typeof(string),
                     typeof(string),

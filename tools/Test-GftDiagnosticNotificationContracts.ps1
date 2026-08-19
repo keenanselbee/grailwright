@@ -7,10 +7,15 @@ $helper = Get-Content -LiteralPath (
 foreach ($required in @(
     "TryShowEventNotification(",
     "TryShowDiagnosticNotification(",
+    "TryShowCompatibilityWarning(",
     '"System"',
     '"Low"',
     '"system"',
-    '"Short"')) {
+    '"Short"',
+    '"Warning"',
+    '"High"',
+    '"warning"',
+    '"OnMainMenu"')) {
     if (!$helper.Contains($required)) {
         throw "Shared GFT diagnostic helper is missing token: $required"
     }

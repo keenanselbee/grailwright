@@ -127,17 +127,21 @@ Most features are enabled by default. Full consumable descriptions, periodic hea
 [line]
 
 [heading][color=#C94A4A][size=5]For Mod Authors[/size][/color][/heading]
-Declare Grail Floating Text as a soft dependency:
+Declare Grail Floating Text as a soft dependency so your mod still loads when GFT is absent:
 
 [code]
-ks.tgfoa.grail-floating-text
+[BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
 [/code]
 
-Resolve the API by reflection:
+Resolve the API by reflection through the loaded plugin assembly:
 
 [code]
 GrailFloatingText.NotificationApi
 [/code]
+
+The downloaded package includes [b]GrailFloatingText/docs/API.md[/b] with a copy-ready reflection resolver, exact overload signatures, safe invocation wrappers, capability names, examples, and the complete icon list. This page summarizes the stable common calls; the packaged reference is the canonical guide for the complete current surface.
+
+NotificationApi is currently v12. Resolve exact overloads by their full signatures and use [b]SupportsFeature(feature)[/b] when selecting optional behavior. If GFT, an overload, or a capability is unavailable, skip that route and keep your mod functional without throwing or changing another mod.
 
 QuickWheelPanelApi v15 provides a separate persistent panel surface:
 
@@ -153,6 +157,8 @@ QuickWheelPanelApi v15 adds caller-controlled 0 through 200 reference-pixel spac
 [b]Adding a compatibility detection:[/b] verify the exact loaded DLL or enabled setting in your own mod, then submit one restrained [b]Warning[/b]-styled, [b]System[/b]-category event with [b]High[/b] priority, the [b]warning[/b] icon, [b]System[/b] duration, and [b]OnMainMenu[/b] delivery. Use a stable event ID as the collapse key, log the exact evidence to [b]BepInEx/LogOutput.log[/b], and do not guess or change the other mod automatically.
 
 [code]TryShowEvent(PluginGuid, "compat-other-mod", conciseText, "Warning", "System", "High", "compat-other-mod", "warning", "System", "OnMainMenu", -1.0f, 1.0f)[/code]
+
+Resolve this API v7 overload by its full 12-parameter signature. If it is unavailable or returns [b]false[/b], retain your mod's safe fallback and do not treat GFT as a required dependency.
 
 Fade-in stays at [b]DefaultFadeSeconds[/b]. Fade-out scales with total message duration, from 60% to 200% of that baseline and never longer than half the message lifetime. With the defaults, Medium fades out over 0.25 seconds and System over 0.5 seconds.
 
@@ -180,6 +186,20 @@ TryCancelXpGainClaim(sourceId, eventId, expectedAmount)
 
 If the XP mutation fails after reserving a v6 or v8 claim, call this immediately with the same source, event, and expected amount. GFT removes the newest matching unconsumed claim so it cannot later describe a reward that was not granted.
 
+NotificationApi v12 can restyle one exact synchronous built-in event without bypassing that event's enablement, text, duration, minimum, or consolidation settings:
+
+[code]
+TrySetBuiltInEventPresentationClaim(sourceId, eventId, presentationEventId, style, iconId, active)
+[/code]
+
+NotificationApi v11 can claim ownership of one built-in event when an integration supplies or intentionally suppresses its replacement:
+
+[code]
+TrySetBuiltInEventClaim(sourceId, eventId, active)
+[/code]
+
+Set either claim immediately around the exact synchronous event and always release it from a [b]finally[/b] block or Harmony finalizer. Presentation claims are source-scoped; suppression claims take priority, and neither changes user configuration.
+
 API v6 one-shot XP claim call shape:
 
 [code]
@@ -194,7 +214,7 @@ API v4 event-aware call shape:
 TryShowEvent(sourceId, eventId, text, style, category, priority, collapseKey, iconId, durationBucket, fadeSeconds, opacity)
 [/code]
 
-Duration buckets are [b]VeryShort[/b], [b]Short[/b], [b]Medium[/b], [b]Long[/b], [b]VeryLong[/b], and [b]System[/b]. Their defaults are 3, 3.5, 4, 4.5, 5, and 10 seconds respectively. System is intended for startup, config-reset, and load-time error messages. Empty or unknown bucket names use [b]Medium[/b].
+Duration buckets are [b]VeryShort[/b], [b]Short[/b], [b]Medium[/b], [b]Long[/b], [b]VeryLong[/b], and [b]System[/b]. Their defaults are 3, 3.5, 4, 4.5, 5, and 10 seconds respectively. System is intended for startup, compatibility, config-reset, and load-time error messages. Empty or unknown bucket names use [b]Medium[/b].
 
 API v3 call shape:
 

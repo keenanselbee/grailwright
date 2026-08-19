@@ -23,7 +23,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.5.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Full Enemy XP](mods/FullEnemyXP) | 1.1.1 | Unpublished |
-| [Grail Floating Text](mods/GrailFloatingText) | 2.5.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
+| [Grail Floating Text](mods/GrailFloatingText) | 2.5.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
 | [Killing Blow Mastery](mods/KillingBlowMastery) | 1.6.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
 | [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |

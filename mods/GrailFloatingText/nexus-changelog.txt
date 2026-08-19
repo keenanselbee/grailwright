@@ -1,8 +1,7 @@
-TargetVersion=2.5.4
-BaselineVersion=2.4.6
-Added default-on food and potion consumption lines using the built-in food and potion icons, with gold food and blue potion presentation.
+TargetVersion=2.5.5
+BaselineVersion=2.5.1
 Suppressed the food-consumed line when Steel and Bone prevents that food from being used during combat, leaving only Steel and Bone's brief restriction feedback.
-Added a separate default-on red Potion Poisoning activation line using the potion icon, without showing overdrink buildup progress.
-Suppressed native potion-use and Potion Poisoning announcements only when Grail Floating Text successfully shows their replacements, preserving native fallback when an event is disabled or rejected.
-Added the default-off IncludeConsumableDescription option for appending the full resolved native item description, and folded synchronous consumable healing into the owned consumption line to avoid duplicate GFT healing text.
-Cleaned all static and runtime-created config sections and added explicit semantic FoA Mod Manager ordering, with Diagnostics immediately before Import Previous Settings.
+Removed numeric prefixes from all static and runtime-created config sections and added explicit semantic ordering metadata to every visible setting.
+Updated compatibility lookups for the clean Glorious UI, Steel and Bone, and Eyes in the Dark section names.
+Advanced the config schema through the two clean-section migrations, preserving calibrated presentation and per-source values through the standard recovery path.
+Packaged the complete API reference and expanded the mod-author quick start with exact soft-dependency, safe reflection, capability-probe, compatibility-warning, and current NotificationApi v11/v12 guidance.

@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.5.4
+Version 2.5.5
 
 Platforms: Windows and Linux through Proton.
 
@@ -232,7 +232,12 @@ When Eyes in the Dark is loaded, GFT flags Wyrd Hunt and Custom Timescale as
 incompatible counterparts using this same one-notice convention. It does not
 disable, unload, or reconfigure any of the detected plugins.
 
-Mods can integrate with Grail Floating Text as an optional dependency.
+Mods can integrate with Grail Floating Text as an optional dependency. The
+installed docs/API.md contains a copy-ready reflection resolver, exact overload
+signatures, capability names, invocation examples, and the complete icon list.
+NotificationApi v12 adds source-scoped presentation claims for restyling one
+exact built-in event without bypassing its user settings. API v11 adds scoped
+built-in event ownership for integrations that provide or suppress a replacement.
 NotificationApi v10 adds cancellable XP claims so a producer can remove its
 reserved line when the matching XP mutation fails. QuickWheelPanelApi provides
 persistent two-column quick-wheel panels with tooltip-aware opacity. Version 15
@@ -262,7 +267,7 @@ until their first eligible visible frame, and their duration starts only when
 rendered. API v6 adds text-aware XP gain claims so a mod can style and name the
 next XP stat change it triggers without producing a duplicate generic XP entry.
 API v4 adds optional event IDs and named duration buckets through TryShowEvent.
-The System bucket is intended for startup, config-reset, and load-time error
+The System bucket is intended for startup, compatibility, config-reset, and load-time error
 messages. Older calls still work.
 
 Built-in icon IDs:

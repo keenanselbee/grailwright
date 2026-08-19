@@ -84,7 +84,7 @@ Assert-Contract ($readme.Contains('Version: 1.3.5')) "installed README version i
 Assert-Contract ($readme.StartsWith('Eyes in the Dark - Wyrdnight Overhaul')) "installed README title is stale."
 Assert-Contract ($changelog.StartsWith('Version 1.3.5')) "changelog does not start with 1.3.5."
 Assert-Contract ($repoReadme.Contains('| [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.5 |')) "top-level README row is stale."
-Assert-Contract ($gftModJson.version -eq "2.5.4") "GFT mod.json version is not 2.5.4."
+Assert-Contract ($gftModJson.version -eq "2.5.5") "GFT mod.json version is not 2.5.5."
 Assert-Contract ($gftSource.Contains('private const int ConfigSchemaVersion = 27;')) "GFT config schema is not 27."
 Assert-Contract (!(Test-Path -LiteralPath (Join-Path $repoRoot 'mods\PurpleWyrdness'))) "retired Purple Wyrdness package remains in the repository."
 Assert-Contract (!$repoReadme.Contains('(mods/PurpleWyrdness)')) "top-level README still lists Purple Wyrdness."

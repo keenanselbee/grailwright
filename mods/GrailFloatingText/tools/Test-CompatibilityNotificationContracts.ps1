@@ -9,6 +9,8 @@ $api = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\API.md") -Raw
 $nexus = Get-Content -LiteralPath (
     Join-Path $modRoot "nexus-full-desc.txt") -Raw
+$exportScript = Get-Content -LiteralPath (
+    Join-Path (Split-Path -Parent (Split-Path -Parent $modRoot)) "tools\Export-VortexPackage.ps1") -Raw
 
 $methodMatch = [regex]::Match(
     $source,
@@ -49,6 +51,36 @@ foreach ($document in @(
 if ($api.Contains('critical compatibility warning') -or
     $nexus.Contains('"System", "System", "High", "compat-other-mod", "system"')) {
     throw "GFT author guidance still contains the superseded compatibility presentation."
+}
+
+foreach ($required in @(
+    'SupportsFeature',
+    'TrySetBuiltInEventPresentationClaim',
+    'InvokeTryShowDeferredEvent(',
+    'InvokeTryShowEvent(')) {
+    if (!$api.Contains($required)) {
+        throw "GFT packaged API guide is missing current author guidance: $required"
+    }
+}
+
+foreach ($required in @(
+    '[BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]',
+    'NotificationApi is currently v12',
+    'TrySetBuiltInEventPresentationClaim',
+    'TrySetBuiltInEventClaim',
+    'GrailFloatingText/docs/API.md')) {
+    if (!$nexus.Contains($required)) {
+        throw "GFT Nexus author quick start is missing current guidance: $required"
+    }
+}
+
+foreach ($required in @(
+    'function Copy-ApiReferenceToPackage',
+    'Join-Path $Root "docs\API.md"',
+    'Copy-ApiReferenceToPackage -Root $ModRoot -PackageRoot $packageRoot')) {
+    if (!$exportScript.Contains($required)) {
+        throw "GFT API reference is not guaranteed to enter direct-DLL packages: $required"
+    }
 }
 
 Write-Host "GFT compatibility notification contracts passed."

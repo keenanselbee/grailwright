@@ -9,12 +9,20 @@ Use Grail Floating Text as an optional BepInEx dependency:
 Resolve the API by reflection so your mod still loads when the provider is not installed:
 
 ```csharp
+using System;
+using System.Reflection;
+using BepInEx;
+using BepInEx.Bootstrap;
+using HarmonyLib;
+
 private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
 private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
 
+private MethodInfo _grailFloatingTextSupportsFeatureMethod;
 private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
 private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
 private MethodInfo _grailFloatingTextTryCancelXpGainClaimMethod;
+private MethodInfo _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod;
 private MethodInfo _grailFloatingTextTrySetBuiltInEventClaimMethod;
 private MethodInfo _grailFloatingTextTryShowDeferredEventMethod;
 private MethodInfo _grailFloatingTextTryShowEventWithIconMethod;
@@ -36,6 +44,11 @@ private bool TryResolveGrailFloatingText()
     {
         return false;
     }
+
+    _grailFloatingTextSupportsFeatureMethod = AccessTools.Method(
+        apiType,
+        "SupportsFeature",
+        new[] { typeof(string) });
 
     _grailFloatingTextTryClaimConsolidatedXpGainMethod = AccessTools.Method(
         apiType,
@@ -82,6 +95,19 @@ private bool TryResolveGrailFloatingText()
             typeof(string),
             typeof(string),
             typeof(float)
+        });
+
+    _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod = AccessTools.Method(
+        apiType,
+        "TrySetBuiltInEventPresentationClaim",
+        new[]
+        {
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(string),
+            typeof(bool)
         });
 
     _grailFloatingTextTrySetBuiltInEventClaimMethod = AccessTools.Method(
@@ -164,8 +190,10 @@ private bool TryResolveGrailFloatingText()
             typeof(float)
         });
 
-    return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
+    return _grailFloatingTextSupportsFeatureMethod != null ||
+        _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
         _grailFloatingTextTryClaimXpGainMethod != null ||
+        _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null ||
         _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
         _grailFloatingTextTryShowDeferredEventMethod != null ||
         _grailFloatingTextTryShowEventWithIconMethod != null ||
@@ -173,6 +201,137 @@ private bool TryResolveGrailFloatingText()
         _grailFloatingTextTryShowMethod != null;
 }
 ```
+
+Use these wrappers for feature checks and the two most common notification calls. They resolve lazily, return `false` when GFT or the exact overload is unavailable, and never make GFT a hard dependency:
+
+```csharp
+private bool SupportsGrailFloatingTextFeature(string feature)
+{
+    if (string.IsNullOrWhiteSpace(feature)
+        || (_grailFloatingTextSupportsFeatureMethod == null && !TryResolveGrailFloatingText()))
+    {
+        return false;
+    }
+    if (_grailFloatingTextSupportsFeatureMethod == null)
+    {
+        return false;
+    }
+
+    try
+    {
+        object result = _grailFloatingTextSupportsFeatureMethod.Invoke(
+            null,
+            new object[] { feature });
+        return result is bool && (bool)result;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+private bool InvokeTryShowDeferredEvent(
+    string sourceId,
+    string eventId,
+    string text,
+    string style,
+    string category,
+    string priority,
+    string collapseKey,
+    string iconId,
+    string durationBucket,
+    string deliveryPoint,
+    float fadeSeconds,
+    float opacity)
+{
+    if (_grailFloatingTextTryShowDeferredEventMethod == null
+        && !TryResolveGrailFloatingText())
+    {
+        return false;
+    }
+    if (_grailFloatingTextTryShowDeferredEventMethod == null)
+    {
+        return false;
+    }
+
+    try
+    {
+        object result = _grailFloatingTextTryShowDeferredEventMethod.Invoke(
+            null,
+            new object[]
+            {
+                sourceId,
+                eventId,
+                text,
+                style,
+                category,
+                priority,
+                collapseKey,
+                iconId,
+                durationBucket,
+                deliveryPoint,
+                fadeSeconds,
+                opacity
+            });
+        return result is bool && (bool)result;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+private bool InvokeTryShowEvent(
+    string sourceId,
+    string eventId,
+    string text,
+    string style,
+    string category,
+    string priority,
+    string collapseKey,
+    string iconId,
+    string durationBucket,
+    float fadeSeconds,
+    float opacity)
+{
+    if (_grailFloatingTextTryShowEventWithIconMethod == null
+        && !TryResolveGrailFloatingText())
+    {
+        return false;
+    }
+    if (_grailFloatingTextTryShowEventWithIconMethod == null)
+    {
+        return false;
+    }
+
+    try
+    {
+        object result = _grailFloatingTextTryShowEventWithIconMethod.Invoke(
+            null,
+            new object[]
+            {
+                sourceId,
+                eventId,
+                text,
+                style,
+                category,
+                priority,
+                collapseKey,
+                iconId,
+                durationBucket,
+                fadeSeconds,
+                opacity
+            });
+        return result is bool && (bool)result;
+    }
+    catch
+    {
+        return false;
+    }
+}
+```
+
+For optional versioned behavior, probe the named capability (for example, `OnMainMenuDelivery` or `BuiltInEventPresentationClaims`) and still verify the exact reflected method before invoking it. A missing feature, missing method, exception, or `false` result should leave your mod on its normal safe path.
 
 QuickWheelPanelApi v15 exposes `GrailFloatingText.QuickWheelPanelApi` for a persistent
 right-anchored two-column surface. Call `TrySet` while your quick-wheel owner is

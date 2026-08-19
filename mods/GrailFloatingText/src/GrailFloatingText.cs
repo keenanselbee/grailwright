@@ -46,9 +46,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.5.4.0")]
-[assembly: AssemblyFileVersion("2.5.4.0")]
-[assembly: AssemblyInformationalVersion("2.5.4")]
+[assembly: AssemblyVersion("2.5.5.0")]
+[assembly: AssemblyFileVersion("2.5.5.0")]
+[assembly: AssemblyInformationalVersion("2.5.5")]
 
 namespace GrailFloatingText
 {
@@ -261,7 +261,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.5.4";
+        public const string PluginVersion = "2.5.5";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";

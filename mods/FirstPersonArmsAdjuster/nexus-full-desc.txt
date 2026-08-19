@@ -51,7 +51,7 @@ Start the game once to generate:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 [/code]
 
-FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b], [b]Equipment Depth[/b], [b]Head Bob[/b], [b]Advanced - Melee Guards[/b], [b]Advanced - Effects[/b], and [b]Diagnostics[/b]. Friendly labels show metres and signed directions, while the stored config keys in the table remain unchanged.
+FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b], [b]Equipment Depth[/b], [b]Head Bob[/b], [b]Advanced - Melee Guards[/b], [b]Advanced - Dodge Guard[/b], [b]Advanced - Effects[/b], and [b]Diagnostics[/b]. Friendly labels show metres and signed directions, while the stored config keys in the table remain unchanged.
 
 [code]
 | Setting                          | Default  | Purpose                                        |
@@ -73,6 +73,7 @@ FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b]
 | HeldMeleeOffsetScale             | 1.0      | Fraction of the normal offset kept while held  |
 | HeldMeleeExtraForwardOffset      | -0.05    | Held-only depth correction after scaling       |
 | HeldMeleeExtraVerticalOffset     | -0.05    | Held-only vertical correction after scaling    |
+| DodgeMoveTowardVanillaPercent    | 50       | Dodge midpoint movement toward vanilla         |
 | Diagnostics                      | false    | Log render paths, offsets, and melee states    |
 [/code]
 
@@ -83,7 +84,7 @@ All position values accept a range from -0.50 to 0.50 meters.
 [heading][color=#C94A4A][size=5]Rendering Scope And Limitations[/size][/color][/heading]
 Head bob applies only a vertical and side-to-side translation while the main first-person camera renders, then restores the camera immediately. It is distance-driven, uses the Hero's sprint state, and never changes camera depth, rotation, aim, arms, or third person. Balanced with the default 0.75 Sprint Emphasis adds about 56% movement and 19% cadence during sprinting. Subtle lowers the movement ceiling; Strong raises it. Head Bob Smoothness adds up to 0.18 seconds of filtering.
 
-Held one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are handled specially: the complete offset eases toward the configured held-melee scale while the attack is raised or held, then applies the held-only forward and vertical corrections. The default scale retains the normal offset and pulls the held pose 0.05 metres toward the camera near plane and 0.05 metres down. One-handed and two-handed sprint attacks use the game's dedicated LightAttackForward state to return the complete presentation offset rapidly to vanilla, then restore it smoothly after the attack. Every directional dodge follows its animation from the configured offset to vanilla at the midpoint and back to the configured offset before it ends. When a melee weapon is sheathed in its active two-handed grip, the complete presentation offset eases to the vanilla position before the game hides the viewmodel, then restores safely after the transition or an interruption. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
+Held one-handed, two-handed, dual-wielded, and alternate melee heavy attacks are handled specially: the complete offset eases toward the configured held-melee scale while the attack is raised or held, then applies the held-only forward and vertical corrections. The default scale retains the normal offset and pulls the held pose 0.05 metres toward the camera near plane and 0.05 metres down. One-handed and two-handed sprint attacks use the game's dedicated LightAttackForward state to return the complete presentation offset rapidly to vanilla, then restore it smoothly after the attack. Every directional dodge follows its animation toward vanilla and back to the configured offset before it ends. DodgeMoveTowardVanillaPercent controls that midpoint: 0 keeps the configured offset, the default 50 retains half, and 100 reaches vanilla. Chained and redirected dodges continue from the currently displayed offset instead of snapping outward mid-animation. When a melee weapon is sheathed in its active two-handed grip, the complete presentation offset eases to the vanilla position before the game hides the viewmodel, then restores safely after the transition or an interruption. Test melee weapons, bows, shields, magic, item use, swimming, and mounted gameplay when choosing offsets.
 
 The plugin refreshes the active rig and equipment regions repeatedly, caches only the small active set of equipped presentation-effect roots, clears cached rig and render references during scene changes, and briefly suspends offsets while a replacement scene settles. Effects beneath the first-person body keep an adjusted emitter position between frames, then temporarily remove that child offset while the body-root render translation is active so local-space effects move exactly once. It changes presentation data only; the live animation skeleton and gameplay transforms remain untouched. AdjustAttachedEffects can disable the effect correction independently.
 

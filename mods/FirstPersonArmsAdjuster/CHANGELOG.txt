@@ -1,3 +1,8 @@
+Version 0.5.9
+Added a live DodgeMoveTowardVanillaPercent setting from 0 to 100, with a default of 50 so dodges retain half of the configured presentation offset at their midpoint.
+Kept chained and redirected dodges continuous by starting each restarted dodge from the currently displayed offset instead of snapping back to the full configured position.
+Held the last valid dodge blend through temporary animator loading gaps and eased interrupted dodges back to the configured position.
+
 Version 0.5.8
 Made the complete first-person presentation offset ease from its configured position to vanilla and back over every directional dodge animation.
 Used the Legs FSM animation clock so the arms, equipment, and attached effects reach vanilla at the dodge midpoint and return to the configured setting before the dodge ends.

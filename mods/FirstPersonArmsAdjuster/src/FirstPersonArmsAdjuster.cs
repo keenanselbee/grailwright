@@ -39,8 +39,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.5.8.0")]
-[assembly: AssemblyFileVersion("0.5.8.0")]
+[assembly: AssemblyVersion("0.5.9.0")]
+[assembly: AssemblyFileVersion("0.5.9.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -82,7 +82,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.5.8";
+        public const string PluginVersion = "0.5.9";
         public const string TrueThirdPersonPluginGuid =
             "kane.tgfoa.true-third-person";
 
@@ -97,6 +97,8 @@ namespace FirstPersonArmsAdjuster
         private const float SprintAttackBlendOutSeconds = 0.05f;
         private const float SprintAttackBlendInSeconds = 0.20f;
         private const float DodgeEndNormalizedTime = 0.90f;
+        private const float DodgeRestoreSeconds = 0.08f;
+        private const float DodgeReentryEpsilon = 0.001f;
         private const float HeadBobSpeedThreshold = 0.05f;
         private const float HeadBobMaximumDeltaTime = 0.05f;
         private const float HeadBobBlendInSeconds = 0.18f;
@@ -179,6 +181,7 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<float> _heldMeleeOffsetScale;
         private ConfigEntry<float> _heldMeleeExtraForwardOffset;
         private ConfigEntry<float> _heldMeleeExtraVerticalOffset;
+        private ConfigEntry<float> _dodgeMoveTowardVanillaPercent;
         private ConfigEntry<bool> _enableHeadBob;
         private ConfigEntry<HeadBobPreset> _headBobPreset;
         private ConfigEntry<float> _headBobSmoothness;
@@ -207,6 +210,8 @@ namespace FirstPersonArmsAdjuster
         private float _pendingHeldMeleeExtraForwardOffset;
         private bool _hasPendingHeldMeleeExtraVerticalOffset;
         private float _pendingHeldMeleeExtraVerticalOffset;
+        private bool _hasPendingDodgeMoveTowardVanillaPercent;
+        private float _pendingDodgeMoveTowardVanillaPercent;
         private bool _hasPendingEnableHeadBob;
         private bool _pendingEnableHeadBob;
         private bool _hasPendingHeadBobPreset;
@@ -272,6 +277,14 @@ namespace FirstPersonArmsAdjuster
         private float _sprintAttackBlendTarget;
         private float _sprintAttackBlendStartedAt;
         private bool _sprintAttackActive;
+        private float _dodgeOffsetBlend = 1.0f;
+        private float _dodgeEntryOffsetBlend = 1.0f;
+        private float _lastDodgeNormalizedTime = -1.0f;
+        private HeroStateType _lastDodgeState;
+        private bool _dodgeActive;
+        private float _dodgeRestoreStartBlend = 1.0f;
+        private float _dodgeRestoreStartedAt;
+        private int _dodgeBlendUpdateFrame = -1;
         private float _sheathingOffsetBlend = 1.0f;
         private int _sheathingBlendUpdateFrame = -1;
         private bool _sheathingActive;
@@ -475,6 +488,13 @@ namespace FirstPersonArmsAdjuster
             _sprintAttackBlendStart = 0.0f;
             _sprintAttackBlendTarget = 0.0f;
             _sprintAttackActive = false;
+            _dodgeOffsetBlend = 1.0f;
+            _dodgeEntryOffsetBlend = 1.0f;
+            _lastDodgeNormalizedTime = -1.0f;
+            _dodgeActive = false;
+            _dodgeRestoreStartBlend = 1.0f;
+            _dodgeRestoreStartedAt = 0.0f;
+            _dodgeBlendUpdateFrame = -1;
             _sheathingOffsetBlend = 1.0f;
             _sheathingBlendUpdateFrame = -1;
             _sheathingActive = false;
@@ -719,27 +739,95 @@ namespace FirstPersonArmsAdjuster
             return false;
         }
 
-        private static float GetDodgeOffsetBlend(Hero hero)
+        private float GetDodgeOffsetBlend(Hero hero)
         {
+            if (_dodgeBlendUpdateFrame == Time.frameCount)
+            {
+                return _dodgeOffsetBlend;
+            }
+
+            _dodgeBlendUpdateFrame = Time.frameCount;
             LegsFSM legs = hero == null
                 ? null
                 : hero.TryGetElement<LegsFSM>();
             if (legs == null || !IsDodgeState(legs.CurrentStateType))
             {
-                return 1.0f;
+                if (_dodgeActive)
+                {
+                    _dodgeActive = false;
+                    _lastDodgeNormalizedTime = -1.0f;
+                    _dodgeRestoreStartBlend = _dodgeOffsetBlend;
+                    _dodgeRestoreStartedAt = Time.unscaledTime;
+                }
+
+                float restoreProgress = DodgeRestoreSeconds <= 0.0f
+                    ? 1.0f
+                    : Mathf.Clamp01(
+                        (Time.unscaledTime - _dodgeRestoreStartedAt)
+                        / DodgeRestoreSeconds);
+                float easedRestore = restoreProgress
+                    * restoreProgress
+                    * (3.0f - (2.0f * restoreProgress));
+                _dodgeOffsetBlend = Mathf.LerpUnclamped(
+                    _dodgeRestoreStartBlend,
+                    1.0f,
+                    easedRestore);
+                return _dodgeOffsetBlend;
             }
 
             HeroAnimatorState animatorState = legs.CurrentAnimatorState;
             if (animatorState == null)
             {
-                return 1.0f;
+                return _dodgeOffsetBlend;
             }
 
+            float normalizedTime = Mathf.Max(
+                0.0f,
+                animatorState.TimeElapsedNormalized);
+            HeroStateType state = legs.CurrentStateType;
+            bool dodgeRestarted = !_dodgeActive
+                || state != _lastDodgeState
+                || normalizedTime + DodgeReentryEpsilon
+                    < _lastDodgeNormalizedTime;
+            if (dodgeRestarted)
+            {
+                _dodgeEntryOffsetBlend = _dodgeOffsetBlend;
+            }
+
+            _dodgeActive = true;
+            _lastDodgeState = state;
+            _lastDodgeNormalizedTime = normalizedTime;
             float progress = Mathf.Clamp01(
-                Mathf.Max(0.0f, animatorState.TimeElapsedNormalized)
-                / DodgeEndNormalizedTime);
-            return Mathf.Clamp01(
-                1.0f - Mathf.Sin(progress * Mathf.PI));
+                normalizedTime / DodgeEndNormalizedTime);
+            float targetPercent = _dodgeMoveTowardVanillaPercent == null
+                ? 50.0f
+                : _dodgeMoveTowardVanillaPercent.Value;
+            _dodgeOffsetBlend = CalculateDodgeOffsetBlend(
+                progress,
+                _dodgeEntryOffsetBlend,
+                targetPercent);
+            return _dodgeOffsetBlend;
+        }
+
+        private static float CalculateDodgeOffsetBlend(
+            float progress,
+            float entryBlend,
+            float moveTowardVanillaPercent)
+        {
+            float strength = Mathf.Clamp01(
+                moveTowardVanillaPercent / 100.0f);
+            float minimumBlend = 1.0f - strength;
+            float wave = Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI);
+            if (progress <= 0.5f)
+            {
+                return Mathf.Clamp01(
+                    Mathf.LerpUnclamped(
+                        entryBlend,
+                        minimumBlend,
+                        wave));
+            }
+
+            return Mathf.Clamp01(1.0f - (strength * wave));
         }
 
         private static bool IsDodgeState(HeroStateType state)
@@ -3305,6 +3393,20 @@ namespace FirstPersonArmsAdjuster
                         SectionOrder = 30,
                         Order = 30
                     }));
+            _dodgeMoveTowardVanillaPercent = Config.Bind(
+                "Advanced - Dodge Guard",
+                "DodgeMoveTowardVanillaPercent",
+                50.0f,
+                new ConfigDescription(
+                    "Percentage of the configured presentation offset removed at each dodge midpoint. 0 keeps the configured position; 100 reaches vanilla. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 100.0f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Dodge Guard",
+                        DisplayName = "Move Toward Vanilla (%)",
+                        SectionOrder = 35,
+                        Order = 0
+                    }));
             _enableHeadBob = Config.Bind(
                 "Head Bob",
                 "EnableHeadBob",
@@ -3558,6 +3660,11 @@ namespace FirstPersonArmsAdjuster
                     "Advanced - Melee Guards",
                     "HeldMeleeExtraVerticalOffset",
                     out _pendingHeldMeleeExtraVerticalOffset);
+            _hasPendingDodgeMoveTowardVanillaPercent =
+                profile.TryGetCustomizedValue(
+                    "Advanced - Dodge Guard",
+                    "DodgeMoveTowardVanillaPercent",
+                    out _pendingDodgeMoveTowardVanillaPercent);
             _hasPendingEnableHeadBob =
                 profile.TryGetCustomizedValue(
                     "Head Bob",
@@ -3667,6 +3774,12 @@ namespace FirstPersonArmsAdjuster
                 _pendingHeldMeleeExtraVerticalOffset,
                 ref restoredCount,
                 ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingDodgeMoveTowardVanillaPercent,
+                _dodgeMoveTowardVanillaPercent,
+                _pendingDodgeMoveTowardVanillaPercent,
+                ref restoredCount,
+                ref clampedCount);
             if (_hasPendingEnableHeadBob
                 && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
                     _enableHeadBob,
@@ -3770,6 +3883,7 @@ namespace FirstPersonArmsAdjuster
             _hasPendingHeldMeleeOffsetScale = false;
             _hasPendingHeldMeleeExtraForwardOffset = false;
             _hasPendingHeldMeleeExtraVerticalOffset = false;
+            _hasPendingDodgeMoveTowardVanillaPercent = false;
             _hasPendingEnableHeadBob = false;
             _hasPendingHeadBobPreset = false;
             _hasPendingHeadBobSmoothness = false;

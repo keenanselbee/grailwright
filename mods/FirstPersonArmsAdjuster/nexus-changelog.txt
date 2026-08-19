@@ -1,3 +1,4 @@
-TargetVersion=0.5.8
-BaselineVersion=0.5.6
-Made the complete first-person presentation ease to vanilla at each dodge midpoint and return to the configured position before the dodge ends.
+TargetVersion=0.5.9
+BaselineVersion=0.5.8
+Added a live dodge midpoint setting from 0 to 100 percent, defaulting to 50 percent so the presentation retains half of its configured offset at the midpoint.
+Kept chained, redirected, interrupted, and temporarily unloaded dodge animations from snapping the presentation back to its full configured offset mid-dodge.

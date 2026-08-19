@@ -17,6 +17,7 @@ $expectedSections = @(
     "Equipment Depth",
     "Head Bob",
     "Advanced - Melee Guards",
+    "Advanced - Dodge Guard",
     "Advanced - Effects",
     "Diagnostics"
 )
@@ -37,6 +38,7 @@ $expectedLabels = @(
     "Normal Offset Retained (0-1)",
     "Extra Depth Correction (m)",
     "Extra Vertical Correction (m)",
+    "Move Toward Vanilla (%)",
     "Keep Attached Effects Aligned",
     "Diagnostics"
 )

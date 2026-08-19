@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.5.8
+First Person Arms Adjuster 0.5.9
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -17,7 +17,8 @@ BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 
 FoA Mod Manager and the generated config organize the live controls into
 General, Position, Equipment Depth, Head Bob, Advanced - Melee Guards,
-Advanced - Effects, Diagnostics, and the final Import Previous Settings section.
+Advanced - Dodge Guard, Advanced - Effects, Diagnostics, and the final Import
+Previous Settings section.
 Friendly labels show metres and signed directions while the stored config keys
 below remain unchanged.
 
@@ -39,6 +40,7 @@ MitigateHeldMeleeBodyIntrusion = true
 HeldMeleeOffsetScale = 1.0
 HeldMeleeExtraForwardOffset = -0.05
 HeldMeleeExtraVerticalOffset = -0.05
+DodgeMoveTowardVanillaPercent = 50
 Diagnostics = false
 
 Offsets are measured in meters relative to the camera. Positive ForwardOffset
@@ -79,9 +81,12 @@ offset rapidly returns to the vanilla position and stays there for the attack.
 It restores the configured position smoothly after the sprint attack ends.
 
 During every forward, backward, sideways, and diagonal dodge, the complete
-presentation offset follows the dodge animation from the configured position to
-vanilla at its midpoint and back to the configured position before it ends.
-Arms, equipment, and attached presentation effects remain aligned throughout.
+presentation offset follows the dodge animation toward vanilla and back to the
+configured position before it ends. DodgeMoveTowardVanillaPercent controls the
+midpoint: 0 keeps the configured offset, 50 retains half of it, and 100 reaches
+vanilla. Chained or redirected dodges continue from the currently displayed
+offset instead of snapping outward mid-animation. Arms, equipment, and attached
+presentation effects remain aligned throughout.
 
 Set HeldMeleeOffsetScale between 0.0 and 1.0 to retain part of the normal
 offset during the held pose, or disable MitigateHeldMeleeBodyIntrusion to keep
@@ -102,7 +107,9 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.5.8 adds the animation-timed dodge offset transition. Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
+Version 0.5.9 makes the dodge midpoint configurable and keeps chained dodge
+transitions continuous. Version 0.5.8 adds the animation-timed dodge offset
+transition. Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
 layout and removes their numeric prefixes. Version 0.5.5 removes the old native-bob and locomotion-guard path and presents
 the camera-only system as one four-option Head Bob section. Version 0.5.4 enforces the vanilla accessibility gate immediately before every
 alternate-motion render. Version 0.5.3 gates alternate motion behind the vanilla Accessibility / Head

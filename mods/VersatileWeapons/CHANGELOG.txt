@@ -1,3 +1,6 @@
+Version 0.7.7
+Rebuilt the unchanged gameplay implementation as a local test release to validate stable Vortex version grouping and Nexus metadata promotion tooling.
+
 Version 0.7.6
 Lowered the configurable attack-speed floor for native two-handed weapons used in one hand from 50 percent to 25 percent, allowing deliberately heavier low-potency handling.
 Capped both configurable damage endpoints for that grip at 150 percent instead of 300 percent, retaining generous customization without presenting extreme damage values as ordinary supported tuning.

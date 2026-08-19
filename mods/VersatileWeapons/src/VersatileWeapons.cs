@@ -34,9 +34,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.7.6.0")]
-[assembly: AssemblyFileVersion("0.7.6.0")]
-[assembly: AssemblyInformationalVersion("0.7.6")]
+[assembly: AssemblyVersion("0.7.7.0")]
+[assembly: AssemblyFileVersion("0.7.7.0")]
+[assembly: AssemblyInformationalVersion("0.7.7")]
 
 namespace VersatileWeapons
 {
@@ -58,7 +58,7 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.7.6";
+        public const string PluginVersion = "0.7.7";
 
         private const int ConfigSchemaVersion = 13;
         private const int ConfigRecoveryBaselineSchema = 1;

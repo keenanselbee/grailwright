@@ -39,27 +39,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg[/code]
 
-Common entries:
-
-[code]
-ProtectBonfireLights = true
-AdditionalExcludedLightPathFragments =
-VerboseExclusionLogging = false
-ProtectShadowAtlas = true
-PromotedShadowResolution = 256
-CombatPerformanceEnabled = true
-OutdoorCombatOnly = true
-CombatExitDelaySeconds = 5
-CombatReduceAtlasResolution = true
-CombatShadowResolution = 128
-CombatLimitLightBudget = false
-CombatMaximumUpgradedLights = 30
-CombatLimitDistance = false
-CombatMaximumDistanceMeters = 20
-ShowToggleNotifications = true
-ShowGrailFloatingTextDiagnostics = true
-Diagnostics = false[/code]
-
 [line]
 
 [heading][color=#C94A4A][size=5]KS Better Movement Addon[/size][/color][/heading]
@@ -80,16 +59,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.better-movement-addon.cfg[/code]
 
-Common entries:
-
-[code]
-Enabled = true
-Volume = 0.4
-MinimumSpeedVolumeScale = 0.55
-PitchBySpeed = 0.12
-CrossfadeSeconds = 0.1
-Diagnostics = false[/code]
-
 [line]
 
 [heading][color=#C94A4A][size=5]Better Volumetric Fog Addon[/size][/color][/heading]
@@ -108,16 +77,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.tg-volumetric-fix-addon.cfg[/code]
 
-Common entries:
-
-[code]
-Enabled = true
-InteriorsOnly = true
-Quality = Low
-OptimizeFogDiscovery = true
-ShowToggleNotifications = true
-Diagnostics = false[/code]
-
 [line]
 
 [heading][color=#C94A4A][size=5]Contact Shadows Addon[/size][/color][/heading]
@@ -135,23 +94,6 @@ Config file:
 
 [code]
 BepInEx/config/ks.tgfoa.tg-contact-shadows-addon.cfg[/code]
-
-Common entries:
-
-[code]
-Enabled = true
-InteriorsOnly = true
-MaximumContactShadowLights = 4
-MaximumLightDistanceMeters = 15
-MinimumLightHoldSeconds = 1
-SwitchAdvantagePercent = 25
-CandidateRefreshSeconds = 5
-ContactShadowMaxDistance = 20
-SampleCount = 16
-Length = 0.075
-Opacity = 0.6
-ShowToggleNotifications = true
-Diagnostics = false[/code]
 
 [line]
 
@@ -181,27 +123,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.tg-global-illumination-addon.cfg[/code]
 
-Common entries:
-
-[code]
-Enabled = true
-Mode = Adaptive
-TargetFps = 60
-ShowToggleNotifications = true
-ShowGrailFloatingTextDiagnostics = true
-InteriorPreset = Full
-ExteriorPreset = Balanced
-StartAtPerformance = true
-RememberSceneTier = true
-SampleWindowSeconds = 5
-DowngradeMarginFps = 6
-DowngradeHoldSeconds = 4
-UpgradeMarginFps = 1
-UpgradeHoldSeconds = 30
-ChangeCooldownSeconds = 15
-SceneWarmupSeconds = 5
-Diagnostics = false[/code]
-
 [line]
 
 [heading][color=#C94A4A][size=5]Persistent Corpses Addon[/size][/color][/heading]
@@ -220,18 +141,6 @@ Config file:
 [code]
 BepInEx/config/ks.tgfoa.persistent-corpses-addon.cfg[/code]
 
-Common entries:
-
-[code]
-Enabled = true
-MinimumSettleSeconds = 0.75
-MaximumSettleSeconds = 2
-RetentionMode = Limited
-MaximumLoadedFullCorpses = 10
-CleanupAfterLongBonfireRest = true
-MinimumRestHoursForCleanup = 6
-Diagnostics = false[/code]
-
 [line]
 
 [heading][color=#C94A4A][size=5]Wyrd Sight Addon[/size][/color][/heading]
@@ -249,26 +158,6 @@ Config file:
 
 [code]
 BepInEx/config/ks.tgfoa.wyrd-sight-addon.cfg[/code]
-
-Common entries:
-
-[code]
-Enabled = true
-PulseDurationSeconds = 3
-PulseStateCheckIntervalSeconds = 0.25
-OffRetryDelaySeconds = 0.25
-MaximumOffAttempts = 3[/code]
-
-Quest-giver entries:
-
-[code]
-HighlightQuestGivers = true
-QuestGiverMode = Balanced
-QuestGiverMaxDistance = 20
-QuestScanFrameBudgetMilliseconds = 5
-QuestOutlineBakeFrameBudgetMilliseconds = 1.5
-QuestOutlineRefreshRate = 30
-QuestAvailabilityRefreshSeconds = 15[/code]
 
 [line]
 

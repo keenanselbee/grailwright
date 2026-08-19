@@ -61,13 +61,11 @@ Steel and Bone classifies enemies through reachable runtime and template evidenc
 | Flora and fungus  | Fire, slash, axes               | Poison, bleed, pierce, arrows              |
 | Swarms            | Area and non-arrow attacks      | Individual arrow impacts                   |[/code]
 
-Exact strength depends on the preset and the enemy's native data. Existing weaknesses and resistances are preserved or strengthened rather than duplicated, and true immunities remain intact.
+Exact strength depends on the preset and each enemy's native data. Existing reactions are preserved or strengthened rather than duplicated, and true immunities remain intact.
 
-Body material and creature identity are resolved independently. Stagfather and the Straw spirits retain bone-body weapon reactions without becoming Bone Undead, while Sleepwalker retains stone-body reactions as a Wyrd creature without inheriting Construct biological resistance. Ghost of Broc Meala is a Spirit, Wights use their Wyrd-flora identity, Wailcaps remain Sea Creatures, and Wyrd Slimes no longer inherit ordinary flesh weaknesses. Wyrd creatures have no blanket Wyrdness resistance; authored native and exact reactions still win.
+Body material and creature identity are resolved separately, so unusual enemies keep their intended physical reactions without inheriting an entire creature family's traits. Authored and exact profiles take priority, and Wyrd creatures receive no blanket resistance. These profiles cover important exceptions such as frost enemies resisting Cold but yielding to Fire, fire-aligned bodies yielding to Wet, drowned skeletons reacting to Electric, and soft-bodied creatures absorbing Blunt impact. Bone Undead and Constructs also resist Cold when otherwise neutral, though this does not make them immune to separate effects such as Chill.
 
-Bone Undead and Constructs resist Cold at x0.66 on Hardened where their native data is neutral. This changes Cold damage and impact rather than independent spell effects, so spells that apply Chill can still slow them unless the target has a separate status immunity. Cold retains focused positive matchups against Flamegobblers, crystal bodies, Wyrd Slimes, and the Charred Conclave Wyrdspawn, and completes missing reactions on Grindylow, Blood Abomination, and Bonemask Warrior summons. Curlghasts, Marrowghasts, Slugholders, and Snail remain neutral unless their native data says otherwise. Frostgrot, Frostbitten Warriors, Frost Wolves, Ice Trial Wyrd creatures, and other exact frost-aligned enemies instead resist Cold, while Fire provides their natural counter. Wet answers explicitly fire-aligned bodies and golems, and Electric gains a modest lane against drowned skeleton Deckhands and Mariners without weakening Bone Undead broadly. Singworms and Lir's summoned tentacle favor Slash over Blunt; Blood Abominations favor Slash and resist Blunt, while Wyrd Slimes and Tidewraiths absorb Blunt impact through exact soft-body profiles. These remain exact archetype rules rather than universal weaknesses for Wyrd creatures, flora, or animals.
-
-When a physical hit lacks a clear subtype, weapon identity fills the gap: swords and axes lean Slashing, daggers, polearms, and bows lean Piercing, and blunt weapons remain Bludgeoning. Axes receive x1.20 against wood and flora on Hardened, replacing rather than stacking with the ordinary flora Slash rule. A pickaxe instead counts as Pierce when it strikes an enemy, receives no Axe-versus-flora bonus, and continues to mine normally through the game's separate interaction route.
+When a physical hit has no clear subtype, weapon identity fills the gap: swords and axes lean Slashing; daggers, polearms, and bows lean Piercing; and blunt weapons remain Bludgeoning. Axes deal x1.20 damage to wood and flora on Hardened instead of stacking with the normal flora Slash rule. Pickaxes count as Pierce in combat, receive no Axe bonus, and continue to mine normally.
 
 [b]Humanoid armor[/b]
 
@@ -93,18 +91,6 @@ Magic follows material identity rather than ignoring armor. On Hardened, direct 
 
 Material impact keeps reactions proportional to effectiveness. Every resisted direct player hit carries 60% of its resistance into reduced poise and force, without letting weaknesses amplify control. Immune or very strongly resisted hits also lose the routine small flinch. Genuine poise breaks, force stumbles, ragdolls, damage processing, effects, and aggro remain intact.
 
-[b]A smoother late-game difficulty curve[/b]
-
-Tainted Grail can be at its toughest early on, only for powerful builds to make later fights end too quickly. Progressive Tenacity is designed to smooth out that difficulty curve without making the opening hours harder.
-
-It begins gradually after level 20. Regular enemies receive only a small benefit, while Elites, MiniBosses, and Bosses become better at standing their ground against burst damage, repeated staggers, and stamina pressure.
-
-Enemies do not gain enormous health bars or immunity to your abilities. Good equipment and strong builds still matter, and exploiting a material weakness cuts through much of an enemy's Tenacity. The goal is simply to keep late-game combat engaging for longer.
-
-Tenacity works with every difficulty preset, leaves the early game unchanged, and can be disabled with [b]ProgressiveTenacityEnabled[/b].
-
-A compact technique layer gives focused builds a fallback without replacing the best material counter. Pommel strikes borrow the Blunt matchup against bone, stone, and ordinary armor; heavy melee attacks partially breach custom rigid resistance; and direct area hits pressure otherwise-neutral swarms. Native reactions still take priority.
-
 [line]
 
 [heading][color=#C94A4A][size=5]Readable Combat Feedback[/size][/color][/heading]
@@ -112,24 +98,9 @@ A compact technique layer gives focused builds a fallback without replacing the 
 
 [b]Floating damage numbers[/b]
 
-Built-in floating damage numbers make matchup rules readable at a glance:
+Built-in damage numbers make matchups easy to read: resisted hits appear smaller and greyer, weaknesses larger and warmer, immunities use distinct styling, and critical or weak-spot hits gain a red tint. Damage-over-time ticks appear higher and smaller to reduce clutter.
 
-[list]
-[*]Resisted hits become smaller and greyer; weaknesses become larger and warmer.[/*]
-[*]Immunities use dedicated text and styling.[/*]
-[*]Critical and weak-spot hits gain a red precision tint, softened when the target resists the underlying damage.[/*]
-[*]Bleed, Poison, Burn, and Breath ticks appear higher and smaller so repeated effects remain legible.[/*]
-[/list]
-
-
-[b]Effectiveness Feedback Sensitivity[/b] controls how strongly resistance and weakness are presented without changing damage. Confirmed weak spots add 10%, 20%, or 30% base damage according to the preset, while native critical damage remains unchanged.
-
-Number size, color, font, duration, drift, damage-over-time presentation, and maximum active numbers remain configurable.
-
-
-[b]Stamina Depleted presentation[/b]
-
-Smooth is the default and replaces the native repeating vignette flash plus abrupt disappearance with one eased fade in and fade out using the game's existing image. Native restores the original presentation, while Off hides both the HUD vignette and stamina-depleted post-process. The default 0.30-second Smooth transition is configurable; every mode preserves native exhaustion audio, movement penalties, action restrictions, and status behavior.
+[b]Effectiveness Feedback Sensitivity[/b] controls visual emphasis without changing damage. Confirmed weak spots add 10-30% base damage depending on the preset, while native critical damage remains unchanged. Size, color, font, timing, drift, damage-over-time display, and active-number limits are configurable.
 
 
 [b]Optional crosshair hit markers[/b]
@@ -143,6 +114,13 @@ Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quali
 [heading][color=#C94A4A][size=5]Expanded Combat Systems[/size][/color][/heading]
 
 Steel and Bone increases combat pressure without replacing Tainted Grail's native AI or encounter design. Enemies become more alert and coordinated, projectiles become more dangerous, and armor choices gain clearer roles. Each major system remains independently configurable.
+
+
+[b]Progressive Tenacity - Smoother late-game difficulty curve[/b]
+
+Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. It works with every preset, leaves the early game unchanged, avoids inflated health bars and ability immunities, and can be disabled with [b]ProgressiveTenacityEnabled[/b].
+
+Strong builds and material weaknesses remain effective. Pommel strikes offer the Blunt matchup against bone, stone, and ordinary armor; heavy melee attacks partially breach rigid resistance; and direct area hits pressure otherwise-neutral swarms. Native reactions still take priority.
 
 
 [b]Enemy awareness and pressure[/b]

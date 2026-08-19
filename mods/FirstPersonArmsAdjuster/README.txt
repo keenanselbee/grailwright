@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.5.6
+First Person Arms Adjuster 0.5.8
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -78,6 +78,11 @@ two-handed sprint attacks. When LightAttackForward begins, the complete visual
 offset rapidly returns to the vanilla position and stays there for the attack.
 It restores the configured position smoothly after the sprint attack ends.
 
+During every forward, backward, sideways, and diagonal dodge, the complete
+presentation offset follows the dodge animation from the configured position to
+vanilla at its midpoint and back to the configured position before it ends.
+Arms, equipment, and attached presentation effects remain aligned throughout.
+
 Set HeldMeleeOffsetScale between 0.0 and 1.0 to retain part of the normal
 offset during the held pose, or disable MitigateHeldMeleeBodyIntrusion to keep
 the configured position throughout heavy attacks.
@@ -97,7 +102,7 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
+Version 0.5.8 adds the animation-timed dodge offset transition. Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
 layout and removes their numeric prefixes. Version 0.5.5 removes the old native-bob and locomotion-guard path and presents
 the camera-only system as one four-option Head Bob section. Version 0.5.4 enforces the vanilla accessibility gate immediately before every
 alternate-motion render. Version 0.5.3 gates alternate motion behind the vanilla Accessibility / Head

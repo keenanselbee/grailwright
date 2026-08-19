@@ -39,8 +39,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.5.6.0")]
-[assembly: AssemblyFileVersion("0.5.6.0")]
+[assembly: AssemblyVersion("0.5.8.0")]
+[assembly: AssemblyFileVersion("0.5.8.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -82,7 +82,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.5.6";
+        public const string PluginVersion = "0.5.8";
         public const string TrueThirdPersonPluginGuid =
             "kane.tgfoa.true-third-person";
 
@@ -96,6 +96,7 @@ namespace FirstPersonArmsAdjuster
         private const float HeldMeleeBlendInSeconds = 0.20f;
         private const float SprintAttackBlendOutSeconds = 0.05f;
         private const float SprintAttackBlendInSeconds = 0.20f;
+        private const float DodgeEndNormalizedTime = 0.90f;
         private const float HeadBobSpeedThreshold = 0.05f;
         private const float HeadBobMaximumDeltaTime = 0.05f;
         private const float HeadBobBlendInSeconds = 0.18f;
@@ -716,6 +717,35 @@ namespace FirstPersonArmsAdjuster
             }
 
             return false;
+        }
+
+        private static float GetDodgeOffsetBlend(Hero hero)
+        {
+            LegsFSM legs = hero == null
+                ? null
+                : hero.TryGetElement<LegsFSM>();
+            if (legs == null || !IsDodgeState(legs.CurrentStateType))
+            {
+                return 1.0f;
+            }
+
+            HeroAnimatorState animatorState = legs.CurrentAnimatorState;
+            if (animatorState == null)
+            {
+                return 1.0f;
+            }
+
+            float progress = Mathf.Clamp01(
+                Mathf.Max(0.0f, animatorState.TimeElapsedNormalized)
+                / DodgeEndNormalizedTime);
+            return Mathf.Clamp01(
+                1.0f - Mathf.Sin(progress * Mathf.PI));
+        }
+
+        private static bool IsDodgeState(HeroStateType state)
+        {
+            return state >= HeroStateType.DashFront
+                && state <= HeroStateType.DashBackRight;
         }
 
         private bool IsHeadBobAccessibilityEnabled()
@@ -2408,7 +2438,8 @@ namespace FirstPersonArmsAdjuster
             return (configuredOffset * retainedScale + heldCorrection)
                 * _fireplaceOffsetBlend
                 * (1.0f - _sprintAttackOffsetBlend)
-                * _sheathingOffsetBlend;
+                * _sheathingOffsetBlend
+                * GetDodgeOffsetBlend(hero);
         }
 
         internal bool TryGetCurrentVisualWorldOffset(

@@ -1,3 +1,7 @@
+Version 0.5.8
+Made the complete first-person presentation offset ease from its configured position to vanilla and back over every directional dodge animation.
+Used the Legs FSM animation clock so the arms, equipment, and attached effects reach vanilla at the dodge midpoint and return to the configured setting before the dodge ends.
+
 Version 0.5.6
 Removed numeric prefixes from the generated config and aligned every raw section with the established FoA Mod Manager categories.
 Advanced ConfigSchemaVersion from 13 to 14 because settings moved between raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired layout.

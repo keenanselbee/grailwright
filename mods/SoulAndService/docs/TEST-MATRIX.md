@@ -1,12 +1,12 @@
 # Soul and Service Test Matrix
 
-Version under test: 0.3.5
+Version under test: 0.3.8
 
 ## Focused release smoke
 
 | ID | Check | Expected result | Status |
 | --- | --- | --- | --- |
-| SAS-SMOKE-01 | Load a save with default settings and no replaced summon mod installed. | Soul and Service 0.3.5 loads without exceptions, resets schema 1 sections to the unnumbered schema 2 layout with a backup, and creates `ks.tgfoa.soul-and-service.cfg`. | Not run |
+| SAS-SMOKE-01 | Load a save with default settings and no replaced summon mod installed. | Soul and Service 0.3.8 loads without exceptions, backs up an older config, regenerates schema 3 for the new borrowed-life settings, preserves compatible customizations, and creates `ks.tgfoa.soul-and-service.cfg`. | Not run |
 | SAS-SMOKE-02 | Summon a creature, walk away, sprint beyond 8 m, and exceed 35 m. | It follows at the configured thresholds, receives only the out-of-combat catch-up boost, and uses native safe teleport placement beyond 35 m. | Not run |
 | SAS-SMOKE-03 | Stand in a doorway and on an exposed ledge while an owned summon tries to pass. | The summon cannot push, trap, or displace the hero, but still collides with the world and hostile actors. | Not run |
 | SAS-SMOKE-04 | Fire a standard magic projectile and use magic-gauntlet contact through an owned summon, then shoot an arrow through it with default settings. | Confirmed magic paths pass through and can hit the enemy behind; the arrow and bespoke scripted rays retain vanilla interception. | Not run |
@@ -14,10 +14,13 @@ Version under test: 0.3.5
 | SAS-SMOKE-06 | Rest with an ordinary active summon, then replace a summon at the native limit and with SummonLimitBonus while Invocation of Might is active and inactive. | The summon survives rest; proven active scaling is repaired only where missing, already-scaled stats are untouched, and inactive Invocation adds no multiplier. | Not run |
 | SAS-SMOKE-07 | Compare a summon idle loop at 100%, 60%, and 0%, then trigger attacks, hurt, and death sounds. | Only the idle loop scales; other summon sounds remain unchanged. | Not run |
 | SAS-SMOKE-08 | Light-cast Soul Salvage on a full-health and half-health owned summon with Split selected. | Each summon is dismissed normally; total returned essence is 50% and 25% of invested mana respectively, split evenly between health and mana. | Not run |
-| SAS-SMOKE-09 | Heavy-cast Soul Salvage on an ordinary runtime-spawned hostile corpse with a free summon slot. | Native collider-to-location resolution finds the corpse; the source hides, a hero-owned copy rises at 50% health with resurrection feedback, and the source returns when service ends. | Not run |
+| SAS-SMOKE-09 | Heavy-cast Soul Salvage on ordinary runtime-spawned hostile corpses with configured and missing NPC portraits. | Native collider-to-location resolution finds each corpse; the source hides, a hero-owned copy rises at full health with resurrection feedback, autonomously acquires and attacks the hero's enemies as a native summon, draws enemy aggression, preserves a valid native portrait or uses the vanilla skeleton-summon fallback without an Addressables error, and restores the source when service ends. | Not run |
 | SAS-SMOKE-10 | Heavy-cast Soul Salvage on an authored scene NPC, boss, miniboss, friendly corpse, already claimed corpse, and with a full summon limit. | Every protected or unavailable target is rejected without changing the original corpse or creating a servant. | Not run |
-| SAS-SMOKE-11 | Enable PermanentReanimations and raise an eligible corpse. | The servant receives no duration, remains a restricted unsaved copy, grants no XP or scripted death reward, and restores the source corpse when killed or dismissed. | Not run |
+| SAS-SMOKE-11 | Enable PermanentReanimations and raise an eligible corpse. | The servant receives no borrowed-life decay, remains a restricted unsaved copy, grants no XP or scripted death reward, and restores the source corpse when killed or dismissed. | Not run |
 | SAS-SMOKE-12 | Load with Steel and Bone enabled and exercise physical, magical, and material-sensitive summon attacks. | Native damage types and player-caused summon attribution remain intact; Soul and Service adds no late flat damage multiplier. | Not run |
+| SAS-SMOKE-13 | With Grail Floating Text installed, enable Diagnostics and leave ShowGrailFloatingTextDiagnostics enabled; heavy-cast Soul Salvage at eligible, protected, absent, already-serving, and summon-limit-blocked corpses, then end a raised servant and repeat after disabling the GFT setting. | Each completed cast shows one concise low-priority result in the shared Soul and Service collapse lane, including full health and the estimated borrowed-life duration or permanence on success; restoration shows once when service ends; disabling the GFT setting suppresses the overlay while detailed diagnostics continue in the BepInEx log. | Not run |
+| SAS-SMOKE-14 | Inspect Soul Salvage, then cast its heavy ray while tracking mana. Repeat with the overhaul disabled. | Light and heavy descriptions explain the configured replacement effects; the enabled heavy cost shown and charged is exactly 3x the native level-scaled stat (45 instead of 15 at base level), while disabling the overhaul restores the native descriptions and cost. | Not run |
+| SAS-SMOKE-15 | Raise weak, typical, and strong eligible corpses at defaults and observe health without incoming damage, then repeat while enemies attack them. | Every servant starts at full health and continuously loses both percentage-based and flat health with no regeneration; decay alone never kills before 90 seconds, an approximately 200-health servant lasts about three minutes, stronger servants last longer, and combat damage can kill them sooner through the normal death sequence. | Not run |
 
 ## Extended experiments
 
@@ -27,6 +30,6 @@ Version under test: 0.3.5
 | SAS-EXP-02 | Test Player Attack Pass-Through in Vanilla, MagicOnly, and AllProjectiles with projectile and gauntlet magic. | Each mode changes only the documented hero attacks; enemy attacks and summon/world collision remain native. | Not run |
 | SAS-EXP-03 | Change trot, run, and teleport distances into an invalid-looking order through config editing. | Current accepted values remain bounded and runtime behavior never selects an unsafe teleport route. | Not run |
 | SAS-EXP-04 | Raise an eligible corpse, change scenes, rest, save, and reload before and after the servant ends. | No original NPC is resurrected, no raised copy is serialized, and the source corpse is not permanently lost. | Not run |
-| SAS-EXP-05 | Kill and dismiss a raised servant through several routes, including duration timeout and combat death. | The raised location is discarded, no duplicate corpse remains, and the source corpse is restored once. | Not run |
+| SAS-EXP-05 | Kill and dismiss a raised servant through several routes, including borrowed-life expiry and combat death. | The raised location follows the native death/discard path, no duplicate corpse remains, and the source corpse is restored once. | Not run |
 | SAS-EXP-06 | Use FoA Mod Manager's Import Previous Settings action with and without a compatible backup. | Import is transactional, bounded, and safe when no compatible backup exists. | Not run |
-| SAS-EXP-07 | Enable Diagnostics and repeat positive and rejected targeting, collision, scaling, sacrifice, and reanimation paths. | Useful decisions are logged without per-frame spam or unrelated warnings. | Not run |
+| SAS-EXP-07 | Enable Diagnostics and repeat positive and rejected targeting, collision, scaling, sacrifice, and reanimation paths. | Useful decisions are logged without per-frame spam or unrelated warnings; only the approved Soul Salvage heavy-cast and restoration summaries also appear through Grail Floating Text. | Not run |

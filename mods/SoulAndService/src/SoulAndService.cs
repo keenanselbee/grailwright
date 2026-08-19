@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Salvage")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("0.3.5.0")]
-[assembly: AssemblyFileVersion("0.3.5.0")]
-[assembly: AssemblyInformationalVersion("0.3.5")]
+[assembly: AssemblyVersion("0.3.8.0")]
+[assembly: AssemblyFileVersion("0.3.8.0")]
+[assembly: AssemblyInformationalVersion("0.3.8")]
 
 namespace SoulAndService
 {
@@ -44,9 +44,9 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service - Summon Overhaul";
-        public const string PluginVersion = "0.3.5";
+        public const string PluginVersion = "0.3.8";
 
-        private const int ConfigSchemaVersion = 2;
+        private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -81,10 +81,12 @@ namespace SoulAndService
         internal ConfigEntry<bool> SoulSalvageOverhaul;
         internal ConfigEntry<SoulSalvageReturnMode> SoulSalvageReturn;
         internal ConfigEntry<float> SoulSalvageEssencePercent;
-        internal ConfigEntry<float> ReanimationDurationSeconds;
-        internal ConfigEntry<float> ReanimationHealthPercent;
+        internal ConfigEntry<float> ReanimationMinimumLifetimeSeconds;
+        internal ConfigEntry<float> ReanimationHealthDecayPercentPerSecond;
+        internal ConfigEntry<float> ReanimationFlatHealthDecayPerSecond;
         internal ConfigEntry<bool> PermanentReanimations;
         internal ConfigEntry<bool> Diagnostics;
+        internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
 
         private Harmony _harmony;
 
@@ -146,6 +148,24 @@ namespace SoulAndService
             {
                 Logger.LogInfo(message);
             }
+        }
+
+        internal void ShowSoulSalvageHeavyCastDiagnostic(string message)
+        {
+            if (Diagnostics == null
+                || !Diagnostics.Value
+                || ShowGrailFloatingTextDiagnostics == null
+                || !ShowGrailFloatingTextDiagnostics.Value)
+            {
+                return;
+            }
+
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowDiagnosticNotification(
+                    PluginGuid,
+                    "soul-and-service-soul-salvage",
+                    message,
+                    "soul-and-service-diagnostics");
         }
 
         internal void LogWarning(string message)
@@ -375,31 +395,43 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Percent of the summon's original mana investment returned at full health; current health scales the result.",
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
-            ReanimationDurationSeconds = BindOrdered(
+            ReanimationMinimumLifetimeSeconds = BindOrdered(
                 "Soul Salvage",
-                "ReanimationDurationSeconds",
-                120.0f,
+                "ReanimationMinimumLifetimeSeconds",
+                90.0f,
                 new ConfigDescription(
-                    "Lifetime of a raised servant when PermanentReanimations is disabled.",
-                    new AcceptableValueRange<float>(15.0f, 900.0f)));
-            ReanimationHealthPercent = BindOrdered(
+                    "Minimum decay-only lifetime of a full-health raised servant. Combat damage can still kill it sooner.",
+                    new AcceptableValueRange<float>(30.0f, 600.0f)));
+            ReanimationHealthDecayPercentPerSecond = BindOrdered(
                 "Soul Salvage",
-                "ReanimationHealthPercent",
-                50.0f,
+                "ReanimationHealthDecayPercentPerSecond",
+                0.25f,
                 new ConfigDescription(
-                    "Percent of maximum health with which a raised servant begins.",
-                    new AcceptableValueRange<float>(10.0f, 100.0f)));
+                    "Percent of maximum health drained from raised servants each second.",
+                    new AcceptableValueRange<float>(0.05f, 1.0f)));
+            ReanimationFlatHealthDecayPerSecond = BindOrdered(
+                "Soul Salvage",
+                "ReanimationFlatHealthDecayPerSecond",
+                0.61f,
+                new ConfigDescription(
+                    "Flat health drained from raised servants each second, in addition to percentage decay.",
+                    new AcceptableValueRange<float>(0.0f, 20.0f)));
             PermanentReanimations = BindOrdered(
                 "Soul Salvage",
                 "PermanentReanimations",
                 false,
-                "Remove the servant duration for the current play session. Raised servants remain restricted, unsaved runtime copies and never replace the source corpse model.");
+                "Disable borrowed-life health decay for raised servants. They remain restricted, unsaved runtime copies and never replace the source corpse model.");
 
             Diagnostics = BindOrdered(
                 "Diagnostics",
                 "Diagnostics",
                 false,
                 "Log summon lifecycle, collision, target sharing, scaling repair, and Soul Salvage decisions.");
+            ShowGrailFloatingTextDiagnostics = BindOrdered(
+                "Diagnostics",
+                "ShowGrailFloatingTextDiagnostics",
+                true,
+                "When Diagnostics and Grail Floating Text are enabled, show concise Soul Salvage heavy-cast outcomes in-game.");
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -529,10 +561,12 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
             CapturePreservedValue<SoulSalvageReturnMode>(profile, "Soul Salvage", "LightCastReturn");
             CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastEssencePercent");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationDurationSeconds");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationHealthPercent");
+            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationMinimumLifetimeSeconds");
+            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationHealthDecayPercentPerSecond");
+            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationFlatHealthDecayPerSecond");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "PermanentReanimations");
             CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
+            CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
 
         private void CapturePreservedValue<T>(
@@ -575,10 +609,12 @@ namespace SoulAndService
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageReturn, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageEssencePercent, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationDurationSeconds, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationHealthPercent, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationMinimumLifetimeSeconds, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationHealthDecayPercentPerSecond, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationFlatHealthDecayPerSecond, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(PermanentReanimations, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(Diagnostics, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ShowGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
             Logger.LogInfo(
                 "Preserved " + restored.ToString(CultureInfo.InvariantCulture)
                 + " Soul and Service setting(s) across the config schema reset; clamped="

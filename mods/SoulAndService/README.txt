@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 0.3.5
+Soul and Service - Summon Overhaul 0.3.8
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -21,13 +21,19 @@ Default behavior
 - Summon idle loops play at 60% volume; combat, hurt, and death sounds are untouched.
 - Soul Salvage light cast returns 50% of invested essence at full summon health,
   split evenly between health and mana by default.
-- Soul Salvage heavy cast raises an ordinary runtime-spawned hostile corpse at 50%
-  health for 120 seconds. Authored scene NPCs, bosses, minibosses, friendly corpses,
-  and unresolved templates are rejected. The original corpse is hidden and restored
-  when the servant ends.
-- PermanentReanimations is OFF by default. Enabling it removes the duration for
-  the current play session, but still creates an unsaved copy rather than reviving
-  an original quest NPC.
+- Soul Salvage heavy cast costs three times its native mana, raises an ordinary
+  runtime-spawned hostile corpse at full health, and gives it borrowed life that
+  drains by 0.25% maximum health plus 0.61 health each second. Decay alone lasts at
+  least 90 seconds, and stronger servants last longer. A typical 200-health servant
+  lasts about three minutes. Combat damage can end service sooner.
+- Raised copies use the game's native hero-summon faction and targeting behavior,
+  including autonomous enemy aggression. Authored scene NPCs, bosses, minibosses,
+  friendly corpses, and unresolved templates are rejected. The original corpse is
+  hidden and restored when service ends. Raised servants retain their native NPC portrait
+  when valid; otherwise the vanilla skeleton-summon portrait is used.
+- PermanentReanimations is OFF by default. Enabling it disables borrowed-life decay
+  for the current play session, but still creates an unsaved copy rather than
+  reviving an original quest NPC.
 
 Configuration
 -------------
@@ -35,10 +41,10 @@ Configuration
 Config file: BepInEx/config/ks.tgfoa.soul-and-service.cfg
 
 All timings, distances, target range, pass-through behavior, summon-limit bonus,
-idle volume, Soul Salvage return mode, essence percentage, servant health, servant
-duration, and permanent reanimations can be configured. Settings are also visible
-in FoA Mod Manager. The final Import Previous Settings tab safely imports compatible
-customized values after a future config reset.
+idle volume, Soul Salvage return mode, essence percentage, borrowed-life minimum,
+percentage decay, flat decay, and permanent reanimations can be configured. Settings
+are also visible in FoA Mod Manager. The final Import Previous Settings tab safely
+imports compatible customized values after a future config reset.
 
 Compatibility
 -------------
@@ -60,6 +66,8 @@ Troubleshooting
 ---------------
 
 Enable the Diagnostics setting in the Diagnostics section and inspect the newest
-BepInEx LogOutput.log.
+BepInEx LogOutput.log. With Grail Floating Text installed, leave Show Grail
+Floating Text Diagnostics enabled to see concise Soul Salvage heavy-cast results
+and source-corpse restoration in-game. Disable it to keep detailed logging only.
 Do not install this DLL alongside Avalon Summons, Better Summon, or the temporary
 pass-through test DLL.

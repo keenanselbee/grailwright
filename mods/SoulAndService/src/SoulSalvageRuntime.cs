@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using Awaken.TG.Assets;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Elements;
 using Awaken.TG.Main.AI.SummonsAndAllies;
@@ -11,7 +13,9 @@ using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Heroes.Items;
-using Awaken.TG.Main.Heroes.Statuses.Duration;
+using Awaken.TG.Main.Heroes.Items.Tooltips;
+using Awaken.TG.Main.Heroes.Items.Weapons;
+using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Heroes.Thievery;
 using Awaken.TG.Main.Locations;
 using Awaken.TG.Main.Locations.Actions;
@@ -27,14 +31,19 @@ namespace SoulAndService
     {
         private const string SoulSalvageTemplateGuid =
             "7bdd3a1b62fb53d46b8a28142c18a110";
+        private const string GenericRaisedServantPortraitKey =
+            "759a3e6e96ddae742ab8cde19fae42f0";
         private const float NativeManaRefundMultiplier = 0.75f;
+        private const float HeavyCastManaCostMultiplier = 3.0f;
         private const float SoulSalvageRange = 50.0f;
 
         private sealed class ReanimationRecord
         {
             internal Location SourceCorpse;
             internal Location RaisedLocation;
+            internal NpcElement RaisedNpc;
             internal LocationInteractability SourceInteractability;
+            internal string SourceDisplayName;
         }
 
         private struct CastState
@@ -48,6 +57,14 @@ namespace SoulAndService
             new Dictionary<string, ReanimationRecord>();
         private static readonly List<Location> PendingRaisedDiscards =
             new List<Location>();
+        private static readonly Dictionary<string, ItemStats> SoulSalvageItems =
+            new Dictionary<string, ItemStats>();
+        private static readonly Dictionary<string, StatTweak> HeavyCostTweaks =
+            new Dictionary<string, StatTweak>();
+        private static readonly HashSet<MagicItemTemplateInfo> LightCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
+        private static readonly HashSet<MagicItemTemplateInfo> HeavyCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
         private static readonly FieldInfo LocationInitializerField =
             AccessTools.Field(typeof(Location), "_initializer");
 
@@ -57,6 +74,7 @@ namespace SoulAndService
         private static NpcHeroSummon _lightTarget;
         private static float _lightOriginalMana;
         private static float _lightHealthFraction;
+        private static float _itemRefreshDelay;
 
         internal static void Patch(Harmony harmony)
         {
@@ -81,21 +99,33 @@ namespace SoulAndService
                 prefix: new HarmonyMethod(
                     typeof(SoulSalvageRuntime),
                     nameof(BeforeDestroySummon)));
+            harmony.Patch(
+                RequireMethod(typeof(ItemStats), "OnInitialize"),
+                postfix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(AfterItemStatsInitialized)));
+            harmony.Patch(
+                RequireMethod(typeof(MagicItemTemplateInfo), "get_MagicDescription"),
+                prefix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(BeforeGetMagicDescription)));
         }
 
         internal static void Update()
         {
-            if (PendingRaisedDiscards.Count == 0)
+            UpdateSoulSalvageItems();
+            UpdateReanimationDecay(Time.deltaTime);
+
+            if (PendingRaisedDiscards.Count > 0)
             {
-                return;
-            }
-            Location[] pending = PendingRaisedDiscards.ToArray();
-            PendingRaisedDiscards.Clear();
-            foreach (Location location in pending)
-            {
-                if (location != null && !location.HasBeenDiscarded)
+                Location[] pending = PendingRaisedDiscards.ToArray();
+                PendingRaisedDiscards.Clear();
+                foreach (Location location in pending)
                 {
-                    location.Discard();
+                    if (location != null && !location.HasBeenDiscarded)
+                    {
+                        location.Discard();
+                    }
                 }
             }
         }
@@ -104,9 +134,23 @@ namespace SoulAndService
         {
             foreach (string id in Reanimations.Keys.ToArray())
             {
-                RestoreSourceCorpse(id, discardRaisedCopy: true);
+                RestoreSourceCorpse(
+                    id,
+                    discardRaisedCopy: true,
+                    showDiagnostic: false);
             }
             Update();
+            foreach (StatTweak tweak in HeavyCostTweaks.Values.ToArray())
+            {
+                if (tweak != null && !((Model)tweak).HasBeenDiscarded)
+                {
+                    tweak.Discard();
+                }
+            }
+            HeavyCostTweaks.Clear();
+            SoulSalvageItems.Clear();
+            LightCastInfos.Clear();
+            HeavyCastInfos.Clear();
             ClearLightCastState();
         }
 
@@ -118,7 +162,181 @@ namespace SoulAndService
             }
             RestoreSourceCorpse(
                 ((Model)summon).ID,
-                discardRaisedCopy: true);
+                discardRaisedCopy: true,
+                showDiagnostic: true);
+        }
+
+        private static void AfterItemStatsInitialized(ItemStats __instance)
+        {
+            if (__instance == null || !IsSoulSalvageItem(__instance.ParentModel))
+            {
+                return;
+            }
+
+            Item item = __instance.ParentModel;
+            string itemId = ((Model)item).ID;
+            RemoveHeavyCostTweak(itemId);
+            SoulSalvageItems[itemId] = __instance;
+            LightCastInfos.Add(item.LightCastInfo);
+            HeavyCastInfos.Add(item.HeavyCastInfo);
+            EnsureHeavyCostTweak(itemId, __instance);
+        }
+
+        private static bool BeforeGetMagicDescription(
+            MagicItemTemplateInfo __instance,
+            ref string __result)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value)
+            {
+                return true;
+            }
+
+            if (LightCastInfos.Contains(__instance))
+            {
+                string destination;
+                switch (plugin.SoulSalvageReturn.Value)
+                {
+                    case SoulSalvageReturnMode.Mana:
+                        destination = "Mana";
+                        break;
+                    case SoulSalvageReturnMode.Health:
+                        destination = "Health";
+                        break;
+                    default:
+                        destination = "an even split of Health and Mana";
+                        break;
+                }
+                __result = "Sacrifices a targeted owned summon, returning up to "
+                    + plugin.SoulSalvageEssencePercent.Value.ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + "% of its original mana investment based on current health as "
+                    + destination + ".";
+                return false;
+            }
+
+            if (!HeavyCastInfos.Contains(__instance))
+            {
+                return true;
+            }
+
+            if (plugin.PermanentReanimations.Value)
+            {
+                __result = "Raises an eligible ordinary hostile corpse at full Health as a permanent allied summon. The source corpse returns when its service ends.";
+                return false;
+            }
+
+            float typicalHealth = 200.0f;
+            float typicalLifetime = typicalHealth
+                / CalculateDecayPerSecond(typicalHealth, plugin);
+            __result = "Raises an eligible ordinary hostile corpse at full Health as an allied summon. Borrowed life drains by "
+                + plugin.ReanimationHealthDecayPercentPerSecond.Value.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + "% maximum Health plus "
+                + plugin.ReanimationFlatHealthDecayPerSecond.Value.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + " Health each second. Decay alone lasts at least "
+                + FormatDuration(plugin.ReanimationMinimumLifetimeSeconds.Value)
+                + " (about " + FormatDuration(typicalLifetime)
+                + " for a typical enemy); stronger servants last longer. Combat damage can end service sooner.";
+            return false;
+        }
+
+        private static void UpdateSoulSalvageItems()
+        {
+            _itemRefreshDelay -= Time.deltaTime;
+            if (_itemRefreshDelay <= 0.0f)
+            {
+                _itemRefreshDelay = 2.0f;
+                foreach (ItemStats stats in World.All<ItemStats>())
+                {
+                    if (stats != null && IsSoulSalvageItem(stats.ParentModel))
+                    {
+                        Item item = stats.ParentModel;
+                        string itemId = ((Model)item).ID;
+                        if (!SoulSalvageItems.ContainsKey(itemId))
+                        {
+                            SoulSalvageItems[itemId] = stats;
+                            LightCastInfos.Add(item.LightCastInfo);
+                            HeavyCastInfos.Add(item.HeavyCastInfo);
+                        }
+                    }
+                }
+            }
+
+            foreach (string itemId in SoulSalvageItems.Keys.ToArray())
+            {
+                ItemStats stats = SoulSalvageItems[itemId];
+                if (stats == null
+                    || ((Model)stats).HasBeenDiscarded
+                    || stats.ParentModel == null
+                    || ((Model)stats.ParentModel).HasBeenDiscarded)
+                {
+                    RemoveHeavyCostTweak(itemId);
+                    SoulSalvageItems.Remove(itemId);
+                    continue;
+                }
+                EnsureHeavyCostTweak(itemId, stats);
+            }
+        }
+
+        private static void EnsureHeavyCostTweak(string itemId, ItemStats stats)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            bool shouldApply = plugin != null
+                && plugin.IsEnabled
+                && plugin.SoulSalvageOverhaul.Value;
+            StatTweak existing;
+            if (HeavyCostTweaks.TryGetValue(itemId, out existing))
+            {
+                if (existing != null
+                    && !((Model)existing).HasBeenDiscarded
+                    && shouldApply)
+                {
+                    return;
+                }
+                RemoveHeavyCostTweak(itemId);
+            }
+            if (!shouldApply || stats == null || stats.HeavyCastManaCost == null)
+            {
+                return;
+            }
+
+            StatTweak tweak = StatTweak.Multi(
+                stats.HeavyCastManaCost,
+                HeavyCastManaCostMultiplier,
+                null,
+                stats.ParentModel);
+            ((Model)tweak).MarkedNotSaved = true;
+            HeavyCostTweaks[itemId] = tweak;
+        }
+
+        private static void RemoveHeavyCostTweak(string itemId)
+        {
+            StatTweak tweak;
+            if (HeavyCostTweaks.TryGetValue(itemId, out tweak))
+            {
+                HeavyCostTweaks.Remove(itemId);
+                if (tweak != null && !((Model)tweak).HasBeenDiscarded)
+                {
+                    tweak.Discard();
+                }
+            }
+        }
+
+        private static bool IsSoulSalvageItem(Item item)
+        {
+            return item != null
+                && item.Template != null
+                && string.Equals(
+                    item.Template.GUID,
+                    SoulSalvageTemplateGuid,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         private static void BeforeCastingEnded(
@@ -297,6 +515,8 @@ namespace SoulAndService
             if (!TryFindEligibleCorpse(hero, out source, out rejection))
             {
                 plugin.LogDiagnostic("Soul Salvage heavy cast raised nothing: " + rejection);
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "Soul Salvage: no eligible corpse - " + rejection + ".");
                 return;
             }
 
@@ -312,6 +532,12 @@ namespace SoulAndService
                 plugin.LogWarning(
                     "Soul Salvage could not raise " + source.DebugName
                     + " because the summon limit is full.");
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "Soul Salvage: servant limit full ("
+                    + summonCount.ToString(CultureInfo.InvariantCulture)
+                    + "/"
+                    + summonLimit.ToString(CultureInfo.InvariantCulture)
+                    + ").");
                 return;
             }
 
@@ -322,17 +548,15 @@ namespace SoulAndService
                 source.TriggerVisualScriptingEvent("OnResurrectStarted");
                 raised = source.Template.SpawnLocation(source.Coords, source.Rotation);
                 ((Model)raised).MarkedNotSaved = true;
-                IDuration duration = plugin.PermanentReanimations.Value
-                    ? null
-                    : (IDuration)new TimeDuration(
-                        plugin.ReanimationDurationSeconds.Value);
+                NpcElement raisedNpc = raised.Element<NpcElement>();
+                bool usedFallbackPortrait = EnsureRaisedServantPortrait(raisedNpc);
                 NpcElement npc = SummonUtils.InitializeSummon(
                     raised,
                     hero,
                     sourceItem,
                     0.0f,
                     0.0f,
-                    duration);
+                    null);
                 ((Model)npc).MarkedNotSaved = true;
                 npc.AddMarkerElement<PreventExpRewardMarker>();
                 raised.RemoveElementsOfType<AliveLocationDeathReward>();
@@ -346,7 +570,9 @@ namespace SoulAndService
                 {
                     SourceCorpse = source,
                     RaisedLocation = raised,
-                    SourceInteractability = previousInteractability
+                    RaisedNpc = npc,
+                    SourceInteractability = previousInteractability,
+                    SourceDisplayName = GetCorpseDisplayName(source)
                 };
                 source.SetInteractability(LocationInteractability.Hidden);
 
@@ -360,20 +586,45 @@ namespace SoulAndService
                         raised.RemoveElementsOfType<AliveLocationDeathReward>();
                         raised.RemoveElementsOfType<SearchAction>();
                         raised.RemoveElementsOfType<PickpocketAction>();
-                        float healthFraction =
-                            plugin.ReanimationHealthPercent.Value / 100.0f;
-                        npc.Health.SetTo(npc.Health.UpperLimit * healthFraction);
+                        npc.RemoveElementsOfType<NpcHealthRegeneration>();
+                        npc.Health.SetToFull();
                         raised.TriggerVisualScriptingEvent("OnResurrect");
-                    });
 
-                plugin.LogDiagnostic(
-                    "Raised a restricted runtime copy of " + source.DebugName
-                    + "; permanent=" + plugin.PermanentReanimations.Value
-                    + "; duration="
-                    + (plugin.PermanentReanimations.Value
-                        ? "none"
-                        : plugin.ReanimationDurationSeconds.Value.ToString("0.##"))
-                    + ".");
+                        float maximumHealth = npc.Health.UpperLimit;
+                        float decayPerSecond = CalculateDecayPerSecond(
+                            maximumHealth,
+                            plugin);
+                        float decayLifetime = decayPerSecond > 0.0f
+                            ? maximumHealth / decayPerSecond
+                            : float.PositiveInfinity;
+                        plugin.LogDiagnostic(
+                            "Raised a restricted runtime copy of " + source.DebugName
+                            + "; maximumHealth="
+                            + maximumHealth.ToString("0.##", CultureInfo.InvariantCulture)
+                            + "; decayPerSecond="
+                            + decayPerSecond.ToString("0.###", CultureInfo.InvariantCulture)
+                            + "; decayLifetime="
+                            + (plugin.PermanentReanimations.Value
+                                ? "permanent"
+                                : decayLifetime.ToString("0.##", CultureInfo.InvariantCulture))
+                            + "; portrait="
+                            + (usedFallbackPortrait
+                                ? "generic-skeleton-summon"
+                                : "native")
+                            + ".");
+                        string outcome = "Soul Salvage: raised "
+                            + Reanimations[summonId].SourceDisplayName
+                            + " at full health"
+                            + (plugin.PermanentReanimations.Value
+                                ? " permanently"
+                                : "; borrowed life about "
+                                    + FormatDuration(decayLifetime))
+                            + (usedFallbackPortrait
+                                ? " (generic portrait used)"
+                                : string.Empty)
+                            + ".";
+                        plugin.ShowSoulSalvageHeavyCastDiagnostic(outcome);
+                    });
             }
             catch (Exception exception)
             {
@@ -388,7 +639,121 @@ namespace SoulAndService
                 plugin.LogWarning(
                     "Soul Salvage could not create a raised servant: "
                     + exception.GetBaseException().Message);
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "Soul Salvage: reanimation failed - see BepInEx log.");
             }
+        }
+
+        private static void UpdateReanimationDecay(float deltaTime)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || plugin.PermanentReanimations.Value
+                || deltaTime <= 0.0f
+                || Reanimations.Count == 0)
+            {
+                return;
+            }
+
+            foreach (ReanimationRecord record in Reanimations.Values.ToArray())
+            {
+                NpcElement npc = record.RaisedNpc;
+                if (npc == null
+                    || ((Model)npc).HasBeenDiscarded
+                    || npc.Health == null
+                    || npc.HealthElement == null)
+                {
+                    continue;
+                }
+
+                float decay = CalculateDecayPerSecond(
+                    npc.Health.UpperLimit,
+                    plugin) * deltaTime;
+                if (decay <= 0.0f)
+                {
+                    continue;
+                }
+                if (npc.Health.ModifiedValue <= decay + 0.001f)
+                {
+                    npc.HealthElement.Kill();
+                }
+                else
+                {
+                    npc.Health.DecreaseBy(decay);
+                }
+            }
+        }
+
+        private static float CalculateDecayPerSecond(
+            float maximumHealth,
+            SoulAndServicePlugin plugin)
+        {
+            maximumHealth = Math.Max(0.001f, maximumHealth);
+            float percentDrain = maximumHealth
+                * Math.Max(
+                    0.0f,
+                    plugin.ReanimationHealthDecayPercentPerSecond.Value)
+                / 100.0f;
+            float flatDrain = Math.Max(
+                0.0f,
+                plugin.ReanimationFlatHealthDecayPerSecond.Value);
+            float combinedDrain = percentDrain + flatDrain;
+            float minimumLifetime = Math.Max(
+                0.001f,
+                plugin.ReanimationMinimumLifetimeSeconds.Value);
+            float maximumAllowedDrain = maximumHealth / minimumLifetime;
+            if (combinedDrain > maximumAllowedDrain)
+            {
+                float scale = maximumAllowedDrain / combinedDrain;
+                percentDrain *= scale;
+                flatDrain *= scale;
+            }
+            return Math.Max(0.0001f, percentDrain + flatDrain);
+        }
+
+        private static string FormatDuration(float seconds)
+        {
+            if (seconds < 120.0f)
+            {
+                return Math.Round(seconds).ToString(
+                    "0",
+                    CultureInfo.InvariantCulture) + "s";
+            }
+            return (seconds / 60.0f).ToString(
+                "0.#",
+                CultureInfo.InvariantCulture) + "m";
+        }
+
+        private static bool EnsureRaisedServantPortrait(NpcElement npc)
+        {
+            SpriteReference portrait = npc == null ? null : npc.NpcIcon;
+            if (portrait == null || portrait.IsSet)
+            {
+                return false;
+            }
+
+            portrait.arSpriteReference =
+                new ARAssetReference(GenericRaisedServantPortraitKey);
+            return true;
+        }
+
+        private static string GetCorpseDisplayName(Location source)
+        {
+            try
+            {
+                string displayName = source == null ? string.Empty : source.DisplayName;
+                if (!string.IsNullOrWhiteSpace(displayName))
+                {
+                    return displayName.Replace("\r", " ").Replace("\n", " ").Trim();
+                }
+            }
+            catch
+            {
+            }
+
+            return source == null || string.IsNullOrWhiteSpace(source.DebugName)
+                ? "corpse"
+                : source.DebugName;
         }
 
         private static bool TryFindEligibleCorpse(
@@ -541,7 +906,8 @@ namespace SoulAndService
 
         private static void RestoreSourceCorpse(
             string summonId,
-            bool discardRaisedCopy)
+            bool discardRaisedCopy,
+            bool showDiagnostic)
         {
             ReanimationRecord record;
             if (!Reanimations.TryGetValue(summonId, out record))
@@ -553,6 +919,17 @@ namespace SoulAndService
             {
                 record.SourceCorpse.SetInteractability(record.SourceInteractability);
                 record.SourceCorpse.TriggerVisualScriptingEvent("OnDeath");
+                SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+                if (plugin != null)
+                {
+                    plugin.LogDiagnostic("Soul Salvage restored the source corpse.");
+                    if (showDiagnostic)
+                    {
+                        plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                            "Soul Salvage: " + record.SourceDisplayName
+                            + "'s service ended; source corpse restored.");
+                    }
+                }
             }
             if (discardRaisedCopy
                 && record.RaisedLocation != null

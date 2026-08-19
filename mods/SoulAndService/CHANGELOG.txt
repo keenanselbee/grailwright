@@ -1,3 +1,38 @@
+0.3.8
+-----
+- Tripled Soul Salvage's heavy-cast mana stat so the item card and actual charged
+  cost agree, including the spell's normal item-level scaling.
+- Replaced fixed 50% starting health and a 120-second timeout with full-health
+  servants whose borrowed life drains by both a percentage and a flat amount.
+  Defaults give a 200-health ordinary enemy about three minutes, guarantee at least
+  90 seconds from decay alone, and let stronger enemies naturally last longer;
+  combat damage can still kill any servant sooner.
+- Removed raised-NPC health regeneration and route terminal decay through the native
+  death sequence so summon cleanup and source-corpse restoration remain intact.
+- Replaced Soul Salvage's stale vanilla light- and heavy-cast descriptions with live
+  text that reflects the configured return mode, decay model, minimum, and permanence.
+- Confirmed raised copies use the native hero-summon owner, ally faction, autonomous
+  target acquisition, and enemy-hostility behavior without a separate aggro patch.
+- Incremented the config schema because ReanimationDurationSeconds and
+  ReanimationHealthPercent were removed and replaced by minimum-lifetime,
+  percentage-decay, and flat-decay settings with new behavior.
+
+0.3.7
+-----
+- Added concise Grail Floating Text diagnostics for Soul Salvage heavy-cast
+  rejections, full servant limits, successful temporary or permanent raises,
+  portrait fallbacks, unexpected failures, and source-corpse restoration.
+- Added ShowGrailFloatingTextDiagnostics, enabled by default under the master
+  Diagnostics setting, while retaining detailed decisions in the BepInEx log.
+- Kept the config schema unchanged because adding a new setting lets Config.Bind
+  supply its current default without resetting existing settings.
+
+0.3.6
+-----
+- Preserved each raised servant's native NPC portrait when its Addressables reference is valid.
+- Assigned the vanilla skeleton-summon spell portrait only when a copied corpse has no configured NPC icon, preventing the summon HUD from requesting an empty Sprite key.
+- Kept the config schema unchanged because no setting or stored value changed.
+
 0.3.5
 -----
 - Added explicit semantic section and setting order metadata for a cleaner FoA Mod Manager layout.

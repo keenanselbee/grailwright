@@ -2,7 +2,7 @@
   "id": "SoulAndService",
   "displayName": "Soul and Service - Summon Overhaul",
   "packageName": "SoulAndService",
-  "version": "0.3.5",
+  "version": "0.3.8",
   "pluginGuid": "ks.tgfoa.soul-and-service",
   "dll": "SoulAndService.dll",
   "sourceFiles": [

@@ -28,12 +28,14 @@ Idle sound is a percentage rather than a toggle. The default is 60%, and only th
 
 [list]
 [*][b]Light cast:[/b] Dismisses an owned summon and returns essence based on its original mana investment and current health. The default return is 50%, split evenly between health and mana; Health and Mana modes are configurable.
-[*][b]Heavy cast:[/b] Raises an eligible ordinary runtime-spawned hostile corpse as a hero-owned servant at 50% health for 120 seconds.
+[*][b]Heavy cast:[/b] Spends three times the native mana cost to raise an eligible ordinary runtime-spawned hostile corpse at full health as a hero-owned servant.
 [/list]
 
-Heavy cast rejects authored scene locations used by persistent NPCs. For an eligible runtime-spawned hostile, it hides the source corpse, creates an unsaved runtime copy, suppresses XP and scripted death rewards, and restores the source when service ends. Bosses, minibosses, friendly corpses, already claimed corpses, and unresolved templates are also rejected.
+Heavy cast rejects authored scene locations used by persistent NPCs. For an eligible runtime-spawned hostile, it hides the source corpse, creates an unsaved runtime copy, suppresses XP and scripted death rewards, and restores the source when service ends. Raised copies use the game's native hero-summon faction and autonomous target acquisition, so they fight enemies like other summons.
 
-PermanentReanimations is disabled by default. Enabling it removes the servant duration for the current play session while retaining the restricted, unsaved-copy design.
+Borrowed life drains continuously by both a percentage of maximum health and a flat health amount. With defaults, decay alone lasts at least 90 seconds, a typical 200-health ordinary enemy lasts about three minutes, and stronger servants naturally last longer. Combat damage can still end service sooner. The servant keeps its native NPC portrait when available; an icon-less corpse receives the game's vanilla skeleton-summon portrait so the summon HUD always has a valid image. Bosses, minibosses, friendly corpses, already claimed corpses, and unresolved templates are also rejected.
+
+PermanentReanimations is disabled by default. Enabling it disables borrowed-life decay for the current play session while retaining the restricted, unsaved-copy design.
 
 [b]Defaults[/b]
 
@@ -51,7 +53,9 @@ PermanentReanimations is disabled by default. Enabling it removes the servant du
 | Summon limit bonus | 0 |
 | Idle volume | 60% |
 | Soul Salvage essence | 50%, Split |
-| Raised health / duration | 50% / 120 seconds |
+| Raised health | 100% |
+| Borrowed-life decay | 0.25% max + 0.61 health per second |
+| Minimum decay-only lifetime | 90 seconds |
 | Permanent reanimations | Disabled |
 [/code]
 

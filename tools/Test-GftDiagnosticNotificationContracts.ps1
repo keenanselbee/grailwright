@@ -112,6 +112,18 @@ $contracts = @(
             "TryShowSystemNotification(",
             '"gi-adaptive-tier"',
             '"ShowToggleNotifications"')
+    },
+    @{
+        Name = "Soul and Service"
+        Path = "mods\SoulAndService\src\SoulAndService.cs"
+        Tokens = @(
+            '"ShowGrailFloatingTextDiagnostics", true',
+            "ShowSoulSalvageHeavyCastDiagnostic(",
+            "Diagnostics.Value",
+            "ShowGrailFloatingTextDiagnostics.Value",
+            "TryShowDiagnosticNotification(",
+            '"soul-and-service-soul-salvage"',
+            '"soul-and-service-diagnostics"')
     })
 
 foreach ($contract in $contracts) {

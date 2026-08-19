@@ -1,3 +1,6 @@
+Version 1.3.0
+Corrected the Nexus and Vortex-facing file identity to KS All Lights Cast Shadows Addon so it matches the rest of the KS Addons suite.
+
 Version 1.2.9
 Added explicit FoA Mod Manager ordering metadata to every visible setting and moved the hidden schema marker out of its numbered raw section.
 Advanced ConfigSchemaVersion from 2 to 3 because the schema marker moved from the retired numbered Core section to clean General; compatible current-name settings remain eligible for conservative recovery.

@@ -2,7 +2,7 @@
   "id": "TGAllLightsCastShadowsAddon",
   "displayName": "KS All Lights Cast Shadows Addon",
   "packageName": "TGAllLightsCastShadowsAddon",
-  "version": "1.2.9",
+  "version": "1.3.0",
   "pluginGuid": "ks.tgfoa.tg-all-lights-cast-shadows-addon",
   "dll": "TGAllLightsCastShadowsAddon.dll",
   "sourceFiles": [

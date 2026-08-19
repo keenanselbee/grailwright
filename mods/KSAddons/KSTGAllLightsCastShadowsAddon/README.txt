@@ -1,7 +1,7 @@
 All Lights Cast Shadows Addon
 =============================
 
-Version: 1.2.9
+Version: 1.3.0
 Platforms: Windows and Linux through Proton.
 
 Original mod: All Lights Cast Shadows 1.2.0

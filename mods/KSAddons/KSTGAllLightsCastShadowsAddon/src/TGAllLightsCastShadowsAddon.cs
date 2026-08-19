@@ -20,9 +20,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Companion addon for All Lights Cast Shadows state restoration, atlas protection, and excluded bonfire lights")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.2.9.0")]
-[assembly: AssemblyFileVersion("1.2.9.0")]
-[assembly: AssemblyInformationalVersion("1.2.9")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyInformationalVersion("1.3.0")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -36,7 +36,7 @@ namespace TGAllLightsCastShadowsAddon
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.2.9";
+        public const string PluginVersion = "1.3.0";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
         private const int ConfigSchemaVersion = 3;

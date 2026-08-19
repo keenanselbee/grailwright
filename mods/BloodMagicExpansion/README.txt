@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v9
-Version: 2.8.2
+Version: 2.8.7
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -81,10 +81,24 @@ Soul Feast   | 12% / 2.0s    | 50%        | 1.12x          | 1.02x
 
 Blood Power supplies permanent spell growth. At Blood Power 0, preset spell
 tuning contributes no bonus; at Blood Power 100, it reaches the intended full
-preset and curve balance. Power 100-120 adds another 20% of each fully unlocked
-bonus portion, matching the absolute bonus increase from Power 80-100.
+preset and curve balance. Power 100-200 linearly continues each fully unlocked
+bonus portion until Power 200 doubles its Power 100 contribution.
 Held channel speed remains intentionally modest so held drains do not multiply
 damage too aggressively.
+
+Projectile travel, damage radius, Bleed buildup, and tap casting speed use
+independent growth curves. Their default curve bonuses at full normal mastery
+are +56%, +34%, +56%, and +21%, respectively, before the selected preset base
+and the normal Power unlock are combined. Homing search, held range, held
+channel speed, and all Abhartach Power curves retain their established values.
+
+Successful player-sourced Bleed procs from Blood Transfusion, Life Transfusion,
+and Abhartach's Calling keep their active effects longer as Blood Power grows.
+Native duration is preserved at Power 0, reaches 1.5x at Power 100, and reaches
+2x at Power 200. A successful new proc refreshes rather than adds duration, and
+the latest completed proc owns the refreshed window; an ordinary weapon or
+enemy proc therefore returns it to native duration. Partial pre-proc buildup
+decay, Bleed tick strength, and tick frequency are unchanged.
 
 Only held-channel damage earns live-drain XP; tap projectiles never qualify,
 including when one lands during another active hold. Confirmed held-channel
@@ -106,22 +120,28 @@ Worthy = 3 Blood Essence
 Potent = 5 Blood Essence
 Prime  = 10 Blood Essence
 
-x = clamp(total essence / 2,000, 0, 1)
-Power = 80x^3 - 280x^2 + 320x
+When total essence is at most 1,000:
+x = clamp(total essence / 1,000, 0, 1)
+Power = 10x^3 - 70x^2 + 160x
+
+Above 1,000 Essence:
+y = clamp((total essence - 1,000) / 4,000, 0, 1)
+Power = 100 + 100y
 ```
 
-The single continuous curve gives a moderate early advantage over linear growth,
-grants Blood Power 100 and the intended full scaling at 1,000 Essence, then
-smoothly reaches the hard cap of 120 at 2,000 Essence. That final Power stretch
-adds another 20% to the already-unlocked bonus portion.
+The established mastery curve retains its moderate early advantage and grants
+Blood Power 100 with the intended full scaling at 1,000 Essence. Overmastery is
+then deliberately linear: every additional 40 Essence grants one Power until
+the hard cap of 200 at 5,000 Essence. That final Power stretch doubles each
+fully unlocked gameplay bonus portion.
 Blood Essence itself is never capped and successful rituals always add more,
-even after Power 120. Blood Essence is stored per character in the game save's
+even after Power 200. Blood Essence is stored per character in the game save's
 GameplayMemory. Deeds of Avalon is optional and is not the progression authority.
 Existing Deeds tier counts are imported once when a character has no Blood
 Magic Expansion progression state yet.
 
 Blood Essence is the uncapped earned progression statistic. Blood Power is its
-derived 0-120 rating, shown by supported Deeds versions and used to scale spells
+derived 0-200 rating, shown by supported Deeds versions and used to scale spells
 and the inner light.
 
 `GrowthSource = Spirituality` explicitly restores the legacy live-stat growth
@@ -149,8 +169,8 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 18 because its raw sections now use
-clean, unnumbered names and every visible option carries explicit semantic order metadata.
+The current config uses ConfigSchemaVersion 20 because the former shared
+projectile/radius/Bleed/tap growth curve was replaced by independent curves.
 If the schema marker is missing or outdated, the old config
 is backed up beside the active file and fresh defaults are generated. Compatible
 customized settings remain eligible for conservative recovery.
@@ -233,13 +253,14 @@ stay installed while BME provides only the blood-spell glow. The configured
 brightness is scaled internally for the game's HDRP renderer so small config
 values remain human-friendly. Full interior scenes can apply an additional
 multiplier; its default of 1.0 preserves the configured brightness.
-Blood Power smoothly grows brightness from its baseline at Power 0 to 2x at
-Power 100 and 2.4x at Power 120. Default range grows much more modestly: 3
-meters at Power 0, 4.5 meters at Power 100, and 5 meters at Power 120.
+Blood Power smoothly grows brightness from a faint 0.2x multiplier at Power 0
+to 2x at Power 100, then linearly reaches 3x at Power 200. Default range grows
+more modestly: 1.5 meters at Power 0, 3 meters at Power 100, and 4.5 meters at
+Power 200.
 Blood Transfusion defaults to 0.8x the shared base, Life Transfusion to 1.0x,
-and Abhartach's Calling to 1.2x. With the default base and maximum-power
-brightness multiplier, their Power 100 pre-cast brightness values are therefore
-0.8, 1.0, and 1.2 respectively. Their Power 0 values are 0.4, 0.5, and 0.6.
+and Abhartach's Calling to 1.2x. Their default pre-cast brightness values are
+0.08, 0.10, and 0.12 at Power 0; 0.8, 1.0, and 1.2 at Power 100; and 1.2, 1.5,
+and 1.8 at Power 200.
 
 ```text
 Enabled = true
@@ -248,16 +269,19 @@ BloodTransfusionIntensityMultiplier = 0.8
 LifeTransfusionIntensityMultiplier = 1.0
 AbhartachCallingIntensityMultiplier = 1.2
 InteriorIntensityMultiplier = 1.0
-MaximumPowerBrightnessMultiplier = 2.0
-MaximumPowerRangeMultiplier = 1.5
-Range = 3.0
+MinimumPowerBrightnessMultiplier = 0.2
+MasteryBrightnessMultiplier = 2.0
+MaximumPowerBrightnessMultiplier = 3.0
+MinimumPowerRange = 1.5
+MasteryRange = 3.0
+MaximumPowerRange = 4.5
 FadeSeconds = 0.12
 LogBloodSpellInnerLight = false
 ```
 
-Lower the shared intensity, a spell multiplier, either maximum-power
-multiplier, or range for a subtler effect. Raise InteriorIntensityMultiplier to
-strengthen the lights only in full interiors.
+Lower the shared intensity, a spell multiplier, or any milestone value for a
+subtler effect. Raise InteriorIntensityMultiplier to strengthen the lights only
+in full interiors.
 Set Enabled to false, or Intensity to zero, for no visual light. Diagnostics
 are limited and can be disabled after confirming readiness and visibility.
 
@@ -328,8 +352,10 @@ Tier 6            | 0.900
 Tier 7            | 1.000
 ```
 
-By default, corpse quality scales Blood/Life corpse healing and Abhartach
-corpse effects from 0.5x to 1.5x. Character XP is not multiplied again.
+By default, corpse quality scales Blood/Life corpse healing plus Abhartach
+explosion damage and Bleed buildup from 0.5x to 1.5x. Abhartach explosion
+radius uses a narrower 0.85x-to-1.15x band, while held healing uses
+0.75x-to-1.25x. Character XP is not multiplied again.
 Character XP already comes from vanilla effective kill XP. Corpse quality does
 not include difficulty XP multipliers and does not multiply XP a second time.
 
@@ -355,8 +381,8 @@ Soul Feast   | 1.12x  | 1.20x  | 1.20x | 1.35x     | 1.10x
 
 Blood Power can unlock the configured +40% explosion damage, +35% explosion
 radius, +40% bleed buildup, +40% held corpse healing, and +35% corpse search
-growth at Power 100. Power 120 adds another 20% to each unlocked bonus portion.
-Corpse search is capped at 1.6x by default.
+growth at Power 100. Power 200 doubles each fully unlocked bonus portion.
+Corpse search is capped at 2x by default.
 
 ## Bloodless Filter
 

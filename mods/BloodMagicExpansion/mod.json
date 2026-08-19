@@ -2,7 +2,7 @@
   "id": "BloodMagicExpansion",
   "displayName": "Blood Magic Expansion",
   "packageName": "BloodMagicExpansion",
-  "version": "2.8.2",
+  "version": "2.8.7",
   "pluginGuid": "ks.tgfoa.blood-magic-expansion",
   "dll": "BloodMagicExpansion.dll",
   "sourceFiles": [

@@ -16,7 +16,7 @@ What began as the simple fantasy of siphoning forbidden power from corpses has g
 [list]
 [*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
 [*][b]Optional Wyrdnight consequence:[/b] With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] installed, successful exposed-Wyrdnight rituals add 4-to-12 Wyrd Threat according to corpse quality.[/*]
-[*][b]Blood Essence progression:[/b] Every completed ritual grants uncapped, save-specific Blood Essence from its quality tier. One smooth curve gives a moderate early bonus, reaches normal mastery at Power 100, and continues to Power 120.[/*]
+[*][b]Blood Essence progression:[/b] Every completed ritual grants uncapped, save-specific Blood Essence from its quality tier. The established mastery curve gives a moderate early bonus and reaches Power 100 at 1,000 Essence, then a clear linear overmastery track reaches Power 200 at 5,000 Essence.[/*]
 [*][b]Restrained progression:[/b] Gain vanilla-scaled corpse XP and small capped live-drain ticks without turning blood magic into an unlimited leveling engine.[/*]
 [*][b]Distinct ritual identities:[/b] Blood Rite, Desecration, and Soul Feast shape ritual timing, rewards, live-drain pacing, and spell behavior, while Custom exposes the underlying tuning.[/*]
 [*][b]Corpse quality and filtering:[/b] Enemy health and kill XP scale healing and Abhartach effects, while configurable terms reject stone, spirits, skeletons, Wyrd variants, and other bloodless targets.[/*]
@@ -26,7 +26,7 @@ What began as the simple fantasy of siphoning forbidden power from corpses has g
 
 Each hand light turns off immediately only when that same hand changes from a blood spell to non-blood equipment. Switching the opposite weapon or replacing one supported blood spell with another retains the configured fade behavior.
 
-The shared light intensity defaults to 0.5. Blood Transfusion applies a 0.8x multiplier, Life Transfusion 1.0x, and Abhartach's Calling 1.2x; each value is independently configurable and still combines with Blood Power, interior, and temporary casting multipliers. Brightness grows from its baseline at Power 0 to 2x at Power 100 and 2.4x at Power 120. Range grows more modestly from 3 meters to 4.5 meters and then 5 meters at the same milestones.
+The shared light intensity defaults to 0.5. Blood Transfusion applies a 0.8x multiplier, Life Transfusion 1.0x, and Abhartach's Calling 1.2x; each value is independently configurable and still combines with Blood Power, interior, and temporary casting multipliers. Brightness grows from a faint 0.2x multiplier at Power 0 to 2x at Power 100 and 3x at Power 200. Range grows more modestly from 1.5 meters to 3 meters and then 4.5 meters at the same milestones.
 
 [line]
 
@@ -52,7 +52,7 @@ Single-held casting pays half of the effective corpse XP and healing by default.
 | Soul Feast  | 12% / 2.0s | 50% | 1.12x | 1.02x |
 [/code]
 
-Live drain timing is reward pacing, not attack speed. Only held-channel damage earns live-drain XP; tap projectiles never qualify, even if they land during another active hold. Confirmed held-channel Blood/Life Transfusion healing is doubled by default through [b]HeldHealingMultiplier[/b] without changing tap projectile healing. Blood Power unlocks late-game spell growth, while held channel speed stays deliberately modest.
+Live drain timing is reward pacing, not attack speed. Only held-channel damage earns live-drain XP; tap projectiles never qualify, even if they land during another active hold. Confirmed held-channel Blood/Life Transfusion healing is doubled by default through [b]HeldHealingMultiplier[/b] without changing tap projectile healing. Blood Power unlocks independently balanced projectile-travel, damage-radius, Bleed-buildup, and tap-speed growth, while held channel speed stays deliberately modest. Successful player-sourced Blood/Life and Abhartach Bleed procs retain native duration at Power 0, last 1.5x as long at Power 100, and 2x as long at Power 200. The latest completed proc owns the refreshed window, so ordinary weapon and enemy Bleeds remain native; partial buildup decay and tick strength are unchanged.
 
 [heading][color=#C94A4A][size=5]Blood Essence[/size][/color][/heading]
 Every successfully completed corpse ritual awards a fixed amount from its quality tier:
@@ -66,7 +66,7 @@ Every successfully completed corpse ritual awards a fixed amount from its qualit
 | Prime  | 10            |
 [/code]
 
-Blood Essence is never capped. A single continuous curve gives a moderate early advantage over linear growth, grants Blood Power 100 and full intended scaling at 1,000 Essence, then smoothly reaches the hard cap of 120 at 2,000 Essence. That final Power stretch adds another 20% of each fully unlocked gameplay bonus, matching the absolute increase from Power 80 to 100. Successful rituals continue adding and displaying Blood Essence beyond 2,000 even though Blood Power cannot rise further.
+Blood Essence is never capped. The established mastery curve gives a moderate early advantage, grants Blood Power 100 and full intended scaling at 1,000 Essence, then transitions to linear overmastery where every additional 40 Essence grants one Power until the hard cap of 200 at 5,000 Essence. Power 200 doubles each fully unlocked gameplay bonus portion. Successful rituals continue adding and displaying Blood Essence beyond 5,000 even though Blood Power cannot rise further.
 
 At Blood Power 0, preset Blood/Life and Abhartach tuning contributes exactly no bonus. At Power 100, the system reaches its intended full preset and growth-curve balance. Deeds of Avalon is optional and never owns the gameplay progression. [b]GrowthSource = Spirituality[/b] remains available only as an explicit legacy choice.
 
@@ -121,7 +121,7 @@ Each blood-plausible corpse receives a quality value from 0 to 1. Native enemy T
 
 Elites gain 0.10 quality, MiniBosses gain 0.175, and Bosses begin at a minimum of 0.875 Prime quality. Relative enemy level then moves quality by 0.025 per level above or below the hero, capped at 0.075 in either direction. This keeps level relevant without letting it overwhelm native enemy identity. The untagged fallback uses fixed references of 700 base XP and 3400 maximum health. Difficulty XP multipliers are not included.
 
-By default, corpse quality scales Blood/Life corpse healing and Abhartach corpse effects from 0.5x to 1.5x. Character XP is not multiplied again because it already comes from vanilla effective kill XP.
+By default, corpse quality scales Blood/Life corpse healing plus Abhartach explosion damage and Bleed buildup from 0.5x to 1.5x. Abhartach explosion radius uses a narrower 0.85x-to-1.15x band, while held healing uses 0.75x-to-1.25x. Character XP is not multiplied again because it already comes from vanilla effective kill XP.
 
 When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.0.3 or newer is installed, the blood-magic corpse reticle selects a Meager, Worthy, Potent, or Prime sprite and can scale visually from the same quality. Registered bloodless, spent, and otherwise blocked corpses retain their tier shape but use a desaturated unavailable color. Reticle presentation is visual-only and defaults to 1.0x to 2.0x Magic reticle size with a low-quality dead zone. Corpses restored from save data are reconnected to their owning game location after restoration and remain connected for the current play session, so detection does not depend on loot or collider names. They retain their tier shape and remain non-drainable.
 
@@ -136,7 +136,7 @@ When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishono
 | Soul Feast  | 1.12x  | 1.20x  | 1.20x | 1.35x | 1.10x  |
 [/code]
 
-Blood Power can unlock +40% explosion damage, +35% explosion radius, +40% bleed buildup, +40% held corpse healing, and +35% corpse search growth at Power 100. Power 120 adds another 20% to each unlocked bonus portion.
+Blood Power can unlock +40% explosion damage, +35% explosion radius, +40% bleed buildup, +40% held corpse healing, and +35% corpse search growth at Power 100. Power 200 doubles each fully unlocked bonus portion.
 
 [line]
 

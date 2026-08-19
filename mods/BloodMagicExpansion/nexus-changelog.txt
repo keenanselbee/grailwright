@@ -1,3 +1,3 @@
-TargetVersion=2.8.2
-BaselineVersion=2.8.1
-Reorganized the configuration into clean, unnumbered sections with explicit semantic ordering while preserving compatible customized settings through the standard recovery path.
+TargetVersion=2.8.7
+BaselineVersion=2.8.3
+Separated Blood/Life projectile travel, radius, Bleed buildup, and tap-speed growth into independently balanced curves. Successful player-sourced Blood/Life and Abhartach Bleed procs now last up to twice their native duration at Power 200, Abhartach radius and held-healing quality scaling are narrower, and the blood inner light now uses a restrained 1.5-to-4.5-meter Power range.

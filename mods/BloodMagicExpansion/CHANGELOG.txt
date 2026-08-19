@@ -1,3 +1,25 @@
+Version 2.8.7
+Kept Abhartach Bleed-duration scaling independent from the separate explosion Bleed-buildup toggle.
+Reused each buildup application's Bleed classification instead of repeating its reflective name scan.
+Removed the reflective per-frame active-state check from tagged Bleeds and made disabling duration scaling discard an existing tag on its next decay update.
+
+Version 2.8.6
+Split Blood/Life projectile travel, damage radius, Bleed buildup, and tap casting speed into independent lower growth curves while preserving homing search, held range, held speed, and Abhartach Power curves.
+Made active Blood/Life and Abhartach Bleeds scale from native duration at Power 0 to 1.5x at Power 100 and 2x at Power 200; successful new procs refresh the scaled window without extending incomplete buildup persistence or changing tick strength.
+Corrected single-method prefix registration so buildup, healing, cast-state, and active-duration adjustments run before the game consumes their input values.
+Restricted extended Bleed duration to successful player-sourced procs from Blood Transfusion, Life Transfusion, and Abhartach's Calling; ordinary weapons, enemy effects, and partial buildup no longer inherit the duration bonus.
+Snapshotted the duration multiplier on each successful qualifying proc, let the latest completed proc own refresh behavior, and replaced per-frame source inference with a weak tagged-state lookup.
+Narrowed Abhartach corpse-quality scaling to 0.85x-1.15x for explosion radius and 0.75x-1.25x for held healing while retaining 0.5x-1.5x for damage, Bleed buildup, and Blood/Life corpse healing.
+Reduced default blood inner-light range milestones to 1.5 meters at Power 0, 3 meters at Power 100, and 4.5 meters at Power 200.
+Advanced ConfigSchemaVersion from 19 to 20 because RangeBleedTapBloodPowerBonusCurve was replaced by four effect-specific growth curves; compatible durable settings remain recoverable and the new curves receive their balanced defaults.
+
+Version 2.8.3
+Preserved the established Blood Power curve through normal mastery at 100 from 1,000 Essence, then added a clear linear overmastery track that reaches the new hard cap of 200 at 5,000 Essence.
+Made Power 100-200 continue every fully unlocked gameplay bonus up to twice its Power 100 bonus portion at Power 200.
+Raised the default Blood/Life homing and held target-search safety caps to x2.1 and x2.0, and the Abhartach corpse-search cap to x2.0, so Soul Feast can receive its complete Power 200 continuation.
+Redesigned the blood spell inner light around explicit Power 0, 100, and 200 milestones: brightness now grows from x0.2 to x2.0 to x3.0, while range grows from 1.5 to 4.5 to 5.5 meters.
+Advanced ConfigSchemaVersion from 18 to 19 because Range and MaximumPowerRangeMultiplier were replaced by explicit milestone ranges and MaximumPowerBrightnessMultiplier now describes Power 200 instead of Power 100. Compatible durable settings remain recoverable, while the removed and redefined light calibration values stay at the new defaults.
+
 Version 2.8.2
 Reorganized the configuration into clean, unnumbered sections with explicit semantic section and setting order metadata for consistent in-game presentation.
 Advanced ConfigSchemaVersion from 17 to 18 because every active setting moved from a numbered raw section to its clean section name; compatible customized settings remain eligible for conservative recovery.

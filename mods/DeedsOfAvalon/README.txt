@@ -1,5 +1,5 @@
 Deeds of Avalon - Character Statistics
-Version 1.8.0
+Version 1.8.1
 
 Platforms: Windows and Linux through Proton.
 
@@ -19,7 +19,7 @@ General, Tooltip Behavior, Panel Layout, Panel Background, Panel Colors,
 Text Outline, Text Backing, Panel Content, Integrations, Diagnostics, and the
 final Import Previous Settings section.
 
-Grail Floating Text 2.3.7 or newer is required for the menu panels. The
+Grail Floating Text 2.5.7 or newer is required for the menu panels. The
 statistics and JSON export still work when GFT is absent.
 
 Panel layout:
@@ -37,9 +37,9 @@ Quests completed: Number       Limited rows show Other categories
 Locations discovered: Number
 Recipes learned: Number
 Items crafted: Number
-Food eaten (Gold) / Potions used (Blue)
-Fish caught: Number
 Total gold earned: Number
+Food eaten (Orange) / Potions used (Blue)
+Fish caught (Cyan): Number
 Locks picked: Number
 Items pickpocketed: Number
 Crime and bounty: Number
@@ -130,12 +130,12 @@ unsupported fonts use a bounded compatibility fallback.
 HeaderColor controls both column headers and defaults to #D88B38. SubheaderColor
 controls both the Level/XP and Total lines and defaults to the Grail Floating
 Text White pool. Deed and foe rows use the matching GFT Red, Orange, Gold, Blue,
-Green, Wyrd, Pink, Pale, and Default pools; changing those GFT colors updates the
+Cyan, Green, Wyrd, Pink, Pale, and Default pools; changing those GFT colors updates the
 panel. Magic categories and named spell rows use distinct type icons. Named
 spell rows use their dominant recorded damage subtype for both icon and color.
 Wyrdness reuses GFT's Wyrd icon, while Other and unknown magic reuse its generic
 Magic icon:
-Fire is Orange, Cold and Wet are Blue, Poison is Green, Electric is Gold,
+Fire is Orange, Cold is Blue, Wet is Cyan, Poison is Green, Electric is Gold,
 Wyrdness uses the semantic Wyrd style, Pure is Pale, Blood is Red, and unknown
 magic uses White. When Eyes in the Dark is loaded, Wyrdnights survived and
 Wyrdness magic both follow its live Purple Wyrdness or Native Orange palette.
@@ -245,5 +245,5 @@ BloodMagicStatisticsMode = Detailed
 Troubleshooting:
 
 If statistics track but no panel appears, install or update Grail Floating Text
-to 2.3.7 or newer. Enable Diagnostics in the Deeds config and inspect
+to 2.5.7 or newer. Enable Diagnostics in the Deeds config and inspect
 BepInEx/LogOutput.log for event binding, GFT API, or export messages.

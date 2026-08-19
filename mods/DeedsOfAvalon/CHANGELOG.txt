@@ -1,3 +1,9 @@
+Version 1.8.1
+Split the shared cool palette so Cold and potions use Blue while Wet and fish use the new Grail Floating Text Cyan group.
+Changed Food eaten from Gold to Orange, matching Grail Floating Text's food-consumed notifications.
+Moved Total gold earned directly after Items crafted and before Food eaten in the deed list.
+Updated the menu-panel requirement to Grail Floating Text 2.5.7 for the configurable Cyan group and revised Blue default.
+
 Version 1.8.0
 Added the same right-anchored character-statistics panel to the root ESC system/pause menu while keeping it hidden on nested save, load, settings, and other overlay screens.
 Added independent default-on Show In Quick Wheel and Show In Pause Menu toggles without changing the config schema; the existing quick-wheel setting retains its saved value.

@@ -15,8 +15,8 @@ $requiredContracts = @(
     'int displayedBloodPower = DisplayInteger("Blood Power", bloodPower);',
     'case "Blood Power": return 21;',
     '+ " (" + displayedBloodPower.ToString("N0", CultureInfo.InvariantCulture) + ")"',
-    '"Fish caught", "fish", "Gold"',
-    '"Food eaten", "food", "Gold"',
+    '"Fish caught", "fish", "Cyan"',
+    '"Food eaten", "food", "Orange"',
     '"Potions used", "potion", "Blue"',
     'Stat.Events.StatChangedBy(CurrencyStatType.Wealth)',
     'change.value <= 0.0f',
@@ -101,6 +101,13 @@ foreach ($contract in $requiredContracts) {
     if ($source.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
         throw "Missing Deeds panel presentation contract: $contract"
     }
+}
+
+$itemsCraftedIndex = $source.IndexOf('AddRow(rows, facts.Get("deeds.items_crafted"', [StringComparison]::Ordinal)
+$totalGoldIndex = $source.IndexOf('int totalGoldEarned =', [StringComparison]::Ordinal)
+$foodEatenIndex = $source.IndexOf('AddRow(rows, facts.Get("deeds.food_eaten"', [StringComparison]::Ordinal)
+if ($itemsCraftedIndex -lt 0 -or $totalGoldIndex -le $itemsCraftedIndex -or $foodEatenIndex -le $totalGoldIndex) {
+    throw "Total gold earned must appear after Items crafted and before Food eaten."
 }
 
 if ($source.IndexOf('" | Blood Power: "', [StringComparison]::Ordinal) -ge 0) {

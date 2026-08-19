@@ -6,7 +6,7 @@
 
 [b]Deeds of Avalon - Character Statistics[/b] records a character's accomplishments inside the active save and presents them through a responsive two-column panel beside the quick wheel and root ESC system menu.
 
-The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for its fonts, semantic colors, icons, text effects, and charcoal backplates. Version 2.4.4+ supplies the quality-tier corpse icons. Statistics tracking and readable JSON export continue to work when GFT is absent; only the menu panels require it.
+The panel uses [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.5.7+ for its fonts, semantic colors, icons, text effects, and charcoal backplates, including the Blue and Cyan palette split. Statistics tracking and readable JSON export continue to work when GFT is absent; only the menu panels require it.
 
 [line]
 
@@ -54,7 +54,7 @@ Current values and authoritative totals already stored by the game or a supporte
 | Combat      | Total, weapons, magic, summons       |
 | Blood Magic | Essence, Power, corpse tiers         |[/code]
 
-Food uses Grail Floating Text's Gold pool and potions use its Blue pool, matching GFT's consumable notifications.
+Food uses Grail Floating Text's Orange pool and potions use its Blue pool, matching GFT's consumable notifications. Fish uses Cyan for a distinct aquatic presentation.
 
 Event-backed deed counters begin when Deeds starts tracking that character. Crafted and pickpocketed entries count item quantities rather than callback occurrences. One player crime action counts once even if several crime owners report it. Active Bounty is reconciled from the save's current per-faction bounty values, including bounty that existed before Deeds was installed. Highest Bounty is the highest value Deeds has observed.
 
@@ -104,7 +104,7 @@ Named spells retain their own counters and use the dominant recorded damage type
 | Blood      | Red                       |
 | Fire       | Orange                    |
 | Cold       | Blue                      |
-| Wet        | Blue                      |
+| Wet        | Cyan                      |
 | Electric   | Gold                      |
 | Poison     | Green                     |
 | Pure       | Pale                      |
@@ -224,7 +224,7 @@ BepInEx/plugins/DeedsOfAvalon/DeedsOfAvalon.dll[/code]
 [*][b]Tainted Grail: The Fall of Avalon[/b] on the Mono branch.[/*]
 [*][b]BepInEx 5 for the Mono build[/b].[/*]
 [*]Supports Windows and Linux.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.3.7+ for the quick-wheel and pause-menu panels.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.5.7+ for the quick-wheel and pause-menu panels.[/*]
 [/list]
 
 [line]

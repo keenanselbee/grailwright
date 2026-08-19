@@ -42,9 +42,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Save-bounded character statistics and menu presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.8.0.0")]
-[assembly: AssemblyFileVersion("1.8.0.0")]
-[assembly: AssemblyInformationalVersion("1.8.0")]
+[assembly: AssemblyVersion("1.8.1.0")]
+[assembly: AssemblyFileVersion("1.8.1.0")]
+[assembly: AssemblyInformationalVersion("1.8.1")]
 
 namespace DeedsOfAvalon
 {
@@ -159,7 +159,7 @@ namespace DeedsOfAvalon
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
         public const string PluginName = "Deeds of Avalon - Character Statistics";
-        public const string PluginVersion = "1.8.0";
+        public const string PluginVersion = "1.8.1";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -1628,9 +1628,6 @@ namespace DeedsOfAvalon
             AddRow(rows, facts.Get("deeds.locations_discovered", 0), "Locations discovered", "location", "Gold");
             AddRow(rows, facts.Get("deeds.recipes_learned", 0), "Recipes learned", "recipe", "Gold");
             AddRow(rows, facts.Get("deeds.items_crafted", 0), "Items crafted", "craft", "Gold");
-            AddRow(rows, facts.Get("deeds.food_eaten", 0), "Food eaten", "food", "Gold");
-            AddRow(rows, facts.Get("deeds.potions_used", 0), "Potions used", "potion", "Blue");
-            AddRow(rows, facts.Get("deeds.fishes_caught", 0), "Fish caught", "fish", "Gold");
             int totalGoldEarned = Math.Max(0, facts.Get("deeds.total_gold_earned", 0));
             AddRow(
                 rows,
@@ -1638,6 +1635,9 @@ namespace DeedsOfAvalon
                 "Total gold earned",
                 GoldEarnedIcon(DisplayInteger("Total gold earned", totalGoldEarned)),
                 "Gold");
+            AddRow(rows, facts.Get("deeds.food_eaten", 0), "Food eaten", "food", "Orange");
+            AddRow(rows, facts.Get("deeds.potions_used", 0), "Potions used", "potion", "Blue");
+            AddRow(rows, facts.Get("deeds.fishes_caught", 0), "Fish caught", "fish", "Cyan");
             if (_showBloodMagicStatistics.Value)
             {
                 int bloodEssence = Math.Max(0, Mathf.RoundToInt(facts.Get("blood.essence", 0.0f)));
@@ -1971,7 +1971,7 @@ namespace DeedsOfAvalon
             {
                 new Category("foes.magic.damage.fire", "Fire", "magic_fire", "Orange"),
                 new Category("foes.magic.damage.cold", "Cold", "magic_cold", "Blue"),
-                new Category("foes.magic.damage.wet", "Wet", "magic_wet", "Blue"),
+                new Category("foes.magic.damage.wet", "Wet", "magic_wet", "Cyan"),
                 new Category("foes.magic.damage.electric", "Electric", "magic_electric", "Gold"),
                 new Category("foes.magic.damage.poison", "Poison", "magic_poison", "Green"),
                 new Category("foes.magic.damage.blood_magic", "Blood", "magic_blood", "Red"),
@@ -2025,7 +2025,7 @@ namespace DeedsOfAvalon
                 case "electric": return "Gold";
                 case "wyrdness": return "Wyrd";
                 case "pure": return "Pale";
-                case "wet": return "Blue";
+                case "wet": return "Cyan";
                 default: return "White";
             }
         }

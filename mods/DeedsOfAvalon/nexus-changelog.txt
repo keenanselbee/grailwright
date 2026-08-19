@@ -1,4 +1,7 @@
-TargetVersion=1.8.0
+TargetVersion=1.8.1
 BaselineVersion=1.7.7
+Split the cool palette so Cold and potions use Blue while Wet and fish use Cyan, and changed food from Gold to Orange to match Grail Floating Text notifications.
+Moved Total Gold Earned directly after Items Crafted and before Food Eaten.
+Updated the panel requirement to Grail Floating Text 2.5.7 for the configurable Cyan group and revised Blue default.
 Added the character-statistics panel to the root ESC system/pause menu, with independent default-on visibility toggles for the pause menu and quick wheel. The panel stays clear on nested save, load, settings, and other overlay screens.
 Updated Blood Magic Expansion progression presentation to retain Blood Power through its new 200 cap while normal mastery remains at 100.

@@ -1,3 +1,8 @@
+Version 2.5.7
+Added a configurable Cyan color group with a #9EDBFF default for Wet, fish, and other aquatic presentation.
+Changed Blue to a colder #9EC1FF default for Cold and potion presentation, and changed food-consumed notifications from Gold to Orange.
+Advanced ConfigSchemaVersion from 27 to 28 because BlueColor has a materially different default; valid customized colors remain eligible for recovery.
+
 Version 2.5.6
 Added NotificationApi v13 TryShowCompatibilityNotice so any loaded mod can submit one standardized, deferred main-menu compatibility warning with concise player text and exact logged evidence.
 Added generic BepInEx hard-incompatibility reporting for plugins rejected before startup, resolving conflicting plugin GUIDs to friendly names when possible and directing players to remove or disable one mod before restarting.

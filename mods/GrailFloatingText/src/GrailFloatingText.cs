@@ -46,9 +46,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.5.6.0")]
-[assembly: AssemblyFileVersion("2.5.6.0")]
-[assembly: AssemblyInformationalVersion("2.5.6")]
+[assembly: AssemblyVersion("2.5.7.0")]
+[assembly: AssemblyFileVersion("2.5.7.0")]
+[assembly: AssemblyInformationalVersion("2.5.7")]
 
 namespace GrailFloatingText
 {
@@ -276,7 +276,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.5.6";
+        public const string PluginVersion = "2.5.7";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -299,7 +299,7 @@ namespace GrailFloatingText
             "ks.tgfoa.dishonored-dynamic-crosshair";
         private const string DynamicCrosshairAssemblyName =
             "DishonoredDynamicCrosshair";
-        private const int ConfigSchemaVersion = 27;
+        private const int ConfigSchemaVersion = 28;
         private const int ConfigRecoveryBaselineSchema = 15;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -5868,13 +5868,18 @@ namespace GrailFloatingText
             BindColorGroup(
                 "Gold",
                 "#FFC03A",
-                "default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment; default-food-consumed",
+                "default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment",
                 "Reward and progress events.");
             BindColorGroup(
                 "Blue",
-                "#9EE0FF",
+                "#9EC1FF",
                 "default-burden-lifted; default-potion-consumed",
-                "Clean status-change events.");
+                "Cold and potion events.");
+            BindColorGroup(
+                "Cyan",
+                "#9EDBFF",
+                "",
+                "Wet and aquatic events.");
             BindColorGroup(
                 "Green",
                 "#8FD36B",
@@ -5893,8 +5898,8 @@ namespace GrailFloatingText
             BindColorGroup(
                 "Orange",
                 "#FF9A35",
-                "default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed",
-                "Warnings and combat feedback events.");
+                "default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed; default-food-consumed",
+                "Food, warning, and combat feedback events.");
             BindColorGroup(
                 "Pale",
                 "#DBE6FF",
@@ -7289,7 +7294,10 @@ namespace GrailFloatingText
 
             if (StyleEquals(style, "Status"))
             {
-                return ResolveNamedGroupOrFallback("Blue", new Color(0.62f, 0.88f, 1.0f, alpha), alpha);
+                return ResolveNamedGroupOrFallback(
+                    "Blue",
+                    new Color(158.0f / 255.0f, 193.0f / 255.0f, 1.0f, alpha),
+                    alpha);
             }
 
             if (StyleEquals(style, "Wyrd"))
@@ -7394,7 +7402,20 @@ namespace GrailFloatingText
 
             if (StyleEquals(groupName, "Blue"))
             {
-                return new Color(0.62f, 0.88f, 1.0f, 1.0f);
+                return new Color(
+                    158.0f / 255.0f,
+                    193.0f / 255.0f,
+                    1.0f,
+                    1.0f);
+            }
+
+            if (StyleEquals(groupName, "Cyan"))
+            {
+                return new Color(
+                    158.0f / 255.0f,
+                    219.0f / 255.0f,
+                    1.0f,
+                    1.0f);
             }
 
             if (StyleEquals(groupName, "Purple"))

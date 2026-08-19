@@ -2,7 +2,7 @@
   "id": "GrailFloatingText",
   "displayName": "Grail Floating Text",
   "packageName": "GrailFloatingText",
-  "version": "2.5.6",
+  "version": "2.5.7",
   "pluginGuid": "ks.tgfoa.grail-floating-text",
   "dll": "GrailFloatingText.dll",
   "sourceFiles": [

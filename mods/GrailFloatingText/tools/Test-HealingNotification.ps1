@@ -32,7 +32,7 @@ foreach ($requiredToken in @(
     '"Green"',
     '"healing"',
     '.Replace("{health}", formattedAmount)',
-    'private const int ConfigSchemaVersion = 27;')) {
+    'private const int ConfigSchemaVersion = 28;')) {
     if ($source.IndexOf($requiredToken, [StringComparison]::Ordinal) -lt 0) {
         throw "Healing notification contract is missing $requiredToken."
     }

@@ -523,7 +523,7 @@ Recommended values:
 
 - `sourceId`: your plugin GUID.
 - `eventId`: stable event token, such as `killing-blow` or `wyrd-hunt-status`, used for configurable color-group routing.
-- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, a configured color-group name, or a hex color. Configured group names take priority over HTML named colors, so values such as `Purple`, `Pink`, `Red`, and `Blue` use their matching settings.
+- `style`: `Default`, `Reward`, `Status`, `Wyrd`, `Discovery`, `Combat`, `Rest`, `System`, `Warning`, `Error`, `Critical`, a configured color-group name, or a hex color. Configured group names take priority over HTML named colors, so values such as `Purple`, `Pink`, `Red`, `Blue`, and `Cyan` use their matching settings.
 - `category`: `General`, `Combat`, `Reward`, `Status`, `System`, or `Debug`.
 - `priority`: `Low`, `Normal`, `High`, or `Critical`.
 - `collapseKey`: leave blank for stacking event messages; set a stable key for status messages that should update in place.

@@ -1,9 +1,7 @@
-TargetVersion=2.5.6
-BaselineVersion=2.5.1
+TargetVersion=2.5.7
+BaselineVersion=2.5.5
+Added a configurable Cyan pool with a soft #9EDBFF default for Wet, fish, and aquatic presentation.
+Shifted Blue to a colder #9EC1FF default for Cold and potions, and moved food-consumed notices from Gold to Orange.
+Advanced the config schema so untouched Blue defaults receive the new palette while customized colors remain eligible for recovery.
 Added a purpose-built compatibility notice API so any loaded mod can send the standard warning-style main-menu message with exact diagnostic evidence preserved in the log.
 Added automatic main-menu notices for verified BepInEx hard-incompatibility rejections, including conflicts that prevent the affected mod from starting at all.
-Suppressed the food-consumed line when Steel and Bone prevents that food from being used during combat, leaving only Steel and Bone's brief restriction feedback.
-Removed numeric prefixes from all static and runtime-created config sections and added explicit semantic ordering metadata to every visible setting.
-Updated compatibility lookups for the clean Glorious UI, Steel and Bone, and Eyes in the Dark section names.
-Advanced the config schema through the two clean-section migrations, preserving calibrated presentation and per-source values through the standard recovery path.
-Packaged the complete API reference and expanded the mod-author quick start with exact soft-dependency, safe reflection, capability-probe, compatibility-warning, and current NotificationApi v11/v12 guidance.

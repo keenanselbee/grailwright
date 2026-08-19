@@ -64,7 +64,7 @@ $categoryContracts = @{
     electric = '"Electric", "magic_electric", "Gold"'
     wyrdness = '"Wyrdness", "wyrd", "Wyrd"'
     pure = '"Pure", "magic_pure", "Pale"'
-    wet = '"Wet", "magic_wet", "Blue"'
+    wet = '"Wet", "magic_wet", "Cyan"'
     other = '"Other", "magic", "White"'
 }
 foreach ($contract in $categoryContracts.GetEnumerator()) {

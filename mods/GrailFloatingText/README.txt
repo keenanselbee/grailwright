@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.5.6
+Version 2.5.7
 
 Platforms: Windows and Linux through Proton.
 
@@ -29,7 +29,7 @@ location clear, pickpocket, bounty totals, throttled block/parry combat
 feedback, optional weak spot/sneak attack combat feedback, hero healing, XP
 gains, food and potion use, Potion Poisoning activation, and vanilla Wyrd state
 changes. Food and potion lines show only the consumed item's name by default,
-using the built-in food and potion icons with gold and blue presentation.
+using the built-in food and potion icons with orange and blue presentation.
 When Steel and Bone prevents food use during combat, GFT suppresses its
 consumption line so only Steel and Bone's brief restriction message appears.
 Potion Poisoning is always a separate red line with the potion icon and appears
@@ -69,7 +69,7 @@ BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 Default settings:
 
 Enabled = true
-ConfigSchemaVersion = 27
+ConfigSchemaVersion = 28
 NotifyModCompatibility = true
 Successful schema resets wait for fully visible loaded gameplay, then appear with
 the system icon and use the configurable System duration bucket. Integrated
@@ -174,9 +174,11 @@ VanillaWyrdEventCooldownSeconds = 0.75
 RedColor = #FF3D2E
 RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack; default-potion-poisoning
 GoldColor = #FFC03A
-GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment; default-food-consumed
-BlueColor = #9EE0FF
+GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
+BlueColor = #9EC1FF
 BlueEvents = default-burden-lifted; default-potion-consumed
+CyanColor = #9EDBFF
+CyanEvents =
 GreenColor = #8FD36B
 GreenEvents =
 PurpleColor = #C294FF
@@ -193,7 +195,7 @@ panels and other callbacks cannot darken configured text or icon colors.
 Built-in icons use runtime mipmaps and trilinear filtering for stable detail
 while scaling, with transparent-edge color dilation to prevent dark fringes.
 OrangeColor = #FF9A35
-OrangeEvents = default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed
+OrangeEvents = default-rest-interrupted; default-over-encumbered; default-combat-blocked; default-combat-parried; default-pickpocket-fail; default-bounty-changed; default-food-consumed
 PaleColor = #DBE6FF
 PaleEvents = default-rest-duration
 GrayColor = #B3B3B3
@@ -208,6 +210,7 @@ Icon color overrides default to blank and inherit their matching text group:
 RedIconColor =
 GoldIconColor =
 BlueIconColor =
+CyanIconColor =
 GreenIconColor =
 PurpleIconColor =
 PinkIconColor =

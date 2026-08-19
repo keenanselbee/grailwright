@@ -190,7 +190,7 @@ namespace GrailFloatingText
                 PluginGuid,
                 isPotion ? DefaultPotionConsumedEventId : DefaultFoodConsumedEventId,
                 text,
-                isPotion ? "Blue" : "Gold",
+                isPotion ? "Blue" : "Orange",
                 "Status",
                 "Normal",
                 string.Empty,

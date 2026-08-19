@@ -1,3 +1,12 @@
+Version 0.7.6
+Lowered the configurable attack-speed floor for native two-handed weapons used in one hand from 50 percent to 25 percent, allowing deliberately heavier low-potency handling.
+Capped both configurable damage endpoints for that grip at 150 percent instead of 300 percent, retaining generous customization without presenting extreme damage values as ordinary supported tuning.
+Advanced ConfigSchemaVersion from 12 to 13 because the tighter damage range invalidates existing values above 150 percent; the prior config is backed up, current defaults are regenerated, and compatible customized values remain eligible for clamped recovery.
+
+Version 0.7.5
+Fixed removing a paired item from a converted greatweapon in one-handed grip selecting the native two-handed FSM before replacing the stale one-handed animator controller, which could leave the weapon invisible and stuck in EquipWeapon.
+Settled equipment transitions now verify the controller selected during loading matches the final grip and correct it before performing an FSM-only reset.
+
 Version 0.7.4
 Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
 Advanced ConfigSchemaVersion from 11 to 12 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

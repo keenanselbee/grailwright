@@ -95,6 +95,25 @@ if ($updateLoop -match 'BeginPairedRefresh\(hero, weapon\)' -or
     $updateLoop -notmatch 'ProcessEquipFsmReset') {
     throw "Normal equipment transitions must wait for the actual paired visual and route every pairing through the shared settled-equip barrier."
 }
+$controllerMismatch = $updateLoop.IndexOf(
+    '_selectedGripControllerTwoHanded'
+)
+$controllerRefresh = $updateLoop.IndexOf(
+    'RefreshWeaponAnimations('
+)
+$settledFsmReset = $updateLoop.IndexOf(
+    'BeginEquipFsmReset('
+)
+if ($controllerMismatch -lt 0 -or
+    $controllerRefresh -lt 0 -or
+    $settledFsmReset -lt 0 -or
+    $controllerMismatch -gt $controllerRefresh -or
+    $controllerRefresh -gt $settledFsmReset -or
+    $updateLoop -notmatch '_selectedGripControllerKnown' -or
+    $updateLoop -notmatch 'ReferenceEquals\(\s*_selectedGripControllerItem,\s*weapon\.Item\)' -or
+    $updateLoop -notmatch '_selectedGripControllerTwoHanded\s*!=\s*!desiredState') {
+    throw "A settled equipment transition must correct a stale grip controller before starting its FSM-only reset."
+}
 $equipFsmReset = [regex]::Match(
     $source,
     '(?s)private bool BeginEquipFsmReset\(.+?(?=\r?\n        private )'
@@ -265,6 +284,13 @@ if ($source -notmatch '"ZeroRequirementFullPotencyStrength",\s*10\.0f' -or
     $readme -notmatch 'ZeroRequirementFullPotencyStrength = 10') {
     throw "Zero-requirement greatweapons must scale from 0 Strength to the configured absolute full-potency endpoint."
 }
+if ($source -notmatch '(?s)"DamageAtWeaponRequirement".+?AcceptableValueRange<float>\(0\.1f, 1\.5f\)' -or
+    $source -notmatch '(?s)"DamageAtFullPotency".+?AcceptableValueRange<float>\(0\.1f, 1\.5f\)' -or
+    $source -notmatch '(?s)"AttackSpeedAtWeaponRequirement".+?AcceptableValueRange<float>\(0\.25f, 1\.5f\)' -or
+    $source -notmatch '(?s)"AttackSpeedAtFullPotency".+?AcceptableValueRange<float>\(0\.25f, 1\.5f\)' -or
+    $source -notmatch 'private const int ConfigSchemaVersion = 13;') {
+    throw "One-handed greatweapon damage must cap at 150 percent and attack-speed tuning must extend down to 25 percent under schema 13."
+}
 if ($source -notmatch '"RememberGripPerLoadout",\s*true' -or
     $source -notmatch 'Dictionary<string, GripMemoryRecord>' -or
     $source -notmatch 'GetGripMemoryContextKey' -or
@@ -295,10 +321,10 @@ if ($source -notmatch 'ScheduleRememberedGripAnimationRefresh' -or
     $source -notmatch 'Applying the settled animator refresh for the remembered non-default grip') {
     throw "A remembered non-default grip must wait for the paired hand only when that grip leaves it active, then refresh the exact weapon controller after the required animators settle."
 }
-if ($manifest.version -ne "0.7.4" -or
-    $source -notmatch 'public const string PluginVersion = "0\.7\.4";' -or
-    $readme -notmatch '(?m)^Version 0\.7\.4$') {
-    throw "Version 0.7.4 is not synchronized across the manifest, source, and README."
+if ($manifest.version -ne "0.7.6" -or
+    $source -notmatch 'public const string PluginVersion = "0\.7\.6";' -or
+    $readme -notmatch '(?m)^Version 0\.7\.6$') {
+    throw "Version 0.7.6 is not synchronized across the manifest, source, and README."
 }
 if ($readme -notmatch 'any one-slot hand item' -or
     $readme -notmatch 'Either hand order is supported') {

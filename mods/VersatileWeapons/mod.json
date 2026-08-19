@@ -2,7 +2,7 @@
   "id": "VersatileWeapons",
   "displayName": "Versatile Weapons - Dynamic Grip",
   "packageName": "VersatileWeapons",
-  "version": "0.7.4",
+  "version": "0.7.6",
   "pluginGuid": "ks.tgfoa.versatile-weapons",
   "dll": "VersatileWeapons.dll",
   "sourceFiles": [

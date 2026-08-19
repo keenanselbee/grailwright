@@ -34,9 +34,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.7.4.0")]
-[assembly: AssemblyFileVersion("0.7.4.0")]
-[assembly: AssemblyInformationalVersion("0.7.4")]
+[assembly: AssemblyVersion("0.7.6.0")]
+[assembly: AssemblyFileVersion("0.7.6.0")]
+[assembly: AssemblyInformationalVersion("0.7.6")]
 
 namespace VersatileWeapons
 {
@@ -58,9 +58,9 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.7.4";
+        public const string PluginVersion = "0.7.6";
 
-        private const int ConfigSchemaVersion = 12;
+        private const int ConfigSchemaVersion = 13;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -502,28 +502,28 @@ namespace VersatileWeapons
                 0.75f,
                 new ConfigDescription(
                     "Melee damage at the weapon's normal Strength requirement. 0.75 means 75 percent damage.",
-                    new AcceptableValueRange<float>(0.1f, 3.0f)));
+                    new AcceptableValueRange<float>(0.1f, 1.5f)));
             _oneHandedTwoHandedWeaponFullDamageMultiplier = BindOrdered(
                 "Native Two-Handed Weapon - One-Handed Grip",
                 "DamageAtFullPotency",
                 1.0f,
                 new ConfigDescription(
                     "Melee damage at or above FullPotencyStrengthMultiplier. 1 means full native damage.",
-                    new AcceptableValueRange<float>(0.1f, 3.0f)));
+                    new AcceptableValueRange<float>(0.1f, 1.5f)));
             _oneHandedTwoHandedWeaponRequirementAttackSpeedMultiplier = BindOrdered(
                 "Native Two-Handed Weapon - One-Handed Grip",
                 "AttackSpeedAtWeaponRequirement",
                 0.5f,
                 new ConfigDescription(
                     "Attack-animation speed at the weapon's normal Strength requirement. 0.5 means 50 percent speed.",
-                    new AcceptableValueRange<float>(0.5f, 1.5f)));
+                    new AcceptableValueRange<float>(0.25f, 1.5f)));
             _oneHandedTwoHandedWeaponFullAttackSpeedMultiplier = BindOrdered(
                 "Native Two-Handed Weapon - One-Handed Grip",
                 "AttackSpeedAtFullPotency",
                 0.75f,
                 new ConfigDescription(
                     "Attack-animation speed at or above FullPotencyStrengthMultiplier. 0.75 means 75 percent speed.",
-                    new AcceptableValueRange<float>(0.5f, 1.5f)));
+                    new AcceptableValueRange<float>(0.25f, 1.5f)));
             _oneHandedTwoHandedWeaponRequirementPoiseMultiplier = BindOrdered(
                 "Native Two-Handed Weapon - One-Handed Grip",
                 "PoiseAtWeaponRequirement",
@@ -1888,6 +1888,26 @@ namespace VersatileWeapons
                         hero,
                         transitionedPairedHand,
                         _weaponTransitionStartedAt);
+                    return;
+                }
+
+                bool selectedControllerMismatch =
+                    _selectedGripControllerKnown
+                    && ReferenceEquals(
+                        _selectedGripControllerItem,
+                        weapon.Item)
+                    && _selectedGripControllerTwoHanded
+                        != !desiredState;
+                if (selectedControllerMismatch)
+                {
+                    _weaponTransitionRefreshPending = false;
+                    LogDiagnostic(
+                        "Correcting the grip controller selected before the equipment pairing finished settling. "
+                        + DescribeGripContext(hero, weapon));
+                    RefreshWeaponAnimations(
+                        hero,
+                        weapon,
+                        desiredState);
                     return;
                 }
 

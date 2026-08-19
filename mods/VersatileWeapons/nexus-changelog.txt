@@ -1,3 +1,5 @@
-TargetVersion=0.7.4
-BaselineVersion=0.7.3
-Cleaned every generated config section and added explicit task-oriented ordering metadata, with grip controls first, compatibility above Diagnostics, and Import Previous Settings last.
+TargetVersion=0.7.6
+BaselineVersion=0.7.4
+Expanded low-potency attack-speed tuning down to 25 percent and capped both one-handed greatweapon damage endpoints at 150 percent.
+Advanced the config schema because the tighter damage range invalidates prior values above 150 percent; migration backs up the prior config, regenerates current defaults, and conservatively restores compatible customized settings with current range clamping.
+Fixed converted greatweapons becoming invisible and stuck when removing their paired item caused the final native two-handed grip to disagree with the controller selected earlier in the equipment transition.

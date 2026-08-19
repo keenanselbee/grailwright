@@ -1,5 +1,5 @@
 Versatile Weapons - Dynamic Grip
-Version 0.7.4
+Version 0.7.6
 
 Standalone dynamic weapon-grip mod for Tainted Grail: The Fall of Avalon.
 

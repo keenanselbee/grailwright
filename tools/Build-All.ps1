@@ -3,6 +3,7 @@ param(
     [string]$GameRoot = "",
     [string]$BepInExRoot = "",
     [string]$VortexModsRoot = "",
+    [string]$VortexMetadataBridgeRoot = "",
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
     [switch]$StageToVortex,
@@ -54,6 +55,10 @@ foreach ($manifest in $manifests) {
 
     if (-not [string]::IsNullOrWhiteSpace($VortexModsRoot)) {
         $args.VortexModsRoot = $VortexModsRoot
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($VortexMetadataBridgeRoot)) {
+        $args.VortexMetadataBridgeRoot = $VortexMetadataBridgeRoot
     }
 
     if (-not [string]::IsNullOrWhiteSpace($DestinationDirectory)) {

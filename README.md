@@ -213,6 +213,56 @@ they are separate from the freshness-oriented live-state audit cache. Keep the
 store available when cleaning `.codex-temp`, and do not hand-edit Vortex's own
 state database from it.
 
+Every ordinary Vortex stage queues local grouping metadata for the optional
+Grailwright Nexus Metadata extension. Separate version folders remain available
+for rollback, while their stable logical filename and configured Nexus page ID
+let Vortex display them under one mod row. Unpublished builds remain truthfully
+marked `grailwright-local` and never borrow a Nexus file ID. If an older variant
+is enabled when Vortex discovers a newly staged version, the extension disables
+the older variant, enables the new version, and performs one normal deployment.
+A fully disabled mod stays disabled. While Vortex is open, the extension also
+registers the new staging folder through Vortex's supported mod-creation event,
+so ordinary staging does not require a Vortex restart or manual refresh.
+
+Live version uploads then promote the exact staged release. The publisher
+compares every staged file with the uploaded archive before queuing it. The
+extension imports or reuses that archive through Vortex, verifies its Nexus
+lookup, links it to the existing staged version, and records the real page ID,
+numeric file ID, version, MD5, size, logical filename, and Nexus source through
+supported Vortex actions.
+
+Build and install the extension, then restart Vortex once:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-VortexNexusMetadataExtension.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Install-VortexNexusMetadataExtension.ps1 -UpdateExisting
+```
+
+Queue grouping metadata for existing staged versions, then check the active
+profile before creating or updating a collection:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Update-VortexStagedModGrouping.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-VortexCollectionReadiness.ps1
+```
+
+The extension reconciles every catalogued staging record before refreshing the
+readiness snapshot. To explicitly requeue versions whose older acknowledgements
+already exist, add `-Repair` to `Update-VortexStagedModGrouping.ps1`; this does
+not remove or reinstall any staged version.
+
+The bridge queue lives under
+`%APPDATA%\Vortex\grailwright-nexus-metadata`. Local grouping requests use a
+separate queue so an older installed extension cannot consume them. If Vortex is
+closed or another game is active, requests remain pending until the updated
+extension can process them. After the extension itself has been installed or
+updated and Vortex restarted once, mods staged while Vortex is open are
+registered automatically with their grouping identity and verified before the
+request is acknowledged. Repeated pending messages are rate-limited to one per
+request and reason every five minutes.
+`-SkipVortexMetadataPromotion` disables only the
+post-upload promotion step for an exceptional publish.
+
 Compare authored Nexus metadata with the latest recorded live state:
 
 ```powershell

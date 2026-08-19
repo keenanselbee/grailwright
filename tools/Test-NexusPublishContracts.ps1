@@ -19,6 +19,7 @@ $candidatePath = Join-Path $candidateRoot "NexusPublishFixture-1.2.0-from-1.0.0.
 $receiptPath = Join-Path $repoRoot "nexus-release-receipts.local.json"
 $receiptExistedBefore = Test-Path -LiteralPath $receiptPath -PathType Leaf
 $receiptHashBefore = if ($receiptExistedBefore) { (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash } else { '' }
+$promotionBridgeRoot = Join-Path $scratchRoot 'vortex-metadata-bridge'
 
 if (-not $scratchRoot.StartsWith(
     $testsRoot,
@@ -52,6 +53,7 @@ function Invoke-PublishDryRun {
         AddChangelog = $true
         DryRun = $true
         DryRunChangelogBaselineVersion = "1.0.0"
+        VortexMetadataBridgeRoot = $promotionBridgeRoot
     }
     if (-not [string]::IsNullOrWhiteSpace($ArchivePath)) {
         $arguments.ArchivePath = $ArchivePath
@@ -155,8 +157,9 @@ Stale reviewed fixture entry.
         $receiptHashAfter = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash
         Assert-Contract ($receiptHashAfter -eq $receiptHashBefore) "dry-run changed the release receipt store."
     }
+    Assert-Contract (-not (Test-Path -LiteralPath $promotionBridgeRoot)) "dry-run created a Vortex metadata promotion queue."
 
-    Write-Host "Nexus publish contracts passed: validated archive reuse, lazy candidates, SkipBuild guard, and no dry-run receipts."
+    Write-Host "Nexus publish contracts passed: validated archive reuse, lazy candidates, SkipBuild guard, and no dry-run receipts or Vortex promotion requests."
 }
 finally {
     if (Test-Path -LiteralPath $scratchRoot) {

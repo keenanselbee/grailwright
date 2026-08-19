@@ -31,6 +31,9 @@ param(
     [string]$ConsolidatedChangelogPath = "",
     [string]$DryRunChangelogBaselineVersion = "",
     [switch]$DryRun,
+    [string]$VortexModsRoot = "",
+    [string]$VortexMetadataBridgeRoot = "",
+    [switch]$SkipVortexMetadataPromotion,
     [string]$ApiBaseUrl = "https://api.nexusmods.com/v3",
     [int]$LockWaitSeconds = 0,
     [int]$LockStaleAfterMinutes = 720,
@@ -51,6 +54,7 @@ if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
 . $LockScript
 . (Join-Path $PSScriptRoot 'NexusLiveState.ps1')
 . (Join-Path $PSScriptRoot 'NexusReleaseReceipts.ps1')
+. (Join-Path $PSScriptRoot 'VortexNexusMetadataPromotions.ps1')
 
 function Test-JsonProperty {
     param(
@@ -1399,6 +1403,9 @@ try {
 
     $releaseReceipt = $null
     $releaseReceiptPath = ''
+    $vortexPromotionStatus = if ($SkipVortexMetadataPromotion) { 'skipped' } else { 'not-recorded' }
+    $vortexPromotionRequestId = ''
+    $vortexPromotionRequestPath = ''
     if ([string]::IsNullOrWhiteSpace($createdVersionId)) {
         Write-Warning "Nexus version $FileVersion was uploaded, but no immutable v3 version ID was returned, so a release receipt could not be recorded. Do not retry the upload."
     }
@@ -1419,6 +1426,29 @@ try {
         }
         catch {
             throw "Nexus upload succeeded for version $FileVersion (created version id $createdVersionId), but writing its release receipt failed: $($_.Exception.Message). Do not retry the upload."
+        }
+
+        if (-not $SkipVortexMetadataPromotion) {
+            try {
+                $promotion = Queue-VortexNexusMetadataPromotion `
+                    -Receipt $releaseReceipt `
+                    -ArchivePath $archiveItem.FullName `
+                    -VortexModsRoot $VortexModsRoot `
+                    -BridgeRoot $VortexMetadataBridgeRoot
+                $vortexPromotionStatus = [string]$promotion.Status
+                $vortexPromotionRequestId = [string]$promotion.RequestId
+                $vortexPromotionRequestPath = [string]$promotion.RequestPath
+                if ($vortexPromotionStatus -eq 'not-staged') {
+                    Write-Warning "Nexus version $FileVersion was uploaded, but its exact local Vortex stage was not found at $($promotion.StagedPath)."
+                }
+                elseif ($vortexPromotionStatus -like 'pending-*') {
+                    Write-Warning "Nexus version $FileVersion was uploaded, but Vortex metadata promotion remains $vortexPromotionStatus."
+                }
+            }
+            catch {
+                $vortexPromotionStatus = 'failed'
+                Write-Warning "Nexus version $FileVersion was uploaded, but its staged Vortex metadata promotion was refused: $($_.Exception.Message)"
+            }
         }
     }
 
@@ -1497,6 +1527,9 @@ try {
         VortexFileId = if ($verifiedUpload -ne $null) { [string]$verifiedUpload.VortexFileId } else { '' }
         ReleaseReceiptPath = $releaseReceiptPath
         ReleaseReceiptStatus = if ($releaseReceipt -eq $null) { 'not-recorded' } elseif ([string]::IsNullOrWhiteSpace([string]$releaseReceipt.nexus.vortexFileId)) { 'pending-vortex-file-id' } else { 'complete' }
+        VortexMetadataPromotionStatus = $vortexPromotionStatus
+        VortexMetadataPromotionRequestId = $vortexPromotionRequestId
+        VortexMetadataPromotionRequestPath = $vortexPromotionRequestPath
         Version = $FileVersion
         ChangelogAdded = [bool]$AddChangelog
         ReadVerification = if ($verifiedUpload -ne $null) { 'exact-version-id' } else { 'verified-write-only' }

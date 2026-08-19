@@ -3,11 +3,13 @@ param(
     [Parameter(Mandatory = $true)][string]$ModRoot,
     [Parameter(Mandatory = $true)][string]$PackageArchive,
     [string]$VortexModsRoot = "",
+    [string]$VortexMetadataBridgeRoot = "",
     [switch]$KeepScratch
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'VortexNexusMetadataPromotions.ps1')
 
 function Read-ModManifest {
     param([Parameter(Mandatory = $true)][string]$Root)
@@ -138,6 +140,14 @@ try {
 
     Move-Item -LiteralPath $stagingRoot -Destination $targetRoot
 
+    $grouping = Queue-VortexLocalMetadataGrouping `
+        -Manifest $manifest `
+        -ModRoot $ModRoot `
+        -StagedModId $variantFolderName `
+        -StagedPath $targetRoot `
+        -VortexModsRoot $resolvedVortexModsRoot `
+        -BridgeRoot $VortexMetadataBridgeRoot
+
     [pscustomobject]@{
         StagedId = $variantFolderName
         PackageName = $packageName
@@ -145,6 +155,8 @@ try {
         Version = $version
         ZipPath = $PackageArchive
         VortexPath = $targetRoot
+        GroupingStatus = [string]$grouping.Status
+        GroupingRequestId = [string]$grouping.RequestId
     }
 } finally {
     if (-not $KeepScratch -and (Test-Path -LiteralPath $scratch)) {

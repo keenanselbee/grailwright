@@ -33,3 +33,27 @@ under:
 ```text
 BepInEx/plugins/ModFolder/
 ```
+
+Ordinary local stages immediately queue truthful grouping metadata for the
+Grailwright Nexus Metadata Vortex extension. Every version receives the stable
+logical filename and, when configured, the real Nexus page ID, so Vortex can
+show the separate staging folders as versions beneath one visible mod row. Local
+builds use `grailwright-local` as their source and receive no Nexus file ID.
+
+After an exact archive is published, `Publish-NexusMod.ps1` queues a
+receipt-backed promotion. The extension verifies the staged payload, imports or
+reuses the exact archive through Vortex, and upgrades that version with its real
+Nexus file ID, archive hash and size, and archive link. The folder name remains
+the readable display name plus version; grouping and Nexus source identity live
+in Vortex attributes instead of the folder name.
+
+Run `tools/Update-VortexStagedModGrouping.ps1` once to queue grouping metadata
+for existing Grailwright staging folders. Run
+`tools/Test-VortexCollectionReadiness.ps1` before updating a collection; it
+fails closed when the authored catalog is absent, an enabled Grailwright version
+is missing grouping metadata, or an enabled managed version is still a local
+test build. The extension registers new folders while Vortex is open and
+reconciles catalogued records before refreshing collection readiness. After an
+extension update, restart Vortex once. Use
+`Update-VortexStagedModGrouping.ps1 -Repair` to explicitly requeue older
+acknowledged records without removing or reinstalling any staged version.

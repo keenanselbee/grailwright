@@ -5,6 +5,7 @@ param(
     [string]$GameRoot = "",
     [string]$BepInExRoot = "",
     [string]$VortexModsRoot = "",
+    [string]$VortexMetadataBridgeRoot = "",
     [string]$DestinationDirectory = "",
     [switch]$SkipCompile,
     [switch]$StageToVortex,
@@ -500,6 +501,10 @@ if ($shouldStageToVortex) {
         ModRoot = $ResolvedModRoot
         PackageArchive = [string]$zipPath
         VortexModsRoot = $ResolvedVortexModsRoot
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($VortexMetadataBridgeRoot)) {
+        $stageArgs.VortexMetadataBridgeRoot = $VortexMetadataBridgeRoot
     }
 
     if ($KeepScratch) {

@@ -16,6 +16,9 @@ $candidateRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $repoRoot ".codex-temp\nexus-changelog-candidates")
 )
 $candidatePath = Join-Path $candidateRoot "NexusPublishFixture-1.2.0-from-1.0.0.txt"
+$receiptPath = Join-Path $repoRoot "nexus-release-receipts.local.json"
+$receiptExistedBefore = Test-Path -LiteralPath $receiptPath -PathType Leaf
+$receiptHashBefore = if ($receiptExistedBefore) { (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash } else { '' }
 
 if (-not $scratchRoot.StartsWith(
     $testsRoot,
@@ -146,7 +149,14 @@ Stale reviewed fixture entry.
     }
     Assert-Contract ($skipBuildError.Contains("Pass -ArchivePath when using -SkipBuild.")) "SkipBuild without ArchivePath was not rejected."
 
-    Write-Host "Nexus publish contracts passed: validated archive reuse, lazy candidates, and SkipBuild guard."
+    $receiptExistsAfter = Test-Path -LiteralPath $receiptPath -PathType Leaf
+    Assert-Contract ($receiptExistsAfter -eq $receiptExistedBefore) "dry-run changed release receipt store existence."
+    if ($receiptExistedBefore) {
+        $receiptHashAfter = (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash
+        Assert-Contract ($receiptHashAfter -eq $receiptHashBefore) "dry-run changed the release receipt store."
+    }
+
+    Write-Host "Nexus publish contracts passed: validated archive reuse, lazy candidates, SkipBuild guard, and no dry-run receipts."
 }
 finally {
     if (Test-Path -LiteralPath $scratchRoot) {

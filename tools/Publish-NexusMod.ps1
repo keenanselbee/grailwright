@@ -50,6 +50,7 @@ if (-not (Test-Path -LiteralPath $LockScript -PathType Leaf)) {
 
 . $LockScript
 . (Join-Path $PSScriptRoot 'NexusLiveState.ps1')
+. (Join-Path $PSScriptRoot 'NexusReleaseReceipts.ps1')
 
 function Test-JsonProperty {
     param(
@@ -745,13 +746,108 @@ function Confirm-NexusUploadedFileVersion {
         }
     }
 
+    $vortexFileId = if ((Test-JsonProperty -Object $match[0] -Name 'game_scoped_id') -and
+        [string]$match[0].game_scoped_id -match '^[1-9][0-9]*$') {
+        [string]$match[0].game_scoped_id
+    } else { '' }
+    $fileGroup = if ((Test-JsonProperty -Object $match[0] -Name 'file') -and $match[0].file -ne $null) { $match[0].file } else { $null }
+
     return [pscustomobject]@{
         Version = [string]$match[0].version
         VersionId = [string]$match[0].id
+        VortexFileId = $vortexFileId
+        UploadedAt = if (Test-JsonProperty -Object $match[0] -Name 'uploaded_at') { [string]$match[0].uploaded_at } else { '' }
+        Category = if (Test-JsonProperty -Object $match[0] -Name 'category') { [string]$match[0].category } else { '' }
+        IsPrimary = if (Test-JsonProperty -Object $match[0] -Name 'is_primary') { [bool]$match[0].is_primary } else { $false }
+        RemoteArchiveName = if (Test-JsonProperty -Object $match[0] -Name 'file_name') { [string]$match[0].file_name } else { '' }
+        FileGroupId = if ($fileGroup -ne $null -and (Test-JsonProperty -Object $fileGroup -Name 'id')) { [string]$fileGroup.id } else { '' }
+        FileGroupName = if ($fileGroup -ne $null -and (Test-JsonProperty -Object $fileGroup -Name 'name')) { [string]$fileGroup.name } else { '' }
         LabelMatches = [string]$match[0].version -eq $ExpectedVersion
         FileDescriptionVerified = $descriptionVerified
         FileDescriptionMismatch = $descriptionMismatch
         ReadVerified = $true
+    }
+}
+
+function New-NexusReleaseReceiptRecord {
+    param(
+        [object]$Manifest,
+        [System.IO.FileInfo]$Archive,
+        [string]$ArchiveMd5,
+        [string]$ArchiveSha256,
+        [object]$CreatedVersion,
+        [string]$CreatedVersionId,
+        [AllowNull()][object]$VerifiedUpload,
+        [string]$RecordedAt,
+        [ValidateSet('not-requested', 'pending', 'posted', 'failed')]
+        [string]$ChangelogStatus,
+        [string]$ChangelogError = ''
+    )
+
+    $createdFile = if ($CreatedVersion -ne $null -and $CreatedVersion.data -ne $null -and
+        (Test-JsonProperty -Object $CreatedVersion.data -Name 'file') -and $CreatedVersion.data.file -ne $null) {
+        $CreatedVersion.data.file
+    } else { $null }
+    $fileGroupId = if ($VerifiedUpload -ne $null -and -not [string]::IsNullOrWhiteSpace([string]$VerifiedUpload.FileGroupId)) {
+        [string]$VerifiedUpload.FileGroupId
+    } elseif ($createdFile -ne $null -and (Test-JsonProperty -Object $createdFile -Name 'id')) {
+        [string]$createdFile.id
+    } else {
+        [string]$script:ModFileId
+    }
+    $fileGroupName = if ($VerifiedUpload -ne $null -and -not [string]::IsNullOrWhiteSpace([string]$VerifiedUpload.FileGroupName)) {
+        [string]$VerifiedUpload.FileGroupName
+    } elseif ($createdFile -ne $null -and (Test-JsonProperty -Object $createdFile -Name 'name')) {
+        [string]$createdFile.name
+    } else { [string]$script:FileName }
+    $vortexFileId = if ($VerifiedUpload -ne $null) { [string]$VerifiedUpload.VortexFileId } else { '' }
+    $nxmUri = if (-not [string]::IsNullOrWhiteSpace($vortexFileId)) {
+        "nxm://$($script:GameDomain)/mods/$($script:GameScopedModId)/files/$vortexFileId"
+    } else { '' }
+
+    return [pscustomobject]@{
+        receiptSchemaVersion = 1
+        key = ''
+        recordedAt = $RecordedAt
+        updatedAt = $null
+        lifecycleStatus = 'version-uploaded'
+        packageName = if ($Manifest -ne $null -and (Test-JsonProperty -Object $Manifest -Name 'packageName')) { [string]$Manifest.packageName } else { [string]$script:FileName }
+        displayName = if ($Manifest -ne $null -and (Test-JsonProperty -Object $Manifest -Name 'displayName')) { [string]$Manifest.displayName } else { [string]$script:FileName }
+        version = [string]$script:FileVersion
+        nexus = [pscustomobject]@{
+            source = 'nexus'
+            url = [string]$script:NexusUrl
+            gameDomain = [string]$script:GameDomain
+            gameScopedModId = [string]$script:GameScopedModId
+            v3ModId = [string]$script:ModId
+            fileGroupId = $fileGroupId
+            fileGroupName = $fileGroupName
+            v3VersionId = $CreatedVersionId
+            vortexFileId = $vortexFileId
+            vortexFileIdStatus = if ([string]::IsNullOrWhiteSpace($vortexFileId)) { 'pending-resolution' } else { 'resolved' }
+            nxmUri = $nxmUri
+            logicalFileName = [string]$script:FileName
+            remoteArchiveName = if ($VerifiedUpload -ne $null) { [string]$VerifiedUpload.RemoteArchiveName } else { '' }
+            uploadedAt = if ($VerifiedUpload -ne $null) { [string]$VerifiedUpload.UploadedAt } else { '' }
+            category = if ($VerifiedUpload -ne $null) { [string]$VerifiedUpload.Category } else { [string]$script:FileCategory }
+            isPrimary = if ($VerifiedUpload -ne $null) { [bool]$VerifiedUpload.IsPrimary } else { [bool]$script:PrimaryModManagerDownload }
+        }
+        archive = [pscustomobject]@{
+            fileName = $Archive.Name
+            sizeBytes = [int64]$Archive.Length
+            md5 = $ArchiveMd5
+            sha256 = $ArchiveSha256
+        }
+        changelog = [pscustomobject]@{
+            requested = [bool]$script:AddChangelog
+            status = $ChangelogStatus
+            error = $ChangelogError
+        }
+        verification = [pscustomobject]@{
+            status = if ($VerifiedUpload -ne $null) { 'exact-version-id' } else { 'verified-write-only' }
+            versionLabelMatches = if ($VerifiedUpload -ne $null) { [bool]$VerifiedUpload.LabelMatches } else { $null }
+            fileDescriptionVerified = if ($VerifiedUpload -ne $null) { [bool]$VerifiedUpload.FileDescriptionVerified } else { $null }
+        }
     }
 }
 
@@ -1239,6 +1335,8 @@ try {
     }
 
     $archiveItem = Get-Item -LiteralPath $ArchivePath
+    $archiveMd5 = (Get-FileHash -LiteralPath $archiveItem.FullName -Algorithm MD5).Hash.ToLowerInvariant()
+    $archiveSha256 = (Get-FileHash -LiteralPath $archiveItem.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     $uploadId = Send-MultipartUpload -Path $archiveItem.FullName
     Invoke-NexusApi -Method POST -Path ("/uploads/{0}/finalise" -f $uploadId) | Out-Null
     Wait-NexusUploadAvailable -UploadId $uploadId
@@ -1273,28 +1371,6 @@ try {
     $createdVersion = Invoke-NexusApi -Method POST -Path ("/mod-files/{0}/versions" -f $ModFileId) -Body $versionRequest
     $createdVersionId = Get-NexusCreatedVersionId -CreatedVersion $createdVersion
 
-    if ($AddChangelog) {
-        $changelogRequest = @{
-            version = $FileVersion
-            changelog = ($changelogEntries -join "`n")
-        }
-
-        try {
-            Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
-        }
-        catch {
-            $partialStateError = ''
-            try {
-                $partialUpdates = New-NexusUploadStateUpdates -Version $FileVersion -FileDescription $FileDescription -ObservedAt ((Get-Date).ToUniversalTime().ToString('o'))
-                Set-NexusLiveFileGroupSurfaces -RepoRoot $RepoRoot -NexusUrl $NexusUrl -GroupId $ModFileId -PackageName ([string]$manifest.packageName) -Updates $partialUpdates
-            }
-            catch {
-                $partialStateError = " Local live-state recording also failed: $($_.Exception.Message)"
-            }
-            throw "Nexus version upload succeeded for $FileVersion, but posting its changelog failed: $($_.Exception.Message). Do not retry the upload; reconcile the changelog separately.$partialStateError"
-        }
-    }
-
     $verifiedUpload = $null
     $verificationWarning = ''
     if ([string]::IsNullOrWhiteSpace($createdVersionId)) {
@@ -1309,6 +1385,9 @@ try {
             elseif ($verifiedUpload.FileDescriptionMismatch) {
                 $verificationWarning = "Nexus reread matched created version id $createdVersionId but reported a different file description."
             }
+            elseif ([string]::IsNullOrWhiteSpace([string]$verifiedUpload.VortexFileId)) {
+                $verificationWarning = "Nexus reread matched created version id $createdVersionId but did not report a positive game_scoped_id, so its Vortex file ID remains pending resolution."
+            }
         }
         catch {
             $verificationWarning = "Nexus accepted version $FileVersion (id $createdVersionId), but exact reread verification did not complete: $($_.Exception.Message)"
@@ -1317,6 +1396,75 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($verificationWarning)) {
         Write-Warning "$verificationWarning Do not retry the upload."
     }
+
+    $releaseReceipt = $null
+    $releaseReceiptPath = ''
+    if ([string]::IsNullOrWhiteSpace($createdVersionId)) {
+        Write-Warning "Nexus version $FileVersion was uploaded, but no immutable v3 version ID was returned, so a release receipt could not be recorded. Do not retry the upload."
+    }
+    else {
+        $receiptRecordedAt = (Get-Date).ToUniversalTime().ToString('o')
+        $releaseReceipt = New-NexusReleaseReceiptRecord `
+            -Manifest $manifest `
+            -Archive $archiveItem `
+            -ArchiveMd5 $archiveMd5 `
+            -ArchiveSha256 $archiveSha256 `
+            -CreatedVersion $createdVersion `
+            -CreatedVersionId $createdVersionId `
+            -VerifiedUpload $verifiedUpload `
+            -RecordedAt $receiptRecordedAt `
+            -ChangelogStatus $(if ($AddChangelog) { 'pending' } else { 'not-requested' })
+        try {
+            $releaseReceiptPath = Set-NexusReleaseReceipt -RepoRoot $RepoRoot -Receipt $releaseReceipt
+        }
+        catch {
+            throw "Nexus upload succeeded for version $FileVersion (created version id $createdVersionId), but writing its release receipt failed: $($_.Exception.Message). Do not retry the upload."
+        }
+    }
+
+    if ($AddChangelog) {
+        $changelogRequest = @{
+            version = $FileVersion
+            changelog = ($changelogEntries -join "`n")
+        }
+
+        try {
+            Invoke-NexusApi -Method POST -Path ("/mods/{0}/changelogs" -f $ModId) -Body $changelogRequest | Out-Null
+        }
+        catch {
+            $changelogError = $_.Exception.Message
+            $receiptUpdateError = ''
+            if ($releaseReceipt -ne $null) {
+                try {
+                    $releaseReceipt.changelog.status = 'failed'
+                    $releaseReceipt.changelog.error = $changelogError
+                    $releaseReceiptPath = Set-NexusReleaseReceipt -RepoRoot $RepoRoot -Receipt $releaseReceipt
+                }
+                catch {
+                    $receiptUpdateError = " Release receipt update also failed: $($_.Exception.Message)"
+                }
+            }
+            $partialStateError = ''
+            try {
+                $partialUpdates = New-NexusUploadStateUpdates -Version $FileVersion -FileDescription $FileDescription -ObservedAt ((Get-Date).ToUniversalTime().ToString('o'))
+                Set-NexusLiveFileGroupSurfaces -RepoRoot $RepoRoot -NexusUrl $NexusUrl -GroupId $ModFileId -PackageName ([string]$manifest.packageName) -Updates $partialUpdates
+            }
+            catch {
+                $partialStateError = " Local live-state recording also failed: $($_.Exception.Message)"
+            }
+            throw "Nexus version upload succeeded for $FileVersion, but posting its changelog failed: $changelogError. Do not retry the upload; reconcile the changelog separately.$receiptUpdateError$partialStateError"
+        }
+        if ($releaseReceipt -ne $null) {
+            try {
+                $releaseReceipt.changelog.status = 'posted'
+                $releaseReceiptPath = Set-NexusReleaseReceipt -RepoRoot $RepoRoot -Receipt $releaseReceipt
+            }
+            catch {
+                throw "Nexus upload and changelog succeeded for version $FileVersion (created version id $createdVersionId), but updating its release receipt failed: $($_.Exception.Message). Do not retry either remote operation."
+            }
+        }
+    }
+
     $statePackageName = if ($manifest -ne $null -and (Test-JsonProperty -Object $manifest -Name "packageName")) { [string]$manifest.packageName } else { $FileName }
     $stateObservedAt = (Get-Date).ToUniversalTime().ToString('o')
     $snapshotUpdates = New-NexusUploadStateUpdates `
@@ -1334,12 +1482,21 @@ try {
         throw "Nexus upload succeeded for version $FileVersion (created version id $createdVersionId), but writing the local live-state snapshot failed: $($_.Exception.Message). The upload was not retried."
     }
 
+    $createdFileGroupId = if ($createdVersion -ne $null -and $createdVersion.data -ne $null -and
+        (Test-JsonProperty -Object $createdVersion.data -Name 'file') -and $createdVersion.data.file -ne $null -and
+        (Test-JsonProperty -Object $createdVersion.data.file -Name 'id')) { [string]$createdVersion.data.file.id } else { "" }
     [pscustomobject]@{
         UploadedArchive = $archiveItem.FullName
+        ArchiveMd5 = $archiveMd5
+        ArchiveSha256 = $archiveSha256
         UploadId = $uploadId
         ModFileId = $ModFileId
-        CreatedFileId = if ($createdVersion.data.file -ne $null) { [string]$createdVersion.data.file.id } else { "" }
+        CreatedFileId = $createdFileGroupId
+        CreatedFileGroupId = $createdFileGroupId
         CreatedVersionId = $createdVersionId
+        VortexFileId = if ($verifiedUpload -ne $null) { [string]$verifiedUpload.VortexFileId } else { '' }
+        ReleaseReceiptPath = $releaseReceiptPath
+        ReleaseReceiptStatus = if ($releaseReceipt -eq $null) { 'not-recorded' } elseif ([string]::IsNullOrWhiteSpace([string]$releaseReceipt.nexus.vortexFileId)) { 'pending-vortex-file-id' } else { 'complete' }
         Version = $FileVersion
         ChangelogAdded = [bool]$AddChangelog
         ReadVerification = if ($verifiedUpload -ne $null) { 'exact-version-id' } else { 'verified-write-only' }

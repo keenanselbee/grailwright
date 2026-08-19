@@ -196,6 +196,23 @@ not just its label. Live-state reporting resolves each mod's current `API.txt`
 audit cache, not a replacement for the fresh remote file-version check performed
 immediately before publishing.
 
+Successful version uploads also write an ignored
+`nexus-release-receipts.local.json` store. Each receipt retains the immutable v3
+version ID, Vortex-compatible numeric file ID (`game_scoped_id`), Nexus page and
+file-group IDs, exact uploaded archive MD5/SHA-256 and byte count, upload
+metadata, and changelog outcome. Receipts are keyed by Nexus page and immutable
+v3 version ID so packages sharing a page or file group remain distinct. A
+receipt is written before an optional changelog is posted, ensuring a partial
+changelog failure still records the already-created remote version. If the
+exact reread has not exposed `game_scoped_id` yet, the receipt remains
+`pending-resolution` rather than inventing an ID. Dry runs and description-only
+updates do not create receipts.
+
+The receipts are durable local release identity for future collection tooling;
+they are separate from the freshness-oriented live-state audit cache. Keep the
+store available when cleaning `.codex-temp`, and do not hand-edit Vortex's own
+state database from it.
+
 Compare authored Nexus metadata with the latest recorded live state:
 
 ```powershell

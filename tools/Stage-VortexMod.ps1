@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][string]$PackageArchive,
     [string]$VortexModsRoot = "",
     [string]$VortexMetadataBridgeRoot = "",
+    [ValidateRange(0, 60)][int]$GroupingAcknowledgementWaitSeconds = 15,
     [switch]$KeepScratch
 )
 
@@ -146,7 +147,46 @@ try {
         -StagedModId $variantFolderName `
         -StagedPath $targetRoot `
         -VortexModsRoot $resolvedVortexModsRoot `
-        -BridgeRoot $VortexMetadataBridgeRoot
+        -BridgeRoot $VortexMetadataBridgeRoot `
+        -Repair
+
+    $groupingAcknowledgement = Wait-VortexLocalGroupingAcknowledgement `
+        -RequestId ([string]$grouping.RequestId) `
+        -BridgeRoot $VortexMetadataBridgeRoot `
+        -TimeoutSeconds $GroupingAcknowledgementWaitSeconds
+    $acknowledgement = $groupingAcknowledgement.Acknowledgement
+    $activationStatus = 'pending'
+    $activationReason = ''
+    $deploymentStatus = 'pending'
+    if ($null -ne $acknowledgement -and ($acknowledgement.PSObject.Properties.Name -contains 'activation')) {
+        $activation = $acknowledgement.activation
+        if ($null -ne $activation) {
+            if ($activation.PSObject.Properties.Name -contains 'status') {
+                $activationStatus = [string]$activation.status
+            }
+            if ($activation.PSObject.Properties.Name -contains 'reason') {
+                $activationReason = [string]$activation.reason
+            }
+            if ($activation.PSObject.Properties.Name -contains 'deployment') {
+                $deploymentStatus = [string]$activation.deployment
+            }
+        }
+    }
+
+    if ([string]$groupingAcknowledgement.Status -eq 'failed') {
+        $failure = if ($acknowledgement.PSObject.Properties.Name -contains 'error') { [string]$acknowledgement.error } else { 'unknown Vortex extension error' }
+        throw "Vortex retained the staged folder at '$targetRoot', but grouping and activation failed: $failure"
+    }
+    if ($deploymentStatus -eq 'failed') {
+        $failure = if ($acknowledgement.activation.PSObject.Properties.Name -contains 'deploymentError') { [string]$acknowledgement.activation.deploymentError } else { 'unknown deployment error' }
+        throw "Vortex switched to '$variantFolderName', but deployment failed: $failure"
+    }
+    if ([bool]$groupingAcknowledgement.TimedOut) {
+        Write-Warning "Vortex staging completed, but activation is still pending. Request $($grouping.RequestId) will remain queued until Vortex is open with Tainted Grail active."
+    }
+    elseif ($activationStatus -eq 'unchanged' -and $activationReason -notin @('already-current', 'enabled-version-not-older')) {
+        Write-Warning "Vortex grouped '$variantFolderName' but did not change the active version ($activationReason)."
+    }
 
     [pscustomobject]@{
         StagedId = $variantFolderName
@@ -157,6 +197,10 @@ try {
         VortexPath = $targetRoot
         GroupingStatus = [string]$grouping.Status
         GroupingRequestId = [string]$grouping.RequestId
+        GroupingAcknowledgementStatus = [string]$groupingAcknowledgement.Status
+        ActivationStatus = $activationStatus
+        ActivationReason = $activationReason
+        DeploymentStatus = $deploymentStatus
     }
 } finally {
     if (-not $KeepScratch -and (Test-Path -LiteralPath $scratch)) {

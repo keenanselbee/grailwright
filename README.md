@@ -149,9 +149,12 @@ This creates a readable archive and staged Vortex variant such as
 `Blood Magic Expansion 2.0.7.zip` and
 `%APPDATA%\Vortex\taintedgrailthefallofavalon\mods\Blood Magic Expansion 2.0.7`.
 The payload inside both remains the compact plugin folder, such as
-`BloodMagicExpansion`. Staging does not edit Vortex metadata, deploy, enable,
-disable, or change the active profile selection. If that exact version folder
-already exists, the script stops instead of overwriting it.
+`BloodMagicExpansion`. If the mod is already enabled, the Vortex extension
+disables its older variant, enables the newly staged version, and deploys it.
+A fully disabled mod stays disabled. If Vortex is unavailable, the fresh
+activation request remains queued and the build reports that activation is
+pending. If that exact version folder already exists, the script stops instead
+of overwriting it.
 
 For a Desktop-only zip, request the exception explicitly:
 
@@ -249,7 +252,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-VortexCollectio
 The extension reconciles every catalogued staging record before refreshing the
 readiness snapshot. To explicitly requeue versions whose older acknowledgements
 already exist, add `-Repair` to `Update-VortexStagedModGrouping.ps1`; this does
-not remove or reinstall any staged version.
+not remove or reinstall any staged version. A newly created staging folder
+always invalidates any acknowledgement from an earlier copy of that same
+version, so restaging cannot silently reuse an obsolete activation result.
 
 The bridge queue lives under
 `%APPDATA%\Vortex\grailwright-nexus-metadata`. Local grouping requests use a

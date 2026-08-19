@@ -128,6 +128,14 @@ FileName=Fixture Mod
         -BridgeRoot $bridgeRoot `
         -Repair
     Assert-Contract ($repairGrouping.Status -eq 'queued' -and (Test-Path -LiteralPath $repairGrouping.RequestPath)) 'repair did not bypass an older successful acknowledgement.'
+    Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $localAckRoot "$($repairGrouping.RequestId).json"))) 'repair retained a stale grouping acknowledgement.'
+    [System.IO.File]::WriteAllText((Join-Path $localAckRoot "$($repairGrouping.RequestId).json"), (@{
+        requestId = $repairGrouping.RequestId
+        status = 'local-grouped'
+        activation = @{ status = 'switched'; deployment = 'completed' }
+    } | ConvertTo-Json -Depth 5))
+    $observedGrouping = Wait-VortexLocalGroupingAcknowledgement -RequestId $repairGrouping.RequestId -BridgeRoot $bridgeRoot -TimeoutSeconds 0
+    Assert-Contract ($observedGrouping.Status -eq 'local-grouped' -and $observedGrouping.Acknowledgement.activation.deployment -eq 'completed') 'fresh grouping acknowledgement was not observed.'
     $catalogRecords = @(Get-ChildItem -LiteralPath (Join-Path $bridgeRoot 'catalog-records') -File -Filter '*.json')
     Assert-Contract ($catalogRecords.Count -eq 1) 'ordinary local grouping did not retain its authored catalog identity.'
     $catalogRecord = Get-Content -LiteralPath $catalogRecords[0].FullName -Raw | ConvertFrom-Json
@@ -160,13 +168,25 @@ FileName=Fixture Mod
     $localArchivePath = Join-Path $scratchRoot 'Fixture Mod 1.2.4.zip'
     Compress-Archive -LiteralPath $packageRoot -DestinationPath $localArchivePath
     $stageIntegrationRoot = Join-Path $scratchRoot 'stage-integration'
+    $stageIntegrationBridge = Join-Path $scratchRoot 'stage-integration-bridge'
+    $staleStageAckRoot = Join-Path $stageIntegrationBridge 'acknowledgements'
+    New-Item -ItemType Directory -Path $staleStageAckRoot -Force | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $staleStageAckRoot "$($localGrouping.RequestId).json"), (@{
+        requestId = $localGrouping.RequestId
+        status = 'local-grouped'
+        activation = @{ status = 'unchanged'; reason = 'group-disabled' }
+    } | ConvertTo-Json -Depth 5))
     $stageResult = & (Join-Path $PSScriptRoot 'Stage-VortexMod.ps1') `
         -ModRoot $localModRoot `
         -PackageArchive $localArchivePath `
         -VortexModsRoot $stageIntegrationRoot `
-        -VortexMetadataBridgeRoot (Join-Path $scratchRoot 'stage-integration-bridge') |
+        -VortexMetadataBridgeRoot $stageIntegrationBridge `
+        -GroupingAcknowledgementWaitSeconds 0 |
         Select-Object -Last 1
     Assert-Contract ($stageResult.GroupingStatus -eq 'queued') 'ordinary Vortex staging did not queue grouping metadata.'
+    Assert-Contract ($stageResult.GroupingAcknowledgementStatus -eq 'pending') 'ordinary Vortex staging reused a stale grouping acknowledgement.'
+    Assert-Contract (Test-Path -LiteralPath (Join-Path $stageIntegrationBridge "grouping-requests\$($stageResult.GroupingRequestId).json") -PathType Leaf) 'same-version restage did not retain a fresh grouping request.'
+    Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $staleStageAckRoot "$($stageResult.GroupingRequestId).json"))) 'same-version restage retained its stale activation result.'
     Assert-Contract (Test-Path -LiteralPath $stageResult.VortexPath -PathType Container) 'ordinary Vortex staging did not retain its version folder.'
 
     [System.IO.File]::WriteAllText((Join-Path $stagedPath 'FixtureMod\README.txt'), 'changed-after-upload')

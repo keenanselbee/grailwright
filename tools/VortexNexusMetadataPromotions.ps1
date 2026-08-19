@@ -374,8 +374,12 @@ function Queue-VortexLocalMetadataGrouping {
     if (-not $Repair -and (Test-Path -LiteralPath $ackPath -PathType Leaf)) {
         $acknowledgement = Get-Content -LiteralPath $ackPath -Raw | ConvertFrom-Json
         if ([string]$acknowledgement.status -in @('completed', 'local-grouped')) {
-            return [pscustomobject]@{ Status = 'completed'; RequestId = $requestId; RequestPath = ''; StagedPath = $resolvedStagedPath }
+            return [pscustomobject]@{ Status = 'completed'; RequestId = $requestId; RequestPath = ''; AcknowledgementPath = $ackPath; StagedPath = $resolvedStagedPath }
         }
+    }
+
+    if ($Repair -and (Test-Path -LiteralPath $ackPath -PathType Leaf)) {
+        Remove-Item -LiteralPath $ackPath -Force
     }
 
     $request = [pscustomobject]@{
@@ -399,7 +403,52 @@ function Queue-VortexLocalMetadataGrouping {
 
     $requestPath = Join-Path $requestsRoot "$requestId.json"
     Write-VortexPromotionJsonAtomic -Path $requestPath -Value $request
-    return [pscustomobject]@{ Status = 'queued'; RequestId = $requestId; RequestPath = $requestPath; StagedPath = $resolvedStagedPath }
+    return [pscustomobject]@{ Status = 'queued'; RequestId = $requestId; RequestPath = $requestPath; AcknowledgementPath = $ackPath; StagedPath = $resolvedStagedPath }
+}
+
+function Wait-VortexLocalGroupingAcknowledgement {
+    param(
+        [Parameter(Mandatory = $true)][string]$RequestId,
+        [string]$BridgeRoot = '',
+        [ValidateRange(0, 60)][int]$TimeoutSeconds = 15,
+        [ValidateRange(50, 5000)][int]$PollMilliseconds = 250
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestId)) {
+        throw 'A Vortex local grouping request ID is required.'
+    }
+
+    $resolvedBridgeRoot = Get-VortexNexusMetadataBridgeRoot -Candidate $BridgeRoot
+    $ackPath = Join-Path (Join-Path $resolvedBridgeRoot 'acknowledgements') "$RequestId.json"
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        if (Test-Path -LiteralPath $ackPath -PathType Leaf) {
+            $acknowledgement = Get-Content -LiteralPath $ackPath -Raw | ConvertFrom-Json
+            if (($acknowledgement.PSObject.Properties.Name -contains 'requestId') -and
+                -not [string]::Equals([string]$acknowledgement.requestId, $RequestId, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Vortex grouping acknowledgement '$ackPath' does not match request '$RequestId'."
+            }
+
+            return [pscustomobject]@{
+                Status = [string]$acknowledgement.status
+                TimedOut = $false
+                AcknowledgementPath = $ackPath
+                Acknowledgement = $acknowledgement
+            }
+        }
+
+        if ([DateTime]::UtcNow -ge $deadline) {
+            break
+        }
+        Start-Sleep -Milliseconds $PollMilliseconds
+    } while ($true)
+
+    return [pscustomobject]@{
+        Status = 'pending'
+        TimedOut = $true
+        AcknowledgementPath = $ackPath
+        Acknowledgement = $null
+    }
 }
 
 function Queue-VortexLocalGroupingCatalog {

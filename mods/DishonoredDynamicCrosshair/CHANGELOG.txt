@@ -1,3 +1,67 @@
+Version 3.5.0
+Made Soul and Service Swarm prompts use the dedicated Attack command icon instead of the fallback interaction hand.
+Kept ConfigSchemaVersion at 18 because this integration classification fix changes no setting or default migration.
+
+Version 3.4.9
+Replaced PlayerAttacksOnly with IncludeSummonAttacks, enabled by default, so both hero and hero-owned summon attacks can produce hit markers.
+Gave hero attacks priority over summon attacks: hero markers replace summon markers immediately, while summon markers cannot interrupt an active hero marker. The latest hit still wins within the same source priority.
+Advanced ConfigSchemaVersion from 17 to 18 because the hit-source toggle was renamed and inverted, and summon feedback is now included by default; compatible customized visual values remain recoverable.
+
+Version 3.4.8
+Added PlayerAttacksOnly, enabled by default, so Steel and Bone hit markers ignore damage dealt by hero-owned summons while retaining the option to show all outgoing hero-side damage.
+Updated the Steel and Bone integration to hit-feedback API v6 for authoritative direct-player attribution on regular hits, damage-over-time ticks, and killing blows.
+Kept ConfigSchemaVersion at 17 because the new setting is additive and existing configs receive its current default automatically.
+
+Version 3.4.7
+Made Soul and Service Attack and individual Hold/Follow icon pulses last 0.675 seconds while Hold All, Follow All, and Behavior pulses last 1.35 seconds.
+Advanced the Soul and Service integration to API v5 so Dishonored follows the authoritative duration published with each command.
+Kept ConfigSchemaVersion at 17 because this integration timing change adds no setting or default migration.
+
+Version 3.4.6
+Added interaction_command_behavior.png for Soul and Service behavior changes.
+Behavior completion text uses the behavior hand immediately, and successful Guard, Bulwark, or Hunt changes pulse it for 0.675 seconds through Soul and Service API v4.
+Kept ConfigSchemaVersion at 17 because this is an optional integration asset and presentation change with no setting or default migration.
+
+Version 3.4.5
+Shifted Soul and Service quality reticles from bright green to #22A886 Necrotic green, preserving their previous intensity while moving their hue toward #25B792.
+Kept ConfigSchemaVersion at 17 because this changes a fixed integration color and no setting or default migration.
+
+Version 3.4.4
+Lengthened every Soul and Service Attack, Hold, Follow, Hold All, and Follow All icon pulse from 0.45 to 0.675 seconds without changing command input timing.
+Kept ConfigSchemaVersion at 17 because this is a presentation timing change with no setting or default migration.
+
+Version 3.4.3
+Replaced the generic Soul and Service command icon with dedicated Attack, Hold, and Follow hand signals.
+Added 0.45-second semantic command pulses, including centered Hold All and Follow All feedback when no summon is under the crosshair.
+Advanced the Soul and Service integration to API v3 and kept close-range formation interactions visually authoritative over Soul Salvage quality reticles.
+Kept ConfigSchemaVersion at 17 because this is an asset and integration presentation change with no setting or default migration.
+
+Version 3.4.1
+Added a dedicated command interaction icon for Soul and Service attack orders.
+Kept ConfigSchemaVersion at 17 because this is an optional integration and presentation change with no setting or default migration.
+
+Version 3.4.0
+Suppressed the ordinary center dot while Blood Magic Expansion or Soul and Service corpse-quality reticles are active.
+Kept ConfigSchemaVersion at 17 because this is a presentation-only behavior change with no setting or default migration.
+
+Version 3.3.9
+Updated the integration handshake for Soul and Service API v2 so its green quality reticles activate correctly.
+
+Version 3.3.8
+Made the periodic context refresh poll Soul and Service directly so corpse reticles appear and update without requiring an unrelated living-target UI event.
+
+Version 3.3.7
+Expanded the packaged Soul and Service documentation and automated contracts for the spell-gated corpse and owned-summon quality reticles.
+
+Version 3.3.6
+Added automatic Soul and Service quality reticles for eligible corpses and active owned summons while Soul Salvage is equipped.
+Reused the established Meager, Worthy, Potent, and Prime Blood Magic silhouettes with a bright #38A840 green matched to the perceptual lightness of the Blood Magic red.
+Kept ConfigSchemaVersion at 17 because the optional integration adds no setting or default migration.
+
+Version 3.3.5
+Replaced the general interaction hand icon with a cleaner open-hand silhouette that remains readable at reticle scale.
+Kept ConfigSchemaVersion at 17 because this is an asset-only presentation change.
+
 Version 3.3.4
 Added optional Versatile Weapons awareness so equipment in a stowed hand no longer selects the Bow or Magic reticle context.
 Made a one-handed melee weapon with stowed offhand magic return immediately to the General reticle and its default melee scale, with symmetric handling for a stowed main hand.

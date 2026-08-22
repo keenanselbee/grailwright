@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.3.4
+Version 3.5.0
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.3.4
+  Version: 3.5.0
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -64,9 +64,8 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.3.4 uses ConfigSchemaVersion 17. The schema last changed because
-SizeMode now defaults to Reference1440p instead of ScreenPixels. Compatible
-customized visual values remain recoverable across the reset.
+Version 3.5.0 uses ConfigSchemaVersion 18. This release changes no stored
+setting, so existing version-18 configurations remain current.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -127,6 +126,7 @@ Blood Magic
 
 Steel and Bone Hit Markers
   Enabled
+  IncludeSummonAttacks
   KillingBlowOverlaysEnabled
   SizeMultiplier
   DamageOverTimeSizeMultiplier
@@ -164,6 +164,9 @@ Contexts
 Context priority is BloodMagic corpse override, Bow, Magic, then General.
 Steel and Bone hit markers temporarily replace the outer context reticle but
 render in a dedicated layer above the center dot or crouch-awareness eye.
+IncludeSummonAttacks defaults to true. Summon markers cannot replace an active
+hero marker, while hero markers always replace summon markers. Disable it to
+show feedback only for the hero's own attacks.
 Routine interaction icons render above the reticle and awareness eye but below
 hit markers. Hit feedback temporarily suppresses a routine interaction icon.
 Ambush Integrity's backstab-ready state adds its own topmost overlay above the
@@ -184,6 +187,8 @@ ShowCenterDot defaults to true. General, Bow, Magic, and BloodMagic all use
 dot.png at the base ReticleSizePixels size before context multipliers, while
 still following the selected SizeMode and reference-height scaling. Bow,
 Magic, Blood Magic, and corpse-quality multipliers do not change the dot.
+Blood Magic Expansion and Soul and Service quality reticles suppress the
+ordinary dot so their corpse silhouettes remain clear.
 While the custom crouch-awareness eye is
 active, frames 0 and 1 remain dotless; from frame 2 through frame 10 the shared
 dot becomes the eye's pupil even when ShowCenterDot is false. The pupil uses
@@ -199,8 +204,13 @@ Interaction Icons
 Interaction icons are enabled by default and follow the exact action selected
 by the game's interaction HUD. Mining, lumbering, fishing, digging, reading,
 talking, resting in a bed or bedroll, mounting, and using a campfire or bonfire
-have dedicated PNGs. Items, containers, doors, gathering, searching, and other
-ordinary or unknown interactions use interaction_hand.png.
+have dedicated PNGs. Soul and Service commands use
+interaction_command_attack.png, interaction_command_hold.png,
+interaction_command_follow.png, or interaction_command_behavior.png. Attack and
+Swarm share the attack icon. Attack, Swarm, and individual Hold/Follow pulse for
+0.675 seconds. Hold All, Follow All, and Behavior
+pulse for 1.35 seconds. Items, containers, doors, gathering, searching, and
+other ordinary or unknown interactions use interaction_hand.png.
 While a corpse, chest, or other container's quick-loot panel is open, a
 non-empty container uses the hand icon and an empty container uses no routine
 interaction icon.
@@ -336,9 +346,12 @@ without mipmaps.
 Steel and Bone Hit Markers
 --------------------------
 
-When Steel and Bone 3.3.9 or newer is installed, successful outgoing player
+When Steel and Bone 3.9.4 or newer is installed, successful outgoing hero-side
 damage can temporarily replace the outer context reticle with contextual hit
-feedback. Its dedicated layer stays above the center dot or stealth eye.
+feedback. IncludeSummonAttacks defaults to true. Summon feedback remains lower
+priority and cannot replace an active hero marker; hero feedback always replaces
+a summon marker. Disable it to show only the hero's own attacks. The dedicated
+layer stays above the center dot or stealth eye.
 Dishonored Dynamic Crosshair keeps its existing target colors and reticle
 behavior unchanged when Steel and Bone is absent.
 
@@ -377,8 +390,10 @@ KillingBlowOverlaysEnabled:
   hitmarker_killingblow_1_overlay.png
 
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
-All marker layers use Steel and Bone's final damage-number color. A new hit
-immediately replaces the active marker and restarts its timer. Missing
+All marker layers use Steel and Bone's final damage-number color. The latest hit
+wins within the same source priority and restarts the timer. Hero hits replace
+summon markers immediately, while summon hits wait for an active hero marker to
+finish. Missing
 numbered frames fall back to neutral custom_reticle.png; missing overlays
 are simply skipped. All numbered frames and overlays hot reload like the
 normal reticle assets.
@@ -420,6 +435,16 @@ The quality curve intentionally keeps weak corpses near normal Magic size and
 allows strong corpses to grow toward the maximum. The dead zone and curve are
 internal tuning values in 2.8.3, not user-facing config options.
 
+Soul and Service
+----------------
+
+When Soul Salvage is equipped, eligible corpses and active owned summons use
+the same Meager, Worthy, Potent, and Prime quality silhouettes as Blood Magic.
+They are tinted #22A886 Necrotic green, matched to the perceptual brightness of the
+default Blood Magic red, and use the established quality scale. Soul and
+Service owns eligibility and quality; no reticle is shown when another spell
+is equipped.
+
 Crouch Indicator
 ----------------
 
@@ -458,9 +483,15 @@ blood-magic corpse reticle feedback through
 `BloodMagicExpansion.BloodMagicApi` v9.
 Older BloodMagicApi versions are not supported.
 
-Steel and Bone 3.3.9 or newer is supported for optional contextual hit-marker
+Soul and Service is supported through `SoulAndService.SoulAndServiceApi` v5 for
+automatic green quality reticles over Soul Salvage corpses and active owned
+summons. Attack, Swarm, Hold, and Follow interactions use their matching command icons, and
+successful commands pulse the matching icon for the duration published by Soul
+and Service.
+
+Steel and Bone 3.9.4 or newer is supported for optional contextual hit-marker
 and corpse-tier killing-blow feedback through
-`SteelAndBone.SteelAndBoneHitFeedbackApi` v5. API v4 is not supported. Damage
+`SteelAndBone.SteelAndBoneHitFeedbackApi` v6. Older API versions are not supported. Damage
 numbers may be disabled in Steel and Bone without disabling the hit markers.
 
 Versatile Weapons - Dynamic Grip is supported through its optional

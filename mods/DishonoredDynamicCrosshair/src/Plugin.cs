@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.3.4.0")]
-[assembly: AssemblyFileVersion("3.3.4.0")]
+[assembly: AssemblyVersion("3.5.0.0")]
+[assembly: AssemblyFileVersion("3.5.0.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -107,6 +107,10 @@ namespace DishonoredDynamicCrosshair
         Digging,
         Read,
         Talk,
+        Attack,
+        Hold,
+        Follow,
+        Behavior,
         Rest,
         Mount,
         Campfire
@@ -115,14 +119,15 @@ namespace DishonoredDynamicCrosshair
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("ks.tgfoa.soul-and-service", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.ambush-integrity", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class DishonoredDynamicCrosshairPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.3.4";
-        private const int ConfigSchemaVersion = 17;
+        public const string PluginVersion = "3.5.0";
+        private const int ConfigSchemaVersion = 18;
         private const float ReferenceScreenHeight = 1440f;
 
         private const int CoreSectionOrder = 0;
@@ -144,6 +149,11 @@ namespace DishonoredDynamicCrosshair
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicExpansionApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
+        private const string SoulAndServicePluginGuid =
+            "ks.tgfoa.soul-and-service";
+        private const string SoulAndServiceApiTypeName =
+            "SoulAndService.SoulAndServiceApi";
+        private const string SoulSalvageReticleColor = "#22A886FF";
         private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
         private const string SteelAndBoneHitFeedbackApiTypeName =
             "SteelAndBone.SteelAndBoneHitFeedbackApi";
@@ -158,6 +168,7 @@ namespace DishonoredDynamicCrosshair
         private const float HitMarkerFadeFraction = 0.25f;
         private const float HitMarkerInitialScale = 1.12f;
         private const float BackstabUnderlyingOpacityMultiplier = 0.5f;
+        private const float DefaultSummonCommandPulseSeconds = 0.675f;
         private const int StealthEyeFrameCount = 11;
 
         internal static DishonoredDynamicCrosshairPlugin Instance { get; private set; }
@@ -191,6 +202,7 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<bool> _hideBowReticle;
         private ConfigEntry<bool> _hideItemSpecificReticles;
         private ConfigEntry<bool> _steelAndBoneHitMarkersEnabled;
+        private ConfigEntry<bool> _includeSummonAttacks;
         private ConfigEntry<bool> _killingBlowOverlaysEnabled;
         private ConfigEntry<float> _hitMarkerSizeMultiplier;
         private ConfigEntry<float> _hitMarkerDamageOverTimeSizeMultiplier;
@@ -246,6 +258,10 @@ namespace DishonoredDynamicCrosshair
                     { InteractionIconKind.Digging, new ReticleAsset() },
                     { InteractionIconKind.Read, new ReticleAsset() },
                     { InteractionIconKind.Talk, new ReticleAsset() },
+                    { InteractionIconKind.Attack, new ReticleAsset() },
+                    { InteractionIconKind.Hold, new ReticleAsset() },
+                    { InteractionIconKind.Follow, new ReticleAsset() },
+                    { InteractionIconKind.Behavior, new ReticleAsset() },
                     { InteractionIconKind.Rest, new ReticleAsset() },
                     { InteractionIconKind.Mount, new ReticleAsset() },
                     { InteractionIconKind.Campfire, new ReticleAsset() }
@@ -298,6 +314,13 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _bloodMagicGetCorpseStateMethod;
         private MethodInfo _bloodMagicGetCorpseQualityMethod;
         private MethodInfo _bloodMagicGetCorpseQualityTierMethod;
+        private MethodInfo _soulAndServiceGetTargetStateMethod;
+        private MethodInfo _soulAndServiceGetTargetQualityMethod;
+        private MethodInfo _soulAndServiceGetTargetQualityTierMethod;
+        private MethodInfo _soulAndServiceGetFocusedCommandStateMethod;
+        private MethodInfo _soulAndServiceGetLastCommandStateMethod;
+        private MethodInfo _soulAndServiceGetCommandSequenceMethod;
+        private MethodInfo _soulAndServiceGetCommandPulseSecondsMethod;
         private MethodInfo _refreshCrosshairMethod;
         private MethodInfo _targetChangedMethod;
         private MethodInfo _loadImageMethod;
@@ -356,6 +379,9 @@ namespace DishonoredDynamicCrosshair
         private float _nextTargetRefreshTime;
         private float _nextBloodMagicCheckTime;
         private float _nextBloodMagicApiResolveTime;
+        private float _nextSoulAndServiceCheckTime;
+        private float _nextSoulAndServiceCommandCheckTime;
+        private float _nextSoulAndServiceApiResolveTime;
         private float _nextSteelAndBoneApiResolveTime;
         private float _lastCanvasScaleFactor = -1f;
         private int _lastScreenWidth = -1;
@@ -379,6 +405,19 @@ namespace DishonoredDynamicCrosshair
         private float _nextBloodMagicScaleDiagnosticLogTime;
         private bool _bloodMagicApiUnavailableForSession;
         private bool _bloodMagicApiUnavailableLogged;
+        private bool _soulAndServiceApiUnavailableForSession;
+        private bool _soulAndServiceApiFailureLogged;
+        private bool _lastSoulSalvageTargetActive;
+        private bool _currentSoulSalvageTargetActive;
+        private float _lastSoulSalvageQuality01 = 0.5f;
+        private float _currentSoulSalvageQuality01 = 0.5f;
+        private int _lastSoulSalvageQualityTier;
+        private int _currentSoulSalvageQualityTier;
+        private int _lastSoulAndServiceCommandSequence = -1;
+        private bool _summonCommandPulseActive;
+        private InteractionIconKind _summonCommandPulseKind;
+        private float _summonCommandPulseStartedAt;
+        private float _summonCommandPulseEndsAt;
         private bool _steelAndBoneApiUnavailableForSession;
         private bool _steelAndBoneApiFailureLogged;
         private bool _ambushIntegrityApiUnavailableForSession;
@@ -406,6 +445,7 @@ namespace DishonoredDynamicCrosshair
         private bool _activeHitMarkerWeakSpot;
         private bool _activeHitMarkerCritical;
         private bool _activeHitMarkerDamageOverTime;
+        private bool _activeHitMarkerPlayerAttack;
         private int _activeKillingBlowTier;
         private Color _activeHitMarkerColor = Color.white;
         private float _activeHitMarkerStartedAt;
@@ -574,20 +614,27 @@ namespace DishonoredDynamicCrosshair
                 ConfigUi(
                     "Temporarily replace the current reticle with Steel and Bone hit feedback when Steel and Bone is installed.",
                     "Steel and Bone Hit Markers", "Enabled", HitMarkersSectionOrder, 0));
+            _includeSummonAttacks = Config.Bind(
+                "Steel and Bone Hit Markers",
+                "IncludeSummonAttacks",
+                true,
+                ConfigUi(
+                    "Show hit markers for hero-owned summon attacks at lower priority than the hero's own attacks.",
+                    "Steel and Bone Hit Markers", "Include Summon Attacks", HitMarkersSectionOrder, 10));
             _killingBlowOverlaysEnabled = Config.Bind(
                 "Steel and Bone Hit Markers",
                 "KillingBlowOverlaysEnabled",
                 true,
                 ConfigUi(
                     "Show the tier-specific Steel and Bone killing-blow overlay when its PNG asset is available.",
-                    "Steel and Bone Hit Markers", "Killing Blow Overlays Enabled", HitMarkersSectionOrder, 10));
+                    "Steel and Bone Hit Markers", "Killing Blow Overlays Enabled", HitMarkersSectionOrder, 20));
             _hitMarkerSizeMultiplier = Config.Bind(
                 "Steel and Bone Hit Markers",
                 "SizeMultiplier",
                 1.15f,
                 ConfigUi(
                     "Hit-marker size relative to ReticleSizePixels. Bow, Magic, Blood Magic, and corpse-quality scales do not affect it.",
-                    "Steel and Bone Hit Markers", "Size Multiplier", HitMarkersSectionOrder, 20,
+                    "Steel and Bone Hit Markers", "Size Multiplier", HitMarkersSectionOrder, 30,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _hitMarkerDamageOverTimeSizeMultiplier = Config.Bind(
                 "Steel and Bone Hit Markers",
@@ -595,7 +642,7 @@ namespace DishonoredDynamicCrosshair
                 1.1f,
                 ConfigUi(
                     "Damage-over-time hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for Bleed, Poison, Burn, and Breath ticks.",
-                    "Steel and Bone Hit Markers", "Damage Over Time Size Multiplier", HitMarkersSectionOrder, 30,
+                    "Steel and Bone Hit Markers", "Damage Over Time Size Multiplier", HitMarkersSectionOrder, 40,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _killingBlowSizeMultiplier = Config.Bind(
                 "Steel and Bone Hit Markers",
@@ -603,7 +650,7 @@ namespace DishonoredDynamicCrosshair
                 1.3f,
                 ConfigUi(
                     "Killing-blow hit-marker size relative to ReticleSizePixels. This replaces SizeMultiplier for the complete killing-blow marker composition.",
-                    "Steel and Bone Hit Markers", "Killing Blow Size Multiplier", HitMarkersSectionOrder, 40,
+                    "Steel and Bone Hit Markers", "Killing Blow Size Multiplier", HitMarkersSectionOrder, 50,
                     new AcceptableValueRange<float>(0.5f, 3f)));
             _hitMarkerDurationMultiplier = Config.Bind(
                 "Steel and Bone Hit Markers",
@@ -611,7 +658,7 @@ namespace DishonoredDynamicCrosshair
                 1f,
                 ConfigUi(
                     "Multiplier applied to Steel and Bone's final damage-number duration for each hit marker.",
-                    "Steel and Bone Hit Markers", "Duration Multiplier", HitMarkersSectionOrder, 50,
+                    "Steel and Bone Hit Markers", "Duration Multiplier", HitMarkersSectionOrder, 60,
                     new AcceptableValueRange<float>(0.1f, 2f)));
             _killingBlowDurationMultiplier = Config.Bind(
                 "Steel and Bone Hit Markers",
@@ -619,7 +666,7 @@ namespace DishonoredDynamicCrosshair
                 1.5f,
                 ConfigUi(
                     "Additional multiplier applied to the normal hit-marker duration for killing blows.",
-                    "Steel and Bone Hit Markers", "Killing Blow Duration Multiplier", HitMarkersSectionOrder, 60,
+                    "Steel and Bone Hit Markers", "Killing Blow Duration Multiplier", HitMarkersSectionOrder, 70,
                     new AcceptableValueRange<float>(0.1f, 3f)));
 
             _ambushIntegrityBackstabOverlayEnabled = Config.Bind(
@@ -2118,6 +2165,54 @@ namespace DishonoredDynamicCrosshair
             {
                 return InteractionIconKind.Talk;
             }
+            if (IsTypeOrBaseNamed(action, "SummonCommandAction"))
+            {
+                object actionName = ReadReflectedProperty(
+                    action,
+                    "DefaultActionName");
+                if (String.Equals(
+                        actionName as string,
+                        "Attack",
+                        StringComparison.OrdinalIgnoreCase)
+                    || String.Equals(
+                        actionName as string,
+                        "Swarm",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return InteractionIconKind.Attack;
+                }
+                if (String.Equals(
+                        actionName as string,
+                        "Hold",
+                        StringComparison.OrdinalIgnoreCase)
+                    || String.Equals(
+                        actionName as string,
+                        "Hold All",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return InteractionIconKind.Hold;
+                }
+                if (String.Equals(
+                        actionName as string,
+                        "Follow",
+                        StringComparison.OrdinalIgnoreCase)
+                    || String.Equals(
+                        actionName as string,
+                        "Follow All",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return InteractionIconKind.Follow;
+                }
+                string commandText = actionName as string;
+                if (!string.IsNullOrEmpty(commandText)
+                    && commandText.StartsWith(
+                        "Behavior:",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return InteractionIconKind.Behavior;
+                }
+                return InteractionIconKind.Hand;
+            }
             if (IsTypeOrBaseNamed(action, "BedElement"))
             {
                 return InteractionIconKind.Rest;
@@ -2643,9 +2738,16 @@ namespace DishonoredDynamicCrosshair
                 _currentBackstabReady = false;
                 _backstabPresentationActive = false;
                 _interactionPresentationActive = false;
+                _summonCommandPulseActive = false;
+                _summonCommandPulseKind = InteractionIconKind.None;
                 _lastBloodMagicCorpseActive = false;
                 _lastBloodMagicCorpseState = 0;
                 _lastBloodMagicCorpseQualityTier = 0;
+                _lastSoulSalvageTargetActive = false;
+                _currentSoulSalvageTargetActive = false;
+                _currentSoulSalvageQuality01 = 0.5f;
+                _lastSoulSalvageQualityTier = 0;
+                _currentSoulSalvageQualityTier = 0;
                 _currentBloodMagicCorpseState = 0;
                 _currentBloodMagicCorpseQualityTier = 0;
                 ApplyCrouchIndicatorState();
@@ -2665,15 +2767,20 @@ namespace DishonoredDynamicCrosshair
             bool backstabReady = ReadAmbushIntegrityBackstabReady();
             _currentBackstabReady = backstabReady;
             _backstabPresentationActive = false;
-            bool bloodMagicActive = ReadBloodMagicCorpseActive();
-            ReticleContext displayContext = bloodMagicActive
+            bool soulSalvageActive = ReadSoulSalvageTargetActive();
+            bool bloodMagicActive = !soulSalvageActive
+                && ReadBloodMagicCorpseActive();
+            bool qualityRitualActive = soulSalvageActive || bloodMagicActive;
+            ReticleContext displayContext = qualityRitualActive
                 ? ReticleContext.BloodMagic
                 : context;
-            TargetState displayTargetState = bloodMagicActive
-                ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
-                    ? TargetState.Hostile
-                    : TargetState.Default
-                : targetState;
+            TargetState displayTargetState = soulSalvageActive
+                ? TargetState.Hostile
+                : bloodMagicActive
+                    ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
+                        ? TargetState.Hostile
+                        : TargetState.Default
+                    : targetState;
 
             _currentContext = displayContext;
             _currentTargetState = displayTargetState;
@@ -2682,6 +2789,13 @@ namespace DishonoredDynamicCrosshair
                 : 0;
             _currentBloodMagicCorpseQualityTier = bloodMagicActive
                 ? _lastBloodMagicCorpseQualityTier
+                : 0;
+            _currentSoulSalvageTargetActive = soulSalvageActive;
+            _currentSoulSalvageQuality01 = soulSalvageActive
+                ? _lastSoulSalvageQuality01
+                : 0.5f;
+            _currentSoulSalvageQualityTier = soulSalvageActive
+                ? _lastSoulSalvageQualityTier
                 : 0;
             ApplyCrouchIndicatorState();
 
@@ -2692,7 +2806,7 @@ namespace DishonoredDynamicCrosshair
 
             ContextSettings settings = SettingsFor(displayContext);
             Sprite sprite = settings.Asset.Sprite;
-            if (bloodMagicActive)
+            if (qualityRitualActive)
             {
                 sprite = ResolveBloodMagicQualitySprite(sprite);
             }
@@ -2701,10 +2815,10 @@ namespace DishonoredDynamicCrosshair
                 sprite = _general.Asset.Sprite;
             }
 
-            ReticleMode mode = bloodMagicActive
+            ReticleMode mode = qualityRitualActive
                 ? ReticleMode.AlwaysVisibleSmart
                 : ResolveMode(settings);
-            bool visible = bloodMagicActive
+            bool visible = qualityRitualActive
                 || IsVisible(mode, settings, displayTargetState);
             _backstabPresentationActive = ShouldShowBackstabReadyOverlay(
                 backstabReady,
@@ -2712,14 +2826,14 @@ namespace DishonoredDynamicCrosshair
             bool hitMarkerActive = IsHitMarkerActive();
             _interactionPresentationActive =
                 ShouldShowInteractionIcon(hitMarkerActive);
-            ContextSettings colorSettings = bloodMagicActive
+            ContextSettings colorSettings = qualityRitualActive
                 ? ColorSettingsFor(ReticleContext.Magic, _magic)
                 : ColorSettingsFor(displayContext, settings);
 
             string colorText = ColorFor(
                 colorSettings,
                 displayTargetState);
-            if (bloodMagicActive)
+            if (qualityRitualActive)
             {
                 colorText = ColorForBloodMagicCorpseState(colorText);
             }
@@ -2743,7 +2857,8 @@ namespace DishonoredDynamicCrosshair
                 displayContext,
                 visible,
                 color,
-                hitMarkerActive);
+                hitMarkerActive,
+                qualityRitualActive);
             ApplyInteractionIcon(hitMarkerActive);
             if (hitMarkerActive)
             {
@@ -2761,7 +2876,8 @@ namespace DishonoredDynamicCrosshair
             ReticleContext context,
             bool reticleVisible,
             Color reticleColor,
-            bool hitMarkerActive)
+            bool hitMarkerActive,
+            bool qualityRitualActive)
         {
             bool stealthEyeVisible = ApplyStealthEyeVisual(
                 reticleColor.a,
@@ -2783,6 +2899,7 @@ namespace DishonoredDynamicCrosshair
             bool showOrdinaryDot = _showCenterDot != null
                 && _showCenterDot.Value
                 && reticleVisible
+                && !qualityRitualActive
                 && !stealthEyeVisible
                 && !directHitMarkerVisible;
             _dotImage.sprite = dotAsset.Sprite;
@@ -2942,13 +3059,28 @@ namespace DishonoredDynamicCrosshair
             float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
                 * Mathf.Clamp(_interactionIconScale.Value, 0.1f, 3f)
                 * unitConversion;
+            float pulseScale = 1.0f;
+            if (_summonCommandPulseActive
+                && iconKind == _summonCommandPulseKind)
+            {
+                float duration = Math.Max(
+                    0.01f,
+                    _summonCommandPulseEndsAt
+                        - _summonCommandPulseStartedAt);
+                float progress = Mathf.Clamp01(
+                    (Time.unscaledTime - _summonCommandPulseStartedAt)
+                    / duration);
+                pulseScale = 1.0f
+                    + (0.20f * Mathf.Sin(progress * Mathf.PI));
+                color.a *= Mathf.Lerp(1.0f, 0.55f, progress);
+            }
 
             _interactionIconImage.sprite = sprite;
             _interactionIconImage.color = color;
             _interactionIconRect.sizeDelta = new Vector2(size, size);
             _interactionIconRect.anchoredPosition = Vector2.zero;
             _interactionIconRect.localRotation = Quaternion.identity;
-            _interactionIconRect.localScale = Vector3.one;
+            _interactionIconRect.localScale = Vector3.one * pulseScale;
             _interactionIconImage.enabled = color.a > 0f;
         }
 
@@ -2958,7 +3090,8 @@ namespace DishonoredDynamicCrosshair
             return _interactionIconsEnabled != null
                 && _interactionIconsEnabled.Value
                 && (_quickLootContainer != null
-                    || _currentInteractionView != null)
+                    || _currentInteractionView != null
+                    || _summonCommandPulseActive)
                 && iconKind != InteractionIconKind.None
                 && ResolveInteractionIconSprite(iconKind) != null
                 && !_backstabPresentationActive
@@ -2974,11 +3107,20 @@ namespace DishonoredDynamicCrosshair
                     : InteractionIconKind.None;
             }
 
+            if (_summonCommandPulseActive)
+            {
+                return _summonCommandPulseKind;
+            }
+
             return _currentInteractionIconKind;
         }
 
         private bool CurrentInteractionIsIllegal()
         {
+            if (_summonCommandPulseActive)
+            {
+                return false;
+            }
             return _quickLootContainer != null
                 ? _quickLootIsIllegal
                 : _currentInteractionIsIllegal;
@@ -3135,6 +3277,284 @@ namespace DishonoredDynamicCrosshair
             return Mathf.Clamp01(_defaultOpacity.Value);
         }
 
+        private bool ReadSoulSalvageTargetActive()
+        {
+            if (_enabled == null || !_enabled.Value)
+            {
+                _lastSoulSalvageTargetActive = false;
+                _lastSoulSalvageQuality01 = 0.5f;
+                _lastSoulSalvageQualityTier = 0;
+                return false;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _nextSoulAndServiceCheckTime)
+            {
+                return _lastSoulSalvageTargetActive;
+            }
+            _nextSoulAndServiceCheckTime = now + 0.15f;
+            _lastSoulSalvageTargetActive = QuerySoulSalvageTargetInterop();
+            return _lastSoulSalvageTargetActive;
+        }
+
+        private bool QuerySoulSalvageTargetInterop()
+        {
+            if (!ResolveSoulAndServiceApi())
+            {
+                return false;
+            }
+            try
+            {
+                int state = Convert.ToInt32(
+                    _soulAndServiceGetTargetStateMethod.Invoke(
+                        null,
+                        new object[] { true }),
+                    CultureInfo.InvariantCulture);
+                bool active = state == 1 || state == 2;
+                if (!active)
+                {
+                    _lastSoulSalvageQuality01 = 0.5f;
+                    _lastSoulSalvageQualityTier = 0;
+                    return false;
+                }
+
+                object quality = _soulAndServiceGetTargetQualityMethod.Invoke(
+                    null,
+                    null);
+                object tier = _soulAndServiceGetTargetQualityTierMethod.Invoke(
+                    null,
+                    null);
+                _lastSoulSalvageQuality01 = quality == null
+                    ? 0.5f
+                    : Mathf.Clamp01(
+                        Convert.ToSingle(quality, CultureInfo.InvariantCulture));
+                _lastSoulSalvageQualityTier = tier == null
+                    ? 0
+                    : Mathf.Clamp(
+                        Convert.ToInt32(tier, CultureInfo.InvariantCulture),
+                        0,
+                        4);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (!_soulAndServiceApiFailureLogged)
+                {
+                    _soulAndServiceApiFailureLogged = true;
+                    Logger.LogWarning(
+                        "Soul and Service quality-reticle integration failed: "
+                        + exception.GetBaseException().Message);
+                }
+                _soulAndServiceGetTargetStateMethod = null;
+                _soulAndServiceGetTargetQualityMethod = null;
+                _soulAndServiceGetTargetQualityTierMethod = null;
+                _soulAndServiceGetFocusedCommandStateMethod = null;
+                _soulAndServiceGetLastCommandStateMethod = null;
+                _soulAndServiceGetCommandSequenceMethod = null;
+                _soulAndServiceGetCommandPulseSecondsMethod = null;
+                _soulAndServiceApiUnavailableForSession = true;
+                return false;
+            }
+        }
+
+        private bool ResolveSoulAndServiceApi()
+        {
+            if (_soulAndServiceGetTargetStateMethod != null
+                && _soulAndServiceGetFocusedCommandStateMethod != null
+                && _soulAndServiceGetLastCommandStateMethod != null
+                && _soulAndServiceGetCommandSequenceMethod != null
+                && _soulAndServiceGetCommandPulseSecondsMethod != null)
+            {
+                return true;
+            }
+            if (_soulAndServiceApiUnavailableForSession)
+            {
+                return false;
+            }
+            float now = Time.unscaledTime;
+            if (now < _nextSoulAndServiceApiResolveTime)
+            {
+                return false;
+            }
+            _nextSoulAndServiceApiResolveTime = now + 0.5f;
+
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    SoulAndServicePluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                _soulAndServiceApiUnavailableForSession = true;
+                return false;
+            }
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                SoulAndServiceApiTypeName,
+                false);
+            FieldInfo version = apiType == null
+                ? null
+                : apiType.GetField(
+                    "ApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+            if (version == null
+                || !object.Equals(version.GetRawConstantValue(), 5))
+            {
+                _soulAndServiceApiUnavailableForSession = true;
+                return false;
+            }
+
+            _soulAndServiceGetTargetStateMethod = AccessTools.Method(
+                apiType,
+                "GetFocusedSoulSalvageTargetState",
+                new[] { typeof(bool) });
+            _soulAndServiceGetTargetQualityMethod = AccessTools.Method(
+                apiType,
+                "GetFocusedSoulSalvageQuality01",
+                new Type[0]);
+            _soulAndServiceGetTargetQualityTierMethod = AccessTools.Method(
+                apiType,
+                "GetFocusedSoulSalvageQualityTier",
+                new Type[0]);
+            _soulAndServiceGetFocusedCommandStateMethod = AccessTools.Method(
+                apiType,
+                "GetFocusedSummonCommandState",
+                new Type[0]);
+            _soulAndServiceGetLastCommandStateMethod = AccessTools.Method(
+                apiType,
+                "GetLastSummonCommandState",
+                new Type[0]);
+            _soulAndServiceGetCommandSequenceMethod = AccessTools.Method(
+                apiType,
+                "GetSummonCommandSequence",
+                new Type[0]);
+            _soulAndServiceGetCommandPulseSecondsMethod = AccessTools.Method(
+                apiType,
+                "GetLastSummonCommandPulseSeconds",
+                new Type[0]);
+            _soulAndServiceApiUnavailableForSession =
+                _soulAndServiceGetTargetStateMethod == null
+                || _soulAndServiceGetTargetQualityMethod == null
+                || _soulAndServiceGetTargetQualityTierMethod == null
+                || _soulAndServiceGetFocusedCommandStateMethod == null
+                || _soulAndServiceGetLastCommandStateMethod == null
+                || _soulAndServiceGetCommandSequenceMethod == null
+                || _soulAndServiceGetCommandPulseSecondsMethod == null;
+            if (!_soulAndServiceApiUnavailableForSession)
+            {
+                Logger.LogInfo(
+                    "Soul and Service quality-reticle and summon-command integration is active.");
+            }
+            return !_soulAndServiceApiUnavailableForSession;
+        }
+
+        private void UpdateSoulAndServiceCommandPresentation()
+        {
+            if (Time.unscaledTime < _nextSoulAndServiceCommandCheckTime)
+            {
+                return;
+            }
+            _nextSoulAndServiceCommandCheckTime = Time.unscaledTime + 0.05f;
+            if (!ResolveSoulAndServiceApi())
+            {
+                return;
+            }
+
+            try
+            {
+                int sequence = Convert.ToInt32(
+                    _soulAndServiceGetCommandSequenceMethod.Invoke(
+                        null,
+                        null),
+                    CultureInfo.InvariantCulture);
+                if (_lastSoulAndServiceCommandSequence < 0)
+                {
+                    _lastSoulAndServiceCommandSequence = sequence;
+                    return;
+                }
+                if (sequence == _lastSoulAndServiceCommandSequence)
+                {
+                    return;
+                }
+                _lastSoulAndServiceCommandSequence = sequence;
+
+                int state = Convert.ToInt32(
+                    _soulAndServiceGetLastCommandStateMethod.Invoke(
+                        null,
+                        null),
+                    CultureInfo.InvariantCulture);
+                InteractionIconKind kind = SummonCommandIconKind(state);
+                if (kind == InteractionIconKind.None)
+                {
+                    return;
+                }
+
+                float pulseSeconds = Mathf.Clamp(
+                    Convert.ToSingle(
+                        _soulAndServiceGetCommandPulseSecondsMethod.Invoke(
+                            null,
+                            null),
+                        CultureInfo.InvariantCulture),
+                    0.1f,
+                    5.0f);
+                _summonCommandPulseActive = true;
+                _summonCommandPulseKind = kind;
+                _summonCommandPulseStartedAt = Time.unscaledTime;
+                _summonCommandPulseEndsAt = Time.unscaledTime
+                    + (pulseSeconds > 0.0f
+                        ? pulseSeconds
+                        : DefaultSummonCommandPulseSeconds);
+                ApplyReticleState();
+            }
+            catch (Exception exception)
+            {
+                _soulAndServiceGetFocusedCommandStateMethod = null;
+                _soulAndServiceGetLastCommandStateMethod = null;
+                _soulAndServiceGetCommandSequenceMethod = null;
+                _soulAndServiceGetCommandPulseSecondsMethod = null;
+                _soulAndServiceApiUnavailableForSession = true;
+                if (!_soulAndServiceApiFailureLogged)
+                {
+                    _soulAndServiceApiFailureLogged = true;
+                    Logger.LogWarning(
+                        "Soul and Service command presentation failed: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private static InteractionIconKind SummonCommandIconKind(int state)
+        {
+            switch (state)
+            {
+                case 1:
+                    return InteractionIconKind.Attack;
+                case 2:
+                    return InteractionIconKind.Hold;
+                case 3:
+                    return InteractionIconKind.Follow;
+                case 4:
+                    return InteractionIconKind.Behavior;
+                default:
+                    return InteractionIconKind.None;
+            }
+        }
+
+        private void UpdateSummonCommandPulse()
+        {
+            if (!_summonCommandPulseActive)
+            {
+                return;
+            }
+            if (Time.unscaledTime >= _summonCommandPulseEndsAt)
+            {
+                _summonCommandPulseActive = false;
+                _summonCommandPulseKind = InteractionIconKind.None;
+                ApplyReticleState();
+                return;
+            }
+            ApplyInteractionIcon(IsHitMarkerActive());
+        }
+
         private bool ReadBloodMagicCorpseActive()
         {
             if (_enabled == null
@@ -3278,7 +3698,9 @@ namespace DishonoredDynamicCrosshair
 
             ReticleAsset asset;
             return _bloodMagicQualityAssets.TryGetValue(
-                _lastBloodMagicCorpseQualityTier,
+                _currentSoulSalvageTargetActive
+                    ? _lastSoulSalvageQualityTier
+                    : _lastBloodMagicCorpseQualityTier,
                 out asset)
                 && asset.Sprite != null
                     ? asset.Sprite
@@ -3292,7 +3714,8 @@ namespace DishonoredDynamicCrosshair
                 return 1f;
             }
 
-            if (!BloodMagicCorpseUsesQualityScale(_lastBloodMagicCorpseState))
+            if (!_currentSoulSalvageTargetActive
+                && !BloodMagicCorpseUsesQualityScale(_lastBloodMagicCorpseState))
             {
                 return 1f;
             }
@@ -3319,7 +3742,10 @@ namespace DishonoredDynamicCrosshair
             float deadZone = GetBloodMagicQualityDeadZone();
             float denominator = Mathf.Max(0.0001f, 1f - deadZone);
             float normalized = Mathf.Clamp01(
-                (_lastBloodMagicCorpseQuality01 - deadZone) / denominator);
+                ((_currentSoulSalvageTargetActive
+                    ? _lastSoulSalvageQuality01
+                    : _lastBloodMagicCorpseQuality01) - deadZone)
+                / denominator);
             return Mathf.Pow(normalized, GetBloodMagicQualityCurveExponent());
         }
 
@@ -3335,6 +3761,10 @@ namespace DishonoredDynamicCrosshair
 
         private string ColorForBloodMagicCorpseState(string fallback)
         {
+            if (_currentSoulSalvageTargetActive)
+            {
+                return SoulSalvageReticleColor;
+            }
             if (BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState))
             {
                 return _bloodMagicUsableCorpseColor == null
@@ -3607,11 +4037,11 @@ namespace DishonoredDynamicCrosshair
                     "ApiVersion",
                     BindingFlags.Public | BindingFlags.Static);
             if (apiVersionField == null
-                || !object.Equals(apiVersionField.GetRawConstantValue(), 5))
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 6))
             {
                 _steelAndBoneApiUnavailableForSession = true;
                 LogSteelAndBoneApiFailure(
-                    "Steel and Bone is loaded, but hit-feedback API v5 is unavailable.");
+                    "Steel and Bone is loaded, but hit-feedback API v6 is unavailable.");
                 return false;
             }
 
@@ -3686,13 +4116,15 @@ namespace DishonoredDynamicCrosshair
             bool critical,
             bool weakSpot,
             bool damageOverTime,
+            bool playerAttack,
             string color,
             float damageNumberDurationSeconds)
         {
             if (_enabled == null
                 || !_enabled.Value
                 || _steelAndBoneHitMarkersEnabled == null
-                || !_steelAndBoneHitMarkersEnabled.Value)
+                || !_steelAndBoneHitMarkersEnabled.Value
+                || !ShouldAcceptHitMarker(playerAttack))
             {
                 return;
             }
@@ -3713,6 +4145,7 @@ namespace DishonoredDynamicCrosshair
             _activeHitMarkerCritical = critical;
             _activeHitMarkerWeakSpot = weakSpot;
             _activeHitMarkerDamageOverTime = damageOverTime;
+            _activeHitMarkerPlayerAttack = playerAttack;
             _activeKillingBlowTier = 0;
             _activeHitMarkerColor = ParseColor(color);
             _activeHitMarkerStartedAt = Time.unscaledTime;
@@ -3729,13 +4162,15 @@ namespace DishonoredDynamicCrosshair
             bool critical,
             bool weakSpot,
             bool damageOverTime,
+            bool playerAttack,
             string color,
             float duration)
         {
             if (_enabled == null
                 || !_enabled.Value
                 || _steelAndBoneHitMarkersEnabled == null
-                || !_steelAndBoneHitMarkersEnabled.Value)
+                || !_steelAndBoneHitMarkersEnabled.Value
+                || !ShouldAcceptHitMarker(playerAttack))
             {
                 return;
             }
@@ -3754,6 +4189,7 @@ namespace DishonoredDynamicCrosshair
             _activeHitMarkerCritical = critical;
             _activeHitMarkerWeakSpot = weakSpot;
             _activeHitMarkerDamageOverTime = damageOverTime;
+            _activeHitMarkerPlayerAttack = playerAttack;
             _activeKillingBlowTier = Mathf.Clamp(tier, 0, 4);
                 _activeHitMarkerColor = new Color32(0x8C, 0x00, 0x03, 0xFF);
             _activeHitMarkerStartedAt = Time.unscaledTime;
@@ -3764,6 +4200,21 @@ namespace DishonoredDynamicCrosshair
                 * GetKillingBlowTierDurationMultiplier(_activeKillingBlowTier);
             _hitMarkerActive = true;
             ApplyReticleState();
+        }
+
+        private bool ShouldAcceptHitMarker(bool playerAttack)
+        {
+            if (!playerAttack
+                && (_includeSummonAttacks == null
+                    || !_includeSummonAttacks.Value))
+            {
+                return false;
+            }
+
+            return playerAttack
+                || !_hitMarkerActive
+                || !_activeHitMarkerPlayerAttack
+                || Time.unscaledTime >= _activeHitMarkerEndsAt;
         }
 
         private static float GetKillingBlowTierDurationMultiplier(int tier)
@@ -4908,6 +5359,14 @@ namespace DishonoredDynamicCrosshair
                     return "interaction_read.png";
                 case InteractionIconKind.Talk:
                     return "interaction_talk.png";
+                case InteractionIconKind.Attack:
+                    return "interaction_command_attack.png";
+                case InteractionIconKind.Hold:
+                    return "interaction_command_hold.png";
+                case InteractionIconKind.Follow:
+                    return "interaction_command_follow.png";
+                case InteractionIconKind.Behavior:
+                    return "interaction_command_behavior.png";
                 case InteractionIconKind.Rest:
                     return "interaction_rest.png";
                 case InteractionIconKind.Mount:
@@ -5129,6 +5588,8 @@ namespace DishonoredDynamicCrosshair
             }
 
             RefreshQuickLootState();
+            UpdateSoulAndServiceCommandPresentation();
+            UpdateSummonCommandPulse();
 
             if (_currentInteractionView == null
                 && _currentInteractionIconKind != InteractionIconKind.None)
@@ -5182,16 +5643,21 @@ namespace DishonoredDynamicCrosshair
                 }
                 ReticleContext context = ReadCurrentContext();
                 TargetState targetState = ReadCurrentTargetState();
-                bool bloodMagicActive = ReadBloodMagicCorpseActive();
-                ReticleContext displayContext = bloodMagicActive
+                bool soulSalvageActive = ReadSoulSalvageTargetActive();
+                bool bloodMagicActive = !soulSalvageActive
+                    && ReadBloodMagicCorpseActive();
+                bool qualityRitualActive = soulSalvageActive || bloodMagicActive;
+                ReticleContext displayContext = qualityRitualActive
                     ? ReticleContext.BloodMagic
                     : context;
-                TargetState displayTargetState = bloodMagicActive
-                    ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
-                        ? TargetState.Hostile
-                        : TargetState.Default
-                    : targetState;
-                float bloodMagicQualityScale = bloodMagicActive
+                TargetState displayTargetState = soulSalvageActive
+                    ? TargetState.Hostile
+                    : bloodMagicActive
+                        ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
+                            ? TargetState.Hostile
+                            : TargetState.Default
+                        : targetState;
+                float bloodMagicQualityScale = qualityRitualActive
                     ? GetBloodMagicQualityScale()
                     : 1f;
                 int bloodMagicState = bloodMagicActive
@@ -5200,9 +5666,20 @@ namespace DishonoredDynamicCrosshair
                 int bloodMagicQualityTier = bloodMagicActive
                     ? _lastBloodMagicCorpseQualityTier
                     : 0;
+                int soulSalvageQualityTier = soulSalvageActive
+                    ? _lastSoulSalvageQualityTier
+                    : 0;
+                float soulSalvageQuality01 = soulSalvageActive
+                    ? _lastSoulSalvageQuality01
+                    : 0.5f;
                 bool heroMounted = ReadHeroMounted();
                 if (displayContext != _currentContext
                     || displayTargetState != _currentTargetState
+                    || soulSalvageActive != _currentSoulSalvageTargetActive
+                    || soulSalvageQualityTier != _currentSoulSalvageQualityTier
+                    || !Mathf.Approximately(
+                        soulSalvageQuality01,
+                        _currentSoulSalvageQuality01)
                     || bloodMagicState != _currentBloodMagicCorpseState
                     || bloodMagicQualityTier != _currentBloodMagicCorpseQualityTier
                     || !Mathf.Approximately(

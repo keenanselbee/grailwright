@@ -1,6 +1,4 @@
-TargetVersion=3.3.4
-BaselineVersion=3.3.0
-Unified every General, Bow, Magic, and Blood Magic center dot and stealth-eye pupil on the shared dot artwork at a consistent context-independent size.
-Added the default Reference1440p size mode, which preserves the authored 2560x1440 presentation while scaling every crosshair layer consistently by screen height across 1080p, 4K, ultrawide, and live resolution changes.
-Added optional Versatile Weapons awareness so stowed equipment no longer keeps the Bow or Magic reticle context active.
-Made one-handed melee with a stowed magic hand return to the General reticle and default melee scale until that hand becomes active again.
+TargetVersion=3.5.0
+BaselineVersion=3.4.9
+
+Made Soul and Service Swarm prompts use the dedicated Attack command icon instead of the fallback interaction hand.

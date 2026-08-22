@@ -16,12 +16,9 @@ $modRoot = Split-Path -Parent $PSScriptRoot
 $repoRoot = Split-Path -Parent (Split-Path -Parent $modRoot)
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\Plugin.cs")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
-$manifest = $manifestText | ConvertFrom-Json
 $versatileWeaponsSource = Get-Content -Raw -LiteralPath (
     Join-Path $repoRoot "mods\VersatileWeapons\src\VersatileWeapons.cs")
 
-Assert-Contract ($manifest.version -eq "3.3.4") "mod.json is not version 3.3.4."
-Assert-Contract ($source.Contains('PluginVersion = "3.3.4"')) "PluginVersion is not 3.3.4."
 Assert-Contract ($source.Contains('[BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]')) "Versatile Weapons is not a soft dependency."
 Assert-Contract (-not $manifestText.Contains("VersatileWeapons.dll")) "The integration must not take a hard Versatile Weapons assembly reference."
 

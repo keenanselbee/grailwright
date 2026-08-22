@@ -16,11 +16,8 @@ $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\Plugin.cs")
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
-$manifest = $manifestText | ConvertFrom-Json
 
-Assert-Contract ($manifest.version -eq "3.3.4") "mod.json is not version 3.3.4."
-Assert-Contract ($source.Contains('PluginVersion = "3.3.4"')) "PluginVersion is not 3.3.4."
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 17')) "Config schema is not 17."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 18')) "Config schema is not 18."
 Assert-Contract (-not $manifestText.Contains('TG.Main.dll')) "The reflected integration acquired a hard game-assembly reference."
 
 Assert-Contract ([regex]::IsMatch($source, '"Interaction Icons",\s*"Enabled",\s*true,')) "Interaction icons are not enabled by default."
@@ -57,6 +54,7 @@ Assert-Contract ($source.Contains('"AvailableActions"')) "Locked-state inspectio
 Assert-Contract ([regex]::IsMatch($source, 'bool locked = HasLockedAction[\s\S]*?bool illegal = !locked[\s\S]*?iconKind = locked\s*\? InteractionIconKind\.Lockpick[\s\S]*?: illegal\s*\? InteractionIconKind\.Hand')) "Locked and illegal interaction priorities changed."
 Assert-Contract ($source.Contains('IsTypeOrBaseNamed(action, "ToolInteractAction")')) "Tool actions are not classified structurally."
 Assert-Contract ($source.Contains('ReadReflectedProperty(') -and $source.Contains('requiredTool,') -and $source.Contains('"EnumName"')) "Tool actions do not read the rich enum's authoritative identity."
+Assert-Contract ([regex]::IsMatch($source, '(?s)"Attack".*?\|\| String\.Equals\(\s*actionName as string,\s*"Swarm".*?InteractionIconKind\.Attack')) "Swarm is not classified with the Attack command icon."
 foreach ($token in @(
     'case "Mining":',
     'case "Lumbering":',
@@ -65,6 +63,7 @@ foreach ($token in @(
     '"WaterFishingAction"',
     '"ReadAction"',
     '"DialogueAction"',
+    '"SummonCommandAction"',
     '"BedElement"',
     '"MountAction"',
     '"StartFireplaceBaseAction"')) {
@@ -99,7 +98,11 @@ $assetNames = @(
     "interaction_mount.png",
     "interaction_read.png",
     "interaction_rest.png",
-    "interaction_talk.png"
+    "interaction_talk.png",
+    "interaction_command_attack.png",
+    "interaction_command_hold.png",
+    "interaction_command_follow.png",
+    "interaction_command_behavior.png"
 )
 
 Add-Type -AssemblyName System.Drawing

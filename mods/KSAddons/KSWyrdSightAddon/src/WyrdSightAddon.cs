@@ -12,8 +12,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Pulse-key and quest-giver companion addon for Wyrd Sight")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Wyrd Sight Addon")]
-[assembly: AssemblyVersion("1.2.7.0")]
-[assembly: AssemblyFileVersion("1.2.7.0")]
+[assembly: AssemblyVersion("1.2.8.0")]
+[assembly: AssemblyFileVersion("1.2.8.0")]
 
 namespace Keenan.TGFoA.WyrdSightAddon
 {
@@ -24,10 +24,10 @@ namespace Keenan.TGFoA.WyrdSightAddon
     {
         public const string PluginGuid = "ks.tgfoa.wyrd-sight-addon";
         public const string PluginName = "Wyrd Sight Addon";
-        public const string PluginVersion = "1.2.7";
+        public const string PluginVersion = "1.2.8";
         public const string ParentPluginGuid = "WyrdSight";
 
-        private const int ConfigSchemaVersion = 3;
+        private const int ConfigSchemaVersion = 4;
         private const int ConfigRecoveryBaselineSchema = 2;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -342,7 +342,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
             _questGiverMaxDistance = Config.Bind(
                 "Quest Givers",
                 "QuestGiverMaxDistance",
-                20f,
+                15f,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum distance in metres for drawing quest-giver outlines. Lower values reduce outline work.",
                     "Quest Givers", "Maximum Distance", 20, 20,
@@ -350,7 +350,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
             _questScanFrameBudgetMilliseconds = Config.Bind(
                 "Quest Givers",
                 "QuestScanFrameBudgetMilliseconds",
-                5,
+                1,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Target frame slice for the background story scan. Individual graph or setup operations can exceed it; lower values are usually smoother but finish more slowly.",
                     "Quest Givers", "Story Scan Frame Budget", 20, 30,
@@ -358,7 +358,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
             _questOutlineBakeFrameBudgetMilliseconds = Config.Bind(
                 "Quest Givers",
                 "QuestOutlineBakeFrameBudgetMilliseconds",
-                1.5f,
+                0.25f,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Target frame slice for preparing golden outline meshes while Wyrd Sight is active. One NPC mesh operation can exceed it.",
                     "Quest Givers", "Outline Bake Frame Budget", 20, 40,
@@ -366,7 +366,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
             _questOutlineRefreshRate = Config.Bind(
                 "Quest Givers",
                 "QuestOutlineRefreshRate",
-                30,
+                10,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum animated-pose refresh rate for golden quest-giver outlines. Lower values reduce CPU mesh-baking work without changing the render style.",
                     "Quest Givers", "Outline Refresh Rate", 20, 50,
@@ -374,7 +374,7 @@ namespace Keenan.TGFoA.WyrdSightAddon
             _questAvailabilityRefreshSeconds = Config.Bind(
                 "Quest Givers",
                 "QuestAvailabilityRefreshSeconds",
-                15f,
+                60f,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "How often quest availability is refreshed while Wyrd Sight remains continuously active. Every new pulse also requests a refresh.",
                     "Quest Givers", "Availability Refresh Interval", 20, 60,

@@ -31,7 +31,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.3.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |
 | [KS Contact Shadows Addon](mods/KSAddons/KSTGContactShadowsAddon) | 0.1.4 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Contact Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135) |
 | [KS Global Illumination Addon](mods/KSAddons/KSTGGlobalIlluminationAddon) | 0.1.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Global Illumination](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134) |
-| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
+| [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.2.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
 | [Soul and Service - Summon Overhaul](mods/SoulAndService) | 0.3.8 | Unpublished |

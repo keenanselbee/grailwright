@@ -1,3 +1,8 @@
+Version 1.2.8
+Reduced the default quest-giver outline distance from 20 to 15 metres, story-scan frame budget from 5 to 1 millisecond, outline-bake frame budget from 1.5 to 0.25 milliseconds, and animated outline refresh rate from 30 to 10 updates per second.
+Raised the continuous Wyrd Sight quest-availability refresh interval from 15 to 60 seconds; each new pulse still requests an immediate refresh.
+Advanced ConfigSchemaVersion from 3 to 4 because the quest-giver performance defaults changed. Existing configs are backed up and regenerated so untouched settings receive the lighter defaults, while compatible customized values remain eligible for conservative recovery.
+
 Version 1.2.7
 Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
 Advanced ConfigSchemaVersion from 2 to 3 because settings moved to the clean General, Pulse Timing, Quest Givers, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

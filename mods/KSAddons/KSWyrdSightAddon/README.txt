@@ -1,5 +1,5 @@
 Wyrd Sight Addon
-Version 1.2.7
+Version 1.2.8
 
 Platforms: Windows and Linux through Proton.
 
@@ -51,7 +51,7 @@ Config file: BepInEx/config/ks.tgfoa.wyrd-sight-addon.cfg
 
 Defaults:
 
-ConfigSchemaVersion = 3
+ConfigSchemaVersion = 4
 Enabled = true
 PulseDurationSeconds = 3
 PulseStateCheckIntervalSeconds = 0.25
@@ -59,11 +59,11 @@ OffRetryDelaySeconds = 0.25
 MaximumOffAttempts = 3
 HighlightQuestGivers = true
 QuestGiverMode = Balanced
-QuestGiverMaxDistance = 20
-QuestScanFrameBudgetMilliseconds = 5
-QuestOutlineBakeFrameBudgetMilliseconds = 1.5
-QuestOutlineRefreshRate = 30
-QuestAvailabilityRefreshSeconds = 15
+QuestGiverMaxDistance = 15
+QuestScanFrameBudgetMilliseconds = 1
+QuestOutlineBakeFrameBudgetMilliseconds = 0.25
+QuestOutlineRefreshRate = 10
+QuestAvailabilityRefreshSeconds = 60
 Diagnostics = false
 
 FoA Mod Manager section order:
@@ -88,9 +88,9 @@ cached outlines, and render resources. If archive parsing has already started,
 that read may finish in the background and is retained so re-enabling cannot
 start a duplicate parse.
 
-Version 1.2.7 appears as Wyrd Sight Addon in BepInEx and Configuration
+Version 1.2.8 appears as Wyrd Sight Addon in BepInEx and Configuration
 Manager while keeping the existing ks.tgfoa.wyrd-sight-addon.cfg config path.
-It uses ConfigSchemaVersion 3. Older configs are backed up and a fresh
+It uses ConfigSchemaVersion 4. Older configs are backed up and a fresh
 default config is regenerated when the schema changes.
 
 Requires BepInEx 5 Mono and Wyrd Sight 1.2.0. Quest-giver highlighting is

@@ -150,7 +150,7 @@ Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/m
 [*][b]Timed Wyrd Sight pulses:[/b] Changes the Highlight Key from a toggle into a timed pulse. Repeated presses extend the pulse, and the addon never turns off Wyrd Sight activated by something else.[/*]
 [*][b]Quest-giver highlighting:[/b] Adds optional, performance-friendly quest-giver outlines inspired by Avalon Untold, which is not required. Progression-locked offers stay hidden without treating temporary conditions as permanent blockers.[/*]
 [*][b]Adjustable behavior:[/b] Pulse duration, retry timing, quest range, and performance limits remain configurable. For a clean pulse, use [b]Enable Glow Shape = true[/b] and [b]Enable Wyrd Sight Particles = false[/b] in Wyrd Sight.[/*]
-[*][b]Smooth background processing:[/b] Processes quest data in the background and spreads scans and outline updates out to reduce stutter. Quest availability refreshes with each pulse and every 15 seconds while Wyrd Sight stays active.[/*]
+[*][b]Smooth background processing:[/b] Processes quest data in the background and spreads scans and outline updates out to reduce stutter. Quest availability refreshes with each pulse and every 60 seconds while Wyrd Sight stays active.[/*]
 [*][b]Clean disable and re-enable:[/b] Turning off Enabled or HighlightQuestGivers immediately removes its outlines and rendering resources. Cached quest data can be reused if the feature is enabled again.[/*]
 [/list]
 

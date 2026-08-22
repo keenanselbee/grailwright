@@ -1,10 +1,9 @@
 TargetVersion=0.1.8
-BaselineVersion=0.1.2
-Expanded opt-in diagnostics with decision-level attack classifications, bypass reasons, opportunity and target transitions, witness evidence, awareness changes, and Grail Floating Text delivery results without per-frame logging.
-Removed Prepared Opener and its scripted boss/miniboss combat hook to keep the mod focused on valid native backstab opportunities and isolated executions.
-Reset the config schema because the obsolete Prepared Opener settings were removed; compatible durable settings are restored automatically.
-Added Footstep Awareness so normal walking and running preserve native modifiers while scaling noise strength by armor tier: 1.2x Light or no armor, 1.6x Medium, and 2.0x Heavy or Overload.
-Kept crouched armor noise and native AI behavior unchanged, and made Steel and Bone's independent difficulty-based hearing-range scaling compose cleanly.
-Made committed-ambush damage stacking deterministic with Steel and Bone by applying the preserved sneak bonus before Steel and Bone's final player-damage and material multipliers.
-Removed numeric prefixes from the config sections and added explicit semantic option ordering, with Diagnostics penultimate and Import Previous Settings last.
-Advanced ConfigSchemaVersion from 2 to 3 because settings moved to clean task-oriented section names; compatible customized settings remain eligible for conservative recovery.
+BaselineVersion=0.0.1
+Added Committed Ambush, which briefly preserves sneak eligibility against the exact target acquired through a valid native melee backstab opportunity.
+Expanded native backstab reach and added a short same-target availability grace window.
+Added conservative Clean Executions that silence the victim's immediate hostile-action broadcast only when no nearby friendly witness is found.
+Added optional Backstab Ready crosshair support and transition-based Searching, Detected, and Hidden Again floating-text feedback.
+Added Footstep Awareness: ordinary walking and running retain native modifiers while Light or unarmored, Medium, and Heavy or Overload footsteps scale to 1.2x, 1.6x, and 2.0x strength. Crouched movement and native AI behavior remain unchanged.
+Made Steel and Bone integration deterministic: its hearing-range scaling composes with Footstep Awareness, and its final damage and material multipliers follow the preserved sneak bonus regardless of load order.
+Expanded opt-in decision diagnostics and added cleanly ordered configuration with automatic durable-setting recovery.

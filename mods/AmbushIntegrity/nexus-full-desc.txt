@@ -1,9 +1,9 @@
 [center][size=6][b]Ambush Integrity - Stealth Overhaul[/b][/size]
 [i]The first blade from the shadows should count.[/i][/center]
 
-[b]Ambush Integrity[/b] is an experimental, configurable stealth overhaul for Tainted Grail: The Fall of Avalon. Version 0.1.7 makes armor matter to ordinary footsteps, keeps valid native melee stealth opportunities reliable, and makes isolated lethal sneak attacks quiet without rewriting combat AI.
+[b]Ambush Integrity[/b] is an experimental, configurable stealth overhaul for Tainted Grail: The Fall of Avalon. It makes armor matter to ordinary footsteps, keeps valid native melee stealth opportunities reliable, and makes isolated lethal sneak attacks quiet without rewriting combat AI.
 
-[size=4][b]What 0.1.7 changes[/b][/size]
+[size=4][b]What It Changes[/b][/size]
 
 [b]Committed Ambush[/b]
 When the native backstab check finds a valid target, Ambush Integrity commits that exact target for a short window. A primary melee hit inside the window retains the game's sneak classification and current sneak bonus even if alert state changes during the final attack frames.
@@ -48,7 +48,7 @@ Every experiment has its own toggle. Settings are available in FoA Mod Manager a
 
 Grail Floating Text and Steel and Bone are optional.
 
-[size=4][b]Deliberate 0.1.7 limits[/b][/size]
+[size=4][b]Deliberate Limits[/b][/size]
 
 - Primary melee hits only.
 - No ranged, magic, damage-over-time, or secondary-effect damage buffs.

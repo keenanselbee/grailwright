@@ -68,7 +68,6 @@ if (Test-Path -LiteralPath $manifestPath) {
     foreach ($required in @(
         '"displayName": "Ambush Integrity - Stealth Overhaul"',
         '"packageName": "AmbushIntegrity"',
-        '"version": "0.1.8"',
         '"pluginGuid": "ks.tgfoa.ambush-integrity"',
         '"dll": "AmbushIntegrity.dll"',
         '"src/AmbushIntegrity.cs"',

@@ -1,16 +1,16 @@
-Ambush Integrity - Stealth Overhaul 0.1.8
+Version 0.1.8
 =========================================
 
 - Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
 - Advanced ConfigSchemaVersion from 2 to 3 because settings moved to clean task-oriented raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.
 - Kept Diagnostics penultimate and Import Previous Settings last in the config menu.
 
-Ambush Integrity - Stealth Overhaul 0.1.7
+Version 0.1.7
 =========================================
 
 - Made committed-ambush damage stacking deterministic with Steel and Bone: Ambush Integrity adds the preserved sneak bonus first, then Steel and Bone applies its final player-damage and material multipliers regardless of plugin load order.
 
-Ambush Integrity - Stealth Overhaul 0.1.6
+Version 0.1.6
 =========================================
 
 - Added Footstep Awareness so normal walking and running preserve native noise modifiers while scaling strength by armor tier: 1.2x for Light or no armor, 1.6x for Medium, and 2.0x for Heavy or Overload, producing 0.60, 0.80, and 1.00 from the default normal step.
@@ -18,30 +18,30 @@ Ambush Integrity - Stealth Overhaul 0.1.6
 - Kept Steel and Bone complementary by changing only footstep strength while its difficulty presets continue to scale only hearing range.
 - Added throttled log-only footstep diagnostics without adding in-game diagnostic spam.
 
-Ambush Integrity - Stealth Overhaul 0.1.5
+Version 0.1.5
 =========================================
 
 - Removed Prepared Opener, its scripted boss/miniboss combat hook, and its four settings so Ambush Integrity remains focused on preserving valid native backstab opportunities and handling isolated executions.
 - Incremented the config schema because the obsolete Prepared Opener settings were removed; the previous config is backed up and compatible durable settings are restored automatically.
 
-Ambush Integrity - Stealth Overhaul 0.1.4
+Version 0.1.4
 =========================================
 
 - Expanded opt-in diagnostics with decision-level attack classifications, bypass reasons, opportunity and target transitions, witness evidence, awareness changes, and Grail Floating Text delivery results without per-frame logging.
 
-Ambush Integrity - Stealth Overhaul 0.1.2
+Version 0.1.2
 =========================================
 
 - Made startup failure fail closed by removing any partially installed Harmony patches, clearing the public API instance and transient stealth state, and releasing the optional Grail Floating Text bridge.
 
-Ambush Integrity - Stealth Overhaul 0.1.1
+Version 0.1.1
 =========================================
 
 - Added AmbushIntegrityApi v1 with a final current-target Backstab Ready state for optional presentation integrations.
 - Added freshness and exact-target guards so consumers cannot retain a stale backstab-ready signal after eligibility or raycast target changes.
 - Added optional Dishonored Dynamic Crosshair support without moving crosshair rendering or configuration into the stealth mod.
 
-Ambush Integrity - Stealth Overhaul 0.1.0
+Version 0.1.0
 =========================================
 
 - Added Committed Ambush, which briefly preserves sneak eligibility against the exact target acquired through a valid backstab opportunity.

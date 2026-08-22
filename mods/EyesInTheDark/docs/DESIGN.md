@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `1.3.0` is the
+This is the living design document for `EyesInTheDark`. Version `1.3.9` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -297,8 +297,9 @@ composition and spends zero budget. During an active hunt, a disengaged member
 within 60 metres may receive one native combat reassertion every two active
 seconds, with at most three attempts per member. Reacquisition runs only while
 outdoors, exposed, in the same initialized scene, and outside loading or travel
-states. Eyes does not own navigation, perception, faction, guards, or general
-AI behavior.
+states. During an official outdoor hunt, Eyes may temporarily recruit nearby
+eligible ordinary guards to assist the Hero against exact official hunters. It does
+not own navigation, perception, faction, broad guard behavior, or general AI.
 
 ## Ambient stalkers
 

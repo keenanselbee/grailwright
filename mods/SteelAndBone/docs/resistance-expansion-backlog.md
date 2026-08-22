@@ -28,7 +28,7 @@ These rules use the existing preset intensity, mixed-hit resolution, native-reac
 - **Status-threshold material reactions:** poison, bleed, burn, or other buildup thresholds could provide focused-build fallbacks, but native immunities and status ownership must remain authoritative.
 - **Coating-based fallback routes:** weapon coatings may help pure melee builds cover difficult families, but availability, subtype composition, and overlap with native reactions need a full inventory audit.
 - **Dedicated swarm handling:** if `Damage.Radius` proves inconsistent for important spells or attacks, inspect their concrete damage producers before adding name-based exceptions.
-- **School-specific arcane rules:** keep Generic Magical modest. Broader school identity should wait until spell provenance can be classified without names or universal magic bonuses.
+- **Additional school-specific arcane rules:** keep Generic Magical modest. Soul Rend's exact Soul and Service API provenance now supports the dedicated Necrotic rules; every other new school still needs equally reliable provenance rather than names or universal magic bonuses.
 - **Generic Magical resonance:** removed after the live spell-template audit found that only The Hollow Core actually consumes Generic Magical for direct player damage. Reconsider only if future content gives the subtype meaningful spell coverage.
 
 ## Rejected Unless New Evidence Appears

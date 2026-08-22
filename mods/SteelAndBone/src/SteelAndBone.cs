@@ -20,6 +20,7 @@ using Awaken.TG.Main.Heroes.Items.Attachments.Audio;
 using Awaken.TG.Main.Settings.Accessibility;
 using Awaken.TG.Main.Utility.Animations;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -31,20 +32,20 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.9.0.0")]
-[assembly: AssemblyFileVersion("3.9.0.0")]
-[assembly: AssemblyInformationalVersion("3.9.0")]
+[assembly: AssemblyVersion("3.9.6.0")]
+[assembly: AssemblyFileVersion("3.9.6.0")]
+[assembly: AssemblyInformationalVersion("3.9.6")]
 
 namespace SteelAndBone
 {
     public static class SteelAndBoneHitFeedbackApi
     {
-        public const int ApiVersion = 5;
+        public const int ApiVersion = 6;
 
-        public static event Action<float, float, bool, bool, bool, bool, string, float>
+        public static event Action<float, float, bool, bool, bool, bool, bool, string, float>
             HitResolved;
 
-        public static event Action<int, float, float, bool, bool, bool, bool, string, float>
+        public static event Action<int, float, float, bool, bool, bool, bool, bool, string, float>
             KillingBlowResolved;
 
         internal static void Publish(
@@ -54,10 +55,11 @@ namespace SteelAndBone
             bool critical,
             bool weakSpot,
             bool damageOverTime,
+            bool playerAttack,
             string color,
             float durationSeconds)
         {
-            Action<float, float, bool, bool, bool, bool, string, float> handlers =
+            Action<float, float, bool, bool, bool, bool, bool, string, float> handlers =
                 HitResolved;
             if (handlers == null)
             {
@@ -69,13 +71,14 @@ namespace SteelAndBone
             {
                 try
                 {
-                    ((Action<float, float, bool, bool, bool, bool, string, float>)subscribers[i])(
+                    ((Action<float, float, bool, bool, bool, bool, bool, string, float>)subscribers[i])(
                         effectivenessMultiplier,
                         visualEffectivenessMultiplier,
                         immune,
                         critical,
                         weakSpot,
                         damageOverTime,
+                        playerAttack,
                         color,
                         durationSeconds);
                 }
@@ -94,10 +97,11 @@ namespace SteelAndBone
             bool critical,
             bool weakSpot,
             bool damageOverTime,
+            bool playerAttack,
             string color,
             float durationSeconds)
         {
-            Action<int, float, float, bool, bool, bool, bool, string, float> handlers =
+            Action<int, float, float, bool, bool, bool, bool, bool, string, float> handlers =
                 KillingBlowResolved;
             if (handlers == null)
             {
@@ -109,7 +113,7 @@ namespace SteelAndBone
             {
                 try
                 {
-                    ((Action<int, float, float, bool, bool, bool, bool, string, float>)subscribers[i])(
+                    ((Action<int, float, float, bool, bool, bool, bool, bool, string, float>)subscribers[i])(
                         qualityTier,
                         quality01,
                         visualEffectivenessMultiplier,
@@ -117,6 +121,7 @@ namespace SteelAndBone
                         critical,
                         weakSpot,
                         damageOverTime,
+                        playerAttack,
                         color,
                         durationSeconds);
                 }
@@ -128,6 +133,32 @@ namespace SteelAndBone
         }
     }
 
+    public static class SteelAndBoneAwarenessApi
+    {
+        public const int ApiVersion = 1;
+
+        public static bool IsLoaded
+        {
+            get { return SteelAndBonePlugin.Instance != null; }
+        }
+
+        public static float GetEnemySightRangeMultiplier()
+        {
+            SteelAndBonePlugin plugin = SteelAndBonePlugin.Instance;
+            return plugin == null
+                ? 1.0f
+                : plugin.GetEnemySightRangeMultiplierForInterop();
+        }
+
+        public static float GetEnemyAggroPersistenceMultiplier()
+        {
+            SteelAndBonePlugin plugin = SteelAndBonePlugin.Instance;
+            return plugin == null
+                ? 1.0f
+                : plugin.GetEnemyAggroPersistenceMultiplierForInterop();
+        }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
@@ -136,10 +167,14 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.9.0";
+        public const string PluginVersion = "3.9.6";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
+        private const string SoulAndServicePluginGuid =
+            "ks.tgfoa.soul-and-service";
+        private const string SoulAndServiceApiTypeName =
+            "SoulAndService.SoulAndServiceApi";
         private const int ConfigSchemaVersion = 26;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -398,6 +433,7 @@ namespace SteelAndBone
         private MethodInfo _heroCurrentGetter;
         private Type _damageSubTypeType;
         private MethodInfo _getMultiplierForSubtypeMethod;
+        private MethodInfo _soulAndServiceIsNecroticDamageMethod;
         private DamageNumberRenderer _damageNumberRenderer;
 
         private ConfigEntry<bool> _enabled;
@@ -1085,6 +1121,15 @@ namespace SteelAndBone
             {
                 matchedRule = true;
             }
+            else if (TryResolveNecroticRule(
+                targetClass,
+                damageClass,
+                out match))
+            {
+                skippedForVanilla = false;
+                skippedForEliteClamp = false;
+                matchedRule = true;
+            }
             else if (TryResolveArmoredSpellRule(targetClass, damageClass, damage, out match, out skippedForVanilla))
             {
                 skippedForEliteClamp = false;
@@ -1669,6 +1714,96 @@ namespace SteelAndBone
             return true;
         }
 
+        private bool TryResolveNecroticRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            out DamageRuleMatch match)
+        {
+            match = default(DamageRuleMatch);
+            if (targetClass == null
+                || damageClass == null
+                || !damageClass.IsNecrotic
+                || (targetClass.ExactTargets & ExactTarget.BloodAbomination)
+                    != ExactTarget.None)
+            {
+                return false;
+            }
+
+            string targetLabel;
+            float baseMultiplier;
+            if (targetClass.IsConstruct)
+            {
+                targetLabel = "Construct";
+                baseMultiplier = 0.25f;
+            }
+            else if (targetClass.IsConfirmedSkeleton
+                || (targetClass.ExactTargets & ExactTarget.DrownedSkeletonSailor)
+                    != ExactTarget.None)
+            {
+                targetLabel = "Skeleton";
+                baseMultiplier = 0.40f;
+            }
+            else if (targetClass.IsDrownedZombie)
+            {
+                targetLabel = "Drowned";
+                baseMultiplier = 0.60f;
+            }
+            else if (targetClass.IsWyrd)
+            {
+                targetLabel = "Wyrd";
+                baseMultiplier = 0.90f;
+            }
+            else if (targetClass.IsInfectedFlesh)
+            {
+                targetLabel = "Infected";
+                baseMultiplier = 0.85f;
+            }
+            else if (targetClass.IsSpirit)
+            {
+                targetLabel = "Spirit";
+                baseMultiplier = 1.15f;
+            }
+            else if (targetClass.IsFleshUndead)
+            {
+                targetLabel = "Undead";
+                baseMultiplier = 0.60f;
+            }
+            else if (targetClass.IsFlora || targetClass.IsFungalBody)
+            {
+                targetLabel = "Flora/Fungus";
+                baseMultiplier = 1.15f;
+            }
+            else if (targetClass.IsSeaFlesh)
+            {
+                targetLabel = "Sea";
+                baseMultiplier = 1.10f;
+            }
+            else if (targetClass.IsFlesh
+                || targetClass.IsHumanoidFlesh
+                || targetClass.IsArmoredHumanoid)
+            {
+                targetLabel = "Flesh";
+                baseMultiplier = 1.10f;
+            }
+            else
+            {
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                targetLabel,
+                "Necrotic",
+                140,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
         private bool TryResolveArmoredSpellRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
@@ -1683,6 +1818,7 @@ namespace SteelAndBone
                 || damageClass == null
                 || !damageClass.IsDirectSpell
                 || damageClass.IsBloodMagic
+                || damageClass.IsNecrotic
                 || damageClass.IsWyrdness
                 || damageClass.IsBleed
                 || damageClass.IsPoison
@@ -2967,6 +3103,10 @@ namespace SteelAndBone
             if (ContainsAnyTerm(text, MissingCorpseEaterReactionTerms))
             {
                 classification.ExactTargets |= ExactTarget.MissingCorpseEaterReaction;
+                SetExclusiveTargetFamily(classification, TargetFamily.Flesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:CorpseEaterFlesh");
             }
             if (ContainsAnyTerm(text, ElectricStagfatherGolemTerms))
             {
@@ -2975,10 +3115,18 @@ namespace SteelAndBone
             if (ContainsAnyTerm(text, MistbearerTerms))
             {
                 classification.ExactTargets |= ExactTarget.Mistbearer;
+                SetExclusiveTargetFamily(classification, TargetFamily.Spirit);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:MistbearerSpirit");
             }
             if (ContainsAnyTerm(text, WyrdheirChallengeTerms))
             {
                 classification.ExactTargets |= ExactTarget.WyrdheirChallenge;
+                SetExclusiveTargetFamily(classification, TargetFamily.Wyrd);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:WyrdheirWyrd");
             }
             if (ContainsAnyTerm(text, NiveraTerms))
             {
@@ -3024,6 +3172,7 @@ namespace SteelAndBone
             if (ContainsAnyTerm(text, WailcapTerms))
             {
                 SetExclusiveTargetFamily(classification, TargetFamily.SeaFlesh);
+                classification.IsFungalBody = true;
                 AppendClassificationEvidence(classification, "exact:WailcapSeaCreature");
             }
             if (ContainsAnyTerm(text, WyrdspawnTerms))
@@ -3054,6 +3203,7 @@ namespace SteelAndBone
             {
                 classification.ExactTargets |= ExactTarget.DrownedSkeletonSailor;
                 SetExclusiveTargetFamily(classification, TargetFamily.BoneUndead);
+                classification.IsConfirmedSkeleton = true;
                 classification.HasBoneBody = true;
                 classification.HasStoneBody = false;
                 AppendClassificationEvidence(classification, "exact:DrownedSkeletonSailorBone");
@@ -3133,6 +3283,10 @@ namespace SteelAndBone
             if (ContainsAnyTerm(text, TidewraithTerms))
             {
                 classification.ExactTargets |= ExactTarget.Tidewraith;
+                SetExclusiveTargetFamily(classification, TargetFamily.SeaFlesh);
+                classification.HasBoneBody = false;
+                classification.HasStoneBody = false;
+                AppendClassificationEvidence(classification, "exact:TidewraithSeaFlesh");
             }
         }
 
@@ -3386,6 +3540,72 @@ namespace SteelAndBone
             }
         }
 
+        private bool IsNecroticDamage(object damage)
+        {
+            if (damage == null)
+            {
+                return false;
+            }
+
+            if (_soulAndServiceIsNecroticDamageMethod == null)
+            {
+                PluginInfo pluginInfo;
+                if (!Chainloader.PluginInfos.TryGetValue(
+                        SoulAndServicePluginGuid,
+                        out pluginInfo)
+                    || pluginInfo == null
+                    || pluginInfo.Instance == null)
+                {
+                    return false;
+                }
+
+                Type api = pluginInfo.Instance.GetType().Assembly.GetType(
+                    SoulAndServiceApiTypeName,
+                    false);
+                FieldInfo apiVersionField = api == null
+                    ? null
+                    : api.GetField(
+                        "ApiVersion",
+                        BindingFlags.Public | BindingFlags.Static);
+                int apiVersion = apiVersionField == null
+                    ? 0
+                    : Convert.ToInt32(
+                        apiVersionField.GetRawConstantValue(),
+                        CultureInfo.InvariantCulture);
+                if (apiVersion < 5)
+                {
+                    return false;
+                }
+
+                _soulAndServiceIsNecroticDamageMethod = api.GetMethod(
+                    "IsNecroticDamage",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(object) },
+                    null);
+                if (_soulAndServiceIsNecroticDamageMethod == null)
+                {
+                    return false;
+                }
+            }
+
+            try
+            {
+                object result = _soulAndServiceIsNecroticDamageMethod.Invoke(
+                    null,
+                    new[] { damage });
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "Soul and Service Necrotic damage classification failed: "
+                    + exception.GetBaseException().Message);
+                _soulAndServiceIsNecroticDamageMethod = null;
+                return false;
+            }
+        }
+
         private DamageClassification ClassifyDamage(object damage)
         {
             if (damage == null)
@@ -3423,6 +3643,8 @@ namespace SteelAndBone
             }
             classification.IsAxe = !classification.IsMiningToolCombatHit && IsAxeDamage(damage);
             classification.IsGenericMagical = DamageHasSubtype(damage, "GenericMagical");
+            classification.IsNecrotic = classification.IsGenericMagical
+                && IsNecroticDamage(damage);
             classification.IsBurn = ValueNameContains(GetOptionalPropertyValue(damage, "StatusDamageType"), "Burn");
             classification.IsFire = DamageHasSubtype(damage, "Fire") || classification.IsBurn;
             classification.IsCold = DamageHasSubtype(damage, "Cold");
@@ -3471,6 +3693,10 @@ namespace SteelAndBone
             if (classification.IsGenericMagical)
             {
                 classification.Tags |= DamageTag.GenericMagical;
+            }
+            if (classification.IsNecrotic)
+            {
+                classification.Tags |= DamageTag.Necrotic;
             }
             if (classification.IsFire)
             {
@@ -4159,6 +4385,33 @@ namespace SteelAndBone
                 || IsHeroSummonSource(projectileOwner);
         }
 
+        private bool IsDirectHeroDamageSource(object damage, object hero)
+        {
+            if (damage == null || hero == null)
+            {
+                return false;
+            }
+
+            object damageDealer = GetOptionalPropertyValue(damage, "DamageDealerPure");
+            if (damageDealer == null)
+            {
+                damageDealer = GetOptionalPropertyValue(damage, "DamageDealer");
+            }
+            if (IsHeroSummonSource(damageDealer))
+            {
+                return false;
+            }
+            if (IsSameModelOrOwner(damageDealer, hero))
+            {
+                return true;
+            }
+
+            object projectile = GetOptionalPropertyValue(damage, "Projectile");
+            object projectileOwner = GetOptionalPropertyValue(projectile, "Owner");
+            return !IsHeroSummonSource(projectileOwner)
+                && IsSameModelOrOwner(projectileOwner, hero);
+        }
+
         private static bool IsHeroSummonSource(object candidate)
         {
             NpcElement npc = candidate as NpcElement;
@@ -4316,6 +4569,9 @@ namespace SteelAndBone
                 TargetLabel = targetLabel,
                 DamageLabel = damageLabel,
                 IsMelee = IsMeleeDamage(damage),
+                IsPlayerAttack = IsDirectHeroDamageSource(
+                    damage,
+                    GetCurrentHero()),
                 CreatedAt = now
             };
 
@@ -4331,10 +4587,15 @@ namespace SteelAndBone
 
             object damage = GetOptionalMemberValue(damageOutcome, "Damage");
             PendingDamageFeedback feedback;
-            if (!TryConsumeDamageFeedback(damage, out feedback) && !IsOutgoingHeroDamageOutcome(healthElement, damage))
+            if (!TryConsumeDamageFeedback(damage, out feedback)
+                && !IsOutgoingHeroDamageOutcome(healthElement, damage))
             {
                 return;
             }
+
+            bool playerAttack = feedback != null
+                ? feedback.IsPlayerAttack
+                : IsDirectHeroDamageSource(damage, GetCurrentHero());
 
             float finalAmount;
             if (!TryGetFloatMemberValue(damageOutcome, "FinalAmount", out finalAmount)
@@ -4414,6 +4675,7 @@ namespace SteelAndBone
                 critical,
                 weakSpot,
                 damageOverTime,
+                playerAttack,
                 "#" + ColorUtility.ToHtmlStringRGBA(visual.Color),
                 visual.DurationSeconds);
 
@@ -4459,6 +4721,7 @@ namespace SteelAndBone
                         critical,
                         weakSpot,
                         damageOverTime,
+                        playerAttack,
                         "#" + ColorUtility.ToHtmlStringRGBA(visual.Color),
                         visual.DurationSeconds);
                 }
@@ -5545,6 +5808,7 @@ namespace SteelAndBone
             AppendDiagnosticLabel(builder, classification.IsSeaFlesh, "SeaFlesh");
             AppendDiagnosticLabel(builder, classification.IsSpirit, "Spirit");
             AppendDiagnosticLabel(builder, classification.IsFlora, "Flora");
+            AppendDiagnosticLabel(builder, classification.IsFungalBody, "FungalBody");
             return builder.Length == 0 ? "None" : builder.ToString();
         }
 
@@ -5558,6 +5822,7 @@ namespace SteelAndBone
             StringBuilder builder = new StringBuilder();
             AppendDiagnosticLabel(builder, classification.IsEliteClass, "EliteClass");
             AppendDiagnosticLabel(builder, classification.IsConfirmedSkeleton, "ConfirmedSkeleton");
+            AppendDiagnosticLabel(builder, classification.IsFungalBody, "FungalBody");
             AppendDiagnosticLabel(builder, classification.HasBoneBody, "BoneBody");
             AppendDiagnosticLabel(builder, classification.HasStoneBody, "StoneBody");
             AppendDiagnosticLabel(builder, classification.HasWoodBody, "WoodBody");
@@ -5766,7 +6031,8 @@ namespace SteelAndBone
             Wet = 4096,
             Burn = 8192,
             Arrow = 16384,
-            DirectSpell = 32768
+            DirectSpell = 32768,
+            Necrotic = 65536
         }
 
         private sealed class NativeSubtypeCheck
@@ -6109,6 +6375,7 @@ namespace SteelAndBone
             public bool IsSeaFlesh;
             public bool IsSpirit;
             public bool IsFlora;
+            public bool IsFungalBody;
             public bool ResistanceNoticeShown;
             public bool ImmunityNoticeShown;
             public bool IsEliteClass;
@@ -6162,6 +6429,7 @@ namespace SteelAndBone
             public bool IsBludgeoning;
             public bool IsGenericPhysical;
             public bool IsGenericMagical;
+            public bool IsNecrotic;
             public bool IsFire;
             public bool IsCold;
             public bool IsElectric;
@@ -6195,6 +6463,7 @@ namespace SteelAndBone
             public string TargetLabel;
             public string DamageLabel;
             public bool IsMelee;
+            public bool IsPlayerAttack;
             public float CreatedAt;
         }
 
@@ -6751,6 +7020,14 @@ namespace SteelAndBone
                     out payloadSkippedForEliteClamp);
             }
 
+            if (TryResolveNecroticRule(
+                targetClass,
+                partClass,
+                out match))
+            {
+                return true;
+            }
+
             if (partClass != null
                 && partClass.IsDirectSpell
                 && TryResolveArmoredSpellRule(
@@ -6798,6 +7075,9 @@ namespace SteelAndBone
             part.IsBludgeoning = subtype == DamageSubType.Bludgeoning;
             part.IsGenericPhysical = subtype == DamageSubType.GenericPhysical;
             part.IsGenericMagical = subtype == DamageSubType.GenericMagical;
+            part.IsNecrotic = overall != null
+                && overall.IsNecrotic
+                && part.IsGenericMagical;
             part.IsFire = subtype == DamageSubType.Fire;
             part.IsCold = subtype == DamageSubType.Cold;
             part.IsElectric = subtype == DamageSubType.Electric;
@@ -6859,6 +7139,7 @@ namespace SteelAndBone
             if (part.IsBludgeoning) part.Tags |= DamageTag.Bludgeoning;
             if (part.IsGenericPhysical) part.Tags |= DamageTag.GenericPhysical;
             if (part.IsGenericMagical) part.Tags |= DamageTag.GenericMagical;
+            if (part.IsNecrotic) part.Tags |= DamageTag.Necrotic;
             if (part.IsFire) part.Tags |= DamageTag.Fire;
             if (part.IsCold) part.Tags |= DamageTag.Cold;
             if (part.IsElectric) part.Tags |= DamageTag.Electric;

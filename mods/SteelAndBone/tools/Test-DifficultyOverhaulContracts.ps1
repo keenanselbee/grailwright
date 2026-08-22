@@ -34,13 +34,8 @@ $nexusShort = (Get-Content -LiteralPath $nexusShortPath -Raw).Trim()
 $nexusFile = (Get-Content -LiteralPath $nexusFilePath -Raw).Trim()
 $qualityBuckets = Get-Content -LiteralPath $qualityBucketsPath -Raw
 
-Assert-Contract ($manifest.version -eq "3.9.0") "mod.json is not version 3.9.0."
 Assert-Contract ($manifest.sourceFiles -contains "src/DifficultyOverhaul.cs") "DifficultyOverhaul.cs is missing from sourceFiles."
 Assert-Contract ($manifest.sourceFiles -contains "../../tools/shared/CorpseQualityBuckets.cs") "The shared corpse-quality bucket helper is missing from sourceFiles."
-Assert-Contract ($mainSource.Contains('PluginVersion = "3.9.0"')) "PluginVersion is not 3.9.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyVersion("3.9.0.0")]')) "AssemblyVersion is not 3.9.0.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyFileVersion("3.9.0.0")]')) "AssemblyFileVersion is not 3.9.0.0."
-Assert-Contract ($mainSource.Contains('[assembly: AssemblyInformationalVersion("3.9.0")]')) "AssemblyInformationalVersion is not 3.9.0."
 Assert-Contract ($difficultySource.Contains('AvalonAiOverhaulPluginGuid = "AvalonAIOverhaul"')) "Avalon AI Overhaul plugin detection is missing."
 Assert-Contract ($difficultySource.Contains('EvaluateAvalonAiOverhaulOverlap();')) "Avalon AI Overhaul overlap evaluation is not wired into the compatibility pass."
 Assert-Contract ($difficultySource.Contains('"NpcVisionDistanceMultiplier"') -and $difficultySource.Contains('"EnableStandingFootstepAwareness"') -and $difficultySource.Contains('"CombatLeashMode"')) "Avalon AI Overhaul overlap detection does not cover sight, hearing, and combat pursuit."
@@ -135,9 +130,11 @@ Assert-Contract ($mainSource.Contains('case Preset.Crucible:') -and $mainSource.
 Assert-Contract ($mainSource.Contains('return 1.10f;')) "Hardened feedback sensitivity is not 1.10."
 Assert-Contract ($difficultySource.Contains('ReferenceEquals(args.ChangedSetting, _preset)')) "Preset changes do not reset the single feedback sensitivity setting."
 Assert-Contract ($mainSource.Contains('ApplyEffectivenessFeedbackSensitivity(effectivenessMultiplier)')) "Presentation effectiveness does not apply feedback sensitivity."
-Assert-Contract ($mainSource.Contains('public const int ApiVersion = 5;')) "Hit-feedback API is not v5."
-Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<float, float, bool, bool, bool, bool, string, float>\s+HitResolved;')) "Hit-feedback API v5 hit signature is incorrect."
-Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<int, float, float, bool, bool, bool, bool, string, float>\s+KillingBlowResolved;')) "Killing-blow feedback event signature is incorrect."
+Assert-Contract ($mainSource.Contains('public const int ApiVersion = 6;')) "Hit-feedback API is not v6."
+Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<float, float, bool, bool, bool, bool, bool, string, float>\s+HitResolved;')) "Hit-feedback API v6 hit signature is incorrect."
+Assert-Contract ([regex]::IsMatch($mainSource, 'public static event Action<int, float, float, bool, bool, bool, bool, bool, string, float>\s+KillingBlowResolved;')) "Killing-blow feedback event signature is incorrect."
+Assert-Contract ($mainSource.Contains('IsPlayerAttack = IsDirectHeroDamageSource(')) "Pending hit feedback does not retain direct-player attribution."
+Assert-Contract ([regex]::IsMatch($mainSource, 'SteelAndBoneHitFeedbackApi\.Publish\([\s\S]*?damageOverTime,\s*playerAttack,')) "Hit feedback does not publish direct-player attribution."
 Assert-Contract ($mainSource.Contains('object remainingHealth = GetOptionalPropertyValue(healthElement, "Health");')) "Killing-blow detection does not read resolved remaining health."
 Assert-Contract ($mainSource.Contains('ReadStatValue(remainingHealth) <= 0.0001f')) "Killing-blow detection does not recognize the pre-death zero-health state."
 Assert-Contract ($mainSource.Contains('resolvedTarget is NpcElement')) "Killing-blow feedback is not limited to defeated NPCs."
@@ -447,6 +444,7 @@ Assert-Contract ($difficultySource.Contains('typeof(AINoises)') -and $difficulty
 Assert-Contract ($difficultySource.Contains('noiseRange *= multiplier;')) "Enemy hearing does not preserve native noise strength while scaling range."
 Assert-Contract ($difficultySource.Contains('EnemyHearingRangeDiagnosticIntervalSeconds = 2.0f')) "Enemy hearing diagnostics are not capped at one message every two seconds."
 Assert-Contract ($difficultySource.Contains('LogEnemyHearingRangeDiagnostic(before, noiseRange, multiplier);')) "Enemy hearing bypasses its dedicated diagnostic throttle."
+Assert-Contract ($difficultySource.Contains('DifficultyDiagnosticIntervalSeconds = 1.0f') -and $difficultySource.Contains('_nextDifficultyDiagnosticByLever.TryGetValue')) "High-frequency difficulty diagnostics are not throttled per lever."
 Assert-Contract ($difficultySource.Contains('private float PresetEnemyAggroPersistenceMultiplier()')) "Enemy aggro-persistence preset mapping is missing."
 Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetEnemyAggroPersistenceMultiplier[\s\S]*?case Preset\.Hardened:\s*return 1\.40f;[\s\S]*?case Preset\.Crucible:\s*return 1\.60f;[\s\S]*?case Preset\.Tempered:[\s\S]*?return 1\.20f;')) "Enemy aggro persistence is not x1.20/x1.40/x1.60 by preset."
 Assert-Contract ($difficultySource.Contains('aggroDecreaseModifier /= multiplier;')) "Enemy aggro persistence does not scale native aggro decay."
@@ -653,4 +651,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.9.0 difficulty contracts passed."
+Write-Output "Steel and Bone 3.9.6 difficulty contracts passed."

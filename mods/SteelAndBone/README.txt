@@ -1,5 +1,5 @@
 Steel and Bone
-Version 3.9.0
+Version 3.9.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -18,9 +18,11 @@ Mixed hits are resolved by damage part, so an enchanted weapon's physical strike
 
 Bone bodies favor blunt damage and resist slash and pierce, while true Bone Undead also resist blood, bleed, and Cold. Stone bodies favor blunt and resist edges, while true Constructs additionally resist biological and Cold damage. Body material remains separate from creature identity: Stagfather and the Straw spirits keep bone-body weapon reactions without becoming Bone Undead, while Sleepwalker keeps its stone body without becoming a Construct. Against ordinary humanoids, exposed flesh is neutral to Blunt while armor makes Blunt progressively stronger from Light through Heavy. Ordinary flesh receives mild biological and edged-weapon weaknesses. Flesh undead, drowned corpses, infected flesh, sea creatures, spirits, Wyrd creatures, and flora each have distinct physical or magical answers. Wyrd creatures have no blanket Wyrdness resistance; their native and exact reactions remain authoritative. Axes gain a focused advantage against wood and flora without stacking with the ordinary slash rule. Pickaxes count as Pierce on combat hits and do not inherit that Axe-versus-flora bonus; their native mining interaction remains unchanged. Bone Undead and Constructs take x0.66 Cold damage on Hardened where native data is neutral, while focused fire-body, crystal, slime, summon, and frost-aligned reactions remain authoritative. Cold resistance changes damage and impact, not independent spell effects such as Chill. Curlghasts, Marrowghasts, Slugholders, and Snail remain Cold-neutral unless their native data says otherwise. Wet answers exact fire-aligned bodies, and Electric answers drowned skeleton sailors. Singworms, Lir's summoned tentacle, Blood Abominations, Wyrd Slimes, and Tidewraiths use exact soft-body profiles that favor cutting or neutral points over absorbed Blunt impacts.
 
+When Soul and Service API v5 or newer is installed, Steel and Bone recognizes only the exact Soul Rend packet as Necrotic while retaining its native Generic Magical carrier. On Hardened, ordinary flesh and sea flesh take x1.10, spirits and flora or fungus take x1.15, Wyrd bodies take x0.90, infected flesh takes x0.85, drowned and flesh undead take x0.60, confirmed skeletons take x0.40, and constructs take x0.25. Presets and elite clamps scale those values normally. Native Generic Magical armor and resistance apply first; Soul Claim remains a protected execution outside ordinary Necrotic rules.
+
 Direct player arrows now have their own material identity instead of acting as generic Pierce. Against ordinary humanoids, equipped armor creates a clear curve: exposed flesh is most vulnerable, Light armor remains slightly favorable, Medium is neutral, and Heavy strongly resists arrows while also resisting ordinary Pierce. Other material families retain their own arrow reactions. Fire, Electric, and other payloads keep their own matchup rather than inheriting the physical arrow penalty.
 
-Direct player spells receive a small tiered advantage against armor, while Fire, Electric, and Cold also react to the equipped armor's native Fabric, Leather, or Metal surface. Electricity is strongest against metal, while fire remains useful against fabric, leather, and heated metal. Blood, Wyrdness, biological effects, and spells that already ignore armor do not receive a duplicate armor-tier bonus. Set ArrowMaterialRulesEnabled or ArmoredSpellWeaknessEnabled to false to disable either feature independently.
+Direct player spells receive a small tiered advantage against armor, while Fire, Electric, and Cold also react to the equipped armor's native Fabric, Leather, or Metal surface. Electricity is strongest against metal, while fire remains useful against fabric, leather, and heated metal. Blood, Necrotic, Wyrdness, biological effects, and spells that already ignore armor do not receive a duplicate armor-tier bonus. Set ArrowMaterialRulesEnabled or ArmoredSpellWeaknessEnabled to false to disable either feature independently.
 
 Material impact keeps reactions proportional to effectiveness. Every resisted direct player hit carries 60% of its resistance into reduced poise and force, without letting weaknesses amplify control. Immune or very strongly resisted hits also lose the routine small flinch. Real poise breaks, force stumbles, ragdolls, damage processing, effects, and aggro remain intact. MaterialImpactRulesEnabled disables this complete layer.
 
@@ -154,7 +156,7 @@ EffectivenessFeedbackSensitivity expands or compresses resistance and weakness d
 
 WeakSpotDamageBonus changes to 0.10, 0.20, or 0.30 with Tempered, Hardened, or Crucible. It is added beside the game's native precision bonuses before outgoing and matchup multipliers. Native critical damage remains unchanged. Critical and weak-spot number size and red tint follow their combined real bonus up to x1.50 size and 50% red on unresisted hits, then fade with material resistance so heavily resisted hits remain dim; immunity remains grey. Hit-marker frames continue to report material effectiveness rather than being promoted by precision hits.
 
-Dishonored Dynamic Crosshair 3.0.0 or newer can replace its current reticle
+Dishonored Dynamic Crosshair 3.4.8 or newer can replace its current reticle
 with eight effectiveness frames covering immunity or a direct physical or
 magical hit that finalizes at exactly 1 damage, three resistance strengths, neutral
 damage, and three weakness strengths, plus independent weak-spot and critical
@@ -169,6 +171,8 @@ without turning the old roster uniformly Meager or distant enemies uniformly
 Prime. Dishonored draws that tier above the weak-spot and critical layers. This
 calculation shares Blood Magic Expansion's definitions but does not require
 Blood Magic Expansion.
+Hit-feedback API v6 identifies whether each result came directly from the hero,
+allowing Dishonored to exclude hero-owned summon damage when configured.
 Steel and Bone shows RESISTED instead of 1 for ineffective hits. Damage-over-
 time ticks use their separate marker sizing and do not use the 1-damage frame.
 The markers use the same final colors and durations as Steel and Bone's damage

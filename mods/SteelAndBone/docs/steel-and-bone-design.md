@@ -20,7 +20,7 @@ This is the living implementation and tuning spec. Keep detailed enemy facts in 
 
 ## Game-File Ground Truth
 
-These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.4.3 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
+These notes are based on local Tainted Grail 1.25 files and the current Steel and Bone 3.9.6 source. The global difficulty contract is documented separately in [steel-and-bone-3.0-difficulty.md](steel-and-bone-3.0-difficulty.md).
 
 | Evidence | Confirmed finding | Design consequence |
 |---|---|---|
@@ -60,7 +60,26 @@ Version 3.1.0 treats a direct Arrow projectile as a delivery tag layered onto th
 
 Tempered and Crucible apply the shared 55% and 135% rule-intensity scaling. Elite clamps remain authoritative. Wyrd creatures receive no special Arrow overlay until their body evidence supports a clearer rule.
 
-Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/Medium/Heavy armor. Fire, Electric, and Cold also react to the equipped cuirass's native Fabric, Leather, or Metal surface. Blood, Wyrdness, biological effects, and armor-ignoring spells do not receive the generic tier bonus, and vanilla-authored subtype reactions still take priority. Arrow and spell rules retain independent Core toggles.
+Direct player spells use a tiered Hardened base of 1.02/1.07/1.12 against Light/Medium/Heavy armor. Fire, Electric, and Cold also react to the equipped cuirass's native Fabric, Leather, or Metal surface. Blood, Necrotic, Wyrdness, biological effects, and armor-ignoring spells do not receive the generic tier bonus, and vanilla-authored subtype reactions still take priority. Arrow and spell rules retain independent Core toggles.
+
+## Necrotic School Identity
+
+Necrotic is a semantic Steel and Bone damage tag, not a new `TG.Main.dll` `DamageSubType`. Soul and Service API v5 or newer marks the exact `Damage` instance created by Soul Rend's light cast with weak instance provenance. Steel and Bone discovers that optional API lazily, retains the native Generic Magical carrier, and propagates Necrotic only to Generic Magical shares of a mixed hit. Soul Claim is deliberately unmarked. This avoids a load-order dependency cycle, spell-name inference, item-wide classification, and accidental conversion of Soul Rend's other target actions.
+
+The native pipeline remains authoritative: armor and `DamageReceivedMultiplierData` run first, then the custom Necrotic family multiplier is applied through the normal preset intensity and elite clamp. Necrotic resolves before the generic armored-spell rule, so one packet cannot receive both bonuses.
+
+| Hardened target | Necrotic multiplier | Rationale |
+|---|---:|---|
+| Construct | 0.25 | Inert constructed matter offers almost nothing for decay to consume. |
+| Confirmed skeleton | 0.40 | Sparse, dry bone is a poor target; broad BoneMask evidence alone is insufficient. |
+| Drowned or flesh undead | 0.60 | Dead tissue remains material but is substantially less susceptible than living flesh. |
+| Infected flesh | 0.85 | Corrupted living tissue has partial resistance. |
+| Wyrd | 0.90 | Wyrd corruption mildly resists soul-decay magic. |
+| Ordinary flesh, armored flesh, or sea flesh | 1.10 | Living animal tissue is vulnerable; armor does not grant the separate spell-tier bonus. |
+| Spirit | 1.15 | Direct soul harm is a strong answer to incorporeal beings. |
+| Flora or confirmed fungal body | 1.15 | Living plant and fungal matter is fully vulnerable to accelerated decay. Wailcaps use this only for Necrotic and retain SeaFlesh for every other matchup. |
+
+Exact identity corrections are part of this contract. Corpse Eaters are Flesh, Mistbearers are Spirit, Wyrdheirs are Wyrd, drowned skeleton sailors are confirmed Skeleton, and Tidewraiths are SeaFlesh. Blood Abominations remain neutral because their exact soft-body identity is neither ordinary living flesh nor a confirmed undead category. Unclassified targets remain neutral.
 
 ## Passive Shield Protection
 
@@ -138,9 +157,9 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | Wyrd | `Wyrdspawn`, `Wyrdspirit`, `Wyrd Spirit`, `WyrdSlime`, `Wyrd Slime`, `Wyrdness` | Catches Wyrd enemies. | `Abstract:WyrdnessBound` is a better detector when reachable. Wyrdstalker is not a confirmed WyrdnessBound enemy. |
 | DrownedZombie | `Drowner`, `Drowned`, `Drowned Knight`, `Ghost Crew`, `Scourge` | Adds drowned-undead body logic without making them fire-weak. | Drowner Fire resistance is vanilla and is not duplicated as a Steel and Bone overlay. |
 | InfectedFlesh | `Red Death`, `RedDeath`, `Infected` | Catches Red Death and infected flesh enemies. | Fire and Poison overlays are skipped if vanilla already has a non-neutral subtype multiplier; mild slash/pierce weaknesses retain living-flesh physical behavior. |
-| SeaFlesh | `Sarras`, `Finbled`, `Tadpole`, `Tidewraith`, `Scion`, `Archivist`, `Floatling`, `Reefback`, `Wailcap`, `Grindylow`, `Croakmaw` | Adds modest aquatic identity. | Cold resistance is often vanilla in Sarras data, so `RespectVanillaMultipliers` matters here. |
+| SeaFlesh | `Sarras`, `Finbled`, `Tadpole`, `Tidewraith`, `Scion`, `Archivist`, `Floatling`, `Reefback`, `Wailcap`, `Grindylow`, `Croakmaw` | Adds modest aquatic identity. | Cold resistance is often vanilla in Sarras data, so `RespectVanillaMultipliers` matters here. Wailcaps also receive an orthogonal fungal-body flag used only by Necrotic. |
 | Spirit | `Ghost`, `Spirit`, `Wraith`, `Banshee`, `Melancholy`, `Mistling`, `Mistbearer`, `Strawchild`, `Strawfather` | Makes spirits less like ordinary flesh without full lockouts. | Physical resistance is deliberately modest until play testing confirms stronger values. |
-| Flora | `Dryad`, `Gloomfrond`, `Fleshtree` | Makes plant/fungus enemies favor Fire and slash. | Wights are exact Wyrd-flora corrections. Wailcaps remain Sea Creatures rather than inheriting broad flora rules. |
+| Flora | `Dryad`, `Gloomfrond`, `Fleshtree` | Makes plant enemies favor Fire and slash. | Wights are exact Wyrd-flora corrections. Wailcaps remain Sea Creatures for general rules and receive fungal vulnerability only in the Necrotic resolver. |
 
 ### Historical 0.9.0 Atlas Boundaries
 
@@ -152,7 +171,7 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | `Scourge` or drowned terms | Classified as DrownedZombie. | Specific drowned identity is safer than broad undead. |
 | `SarrasCreature` or `ReefboundBody` | Classified as SeaFlesh. | Strong Sarras/sea marker; vanilla Cold multipliers still win where present. |
 | `Ghost` or spirit terms | Classified as Spirit. | Stronger than broad `HitMagic`, which remains neutral by itself. |
-| `Flora` or flora terms | Classified as Flora. | Specific plant/fungus identity; Wailcaps are explicitly corrected to SeaFlesh. |
+| `Flora` or flora terms | Classified as Flora. | Specific plant identity; Wailcaps are explicitly corrected to SeaFlesh and separately flagged as fungal bodies for Necrotic only. |
 | `Zombie` or `Bloody` with no stronger family | Classified as FleshUndead. | Broad undead flesh identity, kept mild and refineable by terms. |
 | `Human`, `Humanoid`, `Bandit`, `Cultist`, `Animal`, or `Animal_Prey` with no stronger family | Classified as Flesh. | Ordinary flesh baseline, kept very mild. |
 | Armor terms on broad `Flesh` or `FleshUndead` | Adds ArmoredHumanoid. | Lets gear identity refine broad body metadata without stealing stronger families. |
@@ -175,6 +194,7 @@ This section describes the material-rule engine introduced before 1.0 and extend
 | Bludgeoning | Checks damage subtype, then falls back to `IsBlunt` item identity on otherwise generic physical hits. | Confirmed native physical subtype. The fallback is important because blunt is the cleanest known answer to skeleton and construct-style targets. |
 | Generic Physical | Checks damage subtype. | Confirmed native physical fallback. Bone undead and constructs have mild generic-physical resistance so untyped physical damage does not bypass material matchups. |
 | Generic Magical | Checks damage subtype. | Confirmed native magical fallback. |
+| Necrotic | Requires exact Soul Rend instance provenance from optional Soul and Service API v5 or newer, then requires a Generic Magical carrier or part. | Semantic subtype layered over native Generic Magical. It is never inferred from spell names, item identity, or Soul Claim. |
 | Fire | Checks damage subtype and also treats `StatusDamageType.Burn` as Fire for rule matching. | Confirmed native subtype. |
 | Cold | Checks damage subtype. | Confirmed native subtype. This is the engine name for frost-like damage. |
 | Electric | Checks damage subtype. | Confirmed native subtype. This is the engine name for shock-like damage. |
@@ -189,6 +209,13 @@ Vanilla enemy subtype multipliers are handled before these overlays. Steel and B
 
 | Target family | Damage tags | Base multiplier | Priority | Design intent | Accuracy note |
 |---|---|---:|---:|---|---|
+| Construct | Necrotic | 0.25 | 140 | Inert construction strongly resists soul-decay magic. | Exact Construct family wins before every other Necrotic matchup. |
+| Confirmed skeleton | Necrotic | 0.40 | 140 | Sparse dry bone leaves little living or spiritual substance to decay. | Requires confirmed skeleton evidence or the exact drowned-skeleton correction; broad BoneMask/BoneUndead classification is not enough. |
+| DrownedZombie, FleshUndead | Necrotic | 0.60 | 140 | Dead tissue resists decay more than living tissue. | Drowned resolves before broad FleshUndead. |
+| InfectedFlesh | Necrotic | 0.85 | 140 | Corrupted living tissue is partially resistant. | Specific infected identity wins before broad Flesh. |
+| Wyrd | Necrotic | 0.90 | 140 | Wyrd corruption provides mild resistance. | Exact Wyrdheir correction prevents an ordinary-flesh fallback. |
+| Flesh, ArmoredHumanoid, SeaFlesh | Necrotic | 1.10 | 140 | Living animal tissue is a valid decay target. | Necrotic excludes the separate armored-spell rule. |
+| Spirit, Flora, confirmed fungal body | Necrotic | 1.15 | 140 | Soul matter and living plant/fungal matter are especially susceptible. | Wailcaps retain SeaFlesh generally but their exact fungal-body flag wins over SeaFlesh in the Necrotic resolver. |
 | BoneUndead | Cold | 0.66 | 60 | Inert bone has no living warmth for Cold to attack. | Matches the final Hardened Cold resistance of many higher-tier skeletons; native subtype reactions still win, and independent Chill buildup remains intact. |
 | BoneUndead | Blood magic, bleed | 0.25 | 100 | Dry bone should not care about blood or bleeding. | Bleed immunity is strongly supported by templates. Blood magic is a design extension. |
 | BoneBody | Slashing, piercing | 0.55 | 80 | Blades and points are worse into bone or empty armor. | Applies from bone material independently of Spirit, undead, or other identity. |

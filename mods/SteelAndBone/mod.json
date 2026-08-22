@@ -1,8 +1,8 @@
 {
   "id": "SteelAndBone",
-  "displayName": "Steel and Bone",
+  "displayName": "Steel and Bone - Expanded Combat and Difficulty",
   "packageName": "SteelAndBone",
-  "version": "3.9.0",
+  "version": "3.9.6",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [

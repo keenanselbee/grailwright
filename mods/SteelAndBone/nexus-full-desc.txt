@@ -16,8 +16,10 @@ Around that foundation, optional systems improve combat feedback, enemy pressure
 
 [list]
 [*][b]Knowledge decides the matchup.[/b] Enemy family, armor, and material determine which physical, elemental, and status attacks work best, while Tainted Grail's native reactions remain authoritative.[/*]
-[*][b]Every combat tool has a purpose.[/b] Arrows punish exposed flesh, blunt weapons break rigid targets and heavy armor, elemental magic exploits material, and shields provide directional protection.[/*]
-[*][b]The rules stay readable.[/b] Damage numbers and optional hit markers reveal weaknesses, resistances, immunities, critical hits, weak spots, and damage-over-time effects as combat happens.[/*]
+[*][b]Every combat tool has a purpose.[/b] Arrows punish exposed flesh, blunt weapons break rigid targets and heavy armor, elemental magic exploits material, shields provide directional protection, and focused techniques offer fallback answers.[/*]
+[*][b]Resistance changes impact as well as damage.[/b] Poor matchups reduce poise and force, while strongly resisted or immune hits suppress routine flinching without blocking genuine staggers or ragdolls.[/*]
+[*][b]The rules stay readable.[/b] Built-in damage numbers reveal weaknesses, resistances, immunities, critical hits, weak spots, and damage-over-time effects without requiring another mod; optional hit markers can mirror the same result.[/*]
+[*][b]Late-game enemies endure without becoming health sponges.[/b] Progressive Tenacity helps stronger enemies withstand burst damage and repeated control after level 20, while exploiting a material weakness cuts through part of that protection.[/*]
 [*][b]Combat pressure extends beyond damage.[/b] Enemies detect sooner, stay engaged longer, coordinate more attackers, and recover faster, while quicker projectiles and clearer armor roles make positioning and equipment matter.[/*]
 [*][b]Preparation outlasts panic.[/b] Food provides sustained, non-stacking health and stamina recovery, while repeated use of the same potion class risks resource-specific Potion Poisoning.[/*]
 [*][b]Difficulty remains modular.[/b] Tempered, Hardened, and Crucible scale the complete ruleset, while individual systems remain configurable or can be disabled independently.[/*]
@@ -41,29 +43,31 @@ This philosophy is inspired by [url=https://www.nexusmods.com/skyrimspecialediti
 
 [heading][color=#C94A4A][size=5]Know Your Enemy[/size][/color][/heading]
 
-Steel and Bone classifies enemies through reachable runtime and template evidence before using editable name terms as fallback. Stronger and more specific families take precedence over broad categories, and elite enemies soften custom extremes without losing their identity.
+Steel and Bone reads each enemy's body, armor, creature family, and specific identity. Specific enemies take precedence over broad families, while elites soften extreme custom matchups without losing their defining strengths and weaknesses.
 
 [code]
-| Enemy family              | Better answers                  | Poor answers                                      |
-|---------------------------|---------------------------------|---------------------------------------------------|
-| Bone bodies / undead      | Blunt                           | Blood, bleed, Cold, slash, pierce, arrows         |
-| Stone bodies / constructs | Blunt; exact elemental counters | Blood, bleed, poison, Cold, slash, pierce, arrows |
-| Armored humanoids         | Blunt, direct spells            | Slash, untyped physical, arrows vs Heavy armor    |
-| Ordinary flesh            | Blood, poison, slash, pierce    | No broad resistance                               |
-| Flesh undead              | Fire, blunt                     | Blood, bleed, poison, pierce, arrows              |
-| Wyrd creatures            | Exact reactions vary            | No broad resistance                               |
-| Drowned corpses           | Electric, blunt                 | Blood, bleed, pierce, arrows                      |
-| Infected flesh            | Fire, slash, arrows             | Poison                                            |
-| Sea creatures             | Electric, slash, arrows         | Cold                                              |
-| Spirits                   | Wyrdness                        | Biological and ordinary physical attacks          |
-| Flora and fungus          | Fire, slash, axes               | Poison, bleed, pierce, arrows                     |
-| Swarms                    | Area and non-arrow attacks      | Individual arrow impacts                          |[/code]
+| Family             | Weaknesses                      | Resistances                                |
+|--------------------|---------------------------------|--------------------------------------------|
+| Skeletons / bone   | Blunt                           | Arrows; blood/bleed; slash/pierce; Cold    |
+| Constructs / stone | Exact elemental counters; blunt | Blood/bleed/poison; Necrotic; arrows; Cold |
+| Armored humanoids  | Blunt; direct spells            | Heavy arrows; slash                        |
+| Ordinary flesh     | Arrows; blood/poison; blades    | No broad resistance                        |
+| Flesh undead       | Fire; blunt                     | Necrotic; blood/bleed/poison; arrows       |
+| Wyrd creatures     | Exact reactions vary            | Few broad resistances                      |
+| Drowned corpses    | Electric; blunt                 | Necrotic; blood/bleed; arrows              |
+| Infected flesh     | Fire; arrows; slash             | Poison                                     |
+| Sea creatures      | Electric; arrows; slash/pierce  | Cold                                       |
+| Spirits            | Wyrdness; Necrotic              | Biological attacks; ordinary physical      |
+| Flora              | Axes; Fire/slash; Necrotic      | Arrows; poison/bleed/pierce                |
+| Swarms             | Area and non-arrow attacks      | Individual arrows                          |[/code]
 
 Exact strength depends on the preset and each enemy's native data. Existing reactions are preserved or strengthened rather than duplicated, and true immunities remain intact.
 
+When [b]Soul and Service[/b] is installed, its complete rework of the original Soul Salvage spell is renamed [b]Soul Rend[/b]. Soul Rend's light cast deals Necrotic damage to living enemies. On Hardened, its matchups run from strongest resistance to strongest weakness: constructs x0.25, confirmed skeletons x0.40, drowned and flesh undead x0.60, infected bodies x0.85, Wyrd creatures x0.90, ordinary and sea flesh x1.10, and spirits, flora, or confirmed fungal bodies x1.15. The game's normal magical defenses still apply, while Soul Claim remains outside the Necrotic school.
+
 Body material and creature identity are resolved separately, so unusual enemies keep their intended physical reactions without inheriting an entire creature family's traits. Authored and exact profiles take priority, and Wyrd creatures receive no blanket resistance. These profiles cover important exceptions such as frost enemies resisting Cold but yielding to Fire, fire-aligned bodies yielding to Wet, drowned skeletons reacting to Electric, and soft-bodied creatures absorbing Blunt impact. Bone Undead and Constructs also resist Cold when otherwise neutral, though this does not make them immune to separate effects such as Chill.
 
-When a physical hit has no clear subtype, weapon identity fills the gap: swords and axes lean Slashing; daggers, polearms, and bows lean Piercing; and blunt weapons remain Bludgeoning. Axes deal x1.20 damage to wood and flora on Hardened instead of stacking with the normal flora Slash rule. Pickaxes count as Pierce in combat, receive no Axe bonus, and continue to mine normally.
+Weapons follow their intuitive shape when an attack does not state a physical type: swords and axes slash; daggers, polearms, bows, and pickaxes pierce; and blunt weapons remain Blunt. Axes deal x1.20 damage to wood and flora on Hardened instead of stacking with the normal flora Slash weakness. Pickaxes keep their Pierce identity in combat and continue to mine normally.
 
 [b]Humanoid armor[/b]
 
@@ -105,9 +109,9 @@ Built-in damage numbers make matchups easy to read: resisted hits appear smaller
 
 [b]Optional crosshair hit markers[/b]
 
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.0.0 or newer can present the same final result at the center of the screen through eight states ranging from immunity and resistance through neutral damage to weakness.
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.4.8 or newer can present the same final result at the center of the screen through eight states ranging from immunity and resistance through neutral damage to weakness.
 
-Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Hit markers work without floating damage numbers and update immediately with each hit.
+Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Dishonored can also distinguish the hero's direct attacks from damage dealt by hero-owned summons and optionally exclude the latter. Hit markers work without floating damage numbers and update immediately with each hit.
 
 [line]
 
@@ -118,7 +122,7 @@ Steel and Bone raises combat pressure without replacing Tainted Grail's native A
 
 [b]Progressive Tenacity - Smoother late-game difficulty curve[/b]
 
-Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. Strong builds and material weaknesses remain effective. It works with every preset, leaves the early game unchanged, avoids inflated health bars and ability immunities, and can be disabled with [b]ProgressiveTenacityEnabled[/b].
+Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. Strong builds remain effective, and confirmed material weaknesses reduce Tenacity for that hit. It works with every preset, leaves the early game unchanged, and adds no inflated health bars or ability immunities.
 
 
 [b]Enemy awareness and pressure[/b]
@@ -161,6 +165,8 @@ Across the presets, incoming damage rises while outgoing damage falls. Higher pr
 
 Positive mana regeneration during combat and accumulated positive parry-window bonuses use x1.00 / x0.75 / x0.50 across Tempered, Hardened, and Crucible. Mana Shield proportionally relieves only Steel and Bone's added regeneration penalty, while the game's native Mana Shield reduction and post-hit lock remain active. Parry scaling preserves the native 0.05-second base window and every non-positive total bonus. Both systems have separate toggles and adjustable multipliers.
 
+Stamina Depleted presentation defaults to one smooth eased fade instead of the native repeating flash and abrupt disappearance. Native and Off modes remain available, and the choice changes presentation only; exhaustion audio, penalties, restrictions, and timing remain intact.
+
 
 [line]
 
@@ -180,7 +186,7 @@ Food becomes sustained preparation instead of a rapid combat heal. Its native he
 [*]If you run out of stamina while food is active, its stamina recovery pauses, but Overexertion and Stamina Depleted last only half as long. Food stamina recovery resumes immediately when Overexertion ends, while health recovery and the food timer continue throughout.[/*]
 [*]Selecting Tempered allows combat food use, while Hardened and Crucible prevent it. The setting remains freely customizable afterward, and noncombat food use is always unrestricted. Blocked attempts are silent unless Grail Floating Text is installed, which shows a brief food-styled explanation.[/*]
 [*]Food effects cannot stack. Eating again keeps whichever active meal offers the greatest remaining health recovery, with remaining duration breaking a tie.[/*]
-[*]Health and stamina share one status, timer, and icon. Item descriptions update without adding Steel and Bone or preset labels.[/*]
+[*]Health and stamina recovery appear as one coherent food effect, and item descriptions show the adjusted result without adding mod or preset labels.[/*]
 [/list]
 
 
@@ -241,7 +247,7 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 
 Progression follows the same curve: kill, quest, objective, and proficiency experience are reduced by preset, creating a slower and more deliberate journey. Coin rewards remain unchanged.
 
-Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset. [b]WeakSpotDamageBonus[/b] and [b]HostileArcherAimScatter[/b] change with the preset, remain freely adjustable afterward, and can be set to 0 to disable their individual effects. [b]PlayerArrowGravityMultiplier[/b] remains independent from presets and defaults to 0.75. Every global modifier has its own control, and [b]DifficultyModifiersEnabled=false[/b] disables the complete supporting difficulty layer without disabling material combat or damage feedback.
+Each preset supplies coherent defaults rather than locking the player into them. Incoming and outgoing damage, weak-spot power, archer accuracy, arrow flight, resource pressure, armor, enemy aggression, recovery, and progression remain independently adjustable. The complete supporting difficulty layer can also be disabled without turning off material combat or damage feedback.
 
 [line]
 
@@ -253,10 +259,9 @@ Steel and Bone creates difficulty through small adjustments to systems Tainted G
 [*]No enemy health inflation.[/*]
 [*]No early-game Tenacity; its preset-independent curve begins after level 20.[/*]
 [*]No behavior-tree or encounter rewrites.[/*]
-[*]No global replacement of enemy templates.[/*]
 [*]No permanent NPC stat changes stored in saves.[/*]
-[*]Temporary model-owned stat tweaks are removed when actors or settings stop qualifying.[/*]
-[*]Hostile awareness and combat movement share one lightweight reconciliation of loaded NPCs rather than continuous scanning.[/*]
+[*]Changes apply only while an actor or setting qualifies and clean themselves up automatically.[/*]
+[*]Awareness and movement checks stay limited to relevant loaded enemies.[/*]
 [*]Every supporting modifier can be disabled independently.[/*]
 [/list]
 
@@ -270,50 +275,7 @@ Start the game once to generate:
 
 [code]BepInEx/config/ks.tgfoa.steel-and-bone.cfg[/code]
 
-Main difficulty settings:
-
-[code]
-Preset = Hardened
-ArrowMaterialRulesEnabled = true
-MaterialImpactRulesEnabled = true
-ArmoredSpellWeaknessEnabled = true
-TechniqueMatchupRulesEnabled = true
-DifficultyModifiersEnabled = true
-ProgressiveTenacityEnabled = true
-ModifyPlayerDamageDealt = true
-WeakSpotDamageBonus = 0.20
-ModifyPlayerDamageTaken = true
-ModifyStaminaUsage = true
-ModifyManaUsage = true
-ModifyCombatManaRegeneration = true
-CombatManaRegenerationMultiplier = 0.75
-ModifyParryWindowBonus = true
-PositiveParryWindowBonusMultiplier = 0.75
-ModifyPlayerPoiseDamageDealt = true
-ModifyPlayerArrowVelocity = true
-ModifyPlayerArrowDrop = true
-PlayerArrowGravityMultiplier = 0.75
-ModifyArmorWeightPenalties = true
-ModifyLightArmorMobility = true
-ModifyArmorPhysicalProtection = true
-ModifyPotionOverdrinking = true
-ModifyFoodRecovery = true
-PreventFoodUseInCombat = true
-StaminaDepletedVignetteMode = Smooth
-StaminaDepletedVignetteFadeSeconds = 0.30
-ModifyEnemyAttackSlots = true
-EnemyAttackSlotCap = 6
-ModifyEnemyAttackRecovery = true
-ModifyEnemyMovementSpeed = true
-ModifyHostileArrowVelocity = true
-ModifyEnemySightRange = true
-ModifyEnemyHearingRange = true
-ModifyEnemyAggroPersistence = true
-ModifyKillExperience = true
-ModifyQuestExperience = true
-ModifyProficiencyExperience = true[/code]
-
-FoA Mod Manager presents common controls first, keeps related toggles and values together, and groups expert rule tuning and target-family terms under Advanced sections. Version 3.4.9 replaces the old blanket [b]ModifyConsumableRecovery[/b] key with [b]ModifyPotionOverdrinking[/b]; other stored config keys remain stable.
+FoA Mod Manager organizes the settings into clear groups for presets, material combat, feedback, player pressure, armor, projectiles, enemy aggression, food, potions, progression, and diagnostics. Hardened is the default preset, but every supporting system can be adjusted or disabled independently. Expert sections expose rule intensity, family terms, and specialized tuning without crowding the common controls.
 
 [line]
 
@@ -322,8 +284,9 @@ FoA Mod Manager presents common controls first, keeps related toggles and values
 [b]Grailwright mods[/b]
 
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] supports the optional API v5 eight-frame hit-marker and tiered killing-blow integration, Effectiveness Feedback Sensitivity, and separate damage-over-time marker sizing described under Readable Combat Feedback.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] supports eight-state hit markers, weak-spot and critical overlays, damage-over-time feedback, killing-blow corpse quality, direct-hero filtering, and the sensitivity controls described under Readable Combat Feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
+[*][b]Soul and Service[/b] lets owned summons inherit 80% of Steel and Bone's added enemy awareness without reaching full enemy range. Its reworked Soul Salvage spell, renamed Soul Rend, also gains the Necrotic matchups described above; Soul Claim remains outside that school.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] suspends passive shield protection while that shield is hidden by a two-handed grip and restores it when the hand becomes active.[/*]
 [/list]
 

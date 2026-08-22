@@ -1,3 +1,4 @@
-TargetVersion=3.9.0
-BaselineVersion=3.8.9
-Reworked Potion Poisoning so two same-class potions are safe, while a third triggers within preset-scaled 5, 10, or 15-second windows.
+TargetVersion=3.9.6
+BaselineVersion=3.9.5
+
+Rate-limited repeated difficulty diagnostics to one message per lever per second, preserving useful values without allowing high-frequency combat and summon queries to flood the BepInEx log and degrade frame rate.

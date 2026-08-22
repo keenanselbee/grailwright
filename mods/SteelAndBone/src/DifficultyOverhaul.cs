@@ -63,6 +63,7 @@ namespace SteelAndBone
         private const float NeutralTolerance = 0.0001f;
         private const float NativeBaseParryWindowSeconds = 0.05f;
         private const float DifficultyRefreshIntervalSeconds = 1.0f;
+        private const float DifficultyDiagnosticIntervalSeconds = 1.0f;
         private const float EnemyHearingRangeDiagnosticIntervalSeconds = 2.0f;
         private const string StandardFoodRecoveryGraphGuid = "1c2da8428b5a74142b93ed84593676a9";
         private const string FoodRecoveryStatusGuid = "432685012b6577f48a92c6ae8eb377cb";
@@ -140,6 +141,8 @@ namespace SteelAndBone
 
         private readonly HashSet<string> _loggedOverlapSignatures = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _notifiedOverlapSignatures = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, float> _nextDifficultyDiagnosticByLever =
+            new Dictionary<string, float>(StringComparer.Ordinal);
         private Hero _difficultyTweakHero;
         private float _nextDifficultyRefreshAt;
         private float _nextEnemyHearingRangeDiagnosticAt;
@@ -1466,6 +1469,13 @@ namespace SteelAndBone
             }
         }
 
+        internal float GetEnemySightRangeMultiplierForInterop()
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemySightRange)
+                ? PresetEnemySightRangeMultiplier()
+                : 1.0f;
+        }
+
         private float PresetEnemyHearingRangeMultiplier()
         {
             if (_preset == null)
@@ -1502,6 +1512,13 @@ namespace SteelAndBone
                 default:
                     return 1.20f;
             }
+        }
+
+        internal float GetEnemyAggroPersistenceMultiplierForInterop()
+        {
+            return DifficultyModifierIsEnabled(_modifyEnemyAggroPersistence)
+                ? PresetEnemyAggroPersistenceMultiplier()
+                : 1.0f;
         }
 
         private float PresetPotionPoisoningDecayPerSecond()
@@ -4456,6 +4473,16 @@ namespace SteelAndBone
             {
                 return;
             }
+            float nextDiagnosticAt;
+            if (_nextDifficultyDiagnosticByLever.TryGetValue(
+                    lever,
+                    out nextDiagnosticAt)
+                && Time.unscaledTime < nextDiagnosticAt)
+            {
+                return;
+            }
+            _nextDifficultyDiagnosticByLever[lever] = Time.unscaledTime
+                + DifficultyDiagnosticIntervalSeconds;
 
             LogDiagnostic(
                 "Difficulty modifier: lever="

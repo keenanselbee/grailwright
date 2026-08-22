@@ -1,3 +1,28 @@
+Version 3.9.6
+Rate-limited repeated difficulty diagnostics to one message per lever per second, preserving useful values without allowing high-frequency combat and summon queries to flood the BepInEx log and degrade frame rate.
+Kept combat behavior and ConfigSchemaVersion 26 unchanged.
+
+Version 3.9.5
+Corrected confirmed fungal bodies such as Wailcaps to take x1.15 Necrotic damage while retaining their SeaFlesh classification and all non-Necrotic SeaFlesh matchups.
+Kept ConfigSchemaVersion at 26 because this correction changes no setting or default.
+
+Version 3.9.4
+Advanced SteelAndBoneHitFeedbackApi to v6 and added authoritative direct-player attribution for regular hits, damage-over-time ticks, and killing blows so crosshair integrations can distinguish the hero from hero-owned summons.
+Kept combat, damage-number behavior, and ConfigSchemaVersion 26 unchanged.
+
+Version 3.9.3
+Added optional Soul and Service API v5 integration that treats the exact Soul Rend packet as Necrotic while preserving its native Generic Magical carrier, armor, and damage attribution.
+Added preset-scaled Necrotic matchups: living flesh, sea creatures, spirits, flora, and fungus are vulnerable; Wyrd and infected bodies resist; drowned and flesh undead resist strongly; confirmed skeletons and constructs resist most strongly.
+Kept Soul Claim outside ordinary Necrotic resistance rules, made Necrotic override the generic armored-spell matchup, and hardened exact Tidewraith, Corpse Eater, Mistbearer, Wyrdheir, and drowned-skeleton identities.
+Kept ConfigSchemaVersion at 26 because this adds no setting or changed default.
+
+Version 3.9.2
+Expanded the packaged compatibility guidance and automated contracts for the effective enemy-awareness API used by Soul and Service.
+
+Version 3.9.1
+Added SteelAndBoneAwarenessApi v1 so summon overhauls can read the effective enemy sight-range and aggro-persistence multipliers without inspecting config internals.
+Kept enemy behavior and ConfigSchemaVersion 26 unchanged; the API reports 1.0 whenever the corresponding difficulty modifier is inactive.
+
 Version 3.9.0
 Changed Potion Poisoning so two potions from the same class are safe and a third triggers only when the first-to-third span is within 5 seconds on Tempered, 10 seconds on Hardened, or 15 seconds on Crucible.
 Set every potion to 40 class buildup and moved preset difficulty into buildup decay at 4, 2, or 1.333 points per second, giving a single potion a 10, 20, or 30-second full-clear time.

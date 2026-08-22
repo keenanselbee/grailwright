@@ -1,3 +1,47 @@
+Version 1.9.1
+Made Show On Loading Screens opt-in by default and kept all related snapshot generation, reads, and writes inactive until that setting is enabled.
+Advanced ConfigSchemaVersion from 12 to 13 because the loading-screen presentation default changed; the normal backed-up reset preserves compatible customized settings while applying the new default.
+
+Version 1.9.0
+Fixed per-save loading-screen snapshots omitting their panel payload, so cached character statistics can appear from the beginning of main-menu loads instead of waiting for live Hero and GameplayMemory data.
+Replaced the nested snapshot payload with a serializer-safe flat cache format and now round-trip validates the complete JSON before replacing the last good slot cache.
+Kept ConfigSchemaVersion at 12 because this changes only the internal loading-screen cache format and no setting or default.
+
+Version 1.8.9
+Added Necrotic as a dedicated magic school for Soul and Service Soul Rend kills, replacing the spell-name Soul Salvage row for new kills. Soul Claim remains a protected execution rather than ordinary Necrotic damage.
+Reordered magic schools to Fire, Cold, Wet, Electric, Blood, Necrotic, Poison, Pure, Wyrdness, Summons, and Other.
+Moved Soul Vigor and corpse-harvest statistics from Green to Grail Floating Text's #25B792 Necrotic color group.
+Kept StatisticsApi v7 and ConfigSchemaVersion 12 because this adds no statistics callback or changed setting.
+
+Version 1.8.7
+Replaced the Soul and Service panel contract with Soul Vigor, Necromantic Power, and Meager/Worthy/Potent/Prime corpse-harvest counts.
+Changed Simple mode to Corpses Harvested and Detailed mode to four green quality-icon harvest rows, retaining the diagnostic 12/7/3/1, total 23, Vigor 116, and Power 18 preview.
+Advanced StatisticsApi to version 7 with the strict TryRecordSoulVigorStatistics callback and fresh save-fact names; retired Souls Bound and binding facts are not migrated.
+Kept ConfigSchemaVersion at 12 because this changes integration data and labels without changing any setting or default.
+
+Version 1.8.6
+Added independent default-on Soul and Service statistics controls matching the Blood Magic presentation, with Simple total-bindings mode and default Detailed Meager, Worthy, Potent, and Prime binding rows.
+Added internally consistent diagnostic preview values of 12/7/3/1 tier bindings, 23 total bindings, 116 Souls Bound, and Necromantic Power 18.
+Advanced StatisticsApi to version 6 for absolute Souls Bound, Necromantic Power, and binding-tier synchronization without a legacy progression-only callback.
+Kept ConfigSchemaVersion at 12 because both settings are additive and receive their current defaults through Config.Bind.
+
+Version 1.8.5
+Added per-save-slot panel snapshots so loading a previously cached save from the main menu can show its character statistics from the beginning of the loading screen, before live Hero and GameplayMemory data exist.
+Replaced the cached snapshot with authoritative live values after deserialization and initialized missing slot caches once the first load restores live data.
+Kept ConfigSchemaVersion at 12 because this changes no setting or default.
+
+Version 1.8.4
+Expanded the packaged Souls Bound integration reference and automated API and panel-order contracts.
+Updated the menu-panel requirement to Grail Floating Text 2.5.9 for its built-in necromancy icon.
+
+Version 1.8.3
+Added StatisticsApi v5 Souls Bound reporting and a green `Souls Bound: X (Y)` row with the necro icon, where Y is Necromantic Power from 0 to 200.
+Placed the new visible-at-zero statistic immediately after the Blood Magic section and preserved the existing corpse-tier presentation.
+Kept ConfigSchemaVersion at 12 because this integration adds no setting or changed default.
+
+Version 1.8.2
+Added an independent default-on Show On Loading Screens toggle that keeps the character-statistics panel visible during gameplay loading screens when character data is available.
+
 Version 1.8.1
 Split the shared cool palette so Cold and potions use Blue while Wet and fish use the new Grail Floating Text Cyan group.
 Changed Food eaten from Gold to Orange, matching Grail Floating Text's food-consumed notifications.
@@ -267,3 +311,8 @@ Added an option to hide normal quick-wheel item tooltip text while leaving it en
 Hidden the Points available widget during the quick wheel, while deferring to Glorious UI when its HideGameplayHudInQuickUseWheel setting owns that behavior.
 Added Blood Magic Expansion integration using the wording Corpses Drained with Meager, Worthy, Potent, and Prime quality tiers.
 Started with independent counters and no import, migration, or backward compatibility for Killing Blow Mastery statistics.
+Version 1.8.7
+Replaced the Soul and Service panel contract with Soul Vigor, Necromantic Power, and Meager/Worthy/Potent/Prime corpse-harvest counts.
+Changed Simple mode to Corpses Harvested and Detailed mode to four green quality-icon harvest rows, retaining the diagnostic 12/7/3/1, total 23, Vigor 116, and Power 18 preview.
+Advanced StatisticsApi to version 7 with the strict TryRecordSoulVigorStatistics callback and fresh save-fact names; retired Souls Bound and binding facts are not migrated.
+Kept ConfigSchemaVersion at 12 because this changes integration data and labels without changing any setting or default.

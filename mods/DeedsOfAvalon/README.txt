@@ -1,11 +1,11 @@
 Deeds of Avalon - Character Statistics
-Version 1.8.1
+Version 1.9.1
 
 Platforms: Windows and Linux through Proton.
 
 Deeds of Avalon records character statistics inside the active save game and
-shows a right-anchored, two-column summary while the quick wheel or root ESC
-system menu is open.
+shows a right-anchored, two-column summary while the quick wheel, root ESC
+system menu, or a gameplay loading screen is open.
 
 Identity:
 
@@ -19,7 +19,7 @@ General, Tooltip Behavior, Panel Layout, Panel Background, Panel Colors,
 Text Outline, Text Backing, Panel Content, Integrations, Diagnostics, and the
 final Import Previous Settings section.
 
-Grail Floating Text 2.5.7 or newer is required for the menu panels. The
+Grail Floating Text 2.5.9 or newer is required for the menu panels. The
 statistics and JSON export still work when GFT is absent.
 
 Panel layout:
@@ -30,7 +30,7 @@ HP / MP / SP                   One-Handed weapon types: Number
 Cobweb / Gold / Encumbrance    Two-Handed weapon types: Number
 Attribute/Skill/Catalyst/Arthur Bows, shields, unarmed: Number
 Contextual Wyrd Whispers       Fire / Cold / Wet / Electric
-Wyrdnights survived: Number    Poison / Blood / Pure / Wyrdness
+Wyrdnights survived: Number    Blood / Necrotic / Poison / Pure / Wyrdness
                                Summons / Other
                                Positive category rows normally appear
 Quests completed: Number       Limited rows show Other categories
@@ -45,8 +45,12 @@ Items pickpocketed: Number
 Crime and bounty: Number
 Hours rested: Number
 Blood Essence: X (Y)
+Soul Vigor: X (Y)
+Blood Magic Simple: Corpses Drained
+Blood Magic Detailed: Meager through Prime corpse tiers
+Soul Simple: Corpses Harvested
+Soul Detailed: Meager through Prime harvest tiers
                                Additional deed rows when limited
-Simple: Corpses Drained        Detailed: Meager through Prime tiers
 Deaths: Number
 
 The normal weapon/spell tooltip remains enabled by default. While either quick-
@@ -83,11 +87,24 @@ keeps the panel anchored to the right edge, while VerticalOffset provides an
 optional adjustment from the centered position.
 The panel publishes immediately when the quick wheel or root ESC system menu
 appears and clears as its close begins. It also clears while a nested save,
-load, settings, or other overlay screen hides the root pause menu. Show In
-Quick Wheel and Show In Pause Menu independently control the two surfaces and
-both default to enabled. Deeds does not search the world for either menu each
-frame; only its live values refresh five times per second while a panel surface
-is open.
+load, settings, or other overlay screen hides the root pause menu, unless an
+enabled gameplay loading-screen panel is active. Show In Quick Wheel and Show
+In Pause Menu default to enabled. Show On Loading Screens is an independent
+opt-in setting and defaults to disabled.
+
+When Show On Loading Screens is enabled, each successful save stores a panel
+snapshot for that exact save slot under
+BepInEx/config/DeedsOfAvalon/PanelCache. Loading that slot from the main menu can
+therefore show its statistics from the beginning of the loading screen, before
+the live Hero and GameplayMemory objects exist. The snapshot is replaced by
+authoritative live data as soon as the selected save is restored. When no valid
+snapshot exists, including after upgrading from the old cache format, Deeds
+initializes one when live data becomes available; every later successful save
+refreshes it. Deeds validates the complete serialized snapshot before replacing
+the last good cache. When Show On Loading Screens is disabled, Deeds neither
+reads nor writes these snapshots. Existing snapshot files remain dormant. It
+does not search the world for either menu each frame; only its values refresh
+five times per second while a panel surface is open.
 
 WeaponStatisticsMode defaults to Detailed for individual weapon types. Grouped
 combines the same saved counters into One-Handed, Two-Handed, and Bows while
@@ -112,7 +129,7 @@ Other label because their authored position and icons distinguish them.
 Summons records enemies killed by the player's summons through the game's
 dedicated summon-kill event and excludes summoned targets from both hero and
 summon kill counts. Fallback magic types appear as Fire, Cold, Wet, Electric,
-Poison, Blood, Pure, and Wyrdness, followed by Summons and then Other. Named
+Blood, Necrotic, Poison, Pure, and Wyrdness, followed by Summons and then Other. Named
 spell rows remain above those fallback types and sort by kill count. Summons
 uses GFT's configurable Pink group, which defaults to #E06AAE.
 
@@ -130,13 +147,14 @@ unsupported fonts use a bounded compatibility fallback.
 HeaderColor controls both column headers and defaults to #D88B38. SubheaderColor
 controls both the Level/XP and Total lines and defaults to the Grail Floating
 Text White pool. Deed and foe rows use the matching GFT Red, Orange, Gold, Blue,
-Cyan, Green, Wyrd, Pink, Pale, and Default pools; changing those GFT colors updates the
+Cyan, Green, Necrotic, Wyrd, Pink, Pale, and Default pools; changing those GFT colors updates the
 panel. Magic categories and named spell rows use distinct type icons. Named
 spell rows use their dominant recorded damage subtype for both icon and color.
 Wyrdness reuses GFT's Wyrd icon, while Other and unknown magic reuse its generic
 Magic icon:
-Fire is Orange, Cold is Blue, Wet is Cyan, Poison is Green, Electric is Gold,
-Wyrdness uses the semantic Wyrd style, Pure is Pale, Blood is Red, and unknown
+Fire is Orange, Cold is Blue, Wet is Cyan, Electric is Gold, Blood is Red,
+Necrotic uses its dark-green #25B792 group, Poison is Green, Wyrdness uses the
+semantic Wyrd style, Pure is Pale, and unknown
 magic uses White. When Eyes in the Dark is loaded, Wyrdnights survived and
 Wyrdness magic both follow its live Purple Wyrdness or Native Orange palette.
 When Diagnostics is enabled, every otherwise-zero known panel statistic appears
@@ -197,6 +215,19 @@ rolled-back, or failed rituals do not count. Existing tier counts and their
 saved quality sum can initialize an older character, after which Blood Magic
 Expansion periodically synchronizes the absolute ledger to prevent drift.
 
+Soul and Service integration:
+
+Soul and Service owns uncapped, save-specific Soul Vigor, its derived 0-200
+Necromantic Power, and authoritative corpse-harvest counts for Meager, Worthy,
+Potent, and Prime corpses. Deeds shows `Soul Vigor: X (Y)` in the Necrotic color with the
+necro icon immediately after the Blood Magic section, including visible zeros
+before the first harvest. ShowSoulAndServiceStatistics controls the complete
+section. Simple mode adds one Corpses Harvested total; default Detailed mode
+instead shows four Necrotic quality-icon harvest rows. The total and tiers never
+appear together. Soul and Service periodically synchronizes the complete
+absolute ledger through StatisticsApi v7. Retired Souls Bound and binding-count
+facts are intentionally not imported.
+
 Killing Blow Mastery:
 
 Deeds does not read, import, translate, or migrate any former Killing Blow
@@ -208,7 +239,9 @@ Important defaults:
 Enabled = true
 TrackStatistics = true
 ExportOnSuccessfulSave = true
-ShowCharacterStatistics = true
+Quick Wheel.ShowCharacterStatistics = true
+Pause Menu.ShowCharacterStatistics = true
+Loading Screen.ShowCharacterStatistics = false
 HideItemTooltipText = false
 PanelOpacity = 1
 TooltipPanelOpacity = 0
@@ -241,9 +274,11 @@ ShowCollapsedOtherRows = true
 HidePointsAvailable = true
 ShowBloodMagicStatistics = true
 BloodMagicStatisticsMode = Detailed
+ShowSoulAndServiceStatistics = true
+SoulAndServiceStatisticsMode = Detailed
 
 Troubleshooting:
 
 If statistics track but no panel appears, install or update Grail Floating Text
-to 2.5.7 or newer. Enable Diagnostics in the Deeds config and inspect
+to 2.5.9 or newer. Enable Diagnostics in the Deeds config and inspect
 BepInEx/LogOutput.log for event binding, GFT API, or export messages.

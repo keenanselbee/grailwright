@@ -27,6 +27,25 @@ $requiredContracts = @(
     '"Worthy corpses", "corpse_worthy", "Red"',
     '"Potent corpses", "corpse_potent", "Red"',
     '"Prime corpses", "corpse_prime", "Red"',
+    'facts.Get("soul.soul_vigor", 0.0f)',
+    'facts.Get("soul.necromantic_power", 0.0f)',
+    '"Soul Vigor: "',
+    '"necro"',
+    '"Necrotic"',
+    '_showSoulAndServiceStatistics = Config.Bind("Integrations", "ShowSoulAndServiceStatistics", true',
+    '_soulAndServiceStatisticsMode = Config.Bind("Integrations", "SoulAndServiceStatisticsMode", SoulAndServiceStatisticsMode.Detailed',
+    '"Corpses Harvested",',
+    '"Meager harvests", "corpse_meager", "Necrotic"',
+    '"Worthy harvests", "corpse_worthy", "Necrotic"',
+    '"Potent harvests", "corpse_potent", "Necrotic"',
+    '"Prime harvests", "corpse_prime", "Necrotic"',
+    'case "Soul Vigor": return 116;',
+    'case "Necromantic Power": return 18;',
+    'case "Corpses Harvested": return 23;',
+    'case "Meager harvests": return 12;',
+    'case "Worthy harvests": return 7;',
+    'case "Potent harvests": return 3;',
+    'case "Prime harvests": return 1;',
     'facts.Get("blood.corpses_drained.quality_sum", 0.0f) / total',
     'private const int GoldEarnedLowMinimum = 1000;',
     'private const int GoldEarnedMediumMinimum = 5000;',
@@ -75,8 +94,32 @@ $requiredContracts = @(
     '[HarmonyPatch(typeof(VMenuUI), "OnDiscard")]',
     '_showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true',
     '_showPauseMenuStatistics = Config.Bind("Pause Menu", "ShowCharacterStatistics", true',
+    '_showLoadingScreenStatistics = Config.Bind("Loading Screen", "ShowCharacterStatistics", false',
+    'bool loadingScreenStatisticsEnabled = LoadingScreenStatisticsEnabled();',
+    'bool loadingScreenVisible = loadingScreenStatisticsEnabled',
+    'private bool LoadingScreenStatisticsEnabled()',
+    '_pendingSavePanelContent = LoadingScreenStatisticsEnabled()',
+    'return LoadingScreenUI.IsLoading',
+    '|| World.HasAny<LoadingScreenUI>();',
+    'ShouldShowPanel(pauseMenuVisible, loadingScreenVisible)',
+    'LoadingScreenStatisticsEnabled() && IsLoadingScreenVisible()))',
     '&& _pauseMenuView.gameObject.activeInHierarchy;',
-    'ShouldShowPanel(pauseMenuVisible)',
+    'private PanelContent _loadingPanelContent;',
+    'private string _loadingPanelSlotId;',
+    '&& !_loadingGameplayDeserialized)',
+    '_loadingGameplayDeserialized = true;',
+    'JsonUtility.FromJson<SavedPanelCache>',
+    'JsonUtility.ToJson(cache, true)',
+    'FormatVersion = 2,',
+    'PanelContent panelContent = PanelContentFromCache(cache);',
+    'SavedPanelCache roundTrip = JsonUtility.FromJson<SavedPanelCache>(json);',
+    'PanelContent roundTripPanel = PanelContentFromCache(roundTrip);',
+    'The serialized cache failed round-trip validation.',
+    'string.Equals(cache.SlotId, saveSlot.ID, StringComparison.Ordinal)',
+    'WritePanelCache(slotId, content);',
+    'PublishSuccessfulSaveSnapshot(__instance.SlotId);',
+    '[HarmonyPatch(typeof(LoadSave), nameof(LoadSave.Load))]',
+    'DeedsOfAvalonPlugin.Instance.PrepareLoadingPanel(saveSlot);',
     'World.Events.ModelDiscarded<QuickUseWheelUI>()',
     '_nextPanelRefresh = now + 0.2f;',
     'new Category("foes.magic.damage.other", "Other", "magic", "White")',
@@ -101,6 +144,19 @@ foreach ($contract in $requiredContracts) {
     if ($source.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
         throw "Missing Deeds panel presentation contract: $contract"
     }
+}
+
+if ($source.IndexOf('public PanelContent Panel;', [StringComparison]::Ordinal) -ge 0) {
+    throw "Loading-screen panel cache must not rely on a nested JsonUtility payload."
+}
+
+if ($source.IndexOf('_showLoadingScreenStatistics = Config.Bind("Loading Screen", "ShowCharacterStatistics", true', [StringComparison]::Ordinal) -ge 0) {
+    throw "Loading-screen statistics must remain opt-in by default."
+}
+
+$cacheGateCount = [regex]::Matches($source, 'LoadingScreenStatisticsEnabled\(\)').Count
+if ($cacheGateCount -lt 8) {
+    throw "Loading-screen cache reads, generation, writes, and presentation are not fully gated by the opt-in setting."
 }
 
 $itemsCraftedIndex = $source.IndexOf('AddRow(rows, facts.Get("deeds.items_crafted"', [StringComparison]::Ordinal)
@@ -133,6 +189,12 @@ if ($source.IndexOf('"corpse"', [StringComparison]::Ordinal) -ge 0) {
     throw "Deeds still requests the obsolete generic corpse icon."
 }
 
+$cachedPanelIndex = $source.IndexOf('content = _loadingPanelContent;', [StringComparison]::Ordinal)
+$livePanelIndex = $source.IndexOf('content = CreateLivePanelContent();', [StringComparison]::Ordinal)
+if ($cachedPanelIndex -lt 0 -or $livePanelIndex -le $cachedPanelIndex) {
+    throw "Cached save-slot panel content must be preferred until live gameplay data is restored."
+}
+
 $bloodEssenceRowStart = $source.IndexOf('rows.Add(new PanelRow(', $source.IndexOf('int displayedBloodEssence', [StringComparison]::Ordinal), [StringComparison]::Ordinal)
 $bloodEssenceRowEnd = $source.IndexOf('displayedBloodEssence));', $bloodEssenceRowStart, [StringComparison]::Ordinal)
 if ($bloodEssenceRowStart -lt 0 -or $bloodEssenceRowEnd -le $bloodEssenceRowStart) {
@@ -144,6 +206,13 @@ if ($bloodEssenceRow.IndexOf('"magic_blood"', [StringComparison]::Ordinal) -lt 0
 }
 if ($bloodEssenceRow.IndexOf('corpseIcon', [StringComparison]::Ordinal) -ge 0) {
     throw "Blood Essence still uses a corpse-quality icon."
+}
+
+$bloodSectionIndex = $source.IndexOf('if (_showBloodMagicStatistics.Value)', [StringComparison]::Ordinal)
+$soulsBoundIndex = $source.IndexOf('if (_showSoulAndServiceStatistics.Value)', [StringComparison]::Ordinal)
+$crimesIndex = $source.IndexOf('AddRow(rows, facts.Get("deeds.crimes_committed"', [StringComparison]::Ordinal)
+if (-not (0 -le $bloodSectionIndex -and $bloodSectionIndex -lt $soulsBoundIndex -and $soulsBoundIndex -lt $crimesIndex)) {
+    throw "Soul Vigor must appear immediately after the complete Blood Magic section."
 }
 
 Write-Output "Deeds panel presentation contracts passed."

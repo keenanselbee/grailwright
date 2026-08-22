@@ -28,9 +28,12 @@ using Awaken.TG.Main.Locations.Actions.Lockpicking;
 using Awaken.TG.Main.Locations.Discovery;
 using Awaken.TG.Main.Locations.Gems.GemManagement;
 using Awaken.TG.Main.Memories;
+using Awaken.TG.Main.Saving;
 using Awaken.TG.Main.Saving.Cloud.Services;
+using Awaken.TG.Main.Saving.SaveSlots;
 using Awaken.TG.Main.Stories.Quests;
 using Awaken.TG.Main.UI.Menu;
+using Awaken.TG.Main.UI.TitleScreen.Loading;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -42,13 +45,19 @@ using UnityEngine;
 [assembly: AssemblyDescription("Save-bounded character statistics and menu presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.8.1.0")]
-[assembly: AssemblyFileVersion("1.8.1.0")]
-[assembly: AssemblyInformationalVersion("1.8.1")]
+[assembly: AssemblyVersion("1.9.1.0")]
+[assembly: AssemblyFileVersion("1.9.1.0")]
+[assembly: AssemblyInformationalVersion("1.9.1")]
 
 namespace DeedsOfAvalon
 {
     public enum BloodMagicStatisticsMode
+    {
+        Simple,
+        Detailed
+    }
+
+    public enum SoulAndServiceStatisticsMode
     {
         Simple,
         Detailed
@@ -62,7 +71,7 @@ namespace DeedsOfAvalon
 
     public static class StatisticsApi
     {
-        public const int ApiVersion = 4;
+        public const int ApiVersion = 7;
 
         public static bool TryRecordCorpseDrain(string sourceId, string tier, float quality)
         {
@@ -84,6 +93,27 @@ namespace DeedsOfAvalon
             DeedsOfAvalonPlugin plugin = DeedsOfAvalonPlugin.Instance;
             return plugin != null
                 && plugin.RecordBloodMagicProgression(sourceId, bloodEssence, bloodPower);
+        }
+
+        public static bool TryRecordSoulVigorStatistics(
+            string sourceId,
+            float soulVigor,
+            float necromanticPower,
+            int meager,
+            int worthy,
+            int potent,
+            int prime)
+        {
+            DeedsOfAvalonPlugin plugin = DeedsOfAvalonPlugin.Instance;
+            return plugin != null
+                && plugin.RecordSoulVigorStatistics(
+                    sourceId,
+                    soulVigor,
+                    necromanticPower,
+                    meager,
+                    worthy,
+                    potent,
+                    prime);
         }
 
         public static bool TryGetCorpseDrainCounts(
@@ -158,13 +188,14 @@ namespace DeedsOfAvalon
     public sealed class DeedsOfAvalonPlugin : BaseUnityPlugin, IListenerOwner
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
-        public const string PluginName = "Deeds of Avalon - Character Statistics";
-        public const string PluginVersion = "1.8.1";
+        public const string PluginName = "Deeds of Avalon";
+        public const string PluginVersion = "1.9.1";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
         private const string BloodMagicPluginGuid = "ks.tgfoa.blood-magic-expansion";
-        private const int ConfigSchemaVersion = 12;
+        private const string SoulAndServicePluginGuid = "ks.tgfoa.soul-and-service";
+        private const int ConfigSchemaVersion = 13;
         private const float ReferenceScreenHeight = 1440.0f;
         private const float PanelHeaderHeight = 66.0f;
         private const float PanelRowHeight = 24.0f;
@@ -209,6 +240,11 @@ namespace DeedsOfAvalon
         private float _nextBindAttempt;
         private float _pendingLoadedExportAt = -1.0f;
         private StatisticsSnapshot _pendingSaveSnapshot;
+        private PanelContent _pendingSavePanelContent;
+        private PanelContent _loadingPanelContent;
+        private string _loadingPanelSlotId;
+        private bool _loadingGameplayDeserialized;
+        private bool _loadingPanelWasVisible;
         private CharacterPointsSnapshot _characterPointsSnapshot;
         private bool _statisticsWereTracking;
         private int _crimeActionWrapperDepth;
@@ -223,6 +259,7 @@ namespace DeedsOfAvalon
         private bool _panelPresentationActive;
         private MethodInfo _bloodMagicIsDamageMethod;
         private MethodInfo _bloodMagicIsDisplayNameMethod;
+        private MethodInfo _soulAndServiceIsNecroticDamageMethod;
         private FieldInfo _characterPointsCanvasGroupField;
         private FieldInfo _characterPointsWhispersVisibleField;
         private VCCharacterPointsAvailable _characterPointsView;
@@ -232,6 +269,7 @@ namespace DeedsOfAvalon
         private ConfigEntry<bool> _exportOnSuccessfulSave;
         private ConfigEntry<bool> _showQuickWheelStatistics;
         private ConfigEntry<bool> _showPauseMenuStatistics;
+        private ConfigEntry<bool> _showLoadingScreenStatistics;
         private ConfigEntry<bool> _hideItemTooltipText;
         private ConfigEntry<float> _panelOpacity;
         private ConfigEntry<float> _tooltipPanelOpacity;
@@ -264,6 +302,9 @@ namespace DeedsOfAvalon
         private ConfigEntry<bool> _hidePointsAvailable;
         private ConfigEntry<bool> _showBloodMagicStatistics;
         private ConfigEntry<BloodMagicStatisticsMode> _bloodMagicStatisticsMode;
+        private ConfigEntry<bool> _showSoulAndServiceStatistics;
+        private ConfigEntry<SoulAndServiceStatisticsMode>
+            _soulAndServiceStatisticsMode;
         private ConfigEntry<bool> _diagnostics;
         private Grailwright.Shared.ConfigRecoveryCustomizationProfile _pendingConfigRecoveryProfile;
 
@@ -327,7 +368,23 @@ namespace DeedsOfAvalon
             }
 
             bool pauseMenuVisible = IsPauseMenuVisible();
-            if (!_wheelWasOpen && !pauseMenuVisible)
+            bool loadingScreenStatisticsEnabled = LoadingScreenStatisticsEnabled();
+            if (!loadingScreenStatisticsEnabled
+                && !string.IsNullOrWhiteSpace(_loadingPanelSlotId))
+            {
+                ClearLoadingPanelCache();
+            }
+            bool loadingScreenVisible = loadingScreenStatisticsEnabled
+                && IsLoadingScreenVisible();
+            if (loadingScreenVisible)
+            {
+                _loadingPanelWasVisible = !string.IsNullOrWhiteSpace(_loadingPanelSlotId);
+            }
+            else if (_loadingPanelWasVisible)
+            {
+                ClearLoadingPanelCache();
+            }
+            if (!_wheelWasOpen && !pauseMenuVisible && !loadingScreenVisible)
             {
                 ClearGftPanel();
                 return;
@@ -337,12 +394,12 @@ namespace DeedsOfAvalon
             {
                 ApplyPointsAvailableVisibility();
             }
-            if (ShouldShowPanel(pauseMenuVisible) && now >= _nextPanelRefresh)
+            if (ShouldShowPanel(pauseMenuVisible, loadingScreenVisible) && now >= _nextPanelRefresh)
             {
                 _nextPanelRefresh = now + 0.2f;
                 PublishPanel();
             }
-            else if (!ShouldShowPanel(pauseMenuVisible))
+            else if (!ShouldShowPanel(pauseMenuVisible, loadingScreenVisible))
             {
                 ClearGftPanel();
             }
@@ -401,6 +458,7 @@ namespace DeedsOfAvalon
 
             _showQuickWheelStatistics = Config.Bind("Quick Wheel", "ShowCharacterStatistics", true, ConfigUi("Show the two-column Deeds of Avalon panel while the quick wheel is open. Requires Grail Floating Text.", "General", "Show In Quick Wheel", 0, 30));
             _showPauseMenuStatistics = Config.Bind("Pause Menu", "ShowCharacterStatistics", true, ConfigUi("Show the same Deeds of Avalon panel on the root ESC system menu. Requires Grail Floating Text.", "General", "Show In Pause Menu", 0, 40));
+            _showLoadingScreenStatistics = Config.Bind("Loading Screen", "ShowCharacterStatistics", false, ConfigUi("Show the same Deeds of Avalon panel during gameplay loading screens when character statistics are available. Enabling this also activates per-save loading-screen snapshots. Requires Grail Floating Text.", "General", "Show On Loading Screens", 0, 50));
             _hideItemTooltipText = Config.Bind("Quick Wheel", "HideItemTooltipText", false, ConfigUi("Hide the normal weapon and spell tooltip on the quick wheel. Disabled by default.", "Tooltip Behavior", "Hide Item Tooltip Text", 10, 0));
             _tooltipPanelOpacity = Config.Bind("Quick Wheel", "TooltipPanelOpacity", 0.0f, ConfigUi("Multiplier applied to the statistics panel while a weapon or spell tooltip is visible.", "Tooltip Behavior", "Panel Opacity With Tooltip", 10, 10, new AcceptableValueRange<float>(0.0f, 1.0f)));
             _tooltipFadeSeconds = Config.Bind("Quick Wheel", "TooltipFadeSeconds", 0.15f, ConfigUi("Seconds used to fade the statistics panel when tooltips open or close.", "Tooltip Behavior", "Tooltip Fade Seconds", 10, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
@@ -433,6 +491,8 @@ namespace DeedsOfAvalon
             _hidePointsAvailable = Config.Bind("Quick Wheel", "HidePointsAvailable", true, ConfigUi("Hide the top-right Points available widget only while the quick wheel is open. Defers to Glorious UI when Glorious UI owns this behavior.", "Panel Content", "Hide Points Available", 70, 60));
             _showBloodMagicStatistics = Config.Bind("Integrations", "ShowBloodMagicStatistics", true, ConfigUi("Show Blood Essence and Blood Power above Corpses Drained in the Grail Floating Text statistics panel.", "Integrations", "Show Blood Magic Statistics", 80, 0));
             _bloodMagicStatisticsMode = Config.Bind("Integrations", "BloodMagicStatisticsMode", BloodMagicStatisticsMode.Detailed, ConfigUi("Choose Simple for Blood Essence and Blood Power plus the total Corpses Drained row, or Detailed for the progression row plus Meager, Worthy, Potent, and Prime rows. The total and tiers are never shown together.", "Integrations", "Blood Magic Statistics Mode", 80, 10));
+            _showSoulAndServiceStatistics = Config.Bind("Integrations", "ShowSoulAndServiceStatistics", true, ConfigUi("Show Soul Vigor and Necromantic Power plus corpse-harvest statistics in the Grail Floating Text statistics panel.", "Integrations", "Show Soul and Service Statistics", 80, 20));
+            _soulAndServiceStatisticsMode = Config.Bind("Integrations", "SoulAndServiceStatisticsMode", SoulAndServiceStatisticsMode.Detailed, ConfigUi("Choose Simple for Soul Vigor and Necromantic Power plus the total Corpses Harvested row, or Detailed for the progression row plus Meager, Worthy, Potent, and Prime harvest rows. The total and tiers are never shown together.", "Integrations", "Soul and Service Statistics Mode", 80, 30));
             _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false, ConfigUi("Log event binding, panel integration, save export, and compatibility details.", "Diagnostics", "Diagnostics", 90, 0));
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(Config, Logger, PluginName, ConfigSchemaVersion, ConfigRecoveryBaselineSchema, ConfigRecoveryKeepCurrentDefaultRules, ConfigRecoveryPermanentExclusions);
@@ -513,6 +573,7 @@ namespace DeedsOfAvalon
             RestorePreserved(_exportOnSuccessfulSave, ref restoredCount, ref clampedCount);
             RestorePreserved(_showQuickWheelStatistics, ref restoredCount, ref clampedCount);
             RestorePreserved(_showPauseMenuStatistics, ref restoredCount, ref clampedCount);
+            RestorePreserved(_showLoadingScreenStatistics, ref restoredCount, ref clampedCount);
             RestorePreserved(_hideItemTooltipText, ref restoredCount, ref clampedCount);
             RestorePreserved(_panelOpacity, ref restoredCount, ref clampedCount);
             RestorePreserved(_tooltipPanelOpacity, ref restoredCount, ref clampedCount);
@@ -545,6 +606,8 @@ namespace DeedsOfAvalon
             RestorePreserved(_hidePointsAvailable, ref restoredCount, ref clampedCount);
             RestorePreserved(_showBloodMagicStatistics, ref restoredCount, ref clampedCount);
             RestorePreserved(_bloodMagicStatisticsMode, ref restoredCount, ref clampedCount);
+            RestorePreserved(_showSoulAndServiceStatistics, ref restoredCount, ref clampedCount);
+            RestorePreserved(_soulAndServiceStatisticsMode, ref restoredCount, ref clampedCount);
             RestorePreserved(_diagnostics, ref restoredCount, ref clampedCount);
 
             Logger.LogInfo(
@@ -947,6 +1010,10 @@ namespace DeedsOfAvalon
             {
                 return "foes.magic.damage.blood_magic";
             }
+            if (IsNecroticDamage(damage))
+            {
+                return "foes.magic.damage.necrotic";
+            }
             string spellName = ResolveSpellName(damage);
             if (!string.IsNullOrEmpty(spellName))
             {
@@ -1209,6 +1276,39 @@ namespace DeedsOfAvalon
             return true;
         }
 
+        internal bool RecordSoulVigorStatistics(
+            string sourceId,
+            float soulVigor,
+            float necromanticPower,
+            int meager,
+            int worthy,
+            int potent,
+            int prime)
+        {
+            if (!ShouldTrack()
+                || !string.Equals(
+                    sourceId,
+                    SoulAndServicePluginGuid,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            ContextualFacts facts = Facts();
+            if (facts == null)
+            {
+                return false;
+            }
+            facts.Set("soul.soul_vigor", Math.Max(0.0f, soulVigor));
+            facts.Set(
+                "soul.necromantic_power",
+                Mathf.Clamp(necromanticPower, 0.0f, 200.0f));
+            facts.Set("soul.harvests.meager", Math.Max(0, meager));
+            facts.Set("soul.harvests.worthy", Math.Max(0, worthy));
+            facts.Set("soul.harvests.potent", Math.Max(0, potent));
+            facts.Set("soul.harvests.prime", Math.Max(0, prime));
+            return true;
+        }
+
         internal bool TryGetCorpseDrainCounts(
             string sourceId,
             out int meager,
@@ -1428,10 +1528,53 @@ namespace DeedsOfAvalon
 
         private void PublishPanel()
         {
-            if (!ResolveGftApi() || !EnsureGftIconsRegistered()) return;
+            bool loadingScreenVisible = LoadingScreenStatisticsEnabled()
+                && IsLoadingScreenVisible();
+            PanelContent content = null;
+            if (loadingScreenVisible
+                && _loadingPanelContent != null
+                && !_loadingGameplayDeserialized)
+            {
+                content = _loadingPanelContent;
+            }
+            else
+            {
+                content = CreateLivePanelContent();
+                if (content != null
+                    && LoadingScreenStatisticsEnabled()
+                    && !string.IsNullOrWhiteSpace(_loadingPanelSlotId)
+                    && _loadingGameplayDeserialized)
+                {
+                    string slotId = _loadingPanelSlotId;
+                    bool replacedCache = _loadingPanelContent != null;
+                    WritePanelCache(slotId, content);
+                    LogDiagnostic((replacedCache
+                        ? "Replaced cached loading-screen statistics with restored live data for save slot "
+                        : "Initialized loading-screen statistics cache from restored live data for save slot ")
+                        + slotId
+                        + ".");
+                    ClearLoadingPanelCache();
+                }
+                else if (content == null
+                    && loadingScreenVisible
+                    && _loadingPanelContent != null)
+                {
+                    content = _loadingPanelContent;
+                }
+            }
+
+            if (content == null || !ResolveGftApi() || !EnsureGftIconsRegistered())
+            {
+                return;
+            }
+            PublishPanel(content);
+        }
+
+        private PanelContent CreateLivePanelContent()
+        {
             ContextualFacts facts = Facts();
             Hero hero = Hero.Current;
-            if (facts == null || hero == null) return;
+            if (facts == null || hero == null) return null;
 
             List<PanelRow> deeds = BuildDeedRows(facts);
             LimitDeedRows(deeds, _maximumDeedRows.Value);
@@ -1552,9 +1695,35 @@ namespace DeedsOfAvalon
                 }
             }
             string rightSubtitle = "Total: " + totalFoes.ToString("N0", CultureInfo.InvariantCulture);
+            string characterName = string.IsNullOrWhiteSpace(hero.Name)
+                ? "DEEDS OF AVALON"
+                : hero.Name.Trim().ToUpperInvariant();
+            return new PanelContent
+            {
+                LeftTitle = characterName,
+                LeftSubtitle = leftSubtitle,
+                LeftTexts = Texts(deeds),
+                LeftIconIds = Icons(deeds),
+                LeftStyles = Styles(deeds),
+                LeftResourceTexts = resourceTexts,
+                LeftResourceIconIds = resourceIconIds,
+                LeftResourceStyles = resourceStyles,
+                LeftSummaryRowCount = leftSummaryRowCount,
+                RightTitle = "FOES DEFEATED",
+                RightSubtitle = rightSubtitle,
+                RightTexts = Texts(foes),
+                RightIconIds = Icons(foes),
+                RightStyles = Styles(foes)
+            };
+        }
+
+        private void PublishPanel(PanelContent content)
+        {
+            int leftRowCount = content.LeftTexts.Length
+                + (content.LeftResourceTexts.Length > 0 ? 1 : 0);
             float resolutionScale = Mathf.Min(1.0f, Math.Max(1.0f, Screen.height) / ReferenceScreenHeight);
-            float leftPanelHeight = PanelHeaderHeight + (deeds.Count + 1) * PanelRowHeight;
-            float rightPanelHeight = PanelHeaderHeight + foes.Count * PanelRowHeight;
+            float leftPanelHeight = PanelHeaderHeight + leftRowCount * PanelRowHeight;
+            float rightPanelHeight = PanelHeaderHeight + content.RightTexts.Length * PanelRowHeight;
             float unscaledPanelHeight = Math.Max(leftPanelHeight, rightPanelHeight);
             float availableScreenHeight = Math.Max(1.0f, Screen.height - 64.0f * resolutionScale);
             float fitScale = availableScreenHeight / Math.Max(1.0f, unscaledPanelHeight);
@@ -1566,20 +1735,17 @@ namespace DeedsOfAvalon
             float centeredTopOffset = Math.Max(
                 0.0f,
                 (Screen.height - panelHeight) * 0.5f + _verticalOffset.Value * resolutionScale);
-            string characterName = string.IsNullOrWhiteSpace(hero.Name)
-                ? "DEEDS OF AVALON"
-                : hero.Name.Trim().ToUpperInvariant();
             List<object> args = new List<object>
             {
                 PluginGuid,
-                characterName,
-                leftSubtitle,
-                Texts(deeds), Icons(deeds), Styles(deeds),
-                resourceTexts, resourceIconIds, resourceStyles,
-                leftSummaryRowCount,
-                "FOES DEFEATED",
-                rightSubtitle,
-                Texts(foes), Icons(foes), Styles(foes),
+                content.LeftTitle,
+                content.LeftSubtitle,
+                content.LeftTexts, content.LeftIconIds, content.LeftStyles,
+                content.LeftResourceTexts, content.LeftResourceIconIds, content.LeftResourceStyles,
+                content.LeftSummaryRowCount,
+                content.RightTitle,
+                content.RightSubtitle,
+                content.RightTexts, content.RightIconIds, content.RightStyles,
                 _panelOpacity.Value,
                 _tooltipPanelOpacity.Value,
                 _tooltipFadeSeconds.Value,
@@ -1661,6 +1827,61 @@ namespace DeedsOfAvalon
                     AddRow(rows, facts.Get("blood.corpses_drained.worthy", 0), "Worthy corpses", "corpse_worthy", "Red");
                     AddRow(rows, facts.Get("blood.corpses_drained.potent", 0), "Potent corpses", "corpse_potent", "Red");
                     AddRow(rows, facts.Get("blood.corpses_drained.prime", 0), "Prime corpses", "corpse_prime", "Red");
+                }
+            }
+            if (_showSoulAndServiceStatistics.Value)
+            {
+                int soulVigor = Math.Max(
+                    0,
+                    Mathf.RoundToInt(facts.Get("soul.soul_vigor", 0.0f)));
+                int necromanticPower = Mathf.Clamp(
+                    Mathf.RoundToInt(
+                        facts.Get("soul.necromantic_power", 0.0f)),
+                    0,
+                    200);
+                int displayedSoulVigor = DisplayInteger("Soul Vigor", soulVigor);
+                int displayedNecromanticPower = DisplayInteger(
+                    "Necromantic Power",
+                    necromanticPower);
+                rows.Add(new PanelRow(
+                    "Soul Vigor: "
+                        + displayedSoulVigor.ToString("N0", CultureInfo.InvariantCulture)
+                        + " ("
+                        + displayedNecromanticPower.ToString("N0", CultureInfo.InvariantCulture)
+                        + ")",
+                    "necro",
+                    "Necrotic",
+                    displayedSoulVigor));
+                int meagerHarvests = Math.Max(
+                    0,
+                    facts.Get("soul.harvests.meager", 0));
+                int worthyHarvests = Math.Max(
+                    0,
+                    facts.Get("soul.harvests.worthy", 0));
+                int potentHarvests = Math.Max(
+                    0,
+                    facts.Get("soul.harvests.potent", 0));
+                int primeHarvests = Math.Max(
+                    0,
+                    facts.Get("soul.harvests.prime", 0));
+                if (_soulAndServiceStatisticsMode.Value
+                    == SoulAndServiceStatisticsMode.Simple)
+                {
+                    AddRow(
+                        rows,
+                        SaturatingAdd(
+                            SaturatingAdd(meagerHarvests, worthyHarvests),
+                            SaturatingAdd(potentHarvests, primeHarvests)),
+                        "Corpses Harvested",
+                        "necro",
+                        "Necrotic");
+                }
+                else
+                {
+                    AddRow(rows, meagerHarvests, "Meager harvests", "corpse_meager", "Necrotic");
+                    AddRow(rows, worthyHarvests, "Worthy harvests", "corpse_worthy", "Necrotic");
+                    AddRow(rows, potentHarvests, "Potent harvests", "corpse_potent", "Necrotic");
+                    AddRow(rows, primeHarvests, "Prime harvests", "corpse_prime", "Necrotic");
                 }
             }
             AddRow(rows, facts.Get("deeds.crimes_committed", 0), "Crimes committed", "crime", "Orange");
@@ -1891,6 +2112,13 @@ namespace DeedsOfAvalon
                 case "Worthy corpses": return 10;
                 case "Potent corpses": return 6;
                 case "Prime corpses": return 2;
+                case "Soul Vigor": return 116;
+                case "Necromantic Power": return 18;
+                case "Corpses Harvested": return 23;
+                case "Meager harvests": return 12;
+                case "Worthy harvests": return 7;
+                case "Potent harvests": return 3;
+                case "Prime harvests": return 1;
                 case "Crimes committed": return 7;
                 case "Locks picked": return 31;
                 case "Items pickpocketed": return 12;
@@ -1916,6 +2144,7 @@ namespace DeedsOfAvalon
                 case "Bows": return 119;
                 case "Throwables": return 14;
                 case "Blood": return 32;
+                case "Necrotic": return 24;
                 case "Fire": return 76;
                 case "Cold": return 43;
                 case "Poison": return 27;
@@ -1973,8 +2202,9 @@ namespace DeedsOfAvalon
                 new Category("foes.magic.damage.cold", "Cold", "magic_cold", "Blue"),
                 new Category("foes.magic.damage.wet", "Wet", "magic_wet", "Cyan"),
                 new Category("foes.magic.damage.electric", "Electric", "magic_electric", "Gold"),
-                new Category("foes.magic.damage.poison", "Poison", "magic_poison", "Green"),
                 new Category("foes.magic.damage.blood_magic", "Blood", "magic_blood", "Red"),
+                new Category("foes.magic.damage.necrotic", "Necrotic", "necro", "Necrotic"),
+                new Category("foes.magic.damage.poison", "Poison", "magic_poison", "Green"),
                 new Category("foes.magic.damage.pure", "Pure", "magic_pure", "Pale"),
                 new Category("foes.magic.damage.wyrdness", "Wyrdness", "wyrd", "Wyrd"),
                 new Category("foes.magic.damage.other", "Other", "magic", "White")
@@ -2135,6 +2365,69 @@ namespace DeedsOfAvalon
             {
                 LogDiagnostic("Blood Magic damage classification failed: " + ex.GetBaseException().Message);
                 _bloodMagicIsDamageMethod = null;
+                return false;
+            }
+        }
+
+        private bool IsNecroticDamage(Damage damage)
+        {
+            if (damage == null)
+            {
+                return false;
+            }
+            if (_soulAndServiceIsNecroticDamageMethod == null)
+            {
+                PluginInfo info;
+                if (!Chainloader.PluginInfos.TryGetValue(
+                        SoulAndServicePluginGuid,
+                        out info)
+                    || info == null
+                    || info.Instance == null)
+                {
+                    return false;
+                }
+                Type api = info.Instance.GetType().Assembly.GetType(
+                    "SoulAndService.SoulAndServiceApi",
+                    false);
+                FieldInfo version = api == null
+                    ? null
+                    : api.GetField(
+                        "ApiVersion",
+                        BindingFlags.Public | BindingFlags.Static);
+                int apiVersion = version == null
+                    ? 0
+                    : Convert.ToInt32(
+                        version.GetRawConstantValue(),
+                        CultureInfo.InvariantCulture);
+                if (apiVersion < 3)
+                {
+                    return false;
+                }
+                _soulAndServiceIsNecroticDamageMethod = api.GetMethod(
+                    "IsNecroticDamage",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(object) },
+                    null);
+                if (_soulAndServiceIsNecroticDamageMethod == null)
+                {
+                    return false;
+                }
+            }
+
+            try
+            {
+                object result = _soulAndServiceIsNecroticDamageMethod.Invoke(
+                    null,
+                    new object[] { damage });
+                return result is bool && (bool)result;
+            }
+            catch (Exception ex)
+            {
+                LogDiagnostic(
+                    "Soul and Service Necrotic damage classification failed: "
+                    + ex.GetBaseException().Message);
+                _soulAndServiceIsNecroticDamageMethod = null;
                 return false;
             }
         }
@@ -2307,14 +2600,31 @@ namespace DeedsOfAvalon
                 && _pauseMenuView.gameObject.activeInHierarchy;
         }
 
-        private bool ShouldShowPanel(bool pauseMenuVisible)
+        private static bool IsLoadingScreenVisible()
+        {
+            return LoadingScreenUI.IsLoading
+                || World.HasAny<LoadingScreenUI>();
+        }
+
+        private bool LoadingScreenStatisticsEnabled()
+        {
+            return _enabled != null
+                && _enabled.Value
+                && _showLoadingScreenStatistics != null
+                && _showLoadingScreenStatistics.Value;
+        }
+
+        private bool ShouldShowPanel(bool pauseMenuVisible, bool loadingScreenVisible)
         {
             return (_wheelWasOpen
                     && _showQuickWheelStatistics != null
                     && _showQuickWheelStatistics.Value)
                 || (pauseMenuVisible
                     && _showPauseMenuStatistics != null
-                    && _showPauseMenuStatistics.Value);
+                    && _showPauseMenuStatistics.Value)
+                || (loadingScreenVisible
+                    && _showLoadingScreenStatistics != null
+                    && _showLoadingScreenStatistics.Value);
         }
 
         private void RefreshPanelPresentation()
@@ -2323,7 +2633,9 @@ namespace DeedsOfAvalon
             _nextPanelRefresh = now + 0.2f;
             if (_enabled != null
                 && _enabled.Value
-                && ShouldShowPanel(IsPauseMenuVisible()))
+                && ShouldShowPanel(
+                    IsPauseMenuVisible(),
+                    LoadingScreenStatisticsEnabled() && IsLoadingScreenVisible()))
             {
                 PublishPanel();
             }
@@ -2381,31 +2693,207 @@ namespace DeedsOfAvalon
 
         internal void CapturePendingSaveSnapshot()
         {
+            ReconcileStatistics(Hero.Current);
+            _pendingSavePanelContent = LoadingScreenStatisticsEnabled()
+                ? CreateLivePanelContent()
+                : null;
+            _pendingSaveSnapshot = null;
             if (_exportOnSuccessfulSave != null && _exportOnSuccessfulSave.Value)
             {
-                ReconcileStatistics(Hero.Current);
                 _pendingSaveSnapshot = CreateStatisticsSnapshot();
             }
         }
 
-        internal void PublishSuccessfulSaveSnapshot()
+        internal void PublishSuccessfulSaveSnapshot(string slotId)
         {
             StatisticsSnapshot snapshot = _pendingSaveSnapshot;
+            PanelContent panelContent = _pendingSavePanelContent;
             _pendingSaveSnapshot = null;
+            _pendingSavePanelContent = null;
             if (snapshot != null) WriteSnapshot(snapshot, "successful save");
+            if (panelContent != null) WritePanelCache(slotId, panelContent);
         }
 
         internal void DiscardFailedSaveSnapshot()
         {
             _pendingSaveSnapshot = null;
+            _pendingSavePanelContent = null;
         }
 
         internal void ScheduleLoadedStatisticsExport()
         {
+            if (!LoadingScreenStatisticsEnabled())
+            {
+                ClearLoadingPanelCache();
+            }
+            else if (!string.IsNullOrWhiteSpace(_loadingPanelSlotId))
+            {
+                _loadingGameplayDeserialized = true;
+                _nextPanelRefresh = 0.0f;
+            }
             if (_exportOnSuccessfulSave != null && _exportOnSuccessfulSave.Value)
             {
                 _pendingLoadedExportAt = Time.unscaledTime + 1.0f;
             }
+        }
+
+        internal void PrepareLoadingPanel(SaveSlot saveSlot)
+        {
+            ClearLoadingPanelCache();
+            if (!LoadingScreenStatisticsEnabled()
+                || saveSlot == null
+                || string.IsNullOrWhiteSpace(saveSlot.ID))
+            {
+                return;
+            }
+
+            _loadingPanelSlotId = saveSlot.ID;
+            string path = PanelCachePath(saveSlot.ID);
+            if (!File.Exists(path))
+            {
+                LogDiagnostic("No cached loading-screen statistics exist yet for save slot " + saveSlot.ID + ".");
+                return;
+            }
+
+            try
+            {
+                SavedPanelCache cache = JsonUtility.FromJson<SavedPanelCache>(File.ReadAllText(path, Encoding.UTF8));
+                PanelContent panelContent = PanelContentFromCache(cache);
+                if (cache == null
+                    || !string.Equals(cache.SlotId, saveSlot.ID, StringComparison.Ordinal)
+                    || !IsValidPanelContent(panelContent))
+                {
+                    throw new InvalidDataException("The cache does not match the selected save slot or panel format.");
+                }
+
+                _loadingPanelContent = panelContent;
+                _loadingGameplayDeserialized = false;
+                LogDiagnostic("Prepared cached loading-screen statistics for save slot " + saveSlot.ID + ".");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning("Could not read cached loading-screen statistics for save slot " + saveSlot.ID + ": " + ex.GetBaseException().Message);
+                _loadingPanelContent = null;
+                _loadingGameplayDeserialized = false;
+            }
+        }
+
+        private void WritePanelCache(string slotId, PanelContent panelContent)
+        {
+            if (!LoadingScreenStatisticsEnabled()
+                || string.IsNullOrWhiteSpace(slotId)
+                || !IsValidPanelContent(panelContent))
+            {
+                return;
+            }
+
+            string path = PanelCachePath(slotId);
+            string temp = path + ".tmp";
+            try
+            {
+                SavedPanelCache cache = new SavedPanelCache
+                {
+                    FormatVersion = 2,
+                    SlotId = slotId,
+                    WrittenUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                    LeftTitle = panelContent.LeftTitle,
+                    LeftSubtitle = panelContent.LeftSubtitle,
+                    LeftTexts = panelContent.LeftTexts,
+                    LeftIconIds = panelContent.LeftIconIds,
+                    LeftStyles = panelContent.LeftStyles,
+                    LeftResourceTexts = panelContent.LeftResourceTexts,
+                    LeftResourceIconIds = panelContent.LeftResourceIconIds,
+                    LeftResourceStyles = panelContent.LeftResourceStyles,
+                    LeftSummaryRowCount = panelContent.LeftSummaryRowCount,
+                    RightTitle = panelContent.RightTitle,
+                    RightSubtitle = panelContent.RightSubtitle,
+                    RightTexts = panelContent.RightTexts,
+                    RightIconIds = panelContent.RightIconIds,
+                    RightStyles = panelContent.RightStyles
+                };
+                string json = JsonUtility.ToJson(cache, true);
+                SavedPanelCache roundTrip = JsonUtility.FromJson<SavedPanelCache>(json);
+                PanelContent roundTripPanel = PanelContentFromCache(roundTrip);
+                if (roundTrip == null
+                    || !string.Equals(roundTrip.SlotId, slotId, StringComparison.Ordinal)
+                    || !IsValidPanelContent(roundTripPanel))
+                {
+                    throw new InvalidDataException("The serialized cache failed round-trip validation.");
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(temp, json + "\n", new UTF8Encoding(false));
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
+                LogDiagnostic("Wrote loading-screen statistics cache for save slot " + slotId + ".");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning("Could not write cached loading-screen statistics for save slot " + slotId + ": " + ex.GetBaseException().Message);
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+            }
+        }
+
+        private static string PanelCachePath(string slotId)
+        {
+            return Path.Combine(
+                Paths.ConfigPath,
+                "DeedsOfAvalon",
+                "PanelCache",
+                SafeKey(slotId) + ".json");
+        }
+
+        private void ClearLoadingPanelCache()
+        {
+            _loadingPanelContent = null;
+            _loadingPanelSlotId = null;
+            _loadingGameplayDeserialized = false;
+            _loadingPanelWasVisible = false;
+        }
+
+        private static bool IsValidPanelContent(PanelContent content)
+        {
+            return content != null
+                && MatchingPanelArrays(content.LeftTexts, content.LeftIconIds, content.LeftStyles, 256)
+                && MatchingPanelArrays(content.LeftResourceTexts, content.LeftResourceIconIds, content.LeftResourceStyles, 16)
+                && MatchingPanelArrays(content.RightTexts, content.RightIconIds, content.RightStyles, 256)
+                && content.LeftSummaryRowCount >= 0
+                && content.LeftSummaryRowCount <= content.LeftTexts.Length;
+        }
+
+        private static PanelContent PanelContentFromCache(SavedPanelCache cache)
+        {
+            if (cache == null || cache.FormatVersion != 2)
+            {
+                return null;
+            }
+
+            return new PanelContent
+            {
+                LeftTitle = cache.LeftTitle,
+                LeftSubtitle = cache.LeftSubtitle,
+                LeftTexts = cache.LeftTexts,
+                LeftIconIds = cache.LeftIconIds,
+                LeftStyles = cache.LeftStyles,
+                LeftResourceTexts = cache.LeftResourceTexts,
+                LeftResourceIconIds = cache.LeftResourceIconIds,
+                LeftResourceStyles = cache.LeftResourceStyles,
+                LeftSummaryRowCount = cache.LeftSummaryRowCount,
+                RightTitle = cache.RightTitle,
+                RightSubtitle = cache.RightSubtitle,
+                RightTexts = cache.RightTexts,
+                RightIconIds = cache.RightIconIds,
+                RightStyles = cache.RightStyles
+            };
+        }
+
+        private static bool MatchingPanelArrays(string[] texts, string[] iconIds, string[] styles, int maximum)
+        {
+            return texts != null
+                && iconIds != null
+                && styles != null
+                && texts.Length == iconIds.Length
+                && texts.Length == styles.Length
+                && texts.Length <= maximum;
         }
 
         private bool ExportCurrentSavedStatistics(string reason)
@@ -2502,6 +2990,47 @@ namespace DeedsOfAvalon
             if (_diagnostics != null && _diagnostics.Value) Logger.LogInfo(message);
         }
 
+        [Serializable]
+        private sealed class SavedPanelCache
+        {
+            public int FormatVersion;
+            public string SlotId;
+            public string WrittenUtc;
+            public string LeftTitle;
+            public string LeftSubtitle;
+            public string[] LeftTexts;
+            public string[] LeftIconIds;
+            public string[] LeftStyles;
+            public string[] LeftResourceTexts;
+            public string[] LeftResourceIconIds;
+            public string[] LeftResourceStyles;
+            public int LeftSummaryRowCount;
+            public string RightTitle;
+            public string RightSubtitle;
+            public string[] RightTexts;
+            public string[] RightIconIds;
+            public string[] RightStyles;
+        }
+
+        [Serializable]
+        private sealed class PanelContent
+        {
+            public string LeftTitle;
+            public string LeftSubtitle;
+            public string[] LeftTexts;
+            public string[] LeftIconIds;
+            public string[] LeftStyles;
+            public string[] LeftResourceTexts;
+            public string[] LeftResourceIconIds;
+            public string[] LeftResourceStyles;
+            public int LeftSummaryRowCount;
+            public string RightTitle;
+            public string RightSubtitle;
+            public string[] RightTexts;
+            public string[] RightIconIds;
+            public string[] RightStyles;
+        }
+
         private sealed class PanelRow
         {
             internal readonly string Text;
@@ -2560,7 +3089,13 @@ namespace DeedsOfAvalon
     [HarmonyPatch(typeof(SaveInProgressHandle), nameof(SaveInProgressHandle.MarkSucceeded))]
     internal static class SaveSucceededPatch
     {
-        private static void Postfix() { if (DeedsOfAvalonPlugin.Instance != null) DeedsOfAvalonPlugin.Instance.PublishSuccessfulSaveSnapshot(); }
+        private static void Postfix(SaveInProgressHandle __instance)
+        {
+            if (DeedsOfAvalonPlugin.Instance != null)
+            {
+                DeedsOfAvalonPlugin.Instance.PublishSuccessfulSaveSnapshot(__instance.SlotId);
+            }
+        }
     }
 
     [HarmonyPatch(typeof(SaveInProgressHandle), nameof(SaveInProgressHandle.Dispose))]
@@ -2571,6 +3106,20 @@ namespace DeedsOfAvalon
             if (!__instance.Success && DeedsOfAvalonPlugin.Instance != null)
             {
                 DeedsOfAvalonPlugin.Instance.DiscardFailedSaveSnapshot();
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(LoadSave), nameof(LoadSave.Load))]
+    internal static class LoadSavePatch
+    {
+        private static void Prefix(SaveSlot saveSlot)
+        {
+            if (saveSlot != null
+                && saveSlot.CanLoad()
+                && DeedsOfAvalonPlugin.Instance != null)
+            {
+                DeedsOfAvalonPlugin.Instance.PrepareLoadingPanel(saveSlot);
             }
         }
     }

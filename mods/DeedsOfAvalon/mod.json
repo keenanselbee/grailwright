@@ -2,7 +2,7 @@
   "id": "DeedsOfAvalon",
   "displayName": "Deeds of Avalon - Character Statistics",
   "packageName": "DeedsOfAvalon",
-  "version": "1.8.1",
+  "version": "1.9.1",
   "pluginGuid": "ks.tgfoa.deeds-of-avalon",
   "dll": "DeedsOfAvalon.dll",
   "sourceFiles": [
@@ -18,6 +18,7 @@
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.JSONSerializeModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.UIModule.dll"
   ]
 }

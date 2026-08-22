@@ -27,12 +27,27 @@ $contracts = @(
     '_pendingLoadedExportAt = ExportCurrentSavedStatistics("load")',
     '!entry.Key.StartsWith("bounty.faction.", StringComparison.Ordinal)',
     '[HarmonyPatch(typeof(CrimeUtils), nameof(CrimeUtils.TryCommitCrime))]',
-    'typeof(CommitCrime)'
+    'typeof(CommitCrime)',
+    'public const int ApiVersion = 7',
+    'TryRecordSoulVigorStatistics(',
+    'private const string SoulAndServicePluginGuid = "ks.tgfoa.soul-and-service"',
+    'SoulAndServicePluginGuid,',
+    'StringComparison.OrdinalIgnoreCase',
+    'facts.Set("soul.soul_vigor",',
+    '"soul.necromantic_power",',
+    'facts.Set("soul.harvests.meager", Math.Max(0, meager));',
+    'facts.Set("soul.harvests.worthy", Math.Max(0, worthy));',
+    'facts.Set("soul.harvests.potent", Math.Max(0, potent));',
+    'facts.Set("soul.harvests.prime", Math.Max(0, prime));'
 )
 foreach ($contract in $contracts) {
     if ($source.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
         throw "Missing Deeds statistic contract: $contract"
     }
+}
+
+if ($source.IndexOf('TryRecordSoulProgression(', [StringComparison]::Ordinal) -ge 0) {
+    throw "Legacy Soul and Service progression callback must not remain in Deeds API v7."
 }
 
 $fireIndex = $source.IndexOf('new Category("foes.magic.damage.fire"', [StringComparison]::Ordinal)
@@ -41,12 +56,14 @@ $wetIndex = $source.IndexOf('new Category("foes.magic.damage.wet"', [StringCompa
 $electricIndex = $source.IndexOf('new Category("foes.magic.damage.electric"', [StringComparison]::Ordinal)
 $poisonIndex = $source.IndexOf('new Category("foes.magic.damage.poison"', [StringComparison]::Ordinal)
 $bloodIndex = $source.IndexOf('new Category("foes.magic.damage.blood_magic"', [StringComparison]::Ordinal)
+$necroticIndex = $source.IndexOf('new Category("foes.magic.damage.necrotic"', [StringComparison]::Ordinal)
 $pureIndex = $source.IndexOf('new Category("foes.magic.damage.pure"', [StringComparison]::Ordinal)
 $wyrdnessIndex = $source.IndexOf('new Category("foes.magic.damage.wyrdness"', [StringComparison]::Ordinal)
 $otherIndex = $source.IndexOf('new Category("foes.magic.damage.other"', [StringComparison]::Ordinal)
 if (-not (0 -le $fireIndex -and $fireIndex -lt $coldIndex -and $coldIndex -lt $wetIndex -and
-    $wetIndex -lt $electricIndex -and $electricIndex -lt $poisonIndex -and
-    $poisonIndex -lt $bloodIndex -and $bloodIndex -lt $pureIndex -and
+    $wetIndex -lt $electricIndex -and $electricIndex -lt $bloodIndex -and
+    $bloodIndex -lt $necroticIndex -and $necroticIndex -lt $poisonIndex -and
+    $poisonIndex -lt $pureIndex -and
     $pureIndex -lt $wyrdnessIndex -and $wyrdnessIndex -lt $otherIndex)) {
     throw "Deeds magic categories are not in the authored display order."
 }

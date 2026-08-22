@@ -1,3 +1,5 @@
-TargetVersion=0.7.7
-BaselineVersion=0.7.6
-Rebuilt the unchanged gameplay package to validate stable Vortex version grouping and Nexus metadata promotion. There are no gameplay or configuration changes from 0.7.6.
+TargetVersion=0.8.1
+BaselineVersion=0.7.9
+
+Moved a left-hand greatweapon's loaded weapon view to the right-hand socket while it uses two-handed grip, then restored the view to the left-hand socket in one-handed grip. The equipment remains logically in its original slot, so loadout ownership and item state do not change.
+Forced a left-hand greatweapon in two-handed grip to use its real two-handed controller and layers without the game's additional offhand dual-wield override, allowing it to draw and attack when the right hand is empty and to change grip while a right-hand spell is safely stowed and restored.

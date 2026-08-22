@@ -1,3 +1,15 @@
+Version 0.8.1
+Moved a left-hand greatweapon's loaded weapon view to the right-hand socket while it uses two-handed grip, then restored the view to the left-hand socket in one-handed grip. The equipment remains logically in its original slot, so loadout ownership and item state do not change.
+
+Version 0.8.0
+Forced a left-hand greatweapon in two-handed grip to use its real two-handed controller and layers without the game's additional offhand dual-wield override, allowing it to draw and attack when the right hand is empty and to change grip while a right-hand spell is safely stowed and restored.
+
+Version 0.7.9
+Added initial two-handed combat-stat and animation-event ownership routing for left-hand greatweapons, but the game continued applying its physical offhand controller and layers; version 0.8.0 completes the animation routing.
+
+Version 0.7.8
+Prevented a left-hand greatweapon from claiming a grip hold while a spell occupied the right hand, avoiding the unsupported transition while the offhand two-handed animation-routing fix was developed.
+
 Version 0.7.7
 Rebuilt the unchanged gameplay implementation as a local test release to validate stable Vortex version grouping and Nexus metadata promotion tooling.
 

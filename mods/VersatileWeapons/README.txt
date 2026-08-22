@@ -1,5 +1,5 @@
 Versatile Weapons - Dynamic Grip
-Version 0.7.7
+Version 0.8.1
 
 Standalone dynamic weapon-grip mod for Tainted Grail: The Fall of Avalon.
 
@@ -40,6 +40,10 @@ manually, so stale grip choices cannot carry onto replacement weapons.
 When both equipped weapons can change grip, the main-hand weapon owns Toggle
 Weapon. An offhand greatweapon owns the grip control when the main hand is a
 spell, shield, rod, or another item that Versatile Weapons does not grip-switch.
+Changing the offhand weapon to two-handed grip stows the paired main-hand item;
+its weapon view moves to the main-hand socket expected by the two-handed
+animations. Returning to one-handed grip moves the view back and restores the
+paired item.
 
 After a grip change, new attacks and blocks wait briefly for the selected
 grip's equip animation to reach its stable idle or movement state. This prevents

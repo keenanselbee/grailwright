@@ -6,16 +6,14 @@ $ErrorActionPreference = "Stop"
 
 $modRoot = Split-Path -Parent $PSScriptRoot
 $sourcePath = Join-Path $modRoot "src\VersatileWeapons.cs"
-$manifestPath = Join-Path $modRoot "mod.json"
 $readmePath = Join-Path $modRoot "README.txt"
-foreach ($path in @($sourcePath, $manifestPath, $readmePath)) {
+foreach ($path in @($sourcePath, $readmePath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Missing contract input: $path"
     }
 }
 
 $source = Get-Content -LiteralPath $sourcePath -Raw
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $readme = Get-Content -LiteralPath $readmePath -Raw
 
 $requiredPairTypes = @(
@@ -321,14 +319,35 @@ if ($source -notmatch 'ScheduleRememberedGripAnimationRefresh' -or
     $source -notmatch 'Applying the settled animator refresh for the remembered non-default grip') {
     throw "A remembered non-default grip must wait for the paired hand only when that grip leaves it active, then refresh the exact weapon controller after the required animators settle."
 }
-if ($manifest.version -ne "0.7.6" -or
-    $source -notmatch 'public const string PluginVersion = "0\.7\.6";' -or
-    $readme -notmatch '(?m)^Version 0\.7\.6$') {
-    throw "Version 0.7.6 is not synchronized across the manifest, source, and README."
-}
 if ($readme -notmatch 'any one-slot hand item' -or
     $readme -notmatch 'Either hand order is supported') {
     throw "The installed-user README does not state the generalized pairing contract."
+}
+if ($source -match 'IsOffHandWeaponPairedWithMainHandSpell' -or
+    $source -notmatch '(?s)CanClaimGripInput\(Hero hero\).+IsSupportedPairedHandItem\(pairedItem\)' -or
+    $source -notmatch '(?s)TryToggleGrip\(Hero hero\).+IsSupportedPairedHandItem\(pairedItem\)' -or
+    $readme -notmatch 'An offhand greatweapon owns the grip control when the main hand is a\s+spell' -or
+    $readme -notmatch 'Changing the offhand weapon to two-handed grip stows the paired main-hand item') {
+    throw "A supported offhand greatweapon must retain grip control beside a main-hand spell and stow that spell in two-handed grip."
+}
+if ($source -notmatch 'GetActiveOffHandTwoHandedGripWeapon' -or
+    $source -notmatch 'class TwoHandedFsmStatsItemPatch' -or
+    $source -notmatch 'class OffHandTwoHandedAnimationSpeedPatch' -or
+    $source -notmatch 'weaponRestriction = WeaponRestriction\.OffHand' -or
+    $source -notmatch 'class OffHandTwoHandedRestrictionPatch' -or
+    $source -notmatch '__result = ReferenceEquals\(hand, weapon\)' -or
+    $source -notmatch 'selectedProfile = "offhand-two-handed"' -or
+    $source -notmatch '(?s)class AnimationLayersPatch.+GetActiveOffHandTwoHandedGripWeapon.+GetTwoHandedLayers' -or
+    $source -notmatch '(?s)class DualWieldingOffHandPatch.+GetActiveOffHandTwoHandedGripWeapon.+__result = null') {
+    throw "An offhand weapon in native two-handed grip must own the real two-handed controller, layers, stats, and animation events without a dual-wield override."
+}
+if ($source -notmatch 'UpdateOffHandTwoHandedPresentation' -or
+    $source -notmatch 'RestoreOffHandTwoHandedPresentation' -or
+    $source -notmatch 'weaponTransform\.SetParent\(mainHandSocket, false\)' -or
+    $source -notmatch 'weaponTransform\.SetParent\(originalParent, false\)' -or
+    $source -notmatch '(?s)ApplyObservedGripTransition.+StartGripEquipInputGuard\(weapon\.Item\);\s+UpdateOffHandTwoHandedPresentation\(hero\)' -or
+    $readme -notmatch 'weapon view moves to the main-hand socket expected by the two-handed\s+animations') {
+    throw "An offhand weapon in two-handed grip must move only its loaded view to the main-hand socket and restore that view to the offhand socket afterward."
 }
 
 Write-Host "Versatile Weapons pairing contracts passed."

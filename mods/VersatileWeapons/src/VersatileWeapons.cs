@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Awaken.TG.Graphics.Animations;
 using Awaken.TG.Assets;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.UI;
@@ -24,6 +25,7 @@ using Awaken.TG.Main.Heroes.Stats.Observers;
 using Awaken.TG.Main.Heroes.Stats.Utils;
 using Awaken.TG.Main.Settings.Gameplay;
 using Awaken.TG.Main.Utility;
+using Awaken.TG.Main.Utility.Animations;
 using Awaken.TG.Main.Utility.Animations.ARAnimator;
 using BepInEx;
 using BepInEx.Configuration;
@@ -34,9 +36,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.7.7.0")]
-[assembly: AssemblyFileVersion("0.7.7.0")]
-[assembly: AssemblyInformationalVersion("0.7.7")]
+[assembly: AssemblyVersion("0.8.1.0")]
+[assembly: AssemblyFileVersion("0.8.1.0")]
+[assembly: AssemblyInformationalVersion("0.8.1")]
 
 namespace VersatileWeapons
 {
@@ -58,7 +60,7 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.7.7";
+        public const string PluginVersion = "0.8.1";
 
         private const int ConfigSchemaVersion = 13;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -226,6 +228,11 @@ namespace VersatileWeapons
         private Transform _adjustedFirstPersonWeaponTransform;
         private Vector3 _originalFirstPersonWeaponLocalPosition;
         private Quaternion _originalFirstPersonWeaponLocalRotation;
+        private CharacterHandBase _offHandTwoHandedPresentationWeapon;
+        private Transform _offHandTwoHandedPresentationOriginalParent;
+        private Vector3 _offHandTwoHandedPresentationLocalPosition;
+        private Quaternion _offHandTwoHandedPresentationLocalRotation;
+        private Vector3 _offHandTwoHandedPresentationLocalScale;
         private Type _gloriousUiPluginType;
         private MethodInfo _gloriousUiOwnsLoadoutsMethod;
         private FieldInfo _gloriousUiCurrentLoadoutField;
@@ -848,6 +855,7 @@ namespace VersatileWeapons
             if (_enabled != null && !_enabled.Value)
             {
                 CancelGripEquipInputGuard();
+                RestoreOffHandTwoHandedPresentation();
                 Hero hero = Hero.Current;
                 CharacterHand weapon = FindHandForItem(hero, _gripItem)
                     ?? _observedWeapon;
@@ -1709,6 +1717,7 @@ namespace VersatileWeapons
             {
                 CancelGripEquipInputGuard();
                 RestoreFirstPersonWeaponPosition();
+                RestoreOffHandTwoHandedPresentation();
                 RestoreHiddenPairedHand();
                 ClearObservedWeapon();
                 _pairedHandVisibilityRecoveryCandidate = null;
@@ -1754,6 +1763,8 @@ namespace VersatileWeapons
 
                 MonitorDrawnWeaponVisibility(hero, gripWeapon);
             }
+
+            UpdateOffHandTwoHandedPresentation(hero);
 
             MonitorCanceledPairedHandVisibility(hero);
             ProcessPendingGripMemoryInvalidation(hero);
@@ -2067,6 +2078,106 @@ namespace VersatileWeapons
                     * new Vector3(0.0f, positionY, 0.0f);
         }
 
+        private void UpdateOffHandTwoHandedPresentation(Hero hero)
+        {
+            CharacterHandBase weapon =
+                GetActiveOffHandTwoHandedGripWeapon(hero);
+            if (weapon == null)
+            {
+                RestoreOffHandTwoHandedPresentation();
+                return;
+            }
+
+            Transform weaponTransform = weapon.transform;
+            Transform mainHandSocket = hero.MainHand;
+            if (weaponTransform == null || mainHandSocket == null)
+            {
+                return;
+            }
+
+            if (!ReferenceEquals(
+                _offHandTwoHandedPresentationWeapon,
+                weapon))
+            {
+                RestoreOffHandTwoHandedPresentation();
+                _offHandTwoHandedPresentationWeapon = weapon;
+                _offHandTwoHandedPresentationOriginalParent =
+                    weaponTransform.parent;
+                _offHandTwoHandedPresentationLocalPosition =
+                    weaponTransform.localPosition;
+                _offHandTwoHandedPresentationLocalRotation =
+                    weaponTransform.localRotation;
+                _offHandTwoHandedPresentationLocalScale =
+                    weaponTransform.localScale;
+            }
+
+            Transform offHandSocket = hero.OffHand;
+            if (offHandSocket != null
+                && !ReferenceEquals(offHandSocket, mainHandSocket))
+            {
+                _offHandTwoHandedPresentationOriginalParent =
+                    offHandSocket;
+            }
+
+            if (ReferenceEquals(weaponTransform.parent, mainHandSocket))
+            {
+                return;
+            }
+
+            weaponTransform.SetParent(mainHandSocket, false);
+            weaponTransform.localPosition =
+                _offHandTwoHandedPresentationLocalPosition;
+            weaponTransform.localRotation =
+                _offHandTwoHandedPresentationLocalRotation;
+            weaponTransform.localScale =
+                _offHandTwoHandedPresentationLocalScale;
+            LogDiagnostic(
+                "Moved the offhand weapon view to the main-hand socket for its two-handed grip.");
+        }
+
+        private void RestoreOffHandTwoHandedPresentation()
+        {
+            CharacterHandBase weapon =
+                _offHandTwoHandedPresentationWeapon;
+            Transform originalParent =
+                _offHandTwoHandedPresentationOriginalParent;
+            Vector3 localPosition =
+                _offHandTwoHandedPresentationLocalPosition;
+            Quaternion localRotation =
+                _offHandTwoHandedPresentationLocalRotation;
+            Vector3 localScale =
+                _offHandTwoHandedPresentationLocalScale;
+
+            _offHandTwoHandedPresentationWeapon = null;
+            _offHandTwoHandedPresentationOriginalParent = null;
+
+            if (weapon == null || originalParent == null)
+            {
+                return;
+            }
+
+            Transform weaponTransform = weapon.transform;
+            if (weaponTransform == null)
+            {
+                return;
+            }
+
+            Hero hero = Hero.Current;
+            if (hero != null
+                && ReferenceEquals(weapon, hero.OffHandWeapon)
+                && hero.OffHand != null)
+            {
+                originalParent = hero.OffHand;
+            }
+
+            weaponTransform.SetParent(originalParent, false);
+            weaponTransform.localPosition = localPosition;
+            weaponTransform.localRotation = localRotation;
+            weaponTransform.localScale = localScale;
+            LogDiagnostic(
+                "Restored the offhand weapon view to its offhand socket.");
+        }
+
         private void RestoreFirstPersonWeaponPosition()
         {
             if (_adjustedFirstPersonWeaponTransform == null)
@@ -2086,6 +2197,7 @@ namespace VersatileWeapons
         {
             CancelGripEquipInputGuard();
             RestoreFirstPersonWeaponPosition();
+            RestoreOffHandTwoHandedPresentation();
             Hero hero = Hero.Current;
             CharacterHand weapon = FindHandForItem(hero, _gripItem)
                 ?? _observedWeapon;
@@ -2507,6 +2619,7 @@ namespace VersatileWeapons
             }
 
             StartGripEquipInputGuard(weapon.Item);
+            UpdateOffHandTwoHandedPresentation(hero);
             if (IsNativeOneHandedGripWeapon(weapon))
             {
                 _weaponTransitionRefreshPending = false;
@@ -3058,7 +3171,8 @@ namespace VersatileWeapons
                 if (!CanClaimGripInput(hero))
                 {
                     CharacterHand rejectedWeapon =
-                        hero.MainHandWeapon as CharacterHand
+                        FindGripSwitchWeapon(hero)
+                        ?? hero.MainHandWeapon as CharacterHand
                         ?? hero.OffHandWeapon as CharacterHand;
                     LogDiagnostic(
                         "Toggle Weapon press was not claimed because the current weapon, Strength, pairing, or action state does not support grip switching. "
@@ -5925,6 +6039,18 @@ namespace VersatileWeapons
                 : FindHandForItem(hero, item);
         }
 
+        internal static CharacterHandBase GetActiveOffHandTwoHandedGripWeapon(
+            Hero hero)
+        {
+            CharacterHandBase weapon = GetActiveTwoHandedGripWeapon(hero);
+            return hero != null
+                && weapon != null
+                && weapon.Item != null
+                && ReferenceEquals(weapon.Item, hero.OffHandItem)
+                    ? weapon
+                    : null;
+        }
+
         internal static bool IsMainHandSuppressed()
         {
             Hero hero = Hero.Current;
@@ -6292,7 +6418,15 @@ namespace VersatileWeapons
             ref ARAssetReference __result)
         {
             string selectedProfile = "native";
-            if (Plugin.ShouldUseOneHandedAnimations(__instance))
+            if (ReferenceEquals(
+                Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current),
+                __instance))
+            {
+                __result = Plugin.CreateTwoHandedWeaponController(
+                    __instance);
+                selectedProfile = "offhand-two-handed";
+            }
+            else if (Plugin.ShouldUseOneHandedAnimations(__instance))
             {
                 __result = Plugin.CreateOneHandedWeaponController(
                     __instance,
@@ -6330,7 +6464,13 @@ namespace VersatileWeapons
             CharacterHand __instance,
             ref string[] __result)
         {
-            if (Plugin.ShouldUseOneHandedAnimations(__instance))
+            if (ReferenceEquals(
+                Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current),
+                __instance))
+            {
+                __result = Plugin.GetTwoHandedLayers();
+            }
+            else if (Plugin.ShouldUseOneHandedAnimations(__instance))
             {
                 __result = Plugin.GetOneHandedLayers(__instance);
             }
@@ -6378,7 +6518,13 @@ namespace VersatileWeapons
             CharacterHand __instance,
             ref ARAssetReference __result)
         {
-            if (Plugin.ShouldUseOneHandedAnimations(__instance))
+            if (ReferenceEquals(
+                Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current),
+                __instance))
+            {
+                __result = null;
+            }
+            else if (Plugin.ShouldUseOneHandedAnimations(__instance))
             {
                 __result = Plugin.CreateStandardDualController(
                     false,
@@ -6696,6 +6842,85 @@ namespace VersatileWeapons
             if (weapon != null)
             {
                 __result = weapon;
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class TwoHandedFsmStatsItemPatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.PropertyGetter(
+                typeof(HeroAnimatorSubstateMachine),
+                nameof(HeroAnimatorSubstateMachine.StatsItem));
+        }
+
+        private static void Postfix(
+            HeroAnimatorSubstateMachine __instance,
+            ref Item __result)
+        {
+            if (!(__instance is TwoHandedFSM))
+            {
+                return;
+            }
+
+            CharacterHandBase weapon =
+                Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current);
+            if (weapon != null && weapon.Item != null)
+            {
+                __result = weapon.Item;
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class OffHandTwoHandedAnimationSpeedPatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(
+                typeof(AnimatorUtils),
+                nameof(AnimatorUtils.StartProcessingAnimationSpeed));
+        }
+
+        private static void Prefix(ref WeaponRestriction weaponRestriction)
+        {
+            if (weaponRestriction == WeaponRestriction.MainHand
+                && Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current)
+                    != null)
+            {
+                weaponRestriction = WeaponRestriction.OffHand;
+            }
+        }
+    }
+
+    [HarmonyPatch]
+    internal static class OffHandTwoHandedRestrictionPatch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(
+                typeof(AnimatorRestrictionExtension),
+                nameof(AnimatorRestrictionExtension.Match),
+                new Type[]
+                {
+                    typeof(WeaponRestriction),
+                    typeof(CharacterHandBase)
+                });
+        }
+
+        private static void Postfix(
+            WeaponRestriction restriction,
+            CharacterHandBase hand,
+            ref bool __result)
+        {
+            CharacterHandBase weapon =
+                Plugin.GetActiveOffHandTwoHandedGripWeapon(Hero.Current);
+            if (weapon != null
+                && restriction == WeaponRestriction.MainHand)
+            {
+                __result = ReferenceEquals(hand, weapon);
             }
         }
     }

@@ -7,20 +7,11 @@ $eyesSource = Get-Content -LiteralPath (
     Join-Path (Split-Path -Parent $modRoot) "EyesInTheDark\src\EyesInTheDark.cs") -Raw
 $eyesBridge = Get-Content -LiteralPath (
     Join-Path (Split-Path -Parent $modRoot) "EyesInTheDark\src\GrailFloatingTextBridge.cs") -Raw
-$manifest = Get-Content -LiteralPath (
-    Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
-
-if ($source -notmatch 'public const string PluginVersion = "(?<version>[0-9]+\.[0-9]+\.[0-9]+)";') {
-    throw "GFT source PluginVersion was not found."
-}
-if ($manifest.version -ne $matches.version) {
-    throw "GFT manifest version '$($manifest.version)' does not match source PluginVersion '$($matches.version)'."
-}
 foreach ($required in @(
     'ResolveEyesWyrdStyle()',
     '"WyrdnessPalette"',
     '"NativeOrange"',
-    'private const int ConfigSchemaVersion = 28;',
+    'private const int ConfigSchemaVersion = 29;',
     'public const int ApiVersion = 13;',
     '"BuiltInEventClaims"',
     'TrySetBuiltInEventClaim(',

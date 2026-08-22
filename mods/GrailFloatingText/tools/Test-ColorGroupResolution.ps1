@@ -27,7 +27,7 @@ if ($groupLookup -gt $htmlParse) {
     throw "Literal HTML colors are resolved before configured color groups. Named colors such as Purple would bypass their settings."
 }
 
-$requiredGroups = @("Red", "Gold", "Blue", "Cyan", "Green", "Purple", "Pink", "Orange", "Pale", "Gray", "White", "Default")
+$requiredGroups = @("Red", "Gold", "Blue", "Cyan", "Green", "Necrotic", "Purple", "Pink", "Orange", "Pale", "Gray", "White", "Default")
 $bindingsStart = $source.IndexOf("private void BindColorGroups()", [StringComparison]::Ordinal)
 $bindingsEnd = $source.IndexOf("private void BindColorGroup(", $bindingsStart, [StringComparison]::Ordinal)
 if ($bindingsStart -lt 0 -or $bindingsEnd -le $bindingsStart) {
@@ -53,8 +53,8 @@ if (-not [regex]::IsMatch($bindings, '"Orange"\s*,\s*"#FF9A35"')) {
 if (-not [regex]::IsMatch($bindings, '"Gold"\s*,\s*"#FFC03A"')) {
     throw "Gold must bind with the authored #FFC03A default."
 }
-if (-not [regex]::IsMatch($bindings, '"Blue"\s*,\s*"#9EC1FF"')) {
-    throw "Blue must bind with the authored #9EC1FF default."
+if (-not [regex]::IsMatch($bindings, '"Blue"\s*,\s*"#8496FF"')) {
+    throw "Blue must bind with the authored #8496FF default."
 }
 if (-not [regex]::IsMatch($bindings, '"Cyan"\s*,\s*"#9EDBFF"')) {
     throw "Cyan must bind with the authored #9EDBFF default."

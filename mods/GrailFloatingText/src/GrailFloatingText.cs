@@ -46,9 +46,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.5.7.0")]
-[assembly: AssemblyFileVersion("2.5.7.0")]
-[assembly: AssemblyInformationalVersion("2.5.7")]
+[assembly: AssemblyVersion("2.6.2.0")]
+[assembly: AssemblyFileVersion("2.6.2.0")]
+[assembly: AssemblyInformationalVersion("2.6.2")]
 
 namespace GrailFloatingText
 {
@@ -276,7 +276,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.5.7";
+        public const string PluginVersion = "2.6.2";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -299,7 +299,7 @@ namespace GrailFloatingText
             "ks.tgfoa.dishonored-dynamic-crosshair";
         private const string DynamicCrosshairAssemblyName =
             "DishonoredDynamicCrosshair";
-        private const int ConfigSchemaVersion = 28;
+        private const int ConfigSchemaVersion = 29;
         private const int ConfigRecoveryBaselineSchema = 15;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -391,6 +391,7 @@ namespace GrailFloatingText
             "corpse_worthy",
             "corpse_potent",
             "corpse_prime",
+            "necro",
             "summon",
             "skull"
         };
@@ -5872,7 +5873,7 @@ namespace GrailFloatingText
                 "Reward and progress events.");
             BindColorGroup(
                 "Blue",
-                "#9EC1FF",
+                "#8496FF",
                 "default-burden-lifted; default-potion-consumed",
                 "Cold and potion events.");
             BindColorGroup(
@@ -5885,6 +5886,11 @@ namespace GrailFloatingText
                 "#8FD36B",
                 "",
                 "Nature, poison, and restorative events.");
+            BindColorGroup(
+                "Necrotic",
+                "#25B792",
+                "",
+                "Necromancy, soul magic, and undead-command events.");
             BindColorGroup(
                 "Purple",
                 "#C294FF",
@@ -7424,6 +7430,15 @@ namespace GrailFloatingText
                     152.0f / 255.0f,
                     112.0f / 255.0f,
                     1.0f,
+                    1.0f);
+            }
+
+            if (StyleEquals(groupName, "Necrotic"))
+            {
+                return new Color(
+                    37.0f / 255.0f,
+                    183.0f / 255.0f,
+                    146.0f / 255.0f,
                     1.0f);
             }
 

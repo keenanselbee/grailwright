@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.5.7
+Version 2.6.2
 
 Platforms: Windows and Linux through Proton.
 
@@ -69,7 +69,7 @@ BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 Default settings:
 
 Enabled = true
-ConfigSchemaVersion = 28
+ConfigSchemaVersion = 29
 NotifyModCompatibility = true
 Successful schema resets wait for fully visible loaded gameplay, then appear with
 the system icon and use the configurable System duration bucket. Integrated
@@ -175,18 +175,21 @@ RedColor = #FF3D2E
 RedEvents = killing-blow; blood-magic-corpse-xp; default-unforgivable-crime; default-combat-weakspot; default-combat-sneak-attack; default-potion-poisoning
 GoldColor = #FFC03A
 GoldEvents = default-location-cleared; default-pickpocket-success; default-bounty-cleared; vanilla-wyrd-fragment
-BlueColor = #9EC1FF
+BlueColor = #8496FF
 BlueEvents = default-burden-lifted; default-potion-consumed
 CyanColor = #9EDBFF
 CyanEvents =
 GreenColor = #8FD36B
 GreenEvents =
+NecroticColor = #25B792
+NecroticEvents =
 PurpleColor = #C294FF
 PurpleEvents = wyrd-hunt-status; vanilla-wyrd-night; vanilla-wyrd-safety; vanilla-wyrd-skill
 PinkColor = #E06AAE
 PinkEvents =
-Built-in healing notices request the Green group directly, and built-in vanilla
-Wyrd notices request the Purple group directly. Each Color
+Built-in healing notices request the Green group directly, Soul and Service and
+other necromancy integrations can request the darker Necrotic group, and built-in
+vanilla Wyrd notices request the Purple group directly. Each Color
 setting's in-config description also identifies its own default hex value.
 Configured color-group names are resolved before literal HTML named colors, so
 each Color setting controls its matching group even for names such as Purple.
@@ -212,6 +215,7 @@ GoldIconColor =
 BlueIconColor =
 CyanIconColor =
 GreenIconColor =
+NecroticIconColor =
 PurpleIconColor =
 PinkIconColor =
 OrangeIconColor =
@@ -294,7 +298,7 @@ archery, shield, parry, unarmed, magic, crime,
 magic_blood, magic_fire, magic_cold, magic_poison, magic_electric,
 magic_pure, magic_wet, pickpocket, lock, craft, food, potion, healing, fish, recipe,
 weight, experience, corpse_meager, corpse_worthy, corpse_potent, corpse_prime,
-summon, skull
+summon, necro, skull
 
 The painterly source sheet lives under icons/source in the Grailwright source
 tree. Runtime icons are the transparent PNG masks in icons and can be replaced

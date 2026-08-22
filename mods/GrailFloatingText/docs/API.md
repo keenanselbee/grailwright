@@ -539,7 +539,7 @@ Recommended values:
 Built-in icon IDs:
 
 - Core: `general`, `system`, `status`, `wyrd`, `reward`, `combat`, `warning`, `critical`, `debug`.
-- Game events: `rest`, `location`, `parry`, `crime`, `pickpocket`, `weight`, `experience`, `healing`, `corpse_meager`, `corpse_worthy`, `corpse_potent`, `corpse_prime`, `summon`.
+- Game events: `rest`, `location`, `parry`, `crime`, `pickpocket`, `weight`, `experience`, `healing`, `corpse_meager`, `corpse_worthy`, `corpse_potent`, `corpse_prime`, `summon`, `necro`.
 - Currency: `gold_earned_very_low`, `gold_earned_low`, `gold_earned_medium`, `gold_earned_high`, `gold_earned_very_high`.
 - Skills: `one_handed`, `two_handed`, `archery`, `shield`, `unarmed`, `magic`.
 - Specific weapons: `one_handed_sword`, `one_handed_axe`, `one_handed_blunt`, `one_handed_dagger`, `one_handed_spear`, `two_handed_sword`, `two_handed_axe`, `two_handed_blunt`, `two_handed_spear`. `one_handed_polearm` and `two_handed_polearm` are accepted aliases for the matching spear icons. Sickle integrations use `one_handed_axe`.

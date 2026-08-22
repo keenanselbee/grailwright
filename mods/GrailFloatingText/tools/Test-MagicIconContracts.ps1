@@ -56,6 +56,17 @@ foreach ($iconId in $iconIds) {
     }
 }
 
+if (-not [regex]::IsMatch(
+    $source,
+    'BuiltInIconIds\s*=.*?"necro"',
+    [Text.RegularExpressions.RegexOptions]::Singleline)) {
+    throw "The built-in icon list is missing 'necro'."
+}
+$necroIconPath = Join-Path $iconDirectory "necro.png"
+if (-not (Test-Path -LiteralPath $necroIconPath -PathType Leaf)) {
+    throw "The built-in necromancy icon is missing: $necroIconPath"
+}
+
 $categoryContracts = @{
     blood_magic = '"Blood", "magic_blood", "Red"'
     fire = '"Fire", "magic_fire", "Orange"'

@@ -1,7 +1,6 @@
-TargetVersion=2.5.7
-BaselineVersion=2.5.5
-Added a configurable Cyan pool with a soft #9EDBFF default for Wet, fish, and aquatic presentation.
-Shifted Blue to a colder #9EC1FF default for Cold and potions, and moved food-consumed notices from Gold to Orange.
-Advanced the config schema so untouched Blue defaults receive the new palette while customized colors remain eligible for recovery.
-Added a purpose-built compatibility notice API so any loaded mod can send the standard warning-style main-menu message with exact diagnostic evidence preserved in the log.
-Added automatic main-menu notices for verified BepInEx hard-incompatibility rejections, including conflicts that prevent the affected mod from starting at all.
+TargetVersion=2.6.2
+BaselineVersion=2.5.7
+Added the built-in necro icon for Soul and Service progression and soul-magic notifications.
+Changed the Blue color-group default from #9EC1FF to #8496FF.
+Added a configurable Necrotic color group with the default #25B792 for necromancy and soul-magic integrations.
+Kept Green focused on nature, poison, and restorative events.

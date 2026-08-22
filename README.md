@@ -131,9 +131,16 @@ plus each mod manifest's references. A .NET SDK is required because the
 authored sources use language features that the legacy .NET Framework compiler
 cannot compile.
 
+Before exporting, `Build-Mod.ps1` runs `Test-ModVersionConsistency.ps1` for the
+selected mod. The shared check compares `mod.json` with source and assembly
+versions, packaged README and changelog metadata, the top-level Current Mods
+row, optional Nexus changelog metadata, and the built DLL. Run the same script
+without `-Mod` to check every authored mod without building.
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Mod.ps1 -Mod BloodMagicExpansion
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-All.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-ModVersionConsistency.ps1
 ```
 
 Use `-SkipCompile` to repackage the current checked-in DLL and assets without

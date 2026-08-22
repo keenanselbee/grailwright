@@ -6,21 +6,9 @@ $eyesSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\EyesInTheDark.cs") -Raw
 $threatSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\ThreatState.cs") -Raw
-$eyesManifest = Get-Content -LiteralPath (
-    Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 $bloodMagicRoot = Join-Path $repoRoot "mods\BloodMagicExpansion"
 $bloodMagicSource = Get-Content -LiteralPath (
     Join-Path $bloodMagicRoot "src\BloodMagicExpansion.cs") -Raw
-$bloodMagicManifest = Get-Content -LiteralPath (
-    Join-Path $bloodMagicRoot "mod.json") -Raw | ConvertFrom-Json
-
-if ($eyesManifest.version -ne "1.3.9") {
-    throw "Eyes in the Dark corpse-drain integration requires manifest version 1.3.9."
-}
-
-if ($bloodMagicManifest.version -ne "2.8.7") {
-    throw "Blood Magic Expansion corpse-drain integration requires manifest version 2.8.7."
-}
 
 foreach ($required in @(
     "public static class EyesInTheDarkCorpseDrainApi",

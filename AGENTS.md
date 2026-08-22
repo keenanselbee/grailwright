@@ -139,6 +139,15 @@ Command Behavior
 Verification
 ------------
 
+- Match verification depth to the changed surface:
+  - For documentation-only changes, run diff/check validation only; do not build.
+  - For asset-only changes, validate the changed asset, run only its directly owning contract when one exists, then build and stage the mod. Do not run unrelated integration contracts.
+  - For metadata or version-only changes, run `tools/Test-ModVersionConsistency.ps1`; build only when the DLL or packaged version changes.
+  - For behavioral source changes, run the directly affected contracts and build the mod.
+  - For config schema, public API, or shared-code changes, run the relevant expanded recovery, integration, and dependent-mod contracts plus the build.
+- Do not promote a task to a broader verification class solely because its version changed.
+- Do not repeat package-layout, staged-copy, or version checks already enforced by the successful documented build unless the changed surface is not covered or the build reports an anomaly.
+- A failing check that is demonstrably present in the unmodified `HEAD` state and unrelated to the requested surface is pre-existing. Report it separately; do not let it block the requested change and do not fix it unless the user asks or the requested check cannot be made meaningful without the correction.
 - Run the smallest relevant check for the files changed.
 - Prefer verification commands documented by the project.
 - If no verification command exists, say so clearly.

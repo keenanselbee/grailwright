@@ -21,8 +21,7 @@ function Assert-SensibleRestMenuContract {
 
 foreach ($required in @(
     'src/SensibleRestMenu.cs',
-    'UnityEngine.TextRenderingModule.dll',
-    '"version": "1.7.6"')) {
+    'UnityEngine.TextRenderingModule.dll')) {
     Assert-SensibleRestMenuContract ($manifest.Contains($required)) "manifest omits $required"
 }
 

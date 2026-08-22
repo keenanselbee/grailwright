@@ -39,7 +39,9 @@ foreach ($required in @(
     '[switch]$DesktopOnly',
     '[switch]$PackageOnly',
     '$shouldStageToVortex = -not $DesktopOnly -and -not $PackageOnly',
-    'if ($shouldStageToVortex)')) {
+    'if ($shouldStageToVortex)',
+    'Test-ModVersionConsistency.ps1',
+    '-RequireBuiltDll')) {
     Assert-BuildDestinationContract ($script.Contains($required)) "Build-Mod omits $required"
 }
 Assert-BuildDestinationContract ($script.Contains('-DesktopOnly cannot be combined with -DestinationDirectory')) "DesktopOnly does not enforce the Desktop destination"

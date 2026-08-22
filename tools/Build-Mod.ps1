@@ -467,6 +467,15 @@ if (-not $SkipCompile) {
     }
 }
 
+$versionContractScript = Join-Path $PSScriptRoot "Test-ModVersionConsistency.ps1"
+if (-not (Test-Path -LiteralPath $versionContractScript -PathType Leaf)) {
+    throw "Missing mod version consistency test: $versionContractScript"
+}
+& $versionContractScript `
+    -Mod ([string]$Manifest.id) `
+    -RepositoryRoot $RepoRoot `
+    -RequireBuiltDll
+
 $exportScript = Join-Path $PSScriptRoot "Export-VortexPackage.ps1"
 if (-not (Test-Path -LiteralPath $exportScript -PathType Leaf)) {
     throw "Missing export script: $exportScript"

@@ -7,12 +7,6 @@ $atmosphereSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\Atmosphere.cs") -Raw
 $threatSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\ThreatState.cs") -Raw
-$manifest = Get-Content -LiteralPath (
-    Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
-
-if ($manifest.version -ne "1.3.9") {
-    throw "Eyes in the Dark battlecry integration requires manifest version 1.3.9."
-}
 
 foreach ($required in @(
     "public static class EyesInTheDarkBattlecryApi",

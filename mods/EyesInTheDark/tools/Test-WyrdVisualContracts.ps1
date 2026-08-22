@@ -25,8 +25,7 @@ function Assert-VisualContract {
 }
 
 foreach ($required in @(
-    'src/WyrdVisualRuntime.cs',
-    '"version": "1.3.9"')) {
+    'src/WyrdVisualRuntime.cs')) {
     Assert-VisualContract ($manifest.Contains($required)) "manifest omits $required"
 }
 

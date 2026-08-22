@@ -2,7 +2,7 @@
   "id": "KillingBlowMastery",
   "displayName": "Killing Blow Mastery",
   "packageName": "KillingBlowMastery",
-  "version": "1.6.5",
+  "version": "1.7.5",
   "pluginGuid": "ks.tgfoa.killing-blow-mastery",
   "dll": "KillingBlowMastery.dll",
   "sourceFiles": [

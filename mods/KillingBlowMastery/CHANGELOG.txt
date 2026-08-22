@@ -1,3 +1,27 @@
+Version 1.7.5
+Bypassed the game's remaining list-level finisher filters only during KBM's scoped GloryKill evaluation after its explicit health and safety checks pass.
+Expanded GloryKill diagnostics with bypassed-list and accepted or rejected per-candidate condition counts.
+
+Version 1.7.4
+Corrected GloryKill availability diagnostics to identify normal-finisher fallback candidates after the activation delay.
+
+Version 1.7.3
+Added a GloryKill fallback to the equipped weapon's normal finisher animations when its interaction execution list has no playable hero animation.
+Expanded GloryKill diagnostics to distinguish native execution and normal-finisher fallback candidates and summarize animation-handle readiness.
+
+Version 1.7.2
+Changed GloryKill selection to bypass the game's remaining situational animation filters after KBM's explicit health and safety checks, while retaining loaded-animation and target-template requirements.
+Fixed compatible loaded execution lists rejecting every GloryKill candidate before the Execute prompt could appear.
+
+Version 1.7.1
+Added throttled per-target GloryKill diagnostics covering health, hostility, combat state, target safety, equipped melee weapons, execution-list loading, native animation selection, activation delay, and prompt availability.
+
+Version 1.7.0
+Added independent control over automatic melee killing-blow animations, enabled by default.
+Added Vanilla, GloryKill, and Off combat execution modes without changing the separate story execution used for important unconscious NPCs.
+Added GloryKill interaction prompts for eligible hostile combatants at or below 15% health while retaining the game's melee, range, kill-prevention, and external-death safeguards.
+Added an experimental ExpandedGloryKillTargets setting, disabled by default, that lets additional enemy templates attempt the game's humanoid execution animations.
+
 Version 1.6.5
 Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
 Advanced ConfigSchemaVersion from 14 to 15 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

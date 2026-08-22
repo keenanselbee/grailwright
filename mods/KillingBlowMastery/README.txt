@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.6.5
+Version 1.7.5
 
 Platforms: Windows and Linux through Proton.
 
@@ -32,6 +32,10 @@ Default behavior:
 
 Enabled = true
 ConfigSchemaVersion = 15
+AutomaticCombatFinishersEnabled = true
+CombatExecutionMode = Vanilla
+GloryKillHealthPercent = 15
+ExpandedGloryKillTargets = false
 FinisherSoundMode = WeaponSpecific
 FinisherSoundRangeVolume = 1
 BonusPercentOfEnemyXP = 4
@@ -80,6 +84,43 @@ Thrown items are ignored by default.
 Targets with XpRewardAllowed = false are ignored by default.
 Magic kills can award Magic proficiency when the source is a spell, rod, magic
 item, or magical damage event.
+
+Combat finishers:
+
+AutomaticCombatFinishersEnabled controls the killing-blow animations that the
+game can start automatically when a normal melee attack begins. Disable it to
+make those attacks continue normally instead.
+
+CombatExecutionMode controls only the combat interaction attached to a living
+enemy:
+
+Vanilla -> keep the game's normal combat execution rules.
+GloryKill -> show Execute when an eligible hostile combatant is at or below the
+configured health threshold and the hero is close enough with a melee weapon.
+Off -> remove the combat Execute interaction.
+
+GloryKillHealthPercent defaults to 15. The prompt uses current health as a
+percentage of maximum health. The game's normal distance, external-death, and
+kill-prevention checks still apply. Eligible GloryKills use the game's existing
+finisher animations and still produce normal killing-blow rewards.
+
+In GloryKill mode, KBM first selects from the equipped melee weapon's loaded
+execution animations after its explicit health and safety checks. If that list
+has no playable hero animation, KBM falls back to the weapon's loaded normal
+finisher animations. Situational animation filters such as attack direction,
+stagger state, and random chance do not block the prompt. Loaded animation
+assets are still required, and the native humanoid target-template restriction
+remains unless ExpandedGloryKillTargets is enabled.
+
+ExpandedGloryKillTargets is experimental and off by default. The game ships its
+combat execution animations for humanoid targets. Enabling this setting lets
+additional hostile enemy templates try those animations, but unsupported body
+types can align or animate incorrectly.
+
+These controls do not patch the separate hold-interact execution used for
+important unconscious NPCs. To remove all combat finisher animations while
+preserving those story executions, disable AutomaticCombatFinishersEnabled and
+set CombatExecutionMode to Off.
 
 Audio:
 
@@ -253,7 +294,11 @@ custom format if you want the target name shown.
 Diagnostics:
 
 Turn Diagnostics on to log kill source, resolved proficiency, enemy XP, awarded
-bonus, notification route, and reward sound pool.
+bonus, notification route, reward sound pool, and throttled per-target GloryKill
+eligibility decisions. GloryKill diagnostics identify the rejected safety or
+health gate, missing finisher lists, execution and fallback animation-handle
+readiness, the native 0.6-second activation delay, and when the Execute prompt
+should be available.
 
 Compatibility:
 

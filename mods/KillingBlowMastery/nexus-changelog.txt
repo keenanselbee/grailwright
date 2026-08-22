@@ -1,5 +1,13 @@
-TargetVersion=1.6.5
-BaselineVersion=1.6.3
-Shortened the full finisher-sound distance fade from 50 meters to 30 meters so ranged killing blows become quieter sooner while retaining the 10% distant-volume floor.
-Removed numeric prefixes from every generated config section and added explicit semantic ordering metadata to every visible setting.
-Advanced the config schema to 15 because settings moved to clean raw sections, with Diagnostics penultimate and Import Previous Settings last.
+TargetVersion=1.7.5
+BaselineVersion=1.6.5
+Added independent control over automatic melee killing-blow animations, enabled by default.
+Added an optional GloryKill combat interaction for eligible hostile enemies at or below 15% health, with Vanilla and Off modes.
+Kept story executions for important unconscious NPCs separate and unaffected.
+Added an experimental expanded-target option, disabled by default, for trying humanoid execution animations on additional enemy templates.
+Added throttled diagnostics that identify the GloryKill eligibility gate or native animation-selection state preventing an Execute prompt.
+Fixed GloryKill selection so compatible loaded execution animations are no longer rejected by situational direction, stagger, or random-chance filters after KBM's explicit safety checks pass.
+Added a fallback to the equipped weapon's loaded normal finisher animations when its interaction execution list has no playable hero animation.
+Expanded diagnostics to identify the selected animation source and summarize execution and fallback animation-handle readiness.
+Corrected availability diagnostics to retain the selected animation source after the native activation delay.
+Bypassed remaining list-level finisher filters only during scoped GloryKill evaluation after KBM's explicit health and safety checks pass.
+Expanded diagnostics with bypassed-list and accepted or rejected candidate-condition counts.

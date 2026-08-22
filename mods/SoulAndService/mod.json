@@ -2,13 +2,16 @@
   "id": "SoulAndService",
   "displayName": "Soul and Service - Summon Overhaul",
   "packageName": "SoulAndService",
-  "version": "0.3.8",
+  "version": "1.0.6",
   "pluginGuid": "ks.tgfoa.soul-and-service",
   "dll": "SoulAndService.dll",
   "sourceFiles": [
     "src/SoulAndService.cs",
     "src/SummonRuntime.cs",
     "src/SoulSalvageRuntime.cs",
+    "src/SoulSalvageAudioRuntime.cs",
+    "src/SoulProgressionRuntime.cs",
+    "../../tools/shared/CorpseQualityBuckets.cs",
     "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",
     "../../tools/shared/ConfigPreviousSettingsRecovery.cs"
   ],
@@ -18,10 +21,15 @@
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.AnimationModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.PackageUtilities.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/PackageTools.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UniTask.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/AstarPathfindingProject.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Drawing.dll",
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
   ]
 }

@@ -10,12 +10,12 @@ using BepInEx.Configuration;
 using HarmonyLib;
 
 [assembly: AssemblyTitle("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Salvage")]
+[assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("0.3.8.0")]
-[assembly: AssemblyFileVersion("0.3.8.0")]
-[assembly: AssemblyInformationalVersion("0.3.8")]
+[assembly: AssemblyVersion("1.0.6.0")]
+[assembly: AssemblyFileVersion("1.0.6.0")]
+[assembly: AssemblyInformationalVersion("1.0.6")]
 
 namespace SoulAndService
 {
@@ -23,19 +23,51 @@ namespace SoulAndService
     {
         Vanilla,
         MagicOnly,
-        AllProjectiles
+        AllProjectiles,
+        CombatOnly
     }
 
-    public enum SoulSalvageReturnMode
+    public enum SummonBehavior
     {
-        Split,
-        Mana,
-        Health
+        Guard = 0,
+        Bulwark = 1,
+        Hunt = 2
+    }
+
+    public enum SoulSalvageFocusedTargetState
+    {
+        None = 0,
+        Corpse = 1,
+        ActiveSummon = 2
+    }
+
+    public enum SummonCommandState
+    {
+        None = 0,
+        Attack = 1,
+        Hold = 2,
+        Follow = 3,
+        Behavior = 4
+    }
+
+    public enum TargetCommandModifierMode
+    {
+        Sprint,
+        None
     }
 
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
+        BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        "ks.tgfoa.deeds-of-avalon",
+        BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        "ks.tgfoa.steel-and-bone",
+        BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        "ks.tgfoa.battlecry-voice-tuner",
         BepInDependency.DependencyFlags.SoftDependency)]
     [BepInIncompatibility("kane.tgfoa.avalon-summons")]
     [BepInIncompatibility("com.user.bettersummon")]
@@ -43,17 +75,20 @@ namespace SoulAndService
     public sealed class SoulAndServicePlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
-        public const string PluginName = "Soul and Service - Summon Overhaul";
-        public const string PluginVersion = "0.3.8";
+        public const string PluginName = "Soul and Service";
+        public const string PluginVersion = "1.0.6";
 
-        private const int ConfigSchemaVersion = 3;
+        private const int ConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
                 new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
-                new ConfigDefinition[0];
+            {
+                new ConfigDefinition("Diagnostics", "OverrideSoulVigor"),
+                new ConfigDefinition("Diagnostics", "SoulVigorOverrideValue")
+            };
 
         internal static SoulAndServicePlugin Instance { get; private set; }
 
@@ -71,22 +106,29 @@ namespace SoulAndService
         internal ConfigEntry<float> TeleportDistance;
         internal ConfigEntry<float> CatchUpSpeedMultiplier;
         internal ConfigEntry<bool> ShareHeroTarget;
+        internal ConfigEntry<bool> AttackCommandPrompt;
+        internal ConfigEntry<bool> FormationCommands;
+        internal ConfigEntry<TargetCommandModifierMode> TargetCommandModifier;
         internal ConfigEntry<float> ShareTargetMaxDistance;
         internal ConfigEntry<bool> SummonPassThrough;
         internal ConfigEntry<PlayerAttackPassThroughMode> PlayerAttackPassThrough;
-        internal ConfigEntry<bool> PreventDismissOnRest;
+        internal ConfigEntry<bool> PersistentServants;
         internal ConfigEntry<int> SummonLimitBonus;
         internal ConfigEntry<bool> RepairInvocationScaling;
         internal ConfigEntry<float> IdleSoundVolumePercent;
+        internal ConfigEntry<bool> PlaySoulSalvageAudio;
+        internal ConfigEntry<float> SoulSalvageAudioVolume;
+        internal ConfigEntry<float> SoulSalvageAudioRangeVolume;
+        internal ConfigEntry<bool> AvoidRecentSoulSalvageAudioRepeats;
+        internal ConfigEntry<int> RecentSoulSalvageAudioMemory;
+        internal ConfigEntry<float> SoulSalvageAudioRandomPitchSemitones;
         internal ConfigEntry<bool> SoulSalvageOverhaul;
-        internal ConfigEntry<SoulSalvageReturnMode> SoulSalvageReturn;
-        internal ConfigEntry<float> SoulSalvageEssencePercent;
-        internal ConfigEntry<float> ReanimationMinimumLifetimeSeconds;
-        internal ConfigEntry<float> ReanimationHealthDecayPercentPerSecond;
-        internal ConfigEntry<float> ReanimationFlatHealthDecayPerSecond;
-        internal ConfigEntry<bool> PermanentReanimations;
+        internal ConfigEntry<bool> LivingTargetSoulSalvage;
+        internal ConfigEntry<float> SoulSalvageManaReturnPercent;
         internal ConfigEntry<bool> Diagnostics;
         internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
+        internal ConfigEntry<bool> OverrideSoulVigor;
+        internal ConfigEntry<float> SoulVigorOverrideValue;
 
         private Harmony _harmony;
 
@@ -108,8 +150,8 @@ namespace SoulAndService
                     + SummonPassThrough.Value
                     + "; attack pass-through="
                     + PlayerAttackPassThrough.Value
-                    + "; permanent reanimations="
-                    + PermanentReanimations.Value
+                    + "; persistent servants="
+                    + PersistentServants.Value
                     + ".");
             }
             catch (Exception exception)
@@ -123,6 +165,7 @@ namespace SoulAndService
 
         private void Update()
         {
+            SoulProgressionRuntime.Update();
             SummonRuntime.Update();
             SoulSalvageRuntime.Update();
         }
@@ -177,20 +220,23 @@ namespace SoulAndService
             string section,
             string key,
             T defaultValue,
-            string description)
+            string description,
+            string displayName = null)
         {
             return BindOrdered(
                 section,
                 key,
                 defaultValue,
-                new ConfigDescription(description));
+                new ConfigDescription(description),
+                displayName);
         }
 
         private ConfigEntry<T> BindOrdered<T>(
             string section,
             string key,
             T defaultValue,
-            ConfigDescription description)
+            ConfigDescription description,
+            string displayName = null)
         {
             if (String.Equals(
                     key,
@@ -213,8 +259,8 @@ namespace SoulAndService
                 defaultValue,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     description.Description,
-                    section,
-                    HumanizeConfigKey(key),
+                    section == "Soul Salvage" ? "Soul Rend" : section,
+                    displayName ?? HumanizeConfigKey(key),
                     GetConfigSectionOrder(section),
                     order,
                     description.AcceptableValues));
@@ -238,6 +284,8 @@ namespace SoulAndService
                     return 50;
                 case "Balance":
                     return 60;
+                case "Audio":
+                    return 65;
                 case "Responsiveness":
                     return 70;
                 case "Diagnostics":
@@ -289,7 +337,7 @@ namespace SoulAndService
                 "AITickInterval",
                 0.25f,
                 new ConfigDescription(
-                    "Seconds between hero-summon AI decisions. Lower values react faster but cost more CPU.",
+                    "Seconds between hero-summon AI decisions at 100 Necromantic Power. At Power 0, decisions are no faster than 0.75 seconds and improve smoothly toward this interval as mastery grows. Lower values react faster but cost more CPU.",
                     new AcceptableValueRange<float>(0.05f, 2.5f)));
             SpawnRecoverySeconds = BindOrdered(
                 "Responsiveness",
@@ -311,7 +359,7 @@ namespace SoulAndService
                 "RunDistance",
                 8.0f,
                 new ConfigDescription(
-                    "Distance in meters at which an idle summon starts running toward the hero.",
+                    "Distance in meters at which an idle summon starts running toward the hero. Its effective value is never lower than Trot Distance.",
                     new AcceptableValueRange<float>(2.0f, 45.0f)));
             TeleportDistance = BindOrdered(
                 "Following",
@@ -331,15 +379,33 @@ namespace SoulAndService
             ShareHeroTarget = BindOrdered(
                 "Targeting",
                 "ShareHeroTarget",
+                false,
+                "Let an uncommitted summon adopt a hostile NPC under the hero's crosshair. Off by default so looking at an enemy does not start a fight; native attacker sharing remains intact.");
+            AttackCommandPrompt = BindOrdered(
+                "Targeting",
+                "AttackCommandPrompt",
                 true,
-                "Let an uncommitted summon adopt a hostile NPC under the hero's crosshair. Native attacker sharing remains intact.");
+                "At 10 Necromantic Power (about 65 Soul Vigor), hold the configured command modifier while aiming at a nearby hostile NPC and press Interact to order every owned summon to attack it.");
+            FormationCommands = BindOrdered(
+                "Targeting",
+                "FormationCommands",
+                true,
+                "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release before two seconds to issue Hold All or Follow All. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard, Bulwark, and Hunt. At 70 Power (about 567 Soul Vigor), keep holding Take All Items for two seconds to Recall Host.");
+            TargetCommandModifier = BindOrdered(
+                "Targeting",
+                "TargetCommandModifier",
+                TargetCommandModifierMode.Sprint,
+                new ConfigDescription(
+                    "Choose whether targeted Attack, Hold, and Follow prompts require the remappable Sprint action to be held. None keeps targeted command prompts visible without a modifier."),
+                "Target Command Modifier");
             ShareTargetMaxDistance = BindOrdered(
                 "Targeting",
                 "ShareTargetMaxDistance",
-                30.0f,
+                45.0f,
                 new ConfigDescription(
-                    "Maximum summon-to-target distance for crosshair target sharing.",
-                    new AcceptableValueRange<float>(5.0f, 60.0f)));
+                    "Maximum hero-to-target distance for passive crosshair sharing and explicit Attack, Hold, and Follow commands, capped at the game's native 45 m summon-command tether.",
+                    new AcceptableValueRange<float>(5.0f, 45.0f)),
+                "Targeting Range");
 
             SummonPassThrough = BindOrdered(
                 "Collision",
@@ -349,20 +415,20 @@ namespace SoulAndService
             PlayerAttackPassThrough = BindOrdered(
                 "Collision",
                 "Player Attack Pass-Through",
-                PlayerAttackPassThroughMode.MagicOnly,
-                "Vanilla lets summons intercept attacks, MagicOnly lets confirmed magic-projectile and magic-gauntlet contacts pass through, and AllProjectiles also covers hero arrows and thrown projectiles. Bespoke scripted ray spells retain their native behavior.");
+                PlayerAttackPassThroughMode.CombatOnly,
+                "CombatOnly lets confirmed hero projectiles and magic-gauntlet contacts pass through owned summons while the hero or summon is in combat, then restores vanilla interception outside combat. MagicOnly always passes confirmed magic contacts, AllProjectiles always passes confirmed arrows, thrown projectiles, and magic, and Vanilla always lets summons intercept. Bespoke scripted ray spells retain their native behavior.");
 
-            PreventDismissOnRest = BindOrdered(
+            PersistentServants = BindOrdered(
                 "Persistence",
-                "PreventDismissOnRest",
-                true,
-                "Keep ordinary hero summons when the hero rests.");
+                "PersistentServants",
+                false,
+                "Keep ordinary and reanimated servants when the hero rests. Disabled by default, so resting dismisses the active host.");
             SummonLimitBonus = BindOrdered(
                 "Persistence",
                 "SummonLimitBonus",
                 0,
                 new ConfigDescription(
-                    "Flat bonus to the native active-summon limit.",
+                    "Additional flat bonus beyond the native limit and the +1/+2/+3 command-capacity bonuses unlocked at Necromantic Power 50/100/150.",
                     new AcceptableValueRange<int>(0, 20)));
 
             RepairInvocationScaling = BindOrdered(
@@ -378,60 +444,94 @@ namespace SoulAndService
                     "Volume of owned summons' idle loop. This does not scale attack, hurt, or death sounds.",
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
+            PlaySoulSalvageAudio = BindOrdered(
+                "Audio",
+                "PlaySoulSalvageAudio",
+                true,
+                "Play a quality-matched FMOD WAV after light Soul Rend successfully harvests a corpse or sacrifices a summon.",
+                "Play Soul Rend Audio");
+            SoulSalvageAudioVolume = BindOrdered(
+                "Audio",
+                "SoulSalvageAudioVolume",
+                0.85f,
+                new ConfigDescription(
+                    "Global FMOD volume for Soul Rend ritual sounds. The authored loudness differences between quality tiers remain intact.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)),
+                "Soul Rend Audio Volume");
+            SoulSalvageAudioRangeVolume = BindOrdered(
+                "Audio",
+                "SoulSalvageAudioRangeVolume",
+                1.0f,
+                new ConfigDescription(
+                    "How strongly ritual sounds fade with corpse or summon distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f)),
+                "Soul Rend Audio Range Volume");
+            AvoidRecentSoulSalvageAudioRepeats = BindOrdered(
+                "Audio",
+                "AvoidRecentSoulSalvageAudioRepeats",
+                true,
+                "Avoid replaying recently used Soul Rend sounds from the same quality tier when enough alternatives are available.",
+                "Avoid Recent Soul Rend Audio Repeats");
+            RecentSoulSalvageAudioMemory = BindOrdered(
+                "Audio",
+                "RecentSoulSalvageAudioMemory",
+                2,
+                new ConfigDescription(
+                    "How many recently played Soul Rend sounds to avoid per quality tier.",
+                    new AcceptableValueRange<int>(0, 20)),
+                "Recent Soul Rend Audio Memory");
+            SoulSalvageAudioRandomPitchSemitones = BindOrdered(
+                "Audio",
+                "SoulSalvageAudioRandomPitchSemitones",
+                0.20f,
+                new ConfigDescription(
+                    "Random FMOD pitch variation in semitones. Zero disables it.",
+                    new AcceptableValueRange<float>(0.0f, 12.0f)),
+                "Soul Rend Audio Random Pitch Semitones");
+
             SoulSalvageOverhaul = BindOrdered(
                 "Soul Salvage",
                 "EnableSoulSalvageOverhaul",
                 true,
-                "Repurpose Soul Salvage: light cast sacrifices an owned summon for essence; heavy cast raises an eligible hostile corpse as a temporary servant.");
-            SoulSalvageReturn = BindOrdered(
+                "Enable Soul Rend: light cast harvests eligible corpses into loot-preserving remains or unbinds owned summons to restore mana and harvest Soul Vigor; heavy cast binds and raises eligible hostile corpses as servants. Living-target effects can be controlled separately below.",
+                "Enable Soul Rend");
+            LivingTargetSoulSalvage = BindOrdered(
                 "Soul Salvage",
-                "LightCastReturn",
-                SoulSalvageReturnMode.Split,
-                "Choose whether light-cast essence restores mana, health, or an even split of both.");
-            SoulSalvageEssencePercent = BindOrdered(
+                "EnableLivingTargetSoulSalvage",
+                true,
+                "Let light cast deal Necrotic damage to eligible living hostiles and strengthen later claim attempts, while heavy cast can attempt Soul Claim below 40% Health. Protected NPCs and Soul Vigor awards remain unchanged.",
+                "Enable Living-Target Soul Rend");
+            SoulSalvageManaReturnPercent = BindOrdered(
                 "Soul Salvage",
-                "LightCastEssencePercent",
+                "LightCastManaReturnPercent",
                 50.0f,
                 new ConfigDescription(
-                    "Percent of the summon's original mana investment returned at full health; current health scales the result.",
-                    new AcceptableValueRange<float>(0.0f, 100.0f)));
-            ReanimationMinimumLifetimeSeconds = BindOrdered(
-                "Soul Salvage",
-                "ReanimationMinimumLifetimeSeconds",
-                90.0f,
-                new ConfigDescription(
-                    "Minimum decay-only lifetime of a full-health raised servant. Combat damage can still kill it sooner.",
-                    new AcceptableValueRange<float>(30.0f, 600.0f)));
-            ReanimationHealthDecayPercentPerSecond = BindOrdered(
-                "Soul Salvage",
-                "ReanimationHealthDecayPercentPerSecond",
-                0.25f,
-                new ConfigDescription(
-                    "Percent of maximum health drained from raised servants each second.",
-                    new AcceptableValueRange<float>(0.05f, 1.0f)));
-            ReanimationFlatHealthDecayPerSecond = BindOrdered(
-                "Soul Salvage",
-                "ReanimationFlatHealthDecayPerSecond",
-                0.61f,
-                new ConfigDescription(
-                    "Flat health drained from raised servants each second, in addition to percentage decay.",
-                    new AcceptableValueRange<float>(0.0f, 20.0f)));
-            PermanentReanimations = BindOrdered(
-                "Soul Salvage",
-                "PermanentReanimations",
-                false,
-                "Disable borrowed-life health decay for raised servants. They remain restricted, unsaved runtime copies and never replace the source corpse model.");
+                    "Percent of the summon's original mana investment restored at full health. Current health scales every return; raised servants also scale with corpse quality and can never restore more than 75% of their binding cost.",
+                    new AcceptableValueRange<float>(0.0f, 100.0f)),
+                "Mana Return Percent");
 
             Diagnostics = BindOrdered(
                 "Diagnostics",
                 "Diagnostics",
                 false,
-                "Log summon lifecycle, collision, target sharing, scaling repair, and Soul Salvage decisions.");
+                "Log summon lifecycle, collision, target sharing, scaling repair, and Soul Rend decisions.");
             ShowGrailFloatingTextDiagnostics = BindOrdered(
                 "Diagnostics",
                 "ShowGrailFloatingTextDiagnostics",
                 true,
-                "When Diagnostics and Grail Floating Text are enabled, show concise Soul Salvage heavy-cast outcomes in-game.");
+                "When Diagnostics and Grail Floating Text are enabled, show concise Soul Rend heavy-cast outcomes in-game.");
+            OverrideSoulVigor = BindOrdered(
+                "Diagnostics",
+                "OverrideSoulVigor",
+                false,
+                "Temporarily use SoulVigorOverrideValue for Necromantic Power, gameplay scaling, APIs, and optional Deeds display without changing the character's saved Soul Vigor.");
+            SoulVigorOverrideValue = BindOrdered(
+                "Diagnostics",
+                "SoulVigorOverrideValue",
+                1000.0f,
+                new ConfigDescription(
+                    "Temporary effective Soul Vigor used only while OverrideSoulVigor is enabled. Command checkpoints are about 65, 133, 206, 826, and 1000 Soul Vigor for 10, 20, 30, 90, and 100 Necromantic Power; maximum Power 200 is reached at 5000.",
+                    new AcceptableValueRange<float>(0.0f, 5000.0f)));
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -551,20 +651,25 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Following", "TeleportDistance");
             CapturePreservedValue<float>(profile, "Following", "CatchUpSpeedMultiplier");
             CapturePreservedValue<bool>(profile, "Targeting", "ShareHeroTarget");
+            CapturePreservedValue<bool>(profile, "Targeting", "AttackCommandPrompt");
+            CapturePreservedValue<bool>(profile, "Targeting", "FormationCommands");
+            CapturePreservedValue<TargetCommandModifierMode>(profile, "Targeting", "TargetCommandModifier");
             CapturePreservedValue<float>(profile, "Targeting", "ShareTargetMaxDistance");
             CapturePreservedValue<bool>(profile, "Collision", "Summon Pass-Through");
             CapturePreservedValue<PlayerAttackPassThroughMode>(profile, "Collision", "Player Attack Pass-Through");
-            CapturePreservedValue<bool>(profile, "Persistence", "PreventDismissOnRest");
+            CapturePreservedValue<bool>(profile, "Persistence", "PersistentServants");
             CapturePreservedValue<int>(profile, "Persistence", "SummonLimitBonus");
             CapturePreservedValue<bool>(profile, "Balance", "RepairInvocationOfMightScaling");
             CapturePreservedValue<float>(profile, "Balance", "IdleSoundVolumePercent");
+            CapturePreservedValue<bool>(profile, "Audio", "PlaySoulSalvageAudio");
+            CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioVolume");
+            CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioRangeVolume");
+            CapturePreservedValue<bool>(profile, "Audio", "AvoidRecentSoulSalvageAudioRepeats");
+            CapturePreservedValue<int>(profile, "Audio", "RecentSoulSalvageAudioMemory");
+            CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioRandomPitchSemitones");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
-            CapturePreservedValue<SoulSalvageReturnMode>(profile, "Soul Salvage", "LightCastReturn");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastEssencePercent");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationMinimumLifetimeSeconds");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationHealthDecayPercentPerSecond");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "ReanimationFlatHealthDecayPerSecond");
-            CapturePreservedValue<bool>(profile, "Soul Salvage", "PermanentReanimations");
+            CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableLivingTargetSoulSalvage");
+            CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastManaReturnPercent");
             CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
             CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
@@ -599,20 +704,25 @@ namespace SoulAndService
             RestorePreservedValue(TeleportDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CatchUpSpeedMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShareHeroTarget, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(AttackCommandPrompt, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(FormationCommands, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(TargetCommandModifier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShareTargetMaxDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SummonPassThrough, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(PlayerAttackPassThrough, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(PreventDismissOnRest, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(PersistentServants, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SummonLimitBonus, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(RepairInvocationScaling, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(IdleSoundVolumePercent, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(PlaySoulSalvageAudio, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulSalvageAudioVolume, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulSalvageAudioRangeVolume, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(AvoidRecentSoulSalvageAudioRepeats, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(RecentSoulSalvageAudioMemory, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulSalvageAudioRandomPitchSemitones, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(SoulSalvageReturn, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(SoulSalvageEssencePercent, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationMinimumLifetimeSeconds, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationHealthDecayPercentPerSecond, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationFlatHealthDecayPerSecond, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(PermanentReanimations, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(LivingTargetSoulSalvage, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulSalvageManaReturnPercent, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(Diagnostics, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShowGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
             Logger.LogInfo(
@@ -652,6 +762,82 @@ namespace SoulAndService
                 clamped++;
             }
             restored++;
+        }
+    }
+
+    public static class SoulAndServiceApi
+    {
+        public const int ApiVersion = 5;
+
+        public static bool IsLoaded
+        {
+            get { return SoulAndServicePlugin.Instance != null; }
+        }
+
+        public static float GetSoulVigor()
+        {
+            return SoulProgressionRuntime.GetSoulVigor();
+        }
+
+        public static float GetNecromanticPower()
+        {
+            return SoulProgressionRuntime.GetNecromanticPower();
+        }
+
+        public static int GetFocusedSoulSalvageTargetState(bool requireRelevantSpell)
+        {
+            return SoulSalvageRuntime.GetFocusedTargetStateForInterop(
+                requireRelevantSpell);
+        }
+
+        public static float GetFocusedSoulSalvageQuality01()
+        {
+            return SoulSalvageRuntime.GetFocusedTargetQuality01ForInterop();
+        }
+
+        public static int GetFocusedSoulSalvageQualityTier()
+        {
+            return SoulSalvageRuntime.GetFocusedTargetQualityTierForInterop();
+        }
+
+        public static float GetFocusedSoulBindingProgress01()
+        {
+            return SoulSalvageRuntime.GetFocusedBindingProgress01ForInterop();
+        }
+
+        public static bool IsNecroticDamage(object damage)
+        {
+            return SoulSalvageRuntime.IsNecroticDamageForInterop(damage);
+        }
+
+        public static bool ShouldOwnTakeAllHold()
+        {
+            return SummonRuntime.ShouldOwnTakeAllHoldForInterop();
+        }
+
+        public static int GetFocusedSummonCommandState()
+        {
+            return SummonRuntime.GetFocusedCommandStateForInterop();
+        }
+
+        public static int GetLastSummonCommandState()
+        {
+            return SummonRuntime.GetLastCommandStateForInterop();
+        }
+
+        public static int GetSummonCommandSequence()
+        {
+            return SummonRuntime.GetCommandSequenceForInterop();
+        }
+
+        public static float GetLastSummonCommandPulseSeconds()
+        {
+            return SummonRuntime.GetLastCommandPulseSecondsForInterop();
+        }
+
+        public static int GetSummonBehavior()
+        {
+            return (int)SoulProgressionRuntime.GetSummonBehavior();
         }
     }
 }

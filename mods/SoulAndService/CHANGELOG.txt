@@ -1,4 +1,606 @@
-0.3.8
+Version 1.0.6
+-----
+- Aligned Grail Floating Text Soul Vigor gains with Blood Magic Expansion's
+  concise reward grammar: `+X Soul Vigor`, with a matching quality icon and a
+  short, High-priority Necrotic Reward that does not consolidate rituals.
+- Combined servant-unbinding feedback into one exact `+X Mana | +Y Soul Vigor`
+  reward. When the rolling ordinary-servant Vigor cap suppresses the award, the
+  line reports Mana alone. GFT has no separate Mana-restoration event to duplicate.
+- Standardized Soul Vigor diagnostics around the awarded amount, resulting total,
+  Necromantic Power, quality source, and servant or corpse identity.
+- Kept API version 5 and config schema 10 because the change affects presentation
+  only and adds no settings or compatibility boundary.
+
+Version 1.0.5
+-----
+- Made heavy Soul Rend restore one targeted servant by 20%/35%/50% maximum
+  Health at Necromantic Power 0/100/200. Below 95% Health, restoration is the
+  cast's only service even when it reaches full Health.
+- Added a generous 95% mercy threshold: a servant at or above it is topped off
+  and, when eligible, Empowered in the same ritual. Full or already-Empowered
+  servants still receive only an applicable single outcome.
+- Moved Empower visual enforcement to a dedicated late-frame component so NPC
+  animation cannot silently overwrite the rolled model scale.
+- Added bounded Empower diagnostics for selected transform paths, local and
+  world scale, renderer count, and visible bounds before and after correction.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because these
+  runtime additions change no stored setting or public contract.
+
+Version 1.0.3
+-----
+- Made Soul and Service authoritative over owned-servant target decisions so
+  the native retarget loop no longer resets movement and competes with behavior
+  targeting at the accelerated Soul Vigor response cadence.
+- Protected explicit Attack and Swarm targets from autonomous awareness cleanup,
+  preventing servants from landing one attack, losing their target, and skating
+  back to the hero.
+- Made behavior changes refresh targeting under the new mode before enforcing
+  formation, retaining a current target when it remains valid and releasing it
+  immediately when the new behavior does not permit it.
+- Added bounded state-change diagnostics for behavior, combat state, and current,
+  explicit, autonomous, and override targets to expose any remaining ownership
+  transitions without per-frame log spam.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because these
+  runtime corrections change no stored setting or public contract.
+
+Version 1.0.1
+-----
+- Made Empower continually enforce its rolled 1.2x-1.5x size against the
+  servant's original visual scale, including a safe animated-root fallback when
+  the native AlivePrefab is also the controller root.
+- Corrected Empower's locomotion compensation so empowered servants no longer
+  animate too slowly or skate after Swarm consumes its first-hit boost.
+- Reduced formation overhead by avoiding identical patrol destination requests,
+  sharing Bulwark's short-lived nearby-target candidate set across the host, and
+  caching Steel and Bone awareness interop values for one second.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because these
+  runtime corrections change no stored setting or public contract.
+
+Version 1.0.0
+-----
+- Established a clear behavior spacing ladder: Bulwark holds a 3.5-meter forward
+  screen, Guard retains its 4.5-meter rear and side formation, and Hunt occupies
+  stable full-perimeter positions beginning 5.5 meters from the hero.
+- Replaced Hunt's hero-centered native patrol disc with distinct cached anchors
+  and staggered local scouting walks that never select a destination inside 5
+  meters. One hunter may scout in a small host; hosts of four or more allow at
+  most two at once.
+- Kept idle navigation performance bounded by the shared one-per-second placement
+  budget and existing AI cadence. Movement, combat, Attack, Hold, Recall, and
+  behavior changes clear active scouting walks immediately.
+- Shortened mastered Guard still periods from 20-35 seconds to 16-26 seconds
+  while retaining its 0.75-meter movement range and one-wanderer limit.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  behavior refinement changes no stored setting or public contract.
+
+Version 0.9.9
+-----
+- Shortened Soul Rend's heavy Empower tooltip to name damage and resistance
+  without spending another line on the visually apparent size increase.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  presentation refinement changes no stored setting or public contract.
+
+Version 0.9.8
+-----
+- Prevented autonomous target overrides from bypassing a failed native combat-
+  target request, so unreachable or otherwise rejected enemies cannot leave a
+  servant following without attacking.
+- Let Guard and Bulwark respond to defensive threats visible to either the hero
+  or the acting servant. Hunt continues to use only the servant's own sight.
+- Tightened Bulwark's small-host formation: two servants use a +/-25-degree
+  forward arc, three use -45/0/+45, and four use -60/-20/+20/+60.
+- Raised Empower's lower-biased roll from 1.1x-1.5x to 1.2x-1.5x. The heavy
+  tooltip now names its size, damage, and resistance scaling, and completion
+  text reports the exact rolled multiplier.
+- Added effective Necromantic Power to successful reanimation diagnostics so a
+  70%-80% Power-100 health roll cannot be mistaken for a Power-200 result.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  behavior refinement changes no stored setting or public contract.
+
+Version 0.9.7
+-----
+- Tightened Guard into a threat-only bodyguard. It now prioritizes recent
+  attackers, enemies targeting the hero or a servant, and already-engaged melee
+  threats without pulling unrelated faction-hostiles merely because the host is
+  fighting.
+- Gave Bulwark a 6-meter defensive counterattack zone and an 8-meter autonomous
+  leash. When no qualifying threat or explicit Attack order exists, it now skips
+  native target acquisition instead of repeatedly entering and cancelling combat.
+- Widened Bulwark's first four positions to 2.25 meters, added a 0.5-meter
+  settling tolerance, and ignored stationary facing changes below 20 degrees so
+  the forward line remains disciplined without constant small corrections.
+- Made Hunt test line of sight from each acting servant instead of the hero.
+- Added 1.75 seconds of autonomous target commitment and same-priority distance
+  hysteresis. Equal threats must be at least 20% closer to trigger a switch,
+  while higher-priority threats still take precedence immediately.
+- Made a completed behavior command run one immediate target-acquisition pass;
+  ongoing decisions still use the Soul Vigor responsiveness cadence.
+- Extended line-of-sight caching to 0.25 seconds with separate host and Hunt
+  observer keys, while retaining movement-based invalidation and non-allocating
+  raycasts.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  behavior refinement changes no stored setting or public contract.
+
+Version 0.9.6
+-----
+- Released native hero-centered combat slots whenever a servant is fighting a
+  non-Hero target, so Hunt behavior changes and explicit Attack orders send it
+  toward the enemy immediately instead of holding it close to the player.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  engagement correction changes no stored setting or public contract.
+
+Version 0.9.5
+-----
+- Clarified the reachable Guard idle progression: formations unlock at Power 30
+  with about 1.28 meters of maximum idle movement, narrow to 0.75 meters at
+  Power 100, and remain unchanged through Power 200.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  release changes no stored setting or public contract.
+
+Version 0.9.4
+-----
+- Kept both the outward Guard idle step and its return leg on the Walk locomotion
+  scheme, while ordinary formation catch-up retains its normal Walk/Trot/Run choice.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  locomotion correction changes no stored setting or public contract.
+
+Version 0.9.3
+-----
+- Made stationary Guard formations latch their world-space positions instead of
+  rotating continuously with small changes to the hero's facing.
+- Added restrained out-of-combat life to settled Guard servants. Only one member
+  of the host may take an occasional short walk at a time before returning to its
+  formation position; movement, combat, Recall, Hold, Attack, or a behavior change
+  cancels the idle walk immediately.
+- Made idle discipline improve smoothly through Power 100. Its underlying curve
+  narrows from 1.5 meters at Power 0 to 0.75 meters at Power 100, while still
+  periods lengthen from 12-22 to 20-35 seconds. Guard formations begin using the
+  curve at Power 30, and Power 100 behavior remains unchanged through Power 200.
+- Kept the idle system lightweight by using the existing summon decision cadence,
+  caching each destination, allowing only one host member to move, and limiting
+  navigation-placement attempts across the host to once per second.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 10 because this
+  behavior adds no stored setting or public contract.
+
+Version 0.9.2
+-----
+- Widened Guard's first formation ring to 4.5 meters and added a 1-meter
+  settling tolerance so mastered servants keep formation without crowding the
+  hero or constantly correcting small position changes.
+- Made single-servant Recall choose a randomized position to either side of the
+  hero instead of favoring the point directly behind. Host Recall still expands
+  through distinct randomized arc positions and additional rings.
+- Kept every successful Recall position as a temporary formation anchor until
+  the hero moves 2 meters or issues another command or behavior change. Recall
+  placements now also reject navigation snaps more than 2 meters from the
+  intended slot, preventing several servants from collapsing onto one node.
+- Made summon decision speed part of Soul Vigor progression. Hero summons now
+  improve smoothly from a 0.75-second novice interval at Power 0 to the
+  configured 0.25-second interval at Power 100; overmastery remains at the
+  configured response speed.
+- Reduced summon overhead by sharing the ordered formation host once per frame,
+  throttling controller presentation and reanimation-position maintenance to
+  10 Hz, and pruning transient command state four times per second.
+- Incremented ConfigSchemaVersion from 9 to 10 because AITickInterval now means
+  the full-mastery target instead of a fixed interval at every Power level.
+  Compatible customized values remain recoverable after reset.
+
+Version 0.9.1
+-----
+- Changed the Power 90 Attack interaction prompt and native completion feedback
+  to Swarm whenever the upgraded command is active. It retains the Attack voice
+  and command pulse identity without adding per-use GFT notification spam.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 9 because this
+  presentation change alters no stored setting or public contract.
+
+Version 0.9.0
+-----
+- Fixed heavy Soul Rend Empower by blocking the vanilla NpcElement destruction
+  path that bypassed summon and Health protections. Locked, successful, and
+  repeated Empower casts now leave ordinary and reanimated servants alive.
+- Suppressed the vanilla heavy-cast Health refund while resolving a friendly
+  Empower target, so the command no longer doubles as unintended healing.
+- Redesigned servant unbinding to restore Mana only, scaled by invested mana and
+  current Health, while continuing to harvest Soul Vigor. Removed the Health and
+  Split return modes and updated the light-cast tooltip to communicate the result.
+- Incremented ConfigSchemaVersion from 8 to 9 because LightCastReturn was removed
+  and LightCastEssencePercent became the materially different Mana-only
+  LightCastManaReturnPercent. The redesigned percentage starts at its new 50%
+  default; other compatible customized settings remain recoverable after reset.
+
+Version 0.8.8
+-----
+- Armed heavy Soul Rend's friendly-servant protection when casting begins, so
+  ordinary and reanimated servants remain intact until Empower resolves.
+- Reworked Recall into distinct navigable placements across a loose randomized
+  arc around the hero, with additional rings for larger hosts and native placement
+  retained as the cramped-space fallback.
+- Restored the full interaction-text duration after behavior cycling and made
+  Recall feedback say Recall for one servant or Recall Host for several.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  public API and every stored setting, type, name, and default remain compatible.
+
+Version 0.8.6
+-----
+- Kept Recall Host servants disengaged for three seconds so Guard and Hunt cannot
+  immediately reacquire the combat that Recall just cleared.
+- Coalesced overlapping asynchronous teleport requests so the first confirmed
+  arrival plays one necromancer VFX and a failed callback cannot consume it early.
+- Shared short-lived physical line-of-sight results across the host to reduce
+  duplicate raycasts as Command Capacity grows.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  public API and every stored setting, type, name, and default remain compatible.
+
+Version 0.8.5
+-----
+- Made the Power 50 behavior command latch when Sprint and Interact begin over
+  empty space, complete from the frame update after 0.45 seconds, and ignore later
+  crosshair or interaction-list churn. Releasing and reholding Interact remains an
+  immediate way to cycle Guard, Bulwark, and Hunt while Sprint stays held.
+- Upgraded Guard targeting to prioritize recent attackers, melee threats after
+  combat begins, enemies targeting the hero or host, and then the nearest visible
+  hostile while combat continues. Automatic targets now require physical line of
+  sight, never begin a fight from proximity alone, and yield to explicit Attack.
+- Added loose, non-overlapping Guard formation positions at Power 30 while keeping
+  Bulwark's tighter forward shield distinct.
+- Added Recall Host at Power 70. Holding Take All Items for two seconds cancels the
+  shorter release-based Hold All or Follow All command, clears holds and explicit
+  targets, ends servant combat, and requests native safe teleports around the hero.
+- Added the green-dark necromancer summoning VFX after each successful Recall Host
+  or automatic too-far catch-up teleport. Failed teleport requests remain silent.
+- Added Command Capacity: the native summon limit gains +1/+2/+3 at Power 50/100/150.
+  The existing configured Summon Limit Bonus remains additive, and lowering the
+  effective limit never despawns an active servant.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  public API and every stored setting, type, name, and default remain compatible.
+
+Version 0.8.4
+-----
+- Renamed the overhauled spell to Soul Rend in game while retaining its existing
+  template, config, API, and audio identifiers for stable internal integration.
+- Replaced the spell's long light- and heavy-cast descriptions with concise
+  target-action tooltips. The internal repeated-hit claim bonus is no longer
+  presented as a separate visible debuff.
+- Clarified that only Soul Rend's light-cast damage is Necrotic. Soul Claim remains
+  a protected execution outside the Necrotic school, and servant kills remain
+  Summons in Deeds of Avalon.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  existing API surface and stored settings are unchanged.
+
+Version 0.8.1
+-----
+- Tightened the public Necrotic classification to the exact Soul Rend damage
+  packet instead of every hit carrying the Soul Salvage item. Soul Claim remains
+  a protected execution and no longer reports as ordinary Necrotic damage.
+- Added native-first Steel and Bone Necrotic matchups for Soul Rend while keeping
+  its Generic Magical carrier, armor interaction, attribution, and hit lifecycle.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  existing API surface and stored settings are unchanged.
+
+Version 0.8.0
+-----
+- Prevented vanilla heavy Soul Salvage from killing its targeted servant before
+  Empower resolves. Locked and repeated Empower attempts now leave the servant
+  intact instead of creating remains.
+- Removed the unintended behavior-command feedback delay. Players can keep Sprint
+  held, release only Interact, and hold Interact again to cycle immediately.
+- Made Bulwark locomotion consider the hero's actual movement speed as well as
+  formation distance, preventing fast-moving servants from using a walking or idle
+  presentation while following their moving shield position.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because these
+  fixes change no public contract, setting, or default.
+
+Version 0.7.9
+-----
+- Added Battlecry Voice Tuner requests for successful Guard, Bulwark, and Hunt
+  behavior changes, using a separate command ID and voice pool for each behavior.
+- Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
+  optional voice request adds no public contract, setting, or default change.
+
+Version 0.7.8
+-----
+- Added timed native completion text for every explicit summon command. Attack,
+  individual Hold, and individual Follow last 0.675 seconds; Hold All, Follow All,
+  and Behavior last 1.35 seconds.
+- Made Dishonored Dynamic Crosshair use those same per-command durations through
+  Soul and Service API v5.
+- Kept Necrotic GFT confirmations for formation commands and added explicit
+  Behavior: Guard, Behavior: Bulwark, and Behavior: Hunt coverage. Attack remains
+  free of GFT message spam.
+- Kept ConfigSchemaVersion at 8 because no setting or default changed.
+
+Version 0.7.7
+-----
+- Replaced the Combat Initiation Mode config with save-backed Guard, Bulwark,
+  and Hunt behavior. Guard retaliates against active attackers, Bulwark forms a
+  stable front shield and fights only on explicit Attack orders, and Hunt spreads
+  out and attacks valid faction-hostile NPCs on sight.
+- Added the Power 50 behavior command. With at least one servant active and
+  nothing meaningful under the crosshair, holding Sprint and Interact for one
+  second cycles behavior without showing a charging prompt. Completion briefly
+  shows native interaction text and publishes a Behavior command pulse.
+- Advanced the public API to version 4 for behavior state and presentation.
+- Increased ConfigSchemaVersion to 8 because CombatInitiationMode was removed;
+  its old value is intentionally not migrated and every character begins in Guard.
+
+Version 0.7.6
+-----
+- Corrected command unlocks, Swarm, upkeep reduction, and Empower to use their
+  intended Necromantic Power milestones. Their approximate Soul Vigor thresholds
+  are now 65, 133, 206, 826, and 1,000 instead of treating the Power numbers as Vigor.
+
+Version 0.7.5
+-----
+- Completed summon-state key unification across catch-up, Empower presentation,
+  Swarm locomotion, damage callbacks, and discard cleanup, with a regression contract.
+
+Version 0.7.4
+-----
+- Corrected Swarm and Empower runtime state resolution so controller and damage
+  callbacks consistently find the owning summon element. This keeps first-hit,
+  damage, resistance, scaling, and locomotion effects active on the intended servant.
+
+Version 0.7.3
+-----
+- Replaced raised-corpse-only borrowed-life decay with lethal necromantic upkeep
+  shared by every active ordinary and reanimated servant. At zero Necromantic Power the
+  host drains 2% maximum health per minute for one servant, rising by 1% per
+  additional servant to an 8% cap; the drain reaches zero at 100 Power.
+- Added Swarm at 90 Necromantic Power. Explicit Attack orders grant up to five seconds
+  of 1.25x closing speed and one 1.25x first successful hit per servant against
+  the commanded target, with refresh-only behavior and a 1.5x movement cap.
+- Added Empower at 100 Necromantic Power. Heavy Soul Salvage gives one friendly servant
+  a permanent lower-biased 1.1x-1.5x size, outgoing-damage, and resistance roll,
+  reuses the native necromancer reanimation VFX, and compensates locomotion for
+  the larger stride without changing attack animation speed.
+- Rest now dismisses servants by default. Added PersistentServants for players
+  who want ordinary and reanimated servants to remain through rest.
+- Limited the diagnostics Soul Vigor override to the progression's 5,000-point
+  maximum-power endpoint while preserving the established 0-200 Power curve.
+- Increased ConfigSchemaVersion to 7 because PreventDismissOnRest was replaced
+  by PersistentServants with a new default, and the obsolete permanent-reanimation
+  and raised-decay settings were removed. Older settings are intentionally not migrated.
+
+Version 0.7.2
+-----
+- Added Necromantic Power command progression: Attack unlocks at 10, individual
+  Hold and Follow at 20, and Hold All and Follow All at 30.
+- Made targeted commands appear only while the configured command modifier is
+  held. Sprint is the default remappable modifier, with None available for
+  accessibility.
+- Changed individual Hold and Follow to tap Interact while command mode is active;
+  global Take All Items commands retain their 0.45-second hold.
+- Added one-time Necrotic Grail Floating Text messages when each command tier is
+  reached. Below 30 Power, Battlecry Voice Tuner keeps the Take All Items action.
+- Kept ConfigSchemaVersion at 6 because this adds one setting without renaming,
+  removing, or changing the stored interpretation of an existing setting.
+
+Version 0.7.1
+-----
+- Unified individual Hold and Follow range with the configured Attack Targeting
+  Range, measured from the summon's visible body instead of its model origin.
+- Cached filtered body renderers and replaced allocating line-of-sight raycasts
+  so long-range formation targeting stays lightweight.
+
+Version 0.7.0
+-----
+- Fixed individual Hold and Follow prompts by preferring the summon collider,
+  resolving line of sight through the summon model, and retaining visible-body
+  targeting when an idle summon has no usable collider.
+- Added transition-only targeting diagnostics for range, aim, view, and line-of-sight
+  rejection without logging every frame.
+
+Version 0.6.9
+-----
+- Completed light-cast summon harvests from the captured target when the native
+  spell kills the raised location without calling NpcHeroSummon.Destroy. Raised servants now grant
+  Soul Vigor and play exactly one quality-matched ritual sound after remains succeed.
+- Replaced collider-dependent individual formation targeting with a close-range
+  view selector, so Hold and Follow prompts work on idle out-of-combat summons.
+- Changed successful Grail Floating Text raising notices from "resurrected" to
+  "reanimated."
+- Updated Battlecry Voice Tuner integration documentation for separate Attack,
+  Hold, and Follow voice pools.
+
+Version 0.6.7
+-----
+- Added 0.45-second Hold and Follow interactions for individual owned summons
+  within 2 m, plus smart Hold All and Follow All commands on the remappable
+  Take All Items action.
+- Held summons keep a fixed anchor, defend within an 8 m leash, temporarily obey
+  explicit Attack orders, and resume their anchor after combat.
+- Added semantic Attack, Hold, and Follow presentation events for Dishonored
+  Dynamic Crosshair and matching command-voice requests for Battlecry Voice Tuner.
+- Removed hostile names from the explicit Attack prompt, leaving only Attack.
+- Added Soul and Service API v3 command-state, Take All ownership, and Necrotic
+  damage classification surfaces. Soul Rend and successful Soul Claim damage can
+  now be grouped as Necrotic instead of as the Soul Salvage spell name.
+- Added FormationCommands without changing the config schema.
+- Registered Take All directly so Hold All and Follow All work without Battlecry
+  Voice Tuner, while duplicate-safe binding keeps both mods compatible.
+- Made disabling formation commands release all held servants, and enforced the
+  8 m anchor leash against native targets without blocking explicit Attack orders.
+
+Version 0.6.4
+-----
+- Added configurable corpse- and summon-distance volume fading for successful
+  Soul Salvage ritual sounds, matching Killing Blow Mastery's 100% at 0 meters
+  to 10% at 30 meters curve.
+- Kept ritual sounds two-dimensional, preserved authored tier loudness, and use
+  full volume when the hero or ritual position is unavailable.
+- Added SoulSalvageAudioRangeVolume without changing the config schema.
+
+Version 0.6.3
+-----
+- Replaced noisy optional corpse-quality reflection probes with silent cached
+  property and field lookups, eliminating repeated Harmony missing-member warnings
+  while preserving property-first base-type fallback behavior.
+
+Version 0.6.2
+-----
+- Added a diagnostics-only Soul Vigor override matching Blood Magic Expansion.
+  It temporarily drives Necromantic Power, gameplay scaling, the public API, and
+  optional Deeds display without changing the character's saved Soul Vigor.
+- Added a 0 to 1,000,000 override range defaulting to 1,000, with the toggle and
+  value permanently excluded from previous-settings recovery.
+- Kept the config schema unchanged because both settings are new and compatible.
+
+Version 0.6.1
+-----
+- Added optional Battlecry Voice Tuner integration for explicit Attack orders.
+  One gender-matched necromantic command plays after at least one owned summon
+  successfully receives the target, regardless of how many summons were ordered.
+- Kept passive target sharing, defensive reactions, automatic aggression, failed
+  interactions, and ordinary targeting updates silent. Command behavior remains
+  fully functional when Battlecry Voice Tuner is absent, disabled, cooling down,
+  or missing a matching voice pool.
+- Added the integration as a soft dependency without changing the config schema
+  or adding duplicate audio controls to Soul and Service.
+
+Version 0.6.0
+-----
+- Added forty authored Soul Salvage ritual sounds: ten each for Meager, Worthy,
+  Potent, and Prime corpse quality. Successful light-cast corpse harvests and
+  summon sacrifices play one matching sound; failed actions, living-target attacks,
+  heavy casts, and ordinary summon deaths remain silent.
+- Matched Blood Magic Expansion's FMOD model with 0.85 default volume, optional
+  per-tier repeat avoidance, a two-sound recent memory, subtle +/-0.20-semitone
+  random pitch, adjacent-tier fallback, lazy sample caching, and shutdown cleanup.
+- Preserved every WAV's authored format and tier loudness instead of normalizing
+  the stronger quality banks toward the quieter tiers.
+- Added an Audio configuration section without changing the config schema or any
+  existing setting.
+
+Version 0.5.9
+-----
+- Expanded Soul Salvage onto protected, ordinary living hostiles. Light cast now
+  deals hero-attributed generic magical Soul Rend damage and applies up to three
+  eight-second Frayed Soul stacks without granting Soul Vigor.
+- Soul Rend deals 50%/100%/200% of a comparable tier-one light offensive spell
+  at Necromantic Power 0/100/200 and follows the native damage pipeline for
+  resistances, attribution, hit reactions, and Steel and Bone integration.
+- Heavy cast can attempt Soul Claim below 40% Health. Its chance rises with
+  missing Health, Necromantic Power, and consumed Frayed Soul stacks, while
+  stronger corpse-quality tiers resist more and the final chance remains capped.
+- Successful claims kill through the native hero-attributed damage path and reuse
+  the existing restricted corpse-reanimation lifecycle. They grant normal kill XP
+  once, no immediate Soul Vigor, no scripted reward from the raised copy, and obey
+  summon limits, borrowed life, permanent mode, and protected-NPC exclusions.
+- Added an enabled-by-default living-target toggle without changing the config
+  schema or existing settings.
+
+Version 0.5.8
+-----
+- Polished FoA Mod Manager presentation without changing config keys, defaults, or
+  schema: primary targeting and permanence controls now precede dependent options.
+- Clarified shared targeting range, following thresholds, permanent-mode overrides,
+  and raised-servant light-cast refund scaling and caps.
+
+Version 0.5.7
+-----
+- Made corpse-harvest rewards transactional: failed remains creation now restores
+  Soul Vigor and tier counts, and raised servants award only after destruction.
+- Stopped disabled-state Deeds synchronization and made ManualOnly immediately
+  remove combat targets previously injected by autonomous awareness.
+- Updated Soul Salvage setting descriptions for corpse harvesting, permanent
+  servants, and the loot-preserving remains lifecycle.
+
+Version 0.5.6
+-----
+- Replaced Souls Bound with a fresh, non-migrating Soul Vigor progression. Light
+  Soul Salvage now harvests eligible corpses for 2/6/10/20 Vigor by quality;
+  heavy casts bind and raise without granting Vigor.
+- Made light cast convert ordinary corpses to native simplified remains. Harvesting
+  a raised corpse grants its quality reward and ends service as loot-preserving
+  remains at its last safe position; death does the same without granting Vigor.
+  Unload, shutdown, and initialization failures still restore the protected source.
+- Added a 1-Vigor ordinary-summon harvest with a save-backed limit of five rewards
+  per rolling 60 seconds. Essence sacrifice still works after the reward cap.
+- Added Defensive, RetaliationOnly, Aggressive, and ManualOnly combat-initiation
+  modes. Defensive is the default and requires hostile intent toward the hero or
+  an owned summon; passive crosshair target sharing now defaults off.
+- Replaced the short interaction-ray Attack hook with a native long-range interaction
+  override, so Attack follows the NPC targeting ray without requiring Dishonored
+  Dynamic Crosshair and clears immediately when aim or eligibility is lost.
+- Advanced the Soul and Service API to version 2 and Deeds statistics integration
+  to API version 7 with Soul Vigor and corpse-harvest totals only.
+- Incremented ConfigSchemaVersion from 5 to 6 because ShareHeroTarget now defaults
+  to false instead of true. Compatible customized settings remain recoverable.
+
+Version 0.5.4
+-----
+- Added a CombatOnly player-attack pass-through mode and made it the default.
+  Confirmed hero projectiles and magic-gauntlet contacts pass through an owned
+  summon while either the hero or that summon is in combat, then return to vanilla
+  interception outside combat.
+- Incremented the config schema because Player Attack Pass-Through now defaults to
+  CombatOnly instead of MagicOnly. Existing customized modes remain valid.
+
+Version 0.5.3
+-----
+- Added authoritative save-backed Meager, Worthy, Potent, and Prime first-binding
+  counts and absolute synchronization through Deeds of Avalon StatisticsApi v6.
+- Historical Souls Bound is preserved but is not approximated into quality counts;
+  the new tier ledger begins with bindings completed by this release.
+
+Version 0.5.2
+-----
+- Restored hidden source corpses if asynchronous raised-servant initialization
+  fails, and removed injected awareness targets when the master switch is disabled.
+- Reused one focused-target sample per frame and direct corpse validation so
+  quality-reticle interop no longer repeats full targeting raycasts.
+
+Version 0.5.1
+-----
+- Made autonomous awareness force valid distant combat targets through the native
+  NPC checks instead of losing them to the smaller vanilla summon radar.
+- Corrected raised-servant light salvage to use the native light-cast result and
+  the binding-cost refund cap, and updated permanent-raise tooltip wording.
+- Expanded packaged integration documentation and automated contract coverage.
+
+Version 0.5.0
+-----
+- Added uncapped, save-backed Souls Bound and the same 0-200 mastery curve used
+  by Blood Magic Expansion, with Necromantic Power 100 at 1,000 Souls Bound and
+  200 at 5,000.
+- Made first successful Meager, Worthy, Potent, and Prime corpse bindings award
+  2, 6, 10, or 20 Souls Bound. Resistance and per-cast progress are deterministic
+  and saved, so reloading cannot reroll a difficult soul or duplicate its award.
+- Scaled every owned summon from 0.75x damage dealt and 1.25x damage taken at
+  Power 0 through 1.25x/0.75x at 100 to 1.50x/0.50x at 200.
+- Made corpse quality scale raised maximum health and Power shift starting health
+  from a randomized 40-60% at zero to a guaranteed 100% at 200.
+- Reduced heavy Soul Salvage from 45 to 30 base mana and made raised-servant light
+  salvage use binding cost, quality lifetime, and current health with a 75% cap.
+- Added bright-green quality-reticle API data for eligible corpses and active owned
+  summons, tier-icon resurrection messages, randomized failed-binding flavor, and
+  save-backed Deeds of Avalon progression reporting.
+- Added 30 m autonomous hostile awareness. Soul and Service inherits 80% of Steel
+  and Bone's active sight and aggro-persistence increases while retaining a short
+  lost-target grace and the native 45 m command tether.
+
+Version 0.4.1
+-----
+- Added a native Attack interaction prompt when aiming at a nearby hostile while
+  the hero owns a summon. Pressing Interact orders every eligible owned summon to
+  attack that target without firing the target's normal interaction scripting.
+- Extended the default crosshair-sharing range from 30 m to the game's native 45 m
+  summon-command tether, removed the extra summon-to-target distance rejection,
+  and clear expired out-of-range overrides so later targets can be adopted.
+- Stabilized idle summons beside the hero by collapsing their inactive patrol to
+  their current position. Combat facing and catch-up movement remain native.
+- Confirmed raised servants are genuine NpcHeroSummon actors and receive normal
+  summon identity, limits, faction, targeting, collision, persistence, and mod
+  behavior. Their zero mana investment still prevents recursive essence returns.
+- Incremented the config schema because ShareTargetMaxDistance now defaults to
+  45 m and its accepted maximum matches the native 45 m command tether.
+
+Version 0.3.9
+-----
+- Added the Forgotten Cemetery necromancer's native skeleton-summon effect when a
+  Soul Salvage heavy cast successfully raises a servant.
+
+Version 0.3.8
 -----
 - Tripled Soul Salvage's heavy-cast mana stat so the item card and actual charged
   cost agree, including the spell's normal item-level scaling.
@@ -17,7 +619,7 @@
   ReanimationHealthPercent were removed and replaced by minimum-lifetime,
   percentage-decay, and flat-decay settings with new behavior.
 
-0.3.7
+Version 0.3.7
 -----
 - Added concise Grail Floating Text diagnostics for Soul Salvage heavy-cast
   rejections, full servant limits, successful temporary or permanent raises,
@@ -27,18 +629,18 @@
 - Kept the config schema unchanged because adding a new setting lets Config.Bind
   supply its current default without resetting existing settings.
 
-0.3.6
+Version 0.3.6
 -----
 - Preserved each raised servant's native NPC portrait when its Addressables reference is valid.
 - Assigned the vanilla skeleton-summon spell portrait only when a copied corpse has no configured NPC icon, preventing the summon HUD from requesting an empty Sprite key.
 - Kept the config schema unchanged because no setting or stored value changed.
 
-0.3.5
+Version 0.3.5
 -----
 - Added explicit semantic section and setting order metadata for a cleaner FoA Mod Manager layout.
 - Kept the config schema unchanged because stored section names, keys, types, meanings, and defaults are unchanged.
 
-0.3.4
+Version 0.3.4
 -----
 - Limited the faster AI decision interval to hero summons; unrelated NPC allies now
   retain the native 2.5-second interval.
@@ -53,7 +655,7 @@
 - Incremented the config schema because every section was renamed to remove numeric
   prefixes and follow the current FoA Mod Manager ordering contract.
 
-0.3.1
+Version 0.3.1
 -----
 - Made heavy Soul Salvage exclusively use the corpse-reanimation path instead of
   retaining the vanilla heavy summon-sacrifice effect.
@@ -64,7 +666,7 @@
 - Limited magic-gauntlet pass-through to hero-owned attacks and reduced collision
   refresh overhead without changing runtime config responsiveness.
 
-0.3.0
+Version 0.3.0
 -----
 - Added responsive hero-summon AI, close-follow thresholds, native safe catch-up
   teleporting, and an out-of-combat catch-up speed multiplier.
@@ -85,3 +687,24 @@
   no duration for the current play session but never revive original persistent NPCs.
 - Declared hard incompatibility with Avalon Summons, Better Summon, and the temporary
   Summon Pass-Through test plugin to prevent overlapping Harmony ownership.
+Version 0.5.5
+-----
+- Replaced Souls Bound with a fresh, non-migrating Soul Vigor progression. Light
+  Soul Salvage now harvests eligible corpses for 2/6/10/20 Vigor by quality;
+  heavy casts bind and raise without granting Vigor.
+- Made light cast convert ordinary corpses to native simplified remains. Harvesting
+  a raised corpse grants its quality reward and ends service as loot-preserving
+  remains at its last safe position; death does the same without granting Vigor.
+  Unload, shutdown, and initialization failures still restore the protected source.
+- Added a 1-Vigor ordinary-summon harvest with a save-backed limit of five rewards
+  per rolling 60 seconds. Essence sacrifice still works after the reward cap.
+- Added Defensive, RetaliationOnly, Aggressive, and ManualOnly combat-initiation
+  modes. Defensive is the default and requires hostile intent toward the hero or
+  an owned summon; passive crosshair target sharing now defaults off.
+- Replaced the short interaction-ray Attack hook with a native long-range interaction
+  override, so Attack follows the NPC targeting ray without requiring Dishonored
+  Dynamic Crosshair and clears immediately when aim or eligibility is lost.
+- Advanced the Soul and Service API to version 2 and Deeds statistics integration
+  to API version 7 with Soul Vigor and corpse-harvest totals only.
+- Incremented ConfigSchemaVersion from 5 to 6 because ShareHeroTarget now defaults
+  to false instead of true. Compatible customized settings remain recoverable.

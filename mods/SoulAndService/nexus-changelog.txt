@@ -1,0 +1,33 @@
+TargetVersion=1.0.6
+BaselineVersion=0.9.1
+Widened Guard spacing and added a settling tolerance so servants hold formation without crowding the hero.
+Made Recall choose side-biased positions for a lone servant, reject misleading navigation snaps, and preserve recalled slots until the hero moves or gives a new command.
+Made summon responsiveness improve smoothly with Soul Vigor from a deliberate novice cadence to the configured full-mastery response speed.
+Made stationary Guard formations remain settled instead of rotating with small changes to the hero's facing.
+Added restrained idle life: one servant at a time may occasionally take a short Walk near its formation position, linger, and return, while movement, combat, or commands cancel it immediately.
+Made idle discipline improve through Power 100: Guard formations begin with about 1.28 meters of maximum movement at their Power 30 unlock, narrow to 0.75 meters at Power 100, and remain unchanged through Power 200.
+Reduced runtime overhead through shared formation work, bounded refresh cadences, cached idle destinations, a single host movement budget, and a one-per-second navigation-placement limit.
+Released native hero-centered combat slots whenever servants pursue NPC targets, so Hunt changes and Attack orders engage promptly instead of keeping servants clustered near the hero.
+Refined Guard into a threat-only bodyguard that no longer pulls uninvolved hostiles simply because the host is fighting.
+Made Bulwark hold a steadier, wider forward line, skip unnecessary native target acquisition, and counterattack only genuine threats inside a short defensive leash.
+Made Hunt see from each servant's position and commit briefly to valid targets instead of switching for marginal distance changes.
+Made behavior changes perform one immediate acquisition pass while preserving the ongoing Soul Vigor response cadence.
+Kept autonomous overrides behind native combat-target acceptance so unreachable or rejected enemies do not leave servants following without attacking.
+Let Guard and Bulwark recognize defensive threats seen by either the hero or the acting servant, while Hunt continues to use servant-local sight.
+Tightened small Bulwark formations into forward-facing arcs instead of placing two servants almost directly beside the hero.
+Made Empower clearly scale size, damage, and resistance by a reported lower-biased 1.2x-1.5x roll.
+Shortened the Soul Rend heavy tooltip to emphasize Empower's combat effects while leaving visible growth to communicate its size scaling.
+Established a clear behavior spacing ladder: Bulwark at 3.5 meters, Guard at 4.5, and Hunt at 5.5.
+Moved Hunt onto stable perimeter slots with staggered local scouting walks, a 5-meter inner boundary, and at most two simultaneous scouts in larger hosts.
+Made mastered Guard walks recur moderately sooner while retaining their disciplined 0.75-meter range and one-servant movement limit.
+Made Empowered servants retain their rolled visible growth through animation and visual refreshes.
+Corrected empowered locomotion so servants no longer skate after Swarm consumes its first-hit boost.
+Reduced formation overhead by suppressing identical patrol requests, sharing Bulwark candidate queries, and caching Steel and Bone awareness interop.
+Made Soul and Service authoritative over owned-servant target decisions so native recalculation no longer competes with behavior logic.
+Protected explicit Attack and Swarm targets from autonomous cleanup, preventing servants from striking once and skating back to the hero.
+Made behavior changes retain targets valid under the new mode and refresh before enforcing the new formation.
+Made heavy Soul Rend restore one servant by 20%-50% maximum Health with Soul Vigor progression, reserving Empower for servants at 95% Health or higher.
+Let the 95% mercy threshold top off and Empower in one ritual while lower-health casts perform restoration only.
+Moved Empower growth enforcement after animation updates and added bounded transform and rendered-bounds diagnostics.
+Aligned Soul Vigor rewards with Blood Magic Expansion's concise progression grammar and short Reward presentation.
+Combined servant-unbinding recovery as +Mana | +Soul Vigor without duplicating a Grail Floating Text Mana event.

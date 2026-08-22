@@ -2,11 +2,12 @@ $ErrorActionPreference = "Stop"
 
 $modRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $source = Get-Content -LiteralPath (Join-Path $modRoot "src\BattlecryVoiceTuner.cs") -Raw
+$readme = Get-Content -LiteralPath (Join-Path $modRoot "README.txt") -Raw
+$nexusFull = Get-Content -LiteralPath (Join-Path $modRoot "nexus-full-desc.txt") -Raw
 $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw | ConvertFrom-Json
 
 if ($manifest.id -ne "BattlecryVoiceTuner" -or
     $manifest.displayName -ne "Battlecry Voice Tuner" -or
-    $manifest.version -ne "1.1.4" -or
     $manifest.pluginGuid -ne "ks.tgfoa.battlecry-voice-tuner" -or
     $manifest.dll -ne "BattlecryVoiceTuner.dll") {
     throw "Battlecry Voice Tuner manifest identity is inconsistent."
@@ -57,7 +58,13 @@ foreach ($required in @(
     'ReleaseBattlecryReverbPaths()',
     'channel.setPitch(',
     'channel.setVolume(',
-    'PickBattlecryIndex(',
+    'DSP_TYPE.PITCHSHIFT',
+    'DSP_PITCHSHIFT.PITCH',
+    'DSP_PITCHSHIFT.FFTSIZE',
+    'ApplyPitchProcessingToChannel(',
+    'RefreshPitchShiftDsps()',
+    'BuildPlaybackOrder(',
+    'RememberRecentPath(',
     'ReleaseBattlecrySounds()')) {
     if (!$source.Contains($required)) {
         throw "Gender-aware battlecry audio contract is missing: $required"
@@ -74,6 +81,62 @@ if ($source -notmatch '(?s)"PitchSemitones",\s*0\.0f') {
 
 if ($source -notmatch '(?s)"RandomPitchSemitones",\s*0\.15f') {
     throw "Random pitch variation must default to 0.15 semitones."
+}
+
+if ($source -notmatch '(?s)"PitchProcessingMode",\s*PitchProcessingMode\.Balanced' -or
+    $source -notmatch 'rateShare = 0\.5f' -or
+    $source -notmatch 'PitchDspFftSize = 2048f' -or
+    $source -notmatch 'PitchDspAttachTimeoutSeconds = 0\.1f' -or
+    $source -notmatch '(?s)QueueEventPitchDsp\(.+setPaused\(true\).+_pendingEventPitchDsps\.Add' -or
+    $source -notmatch '(?s)pending\.EventInstance\.setPitch\(.+pending\.EventInstance\.setPaused\(false\)' -or
+    $source -notmatch 'ResumePendingEventNaturally\(') {
+    throw "Balanced pitch processing must split pitch between playback rate and a 2048-point DSP by default."
+}
+
+foreach ($required in @(
+    'VoiceGrowthFullDepthAttributeValue = 40f',
+    'VoiceGrowthDeadZone = 0.10f',
+    'VoiceGrowthCurvePower = 1.5f',
+    'VoiceGrowthPreset.Warrior',
+    'VoiceGrowthAttribute.Strength',
+    'VoiceGrowthAttribute.Endurance',
+    'VoiceGrowthAttribute.Dexterity',
+    'VoiceGrowthAttribute.Spirituality',
+    'VoiceGrowthAttribute.Practicality',
+    'VoiceGrowthAttribute.Perception',
+    'stat.BaseValue',
+    'stat.ModifiedValue')) {
+    if (!$source.Contains($required)) {
+        throw "Attribute voice progression contract is missing: $required"
+    }
+}
+
+foreach ($contract in @(
+    @{ Pattern = '(?s)"VoiceGrowthEnabled",\s*true'; Message = 'enabled voice growth default' },
+    @{ Pattern = '(?s)"VoiceGrowthPreset",\s*VoiceGrowthPreset\.Warrior'; Message = 'Warrior growth preset default' },
+    @{ Pattern = '(?s)"VoiceGrowthMaximumSemitones",\s*-6\.0f'; Message = '-6 semitone growth floor' },
+    @{ Pattern = '(?s)"UseTemporaryAttributeModifiers",\s*false'; Message = 'permanent attribute default' },
+    @{ Pattern = '(?s)VoiceGrowthAttribute\.Strength,\s*VoiceGrowthAttribute\.Endurance,\s*0\.75f'; Message = '75/25 Warrior weighting' })) {
+    if ($source -notmatch $contract.Pattern) {
+        throw "Attribute voice progression is missing the $($contract.Message)."
+    }
+}
+
+foreach ($document in @($readme, $nexusFull)) {
+    foreach ($required in @(
+        'Warrior',
+        'Strength',
+        'Endurance',
+        'Mage',
+        'Adventurer',
+        'Custom',
+        '-6',
+        'Balanced',
+        '19%')) {
+        if (!$document.Contains($required)) {
+            throw "Voice progression documentation is missing: $required"
+        }
+    }
 }
 
 if ($source -notmatch '(?s)"BattlecryVolumeMultiplier",\s*0\.5f') {
@@ -129,6 +192,14 @@ if ($source -notmatch '(?s)"MaleBattlecryPitchOffsetSemitones",\s*0\.0f' -or
     throw "Gender-specific battlecry pitch offsets must default to 0 semitones."
 }
 
+if ($source -notmatch '(?s)"RecentBattlecryMemory",\s*2' -or
+    $source -notmatch '(?s)RememberRecentPath\(\s*pool,\s*path,\s*GetRecentMemory\(_recentBattlecryMemory\)') {
+    throw "Battlecries must avoid the previous two successfully played clips per gender by default."
+}
+if ($source -notmatch '(?s)if \(paths\.Count == 0\s*&& _maleBattlecryPaths\.Count == 0\s*&& _femaleBattlecryPaths\.Count == 0\)\s*\{\s*DiscoverBattlecryFiles\(\);') {
+    throw "A missing battlecry gender pool must not reset the other gender's recent history."
+}
+
 foreach ($required in @(
     'nameof(VHeroKeys.PlayerKeyBindings)',
     'KeyBindings.UI.Items.TransferItems',
@@ -163,10 +234,10 @@ if ($source -notmatch '(?s)new Grailwright\.Shared\.ConfigRecoveryKeepCurrentDef
     throw "The former all-environment hearing multiplier must not be imported under its new outdoor-only meaning."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 8' -or
+if ($source -notmatch 'CurrentConfigSchemaVersion = 9' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 8."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 9."
 }
 
 foreach ($required in @(

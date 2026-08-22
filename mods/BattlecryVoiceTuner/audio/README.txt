@@ -35,3 +35,35 @@ measured response. Interior scenes, caves, and the game's roof volumes use a
 IndoorBattlecryReverbAmount default of 0.70 scales geometry-driven room decay,
 density, filtering, and only the long reflections suitable for larger spaces.
 BattlecryReverbEnabled disables both effects without changing routing.
+
+Command audio
+=============
+
+Keep command WAV files directly under audio/command. Soul and Service Attack,
+Hold, Follow, Guard, Bulwark, and Hunt orders use separate gender-matched pools and recent histories.
+The files use these exact filename patterns:
+
+summon_male_attack_0.wav through summon_male_attack_4.wav
+summon_male_hold_0.wav through summon_male_hold_4.wav
+summon_male_follow_0.wav through summon_male_follow_4.wav
+summon_male_guard_0.wav through summon_male_guard_1.wav
+summon_male_bulwark_0.wav through summon_male_bulwark_1.wav
+summon_male_hunt_0.wav through summon_male_hunt_1.wav
+summon_female_attack_0.wav through summon_female_attack_3.wav
+summon_female_hold_0.wav through summon_female_hold_3.wav
+summon_female_follow_0.wav through summon_female_follow_3.wav
+summon_female_guard_0.wav through summon_female_guard_1.wav
+summon_female_bulwark_0.wav through summon_female_bulwark_1.wav
+summon_female_hunt_0.wav through summon_female_hunt_1.wav
+
+Battlecry Voice Tuner sorts each pool by filename and accepts up to 15 files per
+pool. Command files use the overall pitch, random pitch, and volume settings,
+then add their command-only gender pitch and 0.50 volume values. Male and female
+command pitch offsets default to +5 and +1 semitones. RecentCommandVoiceMemory
+defaults to 2 and avoids those successfully played clips within the same command
+and gender pool when alternatives remain.
+
+Command voices follow the game's SFX mixer. Their separate outdoor and indoor
+reverb paths reuse the geometry-aware acoustic probes with lighter 0.10 and 0.45
+defaults and schedule no more than one measured reflection. A command never
+triggers the battlecry challenge or optional Wyrd Threat integration.

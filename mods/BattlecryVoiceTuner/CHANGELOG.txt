@@ -1,3 +1,48 @@
+Version 1.2.4
+Held supported native events briefly while their hybrid pitch DSP attaches, preventing the full natural-rate slowdown from reaching the audible onset. Attachment failures now resume quickly with the safe full natural shift.
+Clarified that Overall Pitch is the manual baseline beneath attribute growth, corrected the packaged command-voice count to thirty-nine, and kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 9 because no stored setting changed.
+
+Version 1.2.3
+Added enabled-by-default attribute voice progression with Warrior, Rogue, Mage, Warden, Artisan, Adventurer, Custom, and Disabled archetypes. Warrior defaults to 75% permanent Strength and 25% permanent Endurance, while every curve starts at the Hero's innate values and reaches its configured full depth at attribute value 40.
+Added a smooth late-weighted progression curve that keeps early growth subtle and reaches a configurable -6 semitone maximum only for exceptional archetype development. Temporary attribute modifiers remain excluded by default, and Overall Pitch, gender offsets, and random variation continue to layer normally.
+Added Natural, Balanced, and Tempo Preserving pitch processing. Balanced is the fresh default and splits the final shift evenly between playback rate and FMOD's pitch-shift DSP, so a -6 semitone voice remains -6 while running about 19% longer instead of 41% longer.
+Applied the same bounded hybrid processing to native supported events, custom battlecries, command voices, and their generated acoustic reflections, with automatic natural-rate fallback when a DSP cannot be attached.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 9 because this release only adds settings and does not rename, move, remove, or reinterpret stored values.
+
+Version 1.2.2
+Made exhausted two-clip histories prefer the clip other than the most recently played one, preventing immediate behavior-command repeats whenever both variants are valid.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 9 because this selection correction changes no public contract, setting, or default.
+
+Version 1.2.1
+Adopted the shorter summon_{gender}_{command}_{index}.wav naming convention for every command pool.
+Added independent Guard, Bulwark, and Hunt voice pools with two male and two female recordings per behavior.
+Accepted Soul and Service behavior command IDs while preserving command cooldown, pitch, volume, smart reverb, and per-pool repeat avoidance.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 9 because the existing command API already accepts string IDs and no setting or default changed.
+
+Version 1.2.0
+Separated summon Attack, Hold, and Follow recordings into independent male and female command pools, each with its own successful-playback recent history.
+Renumbered every packaged pool from 0 through its final single-digit slot and removed the former shared-pool filename layout.
+Changed fresh defaults to +5 semitones for male commands and 0.50 command volume; female commands remain +1 semitone.
+Advanced the config schema from 8 to 9 because the male command pitch and command volume defaults changed. Compatible customized values remain eligible for conservative recovery.
+
+Version 1.1.9
+Accepted Soul and Service Attack, Hold, and Follow command IDs through one shared gender-specific command pool and recent-history sequence.
+Yielded the Take All Items hold to Soul and Service whenever it owns an active summon formation command, while preserving normal battlecries when no summon is active and preserving the separate battlecry hotkey.
+Advanced BattlecryVoiceTunerApi to version 2 without changing the config schema or audio filenames.
+Made Take All registration duplicate-safe when Soul and Service also owns the binding, and corrected the command-memory description to match its shared per-gender history.
+
+Version 1.1.6
+Kept one gender's recent battlecry and command history intact when the other gender has no matching custom audio pool.
+Updated the assembly description to include summon command voices.
+
+Version 1.1.5
+Added a public command-voice API and twenty-seven gender-matched summon-attack recordings for optional Soul and Service integration.
+Added a flat audio/command filename convention with twelve female and fifteen male summon_attack clips, preserving their authored PCM format and loudness.
+Added command-only volume, male and female pitch offsets, a short cooldown, and lighter geometry-aware outdoor and indoor reverb through separate reusable FMOD paths.
+Limited spoken commands to one measured reflection while retaining dry SFX-bus fallback and preventing command DSP changes from affecting an active battlecry.
+Replaced single-clip battlecry repeat avoidance with configurable two-clip recent histories per gender, and applied the same successful-playback-only history model per command and gender.
+Added the Command Voice settings and recent-memory controls without changing the config schema or existing settings.
+
 Version 1.1.4
 Removed numeric prefixes from the generated config and aligned its raw sections with the existing task-oriented FoA Mod Manager categories.
 Advanced the config schema from 7 to 8 because settings moved between raw sections; the existing durable voice-tuning recovery keeps compatible customized pitch and volume values while other retired-section values regenerate from current defaults.

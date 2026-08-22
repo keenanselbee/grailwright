@@ -13,11 +13,15 @@ using Awaken.TG.Main.Character.Features;
 using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.General.Configs;
+using Awaken.TG.Main.General.StatTypes;
 using Awaken.TG.Main.Heroes;
+using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Heroes.VolumeCheckers;
 using Awaken.TG.Main.Utility;
 using Awaken.Utility;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using FMOD;
@@ -28,15 +32,25 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Battlecry Voice Tuner")]
-[assembly: AssemblyDescription("Tunes player voice audio and adds configurable battlecries in Tainted Grail: The Fall of Avalon.")]
+[assembly: AssemblyDescription("Tunes and progressively deepens player voice audio while adding configurable battlecries and summon command voices in Tainted Grail: The Fall of Avalon.")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.1.4.0")]
-[assembly: AssemblyFileVersion("1.1.4.0")]
+[assembly: AssemblyVersion("1.2.4.0")]
+[assembly: AssemblyFileVersion("1.2.4.0")]
 
 namespace BattlecryVoiceTuner
 {
+    public static class BattlecryVoiceTunerApi
+    {
+        public const int ApiVersion = 2;
+
+        public static bool TryPlayCommand(string commandId)
+        {
+            return BattlecryVoiceTunerPlugin.TryPlayCommandFromApi(commandId);
+        }
+    }
+
     internal sealed class FoASettingUiMetadata
     {
         public string DisplaySection { get; set; }
@@ -46,6 +60,35 @@ namespace BattlecryVoiceTuner
         public bool Hidden { get; set; }
     }
 
+    public enum VoiceGrowthPreset
+    {
+        Disabled,
+        Warrior,
+        Rogue,
+        Mage,
+        Warden,
+        Artisan,
+        Adventurer,
+        Custom
+    }
+
+    public enum VoiceGrowthAttribute
+    {
+        Strength,
+        Endurance,
+        Dexterity,
+        Spirituality,
+        Practicality,
+        Perception
+    }
+
+    public enum PitchProcessingMode
+    {
+        Natural,
+        Balanced,
+        TempoPreserving
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.eyes-in-the-dark", BepInDependency.DependencyFlags.SoftDependency)]
@@ -53,9 +96,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.1.4";
+        public const string PluginVersion = "1.2.4";
 
-        private const int CurrentConfigSchemaVersion = 8;
+        private const int CurrentConfigSchemaVersion = 9;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -82,6 +125,39 @@ namespace BattlecryVoiceTuner
         private const string CategoryHitFeedback = "HitFeedback";
         private const string CategoryStamina = "Stamina";
         private const int MaximumBattlecryFilesPerGender = 15;
+        private const int MaximumCommandFilesPerPool = 15;
+        private const int MaximumCommandReflectionTaps = 1;
+        private const float VoiceGrowthFullDepthAttributeValue = 40f;
+        private const float VoiceGrowthDeadZone = 0.10f;
+        private const float VoiceGrowthCurvePower = 1.5f;
+        private const float MaximumSinglePitchDspSemitones = 12f;
+        private const float PitchDspAttachTimeoutSeconds = 0.1f;
+        private const float PitchDspMinimumSemitones = 0.01f;
+        private const float PitchDspFftSize = 2048f;
+        private const string SummonAttackCommandId = "summon_attack";
+        private const string SummonHoldCommandId = "summon_hold";
+        private const string SummonFollowCommandId = "summon_follow";
+        private const string SummonGuardCommandId = "summon_guard";
+        private const string SummonBulwarkCommandId = "summon_bulwark";
+        private const string SummonHuntCommandId = "summon_hunt";
+        private const string SoulAndServicePluginGuid =
+            "ks.tgfoa.soul-and-service";
+        private const string SoulAndServiceApiTypeName =
+            "SoulAndService.SoulAndServiceApi";
+        private const string MaleBattlecryPool = "battlecry:male";
+        private const string FemaleBattlecryPool = "battlecry:female";
+        private const string MaleSummonAttackPool = "summon_command:male:attack";
+        private const string MaleSummonHoldPool = "summon_command:male:hold";
+        private const string MaleSummonFollowPool = "summon_command:male:follow";
+        private const string MaleSummonGuardPool = "summon_command:male:guard";
+        private const string MaleSummonBulwarkPool = "summon_command:male:bulwark";
+        private const string MaleSummonHuntPool = "summon_command:male:hunt";
+        private const string FemaleSummonAttackPool = "summon_command:female:attack";
+        private const string FemaleSummonHoldPool = "summon_command:female:hold";
+        private const string FemaleSummonFollowPool = "summon_command:female:follow";
+        private const string FemaleSummonGuardPool = "summon_command:female:guard";
+        private const string FemaleSummonBulwarkPool = "summon_command:female:bulwark";
+        private const string FemaleSummonHuntPool = "summon_command:female:hunt";
         private const float ChallengeScanIntervalSeconds = 0.25f;
         private const int OutdoorProbeDirectionCount = 24;
         private const int MaximumOutdoorReflectionTaps = 3;
@@ -142,6 +218,14 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<float> _pitchSemitones;
         private ConfigEntry<float> _randomPitchSemitones;
         private ConfigEntry<float> _volumeMultiplier;
+        private ConfigEntry<PitchProcessingMode> _pitchProcessingMode;
+        private ConfigEntry<bool> _voiceGrowthEnabled;
+        private ConfigEntry<VoiceGrowthPreset> _voiceGrowthPreset;
+        private ConfigEntry<float> _voiceGrowthMaximumSemitones;
+        private ConfigEntry<bool> _useTemporaryAttributeModifiers;
+        private ConfigEntry<VoiceGrowthAttribute> _customPrimaryAttribute;
+        private ConfigEntry<VoiceGrowthAttribute> _customSecondaryAttribute;
+        private ConfigEntry<float> _customPrimaryAttributeWeight;
         private ConfigEntry<bool> _includeAttackGrunts;
         private ConfigEntry<bool> _includeHurtGrunts;
         private ConfigEntry<bool> _includeDeathGrunts;
@@ -155,6 +239,16 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<float> _indoorBattlecryReverbAmount;
         private ConfigEntry<float> _maleBattlecryPitchOffsetSemitones;
         private ConfigEntry<float> _femaleBattlecryPitchOffsetSemitones;
+        private ConfigEntry<int> _recentBattlecryMemory;
+        private ConfigEntry<bool> _commandVoiceEnabled;
+        private ConfigEntry<float> _commandVoiceVolumeMultiplier;
+        private ConfigEntry<bool> _commandVoiceReverbEnabled;
+        private ConfigEntry<float> _outdoorCommandVoiceReverbAmount;
+        private ConfigEntry<float> _indoorCommandVoiceReverbAmount;
+        private ConfigEntry<float> _maleCommandVoicePitchOffsetSemitones;
+        private ConfigEntry<float> _femaleCommandVoicePitchOffsetSemitones;
+        private ConfigEntry<int> _recentCommandVoiceMemory;
+        private ConfigEntry<float> _commandVoiceCooldownSeconds;
         private ConfigEntry<bool> _holdTakeAllItemsForBattlecry;
         private ConfigEntry<float> _battlecryHoldSeconds;
         private ConfigEntry<KeyboardShortcut> _battlecryHotkey;
@@ -169,23 +263,60 @@ namespace BattlecryVoiceTuner
             new List<string>();
         private readonly List<string> _femaleBattlecryPaths =
             new List<string>();
+        private readonly List<string> _maleSummonAttackPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonHoldPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonFollowPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonGuardPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonBulwarkPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonHuntPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonAttackPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonHoldPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonFollowPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonGuardPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonBulwarkPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonHuntPaths =
+            new List<string>();
         private readonly Dictionary<string, FMOD.Sound> _battlecrySoundsByPath =
             new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, FMOD.Sound> _commandSoundsByPath =
+            new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, List<string>> _recentPathsByPool =
+            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<ActiveChannelPitchDsp> _activeChannelPitchDsps =
+            new List<ActiveChannelPitchDsp>();
+        private readonly List<PendingEventPitchDsp> _pendingEventPitchDsps =
+            new List<PendingEventPitchDsp>();
+        private readonly List<ActiveEventPitchDsp> _activeEventPitchDsps =
+            new List<ActiveEventPitchDsp>();
         private FMOD.Studio.Bus _battlecrySfxBus;
         private FMOD.ChannelGroup _battlecrySfxChannelGroup;
         private FMOD.ChannelGroup _outdoorBattlecryChannelGroup;
         private FMOD.ChannelGroup _indoorBattlecryChannelGroup;
         private FMOD.DSP _outdoorBattlecryReverb;
         private FMOD.DSP _indoorBattlecryReverb;
+        private FMOD.ChannelGroup _outdoorCommandChannelGroup;
+        private FMOD.ChannelGroup _indoorCommandChannelGroup;
+        private FMOD.DSP _outdoorCommandReverb;
+        private FMOD.DSP _indoorCommandReverb;
         private bool _battlecrySfxBusLocked;
         private readonly HashSet<NpcAI> _challengedNpcs =
             new HashSet<NpcAI>();
         private readonly Dictionary<string, float> _pendingPreservedVoiceTuning =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private int _pendingPreservedInvalidValueCount;
-        private int _lastMaleBattlecryIndex = -1;
-        private int _lastFemaleBattlecryIndex = -1;
         private float _lastBattlecryTime = float.NegativeInfinity;
+        private float _lastCommandVoiceTime = float.NegativeInfinity;
         private float _challengeEndsAt;
         private float _nextChallengeScanAt;
         private Hero _challengeHero;
@@ -194,7 +325,10 @@ namespace BattlecryVoiceTuner
         private float _takeAllItemsPressedAt;
         private bool _eyesApiResolved;
         private MethodInfo _eyesBattlecryMethod;
+        private MethodInfo _soulAndServiceShouldOwnTakeAllHoldMethod;
+        private bool _soulAndServiceCommandApiUnavailable;
         private bool _noBattlecryFilesWarningLogged;
+        private bool _noCommandFilesWarningLogged;
         private bool _resettingTestButton;
         private bool _heroUnderRoof;
 
@@ -208,6 +342,7 @@ namespace BattlecryVoiceTuner
                 ResetConfigIfSchemaChanged();
                 BindConfig();
                 DiscoverBattlecryFiles();
+                DiscoverCommandFiles();
                 PatchGame();
 
                 _log.LogInfo(PluginName + " " + PluginVersion + " loaded.");
@@ -222,6 +357,8 @@ namespace BattlecryVoiceTuner
 
         private void Update()
         {
+            RefreshPitchShiftDsps();
+
             if (_enabled == null
                 || !_enabled.Value
                 || _battlecryEnabled == null
@@ -253,12 +390,23 @@ namespace BattlecryVoiceTuner
                 _harmony = null;
             }
 
+            ReleaseAllPitchShiftDsps();
             ReleaseBattlecrySounds();
+            ReleaseCommandSounds();
+            _soulAndServiceShouldOwnTakeAllHoldMethod = null;
+            _soulAndServiceCommandApiUnavailable = false;
 
             if (ReferenceEquals(_instance, this))
             {
                 _instance = null;
             }
+        }
+
+        internal static bool TryPlayCommandFromApi(string commandId)
+        {
+            BattlecryVoiceTunerPlugin instance = _instance;
+            return instance != null
+                && instance.TryPlayCommand(Hero.Current, commandId);
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -380,7 +528,8 @@ namespace BattlecryVoiceTuner
                 }
 
                 if (!String.Equals(currentSection, "1. Core", StringComparison.Ordinal)
-                    && !String.Equals(currentSection, "Voice Tuning", StringComparison.Ordinal))
+                    && !String.Equals(currentSection, "Voice Tuning", StringComparison.Ordinal)
+                    && !String.Equals(currentSection, "Command Voice", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -412,7 +561,15 @@ namespace BattlecryVoiceTuner
         {
             return String.Equals(settingName, "PitchSemitones", StringComparison.Ordinal)
                 || String.Equals(settingName, "RandomPitchSemitones", StringComparison.Ordinal)
-                || String.Equals(settingName, "VolumeMultiplier", StringComparison.Ordinal);
+                || String.Equals(settingName, "VolumeMultiplier", StringComparison.Ordinal)
+                || String.Equals(
+                    settingName,
+                    "CommandVoiceVolumeMultiplier",
+                    StringComparison.Ordinal)
+                || String.Equals(
+                    settingName,
+                    "MaleCommandVoicePitchOffsetSemitones",
+                    StringComparison.Ordinal);
         }
 
         private void RestorePreservedVoiceTuning()
@@ -438,6 +595,16 @@ namespace BattlecryVoiceTuner
             RestorePreservedFloat(
                 "VolumeMultiplier",
                 _volumeMultiplier,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                "CommandVoiceVolumeMultiplier",
+                _commandVoiceVolumeMultiplier,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                "MaleCommandVoicePitchOffsetSemitones",
+                _maleCommandVoicePitchOffsetSemitones,
                 ref restoredCount,
                 ref clampedCount);
 
@@ -512,7 +679,7 @@ namespace BattlecryVoiceTuner
                 "Enabled",
                 true,
                 UiDescription(
-                    "Master toggle for player voice tuning and battlecries.",
+                    "Master toggle for player voice tuning, battlecries, and command voices.",
                     "General",
                     "Enabled",
                     0,
@@ -523,7 +690,7 @@ namespace BattlecryVoiceTuner
                 "PitchSemitones",
                 0.0f,
                 UiDescription(
-                    "Overall pitch shift applied to supported player voice sounds and battlecries. Gender-specific battlecry offsets are added to this value.",
+                    "Manual baseline pitch shift for supported player voice sounds, battlecries, and command voices. Attribute voice growth, gender-specific offsets, and random variation are added to this value.",
                     "Voice Tuning",
                     "Overall Pitch (Semitones)",
                     1,
@@ -547,12 +714,102 @@ namespace BattlecryVoiceTuner
                 "VolumeMultiplier",
                 1.0f,
                 UiDescription(
-                    "Overall volume multiplier for supported native voice events and custom battlecries. Battlecries also apply their own volume multiplier.",
+                    "Overall volume multiplier for supported native voice events, custom battlecries, and command voices. Custom pools also apply their own volume multipliers.",
                     "Voice Tuning",
                     "Overall Voice Volume",
                     1,
                     2,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
+
+            _pitchProcessingMode = Config.Bind(
+                "Voice Tuning",
+                "PitchProcessingMode",
+                PitchProcessingMode.Balanced,
+                UiDescription(
+                    "Controls how pitch affects timing. Natural uses playback rate, Balanced splits the shift evenly between playback rate and a tempo-preserving DSP, and TempoPreserving favors the DSP.",
+                    "Voice Tuning",
+                    "Pitch Processing",
+                    1,
+                    3));
+
+            _voiceGrowthEnabled = Config.Bind(
+                "Voice Tuning",
+                "VoiceGrowthEnabled",
+                true,
+                UiDescription(
+                    "Let permanent character attributes gradually deepen the Hero's supported voice sounds, battlecries, and command voices.",
+                    "Voice Tuning",
+                    "Attribute Voice Growth",
+                    1,
+                    4));
+
+            _voiceGrowthPreset = Config.Bind(
+                "Voice Tuning",
+                "VoiceGrowthPreset",
+                VoiceGrowthPreset.Warrior,
+                UiDescription(
+                    "Selects the attributes that shape voice progression. Warrior uses 75% Strength and 25% Endurance; other archetypes use their matching attributes.",
+                    "Voice Tuning",
+                    "Growth Archetype",
+                    1,
+                    5));
+
+            _voiceGrowthMaximumSemitones = Config.Bind(
+                "Voice Tuning",
+                "VoiceGrowthMaximumSemitones",
+                -6.0f,
+                UiDescription(
+                    "Deepest additional pitch shift reached at exceptional archetype attributes. Growth eases in above innate values and reaches full depth at attribute value 40.",
+                    "Voice Tuning",
+                    "Maximum Growth Pitch (Semitones)",
+                    1,
+                    6,
+                    new AcceptableValueRange<float>(-12.0f, 0.0f)));
+
+            _useTemporaryAttributeModifiers = Config.Bind(
+                "Voice Tuning",
+                "UseTemporaryAttributeModifiers",
+                false,
+                UiDescription(
+                    "Include temporary attribute modifiers in voice growth. Off keeps equipment, consumables, and short effects from making the voice fluctuate.",
+                    "Voice Tuning",
+                    "Include Temporary Attributes",
+                    1,
+                    7));
+
+            _customPrimaryAttribute = Config.Bind(
+                "Voice Tuning",
+                "CustomPrimaryAttribute",
+                VoiceGrowthAttribute.Strength,
+                UiDescription(
+                    "Primary progression attribute used only by the Custom archetype.",
+                    "Voice Tuning",
+                    "Custom Primary Attribute",
+                    1,
+                    8));
+
+            _customSecondaryAttribute = Config.Bind(
+                "Voice Tuning",
+                "CustomSecondaryAttribute",
+                VoiceGrowthAttribute.Endurance,
+                UiDescription(
+                    "Secondary progression attribute used only by the Custom archetype.",
+                    "Voice Tuning",
+                    "Custom Secondary Attribute",
+                    1,
+                    9));
+
+            _customPrimaryAttributeWeight = Config.Bind(
+                "Voice Tuning",
+                "CustomPrimaryAttributeWeight",
+                0.75f,
+                UiDescription(
+                    "Share of Custom archetype growth supplied by the primary attribute; the secondary attribute supplies the remainder.",
+                    "Voice Tuning",
+                    "Custom Primary Weight",
+                    1,
+                    10,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _includeAttackGrunts = Config.Bind(
                 "Native Voice Events",
@@ -702,6 +959,124 @@ namespace BattlecryVoiceTuner
                     6,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
+            _recentBattlecryMemory = Config.Bind(
+                "Battlecry Audio",
+                "RecentBattlecryMemory",
+                2,
+                UiDescription(
+                    "How many recently played battlecries to avoid for each gender when alternatives remain.",
+                    "Battlecry Audio",
+                    "Recent Sound Memory",
+                    3,
+                    7,
+                    new AcceptableValueRange<int>(0, 20)));
+
+            _commandVoiceEnabled = Config.Bind(
+                "Command Voice",
+                "CommandVoiceEnabled",
+                true,
+                UiDescription(
+                    "Play a gender-matched spoken command when a supported mod successfully issues an explicit order.",
+                    "Command Voice",
+                    "Enabled",
+                    4,
+                    0));
+
+            _commandVoiceVolumeMultiplier = Config.Bind(
+                "Command Voice",
+                "CommandVoiceVolumeMultiplier",
+                0.50f,
+                UiDescription(
+                    "Additional command-only volume multiplier after Overall Voice Volume. Commands follow the game's SFX volume category.",
+                    "Command Voice",
+                    "Command Volume",
+                    4,
+                    1,
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
+
+            _commandVoiceReverbEnabled = Config.Bind(
+                "Command Voice",
+                "CommandVoiceReverbEnabled",
+                true,
+                UiDescription(
+                    "Apply a lighter environment-aware acoustic response to command voices using separate reusable FMOD paths.",
+                    "Command Voice",
+                    "Smart Reverb",
+                    4,
+                    2));
+
+            _outdoorCommandVoiceReverbAmount = Config.Bind(
+                "Command Voice",
+                "OutdoorCommandVoiceReverbAmount",
+                0.10f,
+                UiDescription(
+                    "Light geometry-shaped command reverb in unroofed open-world areas.",
+                    "Command Voice",
+                    "Outdoor Reverb Amount",
+                    4,
+                    3,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _indoorCommandVoiceReverbAmount = Config.Bind(
+                "Command Voice",
+                "IndoorCommandVoiceReverbAmount",
+                0.45f,
+                UiDescription(
+                    "Room-scaled command reverb in interiors, caves, and roofed spaces.",
+                    "Command Voice",
+                    "Indoor Reverb Amount",
+                    4,
+                    4,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _maleCommandVoicePitchOffsetSemitones = Config.Bind(
+                "Command Voice",
+                "MaleCommandVoicePitchOffsetSemitones",
+                5.0f,
+                UiDescription(
+                    "Additional pitch shift applied only to male command voices after Overall Pitch.",
+                    "Command Voice",
+                    "Male Pitch Offset (Semitones)",
+                    4,
+                    5,
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)));
+
+            _femaleCommandVoicePitchOffsetSemitones = Config.Bind(
+                "Command Voice",
+                "FemaleCommandVoicePitchOffsetSemitones",
+                1.0f,
+                UiDescription(
+                    "Additional pitch shift applied only to female command voices after Overall Pitch.",
+                    "Command Voice",
+                    "Female Pitch Offset (Semitones)",
+                    4,
+                    6,
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)));
+
+            _recentCommandVoiceMemory = Config.Bind(
+                "Command Voice",
+                "RecentCommandVoiceMemory",
+                2,
+                UiDescription(
+                    "How many recently played command voices to avoid within each gender and command-type pool when alternatives remain.",
+                    "Command Voice",
+                    "Recent Sound Memory",
+                    4,
+                    7,
+                    new AcceptableValueRange<int>(0, 20)));
+
+            _commandVoiceCooldownSeconds = Config.Bind(
+                "Command Voice",
+                "CommandVoiceCooldownSeconds",
+                0.75f,
+                UiDescription(
+                    "Minimum active gameplay seconds between spoken commands, preventing rapid orders from stacking voices.",
+                    "Command Voice",
+                    "Cooldown (Seconds)",
+                    4,
+                    8,
+                    new AcceptableValueRange<float>(0.0f, 5.0f)));
+
             _holdTakeAllItemsForBattlecry = Config.Bind(
                 "Battlecry Input",
                 "HoldTakeAllItemsForBattlecry",
@@ -710,7 +1085,7 @@ namespace BattlecryVoiceTuner
                     "Hold the game's Take All Items action to battlecry. Uses the game's current remapped keyboard or controller binding and does not interfere with taking items from an open container.",
                     "Battlecry Input",
                     "Hold Take All Items",
-                    4,
+                    5,
                     0));
 
             _battlecryHoldSeconds = Config.Bind(
@@ -721,7 +1096,7 @@ namespace BattlecryVoiceTuner
                     "Seconds the Take All Items action must be held before attempting a battlecry.",
                     "Battlecry Input",
                     "Hold Time (Seconds)",
-                    4,
+                    5,
                     1,
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
 
@@ -733,7 +1108,7 @@ namespace BattlecryVoiceTuner
                     "Optional separate keyboard or joystick-button shortcut. None disables the separate shortcut.",
                     "Battlecry Input",
                     "Separate Hotkey",
-                    4,
+                    5,
                     2));
 
             _battlecryCooldownSeconds = Config.Bind(
@@ -744,7 +1119,7 @@ namespace BattlecryVoiceTuner
                     "Minimum active gameplay seconds between battlecries.",
                     "Battlecry Input",
                     "Cooldown (Seconds)",
-                    4,
+                    5,
                     3,
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
@@ -756,7 +1131,7 @@ namespace BattlecryVoiceTuner
                     "Multiplier applied to each hostile NPC's normal maximum hearing range for battlecries in unroofed open-world areas.",
                     "Battlecry Challenge",
                     "Outdoor Hearing Range Multiplier",
-                    5,
+                    6,
                     0,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -768,7 +1143,7 @@ namespace BattlecryVoiceTuner
                     "Multiplier applied to each hostile NPC's normal maximum hearing range in interiors, caves, and the game's roof volumes.",
                     "Battlecry Challenge",
                     "Indoor Hearing Range Multiplier",
-                    5,
+                    6,
                     1,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -780,7 +1155,7 @@ namespace BattlecryVoiceTuner
                     "Active gameplay seconds during which newly reached hostile NPCs can hear the challenge.",
                     "Battlecry Challenge",
                     "Challenge Duration (Seconds)",
-                    5,
+                    6,
                     2,
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
@@ -792,7 +1167,7 @@ namespace BattlecryVoiceTuner
                     "Wyrd Threat requested from Eyes in the Dark for each successful battlecry. Has no effect when Eyes is absent or its Wyrdnight activity rules reject the request.",
                     "Optional Integrations",
                     "Eyes in the Dark Threat",
-                    6,
+                    7,
                     0,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
@@ -804,7 +1179,7 @@ namespace BattlecryVoiceTuner
                     "Pseudo-button. Toggle on to play one random supported one-shot sound, then the mod resets this to false.",
                     "Testing",
                     "Play Random Native Voice Sound",
-                    7,
+                    8,
                     0));
             _playRandomTestSound.SettingChanged += OnPlayRandomTestSoundChanged;
 
@@ -816,7 +1191,7 @@ namespace BattlecryVoiceTuner
                     "Write detailed match and FMOD result information to the BepInEx log.",
                     "Diagnostics",
                     "Diagnostics",
-                    8,
+                    9,
                     0));
 
             RestorePreservedVoiceTuning();
@@ -984,6 +1359,13 @@ namespace BattlecryVoiceTuner
             float semitones = GetShiftedSemitones();
             float pitchMultiplier = SemitonesToPitchMultiplier(semitones);
             RESULT pitchResult = eventInstance.setPitch(pitchMultiplier);
+            if (pitchResult == RESULT.OK)
+            {
+                QueueEventPitchDsp(
+                    eventInstance,
+                    BuildPitchProcessing(pitchMultiplier),
+                    supportedEvent.Label);
+            }
 
             float volume = Math.Max(0.0f, _volumeMultiplier.Value);
             RESULT volumeResult = RESULT.OK;
@@ -1002,10 +1384,12 @@ namespace BattlecryVoiceTuner
         }
 
         private float GetShiftedSemitones(
-            float baselineSemitones = 0.0f)
+            float baselineSemitones = 0.0f,
+            Hero hero = null)
         {
             float semitones = baselineSemitones
-                + _pitchSemitones.Value;
+                + _pitchSemitones.Value
+                + GetVoiceGrowthSemitones(hero ?? Hero.Current);
             float randomRange = Math.Max(0.0f, _randomPitchSemitones.Value);
             if (randomRange > 0.0f)
             {
@@ -1015,9 +1399,581 @@ namespace BattlecryVoiceTuner
             return Math.Max(-24.0f, Math.Min(24.0f, semitones));
         }
 
+        private float GetVoiceGrowthSemitones(Hero hero)
+        {
+            if (_voiceGrowthEnabled == null
+                || !_voiceGrowthEnabled.Value
+                || _voiceGrowthPreset == null
+                || _voiceGrowthPreset.Value == VoiceGrowthPreset.Disabled
+                || hero == null
+                || hero.HasBeenDiscarded
+                || hero.HeroRPGStats == null)
+            {
+                return 0f;
+            }
+
+            float progress;
+            switch (_voiceGrowthPreset.Value)
+            {
+                case VoiceGrowthPreset.Warrior:
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        VoiceGrowthAttribute.Strength,
+                        VoiceGrowthAttribute.Endurance,
+                        0.75f);
+                    break;
+                case VoiceGrowthPreset.Rogue:
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        VoiceGrowthAttribute.Dexterity,
+                        VoiceGrowthAttribute.Perception,
+                        0.65f);
+                    break;
+                case VoiceGrowthPreset.Mage:
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        VoiceGrowthAttribute.Spirituality,
+                        VoiceGrowthAttribute.Perception,
+                        0.75f);
+                    break;
+                case VoiceGrowthPreset.Warden:
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        VoiceGrowthAttribute.Endurance,
+                        VoiceGrowthAttribute.Spirituality,
+                        0.60f);
+                    break;
+                case VoiceGrowthPreset.Artisan:
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        VoiceGrowthAttribute.Practicality,
+                        VoiceGrowthAttribute.Dexterity,
+                        0.70f);
+                    break;
+                case VoiceGrowthPreset.Adventurer:
+                    progress = (
+                        GetAttributeProgress(hero, VoiceGrowthAttribute.Strength)
+                        + GetAttributeProgress(hero, VoiceGrowthAttribute.Endurance)
+                        + GetAttributeProgress(hero, VoiceGrowthAttribute.Dexterity)
+                        + GetAttributeProgress(hero, VoiceGrowthAttribute.Spirituality)
+                        + GetAttributeProgress(hero, VoiceGrowthAttribute.Practicality)
+                        + GetAttributeProgress(hero, VoiceGrowthAttribute.Perception))
+                        / 6f;
+                    break;
+                case VoiceGrowthPreset.Custom:
+                    float primaryWeight = _customPrimaryAttributeWeight == null
+                        ? 0.75f
+                        : Mathf.Clamp01(_customPrimaryAttributeWeight.Value);
+                    progress = GetWeightedAttributeProgress(
+                        hero,
+                        _customPrimaryAttribute == null
+                            ? VoiceGrowthAttribute.Strength
+                            : _customPrimaryAttribute.Value,
+                        _customSecondaryAttribute == null
+                            ? VoiceGrowthAttribute.Endurance
+                            : _customSecondaryAttribute.Value,
+                        primaryWeight);
+                    break;
+                default:
+                    return 0f;
+            }
+
+            float curvedProgress = Mathf.Clamp01(
+                (progress - VoiceGrowthDeadZone)
+                / (1f - VoiceGrowthDeadZone));
+            curvedProgress = Mathf.Pow(
+                curvedProgress,
+                VoiceGrowthCurvePower);
+            float maximumSemitones = _voiceGrowthMaximumSemitones == null
+                ? -6f
+                : Math.Max(-12f, Math.Min(0f, _voiceGrowthMaximumSemitones.Value));
+            return maximumSemitones * curvedProgress;
+        }
+
+        private float GetWeightedAttributeProgress(
+            Hero hero,
+            VoiceGrowthAttribute primary,
+            VoiceGrowthAttribute secondary,
+            float primaryWeight)
+        {
+            primaryWeight = Mathf.Clamp01(primaryWeight);
+            return GetAttributeProgress(hero, primary) * primaryWeight
+                + GetAttributeProgress(hero, secondary) * (1f - primaryWeight);
+        }
+
+        private float GetAttributeProgress(
+            Hero hero,
+            VoiceGrowthAttribute attribute)
+        {
+            Stat stat;
+            HeroRPGStatType statType;
+            if (!TryGetVoiceGrowthStat(hero, attribute, out stat, out statType))
+            {
+                return 0f;
+            }
+
+            float innateValue = 1f;
+            try
+            {
+                if (GameConstants.Get.RPGStatParamsByType.ContainsKey(statType))
+                {
+                    innateValue = GameConstants.Get
+                        .RPGStatParamsByType[statType]
+                        .InnateStatLevel;
+                }
+            }
+            catch
+            {
+            }
+
+            float value = _useTemporaryAttributeModifiers != null
+                && _useTemporaryAttributeModifiers.Value
+                    ? stat.ModifiedValue
+                    : stat.BaseValue;
+            float fullDepthRange = Math.Max(
+                1f,
+                VoiceGrowthFullDepthAttributeValue - innateValue);
+            return Mathf.Clamp01((value - innateValue) / fullDepthRange);
+        }
+
+        private static bool TryGetVoiceGrowthStat(
+            Hero hero,
+            VoiceGrowthAttribute attribute,
+            out Stat stat,
+            out HeroRPGStatType statType)
+        {
+            stat = null;
+            statType = null;
+            if (hero == null || hero.HeroRPGStats == null)
+            {
+                return false;
+            }
+
+            switch (attribute)
+            {
+                case VoiceGrowthAttribute.Strength:
+                    stat = hero.HeroRPGStats.Strength;
+                    statType = HeroRPGStatType.Strength;
+                    break;
+                case VoiceGrowthAttribute.Endurance:
+                    stat = hero.HeroRPGStats.Endurance;
+                    statType = HeroRPGStatType.Endurance;
+                    break;
+                case VoiceGrowthAttribute.Dexterity:
+                    stat = hero.HeroRPGStats.Dexterity;
+                    statType = HeroRPGStatType.Dexterity;
+                    break;
+                case VoiceGrowthAttribute.Spirituality:
+                    stat = hero.HeroRPGStats.Spirituality;
+                    statType = HeroRPGStatType.Spirituality;
+                    break;
+                case VoiceGrowthAttribute.Practicality:
+                    stat = hero.HeroRPGStats.Practicality;
+                    statType = HeroRPGStatType.Practicality;
+                    break;
+                case VoiceGrowthAttribute.Perception:
+                    stat = hero.HeroRPGStats.Perception;
+                    statType = HeroRPGStatType.Perception;
+                    break;
+            }
+
+            return stat != null && statType != null;
+        }
+
         private static float SemitonesToPitchMultiplier(float semitones)
         {
             return (float)Math.Pow(2.0, semitones / 12.0);
+        }
+
+        private VoicePitchProcessing BuildPitchProcessing(
+            float finalPitchMultiplier)
+        {
+            finalPitchMultiplier = Math.Max(0.01f, finalPitchMultiplier);
+            float finalSemitones = (float)(
+                12.0
+                * Math.Log(finalPitchMultiplier, 2.0));
+            PitchProcessingMode mode = _pitchProcessingMode == null
+                ? PitchProcessingMode.Balanced
+                : _pitchProcessingMode.Value;
+            float rateShare;
+            switch (mode)
+            {
+                case PitchProcessingMode.Natural:
+                    rateShare = 1f;
+                    break;
+                case PitchProcessingMode.TempoPreserving:
+                    rateShare = 0f;
+                    break;
+                default:
+                    rateShare = 0.5f;
+                    break;
+            }
+
+            float dspSemitones = Math.Max(
+                -MaximumSinglePitchDspSemitones,
+                Math.Min(
+                    MaximumSinglePitchDspSemitones,
+                    finalSemitones * (1f - rateShare)));
+            float rateSemitones = finalSemitones - dspSemitones;
+            return new VoicePitchProcessing(
+                finalSemitones,
+                rateSemitones,
+                dspSemitones,
+                finalPitchMultiplier,
+                SemitonesToPitchMultiplier(rateSemitones),
+                SemitonesToPitchMultiplier(dspSemitones));
+        }
+
+        private RESULT ApplyPitchProcessingToChannel(
+            FMOD.Channel channel,
+            float finalPitchMultiplier,
+            string label)
+        {
+            VoicePitchProcessing processing =
+                BuildPitchProcessing(finalPitchMultiplier);
+            if (!processing.UsesDsp)
+            {
+                return channel.setPitch(processing.FinalMultiplier);
+            }
+
+            FMOD.DSP pitchDsp;
+            if (!TryAttachPitchDsp(
+                    channel,
+                    processing.DspMultiplier,
+                    out pitchDsp))
+            {
+                LogDiagnostic(
+                    label
+                    + " pitch DSP was unavailable; using the full natural playback-rate shift.");
+                return channel.setPitch(processing.FinalMultiplier);
+            }
+
+            RESULT pitchResult = channel.setPitch(
+                processing.RateMultiplier);
+            if (pitchResult != RESULT.OK)
+            {
+                channel.removeDSP(pitchDsp);
+                pitchDsp.release();
+                return channel.setPitch(processing.FinalMultiplier);
+            }
+
+            _activeChannelPitchDsps.Add(
+                new ActiveChannelPitchDsp(channel, pitchDsp));
+            LogDiagnostic(
+                label
+                + " pitch processing: final="
+                + processing.FinalSemitones.ToString("0.00", CultureInfo.InvariantCulture)
+                + "st; rate="
+                + processing.RateSemitones.ToString("0.00", CultureInfo.InvariantCulture)
+                + "st; dsp="
+                + processing.DspSemitones.ToString("0.00", CultureInfo.InvariantCulture)
+                + "st.");
+            return pitchResult;
+        }
+
+        private void QueueEventPitchDsp(
+            EventInstance eventInstance,
+            VoicePitchProcessing processing,
+            string label)
+        {
+            if (!processing.UsesDsp || !eventInstance.isValid())
+            {
+                return;
+            }
+
+            RESULT pauseResult = eventInstance.setPaused(true);
+            if (pauseResult != RESULT.OK)
+            {
+                LogDiagnostic(
+                    label
+                    + " native event could not pause for pitch DSP attachment; using the full natural playback-rate shift. Result="
+                    + pauseResult
+                    + ".");
+                return;
+            }
+
+            _pendingEventPitchDsps.Add(
+                new PendingEventPitchDsp(
+                    eventInstance,
+                    processing,
+                    label,
+                    Time.realtimeSinceStartup));
+        }
+
+        private void RefreshPitchShiftDsps()
+        {
+            for (int index = _pendingEventPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                PendingEventPitchDsp pending =
+                    _pendingEventPitchDsps[index];
+                if (!pending.EventInstance.isValid())
+                {
+                    _pendingEventPitchDsps.RemoveAt(index);
+                    continue;
+                }
+
+                FMOD.ChannelGroup channelGroup;
+                RESULT groupResult = pending.EventInstance.getChannelGroup(
+                    out channelGroup);
+                if (groupResult == RESULT.OK
+                    && channelGroup.hasHandle())
+                {
+                    FMOD.DSP pitchDsp;
+                    if (TryAttachPitchDsp(
+                            channelGroup,
+                            pending.Processing.DspMultiplier,
+                            out pitchDsp))
+                    {
+                        RESULT pitchResult = pending.EventInstance.setPitch(
+                            pending.Processing.RateMultiplier);
+                        RESULT unpauseResult = pitchResult == RESULT.OK
+                            ? pending.EventInstance.setPaused(false)
+                            : pitchResult;
+                        if (pitchResult == RESULT.OK
+                            && unpauseResult == RESULT.OK)
+                        {
+                            _activeEventPitchDsps.Add(
+                                new ActiveEventPitchDsp(
+                                    pending.EventInstance,
+                                    channelGroup,
+                                    pitchDsp));
+                            LogDiagnostic(
+                                pending.Label
+                                + " native event pitch processing: final="
+                                + pending.Processing.FinalSemitones.ToString(
+                                    "0.00",
+                                    CultureInfo.InvariantCulture)
+                                + "st; rate="
+                                + pending.Processing.RateSemitones.ToString(
+                                    "0.00",
+                                    CultureInfo.InvariantCulture)
+                                + "st; dsp="
+                                + pending.Processing.DspSemitones.ToString(
+                                    "0.00",
+                                    CultureInfo.InvariantCulture)
+                                + "st.");
+                        }
+                        else
+                        {
+                            channelGroup.removeDSP(pitchDsp);
+                            pitchDsp.release();
+                            ResumePendingEventNaturally(
+                                pending,
+                                "hybrid pitch activation failed. PitchResult="
+                                + pitchResult
+                                + "; UnpauseResult="
+                                + unpauseResult);
+                        }
+                    }
+                    else
+                    {
+                        ResumePendingEventNaturally(
+                            pending,
+                            "pitch DSP attachment was unavailable");
+                    }
+                    _pendingEventPitchDsps.RemoveAt(index);
+                    continue;
+                }
+
+                if (Time.realtimeSinceStartup - pending.QueuedAt
+                    >= PitchDspAttachTimeoutSeconds)
+                {
+                    ResumePendingEventNaturally(
+                        pending,
+                        "channel group did not become available. Result="
+                        + groupResult);
+                    _pendingEventPitchDsps.RemoveAt(index);
+                }
+            }
+
+            for (int index = _activeChannelPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ActiveChannelPitchDsp active =
+                    _activeChannelPitchDsps[index];
+                bool playing = false;
+                RESULT result = active.Channel.hasHandle()
+                    ? active.Channel.isPlaying(out playing)
+                    : RESULT.ERR_INVALID_HANDLE;
+                if (result == RESULT.OK && playing)
+                {
+                    continue;
+                }
+
+                ReleaseChannelPitchDsp(active);
+                _activeChannelPitchDsps.RemoveAt(index);
+            }
+
+            for (int index = _activeEventPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ActiveEventPitchDsp active =
+                    _activeEventPitchDsps[index];
+                PLAYBACK_STATE state = PLAYBACK_STATE.STOPPED;
+                RESULT result = active.EventInstance.isValid()
+                    ? active.EventInstance.getPlaybackState(out state)
+                    : RESULT.ERR_INVALID_HANDLE;
+                if (result == RESULT.OK
+                    && state != PLAYBACK_STATE.STOPPED)
+                {
+                    continue;
+                }
+
+                ReleaseEventPitchDsp(active);
+                _activeEventPitchDsps.RemoveAt(index);
+            }
+        }
+
+        private void ResumePendingEventNaturally(
+            PendingEventPitchDsp pending,
+            string reason)
+        {
+            if (!pending.EventInstance.isValid())
+            {
+                return;
+            }
+
+            RESULT pitchResult = pending.EventInstance.setPitch(
+                pending.Processing.FinalMultiplier);
+            RESULT unpauseResult = pending.EventInstance.setPaused(false);
+            LogDiagnostic(
+                pending.Label
+                + " native event resumed with the full natural pitch shift because "
+                + reason
+                + ". PitchResult="
+                + pitchResult
+                + "; UnpauseResult="
+                + unpauseResult
+                + ".");
+        }
+
+        private bool TryAttachPitchDsp(
+            FMOD.Channel channel,
+            float pitchMultiplier,
+            out FMOD.DSP pitchDsp)
+        {
+            if (!TryCreatePitchDsp(pitchMultiplier, out pitchDsp))
+            {
+                return false;
+            }
+
+            RESULT addResult = channel.addDSP(
+                CHANNELCONTROL_DSP_INDEX.HEAD,
+                pitchDsp);
+            if (addResult == RESULT.OK)
+            {
+                return true;
+            }
+
+            pitchDsp.release();
+            pitchDsp = default(FMOD.DSP);
+            return false;
+        }
+
+        private bool TryAttachPitchDsp(
+            FMOD.ChannelGroup channelGroup,
+            float pitchMultiplier,
+            out FMOD.DSP pitchDsp)
+        {
+            if (!TryCreatePitchDsp(pitchMultiplier, out pitchDsp))
+            {
+                return false;
+            }
+
+            RESULT addResult = channelGroup.addDSP(
+                CHANNELCONTROL_DSP_INDEX.HEAD,
+                pitchDsp);
+            if (addResult == RESULT.OK)
+            {
+                return true;
+            }
+
+            pitchDsp.release();
+            pitchDsp = default(FMOD.DSP);
+            return false;
+        }
+
+        private static bool TryCreatePitchDsp(
+            float pitchMultiplier,
+            out FMOD.DSP pitchDsp)
+        {
+            pitchDsp = default(FMOD.DSP);
+            RESULT result = RuntimeManager.CoreSystem.createDSPByType(
+                DSP_TYPE.PITCHSHIFT,
+                out pitchDsp);
+            if (result == RESULT.OK)
+            {
+                result = pitchDsp.setParameterFloat(
+                    (int)DSP_PITCHSHIFT.PITCH,
+                    pitchMultiplier);
+            }
+            if (result == RESULT.OK)
+            {
+                result = pitchDsp.setParameterFloat(
+                    (int)DSP_PITCHSHIFT.FFTSIZE,
+                    PitchDspFftSize);
+            }
+            if (result == RESULT.OK)
+            {
+                return true;
+            }
+
+            if (pitchDsp.hasHandle())
+            {
+                pitchDsp.release();
+            }
+            pitchDsp = default(FMOD.DSP);
+            return false;
+        }
+
+        private void ReleaseAllPitchShiftDsps()
+        {
+            _pendingEventPitchDsps.Clear();
+            for (int index = _activeChannelPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ReleaseChannelPitchDsp(_activeChannelPitchDsps[index]);
+            }
+            _activeChannelPitchDsps.Clear();
+
+            for (int index = _activeEventPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ReleaseEventPitchDsp(_activeEventPitchDsps[index]);
+            }
+            _activeEventPitchDsps.Clear();
+        }
+
+        private static void ReleaseChannelPitchDsp(
+            ActiveChannelPitchDsp active)
+        {
+            if (active.Channel.hasHandle() && active.Dsp.hasHandle())
+            {
+                active.Channel.removeDSP(active.Dsp);
+            }
+            if (active.Dsp.hasHandle())
+            {
+                active.Dsp.release();
+            }
+        }
+
+        private static void ReleaseEventPitchDsp(
+            ActiveEventPitchDsp active)
+        {
+            if (active.ChannelGroup.hasHandle() && active.Dsp.hasHandle())
+            {
+                active.ChannelGroup.removeDSP(active.Dsp);
+            }
+            if (active.Dsp.hasHandle())
+            {
+                active.Dsp.release();
+            }
         }
 
         private bool IsCategoryEnabled(string category)
@@ -1099,6 +2055,12 @@ namespace BattlecryVoiceTuner
                 return true;
             }
 
+            if (ShouldYieldTakeAllItemsToSoulAndService())
+            {
+                ResetTakeAllItemsHold();
+                return true;
+            }
+
             Hero hero = Hero.Current;
             if (hero == null || hero.HasBeenDiscarded || !hero.IsAlive)
             {
@@ -1156,6 +2118,77 @@ namespace BattlecryVoiceTuner
             _takeAllItemsPressedAt = 0f;
         }
 
+        private bool ShouldYieldTakeAllItemsToSoulAndService()
+        {
+            if (_soulAndServiceCommandApiUnavailable)
+            {
+                return false;
+            }
+
+            if (_soulAndServiceShouldOwnTakeAllHoldMethod == null)
+            {
+                PluginInfo info;
+                if (!Chainloader.PluginInfos.TryGetValue(
+                        SoulAndServicePluginGuid,
+                        out info)
+                    || info == null
+                    || info.Instance == null)
+                {
+                    return false;
+                }
+
+                Type api = info.Instance.GetType().Assembly.GetType(
+                    SoulAndServiceApiTypeName,
+                    false);
+                FieldInfo version = api == null
+                    ? null
+                    : api.GetField(
+                        "ApiVersion",
+                        BindingFlags.Public | BindingFlags.Static);
+                int apiVersion = version == null
+                    ? 0
+                    : Convert.ToInt32(
+                        version.GetRawConstantValue(),
+                        CultureInfo.InvariantCulture);
+                if (apiVersion < 3)
+                {
+                    _soulAndServiceCommandApiUnavailable = true;
+                    return false;
+                }
+
+                _soulAndServiceShouldOwnTakeAllHoldMethod =
+                    AccessTools.Method(
+                        api,
+                        "ShouldOwnTakeAllHold",
+                        new Type[0]);
+                _soulAndServiceCommandApiUnavailable =
+                    _soulAndServiceShouldOwnTakeAllHoldMethod == null;
+            }
+
+            if (_soulAndServiceShouldOwnTakeAllHoldMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result =
+                    _soulAndServiceShouldOwnTakeAllHoldMethod.Invoke(
+                        null,
+                        null);
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                _soulAndServiceShouldOwnTakeAllHoldMethod = null;
+                _soulAndServiceCommandApiUnavailable = true;
+                _log.LogWarning(
+                    "Soul and Service Take All command arbitration failed: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
         private bool TryPerformBattlecry(Hero hero, string inputSource)
         {
             if (hero == null
@@ -1210,6 +2243,8 @@ namespace BattlecryVoiceTuner
         {
             _maleBattlecryPaths.Clear();
             _femaleBattlecryPaths.Clear();
+            ClearRecentPool(MaleBattlecryPool);
+            ClearRecentPool(FemaleBattlecryPool);
 
             string pluginDirectory = Path.GetDirectoryName(
                 Assembly.GetExecutingAssembly().Location);
@@ -1218,19 +2253,23 @@ namespace BattlecryVoiceTuner
                 return;
             }
 
-            DiscoverBattlecryFiles(
+            DiscoverVoiceFiles(
                 Path.Combine(
                     Path.Combine(
                         Path.Combine(pluginDirectory, "audio"),
                         "battlecry"),
                     "male"),
+                "*.wav",
+                MaximumBattlecryFilesPerGender,
                 _maleBattlecryPaths);
-            DiscoverBattlecryFiles(
+            DiscoverVoiceFiles(
                 Path.Combine(
                     Path.Combine(
                         Path.Combine(pluginDirectory, "audio"),
                         "battlecry"),
                     "female"),
+                "*.wav",
+                MaximumBattlecryFilesPerGender,
                 _femaleBattlecryPaths);
 
             _log.LogInfo(
@@ -1243,8 +2282,138 @@ namespace BattlecryVoiceTuner
                 + ".");
         }
 
-        private static void DiscoverBattlecryFiles(
+        private void DiscoverCommandFiles()
+        {
+            _maleSummonAttackPaths.Clear();
+            _maleSummonHoldPaths.Clear();
+            _maleSummonFollowPaths.Clear();
+            _maleSummonGuardPaths.Clear();
+            _maleSummonBulwarkPaths.Clear();
+            _maleSummonHuntPaths.Clear();
+            _femaleSummonAttackPaths.Clear();
+            _femaleSummonHoldPaths.Clear();
+            _femaleSummonFollowPaths.Clear();
+            _femaleSummonGuardPaths.Clear();
+            _femaleSummonBulwarkPaths.Clear();
+            _femaleSummonHuntPaths.Clear();
+            ClearRecentPool(MaleSummonAttackPool);
+            ClearRecentPool(MaleSummonHoldPool);
+            ClearRecentPool(MaleSummonFollowPool);
+            ClearRecentPool(MaleSummonGuardPool);
+            ClearRecentPool(MaleSummonBulwarkPool);
+            ClearRecentPool(MaleSummonHuntPool);
+            ClearRecentPool(FemaleSummonAttackPool);
+            ClearRecentPool(FemaleSummonHoldPool);
+            ClearRecentPool(FemaleSummonFollowPool);
+            ClearRecentPool(FemaleSummonGuardPool);
+            ClearRecentPool(FemaleSummonBulwarkPool);
+            ClearRecentPool(FemaleSummonHuntPool);
+
+            string pluginDirectory = Path.GetDirectoryName(
+                Assembly.GetExecutingAssembly().Location);
+            if (String.IsNullOrEmpty(pluginDirectory))
+            {
+                return;
+            }
+
+            string commandDirectory = Path.Combine(
+                Path.Combine(pluginDirectory, "audio"),
+                "command");
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_attack_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonAttackPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_hold_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonHoldPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_follow_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonFollowPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_attack_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonAttackPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_hold_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonHoldPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_follow_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonFollowPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_guard_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonGuardPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_bulwark_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonBulwarkPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_male_hunt_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonHuntPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_guard_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonGuardPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_bulwark_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonBulwarkPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_hunt_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonHuntPaths);
+
+            _log.LogInfo(
+                "Discovered summon command WAV files: male attack="
+                + _maleSummonAttackPaths.Count.ToString(
+                    CultureInfo.InvariantCulture)
+                + ", hold="
+                + _maleSummonHoldPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", follow="
+                + _maleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", guard="
+                + _maleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", bulwark="
+                + _maleSummonBulwarkPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", hunt="
+                + _maleSummonHuntPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + "; female attack="
+                + _femaleSummonAttackPaths.Count.ToString(
+                    CultureInfo.InvariantCulture)
+                + ", hold="
+                + _femaleSummonHoldPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", follow="
+                + _femaleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", guard="
+                + _femaleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", bulwark="
+                + _femaleSummonBulwarkPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", hunt="
+                + _femaleSummonHuntPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ".");
+        }
+
+        private static void DiscoverVoiceFiles(
             string directory,
+            string searchPattern,
+            int maximumFiles,
             List<string> destination)
         {
             if (!Directory.Exists(directory))
@@ -1254,11 +2423,11 @@ namespace BattlecryVoiceTuner
 
             string[] paths = Directory.GetFiles(
                 directory,
-                "*.wav",
+                searchPattern,
                 SearchOption.TopDirectoryOnly);
             Array.Sort(paths, StringComparer.OrdinalIgnoreCase);
             int count = Math.Min(
-                MaximumBattlecryFilesPerGender,
+                maximumFiles,
                 paths.Length);
             for (int index = 0; index < count; index++)
             {
@@ -1277,7 +2446,9 @@ namespace BattlecryVoiceTuner
             List<string> paths = female
                 ? _femaleBattlecryPaths
                 : _maleBattlecryPaths;
-            if (paths.Count == 0)
+            if (paths.Count == 0
+                && _maleBattlecryPaths.Count == 0
+                && _femaleBattlecryPaths.Count == 0)
             {
                 DiscoverBattlecryFiles();
                 paths = female
@@ -1289,36 +2460,34 @@ namespace BattlecryVoiceTuner
                 return false;
             }
 
-            int lastIndex = female
-                ? _lastFemaleBattlecryIndex
-                : _lastMaleBattlecryIndex;
-            int firstIndex = PickBattlecryIndex(paths.Count, lastIndex);
-            for (int offset = 0; offset < paths.Count; offset++)
+            string pool = female
+                ? FemaleBattlecryPool
+                : MaleBattlecryPool;
+            List<string> playbackOrder = BuildPlaybackOrder(
+                paths,
+                pool,
+                GetRecentMemory(_recentBattlecryMemory));
+            foreach (string path in playbackOrder)
             {
-                int index = (firstIndex + offset) % paths.Count;
                 float candidatePitch = SemitonesToPitchMultiplier(
                     GetShiftedSemitones(
                         female
                             ? _femaleBattlecryPitchOffsetSemitones.Value
-                            : _maleBattlecryPitchOffsetSemitones.Value));
+                            : _maleBattlecryPitchOffsetSemitones.Value,
+                        hero));
                 if (!TryPlayBattlecrySound(
-                    paths[index],
+                    path,
                     candidatePitch,
                     hero))
                 {
                     continue;
                 }
 
-                if (female)
-                {
-                    _lastFemaleBattlecryIndex = index;
-                }
-                else
-                {
-                    _lastMaleBattlecryIndex = index;
-                }
-
-                selectedPath = paths[index];
+                RememberRecentPath(
+                    pool,
+                    path,
+                    GetRecentMemory(_recentBattlecryMemory));
+                selectedPath = path;
                 pitch = candidatePitch;
                 return true;
             }
@@ -1326,17 +2495,313 @@ namespace BattlecryVoiceTuner
             return false;
         }
 
-        private int PickBattlecryIndex(int count, int lastIndex)
+        private bool TryPlayCommand(
+            Hero hero,
+            string commandId)
         {
-            if (count <= 1)
+            if (_enabled == null
+                || !_enabled.Value
+                || _commandVoiceEnabled == null
+                || !_commandVoiceEnabled.Value
+                || hero == null
+                || hero.HasBeenDiscarded
+                || !hero.IsAlive
+                || Time.timeScale <= 0f
+                || !IsSupportedSummonCommand(commandId))
             {
-                return 0;
+                return false;
             }
 
-            int selected = _random.Next(count - 1);
-            return selected >= lastIndex
-                ? selected + 1
-                : selected;
+            float cooldown = _commandVoiceCooldownSeconds == null
+                ? 0.75f
+                : Math.Max(0f, _commandVoiceCooldownSeconds.Value);
+            if (Time.time - _lastCommandVoiceTime < cooldown)
+            {
+                LogDiagnostic(
+                    "Command voice ignored during its cooldown; command="
+                    + commandId
+                    + ".");
+                return false;
+            }
+
+            bool female = hero.GetGender() == Gender.Female;
+            GetCommandPool(
+                female,
+                commandId,
+                out List<string> paths,
+                out string pool);
+            if (paths.Count == 0 && !HasAnyCommandFiles())
+            {
+                DiscoverCommandFiles();
+                GetCommandPool(female, commandId, out paths, out pool);
+            }
+            if (paths.Count == 0)
+            {
+                if (!_noCommandFilesWarningLogged)
+                {
+                    _noCommandFilesWarningLogged = true;
+                    _log.LogWarning(
+                        "No playable " + commandId
+                        + " command WAV is available for the current player gender in audio\\command.");
+                }
+                return false;
+            }
+
+            List<string> playbackOrder = BuildPlaybackOrder(
+                paths,
+                pool,
+                GetRecentMemory(_recentCommandVoiceMemory));
+            foreach (string path in playbackOrder)
+            {
+                float pitch = SemitonesToPitchMultiplier(
+                    GetShiftedSemitones(
+                        female
+                            ? _femaleCommandVoicePitchOffsetSemitones.Value
+                            : _maleCommandVoicePitchOffsetSemitones.Value,
+                        hero));
+                if (!TryPlayCommandSound(path, pitch, hero))
+                {
+                    continue;
+                }
+
+                RememberRecentPath(
+                    pool,
+                    path,
+                    GetRecentMemory(_recentCommandVoiceMemory));
+                _lastCommandVoiceTime = Time.time;
+                _noCommandFilesWarningLogged = false;
+                LogDiagnostic(
+                    "Played command voice; command="
+                    + commandId
+                    + "; file="
+                    + Path.GetFileName(path)
+                    + "; pitch="
+                    + pitch.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ".");
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool HasAnyCommandFiles()
+        {
+            return _maleSummonAttackPaths.Count > 0
+                || _maleSummonHoldPaths.Count > 0
+                || _maleSummonFollowPaths.Count > 0
+                || _maleSummonGuardPaths.Count > 0
+                || _maleSummonBulwarkPaths.Count > 0
+                || _maleSummonHuntPaths.Count > 0
+                || _femaleSummonAttackPaths.Count > 0
+                || _femaleSummonHoldPaths.Count > 0
+                || _femaleSummonFollowPaths.Count > 0
+                || _femaleSummonGuardPaths.Count > 0
+                || _femaleSummonBulwarkPaths.Count > 0
+                || _femaleSummonHuntPaths.Count > 0;
+        }
+
+        private void GetCommandPool(
+            bool female,
+            string commandId,
+            out List<string> paths,
+            out string pool)
+        {
+            if (String.Equals(
+                commandId,
+                SummonHoldCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonHoldPaths
+                    : _maleSummonHoldPaths;
+                pool = female ? FemaleSummonHoldPool : MaleSummonHoldPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonFollowCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonFollowPaths
+                    : _maleSummonFollowPaths;
+                pool = female ? FemaleSummonFollowPool : MaleSummonFollowPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonGuardCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonGuardPaths
+                    : _maleSummonGuardPaths;
+                pool = female ? FemaleSummonGuardPool : MaleSummonGuardPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonBulwarkCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonBulwarkPaths
+                    : _maleSummonBulwarkPaths;
+                pool = female
+                    ? FemaleSummonBulwarkPool
+                    : MaleSummonBulwarkPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonHuntCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonHuntPaths
+                    : _maleSummonHuntPaths;
+                pool = female ? FemaleSummonHuntPool : MaleSummonHuntPool;
+                return;
+            }
+            paths = female
+                ? _femaleSummonAttackPaths
+                : _maleSummonAttackPaths;
+            pool = female ? FemaleSummonAttackPool : MaleSummonAttackPool;
+        }
+
+        private static bool IsSupportedSummonCommand(string commandId)
+        {
+            return String.Equals(
+                    commandId,
+                    SummonAttackCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonHoldCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonFollowCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonGuardCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonBulwarkCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonHuntCommandId,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        private List<string> BuildPlaybackOrder(
+            List<string> paths,
+            string pool,
+            int recentMemory)
+        {
+            List<string> preferred = new List<string>();
+            List<string> fallback = new List<string>();
+            List<string> recent = null;
+            bool hasRecent = recentMemory > 0
+                && _recentPathsByPool.TryGetValue(pool, out recent)
+                && recent.Count > 0;
+            foreach (string path in paths)
+            {
+                if (hasRecent && ContainsPath(recent, path))
+                {
+                    fallback.Add(path);
+                }
+                else
+                {
+                    preferred.Add(path);
+                }
+            }
+
+            Shuffle(preferred);
+            Shuffle(fallback);
+            if (preferred.Count == 0
+                && fallback.Count > 1
+                && recent != null
+                && recent.Count > 0)
+            {
+                string mostRecent = recent[recent.Count - 1];
+                int mostRecentIndex = fallback.FindIndex(
+                    path => String.Equals(
+                        path,
+                        mostRecent,
+                        StringComparison.OrdinalIgnoreCase));
+                if (mostRecentIndex >= 0)
+                {
+                    fallback.RemoveAt(mostRecentIndex);
+                    fallback.Add(mostRecent);
+                }
+            }
+            preferred.AddRange(fallback);
+            return preferred;
+        }
+
+        private void Shuffle(List<string> paths)
+        {
+            for (int index = paths.Count - 1; index > 0; index--)
+            {
+                int other = _random.Next(index + 1);
+                string value = paths[index];
+                paths[index] = paths[other];
+                paths[other] = value;
+            }
+        }
+
+        private void RememberRecentPath(
+            string pool,
+            string path,
+            int recentMemory)
+        {
+            if (recentMemory <= 0)
+            {
+                ClearRecentPool(pool);
+                return;
+            }
+
+            List<string> recent;
+            if (!_recentPathsByPool.TryGetValue(pool, out recent))
+            {
+                recent = new List<string>();
+                _recentPathsByPool[pool] = recent;
+            }
+            recent.RemoveAll(item => String.Equals(
+                item,
+                path,
+                StringComparison.OrdinalIgnoreCase));
+            recent.Add(path);
+            while (recent.Count > recentMemory)
+            {
+                recent.RemoveAt(0);
+            }
+        }
+
+        private void ClearRecentPool(string pool)
+        {
+            _recentPathsByPool.Remove(pool);
+        }
+
+        private static bool ContainsPath(
+            List<string> paths,
+            string candidate)
+        {
+            return paths.Exists(path => String.Equals(
+                path,
+                candidate,
+                StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static int GetRecentMemory(ConfigEntry<int> entry)
+        {
+            return entry == null
+                ? 2
+                : Math.Max(0, Math.Min(20, entry.Value));
         }
 
         private bool TryPlayBattlecrySound(
@@ -1409,8 +2874,10 @@ namespace BattlecryVoiceTuner
                         0f,
                         _battlecryVolumeMultiplier.Value);
                 RESULT volumeResult = channel.setVolume(volumeScale);
-                RESULT pitchResult = channel.setPitch(
-                    Math.Max(0.01f, pitch));
+                RESULT pitchResult = ApplyPitchProcessingToChannel(
+                    channel,
+                    pitch,
+                    "Battlecry");
                 RESULT unpauseResult = channel.setPaused(false);
                 if (unpauseResult == RESULT.OK
                     && acousticProfile != null)
@@ -1419,7 +2886,9 @@ namespace BattlecryVoiceTuner
                         sound,
                         pitch,
                         volumeScale,
-                        acousticProfile);
+                        acousticProfile,
+                        "Battlecry",
+                        MaximumOutdoorReflectionTaps);
                 }
                 LogDiagnostic(
                     "Battlecry FMOD results: volume="
@@ -1446,6 +2915,122 @@ namespace BattlecryVoiceTuner
             {
                 _log.LogWarning(
                     "Battlecry playback failed for "
+                    + path
+                    + ": "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool TryPlayCommandSound(
+            string path,
+            float pitch,
+            Hero hero)
+        {
+            try
+            {
+                FMOD.Sound sound;
+                if (!_commandSoundsByPath.TryGetValue(path, out sound))
+                {
+                    RESULT createResult =
+                        RuntimeManager.CoreSystem.createSound(
+                            path,
+                            MODE.DEFAULT
+                                | MODE._2D
+                                | MODE.CREATESAMPLE,
+                            out sound);
+                    if (createResult != RESULT.OK)
+                    {
+                        _log.LogWarning(
+                            "FMOD could not load command voice "
+                            + path
+                            + ": "
+                            + createResult
+                            + ".");
+                        return false;
+                    }
+
+                    _commandSoundsByPath[path] = sound;
+                }
+
+                FMOD.ChannelGroup channelGroup;
+                string environment;
+                float reverbAmount;
+                BattlecryAcousticProfile acousticProfile;
+                if (!TryGetCommandChannelGroup(
+                    hero,
+                    out channelGroup,
+                    out environment,
+                    out reverbAmount,
+                    out acousticProfile))
+                {
+                    return false;
+                }
+
+                FMOD.Channel channel;
+                RESULT playResult = RuntimeManager.CoreSystem.playSound(
+                    sound,
+                    channelGroup,
+                    true,
+                    out channel);
+                if (playResult != RESULT.OK)
+                {
+                    _log.LogWarning(
+                        "FMOD could not play command voice "
+                        + path
+                        + ": "
+                        + playResult
+                        + ".");
+                    return false;
+                }
+
+                float volumeScale =
+                    Math.Max(0f, _volumeMultiplier.Value)
+                    * Math.Max(
+                        0f,
+                        _commandVoiceVolumeMultiplier.Value);
+                RESULT volumeResult = channel.setVolume(volumeScale);
+                RESULT pitchResult = ApplyPitchProcessingToChannel(
+                    channel,
+                    pitch,
+                    "Command voice");
+                RESULT unpauseResult = channel.setPaused(false);
+                if (unpauseResult == RESULT.OK
+                    && acousticProfile != null)
+                {
+                    ScheduleAcousticReflections(
+                        sound,
+                        pitch,
+                        volumeScale,
+                        acousticProfile,
+                        "Command voice",
+                        MaximumCommandReflectionTaps);
+                }
+                LogDiagnostic(
+                    "Command voice FMOD results: volume="
+                    + volumeResult
+                    + " (scale="
+                    + volumeScale.ToString(
+                        "0.###",
+                        CultureInfo.InvariantCulture)
+                    + ", bus=SFX, environment="
+                    + environment
+                    + ", reverb="
+                    + reverbAmount.ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + ")"
+                    + "; pitch="
+                    + pitchResult
+                    + "; unpause="
+                    + unpauseResult
+                    + ".");
+                return unpauseResult == RESULT.OK;
+            }
+            catch (Exception exception)
+            {
+                _log.LogWarning(
+                    "Command voice playback failed for "
                     + path
                     + ": "
                     + exception.GetBaseException().Message);
@@ -1536,6 +3121,90 @@ namespace BattlecryVoiceTuner
             channelGroup = indoors
                 ? _indoorBattlecryChannelGroup
                 : _outdoorBattlecryChannelGroup;
+            return true;
+        }
+
+        private bool TryGetCommandChannelGroup(
+            Hero hero,
+            out FMOD.ChannelGroup channelGroup,
+            out string environment,
+            out float reverbAmount,
+            out BattlecryAcousticProfile acousticProfile)
+        {
+            acousticProfile = null;
+            bool indoors = IsBattlecryIndoors(out environment);
+            if (!TryGetBattlecrySfxChannelGroup(out channelGroup))
+            {
+                reverbAmount = 0f;
+                return false;
+            }
+
+            reverbAmount = 0f;
+            if (_commandVoiceReverbEnabled == null
+                || !_commandVoiceReverbEnabled.Value)
+            {
+                return true;
+            }
+
+            float configuredAmount = Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    indoors
+                        ? _indoorCommandVoiceReverbAmount.Value
+                        : _outdoorCommandVoiceReverbAmount.Value));
+            reverbAmount = configuredAmount;
+            if (configuredAmount > 0.001f)
+            {
+                BattlecryAcousticProfile measuredProfile;
+                bool measured = indoors
+                    ? TryProbeInteriorAcoustics(
+                        hero,
+                        configuredAmount,
+                        environment,
+                        out measuredProfile)
+                    : TryProbeOutdoorAcoustics(
+                        hero,
+                        configuredAmount,
+                        out measuredProfile);
+                if (measured)
+                {
+                    acousticProfile = measuredProfile;
+                    reverbAmount = measuredProfile.DiffuseReverbAmount;
+                }
+            }
+            if (reverbAmount <= 0.001f)
+            {
+                reverbAmount = 0f;
+                return true;
+            }
+
+            if (!TryEnsureCommandReverbPaths())
+            {
+                _log.LogWarning(
+                    "Command voice reverb setup failed; playing this command dry through the game's SFX bus.");
+                reverbAmount = 0f;
+                return true;
+            }
+
+            FMOD.DSP reverb = indoors
+                ? _indoorCommandReverb
+                : _outdoorCommandReverb;
+            if (!TryConfigureBattlecryReverb(
+                reverb,
+                reverbAmount,
+                acousticProfile))
+            {
+                reverb.setBypass(true);
+                _log.LogWarning(
+                    "Command voice reverb parameters could not be applied; playing this command dry through the game's SFX bus.");
+                reverbAmount = 0f;
+                return true;
+            }
+
+            channelGroup = indoors
+                ? _indoorCommandChannelGroup
+                : _outdoorCommandChannelGroup;
             return true;
         }
 
@@ -2141,9 +3810,12 @@ namespace BattlecryVoiceTuner
             FMOD.Sound sound,
             float pitch,
             float directVolumeScale,
-            BattlecryAcousticProfile profile)
+            BattlecryAcousticProfile profile,
+            string sourceLabel,
+            int maximumTaps)
         {
-            if (profile.Reflections.Count == 0
+            if (maximumTaps <= 0
+                || profile.Reflections.Count == 0
                 || !_battlecrySfxChannelGroup.hasHandle())
             {
                 return;
@@ -2160,7 +3832,8 @@ namespace BattlecryVoiceTuner
             if (formatResult != RESULT.OK || sampleRate <= 0)
             {
                 LogDiagnostic(
-                    "Battlecry reflections skipped because FMOD's output sample rate was unavailable. Result="
+                    sourceLabel
+                    + " reflections skipped because FMOD's output sample rate was unavailable. Result="
                     + formatResult
                     + ".");
                 return;
@@ -2168,7 +3841,8 @@ namespace BattlecryVoiceTuner
 
             int scheduled = 0;
             for (int index = 0;
-                index < profile.Reflections.Count;
+                index < profile.Reflections.Count
+                    && scheduled < maximumTaps;
                 index++)
             {
                 AcousticReflectionTap tap =
@@ -2222,8 +3896,10 @@ namespace BattlecryVoiceTuner
                 }
                 if (result == RESULT.OK)
                 {
-                    result = reflectionChannel.setPitch(
-                        Math.Max(0.01f, pitch));
+                    result = ApplyPitchProcessingToChannel(
+                        reflectionChannel,
+                        pitch,
+                        sourceLabel + " reflection");
                 }
                 if (result == RESULT.OK)
                 {
@@ -2283,7 +3959,8 @@ namespace BattlecryVoiceTuner
                 {
                     reflectionChannel.stop();
                     LogDiagnostic(
-                        "Battlecry reflection setup failed. Result="
+                        sourceLabel
+                        + " reflection setup failed. Result="
                         + result
                         + ".");
                 }
@@ -2294,7 +3971,9 @@ namespace BattlecryVoiceTuner
                 + scheduled.ToString(CultureInfo.InvariantCulture)
                 + " "
                 + profile.Environment
-                + " battlecry reflection tap(s).");
+                + " "
+                + sourceLabel.ToLowerInvariant()
+                + " reflection tap(s).");
         }
 
         private bool TryGetBattlecrySfxChannelGroup(
@@ -2377,6 +4056,35 @@ namespace BattlecryVoiceTuner
 
             LogDiagnostic(
                 "Created reusable outdoor and indoor battlecry reverb paths under the game's SFX bus.");
+            return true;
+        }
+
+        private bool TryEnsureCommandReverbPaths()
+        {
+            if (_outdoorCommandChannelGroup.hasHandle()
+                && _indoorCommandChannelGroup.hasHandle()
+                && _outdoorCommandReverb.hasHandle()
+                && _indoorCommandReverb.hasHandle())
+            {
+                return true;
+            }
+
+            ReleaseCommandReverbPaths();
+            if (!TryCreateBattlecryReverbPath(
+                    "Battlecry Voice Tuner - Command Outdoor",
+                    out _outdoorCommandChannelGroup,
+                    out _outdoorCommandReverb)
+                || !TryCreateBattlecryReverbPath(
+                    "Battlecry Voice Tuner - Command Indoor",
+                    out _indoorCommandChannelGroup,
+                    out _indoorCommandReverb))
+            {
+                ReleaseCommandReverbPaths();
+                return false;
+            }
+
+            LogDiagnostic(
+                "Created separate reusable outdoor and indoor command reverb paths under the game's SFX bus.");
             return true;
         }
 
@@ -2680,6 +4388,16 @@ namespace BattlecryVoiceTuner
                 ref _indoorBattlecryReverb);
         }
 
+        private void ReleaseCommandReverbPaths()
+        {
+            ReleaseBattlecryReverbPath(
+                ref _outdoorCommandChannelGroup,
+                ref _outdoorCommandReverb);
+            ReleaseBattlecryReverbPath(
+                ref _indoorCommandChannelGroup,
+                ref _indoorCommandReverb);
+        }
+
         private static void ReleaseBattlecryReverbPath(
             ref FMOD.ChannelGroup channelGroup,
             ref FMOD.DSP reverb)
@@ -2705,6 +4423,7 @@ namespace BattlecryVoiceTuner
         private void ReleaseBattlecrySfxBus()
         {
             ReleaseBattlecryReverbPaths();
+            ReleaseCommandReverbPaths();
             _battlecrySfxChannelGroup =
                 default(FMOD.ChannelGroup);
             if (_battlecrySfxBusLocked
@@ -2739,6 +4458,36 @@ namespace BattlecryVoiceTuner
             _battlecrySoundsByPath.Clear();
             ReleaseBattlecrySfxBus();
             EndChallenge();
+        }
+
+        private void ReleaseCommandSounds()
+        {
+            foreach (KeyValuePair<string, FMOD.Sound> pair
+                in _commandSoundsByPath)
+            {
+                try
+                {
+                    pair.Value.release();
+                }
+                catch
+                {
+                }
+            }
+
+            _commandSoundsByPath.Clear();
+            _maleSummonAttackPaths.Clear();
+            _maleSummonHoldPaths.Clear();
+            _maleSummonFollowPaths.Clear();
+            _maleSummonGuardPaths.Clear();
+            _maleSummonBulwarkPaths.Clear();
+            _maleSummonHuntPaths.Clear();
+            _femaleSummonAttackPaths.Clear();
+            _femaleSummonHoldPaths.Clear();
+            _femaleSummonFollowPaths.Clear();
+            _femaleSummonGuardPaths.Clear();
+            _femaleSummonBulwarkPaths.Clear();
+            _femaleSummonHuntPaths.Clear();
+            _recentPathsByPool.Clear();
         }
 
         private void BeginChallenge(Hero hero)
@@ -3051,12 +4800,21 @@ namespace BattlecryVoiceTuner
             private static IEnumerable<KeyBindings> AppendTakeAllItemsBinding(
                 IEnumerable<KeyBindings> bindings)
             {
-                foreach (KeyBindings binding in bindings)
+                bool found = false;
+                if (bindings != null)
                 {
-                    yield return binding;
+                    foreach (KeyBindings binding in bindings)
+                    {
+                        found = found || object.Equals(
+                            binding,
+                            KeyBindings.UI.Items.TransferItems);
+                        yield return binding;
+                    }
                 }
-
-                yield return KeyBindings.UI.Items.TransferItems;
+                if (!found)
+                {
+                    yield return KeyBindings.UI.Items.TransferItems;
+                }
             }
         }
 
@@ -3228,6 +4986,92 @@ namespace BattlecryVoiceTuner
             internal float DelaySeconds;
             internal float Gain;
             internal float LowPassGain;
+        }
+
+        private sealed class VoicePitchProcessing
+        {
+            internal readonly float FinalSemitones;
+            internal readonly float RateSemitones;
+            internal readonly float DspSemitones;
+            internal readonly float FinalMultiplier;
+            internal readonly float RateMultiplier;
+            internal readonly float DspMultiplier;
+
+            internal bool UsesDsp
+            {
+                get
+                {
+                    return Math.Abs(DspSemitones)
+                        >= PitchDspMinimumSemitones;
+                }
+            }
+
+            internal VoicePitchProcessing(
+                float finalSemitones,
+                float rateSemitones,
+                float dspSemitones,
+                float finalMultiplier,
+                float rateMultiplier,
+                float dspMultiplier)
+            {
+                FinalSemitones = finalSemitones;
+                RateSemitones = rateSemitones;
+                DspSemitones = dspSemitones;
+                FinalMultiplier = finalMultiplier;
+                RateMultiplier = rateMultiplier;
+                DspMultiplier = dspMultiplier;
+            }
+        }
+
+        private sealed class ActiveChannelPitchDsp
+        {
+            internal readonly FMOD.Channel Channel;
+            internal readonly FMOD.DSP Dsp;
+
+            internal ActiveChannelPitchDsp(
+                FMOD.Channel channel,
+                FMOD.DSP dsp)
+            {
+                Channel = channel;
+                Dsp = dsp;
+            }
+        }
+
+        private sealed class PendingEventPitchDsp
+        {
+            internal readonly EventInstance EventInstance;
+            internal readonly VoicePitchProcessing Processing;
+            internal readonly string Label;
+            internal readonly float QueuedAt;
+
+            internal PendingEventPitchDsp(
+                EventInstance eventInstance,
+                VoicePitchProcessing processing,
+                string label,
+                float queuedAt)
+            {
+                EventInstance = eventInstance;
+                Processing = processing;
+                Label = label;
+                QueuedAt = queuedAt;
+            }
+        }
+
+        private sealed class ActiveEventPitchDsp
+        {
+            internal readonly EventInstance EventInstance;
+            internal readonly FMOD.ChannelGroup ChannelGroup;
+            internal readonly FMOD.DSP Dsp;
+
+            internal ActiveEventPitchDsp(
+                EventInstance eventInstance,
+                FMOD.ChannelGroup channelGroup,
+                FMOD.DSP dsp)
+            {
+                EventInstance = eventInstance;
+                ChannelGroup = channelGroup;
+                Dsp = dsp;
+            }
         }
 
         private sealed class SupportedVoiceEvent

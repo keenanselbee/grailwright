@@ -69,12 +69,8 @@ function Get-BleedDurationMultiplier {
 
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\BloodMagicExpansion.cs")
-$manifest = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json") | ConvertFrom-Json
-$readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
-
 $requiredContracts = @(
-    'PluginVersion = "2.8.7"',
-    'ConfigSchemaVersion = 20',
+    'ConfigSchemaVersion = 21',
     'NormalMaximumBloodPower = 100.0f',
     'AbsoluteMaximumBloodPower = 200.0f',
     'BloodEssenceAtNormalMaximumPower = 1000.0f',
@@ -126,12 +122,41 @@ foreach ($contract in $requiredContracts) {
     }
 }
 
-if ($manifest.version -ne "2.8.7") {
-    throw "Blood Magic Expansion mod.json is not version 2.8.7."
+foreach ($removedLegacyGrowthContract in @(
+    '_bloodMagicGrowthSource',
+    '_bloodSpellSpiritualityStatTerms',
+    '_cachedSpiritualityTermsRaw',
+    '_cachedSpiritualityTerms',
+    '_cachedHeroSpiritualityValue',
+    '_nextHeroSpiritualityRefreshTime',
+    'BloodMagicGrowthSource',
+    'GetSpiritualityStatTerms',
+    'GetCachedHeroSpiritualityValue',
+    'TryResolveHeroSpiritualityValue',
+    'Spirituality')) {
+    if ($source.IndexOf($removedLegacyGrowthContract, [StringComparison]::Ordinal) -ge 0) {
+        throw "Blood Power progression source still contains removed Spirituality growth behavior: $removedLegacyGrowthContract"
+    }
 }
-if ($readme.IndexOf("Version: 2.8.7", [StringComparison]::Ordinal) -lt 0) {
-    throw "Blood Magic Expansion README is not version 2.8.7."
+
+$growthMultiplierBlock = [regex]::Match(
+    $source,
+    '(?s)private float GetBloodMagicGrowthMultiplier\(.+?(?=\r?\n\s*private )')
+if (!$growthMultiplierBlock.Success -or
+    $growthMultiplierBlock.Value -notmatch 'float growthValue\s*=\s*GetBloodPower\(\);' -or
+    $growthMultiplierBlock.Value -notmatch 'Math\.Min\(growthValue,\s*NormalMaximumBloodPower\)') {
+    throw "Blood Magic curve scaling must unconditionally use Blood Power derived from Blood Essence and retain its mastery cap."
 }
+
+$tunedMultiplierBlock = [regex]::Match(
+    $source,
+    '(?s)private float GetBloodSpellTunedMultiplier\(float presetBase, float growthMultiplier, float maximum\).+?(?=\r?\n\s*private )')
+if (!$tunedMultiplierBlock.Success -or
+    $tunedMultiplierBlock.Value -notmatch 'float power\s*=\s*GetBloodPower\(\);' -or
+    $tunedMultiplierBlock.Value -notmatch 'GetBloodPowerOvermasteryBonusFraction\(power\)') {
+    throw "Blood Spell tuning must apply Blood Power mastery and overmastery scaling."
+}
+
 if ($source.IndexOf('BindOrdered("Blood Spell Inner Light", "MaximumPowerRangeMultiplier"', [StringComparison]::Ordinal) -ge 0 -or
     $source.IndexOf('BindOrdered("Blood Spell Inner Light", "Range"', [StringComparison]::Ordinal) -ge 0 -or
     $source.IndexOf('BindOrdered("Advanced - Blood Spell Growth", "RangeBleedTapBloodPowerBonusCurve"', [StringComparison]::Ordinal) -ge 0) {

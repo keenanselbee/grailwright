@@ -9,7 +9,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
+using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Locations.Attachments.Elements;
 using Awaken.TG.Main.Memories;
+using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Heroes.Items.Tooltips;
+using Awaken.TG.Main.Heroes.Items.Weapons;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -22,8 +27,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.8.7.0")]
-[assembly: AssemblyFileVersion("2.8.7.0")]
+[assembly: AssemblyVersion("2.9.4.0")]
+[assembly: AssemblyFileVersion("2.9.4.0")]
 
 namespace BloodMagicExpansion
 {
@@ -46,8 +51,8 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.8.7";
-        private const int ConfigSchemaVersion = 20;
+        public const string PluginVersion = "2.9.4";
+        private const int ConfigSchemaVersion = 21;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -144,6 +149,8 @@ namespace BloodMagicExpansion
         private const string CorpseLeechMediumTier = "medium";
         private const string CorpseLeechHighTier = "high";
         private const string CorpseLeechMaxTier = "max";
+        private const float CorpseLeechMaximumRangeDistance = 30.0f;
+        private const float CorpseLeechMinimumRangeVolume = 0.10f;
         private const string CorpseQualityMeagerLabel = "Meager";
         private const string CorpseQualityWorthyLabel = "Worthy";
         private const string CorpseQualityPotentLabel = "Potent";
@@ -222,6 +229,7 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _rawCharacterXpPerCorpseXp;
         private ConfigEntry<bool> _announceRawCharacterXp;
         private ConfigEntry<bool> _healCharacter;
+        private ConfigEntry<bool> _simplifyDrainedCorpses;
         private ConfigEntry<float> _healMaxHealthPercentPerXpPercent;
         private ConfigEntry<HealingPowerScalingMode> _healPowerScalingMode;
         private ConfigEntry<float> _healReferenceTargetMaxHealth;
@@ -230,6 +238,7 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _healMaximumPowerScale;
         private ConfigEntry<bool> _playCorpseLeechSound;
         private ConfigEntry<float> _corpseLeechSoundVolume;
+        private ConfigEntry<float> _corpseLeechSoundRangeVolume;
         private ConfigEntry<bool> _avoidRecentCorpseLeechRepeats;
         private ConfigEntry<int> _recentCorpseLeechSoundMemory;
         private ConfigEntry<float> _corpseLeechRandomPitchSemitones;
@@ -279,8 +288,6 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _customBloodSpellHeldChannelSpeedMultiplier;
         private ConfigEntry<bool> _bloodSpellScaleBleedDuration;
         private ConfigEntry<float> _bloodSpellMaximumBleedDurationMultiplier;
-        private ConfigEntry<BloodMagicGrowthSource> _bloodMagicGrowthSource;
-        private ConfigEntry<string> _bloodSpellSpiritualityStatTerms;
         private ConfigEntry<string> _bloodSpellProjectileTravelBloodPowerBonusCurve;
         private ConfigEntry<string> _bloodSpellAreaRadiusBloodPowerBonusCurve;
         private ConfigEntry<string> _bloodSpellBleedBuildupBloodPowerBonusCurve;
@@ -361,6 +368,14 @@ namespace BloodMagicExpansion
             new Dictionary<object, SourceMatchCacheEntry>(ReferenceEqualityComparer.Instance);
         private readonly Dictionary<object, SourceMatchCacheEntry> _abhartachSourceMatchCache =
             new Dictionary<object, SourceMatchCacheEntry>(ReferenceEqualityComparer.Instance);
+        private readonly HashSet<MagicItemTemplateInfo> _bloodTransfusionLightCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
+        private readonly HashSet<MagicItemTemplateInfo> _bloodTransfusionHeavyCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
+        private readonly HashSet<MagicItemTemplateInfo> _abhartachLightCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
+        private readonly HashSet<MagicItemTemplateInfo> _abhartachHeavyCastInfos =
+            new HashSet<MagicItemTemplateInfo>();
         private readonly Dictionary<string, FMOD.Sound> _corpseLeechFmodSoundsByPath =
             new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<string>> _corpseLeechSoundPathsByTier =
@@ -399,7 +414,6 @@ namespace BloodMagicExpansion
         private string _cachedTapCastSpeedBloodPowerCurveRaw;
         private string _cachedTargetSearchBloodPowerCurveRaw;
         private string _cachedHeldBloodPowerCurveRaw;
-        private string _cachedSpiritualityTermsRaw;
         private string _cachedAbhartachMatchTermsRaw;
         private string _cachedAbhartachTemplateGuidRaw;
         private string _cachedAbhartachExplosionDamageCurveRaw;
@@ -418,7 +432,6 @@ namespace BloodMagicExpansion
         private CurvePoint[] _cachedTapCastSpeedBloodPowerCurve = new CurvePoint[0];
         private CurvePoint[] _cachedTargetSearchBloodPowerCurve = new CurvePoint[0];
         private CurvePoint[] _cachedHeldBloodPowerCurve = new CurvePoint[0];
-        private string[] _cachedSpiritualityTerms = new string[0];
         private CurvePoint[] _cachedAbhartachExplosionDamageCurve = new CurvePoint[0];
         private CurvePoint[] _cachedAbhartachExplosionRadiusCurve = new CurvePoint[0];
         private CurvePoint[] _cachedAbhartachExplosionBleedCurve = new CurvePoint[0];
@@ -452,8 +465,6 @@ namespace BloodMagicExpansion
         private float _lastReportedBloodEssence = -1.0f;
         private string _lastReportedCorpseStatistics;
         private bool _bloodProgressionUnavailableLogged;
-        private float _cachedHeroSpiritualityValue;
-        private float _nextHeroSpiritualityRefreshTime;
         private float _abhartachHeldHealingActiveUntil;
         private readonly BloodSpellInnerLightHandState _bloodSpellInnerLightMainHandState =
             new BloodSpellInnerLightHandState(
@@ -776,6 +787,7 @@ namespace BloodMagicExpansion
             _singleHandPayoutMultiplier = BindOrdered("Main Loop", "SingleHandPayoutMultiplier", 0.5f, "Payout multiplier when only one Blood/Life Transfusion hand is held. Dual-held casts always use the full amount.");
             _awardCharacterXp = BindOrdered("Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
             _healCharacter = BindOrdered("Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
+            _simplifyDrainedCorpses = BindOrdered("Main Loop", "SimplifyDrainedCorpses", true, "Replace a successfully drained full body through the game's native corpse cleanup. Bodies with visible loot become lightweight loot piles, empty bodies are removed, and unsupported scripted corpses remain intact.");
             _liveDrainEnabled = BindOrdered("Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
             _bloodSpellTuningEnabled = BindOrdered("Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
             _abhartachTuningEnabled = BindOrdered("Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
@@ -793,8 +805,6 @@ namespace BloodMagicExpansion
             _bloodSpellInnerLightMasteryRange = BindOrdered("Blood Spell Inner Light", "MasteryRange", 3.0f, new ConfigDescription("Blood Power 100 range in meters for the red inner player light.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightMaximumPowerRange = BindOrdered("Blood Spell Inner Light", "MaximumPowerRange", 4.5f, new ConfigDescription("Blood Power 200 range in meters for the red inner player light.", new AcceptableValueRange<float>(0.1f, 20.0f)));
             _bloodSpellInnerLightFadeSeconds = BindOrdered("Blood Spell Inner Light", "FadeSeconds", 0.12f, new ConfigDescription("Seconds used to fade the red inner player light in and out. Zero switches instantly.", new AcceptableValueRange<float>(0.0f, 2.0f)));
-
-            _bloodMagicGrowthSource = BindOrdered("Blood Power", "GrowthSource", BloodMagicGrowthSource.BloodPower, "BloodPower grows permanently from completed corpse rituals. Meager, Worthy, Potent, and Prime corpses grant 1, 3, 5, and 10 uncapped Blood Essence. Power reaches normal mastery at 100 from 1,000 Essence, then grows linearly to its hard cap of 200 at 5,000 Essence. Spirituality preserves the legacy stat-based growth model explicitly; Deeds of Avalon is never required.");
 
             _corpseQualityScaleTransfusionHealing = BindOrdered("Corpse Quality", "ScaleTransfusionHealing", true, "Let corpse quality modestly scale Blood/Life Transfusion corpse healing. Character XP is not multiplied again.");
             _corpseQualityScaleAbhartachEffects = BindOrdered("Corpse Quality", "ScaleAbhartachEffects", true, "Let corpse quality modestly scale Abhartach corpse explosion damage, radius, bleed buildup, and held corpse healing.");
@@ -877,8 +887,6 @@ namespace BloodMagicExpansion
             _bloodTransfusionTemplateGuid = BindOrdered("Advanced - Matching", "BloodSpellTemplateGuid", "", "Optional exact Blood/Life Transfusion template GUID.");
             _abhartachMatchTerms = BindOrdered("Advanced - Matching", "AbhartachMatchTerms", "Abhartach;Abhartach's Calling;ItemTemplate_Magic_Tier2_AbhartachsCalling", "Terms used to identify Abhartach's Calling items, skills, or templates.");
             _abhartachTemplateGuid = BindOrdered("Advanced - Matching", "AbhartachTemplateGuid", "", "Optional exact Abhartach's Calling template GUID.");
-            _bloodSpellSpiritualityStatTerms = BindOrdered("Advanced - Matching", "SpiritualityStatTerms", "Spirituality;Spirit", "Terms used only when GrowthSource is explicitly set to Spirituality legacy mode.");
-
             _range = BindOrdered("Performance", "Range", 7.0f, "Maximum camera raycast distance for detecting the corpse being looked at.");
             _checkIntervalSeconds = BindOrdered("Performance", "CheckIntervalSeconds", 0.15f, "Seconds between corpse look checks while the required spell hold is active.");
             _focusGraceSeconds = BindOrdered("Performance", "FocusGraceSeconds", 0.35f, "Short grace window before losing corpse focus resets the preset ritual timer.");
@@ -894,6 +902,7 @@ namespace BloodMagicExpansion
 
             _playCorpseLeechSound = BindOrdered("Audio", "PlayCorpseLeechSound", true, "Play a quality-matched FMOD WAV when a corpse ritual successfully completes.");
             _corpseLeechSoundVolume = BindOrdered("Audio", "CorpseLeechSoundVolume", 0.85f, new ConfigDescription("Global FMOD volume for corpse leech sounds.", new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _corpseLeechSoundRangeVolume = BindOrdered("Audio", "CorpseLeechSoundRangeVolume", 1.0f, new ConfigDescription("How strongly corpse leech sounds fade with corpse distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.", new AcceptableValueRange<float>(0.0f, 1.0f)));
             _avoidRecentCorpseLeechRepeats = BindOrdered("Audio", "AvoidRecentCorpseLeechRepeats", true, "Avoid replaying recently used corpse leech sounds from the same quality tier when enough alternatives are available.");
             _recentCorpseLeechSoundMemory = BindOrdered("Audio", "RecentCorpseLeechSoundMemory", 2, new ConfigDescription("How many recently played sounds to avoid per quality tier.", new AcceptableValueRange<int>(0, 20)));
             _corpseLeechRandomPitchSemitones = BindOrdered("Audio", "CorpseLeechRandomPitchSemitones", 0.20f, new ConfigDescription("Random FMOD channel pitch variation in semitones. Zero disables.", new AcceptableValueRange<float>(0.0f, 12.0f)));
@@ -2888,6 +2897,7 @@ namespace BloodMagicExpansion
                 || string.Equals(settingId, "Blood Spell Inner Light\nMaximumPowerRange", StringComparison.Ordinal)
                 || string.Equals(settingId, "Blood Spell Inner Light\nFadeSeconds", StringComparison.Ordinal)
                 || string.Equals(settingId, "Audio\nCorpseLeechSoundVolume", StringComparison.Ordinal)
+                || string.Equals(settingId, "Audio\nCorpseLeechSoundRangeVolume", StringComparison.Ordinal)
                 || string.Equals(settingId, "Audio\nCorpseLeechRandomPitchSemitones", StringComparison.Ordinal);
         }
 
@@ -2922,6 +2932,7 @@ namespace BloodMagicExpansion
             RestorePreservedFloat("Blood Spell Inner Light\nMaximumPowerRange", _bloodSpellInnerLightMaximumPowerRange, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Blood Spell Inner Light\nFadeSeconds", _bloodSpellInnerLightFadeSeconds, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("Audio\nCorpseLeechSoundRangeVolume", _corpseLeechSoundRangeVolume, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nCorpseLeechRandomPitchSemitones", _corpseLeechRandomPitchSemitones, ref restoredCount, ref clampedCount);
             RestorePreservedString("Bloodless Filter\nBloodWhitelistTerms", _bloodWhitelistTerms, ref restoredCount);
             RestorePreservedString("Advanced - Matching\nBloodSpellTemplateGuid", _bloodTransfusionTemplateGuid, ref restoredCount);
@@ -3325,6 +3336,22 @@ namespace BloodMagicExpansion
                         nameof(CorpseRestoredPatch.Postfix),
                         false);
                 }
+            });
+
+            PatchStep("Blood magic spell descriptions", delegate
+            {
+                PatchMethod(
+                    typeof(ItemStats),
+                    "OnInitialize",
+                    typeof(ItemStatsInitializePatch),
+                    nameof(ItemStatsInitializePatch.Postfix),
+                    true);
+                PatchMethod(
+                    typeof(MagicItemTemplateInfo),
+                    "get_MagicDescription",
+                    typeof(MagicDescriptionPatch),
+                    nameof(MagicDescriptionPatch.Prefix),
+                    true);
             });
         }
 
@@ -4313,9 +4340,49 @@ namespace BloodMagicExpansion
             TouchCorpseState(state);
             _focusedCorpse = null;
 
-            PlayCorpseLeechSound(corpseQuality);
+            PlayCorpseLeechSound(
+                corpseQuality,
+                state.HasPosition,
+                state.LastKnownPosition);
             ReportCorpseDrained(corpseQuality);
             state.LoggedReject = false;
+            TrySimplifyDrainedCorpse(state);
+        }
+
+        private void TrySimplifyDrainedCorpse(CorpseState state)
+        {
+            if (_simplifyDrainedCorpses == null || !_simplifyDrainedCorpses.Value || state == null)
+            {
+                return;
+            }
+
+            try
+            {
+                Corpse corpse = state.Corpse as Corpse;
+                if (corpse == null || corpse.HasBeenDiscarded || corpse.ParentModel == null)
+                {
+                    return;
+                }
+
+                NpcDummy dummy = corpse.ParentModel.TryGetElement<NpcDummy>();
+                if (dummy == null || dummy.HasBeenDiscarded || !dummy.HasDied)
+                {
+                    return;
+                }
+
+                bool simplified = dummy.TryReplaceWithSimplifiedLocation();
+                if (_logAwards.Value)
+                {
+                    Log.LogInfo(
+                        simplified
+                            ? "Simplified drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " through the native corpse cleanup."
+                            : "Kept drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " because native corpse cleanup was unavailable.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Warn("Could not simplify drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + ": " + ex.GetBaseException().Message);
+            }
         }
 
         private void ReportCorpseDrained(float quality)
@@ -4991,7 +5058,10 @@ namespace BloodMagicExpansion
             }
         }
 
-        private void PlayCorpseLeechSound(float corpseQuality)
+        private void PlayCorpseLeechSound(
+            float corpseQuality,
+            bool hasCorpsePosition,
+            Vector3 corpsePosition)
         {
             if (_playCorpseLeechSound == null || !_playCorpseLeechSound.Value)
             {
@@ -5018,12 +5088,50 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            float volume = Math.Max(0f, _corpseLeechSoundVolume == null ? 1f : _corpseLeechSoundVolume.Value);
+            float baseVolume = Math.Max(0f, _corpseLeechSoundVolume == null ? 1f : _corpseLeechSoundVolume.Value);
+            float rangeMultiplier = GetCorpseLeechRangeVolumeMultiplier(
+                hasCorpsePosition,
+                corpsePosition);
+            float volume = baseVolume * rangeMultiplier;
             float pitch = GetCorpseLeechSoundPitchMultiplier();
             if (TryPlayFmodCorpseLeechSound(path, volume, pitch))
             {
                 RememberRecentCorpseLeechSound(selectedTier, path);
             }
+        }
+
+        private float GetCorpseLeechRangeVolumeMultiplier(
+            bool hasCorpsePosition,
+            Vector3 corpsePosition)
+        {
+            float strength = _corpseLeechSoundRangeVolume == null
+                ? 1.0f
+                : Mathf.Clamp01(_corpseLeechSoundRangeVolume.Value);
+            if (strength <= 0.001f)
+            {
+                return 1.0f;
+            }
+            Vector3 heroPosition;
+            if (!hasCorpsePosition
+                || !TryGetPosition(GetHero(), out heroPosition))
+            {
+                LogAudioDiagnostic(
+                    "Corpse leech audio range could not resolve both positions; using full volume.");
+                return 1.0f;
+            }
+            float distance = Vector3.Distance(heroPosition, corpsePosition);
+            float progress = Mathf.Clamp01(
+                distance / CorpseLeechMaximumRangeDistance);
+            float fullCurveVolume = 1.0f
+                - ((1.0f - CorpseLeechMinimumRangeVolume) * progress);
+            float multiplier = Mathf.Lerp(1.0f, fullCurveVolume, strength);
+            LogAudioDiagnostic(
+                "Corpse leech audio distance="
+                + distance.ToString("0.##", CultureInfo.InvariantCulture)
+                + "m; rangeMultiplier="
+                + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                + ".");
+            return multiplier;
         }
 
         private void EnsureCorpseLeechSoundPathsResolved()
@@ -6824,6 +6932,339 @@ namespace BloodMagicExpansion
                 _abhartachTuningEnabled.Value;
         }
 
+        private void OnItemStatsInitialize(ItemStats itemStats)
+        {
+            if (itemStats == null || itemStats.ParentModel == null)
+            {
+                return;
+            }
+
+            Item item = itemStats.ParentModel;
+            string ignored;
+            if (IsBloodTransfusionItem(item, out ignored))
+            {
+                if (item.LightCastInfo != null)
+                {
+                    _bloodTransfusionLightCastInfos.Add(item.LightCastInfo);
+                }
+                if (item.HeavyCastInfo != null)
+                {
+                    _bloodTransfusionHeavyCastInfos.Add(item.HeavyCastInfo);
+                }
+                return;
+            }
+
+            if (!IsAbhartachItem(item, out ignored))
+            {
+                return;
+            }
+
+            if (item.LightCastInfo != null)
+            {
+                _abhartachLightCastInfos.Add(item.LightCastInfo);
+            }
+            if (item.HeavyCastInfo != null)
+            {
+                _abhartachHeavyCastInfos.Add(item.HeavyCastInfo);
+            }
+        }
+
+        private bool BeforeGetMagicDescription(
+            MagicItemTemplateInfo magicInfo,
+            ref string result)
+        {
+            if (_enabled == null || !_enabled.Value || magicInfo == null)
+            {
+                return true;
+            }
+
+            if (_bloodTransfusionLightCastInfos.Contains(magicInfo))
+            {
+                if (!ShouldTuneBloodSpells())
+                {
+                    return true;
+                }
+                result = BuildBloodTransfusionLightDescription();
+                return false;
+            }
+
+            if (_bloodTransfusionHeavyCastInfos.Contains(magicInfo))
+            {
+                result = BuildBloodTransfusionHeavyDescription();
+                return false;
+            }
+
+            if (!ShouldTuneAbhartach())
+            {
+                return true;
+            }
+
+            if (_abhartachLightCastInfos.Contains(magicInfo))
+            {
+                result = BuildAbhartachLightDescription();
+                return false;
+            }
+
+            if (_abhartachHeavyCastInfos.Contains(magicInfo))
+            {
+                result = BuildAbhartachHeavyDescription();
+                return false;
+            }
+
+            return true;
+        }
+
+        private string BuildBloodTransfusionLightDescription()
+        {
+            List<string> lines = new List<string>
+            {
+                "Enemies: Fire a damaging projectile that applies Bleed."
+            };
+            bool scalesProjectileRange =
+                _bloodSpellScaleProjectileTravel != null && _bloodSpellScaleProjectileTravel.Value;
+            bool scalesBleedDuration =
+                _bloodSpellScaleBleedDuration != null && _bloodSpellScaleBleedDuration.Value;
+            if (scalesProjectileRange && scalesBleedDuration)
+            {
+                lines.Add("Blood Essence: Improves projectile range, damage radius, Bleed buildup and duration, and cast speed.");
+            }
+            else
+            {
+                List<string> features = new List<string>();
+                if (scalesProjectileRange)
+                {
+                    features.Add("projectile range");
+                }
+                features.Add("damage radius");
+                features.Add(scalesBleedDuration ? "Bleed buildup and duration" : "Bleed buildup");
+                features.Add("cast speed");
+                lines.Add("Blood Essence: Improves " + JoinTooltipFeatures(features) + ".");
+            }
+
+            return string.Join("\n", lines.ToArray());
+        }
+
+        private string BuildBloodTransfusionHeavyDescription()
+        {
+            List<string> lines = new List<string>();
+            float corpsePayoutPercent = GetPayoutPercentOfKillXp();
+            bool corpseXpEnabled =
+                _awardCharacterXp != null && _awardCharacterXp.Value &&
+                _rawCharacterXpPerCorpseXp != null && _rawCharacterXpPerCorpseXp.Value > 0f &&
+                corpsePayoutPercent > 0f;
+            bool corpseHealingEnabled =
+                _healCharacter != null && _healCharacter.Value &&
+                _healMaxHealthPercentPerXpPercent != null && _healMaxHealthPercentPerXpPercent.Value > 0f &&
+                corpsePayoutPercent > 0f;
+            bool grantsLiveDrainXp =
+                _liveDrainEnabled != null && _liveDrainEnabled.Value &&
+                _liveDrainAwardCharacterXp != null && _liveDrainAwardCharacterXp.Value &&
+                _awardCharacterXp != null && _awardCharacterXp.Value &&
+                _rawCharacterXpPerCorpseXp != null && _rawCharacterXpPerCorpseXp.Value > 0f &&
+                _liveDrainRawCharacterXpMultiplier != null && _liveDrainRawCharacterXpMultiplier.Value > 0f &&
+                GetLiveDrainXpPercentPerTick() > 0f &&
+                GetLiveDrainMaximumXpPercentPerTarget() > 0f;
+            lines.Add(grantsLiveDrainXp
+                ? "Living enemies: Drain Health to heal yourself; held damage grants limited XP."
+                : "Living enemies: Drain Health to heal yourself.");
+
+            if (corpseXpEnabled || corpseHealingEnabled)
+            {
+                List<string> rewards = new List<string>();
+                if (corpseXpEnabled)
+                {
+                    rewards.Add("XP");
+                }
+                if (corpseHealingEnabled)
+                {
+                    rewards.Add("healing");
+                }
+                rewards.Add("Blood Essence");
+
+                string corpseLine = "Corpses: Drain for " + JoinTooltipFeatures(rewards) + ".";
+                if (_handRequirement != null && _handRequirement.Value == HandRequirement.BothHands)
+                {
+                    corpseLine += " Both hands are required.";
+                }
+                else if (_singleHandPayoutMultiplier != null &&
+                    _singleHandPayoutMultiplier.Value < 0.999f)
+                {
+                    List<string> scaledRewards = new List<string>();
+                    if (corpseXpEnabled)
+                    {
+                        scaledRewards.Add("XP");
+                    }
+                    if (corpseHealingEnabled)
+                    {
+                        scaledRewards.Add("healing");
+                    }
+                    if (scaledRewards.Count > 0)
+                    {
+                        corpseLine += " Using both hands grants full "
+                            + JoinTooltipFeatures(scaledRewards)
+                            + ".";
+                    }
+                }
+                lines.Add(corpseLine);
+            }
+
+            if (corpseHealingEnabled &&
+                _corpseQualityScaleTransfusionHealing != null &&
+                _corpseQualityScaleTransfusionHealing.Value)
+            {
+                lines.Add("Corpse quality: Improves corpse healing.");
+            }
+
+            if (ShouldTuneBloodSpells())
+            {
+                bool scalesHeldRange =
+                    _bloodSpellScaleHeldTargetRange != null && _bloodSpellScaleHeldTargetRange.Value;
+                lines.Add(scalesHeldRange
+                    ? "Blood Essence: Improves targeting range, Bleed, and channel speed."
+                    : "Blood Essence: Improves Bleed and channel speed.");
+            }
+
+            return string.Join("\n", lines.ToArray());
+        }
+
+        private string BuildAbhartachLightDescription()
+        {
+            List<string> lines = new List<string>
+            {
+                "Corpses: Detonate a nearby corpse to damage and Bleed enemies in the area."
+            };
+            bool scalesSearch =
+                _abhartachScaleCorpseSearchRange != null && _abhartachScaleCorpseSearchRange.Value;
+            bool scalesDamage =
+                _abhartachScaleExplosionDamage != null && _abhartachScaleExplosionDamage.Value;
+            bool scalesRadius =
+                _abhartachScaleExplosionRadius != null && _abhartachScaleExplosionRadius.Value;
+            bool scalesBleed =
+                _abhartachScaleExplosionBleed != null && _abhartachScaleExplosionBleed.Value;
+            bool scalesBleedDuration =
+                _bloodSpellScaleBleedDuration != null && _bloodSpellScaleBleedDuration.Value;
+
+            if (scalesSearch && scalesDamage && scalesRadius && scalesBleed && scalesBleedDuration)
+            {
+                lines.Add("Blood Essence: Improves corpse search, explosion damage and radius, and Bleed buildup and duration.");
+            }
+            else
+            {
+                List<string> powerFeatures = new List<string>();
+                if (scalesSearch)
+                {
+                    powerFeatures.Add("corpse search");
+                }
+                if (scalesDamage)
+                {
+                    powerFeatures.Add("explosion damage");
+                }
+                if (scalesRadius)
+                {
+                    powerFeatures.Add("explosion radius");
+                }
+                if (scalesBleed)
+                {
+                    powerFeatures.Add(scalesBleedDuration ? "Bleed buildup and duration" : "Bleed buildup");
+                }
+                else if (scalesBleedDuration)
+                {
+                    powerFeatures.Add("Bleed duration");
+                }
+                if (powerFeatures.Count > 0)
+                {
+                    lines.Add("Blood Essence: Improves " + JoinTooltipFeatures(powerFeatures) + ".");
+                }
+            }
+
+            if (_corpseQualityScaleAbhartachEffects != null &&
+                _corpseQualityScaleAbhartachEffects.Value)
+            {
+                List<string> qualityFeatures = new List<string>();
+                if (scalesDamage)
+                {
+                    qualityFeatures.Add("explosion damage");
+                }
+                if (scalesRadius)
+                {
+                    qualityFeatures.Add("radius");
+                }
+                if (scalesBleed)
+                {
+                    qualityFeatures.Add("Bleed buildup");
+                }
+                if (qualityFeatures.Count > 0)
+                {
+                    lines.Add("Corpse quality: Improves "
+                        + JoinTooltipFeatures(qualityFeatures)
+                        + ".");
+                }
+            }
+
+            return string.Join("\n", lines.ToArray());
+        }
+
+        private string BuildAbhartachHeavyDescription()
+        {
+            List<string> lines = new List<string>
+            {
+                "Corpses: Drain a nearby corpse continuously to heal yourself."
+            };
+            bool scalesHealing =
+                _abhartachScaleHeldCorpseHealing != null && _abhartachScaleHeldCorpseHealing.Value;
+            bool scalesSearch =
+                _abhartachScaleCorpseSearchRange != null && _abhartachScaleCorpseSearchRange.Value;
+            bool scalesQuality = scalesHealing &&
+                _corpseQualityScaleAbhartachEffects != null &&
+                _corpseQualityScaleAbhartachEffects.Value;
+            if (scalesHealing && scalesSearch && scalesQuality)
+            {
+                lines.Add("Blood Essence and corpse quality improve healing; Blood Essence also extends corpse search.");
+            }
+            else
+            {
+                if (scalesHealing)
+                {
+                    lines.Add(scalesQuality
+                        ? "Blood Essence and corpse quality improve healing."
+                        : "Blood Essence improves healing.");
+                }
+                if (scalesSearch)
+                {
+                    lines.Add("Blood Essence: Extends corpse search.");
+                }
+            }
+
+            return string.Join("\n", lines.ToArray());
+        }
+
+        private static string JoinTooltipFeatures(List<string> features)
+        {
+            if (features == null || features.Count == 0)
+            {
+                return string.Empty;
+            }
+            if (features.Count == 1)
+            {
+                return features[0];
+            }
+            if (features.Count == 2)
+            {
+                return features[0] + " and " + features[1];
+            }
+
+            StringBuilder builder = new StringBuilder();
+            for (int index = 0; index < features.Count; index++)
+            {
+                if (index > 0)
+                {
+                    builder.Append(index == features.Count - 1 ? ", and " : ", ");
+                }
+                builder.Append(features[index]);
+            }
+            return builder.ToString();
+        }
+
         private bool IsBleedBuildupStatus(object statusTemplate)
         {
             if (statusTemplate == null)
@@ -7792,26 +8233,15 @@ namespace BloodMagicExpansion
 
         private float GetBloodMagicGrowthMultiplier(CurvePoint[] curve)
         {
-            float growthValue = GetBloodMagicGrowthValue();
+            float growthValue = GetBloodPower();
             if (growthValue <= 0f)
             {
                 return 1f;
             }
 
-            float curveGrowthValue = _bloodMagicGrowthSource == null
-                || _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.BloodPower
-                    ? Math.Min(growthValue, NormalMaximumBloodPower)
-                    : growthValue;
+            float curveGrowthValue = Math.Min(growthValue, NormalMaximumBloodPower);
             float bonusPercent = EvaluateCurve(curve, curveGrowthValue, 0f);
             return 1f + (Math.Max(0f, bonusPercent) / 100f);
-        }
-
-        private float GetBloodMagicGrowthValue()
-        {
-            return _bloodMagicGrowthSource != null
-                && _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.Spirituality
-                    ? GetCachedHeroSpiritualityValue()
-                    : GetBloodPower();
         }
 
         private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier)
@@ -7822,15 +8252,11 @@ namespace BloodMagicExpansion
         private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier, float maximum)
         {
             float value = Math.Max(0f, presetBase) * Math.Max(0f, growthMultiplier);
-            if (_bloodMagicGrowthSource == null
-                || _bloodMagicGrowthSource.Value == BloodMagicGrowthSource.BloodPower)
-            {
-                float power = GetBloodPower();
-                float unlock = Mathf.Clamp01(power / NormalMaximumBloodPower);
-                value = 1.0f + ((value - 1.0f) * unlock);
-                value = 1.0f
-                    + ((value - 1.0f) * (1.0f + GetBloodPowerOvermasteryBonusFraction(power)));
-            }
+            float power = GetBloodPower();
+            float unlock = Mathf.Clamp01(power / NormalMaximumBloodPower);
+            value = 1.0f + ((value - 1.0f) * unlock);
+            value = 1.0f
+                + ((value - 1.0f) * (1.0f + GetBloodPowerOvermasteryBonusFraction(power)));
             return Mathf.Clamp(value, 0f, Math.Max(0f, maximum));
         }
 
@@ -11159,224 +11585,6 @@ namespace BloodMagicExpansion
             return _cachedBleedStatusTerms;
         }
 
-        private string[] GetSpiritualityStatTerms()
-        {
-            string raw = _bloodSpellSpiritualityStatTerms == null ? "" : (_bloodSpellSpiritualityStatTerms.Value ?? "");
-            if (raw != _cachedSpiritualityTermsRaw)
-            {
-                _cachedSpiritualityTermsRaw = raw;
-                _cachedSpiritualityTerms = SplitTerms(raw);
-                _nextHeroSpiritualityRefreshTime = 0f;
-            }
-
-            return _cachedSpiritualityTerms;
-        }
-
-        private float GetCachedHeroSpiritualityValue()
-        {
-            float now = Now;
-            if (now < _nextHeroSpiritualityRefreshTime)
-            {
-                return _cachedHeroSpiritualityValue;
-            }
-
-            _nextHeroSpiritualityRefreshTime = now + 1f;
-            float value;
-            _cachedHeroSpiritualityValue = TryResolveHeroSpiritualityValue(out value) ? Math.Max(0f, value) : 0f;
-            return _cachedHeroSpiritualityValue;
-        }
-
-        private bool TryResolveHeroSpiritualityValue(out float value)
-        {
-            value = 0f;
-            object hero = GetHero();
-            if (hero == null)
-            {
-                return false;
-            }
-
-            string[] terms = GetSpiritualityStatTerms();
-            if (terms.Length == 0)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < terms.Length; i++)
-            {
-                object direct = GetMemberValue(hero, terms[i]);
-                float directValue = ReadStatValue(direct);
-                if (directValue >= 0f)
-                {
-                    value = directValue;
-                    return true;
-                }
-            }
-
-            HashSet<object> seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
-            return TryFindNamedStatValue(hero, terms, 0, seen, out value);
-        }
-
-        private bool TryFindNamedStatValue(object obj, string[] terms, int depth, HashSet<object> seen, out float value)
-        {
-            value = 0f;
-            if (obj == null || terms == null || terms.Length == 0 || depth > 4 || IsSimpleStatSearchTerminal(obj))
-            {
-                return false;
-            }
-
-            if (seen.Contains(obj))
-            {
-                return false;
-            }
-            seen.Add(obj);
-
-            string matched;
-            if (ContainsAnyTerm(BuildObjectSearchText(obj), terms, out matched))
-            {
-                float direct = ReadStatValue(obj);
-                if (direct >= 0f)
-                {
-                    value = direct;
-                    return true;
-                }
-            }
-
-            IEnumerable enumerable = obj as IEnumerable;
-            if (enumerable != null && !(obj is string) && depth > 0)
-            {
-                int checkedItems = 0;
-                foreach (object item in enumerable)
-                {
-                    if (checkedItems++ >= 80)
-                    {
-                        break;
-                    }
-
-                    if (TryFindNamedStatValue(item, terms, depth + 1, seen, out value))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            Type type = obj.GetType();
-            MemberInfo[] members = type.GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < members.Length; i++)
-            {
-                MemberInfo member = members[i];
-                bool nameMatches = MemberNameMatchesAnyTerm(member.Name, terms);
-                if (!nameMatches && !MemberNameLooksLikeStatContainer(member.Name))
-                {
-                    continue;
-                }
-
-                object candidate = ReadStatSearchMember(obj, member);
-                if (candidate == null)
-                {
-                    continue;
-                }
-
-                if (nameMatches)
-                {
-                    float direct = ReadStatValue(candidate);
-                    if (direct >= 0f)
-                    {
-                        value = direct;
-                        return true;
-                    }
-                }
-
-                if (TryFindNamedStatValue(candidate, terms, depth + 1, seen, out value))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private object ReadStatSearchMember(object instance, MemberInfo member)
-        {
-            try
-            {
-                PropertyInfo property = member as PropertyInfo;
-                if (property != null)
-                {
-                    if (property.GetIndexParameters().Length != 0)
-                    {
-                        return null;
-                    }
-
-                    return property.GetValue(instance, null);
-                }
-
-                FieldInfo field = member as FieldInfo;
-                return field == null ? null : field.GetValue(instance);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private bool MemberNameMatchesAnyTerm(string name, string[] terms)
-        {
-            string normalizedName = NormalizeStatSearchKey(name);
-            for (int i = 0; i < terms.Length; i++)
-            {
-                string normalizedTerm = NormalizeStatSearchKey(terms[i]);
-                if (normalizedTerm.Length > 0 && normalizedName.IndexOf(normalizedTerm, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool MemberNameLooksLikeStatContainer(string name)
-        {
-            string normalized = NormalizeStatSearchKey(name);
-            return normalized.IndexOf("stat", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("attribute", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("rpg", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("proficien", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("development", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("skill", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalized.IndexOf("magic", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private string NormalizeStatSearchKey(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return "";
-            }
-
-            StringBuilder builder = new StringBuilder(value.Length);
-            for (int i = 0; i < value.Length; i++)
-            {
-                char c = value[i];
-                if (char.IsLetterOrDigit(c))
-                {
-                    builder.Append(char.ToLowerInvariant(c));
-                }
-            }
-
-            return builder.ToString();
-        }
-
-        private bool IsSimpleStatSearchTerminal(object obj)
-        {
-            if (obj == null || obj is string)
-            {
-                return true;
-            }
-
-            Type type = obj.GetType();
-            return type.IsPrimitive || type.IsEnum || type == typeof(decimal);
-        }
-
         private bool ContainsAnyTerm(string text, string[] terms, out string matched)
         {
             matched = "";
@@ -12207,12 +12415,6 @@ namespace BloodMagicExpansion
             BothHands
         }
 
-        private enum BloodMagicGrowthSource
-        {
-            BloodPower,
-            Spirituality
-        }
-
         private enum BloodSpellInnerLightCastBoostEvent
         {
             Started,
@@ -12504,6 +12706,30 @@ namespace BloodMagicExpansion
             }
 
             return codes;
+        }
+
+        private static class ItemStatsInitializePatch
+        {
+            public static void Postfix(ItemStats __instance)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.OnItemStatsInitialize(__instance);
+                }
+            }
+        }
+
+        private static class MagicDescriptionPatch
+        {
+            public static bool Prefix(
+                MagicItemTemplateInfo __instance,
+                ref string __result)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                return plugin == null ||
+                    plugin.BeforeGetMagicDescription(__instance, ref __result);
+            }
         }
 
         private static class DeathEventsPatch

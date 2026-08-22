@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v9
-Version: 2.8.7
+Version: 2.9.4
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -41,6 +41,7 @@ BloodMage.dll beside BloodMagicExpansion.dll.
 Kill a blood-plausible enemy
 Drain the corpse with Blood/Life Transfusion
 Gain corpse XP and immediate healing
+Replace the drained body through the game's native corpse cleanup
 Higher-quality corpses improve healing and Abhartach effects
 Completed corpse rituals build the player-facing Blood Essence statistic
 An internal power curve unlocks Blood/Life and Abhartach bonuses from zero
@@ -52,6 +53,12 @@ Hear a short randomized FMOD ritual sound on successful corpse drains
 Corpse XP comes from the enemy's vanilla effective kill XP, including the
 lower-level enemy XP falloff. Corpse quality can scale healing and Abhartach
 effects, but character XP is not multiplied again.
+
+`SimplifyDrainedCorpses = true` is enabled by default. After a corpse ritual
+fully completes, the game replaces a body that still has visible loot with its
+lightweight loot pile and removes an empty body. Unsupported scripted corpses
+remain intact. Disable this setting to leave every successfully drained body in
+place as a spent corpse.
 
 ## Presets
 
@@ -109,6 +116,11 @@ tap projectile healing:
 HeldHealingMultiplier = 2
 ```
 
+The light- and heavy-cast tooltips for Blood Transfusion, Life Transfusion, and
+Abhartach's Calling summarize their active BME behavior. They adapt to the
+reward, hand-requirement, tuning, and corpse-quality settings while leaving the
+game's normal cost and calculated-effect fields intact.
+
 ## Blood Essence Progression
 
 Every successfully completed corpse ritual awards an integer amount from the
@@ -144,9 +156,6 @@ Blood Essence is the uncapped earned progression statistic. Blood Power is its
 derived 0-200 rating, shown by supported Deeds versions and used to scale spells
 and the inner light.
 
-`GrowthSource = Spirituality` explicitly restores the legacy live-stat growth
-model. It is never selected automatically when Deeds of Avalon is absent.
-
 ## Configuration
 
 Start the game once to generate:
@@ -169,11 +178,12 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 20 because the former shared
-projectile/radius/Bleed/tap growth curve was replaced by independent curves.
-If the schema marker is missing or outdated, the old config
-is backed up beside the active file and fresh defaults are generated. Compatible
-customized settings remain eligible for conservative recovery.
+The current config uses ConfigSchemaVersion 21 because the obsolete GrowthSource
+and SpiritualityStatTerms settings were removed. Blood Essence is now the sole
+spell-growth progression source, with Blood Power retained as its derived
+0-200 gameplay rating. If the schema marker is missing or outdated, the old
+config is backed up beside the active file and fresh defaults are generated.
+Compatible customized settings remain eligible for conservative recovery.
 
 Diagnostics can temporarily test a specific effective Essence value without
 overwriting the saved progression:
@@ -315,10 +325,16 @@ Quality >0.75  -> max    / Prime
 ```text
 PlayCorpseLeechSound = true
 CorpseLeechSoundVolume = 0.85
+CorpseLeechSoundRangeVolume = 1.0
 AvoidRecentCorpseLeechRepeats = true
 RecentCorpseLeechSoundMemory = 2
 CorpseLeechRandomPitchSemitones = 0.20
 ```
+
+CorpseLeechSoundRangeVolume controls a simple distance fade while keeping ritual
+audio two-dimensional. At the default 1.0, volume falls from 100% at the corpse
+to 10% at 30 meters or farther. Set it to 0 to disable distance fading. Missing
+position data safely uses full volume.
 
 ## Corpse Quality
 

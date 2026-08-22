@@ -15,6 +15,7 @@ What began as the simple fantasy of siphoning forbidden power from corpses has g
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
+[*][b]Native corpse cleanup:[/b] Successfully drained bodies simplify by default after all rewards complete. Bodies with visible loot become the game's lightweight loot piles, empty bodies are removed, and unsupported scripted corpses remain intact.[/*]
 [*][b]Optional Wyrdnight consequence:[/b] With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] installed, successful exposed-Wyrdnight rituals add 4-to-12 Wyrd Threat according to corpse quality.[/*]
 [*][b]Blood Essence progression:[/b] Every completed ritual grants uncapped, save-specific Blood Essence from its quality tier. The established mastery curve gives a moderate early bonus and reaches Power 100 at 1,000 Essence, then a clear linear overmastery track reaches Power 200 at 5,000 Essence.[/*]
 [*][b]Restrained progression:[/b] Gain vanilla-scaled corpse XP and small capped live-drain ticks without turning blood magic into an unlimited leveling engine.[/*]
@@ -68,7 +69,7 @@ Every successfully completed corpse ritual awards a fixed amount from its qualit
 
 Blood Essence is never capped. The established mastery curve gives a moderate early advantage, grants Blood Power 100 and full intended scaling at 1,000 Essence, then transitions to linear overmastery where every additional 40 Essence grants one Power until the hard cap of 200 at 5,000 Essence. Power 200 doubles each fully unlocked gameplay bonus portion. Successful rituals continue adding and displaying Blood Essence beyond 5,000 even though Blood Power cannot rise further.
 
-At Blood Power 0, preset Blood/Life and Abhartach tuning contributes exactly no bonus. At Power 100, the system reaches its intended full preset and growth-curve balance. Deeds of Avalon is optional and never owns the gameplay progression. [b]GrowthSource = Spirituality[/b] remains available only as an explicit legacy choice.
+At Blood Power 0, preset Blood/Life and Abhartach tuning contributes exactly no bonus. At Power 100, the system reaches its intended full preset and growth-curve balance. Blood Essence is the sole spell-growth progression source, with Blood Power retained as its derived gameplay rating. Deeds of Avalon is optional and never owns the gameplay progression.
 
 [line]
 
@@ -79,11 +80,14 @@ Start the game once to generate:
 
 [code]
 PreloadBleedSkillGraphs = true
+SimplifyDrainedCorpses = true
 [/code]
 
 The Bleed preloader loads its dependency and parent graph on consecutive gameplay-loading frames and retains the parent for the active gameplay domain. It uses no Harmony patches and can be disabled independently from all Blood Magic Expansion gameplay features.
 
-Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. Most users should only touch [b]PlayCorpseLeechSound[/b] or [b]CorpseLeechSoundVolume[/b].
+[b]SimplifyDrainedCorpses[/b] uses the game's native corpse cleanup only after a ritual has fully completed. Disable it to leave successfully drained bodies in place as spent corpses.
+
+Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. The two-dimensional ritual cue now follows corpse distance through the same configurable curve as Killing Blow Mastery: 100% volume at the corpse, fading to 10% at 30 meters or farther. Set [b]CorpseLeechSoundRangeVolume[/b] to 0 to disable the fade. Missing position data safely uses full volume.
 
 When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.1.2+ is installed, each completed corpse message safely shows both committed rewards on one line, such as [b]+40 XP | +5 Blood Essence[/b]. GFT 2.4.4+ also gives that line the matching Meager, Worthy, Potent, or Prime corpse icon. If XP cannot be awarded, the pending line is canceled and saved progression is restored. Corpse rewards are never consolidated, so every line reports one ritual's exact XP and Essence. Older GFT versions safely fall back to generic XP text for corpse rituals. GFT 1.9.0+ still consolidates frequent live-drain XP ticks. GFT 2.4.6+ presents visible corpse-ritual, Blood/Life Transfusion, and Abhartach healing through its configurable Red group with the Blood Magic icon, in batches that never merge into ordinary green healing. Correlated held-channel healing ticks remain quiet by default without hiding potions or unrelated immediate healing. Blood Magic XP never merges with another source. XP still uses the normal character XP stat path, so multipliers and level-up behavior are unchanged. Optional diagnostic text defaults on but remains inactive until the matching corpse-rejection, corpse-quality, or inner-light log option is enabled, and shows only low-priority state-change summaries in one collapsed lane.
 

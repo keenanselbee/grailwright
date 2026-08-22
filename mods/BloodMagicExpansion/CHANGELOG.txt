@@ -1,3 +1,18 @@
+Version 2.9.4
+Replaced the native Blood Transfusion, Life Transfusion, and Abhartach's Calling descriptions with concise, config-aware light- and heavy-cast tooltips covering corpse rituals, live-drain XP, dual-hand payout, spell growth from player-facing Blood Essence, and corpse-quality scaling.
+Made Blood/Life tooltips omit homing-search details and suppress XP, healing, corpse-quality, and Blood Essence claims whenever their configured reward paths are disabled.
+Removed the explicit legacy Spirituality growth source and its reflective stat-matching path, making Blood Essence the sole spell-growth progression source while retaining Blood Power as its derived gameplay rating.
+Advanced ConfigSchemaVersion from 20 to 21 because GrowthSource and SpiritualityStatTerms were removed; the previous config is backed up and compatible durable settings remain eligible for conservative recovery.
+
+Version 2.8.9
+Added configurable corpse-distance volume fading for completed ritual sounds, matching Killing Blow Mastery's 100% at 0 meters to 10% at 30 meters curve.
+Kept the sounds two-dimensional, preserved authored tier loudness, and safely use full volume when either position is unavailable.
+Added the compatible CorpseLeechSoundRangeVolume setting without changing the config schema.
+
+Version 2.8.8
+Added enabled-by-default native cleanup for successfully drained corpses: bodies with visible loot become lightweight loot piles, empty bodies are removed, and unsupported scripted corpses remain intact.
+Kept corpse replacement strictly after the ritual's healing, XP, Blood Essence, audio, and integration work has completed.
+
 Version 2.8.7
 Kept Abhartach Bleed-duration scaling independent from the separate explosion Bleed-buildup toggle.
 Reused each buildup application's Bleed classification instead of repeating its reflective name scan.

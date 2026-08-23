@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.3.0
+Battlecry Voice Tuner 1.3.1
 ===========================
 
 Platforms: Windows and Linux through Proton.

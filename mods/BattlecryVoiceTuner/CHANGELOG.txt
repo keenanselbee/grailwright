@@ -1,3 +1,7 @@
+Version 1.3.1
+Republished the 1.3.0 feature set under a new package version so Nexus and Vortex can reference the same immutable release payload.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because this release changes no behavior, public contract, setting, or default.
+
 Version 1.3.0
 Added explicit migration guidance for custom battlecry files from the retired gender subfolders into the canonical flat 1.2.9 layout.
 Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because this packaging clarification changes no behavior or stored setting.

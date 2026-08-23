@@ -1,3 +1,8 @@
+Version 2.6.3
+Added ShowModDiagnosticMessages as one global GFT config switch for silencing in-game diagnostic messages from every integrated mod without disabling their detailed BepInEx logs or individual diagnostic settings.
+Recognizes the shared Debug category, style, icon, and diagnostic event conventions plus the established Versatile Weapons, All Lights Cast Shadows, and Global Illumination diagnostic lanes.
+Kept ConfigSchemaVersion at 29 because the new setting is additive and receives its current default through Config.Bind.
+
 Version 2.6.2
 Added a configurable Necrotic color group with the default #25B792 for necromancy, Soul and Service messages, and compatible statistics panels.
 Kept the Green group focused on nature, poison, and restorative events.

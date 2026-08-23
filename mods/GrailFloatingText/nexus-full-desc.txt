@@ -119,7 +119,7 @@ Configure Grail Floating Text through FoA Mod Manager or:
 BepInEx/config/ks.tgfoa.grail-floating-text.cfg
 [/code]
 
-Settings cover overlay position and scale, timing and animation, icons, event notifications, consumable names and optional descriptions, Potion Poisoning activation, periodic-healing inclusion and consolidation, XP takeover, colors, and per-source controls. The installed config includes every current default and a description of each setting.
+Settings cover overlay position and scale, timing and animation, icons, event notifications, consumable names and optional descriptions, Potion Poisoning activation, periodic-healing inclusion and consolidation, XP takeover, colors, and per-source controls. [b]ShowModDiagnosticMessages[/b] is one global switch for silencing in-game diagnostic messages from every integrated mod without disabling their detailed BepInEx logs or individual diagnostic settings. The installed config includes every current default and a description of each setting.
 
 Most features are enabled by default. Full consumable descriptions, periodic healing, block, weak-spot, sneak-attack, Wyrd skill-toggle, and debug notices start disabled to avoid extra HUD noise.
 

@@ -1,6 +1,4 @@
-TargetVersion=2.6.2
-BaselineVersion=2.5.7
-Added the built-in necro icon for Soul and Service progression and soul-magic notifications.
-Changed the Blue color-group default from #9EC1FF to #8496FF.
-Added a configurable Necrotic color group with the default #25B792 for necromancy and soul-magic integrations.
-Kept Green focused on nature, poison, and restorative events.
+TargetVersion=2.6.3
+BaselineVersion=2.6.2
+
+Added ShowModDiagnosticMessages as one global GFT config switch for silencing in-game diagnostic messages from every integrated mod without disabling their detailed BepInEx logs or individual diagnostic settings.

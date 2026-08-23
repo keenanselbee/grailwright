@@ -46,9 +46,9 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Shared floating text overlay any Tainted Grail mod author can use")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Grail Floating Text")]
-[assembly: AssemblyVersion("2.6.2.0")]
-[assembly: AssemblyFileVersion("2.6.2.0")]
-[assembly: AssemblyInformationalVersion("2.6.2")]
+[assembly: AssemblyVersion("2.6.3.0")]
+[assembly: AssemblyFileVersion("2.6.3.0")]
+[assembly: AssemblyInformationalVersion("2.6.3")]
 
 namespace GrailFloatingText
 {
@@ -276,7 +276,7 @@ namespace GrailFloatingText
     {
         public const string PluginGuid = "ks.tgfoa.grail-floating-text";
         public const string PluginName = "Grail Floating Text";
-        public const string PluginVersion = "2.6.2";
+        public const string PluginVersion = "2.6.3";
 
         private const string WyrdHuntAddonPluginGuid = "ks.tgfoa.wyrd-hunt-addon";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -331,6 +331,12 @@ namespace GrailFloatingText
         private const string LoadTimeErrorEventId = "load-time-error";
         private const string ModCompatibilityEventIdPrefix =
             "mod-compatibility-";
+        private const string VersatileWeaponsPluginGuid =
+            "ks.tgfoa.versatile-weapons";
+        private const string AllLightsCastShadowsAddonPluginGuid =
+            "ks.tgfoa.tg-all-lights-cast-shadows-addon";
+        private const string GlobalIlluminationAddonPluginGuid =
+            "ks.tgfoa.tg-global-illumination-addon";
         private const int PriorityLow = 0;
         private const int PriorityNormal = 100;
         private const int PriorityHigh = 200;
@@ -495,6 +501,7 @@ namespace GrailFloatingText
         private ConfigEntry<float> _defaultSourceDurationMultiplier;
         private ConfigEntry<bool> _notifyModCompatibility;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _showModDiagnosticMessages;
         private ConfigEntry<bool> _notifyRestDuration;
         private ConfigEntry<bool> _notifyInterruptedRestDuration;
         private ConfigEntry<string> _restDurationTextFormat;
@@ -3597,6 +3604,16 @@ namespace GrailFloatingText
             {
                 return false;
             }
+            if (ShouldSuppressModDiagnosticMessage(
+                normalizedSourceId,
+                eventId,
+                style,
+                normalizedCategory,
+                collapseKey,
+                iconId))
+            {
+                return false;
+            }
 
             SourceSettings sourceSettings = GetSourceSettings(normalizedSourceId);
             if (!IsSourceEnabled(sourceSettings))
@@ -3839,6 +3856,16 @@ namespace GrailFloatingText
             string normalizedSourceId = NormalizeSourceId(sourceId);
             string normalizedCategory = NormalizeCategory(category);
             if (!IsCategoryEnabled(normalizedCategory))
+            {
+                return false;
+            }
+            if (ShouldSuppressModDiagnosticMessage(
+                normalizedSourceId,
+                eventId,
+                style,
+                normalizedCategory,
+                collapseKey,
+                iconId))
             {
                 return false;
             }
@@ -4409,6 +4436,61 @@ namespace GrailFloatingText
             }
 
             return true;
+        }
+
+        private bool ShouldSuppressModDiagnosticMessage(
+            string sourceId,
+            string eventId,
+            string style,
+            string category,
+            string collapseKey,
+            string iconId)
+        {
+            return _showModDiagnosticMessages != null
+                && !_showModDiagnosticMessages.Value
+                && IsModDiagnosticMessage(
+                    sourceId,
+                    eventId,
+                    style,
+                    category,
+                    collapseKey,
+                    iconId);
+        }
+
+        private static bool IsModDiagnosticMessage(
+            string sourceId,
+            string eventId,
+            string style,
+            string category,
+            string collapseKey,
+            string iconId)
+        {
+            string normalizedEventId = NormalizeEventId(eventId);
+            string normalizedCollapseKey = NormalizeEventId(collapseKey);
+            string normalizedIconId = NormalizeEventId(iconId);
+            if (string.Equals(category, "Debug", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(style, "Debug", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalizedIconId, "debug", StringComparison.OrdinalIgnoreCase)
+                || normalizedEventId.IndexOf("diagnostic", StringComparison.OrdinalIgnoreCase) >= 0
+                || normalizedCollapseKey.IndexOf("diagnostic", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (string.Equals(sourceId, VersatileWeaponsPluginGuid, StringComparison.OrdinalIgnoreCase)
+                && normalizedCollapseKey.StartsWith("vw-", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(sourceId, AllLightsCastShadowsAddonPluginGuid, StringComparison.OrdinalIgnoreCase)
+                && normalizedCollapseKey.StartsWith("shadow-", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return string.Equals(sourceId, GlobalIlluminationAddonPluginGuid, StringComparison.OrdinalIgnoreCase)
+                && EventIdEquals(normalizedEventId, "gi-adaptive-tier");
         }
 
         private SourceSettings GetSourceSettings(string sourceId)
@@ -5851,6 +5933,11 @@ namespace GrailFloatingText
             _notifyWyrdSkillToggle = BindOrdered("Default Game Events", "NotifyWyrdSkillToggle", false, "Show Wyrd Skill active/ended messages when the Wyrd skill is toggled.");
             _vanillaWyrdEventCooldownSeconds = BindOrdered("Default Game Events", "VanillaWyrdEventCooldownSeconds", 0.75f, new ConfigDescription("Minimum seconds between repeated vanilla Wyrd messages of the same type.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
+            _showModDiagnosticMessages = BindOrdered(
+                "Diagnostics",
+                "ShowModDiagnosticMessages",
+                true,
+                "Allow in-game diagnostic messages submitted by mods. Disable this to silence them globally without changing each mod's detailed BepInEx logging or diagnostic settings.");
             _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log accepted floating text entries.");
 
             BindColorGroups();

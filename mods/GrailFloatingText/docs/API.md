@@ -536,6 +536,12 @@ Recommended values:
 - `textFormat`: consolidated XP text containing `{xp}` or `{amount}`, such as `+{xp} XP (Worthy)`.
 - `expectedAmount`: the XP amount your mod is about to add. Grail Floating Text matches exact amounts first, then very recent claims so game XP multipliers can still display the final adjusted amount.
 
+For optional in-game diagnostics, use the `Debug` category, `Debug` style,
+`debug` icon, or include `diagnostic` in the stable event or collapse key. GFT's
+`ShowModDiagnosticMessages` setting recognizes those markers and lets the player
+silence diagnostic messages globally without disabling detailed BepInEx logs or
+the originating mod's own diagnostic settings.
+
 Built-in icon IDs:
 
 - Core: `general`, `system`, `status`, `wyrd`, `reward`, `combat`, `warning`, `critical`, `debug`.

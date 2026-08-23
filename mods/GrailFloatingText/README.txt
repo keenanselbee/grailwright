@@ -1,5 +1,5 @@
 Grail Floating Text
-Version 2.6.2
+Version 2.6.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -122,6 +122,7 @@ DebugEnabled = false
 PerSourceControlsEnabled = true
 DefaultThrottleSeconds = 0.05
 DefaultDurationMultiplier = 1
+ShowModDiagnosticMessages = true
 Diagnostics = false
 NotifyRestDuration = true
 NotifyInterruptedRestDuration = true
@@ -227,6 +228,13 @@ DefaultIconColor =
 For example, PurpleIconColor = #FFD0FF keeps Purple-group text at PurpleColor
 while tinting its foreground icons separately. Wyrd aliases use the Purple
 override. Invalid values safely inherit the text color and log one warning.
+
+ShowModDiagnosticMessages is the global in-game gate for diagnostic messages
+submitted by every integrated mod. Disable it to silence those GFT messages
+without turning off the mods' detailed BepInEx logs or changing their own
+Diagnostics settings. Author integrations should mark diagnostic messages with
+the Debug category, Debug style, debug icon, or a stable event/collapse key
+containing "diagnostic" so this global setting can identify them.
 
 Compatibility detection:
 

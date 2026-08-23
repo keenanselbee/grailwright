@@ -350,4 +350,99 @@ if ($source -notmatch 'UpdateOffHandTwoHandedPresentation' -or
     throw "An offhand weapon in two-handed grip must move only its loaded view to the main-hand socket and restore that view to the offhand socket afterward."
 }
 
+$unsheatheDiagnostic = [regex]::Match(
+    $source,
+    '(?s)internal void BeginUnsheatheAudioDiagnostic\(.+?(?=\r?\n        internal static void EndUnsheatheAudioDiagnostic)'
+).Value
+$unsheathePatch = [regex]::Match(
+    $source,
+    '(?s)class EquipWeaponUnsheatheAudioDiagnosticPatch.+?(?=\r?\n    \[HarmonyPatch\])'
+).Value
+$fmodDiagnostic = [regex]::Match(
+    $source,
+    '(?s)internal void RecordFmodTransitionAudioDiagnostic\(.+?(?=\r?\n        private )'
+).Value
+$soulRendAudioDiagnostic = [regex]::Match(
+    $source,
+    '(?s)internal void RecordSoulRendAudioLifecycleDiagnostic\(.+?(?=\r?\n        private )'
+).Value
+if ($unsheatheDiagnostic -notmatch '_diagnostics == null \|\| !_diagnostics\.Value' -or
+    $unsheatheDiagnostic -notmatch 'sourceFsm\.MainHandItem' -or
+    $unsheatheDiagnostic -notmatch 'IsMainHandSuppressed\(\)' -or
+    $unsheatheDiagnostic -notmatch 'IsOffHandSuppressed\(\)' -or
+    $unsheatheDiagnostic -notmatch '_equipFsmResetStage' -or
+    $unsheatheDiagnostic -notmatch '_weaponTransitionGeneration' -or
+    $fmodDiagnostic -notmatch '_audioDiagnosticTransitionUntil >= Time\.unscaledTime' -or
+    $fmodDiagnostic -notmatch 'eventReference\.PathOrGuid' -or
+    $fmodDiagnostic -notmatch 'unsheatheSourceFsm=' -or
+    $fmodDiagnostic -notmatch 'heroAttached=' -or
+    $unsheathePatch -notmatch 'typeof\(EquipWeaponBase<HeroAnimatorSubstateMachine>\)' -or
+    $unsheathePatch -notmatch '"PlayUnsheatheAudio"' -or
+    $unsheathePatch -notmatch 'private static void Prefix' -or
+    $unsheathePatch -notmatch 'private static void Postfix' -or
+    $unsheathePatch -match 'return false|____unsheatheSoundPlayed|__result' -or
+    $source -notmatch 'class FmodAttachedOneShotDiagnosticPatch' -or
+    $source -notmatch 'class FmodOneShotDiagnosticPatch' -or
+    $source -notmatch 'AudioDiagnosticTransitionWindowSeconds = 4\.0f' -or
+    $source -notmatch 'SuspectedSoulRendWhisperEvent' -or
+    $soulRendAudioDiagnostic -notmatch 'System\.Diagnostics\.StackTrace' -or
+    $soulRendAudioDiagnostic -notmatch 'currentOffHand=' -or
+    $soulRendAudioDiagnostic -notmatch 'offSuppressed=' -or
+    $source -notmatch 'class CharacterMagicIdleAudioDiagnosticPatch' -or
+    $source -notmatch '"PlayIdleAudioEvent"' -or
+    $source -notmatch 'class CharacterHandAudioDiagnosticPatch' -or
+    $source -notmatch 'class HeroControllerAudioDiagnosticPatch' -or
+    $readme -notmatch 'every game equip-state request for an\s+unsheathe sound') {
+    throw "Transition audio diagnostics must correlate exact unsheathe requests with actual FMOD events during a bounded window."
+}
+
+$weaponAudioBegin = [regex]::Match(
+    $source,
+    '(?s)internal void BeginWeaponAudioTransition\(.+?(?=\r?\n        internal bool ShouldAllowWeaponToggleAudio)'
+).Value
+$weaponAudioFilter = [regex]::Match(
+    $source,
+    '(?s)internal bool ShouldAllowWeaponToggleAudio\(.+?(?=\r?\n        private void LateUpdate)'
+).Value
+$weaponAudioFinalize = [regex]::Match(
+    $source,
+    '(?s)private void FinalizeWeaponAudioTransition\(.+?(?=\r?\n        private void PlayManagedWeaponToggleAudio)'
+).Value
+$loadoutAudioPatch = [regex]::Match(
+    $source,
+    '(?s)class HeroLoadoutActivateWeaponAudioPatch.+?(?=\r?\n    \[HarmonyPatch\])'
+).Value
+$slotAudioPatch = [regex]::Match(
+    $source,
+    '(?s)class HeroLoadoutEquipItemWeaponAudioPatch.+?(?=\r?\n    \[HarmonyPatch\])'
+).Value
+$toggleAudioPatch = [regex]::Match(
+    $source,
+    '(?s)class ItemEquipToggleWeaponAudioPatch.+?(?=\r?\n    \[HarmonyPatch\])'
+).Value
+if ($weaponAudioBegin -notmatch 'CollectWeaponAudioState' -or
+    $weaponAudioBegin -notmatch '_weaponAudioPreviousParticipants' -or
+    $weaponAudioBegin -notmatch 'hero\.MuteEquips' -or
+    $weaponAudioFilter -notmatch '_weaponAudioPlaybackBypass' -or
+    $weaponAudioFilter -notmatch '_weaponAudioTransitionActive' -or
+    $weaponAudioFilter -notmatch '_weaponAudioGuardUntil' -or
+    $weaponAudioFinalize -notmatch '!ContainsExact\(finalParticipants, previous\)' -or
+    $weaponAudioFinalize -notmatch '!ContainsExact\(\s*_weaponAudioPreviousAudible,\s*current\)' -or
+    $source -notmatch 'WeaponAudioSlotIsSuppressed' -or
+    $source -notmatch '_hiddenPairedHand\.Item' -or
+    $source -notmatch 'WeaponAudioStateIsSettled' -or
+    $source -notmatch 'Time\.timeScale <= 0\.0f' -or
+    $source -notmatch 'WeaponAudioStableFrames = 2' -or
+    $loadoutAudioPatch -notmatch 'nameof\(HeroLoadout\.Activate\)' -or
+    $slotAudioPatch -notmatch '__instance\.IsEquipped' -or
+    $slotAudioPatch -notmatch 'EquipmentSlotType\.MainHand' -or
+    $slotAudioPatch -notmatch 'EquipmentSlotType\.OffHand' -or
+    $toggleAudioPatch -notmatch 'nameof\(ItemEquip\.PlayEquipToggleSound\)' -or
+    $toggleAudioPatch -notmatch 'ShouldAllowWeaponToggleAudio' -or
+    $readme -notmatch 'Only newly active hand items play equip audio' -or
+    $readme -notmatch 'VW-stowed paired items stay silent' -or
+    $readme -notmatch 'Glorious UI virtual loadouts') {
+    throw "Hero weapon-switch audio must settle exact native or virtual loadout hands, preserve only valid outgoing and incoming events, and exclude unchanged or VW-stowed participants."
+}
+
 Write-Host "Versatile Weapons pairing contracts passed."

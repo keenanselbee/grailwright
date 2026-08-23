@@ -1,5 +1,5 @@
 Versatile Weapons - Dynamic Grip
-Version 0.8.1
+Version 0.8.7
 
 Standalone dynamic weapon-grip mod for Tainted Grail: The Fall of Avalon.
 
@@ -193,6 +193,13 @@ without hiding or reloading either hand or animator controller. Shield and
 native one-handed equipment changes use the same settled equip barrier so both
 hands enter their equip animation together.
 
+Weapon-switch audio uses the same settled hand and remembered-grip result.
+Only newly active hand items play equip audio, genuinely removed active items
+retain their unequip audio, and unchanged or VW-stowed paired items stay silent.
+This applies to native loadouts and sequential active-slot changes such as
+Glorious UI virtual loadouts. Merely sheathing the player's active weapons is
+not treated as VW stowing and retains the game's normal audio behavior.
+
 If a drawn supported weapon remains hidden after an interrupted transition,
 the mod restores it after 1.5 seconds once weapon loading and Hero actions have
 settled. When newer equipment work cancels a VW grip restoration, the same
@@ -213,7 +220,18 @@ Set Enabled = true under Diagnostics and reproduce the transition before
 sharing the newest BepInEx log. Diagnostics record input claiming, hold
 completion, current grip, offhand pairing, perspective, weapon visibility,
 animator loading, controller selection, transition ownership, and settled
-equip-FSM stages. With Grail Floating Text installed,
+equip-FSM stages. They also record every game equip-state request for an
+unsheathe sound, including the source FSM and item, both current hands, hand
+suppression, the active loadout, and all relevant FSM states. For four seconds
+around an equipment transition they record actual FMOD one-shot event paths,
+attachment or debug objects, and correlation with an unsheathe request. These
+audio diagnostics report the resulting playback decisions. During the same bounded
+window, targeted Soul Rend audio diagnostics record
+the managed call chain for the suspected whisper event and every magic-hand
+idle-audio change, including the owning hand, visibility, and VW suppression
+state. This additional trace is also read-only.
+
+With Grail Floating Text installed,
 ShowGrailFloatingTextDiagnostics is the subordinate switch for every VW
 System summary. It defaults to true and remains inactive while Diagnostics is
 off.

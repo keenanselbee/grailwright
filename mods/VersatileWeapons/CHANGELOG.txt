@@ -1,3 +1,21 @@
+Version 0.8.7
+Kept the settled weapon-audio transaction silent whenever the game uses MuteEquips for restoration or special equipment work, and paused its timeout while gameplay time is stopped. These safeguards preserve vanilla muted transitions and prevent deferred equipment audio from completing in menus or while paused.
+
+Version 0.8.6
+Normalized hero weapon-switch audio after the exact hands and remembered grip settle. Incoming active weapons play their equip sound once, genuinely removed active weapons retain their unequip sound, unchanged items do not replay, and VW-stowed paired weapons or spells contribute no equip or unequip audio. The shared filter covers native loadout activation and sequential active-slot changes such as Glorious UI virtual loadouts without altering armor, NPC, inactive-loadout, draw-state, inventory, or animation behavior.
+
+Version 0.8.5
+Added Diagnostics-only call-chain and hand-lifecycle tracing for the suspected Soul Rend whisper event and every magic-hand idle-audio change during the existing four-second equipment-transition window. The trace records the owning hand, visibility, current-slot identity, and VW suppression state without changing playback.
+
+Version 0.8.4
+Replaced the ineffective settled-reset audio suppression with Diagnostics-only tracing of actual FMOD one-shot event paths, attachment and debug objects, transition timing, and unsheathe-state correlation for four seconds around equipment changes. Audio playback is no longer altered.
+
+Version 0.8.3
+Suppressed the duplicate main-hand weapon draw sound requested by MagicOffHandFSM only during Versatile Weapons' settled synthetic FSM reset, where the active melee FSM already owns the legitimate draw sound. The skipped state's one-shot flag is completed so it cannot retry every frame; normal draws, two-handed weapon audio, and non-VW equipment transitions remain unchanged.
+
+Version 0.8.2
+Added Diagnostics-only observation of the game's exact unsheathe-audio request, including its source FSM and item, both current hands, suppression state, loadout, transition stages, and relevant FSM states. This probe does not suppress or alter audio.
+
 Version 0.8.1
 Moved a left-hand greatweapon's loaded weapon view to the right-hand socket while it uses two-handed grip, then restored the view to the left-hand socket in one-handed grip. The equipment remains logically in its original slot, so loadout ownership and item state do not change.
 

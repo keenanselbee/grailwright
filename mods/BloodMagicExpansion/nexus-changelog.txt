@@ -1,6 +1,9 @@
-TargetVersion=3.0.8
+TargetVersion=3.1.1
 BaselineVersion=2.9.4
 
+Fixed raised-servant corpse ownership recognition so eligible, spent, and bloodless blocked reticles remain reliable.
+Added lightweight, obstruction-aware servant aim tolerance and shared one targeting snapshot across reticle state, quality, and tier queries.
+Allowed light Abhartach's Calling to sacrifice only the explicitly targeted eligible owned flesh servant through its native corpse explosion, with no progression or loot duplication; heavy Abhartach remains corpse-only.
 Persisted each drained body's exact 20-30% reanimation penalty across save and reload without adding runtime scans.
 Revalidated owned servants before committing healing, XP, or Blood Essence rewards.
 Fixed corpse targeting and Dishonored corpse-reticle feedback while using True Third Person.

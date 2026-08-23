@@ -27,6 +27,11 @@ foreach ($required in @(
     'GetCorpseExsanguinationSeverityForInterop',
     'GetCorpseExsanguinationSeverity(object corpse)',
     'TryResolveOwnedBloodServant',
+    'ServantTargetToleranceRadius = 0.15f',
+    'ServantTargetGraceSeconds = 0.18f',
+    'Physics.SphereCastNonAlloc(',
+    'TryGetFocusedCorpseInteropSnapshot(',
+    'TryMaterializeOwnedBloodServantCorpseForAbhartach',
     'IsLiveServantRitualBlocked(state)',
     '"recognized; ritual blocked while hero is in combat"',
     '"recognized; source corpse already drained"',
@@ -43,6 +48,60 @@ foreach ($required in @(
     if (!$source.Contains($required)) {
         throw "Missing intact-corpse or exsanguination contract: $required"
     }
+}
+
+$constructedCorpseBlock = [regex]::Match(
+    $source,
+    '(?s)internal void HandleCorpseConstructed\(object corpse, object\[\] args\).+?(?=\r?\n\s*internal void HandleCorpseRestored)')
+if (!$constructedCorpseBlock.Success -or
+    !$constructedCorpseBlock.Value.Contains('GetOptionalPropertyValue(corpse, "ParentModel")') -or
+    !$constructedCorpseBlock.Value.Contains('RegisterCorpseAliases(parentModel, state);')) {
+    throw 'New corpses are not aliased to their owning Location for reanimated-servant targeting.'
+}
+
+$focusedStateBlock = [regex]::Match(
+    $source,
+    '(?s)internal int GetFocusedCorpseStateForInterop\(bool requireRelevantSpell\).+?(?=\r?\n\s*internal float GetFocusedCorpseQuality01ForInterop)')
+if (!$focusedStateBlock.Success -or
+    !$focusedStateBlock.Value.Contains('TryGetFocusedCorpseInteropSnapshot(') -or
+    !$focusedStateBlock.Value.Contains('state.LiveServantTarget != null && abhartachHeld') -or
+    !$focusedStateBlock.Value.Contains('abhartachEquipped && IsCorpseBloodMagicEligibleForInterop(state)') -or
+    !$focusedStateBlock.Value.Contains('!IsLiveServantRitualBlocked(state)')) {
+    throw 'Living-servant reticles do not distinguish light Abhartach availability from held or combat-blocked rituals.'
+}
+
+$tolerantTargetBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryResolveTolerantServantTarget\(.+?(?=\r?\n\s*private )')
+if (!$tolerantTargetBlock.Success -or
+    !$tolerantTargetBlock.Value.Contains('Physics.SphereCastNonAlloc(') -or
+    !$tolerantTargetBlock.Value.Contains('nearestBlockingDistance') -or
+    !$tolerantTargetBlock.Value.Contains('TryResolveSoulAndServiceServant(')) {
+    throw 'Living-servant targeting does not use the bounded, obstruction-aware tolerance probe.'
+}
+
+$interopSnapshotBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryGetFocusedCorpseInteropSnapshot\(.+?(?=\r?\n\s*internal float GetBloodEssenceForInterop)')
+if (!$interopSnapshotBlock.Success -or
+    !$interopSnapshotBlock.Value.Contains('Time.frameCount') -or
+    !$interopSnapshotBlock.Value.Contains('_focusedCorpseInteropSnapshotResolved')) {
+    throw 'Blood Magic reticle state, quality, and tier do not share one per-frame target snapshot.'
+}
+
+$abhartachSacrificeBlock = [regex]::Match(
+    $source,
+    '(?s)private void TrySacrificeFocusedServantForAbhartach\(\).+?(?=\r?\n\s*private )')
+$performCastBlock = [regex]::Match(
+    $source,
+    '(?s)internal void RegisterPerformCast\(object magicFsm, bool lightCast\).+?(?=\r?\n\s*internal void RegisterCastEnding)')
+if (!$abhartachSacrificeBlock.Success -or
+    !$abhartachSacrificeBlock.Value.Contains('TryGetLookedAtCorpseState(out state, true)') -or
+    !$abhartachSacrificeBlock.Value.Contains('state.LiveServantTarget') -or
+    !$abhartachSacrificeBlock.Value.Contains('state.Disabled = true;') -or
+    !$performCastBlock.Success -or
+    $performCastBlock.Value -notmatch '(?s)if \(isAbhartach\).*?if \(lightCast\).*?TrySacrificeFocusedServantForAbhartach\(\);') {
+    throw "Light Abhartach does not materialize only its explicitly focused owned servant before the native cast effect."
 }
 
 $restoredCorpseBlock = [regex]::Match(

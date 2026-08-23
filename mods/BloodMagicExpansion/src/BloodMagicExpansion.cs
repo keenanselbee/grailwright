@@ -30,8 +30,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("3.0.8.0")]
-[assembly: AssemblyFileVersion("3.0.8.0")]
+[assembly: AssemblyVersion("3.1.1.0")]
+[assembly: AssemblyFileVersion("3.1.1.0")]
 
 namespace BloodMagicExpansion
 {
@@ -54,7 +54,7 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "3.0.8";
+        public const string PluginVersion = "3.1.1";
         private const int ConfigSchemaVersion = 23;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -157,6 +157,9 @@ namespace BloodMagicExpansion
         private const string CorpseLeechMaxTier = "max";
         private const float CorpseLeechMaximumRangeDistance = 30.0f;
         private const float CorpseLeechMinimumRangeVolume = 0.10f;
+        private const float ServantTargetToleranceRadius = 0.15f;
+        private const float ServantTargetGraceSeconds = 0.18f;
+        private const int ServantTargetHitCapacity = 24;
         private const string CorpseQualityMeagerLabel = "Meager";
         private const string CorpseQualityWorthyLabel = "Worthy";
         private const string CorpseQualityPotentLabel = "Potent";
@@ -394,6 +397,10 @@ namespace BloodMagicExpansion
         private static BloodMagicBuildupApplicationContext _currentBloodMagicBuildupApplicationContext;
         private readonly HashSet<object> _loggedUnresolvedRaycastHits =
             new HashSet<object>(ReferenceEqualityComparer.Instance);
+        private readonly HashSet<object> _aliveStateProbeSeen =
+            new HashSet<object>(ReferenceEqualityComparer.Instance);
+        private readonly RaycastHit[] _servantTargetHits =
+            new RaycastHit[ServantTargetHitCapacity];
         private readonly Dictionary<(Type Type, string Name), MethodInfo> _getterCache =
             new Dictionary<(Type Type, string Name), MethodInfo>();
         private readonly Dictionary<(Type Type, string Name), MethodInfo> _setterCache =
@@ -404,6 +411,7 @@ namespace BloodMagicExpansion
         private MethodInfo _soulAndServiceResolveServantMethod;
         private MethodInfo _soulAndServiceExsanguinateServantMethod;
         private MethodInfo _soulAndServiceSetRitualStateMethod;
+        private MethodInfo _soulAndServiceMaterializeAbhartachCorpseMethod;
         private bool _soulAndServiceApiUnavailable;
         private readonly Dictionary<(Type Type, string Name), FieldInfo> _fieldCache =
             new Dictionary<(Type Type, string Name), FieldInfo>();
@@ -456,6 +464,12 @@ namespace BloodMagicExpansion
         private int _pendingLiveDrainHealingCount;
         private float _nextCacheCleanupTime;
         private CorpseState _focusedCorpse;
+        private CorpseState _recentServantTarget;
+        private float _recentServantTargetTime;
+        private int _focusedCorpseInteropSnapshotFrame = -1;
+        private CorpseState _focusedCorpseInteropSnapshotState;
+        private bool _focusedCorpseInteropSnapshotResolved;
+        private bool _focusedCorpseInteropSnapshotUnregisteredCandidate;
         private bool _loggedHealingResolution;
         private bool _heroGetterResolved;
         private bool _gameConstantsGetterResolved;
@@ -3845,9 +3859,13 @@ namespace BloodMagicExpansion
             UpdateCorpseStateFromSource(state, npc, null);
             UpdateCorpseStateFromSource(state, character, null);
             UpdateCorpseStateFromSource(state, corpse, null);
+            object parentModel = GetOptionalPropertyValue(corpse, "ParentModel")
+                ?? GetOptionalPropertyValue(corpse, "GenericParentModel");
+            UpdateCorpseStateFromSource(state, parentModel, null);
             RegisterCorpseAliases(corpse, state);
             RegisterCorpseAliases(npc, state);
             RegisterCorpseAliases(character, state);
+            RegisterCorpseAliases(parentModel, state);
 
             if (DiagnosticsEnabled())
             {
@@ -4151,10 +4169,9 @@ namespace BloodMagicExpansion
 
             CorpseState state;
             bool unregisteredCorpseCandidate;
-            if (!TryGetLookedAtCorpseState(
+            if (!TryGetFocusedCorpseInteropSnapshot(
                 out state,
-                out unregisteredCorpseCandidate,
-                true))
+                out unregisteredCorpseCandidate))
             {
                 return unregisteredCorpseCandidate
                     ? (int)BloodMagicFocusedCorpseState.Blocked
@@ -4182,7 +4199,7 @@ namespace BloodMagicExpansion
                 return (int)BloodMagicFocusedCorpseState.Blocked;
             }
 
-            if (IsLiveServantRitualBlocked(state))
+            if (state.LiveServantTarget != null && abhartachHeld)
             {
                 return (int)BloodMagicFocusedCorpseState.Blocked;
             }
@@ -4200,11 +4217,18 @@ namespace BloodMagicExpansion
 
             if (abhartachEquipped && IsCorpseBloodMagicEligibleForInterop(state))
             {
+                if (state.LiveServantTarget != null
+                    && _soulAndServiceMaterializeAbhartachCorpseMethod == null)
+                {
+                    return (int)BloodMagicFocusedCorpseState.Blocked;
+                }
                 RecordAbhartachCorpseQuality(state);
                 return (int)BloodMagicFocusedCorpseState.Usable;
             }
 
-            if (bloodTransfusionEquipped && IsCorpseDrainableForInterop(state))
+            if (bloodTransfusionEquipped
+                && !IsLiveServantRitualBlocked(state)
+                && IsCorpseDrainableForInterop(state))
             {
                 return (int)BloodMagicFocusedCorpseState.Usable;
             }
@@ -4225,7 +4249,11 @@ namespace BloodMagicExpansion
             }
 
             CorpseState state;
-            return TryGetLookedAtCorpseState(out state, true) && IsCorpseBloodMagicEligibleForInterop(state)
+            bool ignoredUnregisteredCorpseCandidate;
+            return TryGetFocusedCorpseInteropSnapshot(
+                    out state,
+                    out ignoredUnregisteredCorpseCandidate)
+                && IsCorpseBloodMagicEligibleForInterop(state)
                 ? GetCorpseQuality01(state)
                 : 0f;
         }
@@ -4238,7 +4266,10 @@ namespace BloodMagicExpansion
             }
 
             CorpseState state;
-            if (!TryGetLookedAtCorpseState(out state, true)
+            bool ignoredUnregisteredCorpseCandidate;
+            if (!TryGetFocusedCorpseInteropSnapshot(
+                    out state,
+                    out ignoredUnregisteredCorpseCandidate)
                 || state == null)
             {
                 return (int)Grailwright.Shared.CorpseQualityTier.None;
@@ -4250,14 +4281,37 @@ namespace BloodMagicExpansion
         internal float GetFocusedCorpseQualityEffectMultiplierForInterop()
         {
             CorpseState state;
+            bool ignoredUnregisteredCorpseCandidate;
             if (_enabled == null || !_enabled.Value
-                || !TryGetLookedAtCorpseState(out state, true)
+                || !TryGetFocusedCorpseInteropSnapshot(
+                    out state,
+                    out ignoredUnregisteredCorpseCandidate)
                 || !IsCorpseBloodMagicEligibleForInterop(state))
             {
                 return 1f;
             }
 
             return GetCorpseQualityEffectMultiplier(GetCorpseQuality01(state));
+        }
+
+        private bool TryGetFocusedCorpseInteropSnapshot(
+            out CorpseState state,
+            out bool unregisteredCorpseCandidate)
+        {
+            int frame = Time.frameCount;
+            if (_focusedCorpseInteropSnapshotFrame != frame)
+            {
+                _focusedCorpseInteropSnapshotFrame = frame;
+                _focusedCorpseInteropSnapshotResolved = TryGetLookedAtCorpseState(
+                    out _focusedCorpseInteropSnapshotState,
+                    out _focusedCorpseInteropSnapshotUnregisteredCandidate,
+                    true);
+            }
+
+            state = _focusedCorpseInteropSnapshotState;
+            unregisteredCorpseCandidate =
+                _focusedCorpseInteropSnapshotUnregisteredCandidate;
+            return _focusedCorpseInteropSnapshotResolved;
         }
 
         internal float GetBloodEssenceForInterop()
@@ -9636,6 +9690,35 @@ namespace BloodMagicExpansion
             }
         }
 
+        private bool TryMaterializeSoulAndServiceServantForAbhartach(
+            object candidate,
+            out object corpseLocation)
+        {
+            corpseLocation = null;
+            if (candidate == null || !ResolveSoulAndServiceBridge()
+                || _soulAndServiceMaterializeAbhartachCorpseMethod == null)
+            {
+                return false;
+            }
+            try
+            {
+                object[] args = { candidate, null };
+                object result = _soulAndServiceMaterializeAbhartachCorpseMethod.Invoke(
+                    null,
+                    args);
+                corpseLocation = args[1];
+                return result is bool && (bool)result && corpseLocation != null;
+            }
+            catch (Exception exception)
+            {
+                Warn(
+                    "Soul and Service Abhartach sacrifice failed: "
+                    + exception.GetBaseException().Message);
+                _soulAndServiceMaterializeAbhartachCorpseMethod = null;
+                return false;
+            }
+        }
+
         private bool ResolveSoulAndServiceBridge()
         {
             if (_soulAndServiceResolveServantMethod != null
@@ -9693,6 +9776,12 @@ namespace BloodMagicExpansion
                 null,
                 new[] { typeof(object), typeof(bool), typeof(bool) },
                 null);
+            _soulAndServiceMaterializeAbhartachCorpseMethod = api.GetMethod(
+                "TryMaterializeOwnedBloodServantCorpseForAbhartach",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(object), typeof(object).MakeByRefType() },
+                null);
             if (_soulAndServiceResolveServantMethod == null
                 || _soulAndServiceExsanguinateServantMethod == null
                 || _soulAndServiceSetRitualStateMethod == null)
@@ -9701,6 +9790,43 @@ namespace BloodMagicExpansion
                 return false;
             }
             return true;
+        }
+
+        private void TrySacrificeFocusedServantForAbhartach()
+        {
+            CorpseState state;
+            if (!TryGetLookedAtCorpseState(out state, true)
+                || state == null
+                || state.LiveServantTarget == null
+                || !IsCorpseBloodMagicEligibleForInterop(state))
+            {
+                return;
+            }
+
+            object servant = state.LiveServantTarget;
+            object corpseLocation;
+            if (!TryMaterializeSoulAndServiceServantForAbhartach(
+                    servant,
+                    out corpseLocation))
+            {
+                return;
+            }
+
+            state.Disabled = true;
+            state.LiveServantTarget = null;
+            state.ChannelStartTime = 0.0f;
+            state.LastRejectReason = "servant was sacrificed to Abhartach's Calling";
+            RegisterCorpseAliases(corpseLocation, state);
+            TouchCorpseState(state);
+            if (ReferenceEquals(_focusedCorpse, state))
+            {
+                ResetFocusedCorpse();
+            }
+            if (DiagnosticsEnabled())
+            {
+                Log.LogInfo(
+                    "Abhartach's Calling sacrificed an owned servant through its native corpse effect.");
+            }
         }
 
         private bool TryGetLookedAtCorpseState(
@@ -9722,31 +9848,58 @@ namespace BloodMagicExpansion
             int layerMask = _raycastLayerMask.Value;
             if (!Physics.Raycast(rayPosition, rayForward, out hit, range, layerMask, QueryTriggerInteraction.Collide))
             {
-                return false;
+                return TryResolveTolerantServantTarget(
+                        rayPosition,
+                        rayForward,
+                        range,
+                        layerMask,
+                        out state)
+                    || TryRetainRecentServantTarget(
+                        rayPosition,
+                        range,
+                        out state);
             }
 
             if (TryResolveSoulAndServiceServant(hit.collider, out state))
             {
+                RememberServantTarget(state);
                 return true;
             }
 
             if (ColliderLooksAlive(hit.collider))
             {
+                ClearRecentServantTarget();
                 LogUnresolvedRaycastHit(hit.collider);
                 return false;
             }
 
             if (TryResolveCorpseStateFromCollider(hit.collider, out state, includeInactive))
             {
+                ClearRecentServantTarget();
                 state.LiveServantTarget = null;
                 return true;
             }
 
             if (!IsCorpseFallbackCandidateCollider(hit.collider))
             {
+                if (TryResolveTolerantServantTarget(
+                        rayPosition,
+                        rayForward,
+                        hit.distance,
+                        layerMask,
+                        out state)
+                    || TryRetainRecentServantTarget(
+                        rayPosition,
+                        hit.distance,
+                        out state))
+                {
+                    return true;
+                }
                 LogUnresolvedRaycastHit(hit.collider);
                 return false;
             }
+
+            ClearRecentServantTarget();
 
             if (TryResolveCorpseStateFromAllRaycastHits(rayPosition, rayForward, range, layerMask, out state, includeInactive))
             {
@@ -9765,6 +9918,140 @@ namespace BloodMagicExpansion
             LogUnresolvedRaycastHit(hit.collider);
             unregisteredCorpseCandidate = true;
             return false;
+        }
+
+        private bool TryResolveTolerantServantTarget(
+            Vector3 rayPosition,
+            Vector3 rayForward,
+            float range,
+            int layerMask,
+            out CorpseState state)
+        {
+            state = null;
+            if (range <= 0.0f || !ResolveSoulAndServiceBridge())
+            {
+                return false;
+            }
+
+            int hitCount = Physics.SphereCastNonAlloc(
+                rayPosition,
+                ServantTargetToleranceRadius,
+                rayForward,
+                _servantTargetHits,
+                range,
+                layerMask,
+                QueryTriggerInteraction.Collide);
+            float nearestServantDistance = float.MaxValue;
+            float nearestBlockingDistance = float.MaxValue;
+            CorpseState nearestServant = null;
+            int count = Math.Min(hitCount, _servantTargetHits.Length);
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit candidateHit = _servantTargetHits[i];
+                Collider collider = candidateHit.collider;
+                if (collider == null)
+                {
+                    continue;
+                }
+
+                if (ColliderLooksAlive(collider))
+                {
+                    CorpseState candidateState;
+                    if (TryResolveSoulAndServiceServant(
+                            collider,
+                            out candidateState)
+                        && candidateHit.distance < nearestServantDistance)
+                    {
+                        nearestServant = candidateState;
+                        nearestServantDistance = candidateHit.distance;
+                    }
+                    else if (!collider.isTrigger)
+                    {
+                        nearestBlockingDistance = Math.Min(
+                            nearestBlockingDistance,
+                            candidateHit.distance);
+                    }
+                }
+                else if (!collider.isTrigger)
+                {
+                    nearestBlockingDistance = Math.Min(
+                        nearestBlockingDistance,
+                        candidateHit.distance);
+                }
+            }
+
+            if (nearestServant == null
+                || nearestServantDistance > nearestBlockingDistance + 0.01f)
+            {
+                return false;
+            }
+
+            state = nearestServant;
+            RememberServantTarget(state);
+            return true;
+        }
+
+        private bool TryRetainRecentServantTarget(
+            Vector3 rayPosition,
+            float unobstructedRange,
+            out CorpseState state)
+        {
+            state = null;
+            CorpseState recent = _recentServantTarget;
+            if (recent == null
+                || Now - _recentServantTargetTime > ServantTargetGraceSeconds
+                || recent.LiveServantTarget == null)
+            {
+                ClearRecentServantTarget();
+                return false;
+            }
+
+            CorpseState refreshed;
+            if (!TryResolveSoulAndServiceServant(
+                    recent.LiveServantTarget,
+                    out refreshed)
+                || !ReferenceEquals(recent, refreshed))
+            {
+                ClearRecentServantTarget();
+                return false;
+            }
+
+            Vector3 servantPosition;
+            if (!TryGetPosition(refreshed.LiveServantTarget, out servantPosition))
+            {
+                if (!refreshed.HasPosition)
+                {
+                    ClearRecentServantTarget();
+                    return false;
+                }
+                servantPosition = refreshed.LastKnownPosition;
+            }
+            if (Vector3.Distance(rayPosition, servantPosition)
+                > unobstructedRange + 0.5f)
+            {
+                ClearRecentServantTarget();
+                return false;
+            }
+
+            state = refreshed;
+            return true;
+        }
+
+        private void RememberServantTarget(CorpseState state)
+        {
+            if (state == null || state.LiveServantTarget == null)
+            {
+                return;
+            }
+
+            _recentServantTarget = state;
+            _recentServantTargetTime = Now;
+        }
+
+        private void ClearRecentServantTarget()
+        {
+            _recentServantTarget = null;
+            _recentServantTargetTime = 0.0f;
         }
 
         private bool TryGetCorpseLookRay(out Vector3 position, out Vector3 forward)
@@ -9983,9 +10270,9 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            HashSet<object> seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
+            _aliveStateProbeSeen.Clear();
             bool alive;
-            if (TryReadAliveState(collider, 0, seen, out alive))
+            if (TryReadAliveState(collider, 0, _aliveStateProbeSeen, out alive))
             {
                 return alive;
             }
@@ -9995,8 +10282,8 @@ namespace BloodMagicExpansion
             int maxDepth = Math.Max(1, _raycastParentSearchDepth.Value);
             while (transform != null && depth < maxDepth)
             {
-                if (TryReadAliveState(transform.gameObject, 0, seen, out alive) ||
-                    TryReadAliveState(transform, 0, seen, out alive))
+                if (TryReadAliveState(transform.gameObject, 0, _aliveStateProbeSeen, out alive) ||
+                    TryReadAliveState(transform, 0, _aliveStateProbeSeen, out alive))
                 {
                     return alive;
                 }
@@ -10876,6 +11163,10 @@ namespace BloodMagicExpansion
             {
                 RegisterAbhartachHeldHealingActive();
                 RecordAbhartachFocusedCorpseQuality();
+                if (lightCast)
+                {
+                    TrySacrificeFocusedServantForAbhartach();
+                }
             }
 
             if (lightCast || !isBloodMagicSpell)

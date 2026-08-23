@@ -1,3 +1,9 @@
+Version 3.1.1
+Recognized a reanimated servant's hidden source corpse through its owning game location, restoring saturated, spent, and bloodless blocked reticles reliably for raised Corpse Eaters and other servants.
+Made owned-servant targeting tolerant of small animated collider gaps, retained valid focus for 0.18 seconds, respected nearer obstructions, and shared one target snapshot across reticle state, quality, and tier queries.
+Allowed light Abhartach's Calling to sacrifice only the explicitly targeted eligible owned flesh servant through the spell's native corpse explosion, preserving quality scaling while granting no XP, Blood Essence, Soul Vigor, Mana refund, or duplicate loot. Heavy Abhartach remains corpse-only.
+Kept ConfigSchemaVersion at 23 because this adds event-driven integration behavior without changing stored settings.
+
 Version 3.0.8
 Persisted each drained corpse's exact exsanguination severity across save and reload using one compact save fact keyed by its stable model identity, with no update-loop scans.
 Revalidated an owned Soul and Service servant immediately before applying healing or progression rewards, preventing a vanished or replaced servant from paying out.

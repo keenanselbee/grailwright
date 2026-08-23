@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v10
-Version: 3.0.8
+Version: 3.1.1
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -69,9 +69,19 @@ with no XP or Blood Essence. A servant at 20% Health or below is executed, and a
 raised servant's body remains available for light Soul Rend. Skeletons,
 constructs, spirits, and other bloodless servants remain invalid. Dishonored
 Dynamic Crosshair shows the normal saturated blood-quality reticle for an
-eligible servant, the same desaturated reticle while combat blocks the ritual,
-and the desaturated spent state after draining. These states add no interaction
-text.
+eligible servant and the same desaturated reticle while combat blocks the
+ritual, after draining, or over a bloodless servant. These states add no
+interaction text. A small obstruction-aware aiming tolerance bridges animated
+gaps between servant colliders, while a 0.18-second focus grace prevents brief
+limb movement from interrupting the reticle or channel.
+
+Light-casting Abhartach's Calling directly at an eligible owned flesh servant
+sacrifices it through Abhartach's native corpse explosion, including normal
+corpse-quality scaling. This works in combat, ends that servant's service, and
+grants no XP, Blood Essence, Soul Vigor, Mana refund, or duplicated loot. It
+never selects a nearby servant automatically. Heavy Abhartach remains
+corpse-only, so holding it over a living servant shows the unavailable reticle
+and cannot heal from that servant.
 
 ## Presets
 

@@ -1950,6 +1950,11 @@ namespace SoulAndService
 
         private static float GetBloodExsanguinationSeverity(object sourceCorpse)
         {
+            Location sourceLocation = sourceCorpse as Location;
+            if (sourceLocation != null)
+            {
+                sourceCorpse = GetBloodMagicCorpseIdentity(sourceLocation);
+            }
             if (sourceCorpse == null || _bloodMagicApiUnavailable)
             {
                 return 0.0f;
@@ -2014,7 +2019,7 @@ namespace SoulAndService
             {
                 return false;
             }
-            sourceCorpse = record.SourceCorpse;
+            sourceCorpse = GetBloodMagicCorpseIdentity(record.SourceCorpse);
             return true;
         }
 
@@ -2037,7 +2042,7 @@ namespace SoulAndService
                 {
                     return false;
                 }
-                sourceCorpse = record.SourceCorpse;
+                sourceCorpse = GetBloodMagicCorpseIdentity(record.SourceCorpse);
                 servantNpc = record.RaisedNpc;
                 return true;
             }
@@ -2050,6 +2055,16 @@ namespace SoulAndService
             }
             servantNpc = npc;
             return true;
+        }
+
+        private static object GetBloodMagicCorpseIdentity(Location sourceCorpse)
+        {
+            if (sourceCorpse == null)
+            {
+                return null;
+            }
+            Corpse corpse = sourceCorpse.TryGetElement<Corpse>();
+            return corpse ?? (object)sourceCorpse;
         }
 
         internal static bool SetOwnedBloodServantRitualStateForInterop(
@@ -2120,6 +2135,68 @@ namespace SoulAndService
             npc.Health.DecreaseBy(
                 npc.Health.ModifiedValue
                 * Mathf.Clamp(severity, 0.20f, 0.30f));
+            return true;
+        }
+
+        internal static bool TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop(
+            object candidate,
+            out object corpseLocation)
+        {
+            corpseLocation = null;
+            ReanimationRecord record;
+            if (TryResolveReanimationRecord(candidate, out record))
+            {
+                if (record.SourceCorpse == null
+                    || record.SourceCorpse.HasBeenDiscarded
+                    || record.SourceCorpse.TryGetElement<NpcDummy>() == null
+                    || record.RaisedLocation == null
+                    || record.RaisedLocation.HasBeenDiscarded
+                    || record.RaisedNpc == null
+                    || !record.RaisedNpc.IsAlive)
+                {
+                    return false;
+                }
+
+                string summonId = ((Model)record.RaisedNpc.Element<NpcHeroSummon>()).ID;
+                Vector3 coords = record.RaisedLocation.Coords;
+                Quaternion rotation = record.RaisedLocation.Rotation;
+                Reanimations.Remove(summonId);
+                record.SourceCorpse.MoveAndRotateTo(coords, rotation, true);
+                record.SourceCorpse.SetInteractability(record.SourceInteractability);
+                record.SourceCorpse.TriggerVisualScriptingEvent("OnDeath");
+                if (!PendingRaisedDiscards.Contains(record.RaisedLocation))
+                {
+                    PendingRaisedDiscards.Add(record.RaisedLocation);
+                }
+                if (record.QualityHealthTweak != null
+                    && !((Model)record.QualityHealthTweak).HasBeenDiscarded)
+                {
+                    ((Model)record.QualityHealthTweak).Discard();
+                }
+                corpseLocation = record.SourceCorpse;
+                return true;
+            }
+
+            NpcHeroSummon summon;
+            NpcElement npc;
+            if (!TryResolveOwnedLivingSummon(candidate, out summon, out npc)
+                || npc.HealthElement == null)
+            {
+                return false;
+            }
+            Location location = npc.ParentModel;
+            if (location == null || location.HasBeenDiscarded)
+            {
+                return false;
+            }
+            OrdinarySummonInvestments.Remove(((Model)summon).ID);
+            npc.HealthElement.Kill();
+            if (location.HasBeenDiscarded
+                || location.TryGetElement<NpcDummy>() == null)
+            {
+                return false;
+            }
+            corpseLocation = location;
             return true;
         }
 

@@ -1,3 +1,37 @@
+Version 2.2.0
+-----
+- Let an explicit Attack or Swarm order bypass a servant's saved Hold position without deleting it, preserving authoritative pursuit and the return to that anchor after the target becomes invalid.
+- Reasserted a still-valid autonomous target's priority override and combat selection when native AI drops either, preventing Hunt formation movement from briefly pulling the servant back toward the hero.
+- Clarified that the 1.5-second Hold All and Follow All cutoff begins only after Recall unlocks at Power 70.
+- Kept config schema 10 and API version 8 because these fixes change no stored setting or public signature.
+
+Version 2.1.9
+-----
+- Made Bulwark use hybrid movement-and-camera facing: meaningful travel immediately leads its shield wall, while a stationary camera direction must differ by at least 30 degrees and remain stable within 12 degrees for 0.30 seconds before the wall repositions once.
+- Sampled the view ray once per rendered frame only while Bulwark is active, retaining existing formation anchor suppression and servant AI cadence so small aim corrections do not cause circling or add per-servant camera work.
+- Reduced the Recall and Recall Host hold from 2.0 to 1.5 seconds. Hold All and Follow All remain release commands from 0.45 seconds until Recall fires.
+- Kept config schema 10 and API version 8 because this behavior change adds no stored setting or public signature.
+
+Version 2.1.8
+-----
+- Made Attack and Swarm acquisition tolerate small gaps around a hostile's visible body and retain focus through 0.30 seconds of minor aim drift, while deliberate servant focus still takes priority over a merely retained hostile.
+- Reinforced every explicit Attack and Swarm target if native AI drops its target override or combat selection. The order remains authoritative until the target becomes invalid, another direct order replaces it, or Recall cancels it.
+- Expanded Hunt awareness to the native 45-meter command tether, shared line of sight between the hero and acting servant, and prioritized recent attackers and enemies threatening the host before other valid hostiles.
+- Released Guard and Hunt formation following whenever an explicit or autonomous target is active, preventing formation anchors from pulling servants away from a commanded target or distant archer.
+- Kept config schema 10 and API version 8 because these behavioral fixes change no stored setting or public signature.
+
+Version 2.1.7
+-----
+- Returned a raised servant's actual source-corpse element through the Blood Magic bridge, allowing BME to resolve its saturated, spent, or bloodless blocked ritual state without depending on an early location alias.
+- Recognized the game's Kandra-rendered creature bodies when selecting Empower's cached visual root, making model growth apply to skeletons, Corpse Eaters, and other Kandra servants while leaving their controller and navigation roots unchanged.
+- Added bounded Kandra renderer-count evidence to Empower diagnostics. Config schema remains 10 and API version remains 8 because no stored setting or public signature changed.
+
+Version 2.1.6
+-----
+- Added API version 8's event-driven Abhartach bridge, which safely materializes an explicitly targeted owned servant as a native corpse without Soul Vigor, Mana, XP, Blood Essence, or duplicate-loot rewards.
+- Made Empower cache a renderer-bearing visual root below the NPC locomotion controller, so its model growth is visible without rescanning the hierarchy each frame or scaling navigation and movement roots.
+- Kept config schema 10 because no stored setting changed.
+
 Version 2.1.4
 -----
 - Sampled the hero's meaningful movement gate once per rendered frame so camera turns, brief taps, and sub-meter adjustments remain consistently ignored even when servant AI updates are sparse.

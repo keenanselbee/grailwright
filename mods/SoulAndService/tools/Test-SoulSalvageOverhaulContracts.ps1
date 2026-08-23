@@ -265,6 +265,8 @@ foreach ($required in @(
     'NativeSoulVigor = SoulProgressionRuntime.RollSoulVigorValue(',
     'TryResolveOwnedBloodServantForInterop(',
     'TryExsanguinateOwnedBloodServantForInterop(',
+    'TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop(',
+    'GetBloodMagicCorpseIdentity(',
     'SetOwnedBloodServantRitualStateForInterop(',
     'TryResolveOwnedLivingSummon(',
     'BloodRitualExecuted',
@@ -278,6 +280,18 @@ foreach ($required in @(
     if (!$runtimeSource.Contains($required)) {
         throw "Spendable Vigor, blood-servant, or heavy-hover contract is missing: $required"
     }
+}
+if ($runtimeSource -notmatch '(?s)GetBloodMagicCorpseIdentity\(Location sourceCorpse\).*?sourceCorpse\.TryGetElement<Corpse>\(\)' -or
+    $runtimeSource -notmatch '(?s)sourceCorpse = GetBloodMagicCorpseIdentity\(record\.SourceCorpse\).*?servantNpc = record\.RaisedNpc' -or
+    $runtimeSource -notmatch '(?s)GetBloodExsanguinationSeverity\(object sourceCorpse\).*?sourceCorpse as Location.*?GetBloodMagicCorpseIdentity\(sourceLocation\)') {
+    throw "Blood Magic interop does not normalize raised source locations to their registered Corpse elements."
+}
+if ($pluginSource -notmatch 'public const int ApiVersion = 8;' -or
+    $pluginSource -notmatch 'public static bool TryMaterializeOwnedBloodServantCorpseForAbhartach\(') {
+    throw "Soul and Service API 8 does not publish the Abhartach servant-corpse bridge."
+}
+if ($runtimeSource -notmatch '(?s)TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop\(.*?TryResolveReanimationRecord.*?SourceCorpse\.TryGetElement<NpcDummy>\(\).*?Reanimations\.Remove\(summonId\).*?MoveAndRotateTo\(coords, rotation, true\).*?SetInteractability\(record\.SourceInteractability\).*?PendingRaisedDiscards\.Add\(record\.RaisedLocation\).*?corpseLocation = record\.SourceCorpse.*?OrdinarySummonInvestments\.Remove.*?npc\.HealthElement\.Kill\(\).*?location\.TryGetElement<NpcDummy>\(\)') {
+    throw "Abhartach sacrifice does not safely materialize source-backed and ordinary servants as native corpses."
 }
 if ($runtimeSource -notmatch '(?s)if \(healthFraction <= 0\.20f\).*?record\.BloodRitualExecuted = true;.*?record\.RaisedNpc\.HealthElement\.Kill\(\);') {
     throw 'Blood ritual execution does not preserve its pre-death soul value and kill at 20% Health.'
@@ -420,7 +434,7 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 2.1.4',
+    'Version under test: 2.2.0',
     'exactly 2x',
     'a true hero summon rises',
     'simplified remains',

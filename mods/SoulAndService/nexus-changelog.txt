@@ -1,12 +1,23 @@
-TargetVersion=2.1.4
+TargetVersion=2.2.0
 BaselineVersion=1.0.6
+Let explicit Attack and Swarm pursuit bypass a saved Hold anchor without erasing the servant's eventual return position.
+Reasserted still-valid autonomous Hunt targets when native AI drops their priority override or combat selection, preventing brief formation pullback.
+Made Bulwark follow meaningful travel while moving, then deliberately face a stationary camera direction only after a stable 30-degree turn, placing its shield wall in front without camera-driven circling.
+Reduced Recall and Recall Host holds from 2.0 to 1.5 seconds while preserving the shorter release window for Hold All and Follow All.
+Made Attack and Swarm targeting tolerate small visible-body gaps and brief aim drift without stealing deliberate servant focus.
+Kept explicit Attack and Swarm orders authoritative by reasserting their native target until it becomes invalid, another direct order replaces it, or Recall cancels it.
+Expanded Hunt to the native 45-meter tether, shared hero-or-servant sight, and attacker-first threat priority, while releasing formation movement throughout pursuit.
+Returned raised servants' direct corpse identities to Blood Magic Expansion so saturated, spent, and bloodless blocked ritual reticles resolve reliably.
+Made Empower recognize Kandra-rendered creature bodies, allowing visible growth without scaling controller or navigation roots.
+Added a safe native-corpse bridge so light Abhartach's Calling can sacrifice only its explicitly targeted eligible owned servant without duplicate progression or loot.
+Made Empower visibly scale a cached renderer-bearing model root without touching the locomotion controller or scanning the hierarchy each frame.
 Sampled meaningful hero movement once per rendered frame so camera turns and minor taps cannot churn stationary formations between sparse AI decisions.
 Reported a raised servant's actual starting Health after all retention and Blood Magic penalties.
 Made successful Recall and Recall Host orders request Battlecry Voice Tuner's dedicated Recall pool instead of reusing Follow voices.
 Ignored brief player taps and sub-meter adjustments across Guard, Bulwark, and Hunt, while sustained travel still moves and cleanly resettles the formation.
 Aligned Soul Rend hand lights after animation and with First Person Arms Adjuster's visual offset when installed.
 Matched Blood Magic's restrained light presentation with smoothstep novice-to-mastery growth, a 0.8 Soul Rend intensity multiplier, and explicit HDRP shadow and volumetric suppression.
-Made stationary Bulwark screens retain the hero's last meaningful movement direction instead of rotating with camera look, matching Guard.
+Kept stationary Bulwark screens immune to small camera corrections while allowing deliberate stable camera turns to redirect the wall.
 Allowed servants to target summoned enemies when faction rules mark them hostile.
 Made optional passive crosshair sharing behavior-bound autonomous guidance rather than persistent explicit Attack authority.
 Simplified each servant to one directly addressed awareness record, cached host combat state per frame, and restored native targeting only when custom prerequisites are unavailable.
@@ -31,10 +42,10 @@ Reduced runtime overhead through shared formation work, bounded refresh cadences
 Released native hero-centered combat slots whenever servants pursue NPC targets, so Hunt changes and Attack orders engage promptly instead of keeping servants clustered near the hero.
 Refined Guard into a threat-only bodyguard that no longer pulls uninvolved hostiles simply because the host is fighting.
 Made Bulwark hold a steadier, wider forward line, skip unnecessary native target acquisition, and counterattack only genuine threats inside a short defensive leash.
-Made Hunt see from each servant's position and commit briefly to valid targets instead of switching for marginal distance changes.
+Made Hunt commit briefly to valid targets instead of switching for marginal distance changes.
 Made behavior changes perform one immediate acquisition pass while preserving the ongoing Soul Vigor response cadence.
 Kept autonomous overrides behind native combat-target acceptance so unreachable or rejected enemies do not leave servants following without attacking.
-Let Guard and Bulwark recognize defensive threats seen by either the hero or the acting servant, while Hunt continues to use servant-local sight.
+Let Guard, Bulwark, and Hunt recognize relevant threats seen by either the hero or the acting servant.
 Tightened small Bulwark formations into forward-facing arcs instead of placing two servants almost directly beside the hero.
 Made Empower clearly scale size, damage, and resistance by a reported lower-biased 1.2x-1.5x roll.
 Shortened the Soul Rend heavy tooltip to emphasize Empower's combat effects while leaving visible growth to communicate its size scaling.

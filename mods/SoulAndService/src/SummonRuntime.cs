@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Awaken.Kandra;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Awaken.TG.MVC;
@@ -49,9 +50,10 @@ namespace SoulAndService
         private const float NativePatrolRadius = 7.5f;
         private const float NativeSummonCommandRange = 45.0f;
         private const float BaseSummonAwarenessRange = 30.0f;
+        private const float HuntAwarenessRange = 45.0f;
         private const float BaseLostTargetGraceSeconds = 3.0f;
         private const float FormationCommandHoldSeconds = 0.45f;
-        private const float RecallCommandHoldSeconds = 2.0f;
+        private const float RecallCommandHoldSeconds = 1.5f;
         private const float BehaviorCommandHoldSeconds = 0.45f;
         private const float RecentAttackerMemorySeconds = 6.0f;
         private const float GuardMeleeThreatRange = 8.0f;
@@ -78,6 +80,9 @@ namespace SoulAndService
         private const float BulwarkFormationInnerRadius = 3.5f;
         private const float BulwarkFormationRingSpacing = 1.0f;
         private const int BulwarkFormationSlotsPerRing = 4;
+        private const float BulwarkCameraFacingHoldSeconds = 0.30f;
+        private const float BulwarkCameraFacingMinimumAngle = 30.0f;
+        private const float BulwarkCameraFacingStabilityAngle = 12.0f;
         private const float HuntFormationInnerRadius = 5.5f;
         private const float HuntFormationRingSpacing = 2.0f;
         private const int HuntFormationSlotsPerRing = 6;
@@ -125,6 +130,8 @@ namespace SoulAndService
         private const float TransientStatePruneIntervalSeconds = 0.25f;
         private const float StandardCommandFeedbackSeconds = 0.675f;
         private const float ExtendedCommandFeedbackSeconds = 1.35f;
+        private const float AttackCommandAimRadius = 0.25f;
+        private const float AttackCommandFocusGraceSeconds = 0.30f;
         private const float FormationCommandMinimumAimRadius = 0.35f;
         private const float FormationCommandMaximumAimRadius = 1.25f;
         private const float HeldSummonCombatLeash = 8.0f;
@@ -253,9 +260,11 @@ namespace SoulAndService
             internal float Multiplier;
             internal float MovementMultiplier;
             internal StatTweak MovementTweak;
+            internal Transform VisualMarker;
             internal Transform VisualRoot;
             internal Vector3 OriginalLocalScale;
             internal Vector3 OriginalLocalPosition;
+            internal float NextVisualRootLookupTime;
             internal int VisualDiagnosticCount;
             internal bool VisualRootFailureLogged;
         }
@@ -341,6 +350,8 @@ namespace SoulAndService
                 new Dictionary<string, float>();
         private static readonly RaycastHit[] FormationCommandRaycastHits =
             new RaycastHit[32];
+        private static readonly RaycastHit[] AttackCommandRaycastHits =
+            new RaycastHit[32];
         private static readonly RaycastHit[] AutonomousTargetRaycastHits =
             new RaycastHit[32];
         private static float _nextCollisionRefreshTime;
@@ -368,6 +379,9 @@ namespace SoulAndService
         private static MethodInfo _battlecryTryPlayCommandMethod;
         private static bool _battlecryCommandApiUnavailable;
         private static SummonCommandInteractable _commandInteractable;
+        private static NpcElement _recentAttackCommandTarget;
+        private static GameObject _recentAttackCommandViewObject;
+        private static float _recentAttackCommandFocusedAt;
         private static string _lastFormationFocusDiagnostic = string.Empty;
         private static bool _takeAllItemsHeld;
         private static bool _formationCommandArmedForRelease;
@@ -385,6 +399,11 @@ namespace SoulAndService
         private static float _nextIdleHostAttemptAt;
         private static bool _hasBulwarkForward;
         private static Vector3 _bulwarkForward = Vector3.forward;
+        private static Hero _bulwarkFacingHero;
+        private static int _bulwarkFacingFrame = -1;
+        private static bool _hasBulwarkViewCandidate;
+        private static Vector3 _bulwarkViewCandidate = Vector3.forward;
+        private static float _bulwarkViewCandidateSince = -1.0f;
         private static bool _hasGuardForward;
         private static Vector3 _guardForward = Vector3.forward;
         private static Hero _formationFacingHero;
@@ -604,6 +623,7 @@ namespace SoulAndService
 
             if (!plugin.IsEnabled)
             {
+                ClearRecentAttackCommandTarget();
                 ClearAllServantPowerStates();
                 RestoreAllCollisionPairs();
                 RemoveAllAwarenessTargets();
@@ -621,12 +641,14 @@ namespace SoulAndService
                 NextControlDiagnosticBySummon.Clear();
                 _guardIdleMoverId = null;
                 _nextIdleHostAttemptAt = 0.0f;
+                ResetBulwarkFacingState();
                 ResetFormationLeaderMotion();
                 ResetBehaviorCommandHold();
                 return;
             }
 
             UpdateFormationLeaderMotion(Hero.Current);
+            UpdateBulwarkFacing(Hero.Current);
 
             if (Time.unscaledTime >= _nextTransientStatePruneTime)
             {
@@ -657,6 +679,7 @@ namespace SoulAndService
         internal static void Shutdown()
         {
             ClearCommandOverride();
+            ClearRecentAttackCommandTarget();
             RestoreAllCollisionPairs();
             foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
             {
@@ -679,8 +702,7 @@ namespace SoulAndService
             _bulwarkTargetCandidates = new NpcElement[0];
             _guardIdleMoverId = null;
             _nextIdleHostAttemptAt = 0.0f;
-            _hasBulwarkForward = false;
-            _bulwarkForward = Vector3.forward;
+            ResetBulwarkFacingState();
             _hasGuardForward = false;
             _guardForward = Vector3.forward;
             _formationFacingHero = null;
@@ -954,19 +976,31 @@ namespace SoulAndService
             {
                 return;
             }
-            Transform visualRoot = GetEmpowermentVisualRoot(controller);
-            if (visualRoot == null)
-            {
-                LogEmpowermentVisualRootFailure(controller, state);
-                return;
-            }
-            if (!ReferenceEquals(state.VisualRoot, visualRoot))
+            Transform visualMarker = controller.AlivePrefab.transform;
+            if (!ReferenceEquals(state.VisualMarker, visualMarker))
             {
                 RestoreEmpowermentVisual(state);
-                state.VisualRoot = visualRoot;
-                state.OriginalLocalScale = visualRoot.localScale;
-                state.OriginalLocalPosition = visualRoot.localPosition;
+                state.VisualMarker = visualMarker;
+                state.NextVisualRootLookupTime = 0.0f;
             }
+            if (state.VisualRoot == null)
+            {
+                if (Time.unscaledTime < state.NextVisualRootLookupTime)
+                {
+                    return;
+                }
+                state.NextVisualRootLookupTime = Time.unscaledTime + 0.5f;
+                Transform resolvedVisualRoot = GetEmpowermentVisualRoot(controller);
+                if (resolvedVisualRoot == null)
+                {
+                    LogEmpowermentVisualRootFailure(controller, state);
+                    return;
+                }
+                state.VisualRoot = resolvedVisualRoot;
+                state.OriginalLocalScale = resolvedVisualRoot.localScale;
+                state.OriginalLocalPosition = resolvedVisualRoot.localPosition;
+            }
+            Transform visualRoot = state.VisualRoot;
 
             Vector3 expectedScale = Vector3.Scale(
                 state.OriginalLocalScale,
@@ -1016,14 +1050,25 @@ namespace SoulAndService
                 return null;
             }
             Transform visualRoot = controller.AlivePrefab.transform;
-            if (!ReferenceEquals(visualRoot, controller.transform))
+            if (!ReferenceEquals(visualRoot, controller.transform)
+                && HasRenderableGeometry(visualRoot))
             {
                 return visualRoot;
+            }
+            Transform ancestor = visualRoot.parent;
+            while (ancestor != null && !ReferenceEquals(ancestor, controller.transform))
+            {
+                if (HasRenderableGeometry(ancestor))
+                {
+                    return ancestor;
+                }
+                ancestor = ancestor.parent;
             }
             if (controller.Animator != null
                 && !ReferenceEquals(
                     controller.Animator.transform,
-                    controller.transform))
+                    controller.transform)
+                && HasRenderableGeometry(controller.Animator.transform))
             {
                 return controller.Animator.transform;
             }
@@ -1031,8 +1076,29 @@ namespace SoulAndService
                 && !ReferenceEquals(
                     controller.RootMotion.transform,
                     controller.transform)
+                && HasRenderableGeometry(controller.RootMotion.transform)
                     ? controller.RootMotion.transform
                     : null;
+        }
+
+        private static bool HasRenderableGeometry(Transform root)
+        {
+            if (root == null)
+            {
+                return false;
+            }
+            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer != null
+                    && !string.Equals(
+                        renderer.GetType().Name,
+                        "ParticleSystemRenderer",
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return root.GetComponentInChildren<KandraRenderer>(true) != null;
         }
 
         private static void EnsureEmpowermentVisualEnforcer(
@@ -1153,6 +1219,9 @@ namespace SoulAndService
                 return;
             }
             state.VisualDiagnosticCount++;
+            int kandraRendererCount = state.VisualRoot
+                .GetComponentsInChildren<KandraRenderer>(true)
+                .Count(renderer => renderer != null && !renderer.Destroyed);
             plugin.LogDiagnostic(
                 "Empower visual correction " + state.VisualDiagnosticCount
                 + "/3: root=" + GetTransformPath(state.VisualRoot)
@@ -1162,6 +1231,7 @@ namespace SoulAndService
                 + "; actualLocal=" + FormatVector3(state.VisualRoot.localScale)
                 + "; lossy=" + FormatVector3(state.VisualRoot.lossyScale)
                 + "; renderers=" + rendererCount
+                + "; kandraRenderers=" + kandraRendererCount
                 + "; boundsHeight=" + beforeHeight.ToString("0.###")
                 + "->" + afterHeight.ToString("0.###") + ".");
         }
@@ -1222,6 +1292,8 @@ namespace SoulAndService
             state.VisualRoot.localScale = state.OriginalLocalScale;
             state.VisualRoot.localPosition = state.OriginalLocalPosition;
             state.VisualRoot = null;
+            state.VisualMarker = null;
+            state.NextVisualRootLookupTime = 0.0f;
         }
 
         private static void ClearEmpowerment(string id)
@@ -1503,8 +1575,12 @@ namespace SoulAndService
                 return true;
             }
 
+            bool hasExplicitCommandTarget = HasExplicitCommandTarget(summon);
             HeldSummonState heldState;
-            if (HeldSummons.TryGetValue(((Model)summon).ID, out heldState))
+            if (!hasExplicitCommandTarget
+                && HeldSummons.TryGetValue(
+                    ((Model)summon).ID,
+                    out heldState))
             {
                 FormationPatrolAnchors.Remove(((Model)summon).ID);
                 ClearIdleMovementState(((Model)summon).ID);
@@ -1523,7 +1599,7 @@ namespace SoulAndService
             }
 
             Vector3 recallAnchor;
-            if (!HasExplicitCommandTarget(summon)
+            if (!hasExplicitCommandTarget
                 && TryGetRecallAnchor(summon, out recallAnchor))
             {
                 FormationPatrolAnchors.Remove(((Model)summon).ID);
@@ -1545,20 +1621,29 @@ namespace SoulAndService
             SummonBehavior behavior = SoulProgressionRuntime.GetSummonBehavior();
             bool usesGuardFormation = behavior == SummonBehavior.Guard
                 && HasGlobalFormationControl();
-            bool hasExplicitCommandTarget = HasExplicitCommandTarget(summon);
+            bool hasPriorityTarget = hasExplicitCommandTarget
+                || HasActivePriorityTarget(summon);
             bool usesHuntFormation = behavior == SummonBehavior.Hunt;
-            if (!usesGuardFormation || hasExplicitCommandTarget)
+            if (!usesGuardFormation || hasPriorityTarget)
             {
                 ClearGuardIdleState(((Model)summon).ID);
             }
-            if (!usesHuntFormation || hasExplicitCommandTarget)
+            if (!usesHuntFormation || hasPriorityTarget)
             {
                 ClearHuntIdleState(((Model)summon).ID);
+            }
+            if (hasPriorityTarget)
+            {
+                string summonId = ((Model)summon).ID;
+                FormationPatrolAnchors.Remove(summonId);
+                StabilizedPatrols.Remove(summonId);
+                patrol.UpdateRadius(NativePatrolRadius);
+                return false;
             }
             if ((behavior == SummonBehavior.Bulwark
                     || usesGuardFormation
                     || usesHuntFormation)
-                && !hasExplicitCommandTarget)
+                && !hasPriorityTarget)
             {
                 float anchorTolerance = 0.0f;
                 bool gentleIdleMovement = false;
@@ -1675,11 +1760,104 @@ namespace SoulAndService
                 || target == null
                 || target.HasBeenDiscarded
                 || !target.IsAlive
-                || command == null
-                || !ReferenceEquals(command.Target, target))
+                || target.IsUnconscious)
             {
                 ExplicitCommandTargets.Remove(id);
+                if (command != null
+                    && (target == null
+                        || ReferenceEquals(command.Target, target)))
+                {
+                    command.Discard();
+                }
                 return false;
+            }
+
+            if (command == null
+                || !ReferenceEquals(command.Target, target))
+            {
+                if (command != null)
+                {
+                    command.Discard();
+                }
+                HeroSummonTargetOverride.AddSummonTargetOverrideElement(
+                    summon,
+                    target,
+                    10);
+            }
+            if (!ReferenceEquals(
+                    summon.ParentModel.GetCurrentTarget(),
+                    target))
+            {
+                if (summon.ParentModel.NpcAI != null
+                    && !summon.ParentModel.NpcAI.InCombat)
+                {
+                    summon.ParentModel.NpcAI.EnterCombatWith(
+                        target,
+                        forceChange: true);
+                }
+                else
+                {
+                    summon.ParentModel.ForceAddCombatTarget(
+                        target,
+                        recalculateTarget: true);
+                }
+            }
+            return true;
+        }
+
+        private static bool HasActivePriorityTarget(NpcHeroSummon summon)
+        {
+            if (HasExplicitCommandTarget(summon))
+            {
+                return true;
+            }
+            if (summon == null || summon.ParentModel == null)
+            {
+                return false;
+            }
+            string summonId = ((Model)summon).ID;
+            NpcElement target;
+            HeroSummonTargetOverride targetOverride =
+                summon.ParentModel.TryGetElement<HeroSummonTargetOverride>();
+            if (!AutonomousTargetOverrides.TryGetValue(
+                    summonId,
+                    out target)
+                || target == null
+                || target.HasBeenDiscarded
+                || !target.IsAlive
+                || target.IsUnconscious)
+            {
+                return false;
+            }
+            if (targetOverride == null
+                || !ReferenceEquals(targetOverride.Target, target))
+            {
+                if (targetOverride != null)
+                {
+                    targetOverride.Discard();
+                }
+                HeroSummonTargetOverride.AddSummonTargetOverrideElement(
+                    summon,
+                    target,
+                    5);
+            }
+            if (!ReferenceEquals(
+                    summon.ParentModel.GetCurrentTarget(),
+                    target))
+            {
+                if (summon.ParentModel.NpcAI != null
+                    && !summon.ParentModel.NpcAI.InCombat)
+                {
+                    summon.ParentModel.NpcAI.EnterCombatWith(
+                        target,
+                        forceChange: true);
+                }
+                else
+                {
+                    summon.ParentModel.ForceAddCombatTarget(
+                        target,
+                        recalculateTarget: true);
+                }
             }
             return true;
         }
@@ -2426,6 +2604,41 @@ namespace SoulAndService
                 : Mathf.Lerp(-halfArc, halfArc, slot / (countInRing - 1.0f));
             float distance = BulwarkFormationInnerRadius
                 + (BulwarkFormationRingSpacing * ring);
+            UpdateBulwarkFacing(hero);
+            return GetFormationLeaderAnchor(hero)
+                + (Quaternion.AngleAxis(angle, Vector3.up)
+                    * _bulwarkForward * distance);
+        }
+
+        private static void UpdateBulwarkFacing(Hero hero)
+        {
+            if (hero == null)
+            {
+                ResetBulwarkFacingState();
+                return;
+            }
+            EnsureFormationFacingHero(hero);
+            if (ReferenceEquals(_bulwarkFacingHero, hero)
+                && _bulwarkFacingFrame == Time.frameCount)
+            {
+                return;
+            }
+            if (!ReferenceEquals(_bulwarkFacingHero, hero))
+            {
+                _bulwarkFacingHero = hero;
+                _hasBulwarkViewCandidate = false;
+                _bulwarkViewCandidateSince = -1.0f;
+            }
+            _bulwarkFacingFrame = Time.frameCount;
+
+            if (SoulProgressionRuntime.GetSummonBehavior()
+                != SummonBehavior.Bulwark)
+            {
+                _hasBulwarkViewCandidate = false;
+                _bulwarkViewCandidateSince = -1.0f;
+                return;
+            }
+
             Vector3 movementForward = hero.HorizontalVelocity;
             movementForward.y = 0.0f;
             if (IsFormationLeaderMoving(hero)
@@ -2433,21 +2646,71 @@ namespace SoulAndService
             {
                 _bulwarkForward = movementForward.normalized;
                 _hasBulwarkForward = true;
+                _hasBulwarkViewCandidate = false;
+                _bulwarkViewCandidateSince = -1.0f;
+                return;
             }
-            else if (!_hasBulwarkForward)
+
+            Vector3 viewForward = hero.VHeroController == null
+                ? Vector3.forward
+                : hero.VHeroController.transform.forward;
+            VCHeroRaycaster raycaster = hero.VHeroController == null
+                ? null
+                : hero.VHeroController.Raycaster;
+            if (raycaster != null)
             {
-                Vector3 initialForward = hero.VHeroController == null
-                    ? Vector3.forward
-                    : hero.VHeroController.transform.forward;
-                initialForward.y = 0.0f;
-                _bulwarkForward = initialForward.sqrMagnitude <= 0.0001f
-                    ? Vector3.forward
-                    : initialForward.normalized;
-                _hasBulwarkForward = true;
+                Vector3 viewOrigin;
+                raycaster.GetViewRay(out viewOrigin, out viewForward);
             }
-            return GetFormationLeaderAnchor(hero)
-                + (Quaternion.AngleAxis(angle, Vector3.up)
-                    * _bulwarkForward * distance);
+            viewForward.y = 0.0f;
+            if (viewForward.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+            viewForward.Normalize();
+
+            if (!_hasBulwarkForward)
+            {
+                _bulwarkForward = viewForward;
+                _hasBulwarkForward = true;
+                return;
+            }
+            if (Vector3.Angle(_bulwarkForward, viewForward)
+                < BulwarkCameraFacingMinimumAngle)
+            {
+                _hasBulwarkViewCandidate = false;
+                _bulwarkViewCandidateSince = -1.0f;
+                return;
+            }
+            if (!_hasBulwarkViewCandidate
+                || Vector3.Angle(_bulwarkViewCandidate, viewForward)
+                    > BulwarkCameraFacingStabilityAngle)
+            {
+                _bulwarkViewCandidate = viewForward;
+                _hasBulwarkViewCandidate = true;
+                _bulwarkViewCandidateSince = Time.unscaledTime;
+                return;
+            }
+            if (Time.unscaledTime - _bulwarkViewCandidateSince
+                < BulwarkCameraFacingHoldSeconds)
+            {
+                return;
+            }
+
+            _bulwarkForward = viewForward;
+            _hasBulwarkViewCandidate = false;
+            _bulwarkViewCandidateSince = -1.0f;
+        }
+
+        private static void ResetBulwarkFacingState()
+        {
+            _hasBulwarkForward = false;
+            _bulwarkForward = Vector3.forward;
+            _bulwarkFacingHero = null;
+            _bulwarkFacingFrame = -1;
+            _hasBulwarkViewCandidate = false;
+            _bulwarkViewCandidate = Vector3.forward;
+            _bulwarkViewCandidateSince = -1.0f;
         }
 
         private static Vector3 GetGuardAnchor(NpcHeroSummon summon)
@@ -2502,8 +2765,7 @@ namespace SoulAndService
                 return;
             }
             _formationFacingHero = hero;
-            _hasBulwarkForward = false;
-            _bulwarkForward = Vector3.forward;
+            ResetBulwarkFacingState();
             _hasGuardForward = false;
             _guardForward = Vector3.forward;
         }
@@ -2714,19 +2976,10 @@ namespace SoulAndService
                 || !plugin.AttackCommandPrompt.Value
                 || !HasAttackCommandControl()
                 || !IsTargetCommandModifierHeld(plugin, hero)
-                || hero == null
-                || target == null
-                || target.HasBeenDiscarded
-                || !target.IsAlive
-                || target.IsUnconscious
-                || target.IsHeroSummon)
-            {
-                return false;
-            }
-
-            float commandRange = GetTargetingRange(plugin);
-            if ((target.Coords - hero.Coords).sqrMagnitude
-                > commandRange * commandRange)
+                || !IsAttackCommandTarget(
+                    hero,
+                    target,
+                    GetTargetingRange(plugin)))
             {
                 return false;
             }
@@ -2739,6 +2992,158 @@ namespace SoulAndService
                 }
             }
             return false;
+        }
+
+        private static bool IsAttackCommandTarget(
+            Hero hero,
+            NpcElement target,
+            float commandRange)
+        {
+            return hero != null
+                && target != null
+                && !target.HasBeenDiscarded
+                && target.IsAlive
+                && !target.IsUnconscious
+                && !target.IsHeroSummon
+                && (target.Coords - hero.Coords).sqrMagnitude
+                    <= commandRange * commandRange;
+        }
+
+        private static bool TryFindFreshAttackCommandTarget(
+            Hero hero,
+            RaycastCheck detection,
+            Vector3 origin,
+            Vector3 direction,
+            float commandRange,
+            out NpcElement target,
+            out GameObject viewObject)
+        {
+            target = null;
+            viewObject = null;
+            Collider directCollider = detection == null
+                ? null
+                : detection.Detected(origin, direction, commandRange);
+            Location directLocation = ResolveHitLocation(directCollider);
+            NpcElement directTarget = directLocation == null
+                ? null
+                : directLocation.TryGetElement<NpcElement>();
+            if (CanCommandSummons(hero, directTarget))
+            {
+                target = directTarget;
+                viewObject = ResolveAttackCommandView(
+                    directTarget,
+                    directCollider);
+                RememberAttackCommandTarget(target, viewObject);
+                return true;
+            }
+
+            int hitCount = Physics.SphereCastNonAlloc(
+                origin,
+                AttackCommandAimRadius,
+                direction,
+                AttackCommandRaycastHits,
+                commandRange,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            NpcElement bestTarget = null;
+            Collider bestCollider = null;
+            float bestTargetDistance = float.PositiveInfinity;
+            float nearestBlockingDistance = float.PositiveInfinity;
+            int count = Math.Min(hitCount, AttackCommandRaycastHits.Length);
+            for (int index = 0; index < count; index++)
+            {
+                RaycastHit hit = AttackCommandRaycastHits[index];
+                Collider collider = hit.collider;
+                if (collider == null)
+                {
+                    continue;
+                }
+                Location location = ResolveHitLocation(collider);
+                NpcElement candidate = location == null
+                    ? null
+                    : location.TryGetElement<NpcElement>();
+                if (location == hero || IsOwnedHeroSummon(candidate))
+                {
+                    continue;
+                }
+                if (IsAttackCommandTarget(hero, candidate, commandRange))
+                {
+                    if (hit.distance < bestTargetDistance)
+                    {
+                        bestTarget = candidate;
+                        bestCollider = collider;
+                        bestTargetDistance = hit.distance;
+                    }
+                    continue;
+                }
+                nearestBlockingDistance = Math.Min(
+                    nearestBlockingDistance,
+                    hit.distance);
+            }
+
+            if (bestTarget == null
+                || bestTargetDistance > nearestBlockingDistance + 0.01f
+                || !CanCommandSummons(hero, bestTarget))
+            {
+                return false;
+            }
+
+            target = bestTarget;
+            viewObject = ResolveAttackCommandView(bestTarget, bestCollider);
+            RememberAttackCommandTarget(target, viewObject);
+            return true;
+        }
+
+        private static bool TryGetRecentAttackCommandTarget(
+            Hero hero,
+            out NpcElement target,
+            out GameObject viewObject)
+        {
+            target = _recentAttackCommandTarget;
+            viewObject = _recentAttackCommandViewObject;
+            if (target == null
+                || Time.unscaledTime - _recentAttackCommandFocusedAt
+                    > AttackCommandFocusGraceSeconds
+                || !CanCommandSummons(hero, target))
+            {
+                ClearRecentAttackCommandTarget();
+                target = null;
+                viewObject = null;
+                return false;
+            }
+            if (viewObject == null)
+            {
+                viewObject = ResolveAttackCommandView(target, null);
+                _recentAttackCommandViewObject = viewObject;
+            }
+            return viewObject != null;
+        }
+
+        private static GameObject ResolveAttackCommandView(
+            NpcElement target,
+            Collider collider)
+        {
+            return target != null
+                && target.Controller != null
+                && target.Controller.AlivePrefab != null
+                    ? target.Controller.AlivePrefab
+                    : collider == null ? null : collider.gameObject;
+        }
+
+        private static void RememberAttackCommandTarget(
+            NpcElement target,
+            GameObject viewObject)
+        {
+            _recentAttackCommandTarget = target;
+            _recentAttackCommandViewObject = viewObject;
+            _recentAttackCommandFocusedAt = Time.unscaledTime;
+        }
+
+        private static void ClearRecentAttackCommandTarget()
+        {
+            _recentAttackCommandTarget = null;
+            _recentAttackCommandViewObject = null;
+            _recentAttackCommandFocusedAt = 0.0f;
         }
 
         private static int CommandSummons(Hero hero, NpcElement target)
@@ -3932,6 +4337,7 @@ namespace SoulAndService
             }
             if (_behaviorCommandHeld)
             {
+                ClearRecentAttackCommandTarget();
                 ClearCommandOverride();
                 return;
             }
@@ -3941,6 +4347,7 @@ namespace SoulAndService
                         || !plugin.FormationCommands.Value))
                 || raycaster == null)
             {
+                ClearRecentAttackCommandTarget();
                 ClearCommandOverride();
                 return;
             }
@@ -3954,7 +4361,30 @@ namespace SoulAndService
                 || (!HasAttackCommandControl()
                     && !HasIndividualFormationControl()))
             {
+                ClearRecentAttackCommandTarget();
                 ClearCommandOverride();
+                return;
+            }
+
+            float commandRange = GetTargetingRange(plugin);
+            bool attackCommandsAvailable = plugin.AttackCommandPrompt.Value
+                && HasAttackCommandControl();
+            NpcElement attackTarget;
+            GameObject attackViewObject;
+            if (attackCommandsAvailable
+                && TryFindFreshAttackCommandTarget(
+                    hero,
+                    detection,
+                    origin,
+                    direction,
+                    commandRange,
+                    out attackTarget,
+                    out attackViewObject))
+            {
+                ShowAttackCommandOverride(
+                    raycaster,
+                    attackTarget,
+                    attackViewObject);
                 return;
             }
 
@@ -3967,11 +4397,12 @@ namespace SoulAndService
                         detection,
                         origin,
                         direction,
-                        GetTargetingRange(plugin),
+                        commandRange,
                         out NpcHeroSummon summon,
                         out GameObject summonViewObject,
                         out string diagnostic))
                 {
+                    ClearRecentAttackCommandTarget();
                     LogFormationFocusDiagnostic(plugin, diagnostic);
                     SummonCommandState kind = IsHeld(summon)
                         ? SummonCommandState.Follow
@@ -3995,34 +4426,28 @@ namespace SoulAndService
                 LogFormationFocusDiagnostic(plugin, diagnostic);
             }
 
-            if (detection == null)
+            if (attackCommandsAvailable
+                && TryGetRecentAttackCommandTarget(
+                    hero,
+                    out attackTarget,
+                    out attackViewObject))
             {
-                ClearCommandOverride();
+                ShowAttackCommandOverride(
+                    raycaster,
+                    attackTarget,
+                    attackViewObject);
                 return;
             }
 
-            if (!plugin.AttackCommandPrompt.Value)
-            {
-                ClearCommandOverride();
-                return;
-            }
+            ClearRecentAttackCommandTarget();
+            ClearCommandOverride();
+        }
 
-            Collider collider = detection.Detected(
-                origin,
-                direction,
-                GetTargetingRange(plugin));
-            VLocation view = collider == null
-                ? null
-                : collider.GetComponentInParent<LocationParent>()
-                    ?.GetComponentInChildren<VLocation>();
-            NpcElement target = view == null || view.Target == null
-                ? null
-                : view.Target.TryGetElement<NpcElement>();
-            if (!CanCommandSummons(hero, target))
-            {
-                ClearCommandOverride();
-                return;
-            }
+        private static void ShowAttackCommandOverride(
+            VCHeroRaycaster raycaster,
+            NpcElement target,
+            GameObject viewObject)
+        {
             if (_commandInteractable != null
                 && ReferenceEquals(_commandInteractable.Target, target))
             {
@@ -4031,7 +4456,7 @@ namespace SoulAndService
             ClearCommandOverride();
             _commandInteractable = new SummonCommandInteractable(
                 target,
-                collider.gameObject);
+                viewObject);
             raycaster.SetInteractionOverride(_commandInteractable);
         }
 
@@ -4257,8 +4682,7 @@ namespace SoulAndService
             _bulwarkTargetCandidates = new NpcElement[0];
             _guardIdleMoverId = null;
             _nextIdleHostAttemptAt = 0.0f;
-            _hasBulwarkForward = false;
-            _bulwarkForward = Vector3.forward;
+            ResetBulwarkFacingState();
             _hasGuardForward = false;
             _guardForward = Vector3.forward;
             ResetFormationLeaderMotion();
@@ -5023,8 +5447,10 @@ namespace SoulAndService
                 + (SteelAndBoneTransferFraction * (sightMultiplier - 1.0f));
             float awarenessRange = behavior == SummonBehavior.Bulwark
                 ? BulwarkDefenseRange
-                : BaseSummonAwarenessRange
-                    * Math.Max(1.0f, transferredSight);
+                : behavior == SummonBehavior.Hunt
+                    ? HuntAwarenessRange
+                    : BaseSummonAwarenessRange
+                        * Math.Max(1.0f, transferredSight);
             if (held)
             {
                 awarenessRange = Math.Min(
@@ -5271,10 +5697,6 @@ namespace SoulAndService
             {
                 return int.MaxValue;
             }
-            if (behavior == SummonBehavior.Hunt)
-            {
-                return 0;
-            }
             RecentAttackerRecord attacker;
             bool recentAttacker = RecentAttackers.TryGetValue(
                     ((Model)target).ID,
@@ -5282,6 +5704,12 @@ namespace SoulAndService
                 && attacker.ExpiresAt >= Time.unscaledTime;
             bool targetingProtected = IsHeroOrOwnedSummon(
                 target.GetCurrentTarget());
+            if (behavior == SummonBehavior.Hunt)
+            {
+                return recentAttacker
+                    ? 0
+                    : targetingProtected ? 1 : 2;
+            }
             float heroDistanceSqr = hero == null
                 ? float.PositiveInfinity
                 : (target.Coords - hero.Coords).sqrMagnitude;
@@ -5356,11 +5784,15 @@ namespace SoulAndService
                 : summon.ParentModel;
             if (behavior == SummonBehavior.Hunt)
             {
-                return summonObserver != null
-                    && HasAutonomousTargetLineOfSightFrom(
+                return HasAutonomousTargetLineOfSightFrom(
+                        null,
+                        hero,
+                        target)
+                    || (summonObserver != null
+                        && HasAutonomousTargetLineOfSightFrom(
                         summonObserver,
                         hero,
-                        target);
+                        target));
             }
             return HasAutonomousTargetLineOfSightFrom(null, hero, target)
                 || (summonObserver != null

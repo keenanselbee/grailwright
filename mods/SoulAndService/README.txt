@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 2.1.4
+Soul and Service - Summon Overhaul 2.2.0
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -30,16 +30,20 @@ Default behavior
   It never pulls an uninvolved hostile merely because another servant is fighting.
   Passive crosshair sharing is off; when enabled, its adopted target remains an
   autonomous suggestion governed by the current behavior. Explicit Attack always wins.
-- At 10 Necromantic Power (about 65 Soul Vigor), hold the remappable Sprint action and aim at a nearby hostile
-  to show Attack; tap Interact to order every eligible owned summon onto that target.
+- At 10 Necromantic Power (about 65 Soul Vigor), hold the remappable Sprint action
+  and aim at a nearby hostile to show Attack; tap Interact to order every eligible
+  owned summon onto that target. Targeting tolerates small gaps around the visible
+  body and brief aim drift. Once given, the order remains authoritative until its
+  target becomes invalid or another direct order replaces it; Recall always cancels it.
 - At 20 Power (about 133 Soul Vigor), keep Sprint held and aim at an owned summon within the configured
   Targeting Range, then tap Interact to make that servant Hold or Follow. The selector
   follows the visible servant even when its out-of-combat body colliders are disabled. Held servants
   defend within an 8 m leash around their fixed position; an explicit Attack order
   temporarily overrides the hold.
 - At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds
-  and release before two seconds to Hold All while an owned summon is active. If
-  any servant is already held, release instead issues Follow All.
+  and release to Hold All while an owned summon is active. If any servant is already
+  held, release instead issues Follow All. Once Recall unlocks at Power 70, release
+  before 1.5 seconds for the formation command or keep holding to Recall.
   This works without Battlecry Voice Tuner; both mods share the binding safely
   when it is installed.
 - At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds
@@ -47,7 +51,7 @@ Default behavior
   cycle Guard, Bulwark, and Hunt. No charging prompt appears. Completion briefly
   shows Behavior: Guard, Behavior: Bulwark, or Behavior: Hunt. Keep Sprint held,
   release only Interact, and hold Interact again to cycle immediately.
-- At 70 Power (about 567 Soul Vigor), keep holding Take All Items for two seconds
+- At 70 Power (about 567 Soul Vigor), keep holding Take All Items for 1.5 seconds
   to Recall the active servant or Recall Host when several are active. The shorter
   formation command is cancelled; every servant drops its hold and explicit target,
   returns to Follow, and takes a distinct navigable place in a loose randomized arc
@@ -56,15 +60,19 @@ Default behavior
   new command or behavior change releases them. Autonomous targets remain suppressed
   for three seconds so Guard or Hunt cannot immediately cancel the disengagement.
 - Bulwark assigns servants stable positions in a disciplined forward shield. Its
-  first four positions begin 3.5 m from the hero with a 0.5 m settling area, and
-  the line retains the hero's last meaningful movement direction while stationary,
-  so camera look alone cannot rotate it. Servants
+  first four positions begin 3.5 m from the hero with a 0.5 m settling area. While
+  travelling, meaningful movement direction immediately leads the wall. While
+  stationary, looking at least 30 degrees away for 0.3 seconds turns it toward the
+  stable camera direction once, so servants can body-block the area in front without
+  chasing small aim corrections or ordinary camera scanning. Servants
   counterattack only recent attackers or enemies threatening the host within 6 m,
   never chase an autonomous threat beyond 8 m, and skip native target acquisition
   when no such threat exists. Explicit Attack temporarily releases them.
 - Hunt assigns distinct, stable perimeter positions beginning 5.5 m from the hero
-  and attacks valid faction-hostile NPCs it can see from its own position, including
-  enemy summons when faction rules mark them hostile. Idle
+  and aggressively seeks valid faction-hostile NPCs within 45 m when either the hero
+  or the acting servant has line of sight, including enemy summons when faction rules
+  mark them hostile. Recent attackers and enemies threatening the host take priority,
+  and formation movement yields immediately while a hunter pursues its target. Idle
   hunters make staggered local scouting walks without moving inside 5 m; hosts of
   four or more allow at most two scouts at once. Movement, combat, and commands
   cancel those walks. A servant commits briefly to a valid target and changes to
@@ -106,10 +114,10 @@ Default behavior
   rather than stack it.
 - At Power 0/100/200, owned summons deal 0.75x/1.25x/1.50x damage and take
   1.25x/0.75x/0.50x damage. Normal summons receive the same benefits.
-- Guard and Hunt evaluate eligible enemies within 30 m by default, while Bulwark
-  defends a 6 m zone and retains a short 8 m combat leash. When Steel and Bone is
-  loaded, they inherit 80% of its active sight and aggro-persistence increase,
-  with a short lost-target grace and the native 45 m command tether retained.
+- Guard evaluates eligible enemies within 30 m by default, Hunt actively searches
+  within the native 45 m command tether, and Bulwark defends a 6 m zone with an
+  8 m combat leash. When Steel and Bone is loaded, Guard inherits 80% of its active
+  sight increase and autonomous targets gain 80% of its aggro-persistence increase.
 - Successful Recall Host and automatic too-far catch-up teleports play the same
   green-dark necromancer summoning effect beneath each servant after arrival.
 - Soul Rend light cast turns an eligible hostile corpse into native simplified
@@ -198,7 +206,12 @@ Default behavior
   executes it at 20% Health or below. Raised servants complete only their source's
   remaining one-time rewards and remain available for light Soul Rend after
   execution. Ordinary spell summons provide healing only, with no XP or Blood
-  Essence; bloodless servants are invalid.
+  Essence; bloodless servants are invalid but retain desaturated crosshair
+  feedback. Light Abhartach's Calling can instead sacrifice only the eligible
+  owned flesh servant under the crosshair, even in combat. The servant becomes
+  a real native corpse for Abhartach's normal explosion and quality scaling;
+  service ends with no XP, Blood Essence, Soul Vigor, Mana refund, or duplicate
+  loot. Heavy Abhartach remains corpse-only.
 - Dishonored Dynamic Crosshair can show Necrotic-green Meager/Worthy/Potent/Prime
   reticles over eligible corpses and active owned summons while Soul Rend is
   equipped. Heavy servant service uses the dedicated heal or empower reticle,

@@ -2,7 +2,7 @@
   "id": "SoulAndService",
   "displayName": "Soul and Service - Summon Overhaul",
   "packageName": "SoulAndService",
-  "version": "2.1.4",
+  "version": "2.2.0",
   "pluginGuid": "ks.tgfoa.soul-and-service",
   "dll": "SoulAndService.dll",
   "sourceFiles": [
@@ -31,6 +31,7 @@
     "%GAME%/Fall of Avalon_Data/Managed/UniTask.dll",
     "%GAME%/Fall of Avalon_Data/Managed/AstarPathfindingProject.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Drawing.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Kandra.dll",
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
   ]
 }

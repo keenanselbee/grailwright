@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("2.1.4.0")]
-[assembly: AssemblyFileVersion("2.1.4.0")]
-[assembly: AssemblyInformationalVersion("2.1.4")]
+[assembly: AssemblyVersion("2.2.0.0")]
+[assembly: AssemblyFileVersion("2.2.0.0")]
+[assembly: AssemblyInformationalVersion("2.2.0")]
 
 namespace SoulAndService
 {
@@ -93,7 +93,7 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "2.1.4";
+        public const string PluginVersion = "2.2.0";
 
         private const int ConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -438,7 +438,7 @@ namespace SoulAndService
                 "Targeting",
                 "FormationCommands",
                 true,
-                "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release before two seconds to issue Hold All or Follow All. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard, Bulwark, and Hunt. At 70 Power (about 567 Soul Vigor), keep holding Take All Items for two seconds to Recall Host.");
+                "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (about 567 Soul Vigor), release before 1.5 seconds for the formation command or keep holding to Recall Host. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard, Bulwark, and Hunt.");
             TargetCommandModifier = BindOrdered(
                 "Targeting",
                 "TargetCommandModifier",
@@ -925,7 +925,7 @@ namespace SoulAndService
 
     public static class SoulAndServiceApi
     {
-        public const int ApiVersion = 7;
+        public const int ApiVersion = 8;
 
         public static bool IsLoaded
         {
@@ -1018,6 +1018,16 @@ namespace SoulAndService
                 candidate,
                 severity,
                 out killed);
+        }
+
+        public static bool TryMaterializeOwnedBloodServantCorpseForAbhartach(
+            object candidate,
+            out object corpseLocation)
+        {
+            return SoulSalvageRuntime
+                .TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop(
+                    candidate,
+                    out corpseLocation);
         }
 
         public static bool SetOwnedReanimatedServantBloodRitualState(

@@ -1,3 +1,7 @@
+Version 1.9.3
+Fixed the character-statistics panel lingering from the ESC menu into a loading screen when Show On Loading Screens is disabled. Starting a valid save load now clears the outgoing pause-menu panel immediately, and the runtime visibility check always gives an active loading screen priority over stale menu state.
+Kept ConfigSchemaVersion at 13 because this changes only panel transition detection and no setting or default.
+
 Version 1.9.1
 Made Show On Loading Screens opt-in by default and kept all related snapshot generation, reads, and writes inactive until that setting is enabled.
 Advanced ConfigSchemaVersion from 12 to 13 because the loading-screen presentation default changed; the normal backed-up reset preserves compatible customized settings while applying the new default.

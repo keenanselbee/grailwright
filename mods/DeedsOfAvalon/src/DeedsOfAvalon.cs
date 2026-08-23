@@ -45,9 +45,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Save-bounded character statistics and menu presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.9.1.0")]
-[assembly: AssemblyFileVersion("1.9.1.0")]
-[assembly: AssemblyInformationalVersion("1.9.1")]
+[assembly: AssemblyVersion("1.9.3.0")]
+[assembly: AssemblyFileVersion("1.9.3.0")]
+[assembly: AssemblyInformationalVersion("1.9.3")]
 
 namespace DeedsOfAvalon
 {
@@ -189,7 +189,7 @@ namespace DeedsOfAvalon
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
         public const string PluginName = "Deeds of Avalon";
-        public const string PluginVersion = "1.9.1";
+        public const string PluginVersion = "1.9.3";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -374,8 +374,7 @@ namespace DeedsOfAvalon
             {
                 ClearLoadingPanelCache();
             }
-            bool loadingScreenVisible = loadingScreenStatisticsEnabled
-                && IsLoadingScreenVisible();
+            bool loadingScreenVisible = IsLoadingScreenVisible();
             if (loadingScreenVisible)
             {
                 _loadingPanelWasVisible = !string.IsNullOrWhiteSpace(_loadingPanelSlotId);
@@ -2616,15 +2615,17 @@ namespace DeedsOfAvalon
 
         private bool ShouldShowPanel(bool pauseMenuVisible, bool loadingScreenVisible)
         {
+            if (loadingScreenVisible)
+            {
+                return LoadingScreenStatisticsEnabled();
+            }
+
             return (_wheelWasOpen
                     && _showQuickWheelStatistics != null
                     && _showQuickWheelStatistics.Value)
                 || (pauseMenuVisible
                     && _showPauseMenuStatistics != null
-                    && _showPauseMenuStatistics.Value)
-                || (loadingScreenVisible
-                    && _showLoadingScreenStatistics != null
-                    && _showLoadingScreenStatistics.Value);
+                    && _showPauseMenuStatistics.Value);
         }
 
         private void RefreshPanelPresentation()
@@ -2635,7 +2636,7 @@ namespace DeedsOfAvalon
                 && _enabled.Value
                 && ShouldShowPanel(
                     IsPauseMenuVisible(),
-                    LoadingScreenStatisticsEnabled() && IsLoadingScreenVisible()))
+                    IsLoadingScreenVisible()))
             {
                 PublishPanel();
             }
@@ -2740,8 +2741,13 @@ namespace DeedsOfAvalon
         internal void PrepareLoadingPanel(SaveSlot saveSlot)
         {
             ClearLoadingPanelCache();
-            if (!LoadingScreenStatisticsEnabled()
-                || saveSlot == null
+            if (!LoadingScreenStatisticsEnabled())
+            {
+                _pauseMenuView = null;
+                ClearGftPanel();
+                return;
+            }
+            if (saveSlot == null
                 || string.IsNullOrWhiteSpace(saveSlot.ID))
             {
                 return;

@@ -1,5 +1,5 @@
 Deeds of Avalon - Character Statistics
-Version 1.9.1
+Version 1.9.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -102,9 +102,10 @@ snapshot exists, including after upgrading from the old cache format, Deeds
 initializes one when live data becomes available; every later successful save
 refreshes it. Deeds validates the complete serialized snapshot before replacing
 the last good cache. When Show On Loading Screens is disabled, Deeds neither
-reads nor writes these snapshots. Existing snapshot files remain dormant. It
-does not search the world for either menu each frame; only its values refresh
-five times per second while a panel surface is open.
+reads nor writes these snapshots. Existing snapshot files remain dormant. The
+pause menu uses its tracked view while loading-screen visibility is checked
+independently so a stale outgoing menu cannot keep the panel open. Panel values
+refresh five times per second while a panel surface is open.
 
 WeaponStatisticsMode defaults to Detailed for individual weapon types. Grouped
 combines the same saved counters into One-Handed, Two-Handed, and Bows while

@@ -1,7 +1,4 @@
 TargetVersion=1.9.3
-BaselineVersion=1.8.9
+BaselineVersion=1.9.1
 
 Fixed the character-statistics panel lingering from the ESC menu into a loading screen when Show On Loading Screens is disabled. Starting a valid save load now clears the outgoing pause-menu panel immediately, and the runtime visibility check always gives an active loading screen priority over stale menu state.
-Made Show On Loading Screens opt-in by default and kept all related snapshot generation, reads, and writes inactive until that setting is enabled.
-Fixed per-save loading-screen snapshots omitting their panel payload, so cached character statistics can appear from the beginning of main-menu loads instead of waiting for live Hero and GameplayMemory data.
-Replaced the nested snapshot payload with a serializer-safe flat cache format and now round-trip validates the complete JSON before replacing the last good slot cache.

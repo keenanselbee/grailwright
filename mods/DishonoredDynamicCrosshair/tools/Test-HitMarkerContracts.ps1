@@ -90,6 +90,7 @@ Assert-Contract ([regex]::IsMatch($source, 'ColorForBloodMagicCorpseState\(strin
 Assert-Contract ([regex]::IsMatch($source, 'TargetState displayTargetState = soulSalvageActive[\s\S]*?: bloodMagicActive[\s\S]*?BloodMagicCorpseUsesUsableVisuals[\s\S]*?TargetState\.Hostile\s*:\s*TargetState\.Default')) "Unavailable corpses do not use the ordinary idle-opacity state."
 Assert-Contract ($source.Contains('if (apiVersion < 9)')) "Dishonored does not accept compatible Blood Magic Expansion API v9 or newer."
 Assert-Contract ($source.Contains('GetFocusedCorpseQualityTier')) "Blood Magic corpse-quality tier API resolution is missing."
+Assert-Contract ($source.Contains('_nextBloodMagicCheckTime = now + 0.05f;')) "Blood Magic reticles do not refresh at the responsive 20 Hz cadence."
 Assert-Contract ([regex]::IsMatch($source, 'case 1:\s*return "custom_reticle_bloodmagic_0\.png";')) "Meager Blood Magic does not use frame 0."
 Assert-Contract ([regex]::IsMatch($source, 'case 2:\s*return "custom_reticle_bloodmagic_1\.png";')) "Worthy Blood Magic does not use frame 1."
 Assert-Contract ([regex]::IsMatch($source, 'case 3:\s*return "custom_reticle_bloodmagic_2\.png";')) "Potent Blood Magic does not use frame 2."
@@ -132,7 +133,7 @@ Assert-Contract ($steelSource.Contains('bool damageOverTime = IsDamageOverTime(d
 Assert-Contract ([regex]::IsMatch($steelSource, 'SteelAndBoneHitFeedbackApi\.Publish\([\s\S]*?if \(!DamageNumbersActive\(\)\)')) "Hit publication is not independent from floating-number rendering."
 Assert-Contract (-not $steelSource.Contains('if (_damageNumbersEnabled == null || !_damageNumbersEnabled.Value || damage == null)')) "Damage feedback is still gated by DamageNumbersEnabled."
 Assert-Contract ($bloodMagicSource.Contains('public static int GetFocusedCorpseQualityTier()')) "Blood Magic Expansion does not expose focused corpse-quality tiers."
-Assert-Contract ([regex]::IsMatch($bloodMagicSource, 'GetFocusedCorpseQualityTierForInterop\(\)[\s\S]*?return GetCorpseQualityTier\(CalculateCorpseQuality01\(state, false\)\);')) "Blood Magic Expansion does not expose quality tiers for resolved unavailable corpses."
+Assert-Contract ([regex]::IsMatch($bloodMagicSource, 'GetFocusedCorpseQualityTierForInterop\(\)[\s\S]*?TryGetFocusedCorpseInteropSnapshot\([\s\S]*?return GetCorpseQualityTier\(CalculateCorpseQuality01\(state, false\)\);')) "Blood Magic Expansion does not expose snapshot-consistent quality tiers for resolved unavailable corpses."
 
 $assetNames = @(
     "custom_reticle.png",

@@ -1,3 +1,8 @@
+Version 3.5.9
+Refreshed Blood Magic corpse feedback at 20 Hz instead of 6.7 Hz so newly focused and changed ritual targets respond promptly.
+Consumed Blood Magic Expansion's shared per-frame target snapshot so state, quality, and tier remain internally consistent without repeated targeting probes.
+Kept ConfigSchemaVersion at 19 because this changes fixed integration timing without changing a setting or default.
+
 Version 3.5.8
 Completed the installed-user deployment inventory for the two Necromagic service reticles and the four Soul and Service command icons.
 Kept ConfigSchemaVersion at 19 because this documentation correction changes no runtime behavior or setting.

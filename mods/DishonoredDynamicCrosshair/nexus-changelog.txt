@@ -1,6 +1,7 @@
-TargetVersion=3.5.8
+TargetVersion=3.5.9
 BaselineVersion=3.5.0
 
+Refreshed Blood Magic corpse targeting at 20 Hz and consumed one consistent state-and-quality snapshot per update, improving servant reticle responsiveness without repeated target probes.
 Completed the installed-user deployment inventory for Necromagic service and Soul and Service command reticles.
 Aligned killing-blow overlay filenames with their natural corpse-quality order: 0 Meager, 1 Worthy, 2 Potent, and 3 Prime.
 Retained shared scaling for Blood Magic and Soul Rend tiers: base size, then Magic scale, Blood Magic scale, and corpse-quality scale.

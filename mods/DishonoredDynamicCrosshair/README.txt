@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.5.8
+Version 3.5.9
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.5.8
+  Version: 3.5.9
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -70,7 +70,7 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.5.8 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
+Version 3.5.9 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
 diagnostic was replaced by one general Diagnostics switch.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
@@ -443,6 +443,11 @@ the same asset as Meager.
 Living enemies keep the normal hostile or magic reticle. Set
 BloodMagicQualityCrosshairsEnabled to false to retain the single fallback
 appearance.
+
+Blood Magic corpse feedback refreshes at 20 Hz. Blood Magic Expansion 3.1.0
+or newer supplies one consistent state-and-quality snapshot per refresh and a
+small obstruction-aware aiming tolerance for owned living servants, preventing
+animated gaps between their colliders from flickering the ritual reticle.
 
 The quality curve intentionally keeps weak corpses near normal Magic size and
 allows strong corpses to grow toward the maximum. The dead zone and curve are

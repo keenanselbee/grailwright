@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.5.8.0")]
-[assembly: AssemblyFileVersion("3.5.8.0")]
+[assembly: AssemblyVersion("3.5.9.0")]
+[assembly: AssemblyFileVersion("3.5.9.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -137,7 +137,7 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.5.8";
+        public const string PluginVersion = "3.5.9";
         private const int ConfigSchemaVersion = 19;
         private const float ReferenceScreenHeight = 1440f;
 
@@ -3633,7 +3633,7 @@ namespace DishonoredDynamicCrosshair
                 return _lastBloodMagicCorpseActive;
             }
 
-            _nextBloodMagicCheckTime = now + 0.15f;
+            _nextBloodMagicCheckTime = now + 0.05f;
             _lastBloodMagicCorpseActive = QueryBloodMagicCorpseInterop();
             return _lastBloodMagicCorpseActive;
         }

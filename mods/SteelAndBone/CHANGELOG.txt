@@ -1,3 +1,9 @@
+Version 3.9.9
+Split Blood and Necrotic magic into complementary biological and spiritual matchup matrices across flesh, undead, skeletons, constructs, spirits, sea creatures, and flora or fungus.
+Made Blood damage classification consume Blood Magic Expansion's exact damage-object API when available, retaining text matching only as a soft-compatibility fallback.
+Stopped retrying a failed optional Blood Magic reflection call for every later hit in the same session.
+Kept summoned servants' native attack types unchanged. Config schema remains 26 because no setting changed.
+
 Version 3.9.6
 Rate-limited repeated difficulty diagnostics to one message per lever per second, preserving useful values without allowing high-frequency combat and summon queries to flood the BepInEx log and degrade frame rate.
 Kept combat behavior and ConfigSchemaVersion 26 unchanged.

@@ -43,7 +43,7 @@ $portraitIndex = $source.IndexOf(
     "bool usedFallbackPortrait = EnsureRaisedServantPortrait(raisedNpc);",
     [StringComparison]::Ordinal)
 $summonIndex = $source.IndexOf(
-    "NpcElement npc = SummonUtils.InitializeSummon(",
+    "npc = SummonUtils.InitializeSummon(",
     [StringComparison]::Ordinal)
 if ($spawnIndex -lt 0 -or $portraitIndex -le $spawnIndex -or
     $summonIndex -le $portraitIndex) {

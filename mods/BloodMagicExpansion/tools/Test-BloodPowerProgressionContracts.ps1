@@ -70,7 +70,7 @@ function Get-BleedDurationMultiplier {
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\BloodMagicExpansion.cs")
 $requiredContracts = @(
-    'ConfigSchemaVersion = 21',
+    'ConfigSchemaVersion = 23',
     'NormalMaximumBloodPower = 100.0f',
     'AbsoluteMaximumBloodPower = 200.0f',
     'BloodEssenceAtNormalMaximumPower = 1000.0f',
@@ -155,6 +155,18 @@ if (!$tunedMultiplierBlock.Success -or
     $tunedMultiplierBlock.Value -notmatch 'float power\s*=\s*GetBloodPower\(\);' -or
     $tunedMultiplierBlock.Value -notmatch 'GetBloodPowerOvermasteryBonusFraction\(power\)') {
     throw "Blood Spell tuning must apply Blood Power mastery and overmastery scaling."
+}
+
+foreach ($required in @(
+    'public const int ApiVersion = 10;',
+    'GetBloodEssenceGainForQuality(',
+    'bonusChance = 0.05f',
+    '(0.0005f * Mathf.Clamp(GetBloodPower(), 0.0f, 200.0f))',
+    'return nominal + bonus;',
+    'public static bool IsBloodMagicDamage(object damage)')) {
+    if (!$source.Contains($required)) {
+        throw "Missing integer Blood Essence or exact damage provenance contract: $required"
+    }
 }
 
 if ($source.IndexOf('BindOrdered("Blood Spell Inner Light", "MaximumPowerRangeMultiplier"', [StringComparison]::Ordinal) -ge 0 -or

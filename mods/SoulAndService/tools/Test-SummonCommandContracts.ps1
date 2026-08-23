@@ -28,10 +28,30 @@ foreach ($required in @(
     '"Targeting Range"',
     'ks.tgfoa.battlecry-voice-tuner',
     'internal ConfigEntry<bool> PersistentServants',
+    'internal ConfigEntry<float> IdleMovementAmount',
+    '"IdleMovementAmount"',
     '"PersistentServants"',
     '45.0f')) {
     if (!$pluginSource.Contains($required)) {
         throw "Summon command configuration is missing: $required"
+    }
+}
+
+if ($runtimeSource -notmatch '(?s)GetGuardAnchor\(.*?movementForward = hero\.HorizontalVelocity;.*?_guardForward = movementForward\.normalized;.*?Quaternion\.AngleAxis\(angle, Vector3\.up\) \* _guardForward') {
+    throw "Guard formation facing is not latched from meaningful hero movement."
+}
+if ($runtimeSource -notmatch '(?s)internal static void Update\(\).*?if \(!plugin\.IsEnabled\).*?return;.*?UpdateFormationLeaderMotion\(Hero\.Current\);.*?UpdateSwarmStates\(\);') {
+    throw 'Meaningful hero movement is not sampled once per rendered frame before summon upkeep.'
+}
+foreach ($required in @(
+    'private static float GetIdleMovementAmount()',
+    'GetGuardIdleWanderRadius()',
+    '* GetIdleMovementAmount();',
+    'HuntIdleWanderRadius * idleMovementAmount',
+    'if (GetIdleMovementAmount() <= 0.001f)',
+    'if (idleMovementAmount <= 0.001f)')) {
+    if (!$runtimeSource.Contains($required)) {
+        throw "Idle movement amount contract is missing: $required"
     }
 }
 if ($pluginSource.Contains('CombatInitiationMode')) {
@@ -57,6 +77,7 @@ foreach ($required in @(
     'SummonAttackCommandId = "summon_attack"',
     'SummonHoldCommandId = "summon_hold"',
     'SummonFollowCommandId = "summon_follow"',
+    'SummonRecallCommandId = "summon_recall"',
     'SummonGuardCommandId = "summon_guard"',
     'SummonBulwarkCommandId = "summon_bulwark"',
     'SummonHuntCommandId = "summon_hunt"',
@@ -149,7 +170,7 @@ foreach ($required in @(
     'BulwarkAnchorTolerance = 0.5f',
     'BulwarkFormationInnerRadius = 3.5f',
     'BulwarkFormationSlotsPerRing = 4',
-    'BulwarkFacingRebaseDegrees = 20.0f',
+    'EnsureFormationFacingHero(hero)',
     'HuntFormationInnerRadius = 5.5f',
     'HuntFormationSlotsPerRing = 6',
     'HuntAnchorTolerance = 0.5f',
@@ -225,7 +246,7 @@ if ($runtimeSource.Contains('class SummonFormationInteractionUI') -or
     $runtimeSource.Contains('_pendingFormationAction')) {
     throw "Individual formation commands still use the old hold interaction."
 }
-if ($runtimeSource -notmatch '(?s)RemoveAwarenessTargetsForSummon\(\s*string summonId,\s*NpcElement preservedTarget = null\).*?!ReferenceEquals\(record\.Target, preservedTarget\).*?record\.Summon\.RemoveCombatTarget\(record\.Target\);.*?AwarenessTargets\.Remove\(key\);') {
+if ($runtimeSource -notmatch '(?s)RemoveAwarenessTargetsForSummon\(\s*NpcHeroSummon summon,\s*NpcElement preservedTarget = null\).*?string summonId = \(\(Model\)summon\)\.ID;.*?AwarenessTargets\.TryGetValue\(summonId, out record\).*?!ReferenceEquals\(record\.Target, preservedTarget\).*?record\.Summon\.RemoveCombatTarget\(record\.Target\);.*?AwarenessTargets\.Remove\(summonId\);') {
     throw "Awareness cleanup does not remove stale combat targets while preserving an explicit command target."
 }
 if ($runtimeSource -notmatch '(?s)SummonCommandState\.Attack,\s*SummonAttackCommandId,\s*useSwarm \? "Swarm" : "Attack",\s*StandardCommandFeedbackSeconds,\s*false\)') {
@@ -233,6 +254,9 @@ if ($runtimeSource -notmatch '(?s)SummonCommandState\.Attack,\s*SummonAttackComm
 }
 if ($runtimeSource -notmatch '(?s)new SummonCommandAction\(\s*target,\s*null,\s*Kind,\s*HasSwarmCommandControl\(\) \? "Swarm" : "Attack"\)') {
     throw "The hostile-target interaction prompt does not become Swarm at Power 90."
+}
+if (!$runtimeSource.Contains('public bool IsFeedbackOnly => _feedbackOnly;')) {
+    throw "Feedback-only interaction actions do not expose their presentation-only role to soft integrations."
 }
 if ($runtimeSource -notmatch '(?s)hold \? "Hold" : "Follow",\s*StandardCommandFeedbackSeconds,\s*true\)') {
     throw "Individual Hold and Follow do not publish standard native and GFT feedback."
@@ -261,17 +285,23 @@ if ($runtimeSource -notmatch '(?s)UIKeyUpAction.*?_formationCommandArmedForRelea
 if ($runtimeSource -notmatch '(?s)GetBulwarkVelocityScheme\(.*?leader\.HorizontalVelocity\.magnitude.*?BulwarkLeaderRunSpeed.*?VelocityScheme\.Run.*?BulwarkLeaderMovingSpeed.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk') {
     throw "Bulwark locomotion does not account for leader movement speed."
 }
-if ($runtimeSource -notmatch '(?s)GetBulwarkAnchor\(.*?countInRing == 2.*?25\.0f.*?countInRing == 3.*?45\.0f.*?60\.0f.*?Mathf\.Lerp\(-halfArc, halfArc.*?BulwarkFormationInnerRadius.*?BulwarkFormationRingSpacing.*?Vector3\.Angle\(_bulwarkForward, forward\).*?BulwarkFacingRebaseDegrees') {
-    throw "Bulwark formation is not widened and protected from small stationary facing corrections."
+if ($runtimeSource -notmatch '(?s)GetBulwarkAnchor\(.*?EnsureFormationFacingHero\(hero\).*?countInRing == 2.*?25\.0f.*?countInRing == 3.*?45\.0f.*?60\.0f.*?movementForward = hero\.HorizontalVelocity;.*?_bulwarkForward = movementForward\.normalized;.*?Quaternion\.AngleAxis\(angle, Vector3\.up\).*?_bulwarkForward') {
+    throw "Bulwark formation is not widened or latched from meaningful hero movement."
 }
-if ($runtimeSource -notmatch '(?s)bool BeforeFindTarget\(.*?RefreshAutonomousTargets\(summon, plugin, behavior\);\s*return false;\s*}\s*return true;') {
-    throw "Owned servants still run native target recalculation after Soul and Service makes its decision."
+if ($runtimeSource -notmatch '(?s)bool BeforeFindTarget\(.*?return !RefreshAutonomousTargets\(summon, plugin, behavior\);.*?return true;.*?bool RefreshAutonomousTargets\(.*?owner == null \|\| hero == null \|\| grid == null.*?return false;') {
+    throw "Owned servants do not fall back to native targeting only when custom prerequisites are unavailable."
 }
 if ($runtimeSource -notmatch '(?s)GetAutonomousTargetPriority\(.*?behavior == SummonBehavior\.Bulwark.*?BulwarkDefenseRange.*?recentAttacker.*?return 0;.*?targetingProtected \? 1 : int\.MaxValue.*?if \(recentAttacker\).*?return 0;.*?if \(targetingProtected\).*?return 1;.*?target\.NpcAI\.InCombat.*?GuardMeleeThreatRange.*?return 2;.*?return int\.MaxValue;') {
     throw "Guard and Bulwark do not preserve their defensive threat-only priority orders."
 }
 if ($runtimeSource -match 'return hostInCombat \? 3 : int\.MaxValue') {
     throw "Guard still falls back to pulling any visible faction-hostile once the host enters combat."
+}
+if ($runtimeSource.Contains('|| target.IsSummonOrAlly')) {
+    throw "Faction-hostile summoned enemies are still excluded from autonomous targeting."
+}
+if ($runtimeSource -notmatch '(?s)TrySetPassiveSharedTarget\(.*?HasExplicitCommandTarget\(summon\).*?AwarenessTargets\[summonId\].*?SetAutonomousTargetOverride\(summon, target\).*?AfterFindTarget\(.*?TrySetPassiveSharedTarget\(summon, target\)') {
+    throw "Passive crosshair sharing is not represented as replaceable autonomous target state."
 }
 if ($runtimeSource -notmatch '(?s)committedRecord != null.*?AutonomousTargetMinimumCommitmentSeconds.*?AutonomousTargetSwitchDistanceRatio.*?SelectedAt = now') {
     throw "Autonomous targets do not have bounded commitment and same-priority switch hysteresis."
@@ -282,7 +312,7 @@ if ($runtimeSource -notmatch '(?s)HasAutonomousTargetLineOfSightFrom\(.*?string 
 if ($runtimeSource -notmatch '(?s)HasAutonomousTargetLineOfSight\(\s*NpcHeroSummon summon,\s*Hero hero,\s*NpcElement target,\s*SummonBehavior behavior\).*?summonObserver.*?behavior == SummonBehavior\.Hunt.*?HasAutonomousTargetLineOfSightFrom\(\s*summonObserver.*?return HasAutonomousTargetLineOfSightFrom\(null, hero, target\)\s*\|\|.*?HasAutonomousTargetLineOfSightFrom\(\s*summonObserver') {
     throw "Hunt sight is not servant-local or defensive sight is not shared by the hero and acting servant."
 }
-if ($runtimeSource -notmatch '(?s)!AwarenessTargets\.TryGetValue\(selectedKey, out selectedRecord\).*?!owner\.ForceAddCombatTarget\(.*?ClearAutonomousTargetOverride\(summon\);\s*return;.*?AwarenessTargets\[selectedKey\].*?SetAutonomousTargetOverride\(summon, selectedTarget\)') {
+if ($runtimeSource -notmatch '(?s)!AwarenessTargets\.TryGetValue\(summonId, out selectedRecord\).*?!ReferenceEquals\(selectedRecord\.Target, selectedTarget\).*?!owner\.ForceAddCombatTarget\(.*?ClearAutonomousTargetOverride\(summon\);\s*return true;.*?AwarenessTargets\[summonId\].*?SetAutonomousTargetOverride\(summon, selectedTarget\)') {
     throw "Autonomous overrides can still bypass a native combat-target rejection."
 }
 if ($runtimeSource -notmatch '(?s)CycleSummonBehavior\(\).*?TryCycleSummonBehavior.*?foreach \(NpcHeroSummon summon.*?RefreshAutonomousTargets\(\s*summon,\s*plugin,\s*behavior\);.*?EnforceSummonBehavior\(summon, behavior\);') {
@@ -291,10 +321,10 @@ if ($runtimeSource -notmatch '(?s)CycleSummonBehavior\(\).*?TryCycleSummonBehavi
 if ($runtimeSource -match '(?s)CycleSummonBehavior\(\).*?TryCycleSummonBehavior.*?RemoveAllAwarenessTargets\(\).*?PublishCommand') {
     throw "Behavior changes still discard the entire host's valid target state before refreshing."
 }
-if ($runtimeSource -notmatch '(?s)SetExplicitCommandTarget\(.*?RemoveAwarenessTargetsForSummon\(summonId, target\);.*?!ReferenceEquals\(previousTarget, target\).*?RemoveCombatTarget\(previousTarget\).*?ExplicitCommandTargets\[summonId\] = target.*?AddSummonTargetOverrideElement\(\s*summon,\s*target,\s*10\).*?NpcAI\.InCombat.*?ForceAddCombatTarget\(\s*target,\s*recalculateTarget: true\).*?NpcAI\.EnterCombatWith\(\s*target,\s*forceChange: true\).*?CommandSummons\(.*?SetExplicitCommandTarget\(summon, target\)') {
+if ($runtimeSource -notmatch '(?s)SetExplicitCommandTarget\(.*?RemoveAwarenessTargetsForSummon\(summon, target\);.*?!ReferenceEquals\(previousTarget, target\).*?RemoveCombatTarget\(previousTarget\).*?ExplicitCommandTargets\[summonId\] = target.*?AddSummonTargetOverrideElement\(\s*summon,\s*target,\s*10\).*?NpcAI\.InCombat.*?ForceAddCombatTarget\(\s*target,\s*recalculateTarget: true\).*?NpcAI\.EnterCombatWith\(\s*target,\s*forceChange: true\).*?CommandSummons\(.*?SetExplicitCommandTarget\(summon, target\)') {
     throw "Explicit Attack and Swarm commands do not replace stale ownership and enter combat with their ordered target."
 }
-if ($runtimeSource -notmatch '(?s)HasExplicitCommandTarget\(summon\).*?RemoveAwarenessTargetsForSummon\(\s*summonId,\s*ExplicitCommandTargets\[summonId\]\);') {
+if ($runtimeSource -notmatch '(?s)HasExplicitCommandTarget\(summon\).*?RemoveAwarenessTargetsForSummon\(\s*summon,\s*ExplicitCommandTargets\[summonId\]\);') {
     throw "Autonomous refresh can still remove the live explicit command target."
 }
 if ($runtimeSource -notmatch '(?s)bool invalid = record\.Target == null.*?GetAutonomousTargetPriority\(\s*record\.Target,\s*behavior,\s*hero,\s*hostInCombat\) == int\.MaxValue') {
@@ -318,8 +348,8 @@ if ($runtimeSource -notmatch '(?s)typeof\(EnemyBaseClass\),\s*"UpdateCombatSlotS
 if ($runtimeSource -notmatch '(?s)BeforeTeleportToAlly\(.*?pending\.OutstandingRequests\+\+.*?OutstandingRequests = 1.*?AfterTeleportPathCalculated\(.*?Coords - pending\.Origin.*?> 0\.25f.*?PendingTeleportVfxBySummon\.Remove\(summonId\).*?SpawnNecromanticSummonVfx\(summon\.ParentModel\).*?pending\.OutstandingRequests--.*?pending\.OutstandingRequests <= 0.*?PendingTeleportVfxBySummon\.Remove\(summonId\)') {
     throw "Native teleport VFX does not coalesce overlapping requests or gate playback on confirmed movement."
 }
-if ($runtimeSource -notmatch '(?s)RecallHost\(Hero hero\).*?RecallTargetSuppressionUntil\[summonId\].*?RecallTargetSuppressionSeconds.*?ExplicitCommandTargets\.Remove.*?RemoveAwarenessTargetsForSummon.*?SetSummonHeld\(summon, false\).*?ForceEndCombat\(\).*?TryFindRecallPlacement\(.*?PendingRecallPlacements\[summonId\].*?TeleportToAllyMethod\.Invoke.*?recalled == 1 \? "Recall" : "Recall Host"') {
-    throw "Recall does not clear combat state, assign safe placements, use native teleporting, and select singular or host feedback."
+if ($runtimeSource -notmatch '(?s)RecallHost\(Hero hero\).*?RecallTargetSuppressionUntil\[summonId\].*?RecallTargetSuppressionSeconds.*?ExplicitCommandTargets\.Remove.*?RemoveAwarenessTargetsForSummon.*?SetSummonHeld\(summon, false\).*?ForceEndCombat\(\).*?TryFindRecallPlacement\(.*?PendingRecallPlacements\[summonId\].*?TeleportToAllyMethod\.Invoke.*?recalled == 1 \? "Recall" : "Recall Host".*?PublishCommand\(\s*plugin,\s*SummonCommandState\.Follow,\s*SummonRecallCommandId,') {
+    throw "Recall does not clear combat state, assign safe placements, use native teleporting, select singular or host feedback, and request its dedicated voice."
 }
 if ($runtimeSource -notmatch '(?s)TryFindRecallPlacement\(.*?RecallPlacementsPerRing.*?RecallPlacementArcDegrees.*?AstarPath\.active\.GetNearest.*?NNConstraint\.Walkable.*?PathUtilities\.IsPathPossible.*?reservedPlacements\.Any.*?RecallPlacementMinimumSpacing') {
     throw "Recall placement does not use navigable, non-overlapping randomized ring slots."
@@ -336,8 +366,20 @@ if ($runtimeSource -notmatch '(?s)GetAiTickInterval\(NpcAlly ally\).*?return 2\.
 if ($runtimeSource -notmatch '(?s)GetFormationHost\(Hero hero\).*?Time\.frameCount.*?World\.All<NpcHeroSummon>\(\).*?OrderBy.*?GetHuntAnchor\(.*?GetFormationHost\(hero\).*?GetBulwarkAnchor\(.*?GetFormationHost\(hero\).*?GetGuardAnchor\(.*?GetFormationHost\(hero\)') {
     throw "Guard, Bulwark, and Hunt do not share the ordered formation host once per frame."
 }
-if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(.*?hero\.HorizontalVelocity\.magnitude.*?IsHostInCombat\(hero\).*?GuardAnchorRebaseDistance.*?state\.FormationAnchor = liveAnchor.*?state\.Wandering.*?state\.Returning.*?_guardIdleMoverId') {
+if ($runtimeSource -notmatch '(?s)EnsureFormationFacingHero\(Hero hero\).*?ReferenceEquals\(_formationFacingHero, hero\).*?return;.*?_formationFacingHero = hero.*?_hasBulwarkForward = false.*?_hasGuardForward = false') {
+    throw "Guard and Bulwark facing caches are not reset when the active hero changes."
+}
+if ($runtimeSource -notmatch '(?s)IsHostInCombat\(Hero hero\).*?Time\.frameCount.*?_hostCombatCacheFrame == frame.*?_hostCombatCacheValue = GetFormationHost\(hero\)\.Any') {
+    throw "Group combat state is not cached once per frame across servant decisions."
+}
+if ($runtimeSource -notmatch '(?s)AwarenessTargets\.TryGetValue\(summonId, out record\).*?AwarenessTargets\.Remove\(summonId\).*?AwarenessTargets\[summonId\] = new AwarenessTargetRecord') {
+    throw "Autonomous awareness is not maintained as one direct record per summon."
+}
+if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(.*?IsFormationLeaderMoving\(hero\).*?IsHostInCombat\(hero\).*?GuardAnchorRebaseDistance.*?state\.FormationAnchor = liveAnchor.*?state\.Wandering.*?state\.Returning.*?_guardIdleMoverId') {
     throw "Stationary Guard anchors are not latched with bounded wander and return states."
+}
+if ($runtimeSource -notmatch '(?s)FormationLeaderTravelDeadZone = 1\.0f.*?FormationLeaderMovementStartSeconds = 0\.25f.*?FormationLeaderSettleSeconds = 0\.20f.*?UpdateFormationLeaderMotion\(Hero hero\).*?Time\.frameCount.*?traveledBeyondDeadZone.*?sustainedMovement.*?_formationLeaderMoving = true.*?GetHuntAnchor\(.*?GetFormationLeaderAnchor\(hero\).*?GetBulwarkAnchor\(.*?IsFormationLeaderMoving\(hero\).*?GetFormationLeaderAnchor\(hero\).*?GetGuardAnchor\(.*?IsFormationLeaderMoving\(hero\).*?GetFormationLeaderAnchor\(hero\)') {
+    throw "Guard, Bulwark, and Hunt do not share meaningful leader-movement hysteresis."
 }
 if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(\s*summon,\s*out anchorTolerance,\s*out gentleIdleMovement\).*?gentleIdleMovement\s*\? VelocityScheme\.Walk') {
     throw "Guard idle wandering and returning do not use gentle walking locomotion."
@@ -351,7 +393,7 @@ if ($runtimeSource -notmatch '(?s)ScheduleNextGuardIdleWander\(.*?Mathf\.Clamp01
 if ($runtimeSource -notmatch '(?s)now >= _nextIdleHostAttemptAt.*?_nextIdleHostAttemptAt = now.*?GuardIdleHostAttemptCooldownSeconds.*?TryFindIdleDestination\(.*?AstarPath\.active\.GetNearest.*?PathUtilities\.IsPathPossible') {
     throw "Idle navigation is not limited across the host or validated only when scheduling movement."
 }
-if ($runtimeSource -notmatch '(?s)GetHuntIdleAnchor\(.*?hero\.HorizontalVelocity\.magnitude.*?IsHostInCombat\(hero\).*?HuntAnchorRebaseDistance.*?HuntIdleMoverIds\.Count < maximumWanderers.*?TryFindIdleDestination\(.*?HuntIdleMinimumHeroDistance.*?ScheduleNextHuntIdleWander') {
+if ($runtimeSource -notmatch '(?s)GetHuntIdleAnchor\(.*?IsFormationLeaderMoving\(hero\).*?IsHostInCombat\(hero\).*?HuntAnchorRebaseDistance.*?HuntIdleMoverIds\.Count < maximumWanderers.*?TryFindIdleDestination\(.*?HuntIdleMinimumHeroDistance.*?ScheduleNextHuntIdleWander') {
     throw "Hunt perimeter anchors do not provide bounded, combat-aware scouting movement."
 }
 if ($runtimeSource -notmatch '(?s)GetHuntAnchor\(.*?HuntFormationSlotsPerRing.*?90\.0f \+ \(\(360\.0f \* slot\) / countInRing\).*?HuntFormationInnerRadius.*?HuntFormationRingSpacing') {
@@ -381,8 +423,8 @@ if ($runtimeSource -notmatch '(?s)AfterNpcControllerUpdate\(NpcController __inst
 
 foreach ($required in @(
     '45 m',
-    'capped at 75% of binding cost',
-    'Version under test: 1.0.6',
+    'returns its 3-Vigor investment',
+    'Version under test: 2.1.4',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',

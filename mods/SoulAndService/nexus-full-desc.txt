@@ -46,7 +46,7 @@ This creates the central choice behind the mod: consume the dead for immediate p
 
 [b]Soul Vigor[/b] is earned by harvesting suitable corpses and servants. It becomes [b]Necromantic Power[/b] through a smooth mastery curve: Power 100 marks full normal mastery at 1,000 Soul Vigor, while a long overmastery path reaches Power 200 at 5,000.
 
-Soul Vigor remains stored with the active character and can continue rising, but gameplay Power stops at 200. It is separate from Blood Magic Expansion's Blood Essence even though both progressions share the same style of mastery curve.
+Soul Vigor remains stored with the active character and can continue rising, but gameplay Power stops at 200. It is an integer resource rather than a permanent score: summoning spends it, immediately lowers Necromantic Power, and can relock commands or Empower until enough is harvested again. Existing servants are not destroyed merely because a milestone relocks. Soul Vigor is separate from Blood Magic Expansion's Blood Essence even though both progressions share the same mastery curve.
 
 [code]
 | Soul Vigor | Power | New mastery                                      |
@@ -94,7 +94,7 @@ Every command uses the game's remappable actions and works without a crosshair m
 
 [b]Individual Hold and Follow[/b] unlock at Power 20. A held servant keeps a fixed anchor and can defend within an 8-meter leash. An explicit Attack order temporarily releases it; when the target is lost, it returns to its position.
 
-[b]Hold All and Follow All[/b] unlock at Power 30. Hold Take All Items for at least 0.45 seconds and release before two seconds. If every servant is following, release issues Hold All. If any servant is already held, release issues Follow All. Guard also begins assigning loose, non-overlapping positions behind and beside the hero at this milestone. Its first ring begins 4.5 meters away, with a 1-meter settling area that prevents constant minor corrections. When the hero stops, the formation remains settled even if the hero turns in place. Disabling Formation Commands immediately releases every held servant.
+[b]Hold All and Follow All[/b] unlock at Power 30. Hold Take All Items for at least 0.45 seconds and release before two seconds. If every servant is following, release issues Hold All. If any servant is already held, release issues Follow All. Guard also begins assigning loose, non-overlapping positions behind and beside the hero at this milestone. Its first ring begins 4.5 meters away. Guard, Bulwark, and Hunt ignore brief taps and sub-meter adjustments; sustained movement for 0.25 seconds or 1 meter of travel begins normal following, then the host settles shortly after the hero stops. Turning in place never rotates the formation. Disabling Formation Commands immediately releases every held servant.
 
 [b]Behavior control[/b] unlocks at Power 50. With at least one servant active, begin holding Sprint and Interact over empty space for 0.45 seconds. Once begun, the command stays responsive even if the crosshair moves. Completion briefly displays the selected behavior without interfering with normal interactions.
 
@@ -102,15 +102,15 @@ Every command uses the game's remappable actions and works without a crosshair m
 
 [list]
 [*][b]Guard[/b] is the default. It prioritizes recent attackers, enemies targeting the hero or host, then already-engaged melee threats near the hero. Defensive targets may be seen by either the hero or the acting servant. It never pulls an uninvolved hostile merely because the host is already fighting.[/*]
-[*][b]Bulwark[/b] forms a steady forward screen beginning 3.5 meters away, using tighter forward arcs for smaller hosts. It counterattacks genuine threats seen by the hero or acting servant inside a 6-meter defense zone, and returns before an autonomous chase exceeds its 8-meter leash. Explicit Attack orders temporarily release the formation.[/*]
-[*][b]Hunt[/b] spreads servants across distinct perimeter positions beginning 5.5 meters away, sees from each servant's own position, and attacks valid faction-hostile NPCs on sight. Idle hunters make staggered local scouting walks without moving inside 5 meters; hosts of four or more allow at most two scouts at once. Brief target commitment prevents indecisive switching between equally dangerous enemies.[/*]
+[*][b]Bulwark[/b] forms a steady forward screen beginning 3.5 meters away, using tighter forward arcs for smaller hosts. While stationary, it retains the hero's last meaningful movement direction instead of rotating with camera look. It counterattacks genuine threats seen by the hero or acting servant inside a 6-meter defense zone, and returns before an autonomous chase exceeds its 8-meter leash. Explicit Attack orders temporarily release the formation.[/*]
+[*][b]Hunt[/b] spreads servants across distinct perimeter positions beginning 5.5 meters away, sees from each servant's own position, and attacks valid faction-hostile NPCs on sight, including enemy summons when faction rules mark them hostile. Idle hunters make staggered local scouting walks without moving inside 5 meters; hosts of four or more allow at most two scouts at once. Brief target commitment prevents indecisive switching between equally dangerous enemies.[/*]
 [/list]
 
 The selected behavior is stored with the character and inherited by newly summoned servants. Changing behavior immediately reevaluates each servant's target and formation, while explicit Attack and Swarm orders remain authoritative.
 
 At Power 90, Attack becomes [b]Swarm[/b] in both the interaction prompt and completion text. For five seconds, servants close up to 1.25x faster and each deals 1.25x damage on its first successful hit against the commanded target. Misses preserve the bonus, while repeated orders refresh rather than stack it. Swarm retains the Attack voice and command pulse without adding per-use GFT spam.
 
-With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] installed, successful Attack, Hold, Follow, Guard, Bulwark, and Hunt commands use separate gender-matched necromantic voice pools. Passive aggression and failed orders remain silent.
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] installed, successful Attack, Hold, Follow, Recall, Guard, Bulwark, and Hunt commands use separate gender-matched necromantic voice pools. Passive aggression and failed orders remain silent.
 
 [line]
 
@@ -120,11 +120,13 @@ The in-game spell and FoA Mod Manager use the name [b]Soul Rend[/b]. Its effect 
 
 [b]Light cast - Harvest a corpse or servant[/b]
 
-Harvesting an eligible hostile corpse grants quality-based Soul Vigor, preserves its loot and faction identity, and leaves the game's simplified remains. Light casting an owned summon instead unbinds it and returns mana according to its original investment and current Health; the default return is 50% at full Health and never restores Health directly.
+Harvesting an eligible hostile corpse grants randomized integer Soul Vigor, preserves its loot and faction identity, and leaves the game's simplified remains. Meager, Worthy, Potent, and Prime values range from 2-4, 7-11, 12-18, and 24-36. Rolls favor their center, corpse quality subtly nudges the result within its tier, and mastery adds only a small positive bonus.
 
-Raised servants also yield their corpse's Soul Vigor and can return up to 75% of the 30-mana binding cost. Ordinary summons yield 1 Soul Vigor, capped at five awards per rolling minute, though unbinding and mana recovery continue after the cap. Successful harvests and sacrifices use one of forty quality-matched ritual sounds; failed actions and other Soul Rend outcomes remain silent.
+Every summon costs Soul Vigor: ordinary summons cost 3, while Meager, Worthy, Potent, and Prime reanimation costs 1, 3, 5, and 10. Light casting an owned summon unbinds it and returns mana according to its original investment and current Health; the default return is 50% at full Health. It also recovers the servant's native soul plus invested Vigor in proportion to remaining Health. An immediately summoned and harvested ordinary servant returns its 3-Vigor investment but creates no profit; damage makes the return smaller. Successful harvests and sacrifices use one of forty quality-matched ritual sounds with two restrained ethereal echoes; the echo amount is configurable and can be disabled.
 
-With Grail Floating Text, each completed ritual uses the same concise reward grammar as Blood Magic Expansion. Corpse harvests show [b]+X Soul Vigor[/b], while servant unbinding combines the exact returns as [b]+X Mana | +Y Soul Vigor[/b]. If an ordinary servant has reached its rolling Vigor cap, the line shows Mana alone. GFT has no separate Mana-restoration event, so the combined reward is never duplicated.
+With Grail Floating Text, each completed ritual uses the same concise reward grammar as Blood Magic Expansion. Corpse harvests show [b]+X Soul Vigor[/b], while servant unbinding combines the exact whole-number returns as [b]+X Mana | +Y Soul Vigor[/b]. Soul Rend rounds the actual native Mana restoration, not merely its display. GFT has no separate Mana-restoration event, so the combined reward is never duplicated.
+
+Each raised Soul Rend hand also emits a no-shadow necromantic-green inner light. Like Blood Magic Expansion's blood-spell lights, it uses gentle smoothstep growth from Power 0-100 and linear growth to Power 200, supports an interior multiplier and configurable fade, and temporarily triples while that hand is casting. Soul Rend defaults to a restrained 0.8 intensity multiplier. Positioning updates after animation and follows First Person Arms Adjuster's visual hand offset when that mod is installed. HDRP shadows and volumetric contribution are explicitly disabled. Versatile Weapons suppression hides the light whenever the corresponding Soul Rend hand is unavailable behind a two-handed grip.
 
 [b]Light cast - Soul Rend a living enemy[/b]
 
@@ -134,7 +136,7 @@ With Steel and Bone installed, the hit is also Necrotic: flesh, spirits, flora, 
 
 [b]Heavy cast - Bind and raise a corpse[/b]
 
-Heavy casting costs 30 base mana and challenges an eligible hostile corpse's binding resistance. Failed attempts save progress across reloads, while higher Power adds more progress per cast and Power 200 binds any eligible corpse in one. Binding never grants Soul Vigor; that reward comes only from harvesting the corpse before or after it serves.
+Heavy casting costs 30 base mana and challenges an eligible hostile corpse's binding resistance. Failed attempts save progress across reloads, while higher Power adds more progress per cast and Power 200 binds any eligible corpse in one. A valid hover previews [b]Reanimate: X Soul Vigor[/b] or [b]Requires X Soul Vigor[/b]. The cost is committed only after binding succeeds.
 
 [b]Heavy cast - Claim a living enemy[/b]
 
@@ -145,12 +147,12 @@ Failure leaves the enemy alive. Success delivers one native hero-attributed kill
 Soul and Service shares the Meager, Worthy, Potent, and Prime quality model used by Blood Magic Expansion and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url]. Native enemy tier is the main evidence, with relative level, base kill XP, and maximum health providing smaller adjustments or fallback evidence.
 
 [code]
-| Corpse tier | Raised max health | Soul Vigor | Typical binding resistance |
-|-------------|-------------------|------------|----------------------------|
-| Meager      | x0.75             | 2          | About 35, with +/-10%      |
-| Worthy      | x0.90             | 6          | About 70, with +/-10%      |
-| Potent      | x1.05             | 10         | About 115, with +/-10%     |
-| Prime       | x1.20             | 20         | About 170, with +/-10%     |[/code]
+| Corpse tier | Raised max health | Soul Vigor range | Reanimation cost | Typical binding resistance |
+|-------------|-------------------|------------------|------------------|----------------------------|
+| Meager      | x0.75             | 2-4              | 1                | About 35, with +/-10%      |
+| Worthy      | x0.90             | 7-11             | 3                | About 70, with +/-10%      |
+| Potent      | x1.05             | 12-18            | 5                | About 115, with +/-10%     |
+| Prime       | x1.20             | 24-36            | 10               | About 170, with +/-10%     |[/code]
 
 [line]
 
@@ -160,13 +162,13 @@ Soul and Service improves hero-owned summons only; ordinary NPC allies remain un
 
 [b]Following[/b]
 
-Idle servants trot at 4 meters, run at 8, and use the game's safe teleport-to-ally route at 35, with 1.25x catch-up speed outside combat. Teleports use the green-dark summoning effect. The behavior spacing ladder is Bulwark at 3.5 meters, Guard at 4.5, and Hunt at 5.5. At Power 30, Guard adds loose formation positions behind and beside the hero. While the hero remains still, only one Guard servant at a time may occasionally walk near its settled place, linger, and return. At the Power 30 formation unlock, maximum idle movement is about 1.28 meters; it narrows to 0.75 meters at Power 100, still periods lengthen moderately with mastery, and the disciplined Power 100 behavior remains unchanged through Power 200. Hunt uses stable perimeter positions with more frequent staggered scouting walks. Movement, combat, or a command cancels idle wandering immediately. AI decisions improve smoothly from a 0.75-second novice cadence at Power 0 to the configured full-mastery interval at Power 100.
+Idle servants trot at 4 meters, run at 8, and use the game's safe teleport-to-ally route at 35, with 1.25x catch-up speed outside combat. Teleports use the green-dark summoning effect. The behavior spacing ladder is Bulwark at 3.5 meters, Guard at 4.5, and Hunt at 5.5. At Power 30, Guard adds loose formation positions behind and beside the hero. All three behaviors share a meaningful-movement gate: brief taps and sub-meter adjustments leave the host settled, while sustained movement or 1 meter of travel begins following. Guard and Bulwark retain the hero's last meaningful movement direction instead of rotating with camera look. While the hero remains still, only one Guard servant at a time may occasionally walk near its settled place, linger, and return. At the Power 30 formation unlock, maximum idle movement is about 1.28 meters; it narrows to 0.75 meters at Power 100, still periods lengthen moderately with mastery, and the disciplined Power 100 behavior remains unchanged through Power 200. Hunt uses stable perimeter positions with more frequent staggered scouting walks. Idle Movement Amount scales both modes' voluntary wandering distance and frequency, and zero disables it without disabling formation correction. Meaningful movement, combat, or a command cancels idle wandering immediately. AI decisions improve smoothly from a 0.75-second novice cadence at Power 0 to the configured full-mastery interval at Power 100.
 
 Rest dismisses the active host by default. [b]Persistent Servants[/b] can keep ordinary and reanimated servants through rest. Command Capacity grows automatically with Power; the additional configurable Summon Limit Bonus defaults to zero.
 
 [b]Awareness[/b]
 
-Optional passive crosshair sharing lets an uncommitted servant adopt the hostile under the hero's crosshair; it is disabled by default. Guard and Hunt use 30 meters of base awareness, while Bulwark protects a 6-meter zone with an 8-meter combat leash. With Steel and Bone installed, Guard and Hunt inherit 80% of its added sight or pursuit range. They release targets when hostile intent ends.
+Optional passive crosshair sharing lets an uncommitted servant adopt the hostile under the hero's crosshair; it is disabled by default. The adoption remains autonomous and governed by the active behavior, while explicit Attack always wins. Guard and Hunt use 30 meters of base awareness, while Bulwark protects a 6-meter zone with an 8-meter combat leash. With Steel and Bone installed, Guard and Hunt inherit 80% of its added sight or pursuit range. They release targets when hostile intent ends.
 
 [b]Collision and native combat[/b]
 
@@ -198,13 +200,15 @@ Necromantic Power steadily reduces the burden until upkeep disappears at Power 1
 
 Heavy Soul Rend restores one friendly servant by 20%/35%/50% maximum Health at Power 0/100/200. Below 95% Health, restoration is the cast's only service even when it fills the Health bar. At or above 95%, Soul Rend generously restores the remainder and, from Power 100 (1,000 Soul Vigor), can [b]Empower[/b] the servant in the same ritual.
 
+While held over a relevant servant, actionable interaction text stays concise: [b]Restore Servant[/b] or [b]Empower Servant[/b]. Dishonored Dynamic Crosshair pairs restoration and the fully-restored state with its heal reticle and Empower with its dedicated empower reticle. Actionable service remains saturated Necrotic green, while a fully restored servant uses only the desaturated heal reticle with no interaction text or generic interaction hand.
+
 Empower applies once per servant lifetime. One lower-biased 1.2x to 1.5x roll controls visible size, outgoing damage, and incoming-damage resistance, and the completion text reports the exact roll. The reanimation effect plays once around the servant, movement and locomotion compensate for its larger stride, and the result cannot stack or be rerolled. Already-Empowered servants can still be restored.
 
 [line]
 
 [heading][color=#38A840][size=5]Necromantic Presentation[/size][/color][/heading]
 
-Reanimation and Recall use the Forgotten Cemetery necromancer's green-dark summoning effect. Raised servants retain valid native portraits with the vanilla skeleton portrait as a fallback, and forty authored ritual sounds give Meager, Worthy, Potent, and Prime harvests distinct weight without repetitive playback.
+Reanimation and Recall use the Forgotten Cemetery necromancer's green-dark summoning effect. Each raised servant retains its valid native NPC portrait with the vanilla skeleton-summon portrait as a fallback, so the summon HUD always has a valid image. Forty authored ritual sounds give Meager, Worthy, Potent, and Prime harvests distinct weight without repetitive playback.
 
 Optional integrations deepen the presentation without owning the mechanics. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] adds Necrotic binding messages, reanimation notices, Soul Vigor rewards, and diagnostics. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] adds corpse-quality reticles and command feedback. [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] displays Soul Vigor, Necromantic Power, harvest totals, and correctly classified Soul Rend kills.
 
@@ -250,8 +254,9 @@ FoA Mod Manager presents common controls first, keeps related settings together,
 | Light-cast mana return        | 50%                                |
 | Soul Rend ritual audio        | Enabled, volume 0.85               |
 | Ritual audio distance fade    | 100% at 0m to 10% at 30m           |
-| Audio repeat memory / pitch   | 2 clips / +/-0.20 semitones        |
-| Raised-servant refund cap     | 75% of binding cost                |
+| Audio repeat / pitch / echo   | 2 clips / +/-0.20 / 0.35           |
+| Ordinary summon Vigor cost    | 3                                  |
+| Reanimation Vigor cost        | 1 / 3 / 5 / 10 by corpse tier      |
 | Heavy Soul Rend               | 30 base mana                       |
 | Necromantic upkeep            | 2% to 8% max health per minute     |
 | Override Soul Vigor           | Disabled                           |
@@ -261,7 +266,7 @@ Start the game once to generate:
 
 [code]BepInEx/config/ks.tgfoa.soul-and-service.cfg[/code]
 
-Following, targeting, collision, summon limits, living-target Soul Rend, mana returns, rest persistence, ritual audio, sound volume, and diagnostics can all be adjusted. Soul Rend ritual sounds stay two-dimensional but use the harvested corpse or summon's position for a configurable volume fade from 100% at 0 meters to 10% at 30 meters or farther; the internal SoulSalvageAudioRangeVolume key set to 0 disables the fade. The diagnostics-only Soul Vigor override accepts 0 through 5,000 and temporarily drives Necromantic Power, gameplay scaling, the public API, and Deeds display without changing saved progression; disabling it immediately restores the character's real value.
+Following, idle movement amount, targeting, collision, summon limits, living-target Soul Rend, mana returns, rest persistence, ritual audio and echoes, every Soul Rend inner-light control, sound volume, and diagnostics can all be adjusted. Soul Rend ritual sounds stay two-dimensional but use the harvested corpse or summon's position for a configurable volume fade from 100% at 0 meters to 10% at 30 meters or farther; the internal SoulSalvageAudioRangeVolume key set to 0 disables the fade. The diagnostics-only Soul Vigor override accepts 0 through 5,000 and temporarily drives Necromantic Power, gameplay scaling, the public API, and Deeds display without changing saved progression; disabling it immediately restores the character's real value.
 
 [line]
 
@@ -270,12 +275,13 @@ Following, targeting, collision, summon limits, living-target Soul Rend, mana re
 [b]Grailwright mods[/b]
 
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] voices successful commands with order-specific, gender-matched necromantic lines. Recall uses the Follow pool, and the separate battlecry hotkey remains available.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] shares the corpse-quality model and mastery-curve style, while Blood Essence and Soul Vigor remain completely separate progressions.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] voices successful commands with order-specific, gender-matched necromantic lines, including a dedicated Recall pool. The separate battlecry hotkey remains available.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] shares the corpse-quality model and mastery-curve style while Blood Essence and Soul Vigor remain separate. Drained corpses remain usable but reanimate with a randomized 20-30% current-Health penalty improved by Blood Power. Outside combat, Blood/Life Transfusion can drain an owned living flesh servant; raised servants complete only their source's remaining rewards, while ordinary spell summons such as Corpse Eaters provide healing with no XP or Blood Essence. Execution at 20% Health or below leaves a raised servant available for light Soul Rend. Dishonored Dynamic Crosshair shows eligible servants as desaturated blocked blood targets during combat and desaturated spent targets after draining; bloodless servants remain invalid.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] displays Soul Vigor, Necromantic Power, harvest counts, and Necrotic Soul Rend kills without owning or changing progression.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] adds quality reticles, command icons, and confirmation pulses while leaving Soul and Service fully usable on its own.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] adds Necrotic binding messages, reanimation notices, quality icons, Soul Vigor rewards, command feedback, and diagnostics.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] keeps its native damage-type relationship and lends 80% of its added sight and pursuit range to servants.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] can retain Soul Rend in a hidden hand while using a two-handed grip. That suppressed hand does not count as active Soul Rend for targeting and becomes available again when the weapon returns to one hand.[/*]
 [/list]
 
 [b]Other mods[/b]

@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.5.0.0")]
-[assembly: AssemblyFileVersion("3.5.0.0")]
+[assembly: AssemblyVersion("3.5.8.0")]
+[assembly: AssemblyFileVersion("3.5.8.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -67,6 +67,17 @@ namespace DishonoredDynamicCrosshair
         Channeling = 2,
         Spent = 3,
         Blocked = 4
+    }
+
+    internal enum HeavySoulRendHoverState
+    {
+        None = 0,
+        Reanimate = 1,
+        RequiresSoulVigor = 2,
+        ClaimSoul = 3,
+        RestoreServant = 4,
+        EmpowerServant = 5,
+        ServantFullyRestored = 6
     }
 
     internal enum ReticleContext
@@ -126,8 +137,8 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.5.0";
-        private const int ConfigSchemaVersion = 18;
+        public const string PluginVersion = "3.5.8";
+        private const int ConfigSchemaVersion = 19;
         private const float ReferenceScreenHeight = 1440f;
 
         private const int CoreSectionOrder = 0;
@@ -179,7 +190,7 @@ namespace DishonoredDynamicCrosshair
         private ConfigEntry<bool> _useGeneralWhenHandsDown;
         private ConfigEntry<BloodMagicCorpseReticleMode> _bloodMagicCorpseReticleMode;
         private ConfigEntry<bool> _bloodMagicRequireRelevantSpell;
-        private ConfigEntry<bool> _bloodMagicLogScaleDiagnostics;
+        private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _bloodMagicUseQualityScale;
         private ConfigEntry<bool> _bloodMagicQualityCrosshairsEnabled;
         private ConfigEntry<float> _bloodMagicMaximumQualityScale;
@@ -289,6 +300,10 @@ namespace DishonoredDynamicCrosshair
                 { 3, new ReticleAsset() },
                 { 4, new ReticleAsset() }
             };
+        private readonly ReticleAsset _necromagicEmpowerAsset =
+            new ReticleAsset();
+        private readonly ReticleAsset _necromagicHealAsset =
+            new ReticleAsset();
         private readonly Dictionary<int, ReticleAsset> _killingBlowOverlayAssets =
             new Dictionary<int, ReticleAsset>
             {
@@ -317,6 +332,7 @@ namespace DishonoredDynamicCrosshair
         private MethodInfo _soulAndServiceGetTargetStateMethod;
         private MethodInfo _soulAndServiceGetTargetQualityMethod;
         private MethodInfo _soulAndServiceGetTargetQualityTierMethod;
+        private MethodInfo _soulAndServiceGetHeavyHoverStateMethod;
         private MethodInfo _soulAndServiceGetFocusedCommandStateMethod;
         private MethodInfo _soulAndServiceGetLastCommandStateMethod;
         private MethodInfo _soulAndServiceGetCommandSequenceMethod;
@@ -402,7 +418,7 @@ namespace DishonoredDynamicCrosshair
         private float _currentBloodMagicQualityScale = 1f;
         private int _currentBloodMagicCorpseState;
         private int _currentBloodMagicCorpseQualityTier;
-        private float _nextBloodMagicScaleDiagnosticLogTime;
+        private float _nextDiagnosticLogTime;
         private bool _bloodMagicApiUnavailableForSession;
         private bool _bloodMagicApiUnavailableLogged;
         private bool _soulAndServiceApiUnavailableForSession;
@@ -413,6 +429,8 @@ namespace DishonoredDynamicCrosshair
         private float _currentSoulSalvageQuality01 = 0.5f;
         private int _lastSoulSalvageQualityTier;
         private int _currentSoulSalvageQualityTier;
+        private int _lastHeavySoulRendHoverState;
+        private int _currentHeavySoulRendHoverState;
         private int _lastSoulAndServiceCommandSequence = -1;
         private bool _summonCommandPulseActive;
         private InteractionIconKind _summonCommandPulseKind;
@@ -806,13 +824,13 @@ namespace DishonoredDynamicCrosshair
             _hideBowReticle = _hideDefaultReticle;
             _hideItemSpecificReticles = _hideDefaultReticle;
 
-            _bloodMagicLogScaleDiagnostics = Config.Bind(
+            _diagnostics = Config.Bind(
                 "Diagnostics",
-                "LogBloodMagicScaleDiagnostics",
+                "Diagnostics",
                 false,
                 ConfigUi(
-                    "Log throttled Blood Magic reticle state, quality, and final scale math.",
-                    "Diagnostics", "Log Blood Magic Scale Diagnostics", DiagnosticsSectionOrder, 0));
+                    "Log throttled reticle context, target state, interaction ownership, Blood Magic and Soul Rend integration state, and final scale math.",
+                    "Diagnostics", "Diagnostics", DiagnosticsSectionOrder, 0));
             RestorePreservedVisualProfile();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -2167,6 +2185,13 @@ namespace DishonoredDynamicCrosshair
             }
             if (IsTypeOrBaseNamed(action, "SummonCommandAction"))
             {
+                object feedbackOnly = ReadReflectedProperty(
+                    action,
+                    "IsFeedbackOnly");
+                if (feedbackOnly is bool && (bool)feedbackOnly)
+                {
+                    return InteractionIconKind.None;
+                }
                 object actionName = ReadReflectedProperty(
                     action,
                     "DefaultActionName");
@@ -2613,7 +2638,7 @@ namespace DishonoredDynamicCrosshair
                 ? bloodMagicQualityScale
                 : 1f;
 
-            LogBloodMagicScaleDiagnostics(
+            LogDiagnostics(
                 context,
                 baseSize,
                 generalScale,
@@ -2633,7 +2658,7 @@ namespace DishonoredDynamicCrosshair
                 : Mathf.Clamp(settings.ScaleMultiplier.Value, 0.1f, 10f);
         }
 
-        private void LogBloodMagicScaleDiagnostics(
+        private void LogDiagnostics(
             ReticleContext context,
             float baseSize,
             float generalScale,
@@ -2645,25 +2670,35 @@ namespace DishonoredDynamicCrosshair
             float finalSize,
             float canvasScaleFactor)
         {
-            if (context != ReticleContext.BloodMagic
-                || _bloodMagicLogScaleDiagnostics == null
-                || !_bloodMagicLogScaleDiagnostics.Value)
+            if (_diagnostics == null || !_diagnostics.Value)
             {
                 return;
             }
 
             float now = Time.unscaledTime;
-            if (now < _nextBloodMagicScaleDiagnosticLogTime)
+            if (now < _nextDiagnosticLogTime)
             {
                 return;
             }
 
-            _nextBloodMagicScaleDiagnosticLogTime = now + 1f;
+            _nextDiagnosticLogTime = now + 1f;
 
             Logger.LogInfo(
-                "BloodMagic reticle scale sample: state="
+                "Reticle diagnostics: context="
+                + context.ToString()
+                + "; targetState=" + _currentTargetState.ToString()
+                + "; interaction=" + CurrentInteractionIconKind().ToString()
+                + "; interactionIllegal=" + CurrentInteractionIsIllegal().ToString()
+                + "; hitMarker=" + IsHitMarkerActive().ToString()
+                + "; backstabReady=" + _currentBackstabReady.ToString()
+                + "; bloodMagicState="
                 + ((BloodMagicFocusedCorpseState)_lastBloodMagicCorpseState).ToString()
+                + "; bloodMagicTier=" + _lastBloodMagicCorpseQualityTier.ToString(CultureInfo.InvariantCulture)
                 + "; corpseQuality=" + _lastBloodMagicCorpseQuality01.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; soulTargetActive=" + _lastSoulSalvageTargetActive.ToString()
+                + "; soulTier=" + _lastSoulSalvageQualityTier.ToString(CultureInfo.InvariantCulture)
+                + "; soulQuality=" + _lastSoulSalvageQuality01.ToString("0.###", CultureInfo.InvariantCulture)
+                + "; soulHover=" + ((HeavySoulRendHoverState)_lastHeavySoulRendHoverState).ToString()
                 + "; qualityVisualT=" + GetBloodMagicQualityVisualT().ToString("0.###", CultureInfo.InvariantCulture)
                 + "; qualityDeadZone=" + GetBloodMagicQualityDeadZone().ToString("0.###", CultureInfo.InvariantCulture)
                 + "; qualityCurveExponent=" + GetBloodMagicQualityCurveExponent().ToString("0.###", CultureInfo.InvariantCulture)
@@ -2748,6 +2783,8 @@ namespace DishonoredDynamicCrosshair
                 _currentSoulSalvageQuality01 = 0.5f;
                 _lastSoulSalvageQualityTier = 0;
                 _currentSoulSalvageQualityTier = 0;
+                _lastHeavySoulRendHoverState = 0;
+                _currentHeavySoulRendHoverState = 0;
                 _currentBloodMagicCorpseState = 0;
                 _currentBloodMagicCorpseQualityTier = 0;
                 ApplyCrouchIndicatorState();
@@ -2775,7 +2812,10 @@ namespace DishonoredDynamicCrosshair
                 ? ReticleContext.BloodMagic
                 : context;
             TargetState displayTargetState = soulSalvageActive
-                ? TargetState.Hostile
+                ? SoulSalvageUsesActionableVisuals(
+                        _lastHeavySoulRendHoverState)
+                    ? TargetState.Hostile
+                    : TargetState.Default
                 : bloodMagicActive
                     ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
                         ? TargetState.Hostile
@@ -2796,6 +2836,9 @@ namespace DishonoredDynamicCrosshair
                 : 0.5f;
             _currentSoulSalvageQualityTier = soulSalvageActive
                 ? _lastSoulSalvageQualityTier
+                : 0;
+            _currentHeavySoulRendHoverState = soulSalvageActive
+                ? _lastHeavySoulRendHoverState
                 : 0;
             ApplyCrouchIndicatorState();
 
@@ -3284,6 +3327,7 @@ namespace DishonoredDynamicCrosshair
                 _lastSoulSalvageTargetActive = false;
                 _lastSoulSalvageQuality01 = 0.5f;
                 _lastSoulSalvageQualityTier = 0;
+                _lastHeavySoulRendHoverState = 0;
                 return false;
             }
 
@@ -3305,6 +3349,11 @@ namespace DishonoredDynamicCrosshair
             }
             try
             {
+                _lastHeavySoulRendHoverState = Convert.ToInt32(
+                    _soulAndServiceGetHeavyHoverStateMethod.Invoke(
+                        null,
+                        null),
+                    CultureInfo.InvariantCulture);
                 int state = Convert.ToInt32(
                     _soulAndServiceGetTargetStateMethod.Invoke(
                         null,
@@ -3348,6 +3397,7 @@ namespace DishonoredDynamicCrosshair
                 _soulAndServiceGetTargetStateMethod = null;
                 _soulAndServiceGetTargetQualityMethod = null;
                 _soulAndServiceGetTargetQualityTierMethod = null;
+                _soulAndServiceGetHeavyHoverStateMethod = null;
                 _soulAndServiceGetFocusedCommandStateMethod = null;
                 _soulAndServiceGetLastCommandStateMethod = null;
                 _soulAndServiceGetCommandSequenceMethod = null;
@@ -3360,6 +3410,7 @@ namespace DishonoredDynamicCrosshair
         private bool ResolveSoulAndServiceApi()
         {
             if (_soulAndServiceGetTargetStateMethod != null
+                && _soulAndServiceGetHeavyHoverStateMethod != null
                 && _soulAndServiceGetFocusedCommandStateMethod != null
                 && _soulAndServiceGetLastCommandStateMethod != null
                 && _soulAndServiceGetCommandSequenceMethod != null
@@ -3397,7 +3448,9 @@ namespace DishonoredDynamicCrosshair
                     "ApiVersion",
                     BindingFlags.Public | BindingFlags.Static);
             if (version == null
-                || !object.Equals(version.GetRawConstantValue(), 5))
+                || Convert.ToInt32(
+                    version.GetRawConstantValue(),
+                    CultureInfo.InvariantCulture) < 6)
             {
                 _soulAndServiceApiUnavailableForSession = true;
                 return false;
@@ -3414,6 +3467,10 @@ namespace DishonoredDynamicCrosshair
             _soulAndServiceGetTargetQualityTierMethod = AccessTools.Method(
                 apiType,
                 "GetFocusedSoulSalvageQualityTier",
+                new Type[0]);
+            _soulAndServiceGetHeavyHoverStateMethod = AccessTools.Method(
+                apiType,
+                "GetHeavySoulRendHoverState",
                 new Type[0]);
             _soulAndServiceGetFocusedCommandStateMethod = AccessTools.Method(
                 apiType,
@@ -3435,6 +3492,7 @@ namespace DishonoredDynamicCrosshair
                 _soulAndServiceGetTargetStateMethod == null
                 || _soulAndServiceGetTargetQualityMethod == null
                 || _soulAndServiceGetTargetQualityTierMethod == null
+                || _soulAndServiceGetHeavyHoverStateMethod == null
                 || _soulAndServiceGetFocusedCommandStateMethod == null
                 || _soulAndServiceGetLastCommandStateMethod == null
                 || _soulAndServiceGetCommandSequenceMethod == null
@@ -3645,6 +3703,12 @@ namespace DishonoredDynamicCrosshair
             return BloodMagicCorpseUsesUsableVisuals(state);
         }
 
+        private static bool SoulSalvageUsesActionableVisuals(int state)
+        {
+            return state != (int)HeavySoulRendHoverState.RequiresSoulVigor
+                && state != (int)HeavySoulRendHoverState.ServantFullyRestored;
+        }
+
         private float QueryBloodMagicCorpseQuality()
         {
             if (_bloodMagicGetCorpseQualityMethod == null)
@@ -3690,6 +3754,19 @@ namespace DishonoredDynamicCrosshair
 
         private Sprite ResolveBloodMagicQualitySprite(Sprite fallback)
         {
+            if (_currentSoulSalvageTargetActive)
+            {
+                ReticleAsset heavyAsset = _lastHeavySoulRendHoverState == 5
+                    ? _necromagicEmpowerAsset
+                    : _lastHeavySoulRendHoverState == 4
+                        || _lastHeavySoulRendHoverState == 6
+                            ? _necromagicHealAsset
+                            : null;
+                if (heavyAsset != null && heavyAsset.Sprite != null)
+                {
+                    return heavyAsset.Sprite;
+                }
+            }
             if (_bloodMagicQualityCrosshairsEnabled == null
                 || !_bloodMagicQualityCrosshairsEnabled.Value)
             {
@@ -3763,7 +3840,12 @@ namespace DishonoredDynamicCrosshair
         {
             if (_currentSoulSalvageTargetActive)
             {
-                return SoulSalvageReticleColor;
+                return SoulSalvageUsesActionableVisuals(
+                        _currentHeavySoulRendHoverState)
+                    ? SoulSalvageReticleColor
+                    : _general == null || _general.DefaultColor == null
+                        ? fallback
+                        : _general.DefaultColor.Value;
             }
             if (BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState))
             {
@@ -3940,12 +4022,16 @@ namespace DishonoredDynamicCrosshair
             FieldInfo apiVersionField = apiType.GetField(
                 "ApiVersion",
                 BindingFlags.Public | BindingFlags.Static);
-            if (apiVersionField == null
-                || !object.Equals(apiVersionField.GetRawConstantValue(), 9))
+            int apiVersion = apiVersionField == null
+                ? 0
+                : Convert.ToInt32(
+                    apiVersionField.GetRawConstantValue(),
+                    CultureInfo.InvariantCulture);
+            if (apiVersion < 9)
             {
                 _bloodMagicApiUnavailableForSession = true;
                 LogBloodMagicApiUnavailable(
-                    "Blood Magic Expansion is loaded, but API v9 is unavailable; optional blood-magic corpse reticle integration is inactive for this session.");
+                    "Blood Magic Expansion is loaded, but API v9 or newer is unavailable; optional blood-magic corpse reticle integration is inactive for this session.");
                 return false;
             }
 
@@ -5037,7 +5123,24 @@ namespace DishonoredDynamicCrosshair
             LoadAllInteractionIconSprites();
             LoadBackstabReadyOverlay();
             LoadAllBloodMagicQualitySprites();
+            LoadNecromagicHoverSprites();
             LoadAllHitMarkerSprites();
+        }
+
+        private void LoadNecromagicHoverSprites()
+        {
+            LoadPngAsset(
+                _necromagicEmpowerAsset,
+                ResolveHitMarkerPath("custom_reticle_necromagic_empower.png"),
+                "Heavy Soul Rend Empower reticle",
+                "The corpse-quality Soul Rend reticle will be used as a fallback.",
+                "DishonoredDynamicCrosshairNecromagicEmpower");
+            LoadPngAsset(
+                _necromagicHealAsset,
+                ResolveHitMarkerPath("custom_reticle_necromagic_heal.png"),
+                "Heavy Soul Rend restoration reticle",
+                "The corpse-quality Soul Rend reticle will be used as a fallback.",
+                "DishonoredDynamicCrosshairNecromagicHeal");
         }
 
         private void LoadCenterVisualSprites()
@@ -5400,13 +5503,13 @@ namespace DishonoredDynamicCrosshair
             switch (tier)
             {
                 case 1:
-                    return "hitmarker_killingblow_3_overlay.png";
-                case 2:
-                    return "hitmarker_killingblow_2_overlay.png";
-                case 3:
                     return "hitmarker_killingblow_0_overlay.png";
-                case 4:
+                case 2:
                     return "hitmarker_killingblow_1_overlay.png";
+                case 3:
+                    return "hitmarker_killingblow_2_overlay.png";
+                case 4:
+                    return "hitmarker_killingblow_3_overlay.png";
                 default:
                     throw new ArgumentOutOfRangeException("tier");
             }
@@ -5490,6 +5593,16 @@ namespace DishonoredDynamicCrosshair
                 {
                     LoadBloodMagicQualitySprite(pair.Key);
                 }
+            }
+
+            if (AssetChanged(
+                    _necromagicEmpowerAsset,
+                    ResolveHitMarkerPath("custom_reticle_necromagic_empower.png"))
+                || AssetChanged(
+                    _necromagicHealAsset,
+                    ResolveHitMarkerPath("custom_reticle_necromagic_heal.png")))
+            {
+                LoadNecromagicHoverSprites();
             }
 
             foreach (KeyValuePair<HitMarkerFrame, ReticleAsset> pair in
@@ -5651,7 +5764,10 @@ namespace DishonoredDynamicCrosshair
                     ? ReticleContext.BloodMagic
                     : context;
                 TargetState displayTargetState = soulSalvageActive
-                    ? TargetState.Hostile
+                    ? SoulSalvageUsesActionableVisuals(
+                            _lastHeavySoulRendHoverState)
+                        ? TargetState.Hostile
+                        : TargetState.Default
                     : bloodMagicActive
                         ? BloodMagicCorpseUsesUsableVisuals(_lastBloodMagicCorpseState)
                             ? TargetState.Hostile
@@ -5677,6 +5793,9 @@ namespace DishonoredDynamicCrosshair
                     || displayTargetState != _currentTargetState
                     || soulSalvageActive != _currentSoulSalvageTargetActive
                     || soulSalvageQualityTier != _currentSoulSalvageQualityTier
+                    || (soulSalvageActive
+                        ? _lastHeavySoulRendHoverState
+                        : 0) != _currentHeavySoulRendHoverState
                     || !Mathf.Approximately(
                         soulSalvageQuality01,
                         _currentSoulSalvageQuality01)
@@ -5986,6 +6105,8 @@ namespace DishonoredDynamicCrosshair
             {
                 ClearAsset(asset);
             }
+            ClearAsset(_necromagicEmpowerAsset);
+            ClearAsset(_necromagicHealAsset);
             foreach (ReticleAsset asset in _hitMarkerAssets.Values)
             {
                 ClearAsset(asset);

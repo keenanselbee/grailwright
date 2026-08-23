@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.5.0
+Version 3.5.8
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.5.0
+  Version: 3.5.8
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -41,6 +41,8 @@ Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_1.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_2.png
   BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_bloodmagic_3.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_necromagic_empower.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\custom_reticle_necromagic_heal.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_backstab.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_campfire.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_digging.png
@@ -53,19 +55,23 @@ Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_read.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_rest.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_talk.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_attack.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_hold.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_follow.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_behavior.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_weakspot_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_critical_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_3_overlay.png
-  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_2_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_0_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_1_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_2_overlay.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_killingblow_3_overlay.png
 
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.5.0 uses ConfigSchemaVersion 18. This release changes no stored
-setting, so existing version-18 configurations remain current.
+Version 3.5.8 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
+diagnostic was replaced by one general Diagnostics switch.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -151,12 +157,19 @@ Advanced
   HideVanillaReticles
 
 Diagnostics
-  LogBloodMagicScaleDiagnostics
+  Diagnostics
 
 Import Previous Settings
   CurrentSchema
   AvailableBackupSchema
   ImportPreviousSettingsNow
+
+Diagnostics defaults to false. Enable it to write one throttled decision line
+per second containing the active reticle context, target and interaction state,
+hit-marker and backstab state, Blood Magic corpse state and quality, Soul Rend
+target and heavy-hover state, and the final scale calculation. This is intended
+to reveal why a specific reticle did or did not appear without frame-by-frame
+log spam.
 
 Contexts
 --------
@@ -384,10 +397,10 @@ and every visible overlay dark red (#8C0003). KillingBlowDurationMultiplier defa
 1.5x the normal marker duration, after which Meager, Worthy, Potent, and Prime
 apply another 1.00x, 1.33x, 1.67x, or 2.00x respectively. These overlays are enabled independently through
 KillingBlowOverlaysEnabled:
-  hitmarker_killingblow_3_overlay.png
-  hitmarker_killingblow_2_overlay.png
-  hitmarker_killingblow_0_overlay.png
-  hitmarker_killingblow_1_overlay.png
+  hitmarker_killingblow_0_overlay.png - Meager
+  hitmarker_killingblow_1_overlay.png - Worthy
+  hitmarker_killingblow_2_overlay.png - Potent
+  hitmarker_killingblow_3_overlay.png - Prime
 
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
 All marker layers use Steel and Bone's final damage-number color. The latest hit
@@ -412,7 +425,7 @@ marker snaps into place, settles quickly, and fades during its final quarter.
 Blood Magic
 -----------
 
-BloodMagic is optional integration with Blood Magic Expansion API v9. Blood
+BloodMagic is optional integration with Blood Magic Expansion API v9 or newer. Blood
 Magic Expansion 2.7.6 or newer is required for unavailable corpse tiers.
 When Blood Magic Expansion is not loaded, Dishonored Dynamic Crosshair caches
 that unavailable state for the current game session instead of repeatedly
@@ -433,7 +446,10 @@ appearance.
 
 The quality curve intentionally keeps weak corpses near normal Magic size and
 allows strong corpses to grow toward the maximum. The dead zone and curve are
-internal tuning values in 2.8.3, not user-facing config options.
+internal tuning values, not user-facing config options. The complete size is
+ReticleSizePixels x MagicScale x BloodMagicScale x corpse-quality scale. With
+defaults, the shared 1.1 MagicScale is inherited before the 1.0 BloodMagicScale
+and the quality multiplier, so these tier assets need no baked-in size adjustment.
 
 Soul and Service
 ----------------
@@ -443,7 +459,15 @@ the same Meager, Worthy, Potent, and Prime quality silhouettes as Blood Magic.
 They are tinted #22A886 Necrotic green, matched to the perceptual brightness of the
 default Blood Magic red, and use the established quality scale. Soul and
 Service owns eligibility and quality; no reticle is shown when another spell
-is equipped.
+is equipped. While heavy Soul Rend is held over a relevant servant,
+custom_reticle_necromagic_heal.png appears for Restore Servant and Servant Fully
+Restored, while custom_reticle_necromagic_empower.png appears for Empower
+Servant. Restore and Empower use saturated Necrotic green. Requires Soul Vigor
+and Servant Fully Restored use the same desaturated unavailable presentation as
+drained or blocked Blood Magic targets. A fully restored servant uses that icon
+without interaction text, and feedback-only Soul Rend hovers do not add a generic
+interaction hand. Both assets hot-reload through the normal
+one-second image refresh.
 
 Crouch Indicator
 ----------------
@@ -480,12 +504,13 @@ Compatibility
 
 Blood Magic Expansion 2.7.6 or newer is supported for optional tiered
 blood-magic corpse reticle feedback through
-`BloodMagicExpansion.BloodMagicApi` v9.
+`BloodMagicExpansion.BloodMagicApi` v9 or newer.
 Older BloodMagicApi versions are not supported.
 
-Soul and Service is supported through `SoulAndService.SoulAndServiceApi` v5 for
+Soul and Service is supported through `SoulAndService.SoulAndServiceApi` v6 for
 automatic green quality reticles over Soul Salvage corpses and active owned
-summons. Attack, Swarm, Hold, and Follow interactions use their matching command icons, and
+summons plus dedicated heavy-service heal and empower reticles. Attack, Swarm,
+Hold, and Follow interactions use their matching command icons, and
 successful commands pulse the matching icon for the duration published by Soul
 and Service.
 

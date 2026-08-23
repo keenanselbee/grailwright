@@ -1,5 +1,26 @@
-TargetVersion=1.0.6
-BaselineVersion=0.9.1
+TargetVersion=2.1.4
+BaselineVersion=1.0.6
+Sampled meaningful hero movement once per rendered frame so camera turns and minor taps cannot churn stationary formations between sparse AI decisions.
+Reported a raised servant's actual starting Health after all retention and Blood Magic penalties.
+Made successful Recall and Recall Host orders request Battlecry Voice Tuner's dedicated Recall pool instead of reusing Follow voices.
+Ignored brief player taps and sub-meter adjustments across Guard, Bulwark, and Hunt, while sustained travel still moves and cleanly resettles the formation.
+Aligned Soul Rend hand lights after animation and with First Person Arms Adjuster's visual offset when installed.
+Matched Blood Magic's restrained light presentation with smoothstep novice-to-mastery growth, a 0.8 Soul Rend intensity multiplier, and explicit HDRP shadow and volumetric suppression.
+Made stationary Bulwark screens retain the hero's last meaningful movement direction instead of rotating with camera look, matching Guard.
+Allowed servants to target summoned enemies when faction rules mark them hostile.
+Made optional passive crosshair sharing behavior-bound autonomous guidance rather than persistent explicit Attack authority.
+Simplified each servant to one directly addressed awareness record, cached host combat state per frame, and restored native targeting only when custom prerequisites are unavailable.
+Removed fully-restored interaction text while retaining Dishonored's desaturated heal reticle, and rounded actual Soul Rend Mana restoration to whole Mana.
+Added configurable green Soul Rend hand lights with Blood Magic-style power growth, interior scaling, cast brightening, fading, and no shadows.
+Stopped stationary Guard formations from following camera look, added an overall idle-movement amount for Guard and Hunt wandering, and added restrained ethereal echoes to light Soul Rend audio.
+Turned Soul Vigor into a spendable necromantic resource: ordinary summons cost 3, corpses cost 1/3/5/10 by quality, and spending lowers current Power and can relock commands.
+Tripled natural soul values, added subtle quality-weighted integer variance and mastery extraction, and replaced free summon farming with once-only Health-scaled recovery of native soul plus invested Vigor.
+Added contextual Heavy Soul Rend interaction text for reanimation cost, final Soul Claim chance, servant restoration, and Empower, plus a feedback-only fully-restored signal so crosshair integrations can show its unavailable presentation without generic interaction text.
+Made Soul Rend targeting respect Versatile Weapons hand suppression, so a spell hidden by an active two-handed grip no longer produces necromantic targeting until its hand becomes available again.
+Added optional Blood Magic Expansion integration so drained bodies raise wounded and eligible owned flesh servants can pay out their source's remaining blood ritual.
+Exposed owned ordinary flesh summons such as Corpse Eaters as healing-only Blood Magic ritual targets with no XP or Blood Essence, while raised servants retain their source-bound one-time rewards.
+Kept eligible servant identity available during combat so Blood Magic can show its desaturated blocked reticle without allowing the ritual to channel.
+Servants executed by that ritual now remain valid once-only light Soul Rend targets, preserving Health-scaled salvage and their source loot.
 Widened Guard spacing and added a settling tolerance so servants hold formation without crowding the hero.
 Made Recall choose side-biased positions for a lone servant, reject misleading navigation snaps, and preserve recalled slots until the hero moves or gives a new command.
 Made summon responsiveness improve smoothly with Soul Vigor from a deliberate novice cadence to the configured full-mastery response speed.

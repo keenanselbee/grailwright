@@ -1,4 +1,12 @@
-TargetVersion=3.5.0
-BaselineVersion=3.4.9
+TargetVersion=3.5.8
+BaselineVersion=3.5.0
 
-Made Soul and Service Swarm prompts use the dedicated Attack command icon instead of the fallback interaction hand.
+Completed the installed-user deployment inventory for Necromagic service and Soul and Service command reticles.
+Aligned killing-blow overlay filenames with their natural corpse-quality order: 0 Meager, 1 Worthy, 2 Potent, and 3 Prime.
+Retained shared scaling for Blood Magic and Soul Rend tiers: base size, then Magic scale, Blood Magic scale, and corpse-quality scale.
+Added dedicated Heavy Soul Rend hover reticles through Soul and Service API v6: restoration and fully restored states use the supplied heal artwork, while Empower uses its supplied empowerment artwork.
+Replaced the Blood-Magic-only scale diagnostic with one general reticle diagnostic covering context, integrations, interaction ownership, and final scale math.
+Accepted Soul and Service API v7 and future compatible versions.
+Kept actionable Soul Rend targets saturated Necrotic green while giving Requires Soul Vigor and Servant Fully Restored the same desaturated unavailable treatment as drained Blood Magic targets.
+Removed the generic interaction hand from feedback-only Soul Rend hover text without affecting real summon command icons or pulses.
+Accepted compatible Blood Magic API versions newer than v9 so Blood Magic Expansion v10 retains corpse-reticle support.

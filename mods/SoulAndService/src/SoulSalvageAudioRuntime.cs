@@ -18,6 +18,15 @@ namespace SoulAndService
         private const int TierSoundSlots = 10;
         private const float MaximumRangeDistance = 30.0f;
         private const float MinimumRangeVolume = 0.10f;
+        private const int MaximumPendingEchoes = 24;
+
+        private struct PendingEcho
+        {
+            internal string Path;
+            internal float Volume;
+            internal float Pitch;
+            internal float PlayAt;
+        }
 
         private static readonly Dictionary<string, FMOD.Sound> SoundsByPath =
             new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
@@ -26,6 +35,8 @@ namespace SoulAndService
         private static readonly Dictionary<string, List<string>> RecentPathsByTier =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         private static readonly System.Random Random = new System.Random();
+        private static readonly List<PendingEcho> PendingEchoes =
+            new List<PendingEcho>();
 
         private static bool _pathsResolved;
         private static bool _loggedMissingSounds;
@@ -75,7 +86,63 @@ namespace SoulAndService
             if (TryPlay(path, volume, pitch))
             {
                 RememberRecentPath(plugin, selectedTier, path);
+                ScheduleEchoes(plugin, path, volume, pitch);
             }
+        }
+
+        internal static void Update()
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || plugin.PlaySoulSalvageAudio == null
+                || !plugin.PlaySoulSalvageAudio.Value)
+            {
+                PendingEchoes.Clear();
+                return;
+            }
+            float now = Time.unscaledTime;
+            for (int index = 0; index < PendingEchoes.Count;)
+            {
+                PendingEcho echo = PendingEchoes[index];
+                if (now < echo.PlayAt)
+                {
+                    index++;
+                    continue;
+                }
+                PendingEchoes.RemoveAt(index);
+                TryPlay(echo.Path, echo.Volume, echo.Pitch);
+            }
+        }
+
+        private static void ScheduleEchoes(
+            SoulAndServicePlugin plugin,
+            string path,
+            float volume,
+            float pitch)
+        {
+            float amount = plugin.SoulSalvageAudioEchoAmount == null
+                ? 0.35f
+                : Mathf.Clamp01(plugin.SoulSalvageAudioEchoAmount.Value);
+            if (amount <= 0.001f || PendingEchoes.Count > MaximumPendingEchoes - 2)
+            {
+                return;
+            }
+            float now = Time.unscaledTime;
+            PendingEchoes.Add(new PendingEcho
+            {
+                Path = path,
+                Volume = volume * amount * 0.45f,
+                Pitch = pitch * 0.985f,
+                PlayAt = now + 0.16f
+            });
+            PendingEchoes.Add(new PendingEcho
+            {
+                Path = path,
+                Volume = volume * amount * 0.25f,
+                Pitch = pitch * 0.97f,
+                PlayAt = now + 0.34f
+            });
         }
 
         private static float GetRangeVolumeMultiplier(
@@ -126,6 +193,7 @@ namespace SoulAndService
             SoundsByPath.Clear();
             PathsByTier.Clear();
             RecentPathsByTier.Clear();
+            PendingEchoes.Clear();
             _pathsResolved = false;
             _loggedMissingSounds = false;
         }

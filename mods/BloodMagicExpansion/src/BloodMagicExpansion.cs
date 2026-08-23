@@ -9,7 +9,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
+using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.Heroes;
+using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Locations.Attachments.Elements;
 using Awaken.TG.Main.Memories;
 using Awaken.TG.Main.Heroes.Items;
@@ -27,8 +30,8 @@ using UnityEngine;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("2.9.4.0")]
-[assembly: AssemblyFileVersion("2.9.4.0")]
+[assembly: AssemblyVersion("3.0.8.0")]
+[assembly: AssemblyFileVersion("3.0.8.0")]
 
 namespace BloodMagicExpansion
 {
@@ -51,8 +54,8 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "2.9.4";
-        private const int ConfigSchemaVersion = 21;
+        public const string PluginVersion = "3.0.8";
+        private const int ConfigSchemaVersion = 23;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -109,6 +112,7 @@ namespace BloodMagicExpansion
             "progression.corpses_drained.prime";
         private const string BloodProgressionCorpseQualitySumKey =
             "progression.corpses_drained.quality_sum";
+        private const string BloodRitualSeverityKeyPrefix = "ritual.exsanguination.";
         private const float NormalMaximumBloodPower = 100.0f;
         private const float AbsoluteMaximumBloodPower = 200.0f;
         private const float BloodEssenceAtNormalMaximumPower = 1000.0f;
@@ -124,6 +128,8 @@ namespace BloodMagicExpansion
         private const string VersatileWeaponsPluginGuid = "ks.tgfoa.versatile-weapons";
         private const string VersatileWeaponsApiTypeName = "VersatileWeapons.VersatileWeaponsApi";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
+        private const string SoulAndServicePluginGuid = "ks.tgfoa.soul-and-service";
+        private const string SoulAndServiceApiTypeName = "SoulAndService.SoulAndServiceApi";
         private const string GrailFloatingTextCorpseXpEventId = "blood-magic-corpse-xp";
         private const string GrailFloatingTextLiveDrainXpEventId = "blood-magic-live-drain-xp";
         private const string GrailFloatingTextDefaultHealingEventId = "default-healed";
@@ -187,6 +193,8 @@ namespace BloodMagicExpansion
 
         private Harmony _harmony;
         private BleedSkillGraphPreloader _bleedSkillGraphPreloader;
+        private VCHeroRaycaster _heroRaycaster;
+        private bool _heroViewRayFailureLogged;
         private ConfigFile _resolvedConfig;
         private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
         private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
@@ -229,7 +237,6 @@ namespace BloodMagicExpansion
         private ConfigEntry<float> _rawCharacterXpPerCorpseXp;
         private ConfigEntry<bool> _announceRawCharacterXp;
         private ConfigEntry<bool> _healCharacter;
-        private ConfigEntry<bool> _simplifyDrainedCorpses;
         private ConfigEntry<float> _healMaxHealthPercentPerXpPercent;
         private ConfigEntry<HealingPowerScalingMode> _healPowerScalingMode;
         private ConfigEntry<float> _healReferenceTargetMaxHealth;
@@ -329,16 +336,8 @@ namespace BloodMagicExpansion
         private ConfigEntry<int> _corpseHierarchyAliasMaxNodes;
         private ConfigEntry<bool> _cacheBloodTransfusionSourceMatches;
 
-        private ConfigEntry<bool> _logStartup;
-        private ConfigEntry<bool> _logAwards;
-        private ConfigEntry<bool> _logRejectedCorpses;
-        private ConfigEntry<bool> _logUnresolvedRaycastHits;
-        private ConfigEntry<bool> _logHealingResolution;
-        private ConfigEntry<bool> _logPatchWarnings;
-        private ConfigEntry<bool> _logCorpseQuality;
-        private ConfigEntry<bool> _logBloodSpellInnerLight;
+        private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _showGrailFloatingTextDiagnostics;
-        private ConfigEntry<float> _corpseQualityLogIntervalSeconds;
         private ConfigEntry<bool> _overrideBloodEssence;
         private ConfigEntry<float> _bloodEssenceOverrideValue;
         private ConfigEntry<bool> _claimGrailFloatingTextCorpseXp;
@@ -346,6 +345,8 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _suppressGrailFloatingTextLiveDrainHealing;
         private readonly Dictionary<string, float> _pendingPreservedCalibrationFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, bool> _pendingPreservedDiagnosticBools =
+            new Dictionary<string, bool>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
             new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _configSettingOrders =
@@ -400,6 +401,10 @@ namespace BloodMagicExpansion
         private readonly Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo> _methodCache =
             new Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo>();
         private readonly Dictionary<string, MethodInfo> _exactMethodCache = new Dictionary<string, MethodInfo>();
+        private MethodInfo _soulAndServiceResolveServantMethod;
+        private MethodInfo _soulAndServiceExsanguinateServantMethod;
+        private MethodInfo _soulAndServiceSetRitualStateMethod;
+        private bool _soulAndServiceApiUnavailable;
         private readonly Dictionary<(Type Type, string Name), FieldInfo> _fieldCache =
             new Dictionary<(Type Type, string Name), FieldInfo>();
 
@@ -444,6 +449,9 @@ namespace BloodMagicExpansion
         private float _nextGlobalHoldProbeTime;
         private float _nextUnresolvedCorpseRefreshTime;
         private float _nextLiveDrainCleanupTime;
+        private object _lastServantTargetDiagnosticCandidate;
+        private string _lastServantTargetDiagnosticStatus;
+        private float _nextServantTargetDiagnosticTime;
         private float _liveDrainHealingEligibleUntil;
         private int _pendingLiveDrainHealingCount;
         private float _nextCacheCleanupTime;
@@ -787,7 +795,6 @@ namespace BloodMagicExpansion
             _singleHandPayoutMultiplier = BindOrdered("Main Loop", "SingleHandPayoutMultiplier", 0.5f, "Payout multiplier when only one Blood/Life Transfusion hand is held. Dual-held casts always use the full amount.");
             _awardCharacterXp = BindOrdered("Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
             _healCharacter = BindOrdered("Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
-            _simplifyDrainedCorpses = BindOrdered("Main Loop", "SimplifyDrainedCorpses", true, "Replace a successfully drained full body through the game's native corpse cleanup. Bodies with visible loot become lightweight loot piles, empty bodies are removed, and unsupported scripted corpses remain intact.");
             _liveDrainEnabled = BindOrdered("Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
             _bloodSpellTuningEnabled = BindOrdered("Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
             _abhartachTuningEnabled = BindOrdered("Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
@@ -907,16 +914,8 @@ namespace BloodMagicExpansion
             _recentCorpseLeechSoundMemory = BindOrdered("Audio", "RecentCorpseLeechSoundMemory", 2, new ConfigDescription("How many recently played sounds to avoid per quality tier.", new AcceptableValueRange<int>(0, 20)));
             _corpseLeechRandomPitchSemitones = BindOrdered("Audio", "CorpseLeechRandomPitchSemitones", 0.20f, new ConfigDescription("Random FMOD channel pitch variation in semitones. Zero disables.", new AcceptableValueRange<float>(0.0f, 12.0f)));
 
-            _logStartup = BindOrdered("Diagnostics", "LogStartup", true, "Log patch/load status.");
-            _logAwards = BindOrdered("Diagnostics", "LogAwards", false, "Log successful corpse and live-drain XP payouts.");
-            _logRejectedCorpses = BindOrdered("Diagnostics", "LogRejectedCorpses", false, "Log rejected or unresolved corpse ritual attempts.");
-            _logUnresolvedRaycastHits = BindOrdered("Diagnostics", "LogUnresolvedRaycastHits", false, "Log collider details when a corpse raycast hits something that cannot be matched to a usable corpse.");
-            _logHealingResolution = BindOrdered("Diagnostics", "LogHealingResolution", false, "Log the first hero health path used, or why healing could not resolve.");
-            _logPatchWarnings = BindOrdered("Diagnostics", "LogPatchWarnings", true, "Log warnings if optional patches or reflection paths are unavailable.");
-            _logCorpseQuality = BindOrdered("Diagnostics", "LogCorpseQuality", false, "Log throttled focused-corpse quality samples for reticle tuning.");
-            _logBloodSpellInnerLight = BindOrdered("Diagnostics", "LogBloodSpellInnerLight", false, "Log limited diagnostics for blood spell inner light readiness, per-hand cast boost, wrist resolution, interior state, and visibility transitions.");
-            _showGrailFloatingTextDiagnostics = BindOrdered("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When the matching diagnostic log option is enabled and Grail Floating Text is installed, show collapsed System summaries for corpse rejection, focused-corpse quality changes, and blood-spell inner-light visibility changes.");
-            _corpseQualityLogIntervalSeconds = BindOrdered("Diagnostics", "CorpseQualityLogIntervalSeconds", 1.0f, new ConfigDescription("Seconds between focused-corpse quality diagnostic logs.", new AcceptableValueRange<float>(0.1f, 10.0f)));
+            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log throttled targeting, ritual, reward, healing, corpse-quality, and blood-light evidence. Startup errors and warnings remain enabled independently.");
+            _showGrailFloatingTextDiagnostics = BindOrdered("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When Diagnostics and Grail Floating Text are enabled, show concise targeting, ritual, corpse-quality, and blood-light outcomes in-game.");
             _overrideBloodEssence = BindOrdered("Diagnostics", "OverrideBloodEssence", false, "Temporarily use BloodEssenceOverrideValue for Blood Power, APIs, and optional Deeds display without changing the character's saved Blood Essence.");
             _bloodEssenceOverrideValue = BindOrdered("Diagnostics", "BloodEssenceOverrideValue", 1000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 2000, 3000, 4000, and 5000.", new AcceptableValueRange<float>(0.0f, 1000000.0f)));
             _claimGrailFloatingTextCorpseXp = BindOrdered("Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
@@ -953,7 +952,7 @@ namespace BloodMagicExpansion
                     + ", fadeSeconds="
                     + FormatFloat(_bloodSpellInnerLightFadeSeconds.Value)
                     + ", diagnostics="
-                    + _logBloodSpellInnerLight.Value
+                    + DiagnosticsEnabled()
                     + ".");
             }
 
@@ -1056,7 +1055,6 @@ namespace BloodMagicExpansion
                     + DescribeTransform(handState.LightObject.transform.parent)
                     + ".");
                 ShowBloodMagicDiagnostic(
-                    _logBloodSpellInnerLight,
                     "blood-magic-inner-light",
                     "Blood Magic: "
                         + handState.Hand
@@ -2555,7 +2553,7 @@ namespace BloodMagicExpansion
 
         private bool ShouldLogBloodSpellInnerLightDiagnostics()
         {
-            return _logBloodSpellInnerLight != null && _logBloodSpellInnerLight.Value;
+            return DiagnosticsEnabled();
         }
 
         private string DescribeTransform(Transform transform)
@@ -2867,6 +2865,17 @@ namespace BloodMagicExpansion
                         _pendingPreservedCalibrationFloats[settingId] = parsedValue;
                     }
                 }
+                else if (IsPreservedDiagnosticBool(settingId))
+                {
+                    bool parsedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out parsedValue))
+                    {
+                        _pendingPreservedDiagnosticBools[settingId] = parsedValue;
+                    }
+                }
                 else if (IsPreservedManualOverride(settingId))
                 {
                     string preservedValue;
@@ -2908,9 +2917,18 @@ namespace BloodMagicExpansion
                 || string.Equals(settingId, "Advanced - Matching\nAbhartachTemplateGuid", StringComparison.Ordinal);
         }
 
+        private static bool IsPreservedDiagnosticBool(string settingId)
+        {
+            return string.Equals(
+                settingId,
+                "Diagnostics\nShowGrailFloatingTextDiagnostics",
+                StringComparison.Ordinal);
+        }
+
         private void RestorePreservedConfigValues()
         {
             if (_pendingPreservedCalibrationFloats.Count == 0
+                && _pendingPreservedDiagnosticBools.Count == 0
                 && _pendingPreservedManualOverrides.Count == 0
                 && _pendingPreservedInvalidValueCount == 0)
             {
@@ -2934,6 +2952,7 @@ namespace BloodMagicExpansion
             RestorePreservedFloat("Audio\nCorpseLeechSoundVolume", _corpseLeechSoundVolume, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nCorpseLeechSoundRangeVolume", _corpseLeechSoundRangeVolume, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nCorpseLeechRandomPitchSemitones", _corpseLeechRandomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedBool("Diagnostics\nShowGrailFloatingTextDiagnostics", _showGrailFloatingTextDiagnostics, ref restoredCount);
             RestorePreservedString("Bloodless Filter\nBloodWhitelistTerms", _bloodWhitelistTerms, ref restoredCount);
             RestorePreservedString("Advanced - Matching\nBloodSpellTemplateGuid", _bloodTransfusionTemplateGuid, ref restoredCount);
             RestorePreservedString("Advanced - Matching\nAbhartachTemplateGuid", _abhartachTemplateGuid, ref restoredCount);
@@ -3005,9 +3024,36 @@ namespace BloodMagicExpansion
             }
         }
 
+        private void RestorePreservedBool(
+            string settingId,
+            ConfigEntry<bool> entry,
+            ref int restoredCount)
+        {
+            bool preservedValue;
+            if (entry == null
+                || !_pendingPreservedDiagnosticBools.TryGetValue(settingId, out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
         private void ClearPendingPreservedConfigValues()
         {
             _pendingPreservedCalibrationFloats.Clear();
+            _pendingPreservedDiagnosticBools.Clear();
             _pendingPreservedManualOverrides.Clear();
             _pendingPreservedInvalidValueCount = 0;
         }
@@ -3038,6 +3084,22 @@ namespace BloodMagicExpansion
                         nameof(HealthElementBeforeHealthDecreasePatch.Postfix),
                         false);
                 }
+            });
+
+            PatchStep("Hero perspective-aware corpse targeting", delegate
+            {
+                PatchMethod(
+                    typeof(VCHeroRaycaster),
+                    "OnAttach",
+                    typeof(HeroRaycasterAttachedPatch),
+                    nameof(HeroRaycasterAttachedPatch.Postfix),
+                    false);
+                PatchMethod(
+                    typeof(VCHeroRaycaster),
+                    "OnDiscard",
+                    typeof(HeroRaycasterDiscardingPatch),
+                    nameof(HeroRaycasterDiscardingPatch.Prefix),
+                    false);
             });
 
             PatchStep("MagicFSM held spell tracking", delegate
@@ -3438,7 +3500,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Patched " + declaringType.FullName + "." + methodName + ".");
             }
@@ -3486,7 +3548,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Transpiled " + declaringType.FullName + "." + methodName + ".");
             }
@@ -3562,7 +3624,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Patched " + patched.ToString(CultureInfo.InvariantCulture) + " overload(s) of " + declaringType.FullName + "." + methodName + ".");
             }
@@ -3618,7 +3680,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Patched " + patched.ToString(CultureInfo.InvariantCulture) + " " + declaringType.FullName + " constructor prefix(es).");
             }
@@ -3661,7 +3723,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Patched " + declaringType.FullName + " constructor.");
             }
@@ -3713,7 +3775,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (_logStartup.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Patched " + patched.ToString(CultureInfo.InvariantCulture) + " " + declaringType.FullName + " constructor(s).");
             }
@@ -3787,7 +3849,7 @@ namespace BloodMagicExpansion
             RegisterCorpseAliases(npc, state);
             RegisterCorpseAliases(character, state);
 
-            if (_logAwards.Value)
+            if (DiagnosticsEnabled())
             {
                 float effectiveKillXp = ResolveCorpseEffectiveKillXp(state);
                 Log.LogInfo("Registered corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " target " + DescribeCorpse(state) + " with base kill XP " + state.TargetKillXp.ToString("0.###", CultureInfo.InvariantCulture) + " and vanilla effective XP " + effectiveKillXp.ToString("0.###", CultureInfo.InvariantCulture) + ".");
@@ -3824,7 +3886,17 @@ namespace BloodMagicExpansion
             UpdateCorpseStateFromSource(state, corpse, null);
             state.RestoredFromSave = true;
             state.Disabled = true;
-            state.LastRejectReason = "corpse was restored from save data";
+            float restoredSeverity;
+            if (TryRestoreCorpseExsanguinationSeverity(state, corpse, out restoredSeverity))
+            {
+                state.Exhausted = true;
+                state.ExsanguinationSeverity = restoredSeverity;
+                state.LastRejectReason = "drained corpse was restored from save data";
+            }
+            else
+            {
+                state.LastRejectReason = "corpse was restored from save data";
+            }
             RegisterCorpseAliases(corpse, state);
         }
 
@@ -3951,6 +4023,15 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            if (IsLiveServantRitualBlocked(state))
+            {
+                if (ReferenceEquals(_focusedCorpse, state))
+                {
+                    ResetFocusedCorpse();
+                }
+                return;
+            }
+
             TouchCorpseState(state);
 
             string rejectReason;
@@ -3958,6 +4039,14 @@ namespace BloodMagicExpansion
             {
                 RejectCorpse(state, rejectReason, true);
                 return;
+            }
+
+            if (state.LiveServantTarget != null)
+            {
+                SetSoulAndServiceServantRitualState(
+                    state.LiveServantTarget,
+                    channeling: true,
+                    completed: false);
             }
 
             if (!ReferenceEquals(_focusedCorpse, state))
@@ -3985,6 +4074,14 @@ namespace BloodMagicExpansion
 
         private void ResetFocusedCorpse()
         {
+            if (_focusedCorpse != null
+                && _focusedCorpse.LiveServantTarget != null)
+            {
+                SetSoulAndServiceServantRitualState(
+                    _focusedCorpse.LiveServantTarget,
+                    channeling: false,
+                    completed: false);
+            }
             if (_focusedCorpse != null && !_focusedCorpse.Exhausted)
             {
                 _focusedCorpse.ChannelStartTime = 0f;
@@ -4020,6 +4117,21 @@ namespace BloodMagicExpansion
 
             float required = Math.Max(0.1f, GetSecondsRequired());
             return Mathf.Clamp01((Now - _focusedCorpse.ChannelStartTime) / required);
+        }
+
+        internal float GetCorpseExsanguinationSeverityForInterop(object corpse)
+        {
+            CorpseState state;
+            return corpse != null
+                && TryResolveCorpseStateFromObject(
+                    corpse,
+                    0,
+                    out state,
+                    includeInactive: true)
+                && state != null
+                && state.Exhausted
+                    ? Mathf.Clamp(state.ExsanguinationSeverity, 0.20f, 0.30f)
+                    : 0.0f;
         }
 
         internal int GetFocusedCorpseStateForInterop(bool requireRelevantSpell)
@@ -4066,6 +4178,11 @@ namespace BloodMagicExpansion
 
             string rejectReason;
             if (!IsBloodPlausible(state, out rejectReason))
+            {
+                return (int)BloodMagicFocusedCorpseState.Blocked;
+            }
+
+            if (IsLiveServantRitualBlocked(state))
             {
                 return (int)BloodMagicFocusedCorpseState.Blocked;
             }
@@ -4174,7 +4291,8 @@ namespace BloodMagicExpansion
 
         private bool IsCorpseDrainableForInterop(CorpseState state)
         {
-            if (!IsCorpseStateUsable(state))
+            if (!IsCorpseStateUsable(state)
+                || IsLiveServantRitualBlocked(state))
             {
                 return false;
             }
@@ -4185,7 +4303,12 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            bool xpEnabled = _awardCharacterXp.Value && _rawCharacterXpPerCorpseXp.Value > 0f && !state.XpAwarded;
+            bool progressionEligible = state.LiveServantTarget == null
+                || state.LiveServantHasSourceCorpse;
+            bool xpEnabled = progressionEligible
+                && _awardCharacterXp.Value
+                && _rawCharacterXpPerCorpseXp.Value > 0f
+                && !state.XpAwarded;
             bool healingEnabled = _healCharacter.Value && _healMaxHealthPercentPerXpPercent.Value > 0f && !state.Healed;
             if (!xpEnabled && !healingEnabled)
             {
@@ -4193,6 +4316,13 @@ namespace BloodMagicExpansion
             }
 
             return !xpEnabled || ResolveCorpseEffectiveKillXp(state) > 0f;
+        }
+
+        private static bool IsLiveServantRitualBlocked(CorpseState state)
+        {
+            return state != null
+                && state.LiveServantTarget != null
+                && (Hero.Current == null || Hero.Current.IsInCombat());
         }
 
         private bool IsCorpseBloodMagicEligibleForInterop(CorpseState state)
@@ -4221,9 +4351,27 @@ namespace BloodMagicExpansion
                 return;
             }
 
+            if (state.LiveServantTarget != null)
+            {
+                CorpseState refreshedServantState;
+                if (!TryResolveSoulAndServiceServant(
+                        state.LiveServantTarget,
+                        out refreshedServantState)
+                    || !ReferenceEquals(refreshedServantState, state))
+                {
+                    RejectCorpse(state, "owned servant became unavailable", false);
+                    ResetFocusedCorpse();
+                    return;
+                }
+            }
+
             float payoutMultiplier = GetHandPayoutMultiplier(activeHandCount);
             float xpPercent = GetPayoutPercentOfKillXp() * payoutMultiplier;
-            bool xpEnabled = _awardCharacterXp.Value && _rawCharacterXpPerCorpseXp.Value > 0f;
+            bool progressionEligible = state.LiveServantTarget == null
+                || state.LiveServantHasSourceCorpse;
+            bool xpEnabled = progressionEligible
+                && _awardCharacterXp.Value
+                && _rawCharacterXpPerCorpseXp.Value > 0f;
             bool healingEnabled = _healCharacter.Value && _healMaxHealthPercentPerXpPercent.Value > 0f;
             if (!xpEnabled && !healingEnabled)
             {
@@ -4243,7 +4391,7 @@ namespace BloodMagicExpansion
                 if (ApplyCorpseLeechHealing(state, healPercent))
                 {
                     state.Healed = true;
-                    if (_logAwards.Value)
+                    if (DiagnosticsEnabled())
                     {
                         Log.LogInfo("Healed " + healPercent.ToString("0.###", CultureInfo.InvariantCulture) + "% max HP from corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " (base " + healBasePercent.ToString("0.###", CultureInfo.InvariantCulture) + "%, power scale " + healPowerScale.ToString("0.###", CultureInfo.InvariantCulture) + "x, quality scale " + healQualityScale.ToString("0.###", CultureInfo.InvariantCulture) + "x).");
                     }
@@ -4302,8 +4450,9 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            BloodEssenceAwardReceipt essenceReceipt;
-            if (!TryAwardBloodEssence(corpseQuality, out essenceReceipt))
+            BloodEssenceAwardReceipt essenceReceipt = null;
+            if (progressionEligible
+                && !TryAwardBloodEssence(corpseQuality, out essenceReceipt))
             {
                 RejectCorpse(state, "Blood Essence could not be saved", false);
                 ResetFocusedCorpse();
@@ -4312,7 +4461,10 @@ namespace BloodMagicExpansion
 
             if (xpAwardPending)
             {
-                bool xpClaimed = TryClaimGrailFloatingTextCorpseXp(pendingRawXp, state);
+                bool xpClaimed = TryClaimGrailFloatingTextCorpseXp(
+                    pendingRawXp,
+                    state,
+                    essenceReceipt == null ? 0.0f : essenceReceipt.Award);
                 if (!AwardRawCharacterXp(pendingRawXp))
                 {
                     if (xpClaimed)
@@ -4328,13 +4480,40 @@ namespace BloodMagicExpansion
                 }
 
                 state.XpAwarded = true;
-                if (_logAwards.Value)
+                if (DiagnosticsEnabled())
                 {
                     Log.LogInfo("Paid " + pendingRawXp.ToString("0.###", CultureInfo.InvariantCulture) + " corpse leech XP from corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " (" + xpPercent.ToString("0.###", CultureInfo.InvariantCulture) + "% of " + resolvedBaseXp.ToString("0.###", CultureInfo.InvariantCulture) + ").");
                 }
             }
 
             state.Exhausted = true;
+            state.ExsanguinationSeverity = RollExsanguinationSeverity();
+            PersistCorpseExsanguinationSeverity(state);
+            if (state.LiveServantTarget != null)
+            {
+                bool killed;
+                if (!TryExsanguinateSoulAndServiceServant(
+                        state.LiveServantTarget,
+                        state.ExsanguinationSeverity,
+                        out killed))
+                {
+                    Warn(
+                        "Blood ritual completed, but the servant's Health could not be adjusted.");
+                }
+                else if (DiagnosticsEnabled())
+                {
+                    Log.LogInfo(
+                        "Exsanguinated servant by "
+                        + (state.ExsanguinationSeverity * 100.0f).ToString(
+                            "0.#",
+                            CultureInfo.InvariantCulture)
+                        + "%" + (killed ? " and executed it." : "."));
+                }
+                SetSoulAndServiceServantRitualState(
+                    state.LiveServantTarget,
+                    channeling: false,
+                    completed: true);
+            }
             state.ChannelStartTime = 0f;
             state.LastFocusTime = Now;
             TouchCorpseState(state);
@@ -4344,45 +4523,21 @@ namespace BloodMagicExpansion
                 corpseQuality,
                 state.HasPosition,
                 state.LastKnownPosition);
-            ReportCorpseDrained(corpseQuality);
+            if (progressionEligible)
+            {
+                ReportCorpseDrained(corpseQuality);
+            }
             state.LoggedReject = false;
-            TrySimplifyDrainedCorpse(state);
         }
 
-        private void TrySimplifyDrainedCorpse(CorpseState state)
+        private float RollExsanguinationSeverity()
         {
-            if (_simplifyDrainedCorpses == null || !_simplifyDrainedCorpses.Value || state == null)
-            {
-                return;
-            }
-
-            try
-            {
-                Corpse corpse = state.Corpse as Corpse;
-                if (corpse == null || corpse.HasBeenDiscarded || corpse.ParentModel == null)
-                {
-                    return;
-                }
-
-                NpcDummy dummy = corpse.ParentModel.TryGetElement<NpcDummy>();
-                if (dummy == null || dummy.HasBeenDiscarded || !dummy.HasDied)
-                {
-                    return;
-                }
-
-                bool simplified = dummy.TryReplaceWithSimplifiedLocation();
-                if (_logAwards.Value)
-                {
-                    Log.LogInfo(
-                        simplified
-                            ? "Simplified drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " through the native corpse cleanup."
-                            : "Kept drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + " because native corpse cleanup was unavailable.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Warn("Could not simplify drained corpse #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + ": " + ex.GetBaseException().Message);
-            }
+            float center = 0.30f
+                - (0.10f * Mathf.Clamp01(GetBloodPower() / 200.0f));
+            return Mathf.Clamp(
+                center + UnityEngine.Random.Range(-0.02f, 0.02f),
+                0.20f,
+                0.30f);
         }
 
         private void ReportCorpseDrained(float quality)
@@ -4604,9 +4759,10 @@ namespace BloodMagicExpansion
                     beforeCorpseCount,
                     corpseTierKey,
                     beforeTierCount,
-                    beforeQualitySum);
+                    beforeQualitySum,
+                    gainedEssence);
 
-                if (_logAwards != null && _logAwards.Value)
+                if (DiagnosticsEnabled())
                 {
                     Log.LogInfo(
                         "Gained "
@@ -4704,6 +4860,140 @@ namespace BloodMagicExpansion
                 ? null
                 : services.TryGet<GameplayMemory>();
             return memory == null ? null : memory.Context(BloodProgressionMemoryContext);
+        }
+
+        private void PersistCorpseExsanguinationSeverity(CorpseState state)
+        {
+            string key;
+            if (state == null
+                || !TryGetCorpseExsanguinationKey(state, state.Corpse, out key))
+            {
+                return;
+            }
+
+            ContextualFacts facts = GetBloodProgressionFacts();
+            if (facts == null)
+            {
+                return;
+            }
+
+            try
+            {
+                facts.Set(
+                    key,
+                    Mathf.Clamp(state.ExsanguinationSeverity, 0.20f, 0.30f));
+            }
+            catch (Exception exception)
+            {
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogWarning(
+                        "Could not persist drained-corpse severity: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private bool TryRestoreCorpseExsanguinationSeverity(
+            CorpseState state,
+            object corpse,
+            out float severity)
+        {
+            severity = 0.0f;
+            string key;
+            if (!TryGetCorpseExsanguinationKey(state, corpse, out key))
+            {
+                return false;
+            }
+
+            ContextualFacts facts = GetBloodProgressionFacts();
+            if (facts == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                float storedSeverity = facts.Get(key, 0.0f);
+                if (storedSeverity <= 0.0f)
+                {
+                    return false;
+                }
+
+                severity = Mathf.Clamp(
+                    storedSeverity,
+                    0.20f,
+                    0.30f);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogWarning(
+                        "Could not restore drained-corpse severity: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private bool TryGetCorpseExsanguinationKey(
+            CorpseState state,
+            object corpse,
+            out string key)
+        {
+            key = null;
+            string modelId = GetStableModelId(corpse);
+            if (string.IsNullOrEmpty(modelId) && state != null)
+            {
+                modelId = GetStableModelId(state.Corpse);
+            }
+            if (string.IsNullOrEmpty(modelId))
+            {
+                object parentModel = GetOptionalPropertyValue(corpse, "ParentModel")
+                    ?? GetOptionalPropertyValue(corpse, "GenericParentModel");
+                modelId = GetStableModelId(parentModel);
+            }
+            if (string.IsNullOrEmpty(modelId) && state != null)
+            {
+                modelId = GetStableModelId(state.TargetObject);
+            }
+            if (string.IsNullOrEmpty(modelId))
+            {
+                return false;
+            }
+
+            key = BloodRitualSeverityKeyPrefix
+                + StableHash(modelId).ToString("x8", CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        private string GetStableModelId(object candidate)
+        {
+            Model model = candidate as Model;
+            if (model != null && !string.IsNullOrEmpty(model.ID))
+            {
+                return model.ID;
+            }
+
+            return SafeToString(
+                GetOptionalPropertyValue(candidate, "ID")
+                ?? GetOptionalPropertyValue(candidate, "Id")).Trim();
+        }
+
+        private static uint StableHash(string value)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                for (int i = 0; i < value.Length; i++)
+                {
+                    hash ^= value[i];
+                    hash *= 16777619u;
+                }
+                return hash;
+            }
         }
 
         private float GetBloodEssence()
@@ -4968,19 +5258,40 @@ namespace BloodMagicExpansion
         private float GetBloodEssenceGainForQuality(float quality)
         {
             float quality01 = Mathf.Clamp01(quality);
+            int nominal;
+            int bonusCap;
             if (quality01 <= CorpseLeechMeagerQualityMax)
             {
-                return MeagerBloodEssenceAward;
+                nominal = Mathf.RoundToInt(MeagerBloodEssenceAward);
+                bonusCap = 1;
             }
-
-            if (quality01 <= CorpseLeechWorthyQualityMax)
+            else if (quality01 <= CorpseLeechWorthyQualityMax)
             {
-                return WorthyBloodEssenceAward;
+                nominal = Mathf.RoundToInt(WorthyBloodEssenceAward);
+                bonusCap = 1;
+            }
+            else if (quality01 <= CorpseLeechPotentQualityMax)
+            {
+                nominal = Mathf.RoundToInt(PotentBloodEssenceAward);
+                bonusCap = 2;
+            }
+            else
+            {
+                nominal = Mathf.RoundToInt(PrimeBloodEssenceAward);
+                bonusCap = 3;
             }
 
-            return quality01 <= CorpseLeechPotentQualityMax
-                ? PotentBloodEssenceAward
-                : PrimeBloodEssenceAward;
+            float bonusChance = 0.05f
+                + (0.0005f * Mathf.Clamp(GetBloodPower(), 0.0f, 200.0f));
+            int bonus = 0;
+            for (int point = 0; point < nominal && bonus < bonusCap; point++)
+            {
+                if (UnityEngine.Random.value < bonusChance)
+                {
+                    bonus++;
+                }
+            }
+            return nominal + bonus;
         }
 
         private float GetBloodPower()
@@ -5487,7 +5798,7 @@ namespace BloodMagicExpansion
 
         private void LogAudioDiagnostic(string message)
         {
-            if (_logAwards != null && _logAwards.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo(message);
             }
@@ -5693,7 +6004,7 @@ namespace BloodMagicExpansion
             if (AwardRawCharacterXp(rawXp))
             {
                 state.LiveXpAwarded += computedXp;
-                if (_logAwards.Value)
+                if (DiagnosticsEnabled())
                 {
                     Log.LogInfo("Paid " + rawXp.ToString("0.###", CultureInfo.InvariantCulture) + " live Blood Magic Expansion XP (" + computedXp.ToString("0.###", CultureInfo.InvariantCulture) + " computed).");
                 }
@@ -5894,7 +6205,6 @@ namespace BloodMagicExpansion
             }
 
             return state.Disabled ||
-                state.Exhausted ||
                 IsDestroyedUnityObject(state.Corpse) ||
                 IsDestroyedUnityObject(state.TargetObject);
         }
@@ -6904,7 +7214,7 @@ namespace BloodMagicExpansion
 
             float multiplier = Math.Max(0f, _liveDrainHealingMultiplier.Value);
             healing *= multiplier;
-            if (_logAwards != null && _logAwards.Value)
+            if (DiagnosticsEnabled())
             {
                 Log.LogInfo("Scaled held live-drain healing by "
                     + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
@@ -7683,7 +7993,7 @@ namespace BloodMagicExpansion
             float finalQuality,
             bool fallbackUsed)
         {
-            if (_logCorpseQuality == null || !_logCorpseQuality.Value)
+            if (!DiagnosticsEnabled())
             {
                 return;
             }
@@ -7694,10 +8004,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            float interval = _corpseQualityLogIntervalSeconds == null
-                ? 1.0f
-                : Math.Max(0.1f, _corpseQualityLogIntervalSeconds.Value);
-            _nextCorpseQualityLogTime = now + interval;
+            _nextCorpseQualityLogTime = now + 1.0f;
 
             Log.LogInfo(
                 "Corpse quality sample #" + state.DebugId.ToString(CultureInfo.InvariantCulture)
@@ -7727,7 +8034,7 @@ namespace BloodMagicExpansion
                 + qualityLabel
                 + "|"
                 + fallbackUsed;
-            if (ShouldShowBloodMagicDiagnostic(_logCorpseQuality)
+            if (ShouldShowBloodMagicDiagnostic()
                 && !string.Equals(
                     gftSignature,
                     _lastGftCorpseQualitySignature,
@@ -7735,7 +8042,6 @@ namespace BloodMagicExpansion
             {
                 _lastGftCorpseQualitySignature = gftSignature;
                 ShowBloodMagicDiagnostic(
-                    _logCorpseQuality,
                     "blood-magic-corpse-quality",
                     "Blood Magic: "
                         + DescribeCorpse(state)
@@ -8649,7 +8955,10 @@ namespace BloodMagicExpansion
             return (float)(Math.Round(amount / roundTo, MidpointRounding.AwayFromZero) * roundTo);
         }
 
-        private bool TryClaimGrailFloatingTextCorpseXp(float amount, CorpseState state)
+        private bool TryClaimGrailFloatingTextCorpseXp(
+            float amount,
+            CorpseState state,
+            float essenceAwardValue)
         {
             if (amount <= 0f ||
                 _claimGrailFloatingTextCorpseXp == null ||
@@ -8666,7 +8975,7 @@ namespace BloodMagicExpansion
 
             float corpseQuality = GetCorpseQuality01(state);
             string qualityLabel = GetCorpseQualityLabel(corpseQuality);
-            string essenceAward = GetBloodEssenceGainForQuality(corpseQuality)
+            string essenceAward = essenceAwardValue
                 .ToString("0", CultureInfo.InvariantCulture);
             return TryClaimGrailFloatingTextXp(
                 amount,
@@ -9097,23 +9406,21 @@ namespace BloodMagicExpansion
                 state.Disabled = true;
             }
 
-            if (_logRejectedCorpses.Value && !state.LoggedReject)
+            if (DiagnosticsEnabled() && !state.LoggedReject)
             {
                 state.LoggedReject = true;
                 Log.LogInfo("Rejected corpse leech target #" + state.DebugId.ToString(CultureInfo.InvariantCulture) + " " + DescribeCorpse(state) + ": " + reason + ".");
                 ShowBloodMagicDiagnostic(
-                    _logRejectedCorpses,
                     "blood-magic-corpse-rejected",
                     "Blood Magic: corpse rejected - " + reason + ".");
             }
         }
 
         private void ShowBloodMagicDiagnostic(
-            ConfigEntry<bool> matchingDiagnostic,
             string eventId,
             string text)
         {
-            if (!ShouldShowBloodMagicDiagnostic(matchingDiagnostic))
+            if (!ShouldShowBloodMagicDiagnostic())
             {
                 return;
             }
@@ -9126,13 +9433,11 @@ namespace BloodMagicExpansion
                     "blood-magic-diagnostics");
         }
 
-        private bool ShouldShowBloodMagicDiagnostic(
-            ConfigEntry<bool> matchingDiagnostic)
+        private bool ShouldShowBloodMagicDiagnostic()
         {
-            return _showGrailFloatingTextDiagnostics != null
-                && _showGrailFloatingTextDiagnostics.Value
-                && matchingDiagnostic != null
-                && matchingDiagnostic.Value;
+            return DiagnosticsEnabled()
+                && _showGrailFloatingTextDiagnostics != null
+                && _showGrailFloatingTextDiagnostics.Value;
         }
 
         private string AppendFailure(string failures, string failure)
@@ -9154,6 +9459,250 @@ namespace BloodMagicExpansion
                 includeInactive);
         }
 
+        private bool TryResolveSoulAndServiceServant(
+            object candidate,
+            out CorpseState state)
+        {
+            state = null;
+            if (candidate == null)
+            {
+                return false;
+            }
+            if (!ResolveSoulAndServiceBridge())
+            {
+                LogServantTargetDiagnostic(
+                    candidate,
+                    "Soul and Service bridge unavailable");
+                return false;
+            }
+            try
+            {
+                object[] args = { candidate, null, null };
+                object result = _soulAndServiceResolveServantMethod.Invoke(null, args);
+                object sourceCorpse = args[1];
+                object servantNpc = args[2];
+                if (!(result is bool) || !(bool)result)
+                {
+                    LogServantTargetDiagnostic(
+                        candidate,
+                        "living target is not an owned Soul and Service servant");
+                    return false;
+                }
+                if (servantNpc == null)
+                {
+                    LogServantTargetDiagnostic(
+                        candidate,
+                        "owned servant has no resolvable NPC identity");
+                    return false;
+                }
+                bool hasSourceCorpse = sourceCorpse != null;
+                if (hasSourceCorpse)
+                {
+                    if (!TryResolveCorpseStateFromObject(
+                            sourceCorpse,
+                            0,
+                            out state,
+                            includeInactive: true)
+                        || state == null)
+                    {
+                        LogServantTargetDiagnostic(
+                            candidate,
+                            "source corpse could not be registered with Blood Magic");
+                        return false;
+                    }
+                }
+                else if (!TryGetCorpseState(servantNpc, out state))
+                {
+                    state = CreateCorpseState();
+                    UpdateCorpseStateFromSource(state, servantNpc, null);
+                    state.Disabled = false;
+                    state.LastRejectReason = string.Empty;
+                    RegisterCorpseAliases(servantNpc, state);
+                    RegisterCorpseAliases(candidate, state);
+                }
+                state.LiveServantTarget = servantNpc;
+                state.LiveServantHasSourceCorpse = hasSourceCorpse;
+                Component component = candidate as Component;
+                if (component != null)
+                {
+                    UpdateCorpsePositionFromTransform(state, component.transform);
+                }
+                string rejection;
+                string status = state.Exhausted
+                    ? hasSourceCorpse
+                        ? "recognized; source corpse already drained"
+                        : "recognized; servant already drained"
+                    : state.Disabled
+                        ? "recognized; source corpse disabled"
+                        : !IsBloodPlausible(state, out rejection)
+                            ? "recognized; servant is bloodless (" + rejection + ")"
+                            : IsLiveServantRitualBlocked(state)
+                                ? "recognized; ritual blocked while hero is in combat"
+                                : hasSourceCorpse
+                                    ? "recognized; source blood available"
+                                    : "recognized; owned servant blood available; healing only";
+                LogServantTargetDiagnostic(candidate, status);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Warn(
+                    "Soul and Service servant ritual lookup failed: "
+                    + exception.GetBaseException().Message);
+                _soulAndServiceResolveServantMethod = null;
+                return false;
+            }
+        }
+
+        private void LogServantTargetDiagnostic(
+            object candidate,
+            string status)
+        {
+            if (!DiagnosticsEnabled())
+            {
+                return;
+            }
+            float now = Now;
+            if (ReferenceEquals(candidate, _lastServantTargetDiagnosticCandidate)
+                && string.Equals(
+                    status,
+                    _lastServantTargetDiagnosticStatus,
+                    StringComparison.Ordinal)
+                && now < _nextServantTargetDiagnosticTime)
+            {
+                return;
+            }
+            _lastServantTargetDiagnosticCandidate = candidate;
+            _lastServantTargetDiagnosticStatus = status;
+            _nextServantTargetDiagnosticTime = now + 1.0f;
+            Log.LogInfo(
+                "Raised-servant blood target: "
+                + status
+                + "; candidate="
+                + DescribeType(candidate)
+                + ".");
+        }
+
+        private bool TryExsanguinateSoulAndServiceServant(
+            object candidate,
+            float severity,
+            out bool killed)
+        {
+            killed = false;
+            if (candidate == null || !ResolveSoulAndServiceBridge())
+            {
+                return false;
+            }
+            try
+            {
+                object[] args = { candidate, severity, false };
+                object result = _soulAndServiceExsanguinateServantMethod.Invoke(
+                    null,
+                    args);
+                killed = args[2] is bool && (bool)args[2];
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                Warn(
+                    "Soul and Service servant exsanguination failed: "
+                    + exception.GetBaseException().Message);
+                _soulAndServiceExsanguinateServantMethod = null;
+                return false;
+            }
+        }
+
+        private void SetSoulAndServiceServantRitualState(
+            object candidate,
+            bool channeling,
+            bool completed)
+        {
+            if (candidate == null || !ResolveSoulAndServiceBridge())
+            {
+                return;
+            }
+            try
+            {
+                _soulAndServiceSetRitualStateMethod.Invoke(
+                    null,
+                    new object[] { candidate, channeling, completed });
+            }
+            catch (Exception exception)
+            {
+                Warn(
+                    "Soul and Service servant ritual hold failed: "
+                    + exception.GetBaseException().Message);
+                _soulAndServiceSetRitualStateMethod = null;
+            }
+        }
+
+        private bool ResolveSoulAndServiceBridge()
+        {
+            if (_soulAndServiceResolveServantMethod != null
+                && _soulAndServiceExsanguinateServantMethod != null
+                && _soulAndServiceSetRitualStateMethod != null)
+            {
+                return true;
+            }
+            if (_soulAndServiceApiUnavailable)
+            {
+                return false;
+            }
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    SoulAndServicePluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return false;
+            }
+            Type api = pluginInfo.Instance.GetType().Assembly.GetType(
+                SoulAndServiceApiTypeName,
+                false);
+            if (api == null)
+            {
+                _soulAndServiceApiUnavailable = true;
+                return false;
+            }
+            _soulAndServiceResolveServantMethod = api.GetMethod(
+                "TryResolveOwnedBloodServant",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[]
+                {
+                    typeof(object),
+                    typeof(object).MakeByRefType(),
+                    typeof(object).MakeByRefType()
+                },
+                null);
+            _soulAndServiceExsanguinateServantMethod = api.GetMethod(
+                "TryExsanguinateOwnedBloodServant",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[]
+                {
+                    typeof(object),
+                    typeof(float),
+                    typeof(bool).MakeByRefType()
+                },
+                null);
+            _soulAndServiceSetRitualStateMethod = api.GetMethod(
+                "SetOwnedBloodServantRitualState",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(object), typeof(bool), typeof(bool) },
+                null);
+            if (_soulAndServiceResolveServantMethod == null
+                || _soulAndServiceExsanguinateServantMethod == null
+                || _soulAndServiceSetRitualStateMethod == null)
+            {
+                _soulAndServiceApiUnavailable = true;
+                return false;
+            }
+            return true;
+        }
+
         private bool TryGetLookedAtCorpseState(
             out CorpseState state,
             out bool unregisteredCorpseCandidate,
@@ -9161,8 +9710,9 @@ namespace BloodMagicExpansion
         {
             state = null;
             unregisteredCorpseCandidate = false;
-            Camera camera = Camera.main;
-            if (camera == null)
+            Vector3 rayPosition;
+            Vector3 rayForward;
+            if (!TryGetCorpseLookRay(out rayPosition, out rayForward))
             {
                 return false;
             }
@@ -9170,18 +9720,25 @@ namespace BloodMagicExpansion
             RaycastHit hit;
             float range = Math.Max(0.1f, _range.Value);
             int layerMask = _raycastLayerMask.Value;
-            if (!Physics.Raycast(camera.transform.position, camera.transform.forward, out hit, range, layerMask, QueryTriggerInteraction.Collide))
+            if (!Physics.Raycast(rayPosition, rayForward, out hit, range, layerMask, QueryTriggerInteraction.Collide))
             {
                 return false;
             }
 
+            if (TryResolveSoulAndServiceServant(hit.collider, out state))
+            {
+                return true;
+            }
+
             if (ColliderLooksAlive(hit.collider))
             {
+                LogUnresolvedRaycastHit(hit.collider);
                 return false;
             }
 
             if (TryResolveCorpseStateFromCollider(hit.collider, out state, includeInactive))
             {
+                state.LiveServantTarget = null;
                 return true;
             }
 
@@ -9191,7 +9748,7 @@ namespace BloodMagicExpansion
                 return false;
             }
 
-            if (TryResolveCorpseStateFromAllRaycastHits(camera, range, layerMask, out state, includeInactive))
+            if (TryResolveCorpseStateFromAllRaycastHits(rayPosition, rayForward, range, layerMask, out state, includeInactive))
             {
                 return true;
             }
@@ -9199,7 +9756,7 @@ namespace BloodMagicExpansion
             if (TryRefreshCorpseAliasesAfterUnresolvedHit(hit.collider, includeInactive))
             {
                 if (TryResolveCorpseStateFromCollider(hit.collider, out state, includeInactive) ||
-                    TryResolveCorpseStateFromAllRaycastHits(camera, range, layerMask, out state, includeInactive))
+                    TryResolveCorpseStateFromAllRaycastHits(rayPosition, rayForward, range, layerMask, out state, includeInactive))
                 {
                     return true;
                 }
@@ -9208,6 +9765,45 @@ namespace BloodMagicExpansion
             LogUnresolvedRaycastHit(hit.collider);
             unregisteredCorpseCandidate = true;
             return false;
+        }
+
+        private bool TryGetCorpseLookRay(out Vector3 position, out Vector3 forward)
+        {
+            position = Vector3.zero;
+            forward = Vector3.zero;
+
+            if (_heroRaycaster != null)
+            {
+                try
+                {
+                    _heroRaycaster.GetViewRay(out position, out forward);
+                    if (forward.sqrMagnitude > 0.0001f)
+                    {
+                        forward.Normalize();
+                        return true;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    if (!_heroViewRayFailureLogged)
+                    {
+                        _heroViewRayFailureLogged = true;
+                        Warn(
+                            "Could not read the hero's perspective-aware view ray; falling back to Camera.main: "
+                            + exception.GetBaseException().Message);
+                    }
+                }
+            }
+
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return false;
+            }
+
+            position = camera.transform.position;
+            forward = camera.transform.forward;
+            return forward.sqrMagnitude > 0.0001f;
         }
 
         private bool TryResolveCorpseStateFromCollider(Collider collider, out CorpseState state, bool includeInactive = false)
@@ -9265,16 +9861,22 @@ namespace BloodMagicExpansion
             return false;
         }
 
-        private bool TryResolveCorpseStateFromAllRaycastHits(Camera camera, float range, int layerMask, out CorpseState state, bool includeInactive = false)
+        private bool TryResolveCorpseStateFromAllRaycastHits(
+            Vector3 rayPosition,
+            Vector3 rayForward,
+            float range,
+            int layerMask,
+            out CorpseState state,
+            bool includeInactive = false)
         {
             state = null;
             int maxHits = _raycastAllFallbackMaxHits == null ? 0 : Math.Max(0, _raycastAllFallbackMaxHits.Value);
-            if (camera == null || maxHits <= 0)
+            if (maxHits <= 0)
             {
                 return false;
             }
 
-            RaycastHit[] hits = Physics.RaycastAll(camera.transform.position, camera.transform.forward, range, layerMask, QueryTriggerInteraction.Collide);
+            RaycastHit[] hits = Physics.RaycastAll(rayPosition, rayForward, range, layerMask, QueryTriggerInteraction.Collide);
             if (hits == null || hits.Length == 0)
             {
                 return false;
@@ -9557,7 +10159,7 @@ namespace BloodMagicExpansion
 
         private void LogUnresolvedRaycastHit(Collider collider)
         {
-            if (_logUnresolvedRaycastHits == null || !_logUnresolvedRaycastHits.Value || collider == null)
+            if (!DiagnosticsEnabled() || collider == null)
             {
                 return;
             }
@@ -10770,7 +11372,7 @@ namespace BloodMagicExpansion
 
         private void LogHealingResolution(object hero, object healthElement, float maxHealth, string path, string failure)
         {
-            if (_logHealingResolution == null || !_logHealingResolution.Value || _loggedHealingResolution)
+            if (!DiagnosticsEnabled() || _loggedHealingResolution)
             {
                 return;
             }
@@ -12335,9 +12937,14 @@ namespace BloodMagicExpansion
             }
         }
 
+        private bool DiagnosticsEnabled()
+        {
+            return _diagnostics != null && _diagnostics.Value;
+        }
+
         private bool ShouldLogStartup()
         {
-            return _logStartup == null || _logStartup.Value;
+            return DiagnosticsEnabled();
         }
 
         private ConfigFile ResolveConfigFile()
@@ -12395,10 +13002,7 @@ namespace BloodMagicExpansion
 
         private void Warn(string message)
         {
-            if (_logPatchWarnings == null || _logPatchWarnings.Value)
-            {
-                Log.LogWarning(message);
-            }
+            Log.LogWarning(message);
         }
 
         private enum Preset
@@ -12462,7 +13066,8 @@ namespace BloodMagicExpansion
                 int beforeCorpseCount,
                 string corpseTierKey,
                 int beforeTierCount,
-                float beforeQualitySum)
+                float beforeQualitySum,
+                float award)
             {
                 Facts = facts;
                 BeforeEssence = beforeEssence;
@@ -12470,6 +13075,7 @@ namespace BloodMagicExpansion
                 CorpseTierKey = corpseTierKey;
                 BeforeTierCount = beforeTierCount;
                 BeforeQualitySum = beforeQualitySum;
+                Award = award;
             }
 
             internal ContextualFacts Facts { get; private set; }
@@ -12478,6 +13084,7 @@ namespace BloodMagicExpansion
             internal string CorpseTierKey { get; private set; }
             internal int BeforeTierCount { get; private set; }
             internal float BeforeQualitySum { get; private set; }
+            internal float Award { get; private set; }
         }
 
         private sealed class CorpseState
@@ -12509,6 +13116,9 @@ namespace BloodMagicExpansion
             public bool HasNativeTier;
             public bool HasTargetThreatClass;
             public bool LoggedReject;
+            public float ExsanguinationSeverity;
+            public object LiveServantTarget;
+            public bool LiveServantHasSourceCorpse;
         }
 
         private sealed class StrongCastState
@@ -12740,6 +13350,31 @@ namespace BloodMagicExpansion
                 if (plugin != null)
                 {
                     plugin.HandleDeathEvents(__instance, outcome);
+                }
+            }
+        }
+
+        private static class HeroRaycasterAttachedPatch
+        {
+            public static void Postfix(VCHeroRaycaster __instance)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin._heroRaycaster = __instance;
+                    plugin._heroViewRayFailureLogged = false;
+                }
+            }
+        }
+
+        private static class HeroRaycasterDiscardingPatch
+        {
+            public static void Prefix(VCHeroRaycaster __instance)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null && ReferenceEquals(plugin._heroRaycaster, __instance))
+                {
+                    plugin._heroRaycaster = null;
                 }
             }
         }
@@ -13121,7 +13756,7 @@ namespace BloodMagicExpansion
 
     public static class BloodMagicApi
     {
-        public const int ApiVersion = 9;
+        public const int ApiVersion = 10;
 
         public static bool IsLoaded
         {
@@ -13170,6 +13805,14 @@ namespace BloodMagicExpansion
         {
             BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
             return plugin == null ? 0f : plugin.GetBloodPowerForInterop();
+        }
+
+        public static float GetCorpseExsanguinationSeverity(object corpse)
+        {
+            BloodMagicExpansionPlugin plugin = BloodMagicExpansionPlugin.Instance;
+            return plugin == null
+                ? 0.0f
+                : plugin.GetCorpseExsanguinationSeverityForInterop(corpse);
         }
 
         public static bool IsBloodMagicDamage(object damage)

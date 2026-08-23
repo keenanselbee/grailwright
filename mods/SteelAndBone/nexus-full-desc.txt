@@ -63,7 +63,9 @@ Steel and Bone reads each enemy's body, armor, creature family, and specific ide
 
 Exact strength depends on the preset and each enemy's native data. Existing reactions are preserved or strengthened rather than duplicated, and true immunities remain intact.
 
-When [b]Soul and Service[/b] is installed, its complete rework of the original Soul Salvage spell is renamed [b]Soul Rend[/b]. Soul Rend's light cast deals Necrotic damage to living enemies. On Hardened, its matchups run from strongest resistance to strongest weakness: constructs x0.25, confirmed skeletons x0.40, drowned and flesh undead x0.60, infected bodies x0.85, Wyrd creatures x0.90, ordinary and sea flesh x1.10, and spirits, flora, or confirmed fungal bodies x1.15. The game's normal magical defenses still apply, while Soul Claim remains outside the Necrotic school.
+When [b]Soul and Service[/b] is installed, its complete rework of the original Soul Salvage spell is renamed [b]Soul Rend[/b]. Soul Rend's light cast deals exact Necrotic damage to living enemies. On Hardened, its matchups run from strongest resistance to strongest weakness: constructs x0.25, confirmed skeletons x0.40, flesh undead x0.60, drowned x0.675, infected bodies x0.85, Wyrd creatures x0.875, ordinary and sea flesh x1.10, flora or fungus x1.175, and spirits x1.225. The game's normal magical defenses still apply, while Soul Claim remains outside the Necrotic school.
+
+When [b]Blood Magic Expansion[/b] is installed, its exact Blood Magic packets use a complementary Hardened matrix: skeletons and constructs x0.25, spirits x0.30, drowned and flora or fungus x0.65, flesh undead x0.75, Wyrd and infected bodies x0.85, sea flesh x1.10, and living flesh x1.15. This keeps Blood strongest into living bodies while Necrotic excels against spirits and unnatural growth. If the optional API is absent, Steel and Bone retains its conservative text fallback for other blood effects.
 
 Body material and creature identity are resolved separately, so unusual enemies keep their intended physical reactions without inheriting an entire creature family's traits. Authored and exact profiles take priority, and Wyrd creatures receive no blanket resistance. These profiles cover important exceptions such as frost enemies resisting Cold but yielding to Fire, fire-aligned bodies yielding to Wet, drowned skeletons reacting to Electric, and soft-bodied creatures absorbing Blunt impact. Bone Undead and Constructs also resist Cold when otherwise neutral, though this does not make them immune to separate effects such as Chill.
 
@@ -134,7 +136,7 @@ Hardened and Crucible give ordinary agile enemies a modest combat movement bonus
 
 [b]Projectile combat[/b]
 
-Player and hostile arrows travel at x1.10 / x1.30 / x1.50 speed across Tempered, Hardened, and Crucible. Player arrows use x0.75 gravity on every preset and fly flatter, while hostile archers retain 1.50 / 1.25 / 1.00 meters of aim scatter. Archers become more immediate threats without gaining unnatural accuracy.
+Player and hostile arrows travel at x1.10 / x1.30 / x1.50 speed across Tempered, Hardened, and Crucible. Player arrows use x0.75 gravity on every preset and fly flatter; [b]PlayerArrowGravityMultiplier[/b] controls that preset-independent value. Hostile archers retain 1.50 / 1.25 / 1.00 meters of aim scatter; [b]HostileArcherAimScatter[/b] can override it. Archers become more immediate threats without gaining unnatural accuracy.
 
 Native aiming, movement prediction, collision, draw strength, animations, and elemental payloads remain intact. Direct player arrows also receive Steel and Bone's material matchups, but only their physical damage is adjusted.
 

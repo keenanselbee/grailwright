@@ -2,7 +2,7 @@
   "id": "SoulAndService",
   "displayName": "Soul and Service - Summon Overhaul",
   "packageName": "SoulAndService",
-  "version": "1.0.6",
+  "version": "2.1.4",
   "pluginGuid": "ks.tgfoa.soul-and-service",
   "dll": "SoulAndService.dll",
   "sourceFiles": [
@@ -10,6 +10,7 @@
     "src/SummonRuntime.cs",
     "src/SoulSalvageRuntime.cs",
     "src/SoulSalvageAudioRuntime.cs",
+    "src/SoulRendInnerLightRuntime.cs",
     "src/SoulProgressionRuntime.cs",
     "../../tools/shared/CorpseQualityBuckets.cs",
     "../../tools/shared/GrailFloatingTextLoadErrorNotifier.cs",

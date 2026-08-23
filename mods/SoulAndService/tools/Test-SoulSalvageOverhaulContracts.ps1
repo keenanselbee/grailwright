@@ -9,6 +9,8 @@ $summonRuntimeSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\SummonRuntime.cs") -Raw
 $progressionSource = Get-Content -LiteralPath (
     Join-Path $modRoot "src\SoulProgressionRuntime.cs") -Raw
+$innerLightSource = Get-Content -LiteralPath (
+    Join-Path $modRoot "src\SoulRendInnerLightRuntime.cs") -Raw
 $readme = Get-Content -LiteralPath (
     Join-Path $modRoot "README.txt") -Raw
 $nexus = Get-Content -LiteralPath (
@@ -17,11 +19,58 @@ $matrix = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\TEST-MATRIX.md") -Raw
 foreach ($required in @(
     'ConfigSchemaVersion = 10',
+    '"ks.tgfoa.versatile-weapons"',
+    '"ks.tgfoa.first-person-arms-adjuster"',
     '"EnableLivingTargetSoulSalvage"',
     '"PersistentServants"')) {
     if (!$pluginSource.Contains($required)) {
         throw "Soul Salvage plugin configuration is missing: $required"
     }
+}
+
+if ($runtimeSource -notmatch '(?s)float actualStartingHealthFraction = maximumHealth > 0\.0001f.*?npc\.Health\.ModifiedValue / maximumHealth.*?\+ \(actualStartingHealthFraction \* 100\.0f\)\.ToString\(') {
+    throw 'Reanimation feedback does not report actual Health after retention and Blood Magic penalties.'
+}
+
+foreach ($required in @(
+    'internal ConfigEntry<bool> SoulRendInnerLightEnabled',
+    'internal ConfigEntry<float> SoulRendInnerLightIntensity',
+    'internal ConfigEntry<float> SoulRendInnerLightIntensityMultiplier',
+    '"SoulRendIntensityMultiplier"',
+    '0.8f',
+    'internal ConfigEntry<float> SoulRendInnerLightInteriorIntensityMultiplier',
+    'internal ConfigEntry<float> SoulRendInnerLightMinimumPowerBrightnessMultiplier',
+    'internal ConfigEntry<float> SoulRendInnerLightMasteryBrightnessMultiplier',
+    'internal ConfigEntry<float> SoulRendInnerLightMaximumPowerBrightnessMultiplier',
+    'internal ConfigEntry<float> SoulRendInnerLightMinimumPowerRange',
+    'internal ConfigEntry<float> SoulRendInnerLightMasteryRange',
+    'internal ConfigEntry<float> SoulRendInnerLightMaximumPowerRange',
+    'internal ConfigEntry<float> SoulRendInnerLightFadeSeconds')) {
+    if (!$pluginSource.Contains($required)) {
+        throw "Soul Rend inner-light configuration is missing: $required"
+    }
+}
+foreach ($required in @(
+    'CastBoostMultiplier = 3.0f',
+    'CastBoostDelaySeconds = 0.3f',
+    'LightShadows.None',
+    'SoulProgressionRuntime.GetNecromanticPower()',
+    'SceneService sceneService = World.Services.TryGet<SceneService>()',
+    'SoulSalvageRuntime.IsVersatileWeaponsHandSuppressed(state.Slot)',
+    'fsm.IsCasting',
+    'Mathf.MoveTowards(',
+    'TryGetCurrentVisualWorldOffset',
+    'state.LightObject.transform.position = anchor.position',
+    '+ visualWorldOffset',
+    'ConfigureHdrpData(state, nextIntensity)',
+    '"volumetricDimmer"',
+    'progress * progress * (3.0f - (2.0f * progress))')) {
+    if (!$innerLightSource.Contains($required)) {
+        throw "Soul Rend inner-light runtime contract is missing: $required"
+    }
+}
+if ($pluginSource -notmatch '(?s)private void LateUpdate\(\).*?SoulRendInnerLightRuntime\.LateUpdate\(\)') {
+    throw "Soul Rend hand-light positioning is not deferred until LateUpdate."
 }
 
 foreach ($forbidden in @(
@@ -69,7 +118,14 @@ foreach ($required in @(
     'SoulProgressionRuntime.CommitSuccessfulBinding(',
     'SoulProgressionRuntime.TryHarvestCorpse(',
     'SoulProgressionRuntime.RollbackCorpseHarvest(',
-    'SoulProgressionRuntime.HarvestOrdinarySummon()',
+    'SoulProgressionRuntime.TrySpendSoulVigor(',
+    'SoulProgressionRuntime.RollSoulVigorValue(',
+    'VersatileWeaponsPluginGuid =',
+    'VersatileWeaponsApiTypeName =',
+    '"IsMainHandSuppressed"',
+    '"IsOffHandSuppressed"',
+    'TryResolveVersatileWeaponsApi()',
+    'OrdinarySummonVigorCost = 3',
     'TryCreateRemains(',
     'SoulProgressionRuntime.GetQualityHealthMultiplier(',
     'SoulProgressionRuntime.RollRaisedHealthFraction(',
@@ -111,6 +167,12 @@ foreach ($required in @(
         throw "Soul Salvage runtime contract is missing: $required"
     }
 }
+if ($runtimeSource -notmatch '(?s)IsSoulSalvageEquipped\(\).*?IsSoulSalvageItem\(mainHandItem\).*?!IsVersatileWeaponsHandSuppressed\(\s*EquipmentSlotType\.MainHand\).*?IsSoulSalvageItem\(offHandItem\).*?!IsVersatileWeaponsHandSuppressed\(\s*EquipmentSlotType\.OffHand\)') {
+    throw "Soul Rend equipment detection does not independently reject suppressed main-hand and offhand slots."
+}
+if ($runtimeSource -notmatch '(?s)TryResolveVersatileWeaponsApi\(\).*?Chainloader\.PluginInfos\.TryGetValue\(\s*VersatileWeaponsPluginGuid.*?Delegate\.CreateDelegate\(\s*typeof\(Func<bool>\).*?mainMethod.*?Delegate\.CreateDelegate\(\s*typeof\(Func<bool>\).*?offMethod') {
+    throw "Soul Rend does not bind the optional Versatile Weapons hand-suppression API."
+}
 if ($runtimeSource -notmatch '(?s)BeforeCastingBegun\(.*?BeginSoulRendCast\(hand, lightCast\).*?BeginSoulRendCast\(.*?_heavyCastActive = !lightCast;.*?TryCaptureFocusedHeavyTarget\(\)') {
     throw "Soul Rend does not arm heavy-cast servant protection before native spell performance begins."
 }
@@ -120,8 +182,8 @@ if ($runtimeSource -notmatch '(?s)BeforeCastingCanceled\(Item castingItem\).*?Cl
 if ($runtimeSource -notmatch '(?s)BeforeGetManaExpended\(.*?_heavyCastActive.*?_heavyTarget = __instance;\s*__result = 0\.0f;\s*return false;') {
     throw "Heavy Soul Rend does not suppress the vanilla Health refund while capturing its servant target."
 }
-if ($runtimeSource -notmatch '(?s)_lightOriginalMana\s*\* _lightHealthFraction\s*\* manaReturnFraction.*?_lightMaximumManaReturn') {
-    throw "Light Soul Rend mana restoration does not scale with both current Health and its configured percentage."
+if ($runtimeSource -notmatch '(?s)CalculateLightManaReturn\(.*?_lightOriginalMana\s*\* _lightHealthFraction\s*\* \(plugin\.SoulSalvageManaReturnPercent\.Value / 100\.0f\).*?Mathf\.Round\(Math\.Min\(rawReturn, _lightMaximumManaReturn\)\)') {
+    throw "Light Soul Rend mana restoration is not Health-scaled, percentage-scaled, capped, and rounded to a whole actual return."
 }
 foreach ($required in @(
     'internal float ManaReturnedOnSacrifice;',
@@ -186,11 +248,61 @@ if ($runtimeSource -notmatch '(?s)healthVulnerability\s*\* powerChance\s*\* qual
 if ($runtimeSource -notmatch '(?s)target\.HealthElement\.TakeDamage\(claimDamage\);.*?targetLocation\.HasElement<Corpse>\(\).*?TryRaiseCorpse\(') {
     throw "Successful Soul Claim does not pass through native killing damage before protected corpse reanimation."
 }
-if ($runtimeSource -notmatch '(?s)TryHarvestCorpse\(\s*fingerprint,\s*tier,\s*out harvestReceipt\).*?if \(!TryCreateRemains\(.*?RollbackCorpseHarvest\(harvestReceipt\)') {
+if ($runtimeSource -notmatch '(?s)TryHarvestCorpse\(\s*fingerprint,\s*tier,\s*quality01,\s*out harvestReceipt\).*?if \(!TryCreateRemains\(.*?RollbackCorpseHarvest\(harvestReceipt\)') {
     throw "Ordinary corpse harvest does not roll back Soul Vigor when remains creation fails."
 }
 if ($runtimeSource -notmatch '(?s)bool harvestReady = !record\.Sacrificed\s*\|\| SoulProgressionRuntime\.TryHarvestCorpse\(.*?if \(!simplified && harvestReceipt != null\)\s*\{\s*SoulProgressionRuntime\.RollbackCorpseHarvest\(harvestReceipt\);') {
     throw "Raised-corpse harvest does not commit with the remains transaction."
+}
+
+foreach ($required in @(
+    'private const int OrdinarySummonVigorCost = 3;',
+    'SoulProgressionRuntime.TrySpendSoulVigor(',
+    'SoulProgressionRuntime.RestoreSoulVigor(',
+    'int committedVigor = vigorAfter < vigorBefore ? vigorCost : 0;',
+    'private static int GetReanimationSoulVigorCost(',
+    'InvestedSoulVigor = committedVigor',
+    'NativeSoulVigor = SoulProgressionRuntime.RollSoulVigorValue(',
+    'TryResolveOwnedBloodServantForInterop(',
+    'TryExsanguinateOwnedBloodServantForInterop(',
+    'SetOwnedBloodServantRitualStateForInterop(',
+    'TryResolveOwnedLivingSummon(',
+    'BloodRitualExecuted',
+    'ExecutedServantRemains',
+    'RestoreExecutedServantCorpse(',
+    'UpdateExecutedServantRemains();',
+    'text = "Restore Servant";',
+    'text = "Empower Servant";',
+    'state = (int)HeavySoulRendHoverState.ServantFullyRestored;',
+    '&& state != (int)HeavySoulRendHoverState.ServantFullyRestored;')) {
+    if (!$runtimeSource.Contains($required)) {
+        throw "Spendable Vigor, blood-servant, or heavy-hover contract is missing: $required"
+    }
+}
+if ($runtimeSource -notmatch '(?s)if \(healthFraction <= 0\.20f\).*?record\.BloodRitualExecuted = true;.*?record\.RaisedNpc\.HealthElement\.Kill\(\);') {
+    throw 'Blood ritual execution does not preserve its pre-death soul value and kill at 20% Health.'
+}
+if ($runtimeSource -notmatch '(?s)if \(record\.BloodRitualExecuted\).*?ExecutedServantRemains\[\(\(Model\)record\.RaisedLocation\)\.ID\] = record;') {
+    throw 'An executed servant is not retained as a later light Soul Rend target.'
+}
+if ($runtimeSource -notmatch '(?s)bool executedServant = ExecutedServantRemains\.TryGetValue\(.*?ExecutedServantRemains\.Remove\(\(\(Model\)corpse\)\.ID\);') {
+    throw 'Executed-servant light harvest is not a once-only remains transaction.'
+}
+if ($runtimeSource -notmatch '(?s)if \(ExecutedServantRemains\.ContainsKey\(\(\(Model\)candidate\)\.ID\)\).*?rejection = string\.Empty;.*?return true;') {
+    throw 'Executed allied servant remains are not eligible for the promised later light Soul Rend.'
+}
+$bloodTargetResolver = [regex]::Match(
+    $runtimeSource,
+    '(?s)internal static bool TryResolveOwnedReanimatedServantForInterop\(.+?(?=\r?\n\s*internal static )')
+if (!$bloodTargetResolver.Success) {
+    throw 'The owned raised-servant Blood Magic resolver is missing.'
+}
+if ($bloodTargetResolver.Value.Contains('hero.IsInCombat()')) {
+    throw 'Raised-servant identity must remain available in combat so Blood Magic can expose a blocked reticle state.'
+}
+if (!$bloodTargetResolver.Value.Contains('record.SourceCorpse') -or
+    !$bloodTargetResolver.Value.Contains('record.RaisedNpc.IsAlive')) {
+    throw 'Raised-servant Blood Magic identity lost its source-corpse or living-servant provenance checks.'
 }
 
 foreach ($required in @(
@@ -251,7 +363,7 @@ foreach ($document in @($readme, $nexus)) {
         '40-60%',
         'Power 200',
         '30 base mana',
-        '75%',
+        '2-4',
         '2%',
         '8%',
         '20%/35%/50%',
@@ -275,7 +387,8 @@ foreach ($required in @(
     '+ (0.75f * power)',
     'power >= 199.999f',
     'private const string SoulVigorKey = "soul_vigor.total"',
-    'return 20.0f;')) {
+    'minimum = 24;',
+    'maximum = 36;')) {
     if (!$progressionSource.Contains($required)) {
         throw "Soul progression contract is missing: $required"
     }
@@ -307,13 +420,15 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 1.0.6',
+    'Version under test: 2.1.4',
     'exactly 2x',
     'a true hero summon rises',
     'simplified remains',
     'green/dark skeleton-summon effect',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
+    'SAS-SMOKE-39',
+    'two-handed grip immediately suppresses targeting',
     'Soul Vigor: X (Y)',
     '30/34.8/39.6/44.4 m',
     '50%/100%/200%',

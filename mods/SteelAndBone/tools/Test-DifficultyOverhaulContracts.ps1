@@ -651,4 +651,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.9.6 difficulty contracts passed."
+Write-Output "Steel and Bone 3.9.9 difficulty contracts passed."

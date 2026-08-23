@@ -32,9 +32,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.9.6.0")]
-[assembly: AssemblyFileVersion("3.9.6.0")]
-[assembly: AssemblyInformationalVersion("3.9.6")]
+[assembly: AssemblyVersion("3.9.9.0")]
+[assembly: AssemblyFileVersion("3.9.9.0")]
+[assembly: AssemblyInformationalVersion("3.9.9")]
 
 namespace SteelAndBone
 {
@@ -167,7 +167,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.9.6";
+        public const string PluginVersion = "3.9.9";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -175,6 +175,10 @@ namespace SteelAndBone
             "ks.tgfoa.soul-and-service";
         private const string SoulAndServiceApiTypeName =
             "SoulAndService.SoulAndServiceApi";
+        private const string BloodMagicPluginGuid =
+            "ks.tgfoa.blood-magic-expansion";
+        private const string BloodMagicApiTypeName =
+            "BloodMagicExpansion.BloodMagicApi";
         private const int ConfigSchemaVersion = 26;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -434,6 +438,8 @@ namespace SteelAndBone
         private Type _damageSubTypeType;
         private MethodInfo _getMultiplierForSubtypeMethod;
         private MethodInfo _soulAndServiceIsNecroticDamageMethod;
+        private MethodInfo _bloodMagicIsBloodMagicDamageMethod;
+        private bool _bloodMagicApiUnavailable;
         private DamageNumberRenderer _damageNumberRenderer;
 
         private ConfigEntry<bool> _enabled;
@@ -1121,6 +1127,15 @@ namespace SteelAndBone
             {
                 matchedRule = true;
             }
+            else if (TryResolveBloodMagicRule(
+                targetClass,
+                damageClass,
+                out match))
+            {
+                skippedForVanilla = false;
+                skippedForEliteClamp = false;
+                matchedRule = true;
+            }
             else if (TryResolveNecroticRule(
                 targetClass,
                 damageClass,
@@ -1714,6 +1729,89 @@ namespace SteelAndBone
             return true;
         }
 
+        private bool TryResolveBloodMagicRule(
+            TargetClassification targetClass,
+            DamageClassification damageClass,
+            out DamageRuleMatch match)
+        {
+            match = default(DamageRuleMatch);
+            if (targetClass == null
+                || damageClass == null
+                || !damageClass.IsBloodMagic)
+            {
+                return false;
+            }
+
+            string targetLabel;
+            float baseMultiplier;
+            if (targetClass.IsConstruct)
+            {
+                targetLabel = "Construct";
+                baseMultiplier = 0.25f;
+            }
+            else if (targetClass.IsConfirmedSkeleton
+                || (targetClass.ExactTargets & ExactTarget.DrownedSkeletonSailor)
+                    != ExactTarget.None)
+            {
+                targetLabel = "Skeleton";
+                baseMultiplier = 0.25f;
+            }
+            else if (targetClass.IsDrownedZombie)
+            {
+                targetLabel = "Drowned";
+                baseMultiplier = 0.65f;
+            }
+            else if (targetClass.IsWyrd || targetClass.IsInfectedFlesh)
+            {
+                targetLabel = targetClass.IsInfectedFlesh ? "Infected" : "Wyrd";
+                baseMultiplier = 0.85f;
+            }
+            else if (targetClass.IsSpirit)
+            {
+                targetLabel = "Spirit";
+                baseMultiplier = 0.30f;
+            }
+            else if (targetClass.IsFleshUndead)
+            {
+                targetLabel = "Undead";
+                baseMultiplier = 0.75f;
+            }
+            else if (targetClass.IsFlora || targetClass.IsFungalBody)
+            {
+                targetLabel = "Flora/Fungus";
+                baseMultiplier = 0.65f;
+            }
+            else if (targetClass.IsSeaFlesh)
+            {
+                targetLabel = "Sea";
+                baseMultiplier = 1.10f;
+            }
+            else if (targetClass.IsFlesh
+                || targetClass.IsHumanoidFlesh
+                || targetClass.IsArmoredHumanoid)
+            {
+                targetLabel = "Flesh";
+                baseMultiplier = 1.15f;
+            }
+            else
+            {
+                return false;
+            }
+
+            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
+            match = new DamageRuleMatch(
+                multiplier,
+                targetLabel,
+                "Blood",
+                145,
+                GetRuleImpact(multiplier),
+                presetMultiplier,
+                Math.Abs(presetMultiplier - multiplier) > 0.001f);
+            return true;
+        }
+
         private bool TryResolveNecroticRule(
             TargetClassification targetClass,
             DamageClassification damageClass,
@@ -1746,12 +1844,12 @@ namespace SteelAndBone
             else if (targetClass.IsDrownedZombie)
             {
                 targetLabel = "Drowned";
-                baseMultiplier = 0.60f;
+                baseMultiplier = 0.675f;
             }
             else if (targetClass.IsWyrd)
             {
                 targetLabel = "Wyrd";
-                baseMultiplier = 0.90f;
+                baseMultiplier = 0.875f;
             }
             else if (targetClass.IsInfectedFlesh)
             {
@@ -1761,7 +1859,7 @@ namespace SteelAndBone
             else if (targetClass.IsSpirit)
             {
                 targetLabel = "Spirit";
-                baseMultiplier = 1.15f;
+                baseMultiplier = 1.225f;
             }
             else if (targetClass.IsFleshUndead)
             {
@@ -1771,7 +1869,7 @@ namespace SteelAndBone
             else if (targetClass.IsFlora || targetClass.IsFungalBody)
             {
                 targetLabel = "Flora/Fungus";
-                baseMultiplier = 1.15f;
+                baseMultiplier = 1.175f;
             }
             else if (targetClass.IsSeaFlesh)
             {
@@ -3606,6 +3704,75 @@ namespace SteelAndBone
             }
         }
 
+        private bool TryGetBloodMagicDamageClassification(
+            object damage,
+            out bool isBloodMagic)
+        {
+            isBloodMagic = false;
+            if (damage == null || _bloodMagicApiUnavailable)
+            {
+                return false;
+            }
+            if (_bloodMagicIsBloodMagicDamageMethod == null)
+            {
+                PluginInfo pluginInfo;
+                if (!Chainloader.PluginInfos.TryGetValue(
+                        BloodMagicPluginGuid,
+                        out pluginInfo)
+                    || pluginInfo == null
+                    || pluginInfo.Instance == null)
+                {
+                    return false;
+                }
+                Type api = pluginInfo.Instance.GetType().Assembly.GetType(
+                    BloodMagicApiTypeName,
+                    false);
+                FieldInfo versionField = api == null
+                    ? null
+                    : api.GetField(
+                        "ApiVersion",
+                        BindingFlags.Public | BindingFlags.Static);
+                int apiVersion = versionField == null
+                    ? 0
+                    : Convert.ToInt32(
+                        versionField.GetRawConstantValue(),
+                        CultureInfo.InvariantCulture);
+                if (apiVersion < 10)
+                {
+                    _bloodMagicApiUnavailable = true;
+                    return false;
+                }
+                _bloodMagicIsBloodMagicDamageMethod = api.GetMethod(
+                    "IsBloodMagicDamage",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(object) },
+                    null);
+                if (_bloodMagicIsBloodMagicDamageMethod == null)
+                {
+                    _bloodMagicApiUnavailable = true;
+                    return false;
+                }
+            }
+            try
+            {
+                object result = _bloodMagicIsBloodMagicDamageMethod.Invoke(
+                    null,
+                    new[] { damage });
+                isBloodMagic = result is bool && (bool)result;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "Blood Magic Expansion damage classification failed: "
+                    + exception.GetBaseException().Message);
+                _bloodMagicIsBloodMagicDamageMethod = null;
+                _bloodMagicApiUnavailable = true;
+                return false;
+            }
+        }
+
         private DamageClassification ClassifyDamage(object damage)
         {
             if (damage == null)
@@ -3622,7 +3789,12 @@ namespace SteelAndBone
                 || TextContainsAny(damageSearchText, PoisonTerms);
             classification.IsWyrdness = DamageHasSubtype(damage, "Wyrdness")
                 || TextContainsAny(damageSearchText, WyrdTerms);
-            classification.IsBloodMagic = TextContainsAny(damageSearchText, BloodMagicTerms);
+            bool exactBloodMagic;
+            classification.IsBloodMagic = TryGetBloodMagicDamageClassification(
+                    damage,
+                    out exactBloodMagic)
+                ? exactBloodMagic
+                : TextContainsAny(damageSearchText, BloodMagicTerms);
             classification.IsSlashing = DamageHasSubtype(damage, "Slashing");
             classification.IsPiercing = DamageHasSubtype(damage, "Piercing");
             classification.IsBludgeoning = DamageHasSubtype(damage, "Bludgeoning");
@@ -7018,6 +7190,14 @@ namespace SteelAndBone
                     out match,
                     out payloadSkippedForVanilla,
                     out payloadSkippedForEliteClamp);
+            }
+
+            if (TryResolveBloodMagicRule(
+                targetClass,
+                partClass,
+                out match))
+            {
+                return true;
             }
 
             if (TryResolveNecroticRule(

@@ -27,8 +27,8 @@ DLL: BloodMagicExpansion.dll
 GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
-API: BloodMagicExpansion.BloodMagicApi v9
-Version: 2.9.4
+API: BloodMagicExpansion.BloodMagicApi v10
+Version: 3.0.8
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -41,7 +41,7 @@ BloodMage.dll beside BloodMagicExpansion.dll.
 Kill a blood-plausible enemy
 Drain the corpse with Blood/Life Transfusion
 Gain corpse XP and immediate healing
-Replace the drained body through the game's native corpse cleanup
+Leave the drained corpse intact for later necromantic decisions
 Higher-quality corpses improve healing and Abhartach effects
 Completed corpse rituals build the player-facing Blood Essence statistic
 An internal power curve unlocks Blood/Life and Abhartach bonuses from zero
@@ -54,11 +54,24 @@ Corpse XP comes from the enemy's vanilla effective kill XP, including the
 lower-level enemy XP falloff. Corpse quality can scale healing and Abhartach
 effects, but character XP is not multiplied again.
 
-`SimplifyDrainedCorpses = true` is enabled by default. After a corpse ritual
-fully completes, the game replaces a body that still has visible loot with its
-lightweight loot pile and removes an empty body. Unsupported scripted corpses
-remain intact. Disable this setting to leave every successfully drained body in
-place as a spent corpse.
+Completed blood rituals leave their corpses intact. A drained corpse cannot
+produce Blood Essence twice, but it remains available for Soul and Service:
+light Soul Rend can still reduce it to bones, while reanimation begins with a
+20-30% current-Health penalty. Blood Power gradually improves that penalty
+toward 20%, with a small random variation. That exact penalty persists with
+the drained body across saving and reloading.
+
+When Soul and Service is installed, Blood/Life Transfusion can also ritualize
+an owned living flesh servant while out of combat. The channel holds the servant
+in place and consumes real Health. A raised servant completes its source's
+normal one-time ritual rewards; an ordinary spell summon provides healing only,
+with no XP or Blood Essence. A servant at 20% Health or below is executed, and a
+raised servant's body remains available for light Soul Rend. Skeletons,
+constructs, spirits, and other bloodless servants remain invalid. Dishonored
+Dynamic Crosshair shows the normal saturated blood-quality reticle for an
+eligible servant, the same desaturated reticle while combat blocks the ritual,
+and the desaturated spent state after draining. These states add no interaction
+text.
 
 ## Presets
 
@@ -141,6 +154,11 @@ y = clamp((total essence - 1,000) / 4,000, 0, 1)
 Power = 100 + 100y
 ```
 
+Tier values are nominal integer rewards. Each point has a small chance to
+extract one extra Essence, with caps of +1/+1/+2/+3 by tier. Blood Power subtly
+raises that chance from 5% to 15%, improving extraction without reversing the
+quality hierarchy or creating fractional UI values.
+
 The established mastery curve retains its moderate early advantage and grants
 Blood Power 100 with the intended full scaling at 1,000 Essence. Overmastery is
 then deliberately linear: every additional 40 Essence grants one Power until
@@ -178,17 +196,19 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 21 because the obsolete GrowthSource
-and SpiritualityStatTerms settings were removed. Blood Essence is now the sole
-spell-growth progression source, with Blood Power retained as its derived
-0-200 gameplay rating. If the schema marker is missing or outdated, the old
-config is backed up beside the active file and fresh defaults are generated.
+The current config uses ConfigSchemaVersion 23 because the granular diagnostic
+settings were replaced by one general Diagnostics switch. Blood Essence remains
+the sole spell-growth progression source, with Blood Power retained as its
+derived 0-200 gameplay rating. If the schema marker is missing or outdated, the
+old config is backed up beside the active file and fresh defaults are generated.
 Compatible customized settings remain eligible for conservative recovery.
 
-Diagnostics can temporarily test a specific effective Essence value without
+Diagnostics can temporarily use a specific effective Essence value without
 overwriting the saved progression:
 
 ```text
+Diagnostics = false
+ShowGrailFloatingTextDiagnostics = true
 OverrideBloodEssence = false
 BloodEssenceOverrideValue = 1000
 ```
@@ -212,11 +232,13 @@ fall back to its generic XP line for corpse rituals. GFT 1.9.0 or newer still
 never merges with another source. The normal character XP stat path,
 multipliers, and level-up behavior are unchanged.
 
-ShowGrailFloatingTextDiagnostics defaults to true. It remains inactive unless
-the matching LogRejectedCorpses, LogCorpseQuality, or
-LogBloodSpellInnerLight option and shows only collapsed corpse-resolution,
-quality-change, and inner-light visibility summaries. Full evidence remains in
-the BepInEx log.
+Diagnostics defaults to false. Enabling it writes throttled targeting, ritual,
+reward, healing, corpse-quality, and blood-light evidence to the BepInEx log.
+ShowGrailFloatingTextDiagnostics defaults to true and, while Diagnostics is
+enabled, shows concise targeting, ritual, corpse-quality, and blood-light
+outcomes when Grail Floating Text is installed. Disable it to keep the log
+evidence without in-game diagnostic notifications. Startup errors and warnings
+remain visible even when Diagnostics is off.
 
 Completed corpse notifications include both rewards on one line:
 
@@ -241,7 +263,7 @@ rolled-back, or incomplete rituals do not count. Blood Magic Expansion stores
 the tier ledger with the progression and periodically sends Deeds 1.6.7+ an
 absolute snapshot so a temporarily unavailable callback cannot drift it.
 Progression still works normally without
-either display mod. BloodMagicApi v9 also lets integrations read both values,
+either display mod. BloodMagicApi v10 also lets integrations read both values,
 and Deeds can consolidate new and previously recorded supported spell kills
 under the Blood Magic type without rewriting save-backed counters.
 
@@ -286,7 +308,8 @@ MinimumPowerRange = 1.5
 MasteryRange = 3.0
 MaximumPowerRange = 4.5
 FadeSeconds = 0.12
-LogBloodSpellInnerLight = false
+Diagnostics = false
+ShowGrailFloatingTextDiagnostics = true
 ```
 
 Lower the shared intensity, a spell multiplier, or any milestone value for a
@@ -423,7 +446,7 @@ the public IL2CPP branch or an IL2CPP BepInEx installation.
 ## Compatibility
 
 Dishonored Dynamic Crosshair 3.0.3+ can use
-`BloodMagicExpansion.BloodMagicApi` v9 for tiered focused-corpse reticle feedback,
+`BloodMagicExpansion.BloodMagicApi` v10 for tiered focused-corpse reticle feedback,
 supported damage-source classification, and read-only effective Blood Essence
 and Blood Power values.
 

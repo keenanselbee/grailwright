@@ -19,11 +19,12 @@ $steelSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\SteelAnd
 $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\BloodMagicExpansion\src\BloodMagicExpansion.cs")
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 18')) "Config schema is not 18."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 19')) "Config schema is not 19."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
 Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
 Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Bow,\s*"Bow",\s*"custom_reticle\.png",\s*0\.9f\);')) "Bow does not default to the shared reticle at 0.9x."
 Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Magic,\s*"Magic",\s*"custom_reticle\.png",\s*1\.1f\);')) "Magic does not default to the shared reticle at 1.1x."
+Assert-Contract ([regex]::IsMatch($source, 'context == ReticleContext\.BloodMagic[\s\S]*?magicScale = ContextScale\(_magic\);[\s\S]*?contextScale = ContextScale\(settings\);[\s\S]*?bloodMagicQualityScale = GetBloodMagicQualityScale\(\);')) "Blood Magic quality reticles do not inherit Magic scale before their context and quality scales."
 Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $modRoot "custom_reticle_bow.png"))) "The redundant Bow reticle asset remains."
 Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $modRoot "custom_reticle_magic.png"))) "The redundant Magic reticle asset remains."
 Assert-Contract (-not $source.Contains('hitmarker_4.png')) "The removed numbered neutral hitmarker is still referenced."
@@ -87,7 +88,7 @@ Assert-Contract ($source.Contains('"BloodMagicQualityCrosshairsEnabled"') -and $
 Assert-Contract (-not $source.Contains('UnavailableCorpseColor')) "The obsolete unavailable-corpse color setting still exists."
 Assert-Contract ([regex]::IsMatch($source, 'ColorForBloodMagicCorpseState\(string fallback\)[\s\S]*?BloodMagicCorpseUsesUsableVisuals[\s\S]*?_bloodMagicUsableCorpseColor\.Value;[\s\S]*?_general\.DefaultColor\.Value;')) "Unavailable corpses do not inherit the ordinary default-reticle color."
 Assert-Contract ([regex]::IsMatch($source, 'TargetState displayTargetState = soulSalvageActive[\s\S]*?: bloodMagicActive[\s\S]*?BloodMagicCorpseUsesUsableVisuals[\s\S]*?TargetState\.Hostile\s*:\s*TargetState\.Default')) "Unavailable corpses do not use the ordinary idle-opacity state."
-Assert-Contract ([regex]::IsMatch($source, 'BloodMagicExpansionApiTypeName[\s\S]*GetRawConstantValue\(\),\s*9\)\)')) "Dishonored does not require Blood Magic Expansion API v9."
+Assert-Contract ($source.Contains('if (apiVersion < 9)')) "Dishonored does not accept compatible Blood Magic Expansion API v9 or newer."
 Assert-Contract ($source.Contains('GetFocusedCorpseQualityTier')) "Blood Magic corpse-quality tier API resolution is missing."
 Assert-Contract ([regex]::IsMatch($source, 'case 1:\s*return "custom_reticle_bloodmagic_0\.png";')) "Meager Blood Magic does not use frame 0."
 Assert-Contract ([regex]::IsMatch($source, 'case 2:\s*return "custom_reticle_bloodmagic_1\.png";')) "Worthy Blood Magic does not use frame 1."
@@ -115,10 +116,7 @@ Assert-Contract ($source.Contains('case 2: return 1.33f;')) "Worthy killing blow
 Assert-Contract ($source.Contains('case 3: return 1.67f;')) "Potent killing blows do not use 1.67x tier duration."
 Assert-Contract ($source.Contains('case 4: return 2.00f;')) "Prime killing blows do not use 2.00x tier duration."
 Assert-Contract ($source.Contains('default: return 1.0f;')) "Meager killing blows do not retain the current duration."
-Assert-Contract ($source.Contains('hitmarker_killingblow_3_overlay.png')) "The meager killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_2_overlay.png')) "The worthy killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_0_overlay.png')) "The potent killing-blow overlay is not loaded."
-Assert-Contract ($source.Contains('hitmarker_killingblow_1_overlay.png')) "The prime killing-blow overlay is not loaded."
+Assert-Contract ([regex]::IsMatch($source, 'KillingBlowOverlayFileName\(int tier\)[\s\S]*?case 1:\s*return "hitmarker_killingblow_0_overlay\.png";[\s\S]*?case 2:\s*return "hitmarker_killingblow_1_overlay\.png";[\s\S]*?case 3:\s*return "hitmarker_killingblow_2_overlay\.png";[\s\S]*?case 4:\s*return "hitmarker_killingblow_3_overlay\.png";')) "Killing-blow overlays do not follow natural Meager-through-Prime file ordering."
 Assert-Contract ($source.Contains('_killingBlowHitMarkerImage.transform.SetAsLastSibling();')) "The killing-blow overlay is not kept above other hit-marker layers."
 
 Assert-Contract ($steelSource.Contains('public static class SteelAndBoneHitFeedbackApi')) "Steel and Bone's public feedback API is missing."
@@ -164,10 +162,10 @@ $assetNames = @(
     "custom_reticle_bloodmagic_1.png",
     "custom_reticle_bloodmagic_2.png",
     "custom_reticle_bloodmagic_3.png",
-    "hitmarker_killingblow_3_overlay.png",
-    "hitmarker_killingblow_2_overlay.png",
     "hitmarker_killingblow_0_overlay.png",
-    "hitmarker_killingblow_1_overlay.png"
+    "hitmarker_killingblow_1_overlay.png",
+    "hitmarker_killingblow_2_overlay.png",
+    "hitmarker_killingblow_3_overlay.png"
 )
 
 Add-Type -AssemblyName System.Drawing

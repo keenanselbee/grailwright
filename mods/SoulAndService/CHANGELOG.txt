@@ -1,3 +1,64 @@
+Version 2.1.4
+-----
+- Sampled the hero's meaningful movement gate once per rendered frame so camera turns, brief taps, and sub-meter adjustments remain consistently ignored even when servant AI updates are sparse.
+- Reported a reanimated servant's actual starting Health after both its normal retention roll and any persisted Blood Magic exsanguination penalty.
+- Kept API version 7 and config schema 10 because these fixes change no stored setting or integration signature.
+
+Version 2.1.3
+-----
+- Made successful Recall and Recall Host orders request Battlecry Voice Tuner's dedicated Recall pool instead of reusing Follow voices.
+- Kept API version 7 and config schema 10 because the integration uses the existing command bridge and changes no stored setting.
+
+Version 2.1.2
+-----
+- Added one shared meaningful-movement gate for Guard, Bulwark, and Hunt: brief taps and sub-meter adjustments no longer reposition the host, sustained movement or 1 meter of travel starts following, and a short settle delay prevents stop-start churn.
+- Moved Soul Rend hand-light positioning to LateUpdate and applied First Person Arms Adjuster's visual world offset when available, keeping each light aligned with its animated hand.
+- Matched Blood Magic's restrained lighting shape with smoothstep Power 0-100 growth, a default 0.8 Soul Rend intensity multiplier, and explicit HDRP shadow and volumetric suppression.
+- Config schema remains 10 because SoulRendIntensityMultiplier is additive and existing settings retain their meaning.
+
+Version 2.1.1
+-----
+- Made Bulwark retain the hero's last meaningful movement direction while stationary, matching Guard and preventing camera-only turns from rotating the screen. Both facing caches now reset when the active hero changes.
+- Allowed autonomous targeting of summoned enemies when faction rules mark them hostile, while continuing to reject the servant itself, dead targets, unconscious targets, and non-hostile allies.
+- Made optional passive crosshair sharing use replaceable autonomous target state instead of explicit Attack authority, so behavior rules and later target decisions remain in control.
+- Reduced repeated host work by caching group combat state per frame and storing one directly addressed awareness record per servant.
+- Restored native target selection when Soul and Service cannot obtain the hero or NPC grid needed for its custom decision, while keeping behavior targeting authoritative when those prerequisites are available.
+- Config schema remains 10 because no setting or existing setting meaning changed.
+
+Version 2.1.0
+-----
+- Removed the non-actionable `Servant Fully Restored` interaction text while retaining the desaturated heal state for Dishonored Dynamic Crosshair.
+- Rounded Soul Rend Mana restoration itself to whole Mana so the native refund and reward text agree.
+- Added configurable necromantic-green Soul Rend inner lights for each raised hand, with no shadows, interior scaling, smooth Power 0/100/200 brightness and range growth, cast brightening, fading, and Versatile Weapons suppression.
+- Decoupled Guard formation facing from camera look by retaining the hero's last meaningful movement direction while stationary.
+- Added Idle Movement Amount to scale the distance and frequency of voluntary Guard and Hunt wandering, including zero to disable it without affecting formation correction or combat movement.
+- Added two quiet delayed echoes to successful light Soul Rend ritual audio, controlled by Soul Rend Audio Echo Amount.
+- Config schema remains 10 because all new settings are additive and existing values retain their meaning.
+
+Version 2.0.8
+-----
+- Exposed all owned living servants to Blood Magic Expansion with their NPC identity and optional source corpse, allowing ordinary flesh summons such as Corpse Eaters to become healing-only ritual targets without XP or Blood Essence.
+- Kept servant identity available during combat, allowing the crosshair to show the servant as blocked while BME remains authoritative over whether the ritual may channel.
+- Advanced the optional API to version 7 for the broader owned-blood-servant bridge. Config schema remains 10 because no setting changed.
+
+Version 2.0.5
+-----
+- Made Soul Rend targeting respect Versatile Weapons hand suppression, so a spell retained behind an active two-handed grip no longer counts as currently equipped and returns when that hand becomes available.
+- Kept an out-of-combat raised servant stationary while its source blood ritual channels and for eight seconds after completion, while a new summon command cancels the channel.
+- Preserved an executed servant as a valid later light Soul Rend target, with bounded cleanup if its body disappears before harvest.
+- Kept diagnostic Soul Vigor overrides from creating a real investment refund while still preserving genuine awards.
+- Exposed feedback-only native hover actions so crosshair integrations can omit the generic interaction hand without matching localized display text.
+- Retained the 2.0.0 Vigor economy, salvage, relock, hover, and blood-integration changes below as the same release line. Config schema remains 10.
+
+Version 2.0.0
+-----
+- Turned integer Soul Vigor into both current Necromantic Power and a spendable reanimation resource. Ordinary summons cost 3; corpse costs are 1/3/5/10 by quality, and spending can relock commands and scaling without killing existing servants.
+- Tripled natural soul values to 3/9/15/30, added center-weighted tier variance subtly biased by exact corpse quality, and added a small positive mastery extraction bonus.
+- Replaced free summon harvesting with tracked once-only investment salvage. Light Soul Rend returns the servant's native soul plus invested Vigor in proportion to current Health, so restoring a servant can recover more of its value.
+- Added Heavy Soul Rend interaction text and API states for reanimation costs, final Soul Claim chance, Restore Servant, Empower Servant, and Servant Fully Restored.
+- Added optional Blood Magic Expansion integration for drained-corpse starting Health and one-time blood rituals performed through owned raised flesh servants.
+- Advanced the optional API to version 6. Config schema remains 10 because no setting was added, removed, renamed, or reinterpreted.
+
 Version 1.0.6
 -----
 - Aligned Grail Floating Text Soul Vigor gains with Blood Magic Expansion's

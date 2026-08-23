@@ -17,7 +17,18 @@ $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\Plugin.cs")
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
 
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 18')) "Config schema is not 18."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 19')) "Config schema is not 19."
+Assert-Contract ([regex]::IsMatch($source, '"Diagnostics",\s*"Diagnostics",\s*false,')) "The general Diagnostics switch is missing or enabled by default."
+Assert-Contract (-not $source.Contains('LogBloodMagicScaleDiagnostics')) "The retired Blood-Magic-only diagnostic setting remains."
+foreach ($token in @(
+    '"Reticle diagnostics: context="',
+    '"; targetState="',
+    '"; interaction="',
+    '"; bloodMagicState="',
+    '"; soulHover="',
+    '"; finalScale="')) {
+    Assert-Contract ($source.Contains($token)) "General reticle diagnostics are missing token: $token"
+}
 Assert-Contract (-not $manifestText.Contains('TG.Main.dll')) "The reflected integration acquired a hard game-assembly reference."
 
 Assert-Contract ([regex]::IsMatch($source, '"Interaction Icons",\s*"Enabled",\s*true,')) "Interaction icons are not enabled by default."

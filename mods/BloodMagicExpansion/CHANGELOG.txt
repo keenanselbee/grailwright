@@ -1,3 +1,31 @@
+Version 3.0.8
+Persisted each drained corpse's exact exsanguination severity across save and reload using one compact save fact keyed by its stable model identity, with no update-loop scans.
+Revalidated an owned Soul and Service servant immediately before applying healing or progression rewards, preventing a vanished or replaced servant from paying out.
+Kept ConfigSchemaVersion at 23 because this changes runtime save facts, not configuration settings.
+
+Version 3.0.6
+Recognized eligible Soul and Service flesh servants independently of combat, including ordinary spell-summoned Corpse Eaters, so their blood reticle remains visible while combat blocks the ritual and becomes actionable again out of combat.
+Kept exhausted servants and raised-servant sources recognized as spent targets for the established desaturated reticle instead of dropping the reticle entirely.
+Let ordinary flesh summons provide the intended emergency healing while granting no XP or Blood Essence; raised servants continue to complete only their source corpse's remaining one-time progression ritual.
+Added throttled diagnostics that distinguish eligible servants, healing-only ordinary summons, combat-blocked or spent sources, bloodless servants, non-owned living targets, and unresolved living raycast targets.
+Replaced the granular diagnostic toggles with one Diagnostics switch, retained a separate in-game Grail Floating Text notification toggle, and kept temporary Blood Essence overrides in Diagnostics alongside Soul and Service's matching controls.
+Advanced ConfigSchemaVersion from 22 to 23 because diagnostic settings were removed and consolidated; the previous config is backed up and compatible durable settings remain eligible for conservative recovery.
+
+Version 3.0.4
+Fixed corpse targeting with True Third Person by using the game's perspective-aware hero view ray instead of casting from the displaced third-person camera.
+
+Version 3.0.3
+Kept eligible raised servants stationary during their out-of-combat blood ritual and briefly after completion, while combat, lost focus, or a new servant command cancels the channel.
+Kept each drained body's one-time exsanguination severity attached for as long as that intact source body remains loaded.
+Retained all 3.0.0 blood-and-soul ecosystem changes below. ConfigSchemaVersion remains 22.
+
+Version 3.0.0
+Blood rituals now consume only a corpse's blood and always leave its body intact for later reanimation or Soul Rend.
+Added positive-only integer Blood Essence extraction variance: mastery raises the per-point bonus chance while corpse tier caps the possible bonus.
+Added one-time, Blood-Power-scaled exsanguination severity to drained bodies and optional Soul and Service integration so raised drained servants begin wounded and eligible flesh servants can complete their source's remaining blood ritual.
+Advanced the Blood Magic API to version 10 with exact damage provenance and corpse exsanguination queries.
+Advanced ConfigSchemaVersion from 21 to 22 because SimplifyDrainedCorpses was removed; the previous config is backed up and compatible durable settings remain eligible for conservative recovery.
+
 Version 2.9.4
 Replaced the native Blood Transfusion, Life Transfusion, and Abhartach's Calling descriptions with concise, config-aware light- and heavy-cast tooltips covering corpse rituals, live-drain XP, dual-hand payout, spell growth from player-facing Blood Essence, and corpse-quality scaling.
 Made Blood/Life tooltips omit homing-search details and suppress XP, healing, corpse-quality, and Blood Essence claims whenever their configured reward paths are disabled.

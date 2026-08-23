@@ -32,7 +32,6 @@ namespace SoulAndService
         private const string PotentHarvestsKey = "soul_vigor.harvests.potent";
         private const string PrimeHarvestsKey = "soul_vigor.harvests.prime";
         private const string SummonBehaviorKey = "soul_vigor.summon_behavior";
-        private const string SummonHarvestTimeKeyPrefix = "soul_vigor.summon_harvest.";
         private const float SoulVigorAtNormalMaximumPower = 1000.0f;
         private const float SoulVigorAtAbsoluteMaximumPower = 5000.0f;
         internal const float AttackCommandPower = 10.0f;
@@ -43,9 +42,6 @@ namespace SoulAndService
         internal const float SwarmCommandPower = 90.0f;
         internal const float EmpowermentPower = 100.0f;
         internal const float MaximumCommandCapacityPower = 150.0f;
-        private const int SummonHarvestLimit = 5;
-        private static readonly long SummonHarvestWindowTicks =
-            TimeSpan.FromSeconds(60.0).Ticks;
         private const string DeedsPluginGuid = "ks.tgfoa.deeds-of-avalon";
         private const string DeedsApiTypeName = "DeedsOfAvalon.StatisticsApi";
         private const string GrailFloatingTextPluginGuid =
@@ -134,16 +130,17 @@ namespace SoulAndService
             EnsureInitialized(facts);
             float storedSoulVigor = Math.Max(
                 0.0f,
-                facts.Get(SoulVigorKey, 0.0f));
+                Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             return plugin != null
                 && plugin.OverrideSoulVigor != null
                 && plugin.OverrideSoulVigor.Value
                     ? Math.Max(
                         0.0f,
+                        Mathf.Round(
                         plugin.SoulVigorOverrideValue == null
                             ? 0.0f
-                            : plugin.SoulVigorOverrideValue.Value)
+                            : plugin.SoulVigorOverrideValue.Value))
                     : storedSoulVigor;
         }
 
@@ -331,6 +328,20 @@ namespace SoulAndService
         internal static bool TryHarvestCorpse(
             string corpseFingerprint,
             Grailwright.Shared.CorpseQualityTier tier,
+            float quality01,
+            out CorpseHarvestReceipt receipt)
+        {
+            return TryHarvestCorpse(
+                corpseFingerprint,
+                tier,
+                RollSoulVigorValue(tier, quality01),
+                out receipt);
+        }
+
+        internal static bool TryHarvestCorpse(
+            string corpseFingerprint,
+            Grailwright.Shared.CorpseQualityTier tier,
+            int award,
             out CorpseHarvestReceipt receipt)
         {
             receipt = null;
@@ -351,9 +362,9 @@ namespace SoulAndService
                 string countKey = HarvestCountKey(tier);
                 float beforeSoulVigor = Math.Max(
                     0.0f,
-                    facts.Get(SoulVigorKey, 0.0f));
+                    Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
                 int beforeHarvestCount = Math.Max(0, facts.Get(countKey, 0));
-                float award = GetSoulVigorAward(tier);
+                award = Math.Max(0, award);
                 receipt = new CorpseHarvestReceipt
                 {
                     Facts = facts,
@@ -397,50 +408,143 @@ namespace SoulAndService
             }
         }
 
-        internal static float HarvestOrdinarySummon()
+        internal static int RollSoulVigorValue(
+            Grailwright.Shared.CorpseQualityTier tier,
+            float quality01)
         {
-            ContextualFacts facts = GetFacts();
-            if (facts == null)
+            int minimum;
+            int maximum;
+            int nominal;
+            switch (tier)
             {
-                return 0.0f;
+                case Grailwright.Shared.CorpseQualityTier.Worthy:
+                    minimum = 7;
+                    maximum = 11;
+                    nominal = 9;
+                    break;
+                case Grailwright.Shared.CorpseQualityTier.Potent:
+                    minimum = 12;
+                    maximum = 18;
+                    nominal = 15;
+                    break;
+                case Grailwright.Shared.CorpseQualityTier.Prime:
+                    minimum = 24;
+                    maximum = 36;
+                    nominal = 30;
+                    break;
+                case Grailwright.Shared.CorpseQualityTier.Meager:
+                default:
+                    minimum = 2;
+                    maximum = 4;
+                    nominal = 3;
+                    break;
             }
-            EnsureInitialized(facts);
-            long now = DateTime.UtcNow.Ticks;
-            long cutoff = now - SummonHarvestWindowTicks;
-            int availableSlot = -1;
-            long oldest = long.MaxValue;
-            for (int index = 0; index < SummonHarvestLimit; index++)
+
+            float tierStart = tier == Grailwright.Shared.CorpseQualityTier.Meager
+                ? 0.0f
+                : tier == Grailwright.Shared.CorpseQualityTier.Worthy
+                    ? Grailwright.Shared.CorpseQualityBuckets.MeagerMaximumQuality
+                    : tier == Grailwright.Shared.CorpseQualityTier.Potent
+                        ? Grailwright.Shared.CorpseQualityBuckets.WorthyMaximumQuality
+                        : Grailwright.Shared.CorpseQualityBuckets.PotentMaximumQuality;
+            float tierEnd = tier == Grailwright.Shared.CorpseQualityTier.Meager
+                ? Grailwright.Shared.CorpseQualityBuckets.MeagerMaximumQuality
+                : tier == Grailwright.Shared.CorpseQualityTier.Worthy
+                    ? Grailwright.Shared.CorpseQualityBuckets.WorthyMaximumQuality
+                    : tier == Grailwright.Shared.CorpseQualityTier.Potent
+                        ? Grailwright.Shared.CorpseQualityBuckets.PotentMaximumQuality
+                        : 1.0f;
+            float qualityBias = tierEnd <= tierStart
+                ? 0.5f
+                : Mathf.Clamp01((quality01 - tierStart) / (tierEnd - tierStart));
+            float totalWeight = 0.0f;
+            for (int value = minimum; value <= maximum; value++)
             {
-                string key = SummonHarvestTimeKeyPrefix
-                    + index.ToString(CultureInfo.InvariantCulture);
-                string stored = facts.Get(key, string.Empty);
-                long ticks;
-                if (!long.TryParse(
-                        stored,
-                        NumberStyles.Integer,
-                        CultureInfo.InvariantCulture,
-                        out ticks)
-                    || ticks <= cutoff
-                    || ticks > now)
+                int centerWeight = Math.Min(
+                    value - minimum + 1,
+                    maximum - value + 1);
+                float position = maximum == minimum
+                    ? 0.5f
+                    : (float)(value - minimum) / (maximum - minimum);
+                totalWeight += centerWeight
+                    * Mathf.Lerp(0.80f, 1.20f, 1.0f - Math.Abs(position - qualityBias));
+            }
+            float roll = UnityEngine.Random.value * totalWeight;
+            int rolled = nominal;
+            for (int value = minimum; value <= maximum; value++)
+            {
+                int centerWeight = Math.Min(
+                    value - minimum + 1,
+                    maximum - value + 1);
+                float position = maximum == minimum
+                    ? 0.5f
+                    : (float)(value - minimum) / (maximum - minimum);
+                roll -= centerWeight
+                    * Mathf.Lerp(0.80f, 1.20f, 1.0f - Math.Abs(position - qualityBias));
+                if (roll <= 0.0f)
                 {
-                    availableSlot = index;
+                    rolled = value;
                     break;
                 }
-                if (ticks < oldest)
-                {
-                    oldest = ticks;
-                }
             }
-            if (availableSlot < 0)
+
+            float masteryBonus = nominal
+                * 0.05f
+                * Mathf.Clamp01(GetNecromanticPower() / 200.0f);
+            int wholeBonus = Mathf.FloorToInt(masteryBonus);
+            if (UnityEngine.Random.value < masteryBonus - wholeBonus)
             {
-                return 0.0f;
+                wholeBonus++;
             }
-            facts.Set(
-                SummonHarvestTimeKeyPrefix
-                    + availableSlot.ToString(CultureInfo.InvariantCulture),
-                now.ToString(CultureInfo.InvariantCulture));
-            AddSoulVigor(facts, 1.0f);
-            return 1.0f;
+            return rolled + wholeBonus;
+        }
+
+        internal static bool TrySpendSoulVigor(
+            int amount,
+            out int before,
+            out int after)
+        {
+            before = Mathf.RoundToInt(GetSoulVigor());
+            after = before;
+            amount = Math.Max(0, amount);
+            if (amount == 0)
+            {
+                return true;
+            }
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin != null
+                && plugin.OverrideSoulVigor != null
+                && plugin.OverrideSoulVigor.Value)
+            {
+                return before >= amount;
+            }
+            ContextualFacts facts = GetFacts();
+            if (facts == null || before < amount)
+            {
+                return false;
+            }
+            after = before - amount;
+            facts.Set(SoulVigorKey, after);
+            InvalidateReportedProgression();
+            return true;
+        }
+
+        internal static int RestoreSoulVigor(int amount)
+        {
+            amount = Math.Max(0, amount);
+            ContextualFacts facts = GetFacts();
+            if (facts == null || amount == 0)
+            {
+                return 0;
+            }
+            EnsureInitialized(facts);
+            float before = Math.Max(0.0f, Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
+            AddSoulVigor(facts, amount);
+            InvalidateReportedProgression();
+            float after = Math.Max(
+                0.0f,
+                Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
+            return Mathf.RoundToInt(after - before);
         }
 
         internal static float GetBindingProgress01(
@@ -509,7 +613,7 @@ namespace SoulAndService
             if (manaReturned > 0.0f)
             {
                 text = "+"
-                    + manaReturned.ToString("0.#", CultureInfo.InvariantCulture)
+                    + manaReturned.ToString("0", CultureInfo.InvariantCulture)
                     + " Mana";
             }
             if (award > 0.0f)
@@ -753,23 +857,6 @@ namespace SoulAndService
                     + attempt.ToString(CultureInfo.InvariantCulture)));
         }
 
-        private static float GetSoulVigorAward(
-            Grailwright.Shared.CorpseQualityTier tier)
-        {
-            switch (tier)
-            {
-                case Grailwright.Shared.CorpseQualityTier.Worthy:
-                    return 6.0f;
-                case Grailwright.Shared.CorpseQualityTier.Potent:
-                    return 10.0f;
-                case Grailwright.Shared.CorpseQualityTier.Prime:
-                    return 20.0f;
-                case Grailwright.Shared.CorpseQualityTier.Meager:
-                default:
-                    return 2.0f;
-            }
-        }
-
         private static bool TryRestoreCorpseHarvest(CorpseHarvestReceipt receipt)
         {
             if (receipt == null || receipt.Facts == null)
@@ -835,7 +922,9 @@ namespace SoulAndService
 
         private static void AddSoulVigor(ContextualFacts facts, float award)
         {
-            float before = Math.Max(0.0f, facts.Get(SoulVigorKey, 0.0f));
+            float before = Math.Max(
+                0.0f,
+                Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
             facts.Set(SoulVigorKey, SaturatingAdd(before, award));
             InvalidateReportedProgression();
         }

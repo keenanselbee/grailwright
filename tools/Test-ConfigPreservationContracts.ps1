@@ -71,7 +71,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedConfigValues('
         Restore = 'RestorePreservedConfigValues();'
         Save = 'config.Save();'
-        Tokens = @('BloodWhitelistTerms', 'BloodSpellTemplateGuid', 'CorpseLeechSoundVolume', 'CorpseLeechSoundRangeVolume', 'BloodTransfusionIntensityMultiplier', 'LifeTransfusionIntensityMultiplier', 'AbhartachCallingIntensityMultiplier')
+        Tokens = @('BloodWhitelistTerms', 'BloodSpellTemplateGuid', 'CorpseLeechSoundVolume', 'CorpseLeechSoundRangeVolume', 'BloodTransfusionIntensityMultiplier', 'LifeTransfusionIntensityMultiplier', 'AbhartachCallingIntensityMultiplier', 'ShowGrailFloatingTextDiagnostics')
     },
     [pscustomobject]@{
         Name = 'Killing Blow Mastery'

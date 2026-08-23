@@ -57,14 +57,15 @@ $contracts = @(
         Name = "Blood Magic Expansion"
         Path = "mods\BloodMagicExpansion\src\BloodMagicExpansion.cs"
         Tokens = @(
+            '"Diagnostics", "Diagnostics", false',
             '"ShowGrailFloatingTextDiagnostics", true',
-            '"LogBloodSpellInnerLight", false',
             "ShowBloodMagicDiagnostic(",
-            "matchingDiagnostic.Value",
+            "DiagnosticsEnabled()",
+            "_showGrailFloatingTextDiagnostics.Value",
             '"blood-magic-diagnostics"',
             "_lastGftCorpseQualitySignature")
         ForbiddenTokens = @(
-            '"ShowGrailFloatingTextDiagnostics", false')
+            '"LogBloodSpellInnerLight"')
     },
     @{
         Name = "Eyes in the Dark"

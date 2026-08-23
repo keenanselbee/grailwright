@@ -77,7 +77,6 @@ namespace SoulAndService
         private const float BulwarkAnchorTolerance = 0.5f;
         private const float BulwarkFormationInnerRadius = 3.5f;
         private const float BulwarkFormationRingSpacing = 1.0f;
-        private const float BulwarkFacingRebaseDegrees = 20.0f;
         private const int BulwarkFormationSlotsPerRing = 4;
         private const float HuntFormationInnerRadius = 5.5f;
         private const float HuntFormationRingSpacing = 2.0f;
@@ -112,6 +111,10 @@ namespace SoulAndService
         private const float AutonomousLineOfSightCacheSeconds = 0.25f;
         private const float BulwarkTargetCandidateCacheSeconds = 0.10f;
         private const float FormationPatrolAnchorUpdateDistance = 0.10f;
+        private const float FormationLeaderTravelDeadZone = 1.0f;
+        private const float FormationLeaderMovementStartSeconds = 0.25f;
+        private const float FormationLeaderMovementStopSpeed = 0.15f;
+        private const float FormationLeaderSettleSeconds = 0.20f;
         private const float SteelAndBoneAwarenessCacheSeconds = 1.0f;
         private const float AutonomousTargetMinimumCommitmentSeconds = 1.75f;
         private const float AutonomousTargetSwitchDistanceRatio = 0.80f;
@@ -143,6 +146,7 @@ namespace SoulAndService
         private const string SummonAttackCommandId = "summon_attack";
         private const string SummonHoldCommandId = "summon_hold";
         private const string SummonFollowCommandId = "summon_follow";
+        private const string SummonRecallCommandId = "summon_recall";
         private const string SummonGuardCommandId = "summon_guard";
         private const string SummonBulwarkCommandId = "summon_bulwark";
         private const string SummonHuntCommandId = "summon_hunt";
@@ -347,6 +351,9 @@ namespace SoulAndService
         private static Hero _formationHostCacheHero;
         private static NpcHeroSummon[] _formationHostCache =
             new NpcHeroSummon[0];
+        private static int _hostCombatCacheFrame = -1;
+        private static Hero _hostCombatCacheHero;
+        private static bool _hostCombatCacheValue;
         private static MethodInfo _steelAndBoneSightMultiplierMethod;
         private static MethodInfo _steelAndBoneAggroMultiplierMethod;
         private static bool _steelAndBoneAwarenessUnavailable;
@@ -378,6 +385,16 @@ namespace SoulAndService
         private static float _nextIdleHostAttemptAt;
         private static bool _hasBulwarkForward;
         private static Vector3 _bulwarkForward = Vector3.forward;
+        private static bool _hasGuardForward;
+        private static Vector3 _guardForward = Vector3.forward;
+        private static Hero _formationFacingHero;
+        private static int _formationLeaderMotionFrame = -1;
+        private static Hero _formationLeaderMotionHero;
+        private static Vector3 _formationLeaderAnchor;
+        private static bool _hasFormationLeaderAnchor;
+        private static bool _formationLeaderMoving;
+        private static float _formationLeaderMovementStartedAt = -1.0f;
+        private static float _formationLeaderStoppedAt = -1.0f;
         private static float _upkeepElapsed;
         private static int _lastUpkeepHostSize = -1;
         private static float _lastUpkeepPercentPerMinute = -1.0f;
@@ -604,9 +621,12 @@ namespace SoulAndService
                 NextControlDiagnosticBySummon.Clear();
                 _guardIdleMoverId = null;
                 _nextIdleHostAttemptAt = 0.0f;
+                ResetFormationLeaderMotion();
                 ResetBehaviorCommandHold();
                 return;
             }
+
+            UpdateFormationLeaderMotion(Hero.Current);
 
             if (Time.unscaledTime >= _nextTransientStatePruneTime)
             {
@@ -661,6 +681,10 @@ namespace SoulAndService
             _nextIdleHostAttemptAt = 0.0f;
             _hasBulwarkForward = false;
             _bulwarkForward = Vector3.forward;
+            _hasGuardForward = false;
+            _guardForward = Vector3.forward;
+            _formationFacingHero = null;
+            ResetFormationLeaderMotion();
             FormationCommandViewCaches.Clear();
             NextControllerRefreshBySummon.Clear();
             LastControlDiagnosticBySummon.Clear();
@@ -690,6 +714,9 @@ namespace SoulAndService
             _formationHostCacheFrame = -1;
             _formationHostCacheHero = null;
             _formationHostCache = new NpcHeroSummon[0];
+            _hostCombatCacheFrame = -1;
+            _hostCombatCacheHero = null;
+            _hostCombatCacheValue = false;
             _nextSteelAndBoneAwarenessRefreshAt = 0.0f;
             _cachedSteelAndBoneSightMultiplier = 1.0f;
             _cachedSteelAndBoneAggroMultiplier = 1.0f;
@@ -871,15 +898,6 @@ namespace SoulAndService
 
         private static void UpdateSwarmStates()
         {
-            if (SoulProgressionRuntime.GetNecromanticPower()
-                < SoulProgressionRuntime.SwarmCommandPower)
-            {
-                foreach (string id in SwarmStates.Keys.ToArray())
-                {
-                    ClearSwarm(id);
-                }
-                return;
-            }
             foreach (KeyValuePair<string, SwarmState> pair
                 in SwarmStates.ToArray())
             {
@@ -1675,7 +1693,7 @@ namespace SoulAndService
             ExplicitCommandTargets.TryGetValue(
                 summonId,
                 out previousTarget);
-            RemoveAwarenessTargetsForSummon(summonId, target);
+            RemoveAwarenessTargetsForSummon(summon, target);
             if (previousTarget != null
                 && !previousTarget.HasBeenDiscarded
                 && !ReferenceEquals(previousTarget, target))
@@ -1702,6 +1720,43 @@ namespace SoulAndService
                         forceChange: true);
                 }
             }
+        }
+
+        private static bool TrySetPassiveSharedTarget(
+            NpcHeroSummon summon,
+            NpcElement target)
+        {
+            if (summon == null
+                || summon.ParentModel == null
+                || target == null
+                || target.HasBeenDiscarded
+                || !target.IsAlive
+                || HasExplicitCommandTarget(summon))
+            {
+                return false;
+            }
+            NpcElement owner = summon.ParentModel;
+            RemoveAwarenessTargetsForSummon(summon);
+            if (!owner.ForceAddCombatTarget(target, recalculateTarget: true))
+            {
+                return false;
+            }
+            string summonId = ((Model)summon).ID;
+            float now = Time.unscaledTime;
+            AwarenessTargets[summonId] = new AwarenessTargetRecord
+            {
+                SummonId = summonId,
+                Summon = owner,
+                Target = target,
+                LastSeenAt = now,
+                SelectedAt = now
+            };
+            if (owner.NpcAI != null && !owner.NpcAI.InCombat)
+            {
+                owner.NpcAI.EnterCombatWith(target, forceChange: true);
+            }
+            SetAutonomousTargetOverride(summon, target);
+            return true;
         }
 
         private static void LogSummonControlState(
@@ -1821,8 +1876,7 @@ namespace SoulAndService
                 GuardIdleStates[summonId] = state;
             }
 
-            bool heroMoving = hero.HorizontalVelocity.magnitude
-                >= GuardLeaderMovingSpeed;
+            bool heroMoving = IsFormationLeaderMoving(hero);
             bool hostInCombat = IsHostInCombat(hero);
             if (heroMoving || hostInCombat)
             {
@@ -1843,6 +1897,13 @@ namespace SoulAndService
                 state.HeroOrigin = hero.Coords;
                 state.HasAnchor = true;
                 ScheduleNextGuardIdleWander(state);
+            }
+
+            if (GetIdleMovementAmount() <= 0.001f)
+            {
+                CancelGuardIdleMovement(summonId, state);
+                state.NextWanderAt = 0.0f;
+                return state.FormationAnchor;
             }
 
             float now = Time.unscaledTime;
@@ -1918,7 +1979,7 @@ namespace SoulAndService
             return Mathf.Lerp(
                 GuardIdleNoviceWanderRadius,
                 GuardIdleMasterWanderRadius,
-                mastery);
+                mastery) * GetIdleMovementAmount();
         }
 
         private static void ScheduleNextGuardIdleWander(GuardIdleState state)
@@ -1937,8 +1998,9 @@ namespace SoulAndService
                 GuardIdleNoviceMaximumStillSeconds,
                 GuardIdleMasterMaximumStillSeconds,
                 mastery);
+            float amount = Math.Max(0.1f, GetIdleMovementAmount());
             state.NextWanderAt = Time.unscaledTime
-                + UnityEngine.Random.Range(minimum, maximum);
+                + (UnityEngine.Random.Range(minimum, maximum) / amount);
         }
 
         private static bool TryFindIdleDestination(
@@ -2053,8 +2115,7 @@ namespace SoulAndService
                 HuntIdleStates[summonId] = state;
             }
 
-            bool heroMoving = hero.HorizontalVelocity.magnitude
-                >= GuardLeaderMovingSpeed;
+            bool heroMoving = IsFormationLeaderMoving(hero);
             bool hostInCombat = IsHostInCombat(hero);
             if (heroMoving || hostInCombat)
             {
@@ -2075,6 +2136,14 @@ namespace SoulAndService
                 state.HeroOrigin = hero.Coords;
                 state.HasAnchor = true;
                 ScheduleNextHuntIdleWander(state);
+            }
+
+            float idleMovementAmount = GetIdleMovementAmount();
+            if (idleMovementAmount <= 0.001f)
+            {
+                CancelHuntIdleMovement(summonId, state);
+                state.NextWanderAt = 0.0f;
+                return state.FormationAnchor;
             }
 
             float now = Time.unscaledTime;
@@ -2123,7 +2192,7 @@ namespace SoulAndService
                 Vector3 destination;
                 if (TryFindIdleDestination(
                         state.FormationAnchor,
-                        HuntIdleWanderRadius,
+                        HuntIdleWanderRadius * idleMovementAmount,
                         hero.Coords,
                         HuntIdleMinimumHeroDistance,
                         out destination))
@@ -2149,10 +2218,19 @@ namespace SoulAndService
             {
                 return;
             }
+            float amount = Math.Max(0.1f, GetIdleMovementAmount());
             state.NextWanderAt = Time.unscaledTime
-                + UnityEngine.Random.Range(
+                + (UnityEngine.Random.Range(
                     HuntIdleMinimumStillSeconds,
-                    HuntIdleMaximumStillSeconds);
+                    HuntIdleMaximumStillSeconds) / amount);
+        }
+
+        private static float GetIdleMovementAmount()
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            return plugin == null || plugin.IdleMovementAmount == null
+                ? 1.0f
+                : Mathf.Clamp(plugin.IdleMovementAmount.Value, 0.0f, 2.0f);
         }
 
         private static void CancelHuntIdleMovement(
@@ -2187,6 +2265,106 @@ namespace SoulAndService
             ClearHuntIdleState(summonId);
         }
 
+        private static void ResetFormationLeaderMotion()
+        {
+            _formationLeaderMotionFrame = -1;
+            _formationLeaderMotionHero = null;
+            _formationLeaderAnchor = Vector3.zero;
+            _hasFormationLeaderAnchor = false;
+            _formationLeaderMoving = false;
+            _formationLeaderMovementStartedAt = -1.0f;
+            _formationLeaderStoppedAt = -1.0f;
+        }
+
+        private static void UpdateFormationLeaderMotion(Hero hero)
+        {
+            if (hero == null)
+            {
+                ResetFormationLeaderMotion();
+                return;
+            }
+            if (!ReferenceEquals(_formationLeaderMotionHero, hero)
+                || !_hasFormationLeaderAnchor)
+            {
+                _formationLeaderMotionHero = hero;
+                _formationLeaderAnchor = hero.Coords;
+                _hasFormationLeaderAnchor = true;
+                _formationLeaderMoving = false;
+                _formationLeaderMovementStartedAt = -1.0f;
+                _formationLeaderStoppedAt = -1.0f;
+                _formationLeaderMotionFrame = Time.frameCount;
+                return;
+            }
+            if (_formationLeaderMotionFrame == Time.frameCount)
+            {
+                return;
+            }
+            _formationLeaderMotionFrame = Time.frameCount;
+
+            float now = Time.unscaledTime;
+            float speed = hero.HorizontalVelocity.magnitude;
+            if (_formationLeaderMoving)
+            {
+                _formationLeaderAnchor = hero.Coords;
+                if (speed >= FormationLeaderMovementStopSpeed)
+                {
+                    _formationLeaderStoppedAt = -1.0f;
+                }
+                else if (_formationLeaderStoppedAt < 0.0f)
+                {
+                    _formationLeaderStoppedAt = now;
+                }
+                else if (now - _formationLeaderStoppedAt
+                    >= FormationLeaderSettleSeconds)
+                {
+                    _formationLeaderMoving = false;
+                    _formationLeaderMovementStartedAt = -1.0f;
+                    _formationLeaderStoppedAt = -1.0f;
+                }
+                return;
+            }
+
+            if (speed >= FormationLeaderMovementStopSpeed)
+            {
+                if (_formationLeaderMovementStartedAt < 0.0f)
+                {
+                    _formationLeaderMovementStartedAt = now;
+                }
+            }
+            else
+            {
+                _formationLeaderMovementStartedAt = -1.0f;
+            }
+
+            bool traveledBeyondDeadZone =
+                (hero.Coords - _formationLeaderAnchor).sqrMagnitude
+                    >= FormationLeaderTravelDeadZone
+                        * FormationLeaderTravelDeadZone;
+            bool sustainedMovement = _formationLeaderMovementStartedAt >= 0.0f
+                && now - _formationLeaderMovementStartedAt
+                    >= FormationLeaderMovementStartSeconds;
+            if (traveledBeyondDeadZone || sustainedMovement)
+            {
+                _formationLeaderMoving = true;
+                _formationLeaderAnchor = hero.Coords;
+                _formationLeaderStoppedAt = -1.0f;
+            }
+        }
+
+        private static bool IsFormationLeaderMoving(Hero hero)
+        {
+            UpdateFormationLeaderMotion(hero);
+            return _formationLeaderMoving;
+        }
+
+        private static Vector3 GetFormationLeaderAnchor(Hero hero)
+        {
+            UpdateFormationLeaderMotion(hero);
+            return _hasFormationLeaderAnchor
+                ? _formationLeaderAnchor
+                : hero == null ? Vector3.zero : hero.Coords;
+        }
+
         private static Vector3 GetHuntAnchor(NpcHeroSummon summon)
         {
             Hero hero = Hero.Current;
@@ -2210,7 +2388,7 @@ namespace SoulAndService
                 : 90.0f + ((360.0f * slot) / countInRing);
             float distance = HuntFormationInnerRadius
                 + (HuntFormationRingSpacing * ring);
-            return hero.Coords
+            return GetFormationLeaderAnchor(hero)
                 + (Quaternion.AngleAxis(angle, Vector3.up)
                     * Vector3.forward * distance);
         }
@@ -2224,6 +2402,7 @@ namespace SoulAndService
                     ? Vector3.zero
                     : summon.ParentModel.Coords;
             }
+            EnsureFormationFacingHero(hero);
 
             NpcHeroSummon[] host = GetFormationHost(hero);
             int index = Array.IndexOf(host, summon);
@@ -2247,26 +2426,26 @@ namespace SoulAndService
                 : Mathf.Lerp(-halfArc, halfArc, slot / (countInRing - 1.0f));
             float distance = BulwarkFormationInnerRadius
                 + (BulwarkFormationRingSpacing * ring);
-            Vector3 forward = hero.VHeroController == null
-                ? Vector3.forward
-                : hero.VHeroController.transform.forward;
-            forward.y = 0.0f;
-            if (forward.sqrMagnitude <= 0.0001f)
+            Vector3 movementForward = hero.HorizontalVelocity;
+            movementForward.y = 0.0f;
+            if (IsFormationLeaderMoving(hero)
+                && movementForward.magnitude >= BulwarkLeaderMovingSpeed)
             {
-                forward = Vector3.forward;
-            }
-            forward.Normalize();
-            bool heroMoving = hero.HorizontalVelocity.magnitude
-                >= BulwarkLeaderMovingSpeed;
-            if (!_hasBulwarkForward
-                || heroMoving
-                || Vector3.Angle(_bulwarkForward, forward)
-                    >= BulwarkFacingRebaseDegrees)
-            {
-                _bulwarkForward = forward;
+                _bulwarkForward = movementForward.normalized;
                 _hasBulwarkForward = true;
             }
-            return hero.Coords
+            else if (!_hasBulwarkForward)
+            {
+                Vector3 initialForward = hero.VHeroController == null
+                    ? Vector3.forward
+                    : hero.VHeroController.transform.forward;
+                initialForward.y = 0.0f;
+                _bulwarkForward = initialForward.sqrMagnitude <= 0.0001f
+                    ? Vector3.forward
+                    : initialForward.normalized;
+                _hasBulwarkForward = true;
+            }
+            return GetFormationLeaderAnchor(hero)
                 + (Quaternion.AngleAxis(angle, Vector3.up)
                     * _bulwarkForward * distance);
         }
@@ -2280,6 +2459,7 @@ namespace SoulAndService
                     ? Vector3.zero
                     : summon.ParentModel.Coords;
             }
+            EnsureFormationFacingHero(hero);
 
             NpcHeroSummon[] host = GetFormationHost(hero);
             int index = Math.Max(0, Array.IndexOf(host, summon));
@@ -2292,17 +2472,40 @@ namespace SoulAndService
                 : Mathf.Lerp(105.0f, 255.0f, slot / (countInRing - 1.0f));
             float distance = GuardFormationInnerRadius
                 + (GuardFormationRingSpacing * ring);
-            Vector3 forward = hero.VHeroController == null
-                ? Vector3.forward
-                : hero.VHeroController.transform.forward;
-            forward.y = 0.0f;
-            if (forward.sqrMagnitude <= 0.0001f)
+            Vector3 movementForward = hero.HorizontalVelocity;
+            movementForward.y = 0.0f;
+            if (IsFormationLeaderMoving(hero)
+                && movementForward.magnitude >= GuardLeaderMovingSpeed)
             {
-                forward = Vector3.forward;
+                _guardForward = movementForward.normalized;
+                _hasGuardForward = true;
             }
-            forward.Normalize();
-            return hero.Coords
-                + (Quaternion.AngleAxis(angle, Vector3.up) * forward * distance);
+            else if (!_hasGuardForward)
+            {
+                Vector3 initialForward = hero.VHeroController == null
+                    ? Vector3.forward
+                    : hero.VHeroController.transform.forward;
+                initialForward.y = 0.0f;
+                _guardForward = initialForward.sqrMagnitude <= 0.0001f
+                    ? Vector3.forward
+                    : initialForward.normalized;
+                _hasGuardForward = true;
+            }
+            return GetFormationLeaderAnchor(hero)
+                + (Quaternion.AngleAxis(angle, Vector3.up) * _guardForward * distance);
+        }
+
+        private static void EnsureFormationFacingHero(Hero hero)
+        {
+            if (ReferenceEquals(_formationFacingHero, hero))
+            {
+                return;
+            }
+            _formationFacingHero = hero;
+            _hasBulwarkForward = false;
+            _bulwarkForward = Vector3.forward;
+            _hasGuardForward = false;
+            _guardForward = Vector3.forward;
         }
 
         private static VelocityScheme GetBulwarkVelocityScheme(
@@ -2341,8 +2544,7 @@ namespace SoulAndService
                 }
                 SummonBehavior behavior =
                     SoulProgressionRuntime.GetSummonBehavior();
-                RefreshAutonomousTargets(summon, plugin, behavior);
-                return false;
+                return !RefreshAutonomousTargets(summon, plugin, behavior);
             }
             return true;
         }
@@ -2433,7 +2635,10 @@ namespace SoulAndService
                 return;
             }
 
-            SetExplicitCommandTarget(summon, target);
+            if (!TrySetPassiveSharedTarget(summon, target))
+            {
+                return;
+            }
             LogSummonControlState(summon, "crosshair-share");
             plugin.LogDiagnostic(
                 "Shared crosshair target " + ((Model)target).ID
@@ -3091,7 +3296,7 @@ namespace SoulAndService
                 {
                     Anchor = summon.ParentModel.Coords
                 };
-                RemoveAwarenessTargetsForSummon(summonId);
+                RemoveAwarenessTargetsForSummon(summon);
                 HeroSummonTargetOverride explicitTarget =
                     summon.ParentModel.TryGetElement<HeroSummonTargetOverride>();
                 if (explicitTarget != null)
@@ -3228,7 +3433,7 @@ namespace SoulAndService
                     Time.unscaledTime + RecallTargetSuppressionSeconds;
                 ExplicitCommandTargets.Remove(summonId);
                 AutonomousTargetOverrides.Remove(summonId);
-                RemoveAwarenessTargetsForSummon(summonId);
+                RemoveAwarenessTargetsForSummon(summon);
                 ClearSwarm(summonId);
                 SetSummonHeld(summon, false);
                 HeroSummonTargetOverride targetOverride =
@@ -3284,7 +3489,7 @@ namespace SoulAndService
                 PublishCommand(
                     plugin,
                     SummonCommandState.Follow,
-                    SummonFollowCommandId,
+                    SummonRecallCommandId,
                     feedback,
                     ExtendedCommandFeedbackSeconds,
                     true);
@@ -3479,6 +3684,7 @@ namespace SoulAndService
             private readonly GameObject _viewObject;
             private readonly SummonCommandAction _action;
             private readonly string _feedbackText;
+            private readonly bool _soulRendHover;
 
             internal SummonCommandInteractable(
                 NpcElement target,
@@ -3508,10 +3714,12 @@ namespace SoulAndService
             internal SummonCommandInteractable(
                 GameObject viewObject,
                 SummonCommandState kind,
-                string feedbackText)
+                string feedbackText,
+                bool soulRendHover = false)
             {
                 _viewObject = viewObject;
                 _feedbackText = feedbackText;
+                _soulRendHover = soulRendHover;
                 Kind = kind;
                 _action = new SummonCommandAction(
                     null,
@@ -3528,6 +3736,12 @@ namespace SoulAndService
             internal SummonCommandState Kind { get; private set; }
 
             internal bool IsFeedback => !string.IsNullOrEmpty(_feedbackText);
+
+            internal bool IsSoulRendHover => _soulRendHover;
+
+            internal string FeedbackText => _feedbackText;
+
+            internal GameObject ViewObject => _viewObject;
 
             public bool Interactable => IsFeedback
                 ? true
@@ -3596,6 +3810,8 @@ namespace SoulAndService
                     : _summon != null && !_summon.HasBeenDiscarded);
 
             public bool IsIllegal => false;
+
+            public bool IsFeedbackOnly => _feedbackOnly;
 
             public InfoFrame ActionFrame =>
                 new InfoFrame(DefaultActionName, true);
@@ -3671,6 +3887,39 @@ namespace SoulAndService
                 || hero.VHeroController == null
                     ? null
                     : hero.VHeroController.Raycaster;
+            string soulRendHoverText;
+            GameObject soulRendHoverView;
+            if (raycaster != null
+                && SoulSalvageRuntime.TryGetHeavySoulRendHoverForInteraction(
+                    out soulRendHoverText,
+                    out soulRendHoverView))
+            {
+                if (_commandInteractable != null
+                    && _commandInteractable.IsSoulRendHover
+                    && string.Equals(
+                        _commandInteractable.FeedbackText,
+                        soulRendHoverText,
+                        StringComparison.Ordinal)
+                    && ReferenceEquals(
+                        _commandInteractable.ViewObject,
+                        soulRendHoverView))
+                {
+                    return;
+                }
+                ClearCommandOverride();
+                _commandInteractable = new SummonCommandInteractable(
+                    soulRendHoverView,
+                    SummonCommandState.None,
+                    soulRendHoverText,
+                    soulRendHover: true);
+                raycaster.SetInteractionOverride(_commandInteractable);
+                return;
+            }
+            if (_commandInteractable != null
+                && _commandInteractable.IsSoulRendHover)
+            {
+                ClearCommandOverride();
+            }
             if (_commandInteractable != null
                 && _commandInteractable.IsFeedback)
             {
@@ -4009,6 +4258,10 @@ namespace SoulAndService
             _guardIdleMoverId = null;
             _nextIdleHostAttemptAt = 0.0f;
             _hasBulwarkForward = false;
+            _bulwarkForward = Vector3.forward;
+            _hasGuardForward = false;
+            _guardForward = Vector3.forward;
+            ResetFormationLeaderMotion();
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
             {
@@ -4247,6 +4500,7 @@ namespace SoulAndService
                 {
                     ApplyPlayerPassThrough(__instance);
                 });
+            SoulSalvageRuntime.OnSummonInitialized(__instance);
 
         }
 
@@ -4655,7 +4909,7 @@ namespace SoulAndService
                 InvocationTweaks.Remove(id);
             }
             SoulSalvageRuntime.OnSummonDiscarded(__instance);
-            RemoveAwarenessTargetsForSummon(id);
+            RemoveAwarenessTargetsForSummon(__instance);
         }
 
         private static void AfterApplyDamageModifiers(
@@ -4733,7 +4987,7 @@ namespace SoulAndService
             return summon == null ? null : ((Model)summon).ID;
         }
 
-        private static void RefreshAutonomousTargets(
+        private static bool RefreshAutonomousTargets(
             NpcHeroSummon summon,
             SoulAndServicePlugin plugin,
             SummonBehavior behavior)
@@ -4745,16 +4999,16 @@ namespace SoulAndService
                 : World.Services.TryGet<NpcGrid>();
             if (owner == null || hero == null || grid == null)
             {
-                return;
+                return false;
             }
 
             string summonId = ((Model)summon).ID;
             if (HasExplicitCommandTarget(summon))
             {
                 RemoveAwarenessTargetsForSummon(
-                    summonId,
+                    summon,
                     ExplicitCommandTargets[summonId]);
-                return;
+                return true;
             }
 
             HeldSummonState heldState;
@@ -4808,8 +5062,15 @@ namespace SoulAndService
                 && committedTarget != null)
             {
                 AwarenessTargets.TryGetValue(
-                    summonId + "|" + ((Model)committedTarget).ID,
+                    summonId,
                     out committedRecord);
+                if (committedRecord != null
+                    && !ReferenceEquals(
+                        committedRecord.Target,
+                        committedTarget))
+                {
+                    committedRecord = null;
+                }
             }
             bool committedTargetVisible = false;
             int committedPriority = int.MaxValue;
@@ -4826,7 +5087,6 @@ namespace SoulAndService
                     || ReferenceEquals(target, owner)
                     || !target.IsAlive
                     || target.IsUnconscious
-                    || target.IsSummonOrAlly
                     || !WithFactionUtils.WantToFight(owner, target)
                     || !HasAutonomousTargetLineOfSight(
                         summon,
@@ -4882,17 +5142,9 @@ namespace SoulAndService
             }
 
             NpcElement retainedTarget = null;
-            foreach (KeyValuePair<string, AwarenessTargetRecord> pair
-                in AwarenessTargets.ToArray())
+            AwarenessTargetRecord record;
+            if (AwarenessTargets.TryGetValue(summonId, out record))
             {
-                AwarenessTargetRecord record = pair.Value;
-                if (!string.Equals(
-                        record.SummonId,
-                        summonId,
-                        StringComparison.Ordinal))
-                {
-                    continue;
-                }
                 bool invalid = record.Target == null
                     || record.Target.HasBeenDiscarded
                     || !record.Target.IsAlive
@@ -4913,22 +5165,21 @@ namespace SoulAndService
                 {
                     record.LastSeenAt = now;
                     retainedTarget = record.Target;
-                    continue;
                 }
-                if (bestTarget == null
+                else if (bestTarget == null
                     && !invalid
                     && !beyondRetention
-                    && now - record.LastSeenAt <= graceSeconds
-                    && retainedTarget == null)
+                    && now - record.LastSeenAt <= graceSeconds)
                 {
                     retainedTarget = record.Target;
-                    continue;
                 }
-
-                AwarenessTargets.Remove(pair.Key);
-                if (!invalid)
+                else
                 {
-                    owner.RemoveCombatTarget(record.Target);
+                    AwarenessTargets.Remove(summonId);
+                    if (!invalid)
+                    {
+                        owner.RemoveCombatTarget(record.Target);
+                    }
                 }
             }
 
@@ -4936,22 +5187,28 @@ namespace SoulAndService
             if (selectedTarget == null)
             {
                 ClearAutonomousTargetOverride(summon);
-                return;
+                return true;
             }
 
             string selectedId = ((Model)selectedTarget).ID;
-            string selectedKey = summonId + "|" + selectedId;
             AwarenessTargetRecord selectedRecord;
-            if (!AwarenessTargets.TryGetValue(selectedKey, out selectedRecord))
+            if (!AwarenessTargets.TryGetValue(summonId, out selectedRecord)
+                || !ReferenceEquals(selectedRecord.Target, selectedTarget))
             {
+                if (selectedRecord != null
+                    && selectedRecord.Target != null
+                    && !selectedRecord.Target.HasBeenDiscarded)
+                {
+                    owner.RemoveCombatTarget(selectedRecord.Target);
+                }
                 if (!owner.ForceAddCombatTarget(
                         selectedTarget,
                         recalculateTarget: true))
                 {
                     ClearAutonomousTargetOverride(summon);
-                    return;
+                    return true;
                 }
-                AwarenessTargets[selectedKey] = new AwarenessTargetRecord
+                AwarenessTargets[summonId] = new AwarenessTargetRecord
                 {
                     SummonId = summonId,
                     Summon = owner,
@@ -4971,6 +5228,7 @@ namespace SoulAndService
                     forceChange: true);
             }
             SetAutonomousTargetOverride(summon, selectedTarget);
+            return true;
         }
 
         private static IEnumerable<NpcElement> GetAutonomousTargetCandidates(
@@ -5061,17 +5319,26 @@ namespace SoulAndService
 
         private static bool IsHostInCombat(Hero hero)
         {
-            if (hero != null
-                && hero.HeroCombat != null
-                && hero.HeroCombat.IsHeroInFight)
+            int frame = Time.frameCount;
+            if (_hostCombatCacheFrame == frame
+                && ReferenceEquals(_hostCombatCacheHero, hero))
             {
-                return true;
+                return _hostCombatCacheValue;
             }
-            return World.All<NpcHeroSummon>().Any(
-                summon => IsOwnedSummon(summon, hero)
-                    && summon.ParentModel != null
-                    && summon.ParentModel.NpcAI != null
-                    && summon.ParentModel.NpcAI.InCombat);
+            _hostCombatCacheFrame = frame;
+            _hostCombatCacheHero = hero;
+            _hostCombatCacheValue = hero != null
+                && hero.HeroCombat != null
+                && hero.HeroCombat.IsHeroInFight;
+            if (!_hostCombatCacheValue && hero != null)
+            {
+                _hostCombatCacheValue = GetFormationHost(hero).Any(
+                    summon => IsOwnedSummon(summon, hero)
+                        && summon.ParentModel != null
+                        && summon.ParentModel.NpcAI != null
+                        && summon.ParentModel.NpcAI.InCombat);
+            }
+            return _hostCombatCacheValue;
         }
 
         private static bool HasAutonomousTargetLineOfSight(
@@ -5466,30 +5733,28 @@ namespace SoulAndService
         }
 
         private static void RemoveAwarenessTargetsForSummon(
-            string summonId,
+            NpcHeroSummon summon,
             NpcElement preservedTarget = null)
         {
-            foreach (string key in AwarenessTargets.Keys.ToArray())
+            if (summon == null)
             {
-                AwarenessTargetRecord record = AwarenessTargets[key];
-                if (string.Equals(record.SummonId, summonId, StringComparison.Ordinal))
-                {
-                    if (record.Summon != null
-                        && !record.Summon.HasBeenDiscarded
-                        && record.Target != null
-                        && !record.Target.HasBeenDiscarded
-                        && !ReferenceEquals(record.Target, preservedTarget))
-                    {
-                        record.Summon.RemoveCombatTarget(record.Target);
-                    }
-                    AwarenessTargets.Remove(key);
-                }
+                return;
             }
-            NpcHeroSummon summon = World.All<NpcHeroSummon>()
-                .FirstOrDefault(candidate => string.Equals(
-                    ((Model)candidate).ID,
-                    summonId,
-                    StringComparison.Ordinal));
+
+            string summonId = ((Model)summon).ID;
+            AwarenessTargetRecord record;
+            if (AwarenessTargets.TryGetValue(summonId, out record))
+            {
+                if (record.Summon != null
+                    && !record.Summon.HasBeenDiscarded
+                    && record.Target != null
+                    && !record.Target.HasBeenDiscarded
+                    && !ReferenceEquals(record.Target, preservedTarget))
+                {
+                    record.Summon.RemoveCombatTarget(record.Target);
+                }
+                AwarenessTargets.Remove(summonId);
+            }
             ClearAutonomousTargetOverride(summon);
         }
 

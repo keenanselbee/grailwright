@@ -16,9 +16,9 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | --- | --- | --- |
 | [Ambush Integrity - Stealth Overhaul](mods/AmbushIntegrity) | 0.1.8 | Unpublished |
 | [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 2.9.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.0.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.9.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.5.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.5.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.3.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
 | [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.5.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
@@ -34,8 +34,8 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.2.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
-| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 1.0.6 | Unpublished |
-| [Steel and Bone - Expanded Combat and Difficulty](mods/SteelAndBone) | 3.9.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
+| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 2.1.4 | Unpublished |
+| [Steel and Bone - Expanded Combat and Difficulty](mods/SteelAndBone) | 3.9.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
 | [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
 | [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.8.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |

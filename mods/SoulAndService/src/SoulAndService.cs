@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("1.0.6.0")]
-[assembly: AssemblyFileVersion("1.0.6.0")]
-[assembly: AssemblyInformationalVersion("1.0.6")]
+[assembly: AssemblyVersion("2.1.4.0")]
+[assembly: AssemblyFileVersion("2.1.4.0")]
+[assembly: AssemblyInformationalVersion("2.1.4")]
 
 namespace SoulAndService
 {
@@ -39,6 +39,17 @@ namespace SoulAndService
         None = 0,
         Corpse = 1,
         ActiveSummon = 2
+    }
+
+    public enum HeavySoulRendHoverState
+    {
+        None = 0,
+        Reanimate = 1,
+        RequiresSoulVigor = 2,
+        ClaimSoul = 3,
+        RestoreServant = 4,
+        EmpowerServant = 5,
+        ServantFullyRestored = 6
     }
 
     public enum SummonCommandState
@@ -67,7 +78,13 @@ namespace SoulAndService
         "ks.tgfoa.steel-and-bone",
         BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(
+        "ks.tgfoa.versatile-weapons",
+        BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
         "ks.tgfoa.battlecry-voice-tuner",
+        BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        "ks.tgfoa.first-person-arms-adjuster",
         BepInDependency.DependencyFlags.SoftDependency)]
     [BepInIncompatibility("kane.tgfoa.avalon-summons")]
     [BepInIncompatibility("com.user.bettersummon")]
@@ -76,7 +93,7 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "1.0.6";
+        public const string PluginVersion = "2.1.4";
 
         private const int ConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -105,6 +122,7 @@ namespace SoulAndService
         internal ConfigEntry<float> RunDistance;
         internal ConfigEntry<float> TeleportDistance;
         internal ConfigEntry<float> CatchUpSpeedMultiplier;
+        internal ConfigEntry<float> IdleMovementAmount;
         internal ConfigEntry<bool> ShareHeroTarget;
         internal ConfigEntry<bool> AttackCommandPrompt;
         internal ConfigEntry<bool> FormationCommands;
@@ -122,9 +140,21 @@ namespace SoulAndService
         internal ConfigEntry<bool> AvoidRecentSoulSalvageAudioRepeats;
         internal ConfigEntry<int> RecentSoulSalvageAudioMemory;
         internal ConfigEntry<float> SoulSalvageAudioRandomPitchSemitones;
+        internal ConfigEntry<float> SoulSalvageAudioEchoAmount;
         internal ConfigEntry<bool> SoulSalvageOverhaul;
         internal ConfigEntry<bool> LivingTargetSoulSalvage;
         internal ConfigEntry<float> SoulSalvageManaReturnPercent;
+        internal ConfigEntry<bool> SoulRendInnerLightEnabled;
+        internal ConfigEntry<float> SoulRendInnerLightIntensity;
+        internal ConfigEntry<float> SoulRendInnerLightIntensityMultiplier;
+        internal ConfigEntry<float> SoulRendInnerLightInteriorIntensityMultiplier;
+        internal ConfigEntry<float> SoulRendInnerLightMinimumPowerBrightnessMultiplier;
+        internal ConfigEntry<float> SoulRendInnerLightMasteryBrightnessMultiplier;
+        internal ConfigEntry<float> SoulRendInnerLightMaximumPowerBrightnessMultiplier;
+        internal ConfigEntry<float> SoulRendInnerLightMinimumPowerRange;
+        internal ConfigEntry<float> SoulRendInnerLightMasteryRange;
+        internal ConfigEntry<float> SoulRendInnerLightMaximumPowerRange;
+        internal ConfigEntry<float> SoulRendInnerLightFadeSeconds;
         internal ConfigEntry<bool> Diagnostics;
         internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
         internal ConfigEntry<bool> OverrideSoulVigor;
@@ -168,11 +198,19 @@ namespace SoulAndService
             SoulProgressionRuntime.Update();
             SummonRuntime.Update();
             SoulSalvageRuntime.Update();
+            SoulRendInnerLightRuntime.Update();
+            SoulSalvageAudioRuntime.Update();
+        }
+
+        private void LateUpdate()
+        {
+            SoulRendInnerLightRuntime.LateUpdate();
         }
 
         private void OnDestroy()
         {
             SoulSalvageRuntime.Shutdown();
+            SoulRendInnerLightRuntime.Shutdown();
             SummonRuntime.Shutdown();
             if (_harmony != null)
             {
@@ -274,6 +312,8 @@ namespace SoulAndService
                     return 0;
                 case "Soul Salvage":
                     return 10;
+                case "Soul Rend Inner Light":
+                    return 15;
                 case "Following":
                     return 20;
                 case "Targeting":
@@ -375,6 +415,14 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Movement-speed multiplier used only while an out-of-combat summon is catching up.",
                     new AcceptableValueRange<float>(1.0f, 2.0f)));
+            IdleMovementAmount = BindOrdered(
+                "Following",
+                "IdleMovementAmount",
+                1.0f,
+                new ConfigDescription(
+                    "Scales how far and how often Guard and Hunt servants naturally wander while the hero is stationary. Zero disables voluntary idle wandering without affecting combat, formation correction, following, or catch-up movement.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)),
+                "Idle Movement Amount");
 
             ShareHeroTarget = BindOrdered(
                 "Targeting",
@@ -488,6 +536,14 @@ namespace SoulAndService
                     "Random FMOD pitch variation in semitones. Zero disables it.",
                     new AcceptableValueRange<float>(0.0f, 12.0f)),
                 "Soul Rend Audio Random Pitch Semitones");
+            SoulSalvageAudioEchoAmount = BindOrdered(
+                "Audio",
+                "SoulSalvageAudioEchoAmount",
+                0.35f,
+                new ConfigDescription(
+                    "Strength of two quiet delayed echoes added to successful light Soul Rend ritual sounds. Zero disables the added echoes.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f)),
+                "Soul Rend Audio Echo Amount");
 
             SoulSalvageOverhaul = BindOrdered(
                 "Soul Salvage",
@@ -509,6 +565,82 @@ namespace SoulAndService
                     "Percent of the summon's original mana investment restored at full health. Current health scales every return; raised servants also scale with corpse quality and can never restore more than 75% of their binding cost.",
                     new AcceptableValueRange<float>(0.0f, 100.0f)),
                 "Mana Return Percent");
+
+            SoulRendInnerLightEnabled = BindOrdered(
+                "Soul Rend Inner Light",
+                "Enabled",
+                true,
+                "Show a necromantic-green no-shadow light from each raised hand that has Soul Rend equipped.");
+            SoulRendInnerLightIntensity = BindOrdered(
+                "Soul Rend Inner Light",
+                "Intensity",
+                0.5f,
+                new ConfigDescription(
+                    "Base brightness of each green hand light while Soul Rend is readied. Actual casting temporarily triples that hand's final value after 0.3 seconds. Zero disables visible light without disabling the feature.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightIntensityMultiplier = BindOrdered(
+                "Soul Rend Inner Light",
+                "SoulRendIntensityMultiplier",
+                0.8f,
+                new ConfigDescription(
+                    "Perceptual brightness multiplier for Soul Rend's saturated green light, applied after the shared base intensity. The default matches Blood Transfusion's restrained 0.8 multiplier.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightInteriorIntensityMultiplier = BindOrdered(
+                "Soul Rend Inner Light",
+                "InteriorIntensityMultiplier",
+                1.0f,
+                new ConfigDescription(
+                    "Additional hand-light intensity multiplier in full interior scenes. One preserves the configured intensity and zero hides the light indoors.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightMinimumPowerBrightnessMultiplier = BindOrdered(
+                "Soul Rend Inner Light",
+                "MinimumPowerBrightnessMultiplier",
+                0.2f,
+                new ConfigDescription(
+                    "Necromantic Power 0 brightness multiplier. The light grows smoothly from this faint starting point to the mastery milestone.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightMasteryBrightnessMultiplier = BindOrdered(
+                "Soul Rend Inner Light",
+                "MasteryBrightnessMultiplier",
+                2.0f,
+                new ConfigDescription(
+                    "Necromantic Power 100 brightness multiplier.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightMaximumPowerBrightnessMultiplier = BindOrdered(
+                "Soul Rend Inner Light",
+                "MaximumPowerBrightnessMultiplier",
+                3.0f,
+                new ConfigDescription(
+                    "Necromantic Power 200 brightness multiplier.",
+                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+            SoulRendInnerLightMinimumPowerRange = BindOrdered(
+                "Soul Rend Inner Light",
+                "MinimumPowerRange",
+                1.5f,
+                new ConfigDescription(
+                    "Necromantic Power 0 light range in meters.",
+                    new AcceptableValueRange<float>(0.1f, 20.0f)));
+            SoulRendInnerLightMasteryRange = BindOrdered(
+                "Soul Rend Inner Light",
+                "MasteryRange",
+                3.0f,
+                new ConfigDescription(
+                    "Necromantic Power 100 light range in meters.",
+                    new AcceptableValueRange<float>(0.1f, 20.0f)));
+            SoulRendInnerLightMaximumPowerRange = BindOrdered(
+                "Soul Rend Inner Light",
+                "MaximumPowerRange",
+                4.5f,
+                new ConfigDescription(
+                    "Necromantic Power 200 light range in meters.",
+                    new AcceptableValueRange<float>(0.1f, 20.0f)));
+            SoulRendInnerLightFadeSeconds = BindOrdered(
+                "Soul Rend Inner Light",
+                "FadeSeconds",
+                0.12f,
+                new ConfigDescription(
+                    "Seconds used to fade the green hand lights in and out. Zero switches instantly.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)));
 
             Diagnostics = BindOrdered(
                 "Diagnostics",
@@ -650,6 +782,7 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Following", "RunDistance");
             CapturePreservedValue<float>(profile, "Following", "TeleportDistance");
             CapturePreservedValue<float>(profile, "Following", "CatchUpSpeedMultiplier");
+            CapturePreservedValue<float>(profile, "Following", "IdleMovementAmount");
             CapturePreservedValue<bool>(profile, "Targeting", "ShareHeroTarget");
             CapturePreservedValue<bool>(profile, "Targeting", "AttackCommandPrompt");
             CapturePreservedValue<bool>(profile, "Targeting", "FormationCommands");
@@ -667,9 +800,21 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Audio", "AvoidRecentSoulSalvageAudioRepeats");
             CapturePreservedValue<int>(profile, "Audio", "RecentSoulSalvageAudioMemory");
             CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioRandomPitchSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioEchoAmount");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableLivingTargetSoulSalvage");
             CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastManaReturnPercent");
+            CapturePreservedValue<bool>(profile, "Soul Rend Inner Light", "Enabled");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "Intensity");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "SoulRendIntensityMultiplier");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "InteriorIntensityMultiplier");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MinimumPowerBrightnessMultiplier");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MasteryBrightnessMultiplier");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MaximumPowerBrightnessMultiplier");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MinimumPowerRange");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MasteryRange");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MaximumPowerRange");
+            CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "FadeSeconds");
             CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
             CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
@@ -703,6 +848,7 @@ namespace SoulAndService
             RestorePreservedValue(RunDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(TeleportDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CatchUpSpeedMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(IdleMovementAmount, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShareHeroTarget, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(AttackCommandPrompt, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(FormationCommands, ref restored, ref clamped, ref invalid);
@@ -720,9 +866,21 @@ namespace SoulAndService
             RestorePreservedValue(AvoidRecentSoulSalvageAudioRepeats, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(RecentSoulSalvageAudioMemory, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageAudioRandomPitchSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulSalvageAudioEchoAmount, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(LivingTargetSoulSalvage, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageManaReturnPercent, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightIntensity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightIntensityMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightInteriorIntensityMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMinimumPowerBrightnessMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMasteryBrightnessMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMaximumPowerBrightnessMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMinimumPowerRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMasteryRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightMaximumPowerRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendInnerLightFadeSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(Diagnostics, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShowGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
             Logger.LogInfo(
@@ -767,7 +925,7 @@ namespace SoulAndService
 
     public static class SoulAndServiceApi
     {
-        public const int ApiVersion = 5;
+        public const int ApiVersion = 7;
 
         public static bool IsLoaded
         {
@@ -808,6 +966,81 @@ namespace SoulAndService
         public static bool IsNecroticDamage(object damage)
         {
             return SoulSalvageRuntime.IsNecroticDamageForInterop(damage);
+        }
+
+        public static int GetHeavySoulRendHoverState()
+        {
+            return SoulSalvageRuntime.GetHeavySoulRendHoverStateForInterop();
+        }
+
+        public static string GetHeavySoulRendHoverText()
+        {
+            return SoulSalvageRuntime.GetHeavySoulRendHoverTextForInterop();
+        }
+
+        public static bool TryResolveOwnedReanimatedServant(
+            object candidate,
+            out object sourceCorpse)
+        {
+            return SoulSalvageRuntime.TryResolveOwnedReanimatedServantForInterop(
+                candidate,
+                out sourceCorpse);
+        }
+
+        public static bool TryResolveOwnedBloodServant(
+            object candidate,
+            out object sourceCorpse,
+            out object servantNpc)
+        {
+            return SoulSalvageRuntime.TryResolveOwnedBloodServantForInterop(
+                candidate,
+                out sourceCorpse,
+                out servantNpc);
+        }
+
+        public static bool TryExsanguinateOwnedReanimatedServant(
+            object candidate,
+            float severity,
+            out bool killed)
+        {
+            return SoulSalvageRuntime.TryExsanguinateOwnedReanimatedServantForInterop(
+                candidate,
+                severity,
+                out killed);
+        }
+
+        public static bool TryExsanguinateOwnedBloodServant(
+            object candidate,
+            float severity,
+            out bool killed)
+        {
+            return SoulSalvageRuntime.TryExsanguinateOwnedBloodServantForInterop(
+                candidate,
+                severity,
+                out killed);
+        }
+
+        public static bool SetOwnedReanimatedServantBloodRitualState(
+            object candidate,
+            bool channeling,
+            bool completed)
+        {
+            return SoulSalvageRuntime
+                .SetOwnedReanimatedServantBloodRitualStateForInterop(
+                    candidate,
+                    channeling,
+                    completed);
+        }
+
+        public static bool SetOwnedBloodServantRitualState(
+            object candidate,
+            bool channeling,
+            bool completed)
+        {
+            return SoulSalvageRuntime.SetOwnedBloodServantRitualStateForInterop(
+                candidate,
+                channeling,
+                completed);
         }
 
         public static bool ShouldOwnTakeAllHold()

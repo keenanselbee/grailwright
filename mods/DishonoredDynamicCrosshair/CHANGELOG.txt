@@ -1,3 +1,25 @@
+Version 3.5.8
+Completed the installed-user deployment inventory for the two Necromagic service reticles and the four Soul and Service command icons.
+Kept ConfigSchemaVersion at 19 because this documentation correction changes no runtime behavior or setting.
+
+Version 3.5.7
+Aligned killing-blow overlay numbering with corpse quality: 0 Meager, 1 Worthy, 2 Potent, and 3 Prime.
+Kept Blood Magic and Soul Rend quality reticles on the shared size path: ReticleSizePixels x MagicScale x BloodMagicScale x corpse-quality scale, with no baked-in asset scaling.
+Kept ConfigSchemaVersion at 19 because this corrects asset mapping and documentation without changing a setting or default.
+
+Version 3.5.6
+Replaced LogBloodMagicScaleDiagnostics with one general Diagnostics switch that logs throttled reticle context, target state, interaction ownership, Blood Magic state, Soul Rend state, and final scale math.
+Accepted Soul and Service API v7 and future compatible versions while retaining the v6 reticle and command contract.
+Advanced ConfigSchemaVersion from 18 to 19 because the diagnostic setting was renamed and broadened; the previous config is backed up and compatible visual settings remain eligible for conservative recovery.
+
+Version 3.5.4
+Added dedicated Heavy Soul Rend hover reticles from Soul and Service API v6: the supplied heal artwork covers Restore Servant and Servant Fully Restored, while the empower artwork covers Empower Servant.
+Kept actionable reanimation, restoration, and empowerment reticles in saturated Necrotic green while matching Requires Soul Vigor and Servant Fully Restored to Blood Magic's desaturated unavailable presentation.
+Suppressed the generic interaction hand for Soul and Service's feedback-only hover text without changing real Attack, Hold, Follow, or Behavior command icons and pulses.
+Kept polling on the existing 0.15-second soft-integration cadence, reused Soul and Service's target cache, and retained one-second asset hot reload.
+Accepted backward-compatible Blood Magic API versions newer than v9, including Blood Magic Expansion v10.
+Kept ConfigSchemaVersion at 18 because this integration adds no setting or default migration.
+
 Version 3.5.0
 Made Soul and Service Swarm prompts use the dedicated Attack command icon instead of the fallback interaction hand.
 Kept ConfigSchemaVersion at 18 because this integration classification fix changes no setting or default migration.

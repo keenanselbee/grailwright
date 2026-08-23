@@ -7,13 +7,17 @@ $readme = Get-Content -LiteralPath (Join-Path $modRoot "README.txt") -Raw
 foreach ($required in @(
     '[BepInDependency("ks.tgfoa.soul-and-service", BepInDependency.DependencyFlags.SoftDependency)]',
     'SoulAndService.SoulAndServiceApi',
-    '!object.Equals(version.GetRawConstantValue(), 5)',
+    'version.GetRawConstantValue(),',
+    'CultureInfo.InvariantCulture) < 6',
     'GetFocusedSoulSalvageTargetState',
     'GetFocusedSoulSalvageQuality01',
     'GetFocusedSoulSalvageQualityTier',
+    'GetHeavySoulRendHoverState',
     'new object[] { true }',
     'SoulSalvageReticleColor = "#22A886FF"',
     'IsTypeOrBaseNamed(action, "SummonCommandAction")',
+    'ReadReflectedProperty(',
+    '"IsFeedbackOnly"',
     'InteractionIconKind.Attack',
     'InteractionIconKind.Hold',
     'InteractionIconKind.Follow',
@@ -27,6 +31,8 @@ foreach ($required in @(
     'GetLastSummonCommandPulseSeconds',
     '_soulAndServiceGetCommandPulseSecondsMethod.Invoke(',
     '_lastSoulSalvageQualityTier',
+    'custom_reticle_necromagic_empower.png',
+    'custom_reticle_necromagic_heal.png',
     '&& !qualityRitualActive',
     '_bloodMagicQualityAssets.TryGetValue(')) {
     if (!$source.Contains($required)) { throw "Missing Soul and Service reticle contract: $required" }
@@ -39,6 +45,15 @@ if ($source -notmatch '(?s)float pulseSeconds = Mathf\.Clamp\(.*?_soulAndService
 }
 if ($source -notmatch '(?s)String\.Equals\(\s*actionName as string,\s*"Attack".*?\|\| String\.Equals\(\s*actionName as string,\s*"Swarm".*?return InteractionIconKind\.Attack;') {
     throw "Soul and Service Swarm prompts do not use the Attack interaction icon."
+}
+if ($source -notmatch '(?s)IsTypeOrBaseNamed\(action, "SummonCommandAction"\).*?"IsFeedbackOnly".*?return InteractionIconKind\.None;') {
+    throw "Feedback-only Soul and Service hover text still receives a generic interaction icon."
+}
+if ($source -notmatch '(?s)SoulSalvageUsesActionableVisuals\(int state\).*?RequiresSoulVigor.*?ServantFullyRestored') {
+    throw "Unavailable Heavy Soul Rend states do not share one visual predicate."
+}
+if ($source -notmatch '(?s)TargetState displayTargetState = soulSalvageActive.*?SoulSalvageUsesActionableVisuals.*?TargetState\.Hostile.*?TargetState\.Default') {
+    throw "Unavailable Heavy Soul Rend states do not use the desaturated idle presentation."
 }
 foreach ($required in @(
     'soulSalvageActive != _currentSoulSalvageTargetActive',
@@ -53,6 +68,8 @@ foreach ($required in @(
     'interaction_command_hold.png',
     'interaction_command_follow.png',
     'interaction_command_behavior.png',
+    'custom_reticle_necromagic_empower.png',
+    'custom_reticle_necromagic_heal.png',
     '#22A886 Necrotic green',
     'perceptual brightness')) {
     if (!$readme.Contains($required)) { throw "Missing Soul and Service reticle documentation: $required" }

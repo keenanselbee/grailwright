@@ -15,7 +15,8 @@ What began as the simple fantasy of siphoning forbidden power from corpses has g
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
-[*][b]Native corpse cleanup:[/b] Successfully drained bodies simplify by default after all rewards complete. Bodies with visible loot become the game's lightweight loot piles, empty bodies are removed, and unsupported scripted corpses remain intact.[/*]
+[*][b]Corpses remain useful:[/b] A completed blood ritual leaves its spent corpse intact, preserving the later choice to harvest its soul or reanimate it through Soul and Service.[/*]
+[*][b]Exsanguinate your own servant:[/b] With Soul and Service installed, Blood/Life Transfusion can drain an owned living flesh servant outside combat. Raised servants complete only their source's remaining one-time rewards; ordinary spell summons provide healing without XP or Blood Essence. The ritual consumes real Health, executes servants at 20% Health or below, and creates no duplicate progression loop.[/*]
 [*][b]Optional Wyrdnight consequence:[/b] With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] installed, successful exposed-Wyrdnight rituals add 4-to-12 Wyrd Threat according to corpse quality.[/*]
 [*][b]Blood Essence progression:[/b] Every completed ritual grants uncapped, save-specific Blood Essence from its quality tier. The established mastery curve gives a moderate early bonus and reaches Power 100 at 1,000 Essence, then a clear linear overmastery track reaches Power 200 at 5,000 Essence.[/*]
 [*][b]Restrained progression:[/b] Gain vanilla-scaled corpse XP and small capped live-drain ticks without turning blood magic into an unlimited leveling engine.[/*]
@@ -56,7 +57,7 @@ Single-held casting pays half of the effective corpse XP and healing by default.
 Live drain timing is reward pacing, not attack speed. Only held-channel damage earns live-drain XP; tap projectiles never qualify, even if they land during another active hold. Confirmed held-channel Blood/Life Transfusion healing is doubled by default through [b]HeldHealingMultiplier[/b] without changing tap projectile healing. Blood Power unlocks independently balanced projectile-travel, damage-radius, Bleed-buildup, and tap-speed growth, while held channel speed stays deliberately modest. Successful player-sourced Blood/Life and Abhartach Bleed procs retain native duration at Power 0, last 1.5x as long at Power 100, and 2x as long at Power 200. The latest completed proc owns the refreshed window, so ordinary weapon and enemy Bleeds remain native; partial buildup decay and tick strength are unchanged.
 
 [heading][color=#C94A4A][size=5]Blood Essence[/size][/color][/heading]
-Every successfully completed corpse ritual awards a fixed amount from its quality tier:
+Every successfully completed corpse ritual awards a nominal integer amount from its quality tier:
 
 [code]
 | Tier   | Blood Essence |
@@ -67,7 +68,7 @@ Every successfully completed corpse ritual awards a fixed amount from its qualit
 | Prime  | 10            |
 [/code]
 
-Blood Essence is never capped. The established mastery curve gives a moderate early advantage, grants Blood Power 100 and full intended scaling at 1,000 Essence, then transitions to linear overmastery where every additional 40 Essence grants one Power until the hard cap of 200 at 5,000 Essence. Power 200 doubles each fully unlocked gameplay bonus portion. Successful rituals continue adding and displaying Blood Essence beyond 5,000 even though Blood Power cannot rise further.
+Blood Essence is never capped. Each nominal point has a small chance to extract one extra Essence, capped at +1, +1, +2, or +3 by tier; Blood Power subtly raises that chance from 5% to 15%. The established mastery curve gives a moderate early advantage, grants Blood Power 100 and full intended scaling at 1,000 Essence, then transitions to linear overmastery where every additional 40 Essence grants one Power until the hard cap of 200 at 5,000 Essence. Power 200 doubles each fully unlocked gameplay bonus portion. Successful rituals continue adding and displaying Blood Essence beyond 5,000 even though Blood Power cannot rise further.
 
 At Blood Power 0, preset Blood/Life and Abhartach tuning contributes exactly no bonus. At Power 100, the system reaches its intended full preset and growth-curve balance. Blood Essence is the sole spell-growth progression source, with Blood Power retained as its derived gameplay rating. Deeds of Avalon is optional and never owns the gameplay progression.
 
@@ -80,16 +81,15 @@ Start the game once to generate:
 
 [code]
 PreloadBleedSkillGraphs = true
-SimplifyDrainedCorpses = true
 [/code]
 
 The Bleed preloader loads its dependency and parent graph on consecutive gameplay-loading frames and retains the parent for the active gameplay domain. It uses no Harmony patches and can be disabled independently from all Blood Magic Expansion gameplay features.
 
-[b]SimplifyDrainedCorpses[/b] uses the game's native corpse cleanup only after a ritual has fully completed. Disable it to leave successfully drained bodies in place as spent corpses.
+Completed rituals leave their drained corpses intact. When Soul and Service is present, a drained corpse can still be reduced to bones with light Soul Rend or reanimated with a 20-30% current-Health penalty. Blood Power gradually improves that penalty toward 20%, with a small random variation, and the exact rolled penalty persists with the body across save and reload. Owned living flesh servants can also be ritualized outside combat; the channel holds the servant in place, consumes its real Health, and executes it at 20% Health or below. Raised servants complete only their source's remaining ritual rewards and remain available for light Soul Rend after execution. Ordinary spell summons provide healing only, with no XP or Blood Essence. Bloodless servants are invalid.
 
 Corpse leech audio is enabled by default. Completed corpse drains choose from low, medium, high, or max FMOD WAV pools based on corpse quality, avoid the last two sounds used in the same tier, and apply a subtle per-play pitch variation. The two-dimensional ritual cue now follows corpse distance through the same configurable curve as Killing Blow Mastery: 100% volume at the corpse, fading to 10% at 30 meters or farther. Set [b]CorpseLeechSoundRangeVolume[/b] to 0 to disable the fade. Missing position data safely uses full volume.
 
-When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.1.2+ is installed, each completed corpse message safely shows both committed rewards on one line, such as [b]+40 XP | +5 Blood Essence[/b]. GFT 2.4.4+ also gives that line the matching Meager, Worthy, Potent, or Prime corpse icon. If XP cannot be awarded, the pending line is canceled and saved progression is restored. Corpse rewards are never consolidated, so every line reports one ritual's exact XP and Essence. Older GFT versions safely fall back to generic XP text for corpse rituals. GFT 1.9.0+ still consolidates frequent live-drain XP ticks. GFT 2.4.6+ presents visible corpse-ritual, Blood/Life Transfusion, and Abhartach healing through its configurable Red group with the Blood Magic icon, in batches that never merge into ordinary green healing. Correlated held-channel healing ticks remain quiet by default without hiding potions or unrelated immediate healing. Blood Magic XP never merges with another source. XP still uses the normal character XP stat path, so multipliers and level-up behavior are unchanged. Optional diagnostic text defaults on but remains inactive until the matching corpse-rejection, corpse-quality, or inner-light log option is enabled, and shows only low-priority state-change summaries in one collapsed lane.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] 2.1.2+ is installed, each completed corpse message safely shows both committed rewards on one line, such as [b]+40 XP | +5 Blood Essence[/b]. GFT 2.4.4+ also gives that line the matching Meager, Worthy, Potent, or Prime corpse icon. If XP cannot be awarded, the pending line is canceled and saved progression is restored. Corpse rewards are never consolidated, so every line reports one ritual's exact XP and Essence. Older GFT versions safely fall back to generic XP text for corpse rituals. GFT 1.9.0+ still consolidates frequent live-drain XP ticks. GFT 2.4.6+ presents visible corpse-ritual, Blood/Life Transfusion, and Abhartach healing through its configurable Red group with the Blood Magic icon, in batches that never merge into ordinary green healing. Correlated held-channel healing ticks remain quiet by default without hiding potions or unrelated immediate healing. Blood Magic XP never merges with another source. XP still uses the normal character XP stat path, so multipliers and level-up behavior are unchanged. Diagnostics use one master switch, while [b]ShowGrailFloatingTextDiagnostics[/b] independently controls concise low-priority in-game summaries and defaults on.
 
 When [b]Deeds of Avalon 1.6.7+[/b] and Grail Floating Text are installed, Deeds places [b]Blood Essence: X (Y)[/b] immediately above [b]Corpses Drained[/b] in the quick-wheel panel, including at zero; X is integer Blood Essence and Y is Blood Power. Existing Deeds tier counts and their saved quality sum can initialize an older character once when no Blood Magic Expansion progression exists. Blood Magic Expansion then periodically synchronizes its absolute tier ledger so a temporarily unavailable callback cannot permanently drift the display. Failed, interrupted, rolled-back, and incomplete rituals are not reported, and progression works normally without either display mod.
 
@@ -100,6 +100,7 @@ ClaimGrailFloatingTextCorpseXP = true
 ClaimGrailFloatingTextLiveDrainXP = true
 SuppressGrailFloatingTextLiveDrainHealing = true
 HeldHealingMultiplier = 2
+Diagnostics = false
 ShowGrailFloatingTextDiagnostics = true
 OverrideBloodEssence = false
 BloodEssenceOverrideValue = 1000
@@ -182,18 +183,18 @@ FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current an
 
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] uses Grail Floating Text for optional quick-wheel Blood Essence and Blood Power presentation above completed Corpses Drained totals, exact absolute tier and quality synchronization, one-time import of existing tier counts, and new or previously recorded Blood Magic kill classification without rewriting save data.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is supported for optional usable and unavailable tiered corpse-reticle feedback through BloodMagicApi v9.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is supported for optional usable and unavailable tiered corpse-reticle feedback through BloodMagicApi v10.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] accepts completed corpse quality through a soft integration. Its default tuning converts successful exposed-Wyrdnight rituals into 4-to-12 Wyrd Threat; other ritual contexts add no threat.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263]First Person Arms Adjuster[/url] is an optional soft integration that keeps the unparented blood-spell lights aligned with presentation-only arm offsets.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also provides source-isolated XP and Essence reward lines, quality-matched corpse icons, and a separate Blood Magic presentation for visible healing.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] is an optional soft integration that suspends a hidden blood spell's inner light, readiness, cast boost, held-cast tracking, and relevant-spell API feedback while the opposite weapon uses both hands, then restores normal behavior when the hand becomes active.[/*]
 [/list]
 
-Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v8.
+Current integrations should use [b]BloodMagicExpansion.BloodMagicApi[/b] v10.
 
 May conflict with mods that heavily alter corpses, kill XP rewards, hero XP, hero health, status buildup, projectile lifetimes, spell range, or Blood/Life Transfusion spell state.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Performance[/size][/color][/heading]
-Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red hand lights are two cached no-shadow point lights, each enabled only while its hand has a matching blood spell equipped and raised. Their active positions use one cached optional-integration call and at most two transform assignments per frame; reflection is resolved only once. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Save-bounded Blood Essence syncs to the optional Deeds integration at most once per second. Noisy diagnostics default to off; startup and patch-warning logs remain enabled.
+Corpse rituals use lightweight held-state checks and camera raycasts only while Blood Transfusion, Life Transfusion, or Abhartach corpse feedback is active. The red hand lights are two cached no-shadow point lights, each enabled only while its hand has a matching blood spell equipped and raised. Their active positions use one cached optional-integration call and at most two transform assignments per frame; reflection is resolved only once. Live draining and Abhartach tuning are event-driven from real damage, status, and spell events. Save-bounded Blood Essence syncs to the optional Deeds integration at most once per second. One general Diagnostics switch enables throttled targeting, ritual, reward, healing, corpse-quality, and blood-light evidence plus concise Grail Floating Text summaries. It defaults off; startup errors and warnings remain enabled.

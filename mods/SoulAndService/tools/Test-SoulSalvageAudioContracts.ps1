@@ -21,6 +21,7 @@ foreach ($required in @(
     'internal ConfigEntry<bool> AvoidRecentSoulSalvageAudioRepeats',
     'internal ConfigEntry<int> RecentSoulSalvageAudioMemory',
     'internal ConfigEntry<float> SoulSalvageAudioRandomPitchSemitones',
+    'internal ConfigEntry<float> SoulSalvageAudioEchoAmount',
     '"PlaySoulSalvageAudio",',
     '"SoulSalvageAudioVolume",',
     '0.85f,',
@@ -51,6 +52,18 @@ foreach ($required in @(
     'pair.Value.release();')) {
     if (!$audioSource.Contains($required)) {
         throw "Soul Salvage FMOD runtime contract is missing: $required"
+    }
+}
+foreach ($required in @(
+    'private const int MaximumPendingEchoes = 24;',
+    'SoulSalvageAudioEchoAmount.Value',
+    'Volume = volume * amount * 0.45f',
+    'PlayAt = now + 0.16f',
+    'Volume = volume * amount * 0.25f',
+    'PlayAt = now + 0.34f',
+    'PendingEchoes.Clear();')) {
+    if (!$audioSource.Contains($required)) {
+        throw "Soul Rend echo contract is missing: $required"
     }
 }
 

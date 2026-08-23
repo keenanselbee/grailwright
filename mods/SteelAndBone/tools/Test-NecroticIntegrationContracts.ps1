@@ -28,6 +28,14 @@ foreach ($required in @(
     'apiVersion < 5')) {
     Assert-Contract ($source.Contains($required)) "Missing Soul and Service Necrotic reflection contract: $required"
 }
+foreach ($required in @(
+    'private const string BloodMagicPluginGuid',
+    'private const string BloodMagicApiTypeName',
+    '_bloodMagicIsBloodMagicDamageMethod',
+    'IsBloodMagicDamage',
+    'apiVersion < 10')) {
+    Assert-Contract ($source.Contains($required)) "Missing exact Blood Magic reflection contract: $required"
+}
 Assert-Contract (!$source.Contains('[BepInDependency(SoulAndServicePluginGuid')) "Steel and Bone must not declare Soul and Service as a BepIn dependency."
 Assert-Contract (!$source.Contains('BepInDependency("ks.tgfoa.soul-and-service"')) "Steel and Bone must not create a Soul and Service load-order cycle."
 
@@ -50,15 +58,31 @@ Assert-Contract ($necroticResolver.Value.Contains('damageClass.IsNecrotic')) "Ne
 foreach ($rule in @(
     '(?s)targetClass.IsConstruct.+?baseMultiplier = 0.25f',
     '(?s)targetClass.IsConfirmedSkeleton.+?baseMultiplier = 0.40f',
-    '(?s)targetClass.IsDrownedZombie.+?baseMultiplier = 0.60f',
-    '(?s)targetClass.IsWyrd.+?baseMultiplier = 0.90f',
+    '(?s)targetClass.IsDrownedZombie.+?baseMultiplier = 0.675f',
+    '(?s)targetClass.IsWyrd.+?baseMultiplier = 0.875f',
     '(?s)targetClass.IsInfectedFlesh.+?baseMultiplier = 0.85f',
-    '(?s)targetClass.IsSpirit.+?baseMultiplier = 1.15f',
+    '(?s)targetClass.IsSpirit.+?baseMultiplier = 1.225f',
     '(?s)targetClass.IsFleshUndead.+?baseMultiplier = 0.60f',
-    '(?s)targetClass.IsFlora\s*\|\|\s*targetClass.IsFungalBody.+?baseMultiplier = 1.15f',
+    '(?s)targetClass.IsFlora\s*\|\|\s*targetClass.IsFungalBody.+?baseMultiplier = 1.175f',
     '(?s)targetClass.IsSeaFlesh.+?baseMultiplier = 1.10f',
     '(?s)targetClass.IsFlesh.+?baseMultiplier = 1.10f')) {
     Assert-Contract ($necroticResolver.Value -match $rule) "Missing Hardened Necrotic matchup: $rule"
+}
+
+$bloodResolver = Get-MethodBlock 'TryResolveBloodMagicRule'
+Assert-Contract $bloodResolver.Success "Dedicated Blood Magic resolver is missing."
+Assert-Contract ($bloodResolver.Value.Contains('damageClass.IsBloodMagic')) "Blood Magic resolver does not require exact Blood Magic provenance."
+foreach ($rule in @(
+    '(?s)targetClass.IsConstruct.+?baseMultiplier = 0.25f',
+    '(?s)targetClass.IsConfirmedSkeleton.+?baseMultiplier = 0.25f',
+    '(?s)targetClass.IsDrownedZombie.+?baseMultiplier = 0.65f',
+    '(?s)targetClass.IsWyrd\s*\|\|\s*targetClass.IsInfectedFlesh.+?baseMultiplier = 0.85f',
+    '(?s)targetClass.IsSpirit.+?baseMultiplier = 0.30f',
+    '(?s)targetClass.IsFleshUndead.+?baseMultiplier = 0.75f',
+    '(?s)targetClass.IsFlora\s*\|\|\s*targetClass.IsFungalBody.+?baseMultiplier = 0.65f',
+    '(?s)targetClass.IsSeaFlesh.+?baseMultiplier = 1.10f',
+    '(?s)targetClass.IsFlesh.+?baseMultiplier = 1.15f')) {
+    Assert-Contract ($bloodResolver.Value -match $rule) "Missing Hardened Blood Magic matchup: $rule"
 }
 
 $armoredSpellResolver = Get-MethodBlock 'TryResolveArmoredSpellRule'
@@ -67,11 +91,11 @@ Assert-Contract ($armoredSpellResolver.Value -match 'damageClass\.IsNecrotic') "
 
 $partResolver = Get-MethodBlock 'TryResolveDamagePartRule'
 Assert-Contract $partResolver.Success "Could not locate weighted damage-part resolver."
-Assert-Contract ($partResolver.Value -match '(?s)TryResolveNecroticRule\(.+?TryResolveArmoredSpellRule') "Weighted damage parts must resolve Necrotic before armored-spell bonuses."
+Assert-Contract ($partResolver.Value -match '(?s)TryResolveBloodMagicRule\(.+?TryResolveNecroticRule\(.+?TryResolveArmoredSpellRule') "Weighted damage parts must resolve Blood Magic and Necrotic before armored-spell bonuses."
 
 $mainPipeline = [regex]::Match($source, '(?s)TargetClassification targetClass = GetTargetClassification\(.+?if \(matchedRule\)')
 Assert-Contract $mainPipeline.Success "Could not locate direct damage rule pipeline."
-Assert-Contract ($mainPipeline.Value -match '(?s)TryResolveNecroticRule\(.+?TryResolveArmoredSpellRule') "Direct damage must resolve Necrotic before armored-spell bonuses."
+Assert-Contract ($mainPipeline.Value -match '(?s)TryResolveBloodMagicRule\(.+?TryResolveNecroticRule\(.+?TryResolveArmoredSpellRule') "Direct damage must resolve Blood Magic and Necrotic before armored-spell bonuses."
 
 $exactClassification = Get-MethodBlock 'ApplyExactTargetClassification'
 Assert-Contract $exactClassification.Success "Could not locate exact target-family classification."

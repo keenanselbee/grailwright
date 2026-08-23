@@ -1,4 +1,5 @@
-TargetVersion=3.9.6
-BaselineVersion=3.9.5
+TargetVersion=3.9.9
+BaselineVersion=3.9.6
 
-Rate-limited repeated difficulty diagnostics to one message per lever per second, preserving useful values without allowing high-frequency combat and summon queries to flood the BepInEx log and degrade frame rate.
+Split Blood and Necrotic magic into complementary biological and spiritual target matchups, making blood strongest against living flesh while necrotic damage excels against spirits and plant or fungal bodies.
+Blood damage now uses Blood Magic Expansion's exact damage provenance API when available, with the existing text classifier retained only as a soft-compatibility fallback.

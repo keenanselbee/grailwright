@@ -29,6 +29,8 @@ using Awaken.TG.Main.Locations.Actions;
 using Awaken.TG.Main.Locations.Attachments.Elements;
 using Awaken.TG.Main.Locations.Setup;
 using Awaken.TG.Main.Locations.Views;
+using BepInEx;
+using BepInEx.Bootstrap;
 using Cysharp.Threading.Tasks;
 using HarmonyLib;
 using UnityEngine;
@@ -66,6 +68,16 @@ namespace SoulAndService
         private const float SoulClaimPowerNormalChance = 0.175f;
         private const float SoulClaimPowerMaximumChance = 0.30f;
         private const float SoulClaimAbsoluteChanceCap = 0.35f;
+        private const int OrdinarySummonVigorCost = 3;
+        private const float ExecutedServantCleanupSeconds = 1.0f;
+        private const string BloodMagicPluginGuid =
+            "ks.tgfoa.blood-magic-expansion";
+        private const string BloodMagicApiTypeName =
+            "BloodMagicExpansion.BloodMagicApi";
+        private const string VersatileWeaponsPluginGuid =
+            "ks.tgfoa.versatile-weapons";
+        private const string VersatileWeaponsApiTypeName =
+            "VersatileWeapons.VersatileWeaponsApi";
 
         private sealed class ReanimationRecord
         {
@@ -78,6 +90,9 @@ namespace SoulAndService
             internal float Quality01;
             internal Grailwright.Shared.CorpseQualityTier QualityTier;
             internal float BindingManaCost;
+            internal int InvestedSoulVigor;
+            internal int NativeSoulVigor;
+            internal float SalvageHealthFraction = 1.0f;
             internal float ManaReturnedOnSacrifice;
             internal StatTweak QualityHealthTweak;
             internal Vector3 OriginalCoords;
@@ -86,6 +101,11 @@ namespace SoulAndService
             internal Quaternion LastSafeRotation;
             internal bool Sacrificed;
             internal bool DismissedAsRemains;
+            internal bool ServiceInitialized;
+            internal bool BloodRitualExecuted;
+            internal float BloodRitualHoldUntil;
+            internal float NextBloodRitualMovementHoldAt;
+            internal int BloodRitualCommandSequence;
         }
 
         private sealed class FrayedSoulState
@@ -107,6 +127,11 @@ namespace SoulAndService
 
         private static readonly Dictionary<string, ReanimationRecord> Reanimations =
             new Dictionary<string, ReanimationRecord>();
+        private static readonly Dictionary<string, ReanimationRecord>
+            ExecutedServantRemains =
+                new Dictionary<string, ReanimationRecord>();
+        private static readonly Dictionary<string, int> OrdinarySummonInvestments =
+            new Dictionary<string, int>();
         private static readonly Dictionary<string, FrayedSoulState> FrayedSouls =
             new Dictionary<string, FrayedSoulState>();
         private static readonly ConditionalWeakTable<Damage, NecroticDamageMarker>
@@ -136,8 +161,11 @@ namespace SoulAndService
             AccessTools.Field(typeof(Location), "_initializer");
         private static readonly FieldInfo SimplifiedDeadBodyReplacementField =
             AccessTools.Field(typeof(NpcDummy), "_simplifiedDeadBodyReplacementRef");
+        private static readonly MethodInfo PreventSummonMovementMethod =
+            AccessTools.Method(typeof(NpcHeroSummon), "PreventMovement");
 
         private static bool _lightCastActive;
+        private static float _nextExecutedServantCleanupTime;
         private static bool _heavyCastActive;
         private static bool _lightHarvestCompleted;
         private static NpcHeroSummon _lightTarget;
@@ -147,6 +175,12 @@ namespace SoulAndService
         private static float _lightMaximumManaReturn;
         private static float _itemRefreshDelay;
         private static float _nextReanimationPositionRefreshTime;
+        private static bool _creatingRaisedServant;
+        private static MethodInfo _bloodMagicGetExsanguinationSeverityMethod;
+        private static bool _bloodMagicApiUnavailable;
+        private static Func<bool> _versatileWeaponsIsMainHandSuppressed;
+        private static Func<bool> _versatileWeaponsIsOffHandSuppressed;
+        private static bool _versatileWeaponsApiUnavailable;
 
         internal static void Patch(Harmony harmony)
         {
@@ -224,6 +258,7 @@ namespace SoulAndService
         {
             UpdateSoulSalvageItems();
             UpdateReanimationPositions();
+            UpdateExecutedServantRemains();
             RemoveExpiredFrayedSouls();
 
             if (PendingRaisedDiscards.Count > 0)
@@ -249,6 +284,11 @@ namespace SoulAndService
                     discardRaisedCopy: true,
                     showDiagnostic: false);
             }
+            foreach (ReanimationRecord record in ExecutedServantRemains.Values.ToArray())
+            {
+                RestoreExecutedServantCorpse(record);
+            }
+            ExecutedServantRemains.Clear();
             Update();
             foreach (StatTweak tweak in HeavyCostTweaks.Values.ToArray())
             {
@@ -262,6 +302,7 @@ namespace SoulAndService
             LightCastInfos.Clear();
             HeavyCastInfos.Clear();
             FrayedSouls.Clear();
+            OrdinarySummonInvestments.Clear();
             ClearLightCastState();
             SoulSalvageAudioRuntime.Shutdown();
         }
@@ -276,6 +317,26 @@ namespace SoulAndService
             ReanimationRecord record;
             if (!Reanimations.TryGetValue(summonId, out record))
             {
+                OrdinarySummonInvestments.Remove(summonId);
+                return;
+            }
+            if (record.BloodRitualExecuted)
+            {
+                Reanimations.Remove(summonId);
+                if (record.RaisedLocation != null
+                    && !record.RaisedLocation.HasBeenDiscarded)
+                {
+                    ExecutedServantRemains[((Model)record.RaisedLocation).ID] = record;
+                }
+                else
+                {
+                    RestoreExecutedServantCorpse(record);
+                }
+                if (record.QualityHealthTweak != null
+                    && !((Model)record.QualityHealthTweak).HasBeenDiscarded)
+                {
+                    ((Model)record.QualityHealthTweak).Discard();
+                }
                 return;
             }
             bool endedInWorld = record.Sacrificed
@@ -292,6 +353,54 @@ namespace SoulAndService
                     discardRaisedCopy: true,
                     showDiagnostic: false);
             }
+        }
+
+        internal static void OnSummonInitialized(NpcHeroSummon summon)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (_creatingRaisedServant
+                || summon == null
+                || plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value
+                || !ReferenceEquals(summon.Ally, Hero.Current))
+            {
+                return;
+            }
+
+            string summonId = ((Model)summon).ID;
+            if (OrdinarySummonInvestments.ContainsKey(summonId))
+            {
+                return;
+            }
+            if (SoulProgressionRuntime.TrySpendSoulVigor(
+                OrdinarySummonVigorCost,
+                out int before,
+                out int after))
+            {
+                OrdinarySummonInvestments[summonId] = after < before
+                    ? OrdinarySummonVigorCost
+                    : 0;
+                plugin.LogDiagnostic(
+                    "Invested 3 Soul Vigor in ordinary summon " + summonId
+                    + "; balance=" + before + " -> " + after + ".");
+                return;
+            }
+
+            plugin.LogDiagnostic(
+                "Rejected ordinary summon " + summonId
+                + " because it requires 3 Soul Vigor.");
+            SoulProgressionRuntime.ShowSoulClaimFeedback(
+                "Requires 3 Soul Vigor",
+                highPriority: false);
+            summon.ParentModel.OnCompletelyInitialized(
+                delegate
+                {
+                    if (!summon.HasBeenDiscarded)
+                    {
+                        summon.Destroy();
+                    }
+                });
         }
 
         private static void AfterItemStatsInitialized(ItemStats __instance)
@@ -439,7 +548,7 @@ namespace SoulAndService
             }
         }
 
-        private static bool IsSoulSalvageItem(Item item)
+        internal static bool IsSoulSalvageItem(Item item)
         {
             return item != null
                 && item.Template != null
@@ -660,15 +769,9 @@ namespace SoulAndService
                     ? Mathf.Clamp01(__instance.ParentModel.Health.Percentage)
                     : 0.0f;
 
-            float manaReturnFraction =
-                plugin.SoulSalvageManaReturnPercent.Value / 100.0f;
+            float wholeManaReturn = CalculateLightManaReturn(plugin);
             __result = NativeManaRefundMultiplier > 0.0f
-                ? Math.Min(
-                    _lightOriginalMana
-                        * _lightHealthFraction
-                        * manaReturnFraction,
-                    _lightMaximumManaReturn)
-                    / NativeManaRefundMultiplier
+                ? wholeManaReturn / NativeManaRefundMultiplier
                 : 0.0f;
             CompleteLightSummonHarvest(__instance);
             return false;
@@ -789,13 +892,25 @@ namespace SoulAndService
             if (raisedSacrifice)
             {
                 raisedRecord.Sacrificed = true;
+                raisedRecord.SalvageHealthFraction = _lightHealthFraction;
                 qualityTier = raisedRecord.QualityTier;
                 audioTier = raisedRecord.QualityTier;
                 displayName = raisedRecord.SourceDisplayName;
             }
             else
             {
-                soulVigorAward = SoulProgressionRuntime.HarvestOrdinarySummon();
+                int investedVigor;
+                if (OrdinarySummonInvestments.TryGetValue(
+                    summonId,
+                    out investedVigor))
+                {
+                    OrdinarySummonInvestments.Remove(summonId);
+                    soulVigorAward = SoulProgressionRuntime.RestoreSoulVigor(
+                        Mathf.Clamp(
+                            Mathf.RoundToInt(investedVigor * _lightHealthFraction),
+                            0,
+                            investedVigor));
+                }
                 qualityTier = Grailwright.Shared.CorpseQualityTier.None;
                 Location summonLocation = summon.ParentModel == null
                     ? null
@@ -812,10 +927,7 @@ namespace SoulAndService
                     ? "summon"
                     : GetCorpseDisplayName(summonLocation);
             }
-            float manaReturned = _lightOriginalMana
-                * _lightHealthFraction
-                * (plugin.SoulSalvageManaReturnPercent.Value / 100.0f);
-            manaReturned = Math.Min(manaReturned, _lightMaximumManaReturn);
+            float manaReturned = CalculateLightManaReturn(plugin);
             if (raisedSacrifice)
             {
                 raisedRecord.ManaReturnedOnSacrifice = manaReturned;
@@ -845,6 +957,18 @@ namespace SoulAndService
                 + "; soulVigor=" + (raisedSacrifice
                     ? "pending remains"
                     : soulVigorAward.ToString("0.##")) + ".");
+        }
+
+        private static float CalculateLightManaReturn(SoulAndServicePlugin plugin)
+        {
+            if (plugin == null || plugin.SoulSalvageManaReturnPercent == null)
+            {
+                return 0.0f;
+            }
+            float rawReturn = _lightOriginalMana
+                * _lightHealthFraction
+                * (plugin.SoulSalvageManaReturnPercent.Value / 100.0f);
+            return Mathf.Round(Math.Min(rawReturn, _lightMaximumManaReturn));
         }
 
         private static void TryServeHeavyTarget(NpcHeroSummon summon)
@@ -1029,24 +1153,59 @@ namespace SoulAndService
             {
                 return;
             }
-            float quality01 = CalculateQuality01(corpse, null);
+            ReanimationRecord executedRecord;
+            bool executedServant = ExecutedServantRemains.TryGetValue(
+                ((Model)corpse).ID,
+                out executedRecord);
+            float quality01 = executedServant
+                ? executedRecord.Quality01
+                : CalculateQuality01(corpse, null);
             Grailwright.Shared.CorpseQualityTier tier =
-                Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
-            string fingerprint = GetCorpseFingerprint(corpse);
-            string displayName = GetCorpseDisplayName(corpse);
+                executedServant
+                    ? executedRecord.QualityTier
+                    : Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                        quality01,
+                        true);
+            string fingerprint = executedServant
+                ? executedRecord.CorpseFingerprint
+                : GetCorpseFingerprint(corpse);
+            string displayName = executedServant
+                ? executedRecord.SourceDisplayName
+                : GetCorpseDisplayName(corpse);
             SoulProgressionRuntime.CorpseHarvestReceipt harvestReceipt;
-            if (!SoulProgressionRuntime.TryHarvestCorpse(
+            int executedAward = executedServant
+                ? Mathf.Clamp(
+                    Mathf.RoundToInt(
+                        (executedRecord.NativeSoulVigor
+                            + executedRecord.InvestedSoulVigor)
+                        * Mathf.Clamp01(executedRecord.SalvageHealthFraction)),
+                    0,
+                    executedRecord.NativeSoulVigor
+                        + executedRecord.InvestedSoulVigor)
+                : 0;
+            bool harvested = executedServant
+                ? SoulProgressionRuntime.TryHarvestCorpse(
                     fingerprint,
                     tier,
-                    out harvestReceipt))
+                    executedAward,
+                    out harvestReceipt)
+                : SoulProgressionRuntime.TryHarvestCorpse(
+                    fingerprint,
+                    tier,
+                    quality01,
+                    out harvestReceipt);
+            if (!harvested)
             {
                 plugin.LogWarning(
                     "Soul Rend could not save Soul Vigor for " + displayName
                     + "; the corpse was left unchanged.");
                 return;
             }
+            Location remainsSource = executedServant
+                ? executedRecord.SourceCorpse
+                : corpse;
             if (!TryCreateRemains(
-                    corpse,
+                    remainsSource,
                     corpse.Coords,
                     corpse.Rotation,
                     out string failure))
@@ -1055,6 +1214,15 @@ namespace SoulAndService
                 plugin.LogWarning(
                     "Soul Rend could not simplify " + displayName + ": " + failure);
                 return;
+            }
+            if (executedServant)
+            {
+                ExecutedServantRemains.Remove(((Model)corpse).ID);
+                if (!corpse.HasBeenDiscarded
+                    && !PendingRaisedDiscards.Contains(corpse))
+                {
+                    PendingRaisedDiscards.Add(corpse);
+                }
             }
             SoulProgressionRuntime.ShowSoulVigorHarvest(
                 displayName,
@@ -1298,6 +1466,15 @@ namespace SoulAndService
             float quality01 = CalculateQuality01(targetLocation, target);
             Grailwright.Shared.CorpseQualityTier qualityTier =
                 Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
+            int vigorCost = GetReanimationSoulVigorCost(qualityTier);
+            if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
+            {
+                SoulProgressionRuntime.ShowSoulClaimFeedback(
+                    "Requires " + vigorCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor",
+                    highPriority: false);
+                return;
+            }
             float qualityFactor = GetSoulClaimQualityFactor(qualityTier);
             float chance = Mathf.Min(
                 SoulClaimAbsoluteChanceCap,
@@ -1501,6 +1678,15 @@ namespace SoulAndService
             float quality01 = CalculateQuality01(source, null);
             Grailwright.Shared.CorpseQualityTier qualityTier =
                 Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
+            int vigorCost = GetReanimationSoulVigorCost(qualityTier);
+            if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
+            {
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "Soul Rend: requires "
+                    + vigorCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor.");
+                return;
+            }
             string corpseFingerprint = GetCorpseFingerprint(source);
             float bindingProgress01;
             float bindingResistance;
@@ -1530,6 +1716,19 @@ namespace SoulAndService
                 return;
             }
 
+            if (!SoulProgressionRuntime.TrySpendSoulVigor(
+                vigorCost,
+                out int vigorBefore,
+                out int vigorAfter))
+            {
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "Soul Rend: requires "
+                    + vigorCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor.");
+                return;
+            }
+            int committedVigor = vigorAfter < vigorBefore ? vigorCost : 0;
+
             LocationInteractability previousInteractability = source.Interactability;
             float bindingManaCost = GetHeavyCastManaCost(sourceItem);
             Location raised = null;
@@ -1540,13 +1739,22 @@ namespace SoulAndService
                 ((Model)raised).MarkedNotSaved = true;
                 NpcElement raisedNpc = raised.Element<NpcElement>();
                 bool usedFallbackPortrait = EnsureRaisedServantPortrait(raisedNpc);
-                NpcElement npc = SummonUtils.InitializeSummon(
-                    raised,
-                    hero,
-                    sourceItem,
-                    0.0f,
-                    0.0f,
-                    null);
+                NpcElement npc;
+                _creatingRaisedServant = true;
+                try
+                {
+                    npc = SummonUtils.InitializeSummon(
+                        raised,
+                        hero,
+                        sourceItem,
+                        0.0f,
+                        0.0f,
+                        null);
+                }
+                finally
+                {
+                    _creatingRaisedServant = false;
+                }
                 ((Model)npc).MarkedNotSaved = true;
                 npc.AddMarkerElement<PreventExpRewardMarker>();
                 raised.RemoveElementsOfType<AliveLocationDeathReward>();
@@ -1567,6 +1775,10 @@ namespace SoulAndService
                     Quality01 = quality01,
                     QualityTier = qualityTier,
                     BindingManaCost = bindingManaCost,
+                    InvestedSoulVigor = committedVigor,
+                    NativeSoulVigor = SoulProgressionRuntime.RollSoulVigorValue(
+                        qualityTier,
+                        quality01),
                     OriginalCoords = source.Coords,
                     OriginalRotation = source.Rotation,
                     LastSafeCoords = raised.Coords,
@@ -1629,6 +1841,17 @@ namespace SoulAndService
                                 npc.Health.DecreaseBy(
                                     npc.Health.ModifiedValue - retainedHealth);
                             }
+                            float exsanguinationSeverity =
+                                GetBloodExsanguinationSeverity(record.SourceCorpse);
+                            if (exsanguinationSeverity > 0.0001f)
+                            {
+                                npc.Health.DecreaseBy(
+                                    npc.Health.ModifiedValue
+                                    * exsanguinationSeverity);
+                            }
+                            float actualStartingHealthFraction = maximumHealth > 0.0001f
+                                ? Mathf.Clamp01(npc.Health.ModifiedValue / maximumHealth)
+                                : 0.0f;
                             plugin.LogDiagnostic(
                                 "Raised a restricted runtime copy of " + source.DebugName
                                 + "; quality=" + record.QualityTier
@@ -1637,6 +1860,8 @@ namespace SoulAndService
                                 + maximumHealth.ToString("0.##", CultureInfo.InvariantCulture)
                                 + "; retainedHealth="
                                 + retainedHealthFraction.ToString("0.###", CultureInfo.InvariantCulture)
+                                + "; exsanguination="
+                                + exsanguinationSeverity.ToString("0.###", CultureInfo.InvariantCulture)
                                 + "; power="
                                 + necromanticPower.ToString("0.##", CultureInfo.InvariantCulture)
                                 + "; upkeep="
@@ -1653,7 +1878,7 @@ namespace SoulAndService
                             string outcome = "Soul Rend: raised "
                                 + record.SourceDisplayName
                                 + " at "
-                                + (retainedHealthFraction * 100.0f).ToString(
+                                + (actualStartingHealthFraction * 100.0f).ToString(
                                     "0",
                                     CultureInfo.InvariantCulture)
                                 + "% health (Power "
@@ -1668,6 +1893,7 @@ namespace SoulAndService
                             plugin.ShowSoulSalvageHeavyCastDiagnostic(outcome);
                             SoulProgressionRuntime.CommitSuccessfulBinding(
                                 record.CorpseFingerprint);
+                            record.ServiceInitialized = true;
                             SoulProgressionRuntime.ShowResurrection(
                                 record.SourceDisplayName,
                                 record.QualityTier);
@@ -1696,12 +1922,344 @@ namespace SoulAndService
                 {
                     source.SetInteractability(previousInteractability);
                 }
+                SoulProgressionRuntime.RestoreSoulVigor(committedVigor);
                 plugin.LogWarning(
                     "Soul Rend could not create a raised servant: "
                     + exception.GetBaseException().Message);
                 plugin.ShowSoulSalvageHeavyCastDiagnostic(
                     "Soul Rend: reanimation failed - see BepInEx log.");
             }
+        }
+
+        private static int GetReanimationSoulVigorCost(
+            Grailwright.Shared.CorpseQualityTier tier)
+        {
+            switch (tier)
+            {
+                case Grailwright.Shared.CorpseQualityTier.Worthy:
+                    return 3;
+                case Grailwright.Shared.CorpseQualityTier.Potent:
+                    return 5;
+                case Grailwright.Shared.CorpseQualityTier.Prime:
+                    return 10;
+                case Grailwright.Shared.CorpseQualityTier.Meager:
+                default:
+                    return 1;
+            }
+        }
+
+        private static float GetBloodExsanguinationSeverity(object sourceCorpse)
+        {
+            if (sourceCorpse == null || _bloodMagicApiUnavailable)
+            {
+                return 0.0f;
+            }
+            if (_bloodMagicGetExsanguinationSeverityMethod == null)
+            {
+                PluginInfo pluginInfo;
+                if (!Chainloader.PluginInfos.TryGetValue(
+                        BloodMagicPluginGuid,
+                        out pluginInfo)
+                    || pluginInfo == null
+                    || pluginInfo.Instance == null)
+                {
+                    return 0.0f;
+                }
+                Type api = pluginInfo.Instance.GetType().Assembly.GetType(
+                    BloodMagicApiTypeName,
+                    false);
+                _bloodMagicGetExsanguinationSeverityMethod = api == null
+                    ? null
+                    : api.GetMethod(
+                        "GetCorpseExsanguinationSeverity",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[] { typeof(object) },
+                        null);
+                if (_bloodMagicGetExsanguinationSeverityMethod == null)
+                {
+                    _bloodMagicApiUnavailable = true;
+                    return 0.0f;
+                }
+            }
+            try
+            {
+                object result = _bloodMagicGetExsanguinationSeverityMethod.Invoke(
+                    null,
+                    new[] { sourceCorpse });
+                return result is float ? Mathf.Clamp01((float)result) : 0.0f;
+            }
+            catch
+            {
+                _bloodMagicGetExsanguinationSeverityMethod = null;
+                return 0.0f;
+            }
+        }
+
+        internal static bool TryResolveOwnedReanimatedServantForInterop(
+            object candidate,
+            out object sourceCorpse)
+        {
+            sourceCorpse = null;
+            ReanimationRecord record;
+            Hero hero = Hero.Current;
+            if (hero == null
+                || !TryResolveReanimationRecord(candidate, out record)
+                || record.SourceCorpse == null
+                || record.RaisedNpc == null
+                || !record.RaisedNpc.IsAlive
+                || (record.BloodRitualHoldUntil > Time.unscaledTime
+                    && record.BloodRitualCommandSequence
+                        != SummonRuntime.GetCommandSequenceForInterop()))
+            {
+                return false;
+            }
+            sourceCorpse = record.SourceCorpse;
+            return true;
+        }
+
+        internal static bool TryResolveOwnedBloodServantForInterop(
+            object candidate,
+            out object sourceCorpse,
+            out object servantNpc)
+        {
+            sourceCorpse = null;
+            servantNpc = null;
+            ReanimationRecord record;
+            if (TryResolveReanimationRecord(candidate, out record))
+            {
+                if (record.SourceCorpse == null
+                    || record.RaisedNpc == null
+                    || !record.RaisedNpc.IsAlive
+                    || (record.BloodRitualHoldUntil > Time.unscaledTime
+                        && record.BloodRitualCommandSequence
+                            != SummonRuntime.GetCommandSequenceForInterop()))
+                {
+                    return false;
+                }
+                sourceCorpse = record.SourceCorpse;
+                servantNpc = record.RaisedNpc;
+                return true;
+            }
+
+            NpcHeroSummon summon;
+            NpcElement npc;
+            if (!TryResolveOwnedLivingSummon(candidate, out summon, out npc))
+            {
+                return false;
+            }
+            servantNpc = npc;
+            return true;
+        }
+
+        internal static bool SetOwnedBloodServantRitualStateForInterop(
+            object candidate,
+            bool channeling,
+            bool completed)
+        {
+            ReanimationRecord record;
+            if (TryResolveReanimationRecord(candidate, out record))
+            {
+                return SetOwnedReanimatedServantBloodRitualStateForInterop(
+                    candidate,
+                    channeling,
+                    completed);
+            }
+
+            NpcHeroSummon summon;
+            NpcElement ignoredNpc;
+            if (!TryResolveOwnedLivingSummon(
+                    candidate,
+                    out summon,
+                    out ignoredNpc))
+            {
+                return false;
+            }
+            if (channeling && PreventSummonMovementMethod != null)
+            {
+                PreventSummonMovementMethod.Invoke(summon, null);
+            }
+            return true;
+        }
+
+        internal static bool TryExsanguinateOwnedBloodServantForInterop(
+            object candidate,
+            float severity,
+            out bool killed)
+        {
+            ReanimationRecord record;
+            if (TryResolveReanimationRecord(candidate, out record))
+            {
+                return TryExsanguinateOwnedReanimatedServantForInterop(
+                    candidate,
+                    severity,
+                    out killed);
+            }
+
+            killed = false;
+            NpcHeroSummon summon;
+            NpcElement npc;
+            if (!TryResolveOwnedLivingSummon(candidate, out summon, out npc)
+                || npc.Health == null)
+            {
+                return false;
+            }
+            float maximumHealth = Math.Max(
+                npc.Health.UpperLimit,
+                npc.Health.ModifiedValue);
+            if (maximumHealth <= 0.0f)
+            {
+                return false;
+            }
+            if (Mathf.Clamp01(npc.Health.ModifiedValue / maximumHealth) <= 0.20f)
+            {
+                killed = true;
+                npc.HealthElement.Kill();
+                return true;
+            }
+            npc.Health.DecreaseBy(
+                npc.Health.ModifiedValue
+                * Mathf.Clamp(severity, 0.20f, 0.30f));
+            return true;
+        }
+
+        private static bool TryResolveOwnedLivingSummon(
+            object candidate,
+            out NpcHeroSummon summon,
+            out NpcElement npc)
+        {
+            summon = candidate as NpcHeroSummon;
+            npc = candidate as NpcElement;
+            Location location = candidate as Location;
+            Component component = candidate as Component;
+            if (component != null)
+            {
+                VLocation view = component.GetComponentInParent<LocationParent>()
+                    ?.GetComponentInChildren<VLocation>();
+                location = view == null ? null : view.Target;
+            }
+            if (npc == null && location != null)
+            {
+                npc = location.TryGetElement<NpcElement>();
+            }
+            if (summon == null && npc != null)
+            {
+                summon = npc.TryGetElement<NpcHeroSummon>();
+            }
+            Hero hero = Hero.Current;
+            return hero != null
+                && summon != null
+                && !summon.HasBeenDiscarded
+                && npc != null
+                && !npc.HasBeenDiscarded
+                && npc.IsAlive
+                && ReferenceEquals(summon.Ally, hero);
+        }
+
+        internal static bool SetOwnedReanimatedServantBloodRitualStateForInterop(
+            object candidate,
+            bool channeling,
+            bool completed)
+        {
+            ReanimationRecord record;
+            if (!TryResolveReanimationRecord(candidate, out record))
+            {
+                return false;
+            }
+            if (completed)
+            {
+                record.BloodRitualHoldUntil = Time.unscaledTime + 8.0f;
+            }
+            else if (channeling)
+            {
+                if (record.BloodRitualHoldUntil <= Time.unscaledTime)
+                {
+                    record.BloodRitualCommandSequence =
+                        SummonRuntime.GetCommandSequenceForInterop();
+                }
+                record.BloodRitualHoldUntil = Time.unscaledTime + 0.35f;
+            }
+            else
+            {
+                record.BloodRitualHoldUntil = 0.0f;
+            }
+            record.NextBloodRitualMovementHoldAt = 0.0f;
+            return true;
+        }
+
+        internal static bool TryExsanguinateOwnedReanimatedServantForInterop(
+            object candidate,
+            float severity,
+            out bool killed)
+        {
+            killed = false;
+            ReanimationRecord record;
+            if (!TryResolveReanimationRecord(candidate, out record)
+                || record.RaisedNpc == null
+                || !record.RaisedNpc.IsAlive
+                || record.RaisedNpc.Health == null)
+            {
+                return false;
+            }
+            float maximumHealth = Math.Max(
+                record.RaisedNpc.Health.UpperLimit,
+                record.RaisedNpc.Health.ModifiedValue);
+            if (maximumHealth <= 0.0f)
+            {
+                return false;
+            }
+            float healthFraction = Mathf.Clamp01(
+                record.RaisedNpc.Health.ModifiedValue / maximumHealth);
+            record.SalvageHealthFraction = healthFraction;
+            if (healthFraction <= 0.20f)
+            {
+                killed = true;
+                record.BloodRitualExecuted = true;
+                record.RaisedNpc.HealthElement.Kill();
+                return true;
+            }
+            record.RaisedNpc.Health.DecreaseBy(
+                record.RaisedNpc.Health.ModifiedValue
+                * Mathf.Clamp(severity, 0.20f, 0.30f));
+            return true;
+        }
+
+        private static bool TryResolveReanimationRecord(
+            object candidate,
+            out ReanimationRecord record)
+        {
+            record = null;
+            if (candidate == null)
+            {
+                return false;
+            }
+            NpcHeroSummon summon = candidate as NpcHeroSummon;
+            NpcElement npc = candidate as NpcElement;
+            Location location = candidate as Location;
+            Component component = candidate as Component;
+            if (component != null)
+            {
+                VLocation view = component.GetComponentInParent<LocationParent>()
+                    ?.GetComponentInChildren<VLocation>();
+                location = view == null ? null : view.Target;
+                npc = location == null ? null : location.TryGetElement<NpcElement>();
+                summon = npc == null ? null : npc.TryGetElement<NpcHeroSummon>();
+            }
+            if (summon != null
+                && Reanimations.TryGetValue(((Model)summon).ID, out record))
+            {
+                return true;
+            }
+            foreach (ReanimationRecord candidateRecord in Reanimations.Values)
+            {
+                if (ReferenceEquals(candidateRecord.RaisedNpc, npc)
+                    || ReferenceEquals(candidateRecord.RaisedLocation, location))
+                {
+                    record = candidateRecord;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static bool EnsureRaisedServantPortrait(NpcElement npc)
@@ -1885,6 +2443,11 @@ namespace SoulAndService
                 rejection = "the targeted location is not a corpse";
                 return false;
             }
+            if (ExecutedServantRemains.ContainsKey(((Model)candidate).ID))
+            {
+                rejection = string.Empty;
+                return true;
+            }
             if (Reanimations.Values.Any(record => record.SourceCorpse == candidate))
             {
                 rejection = "that corpse is already serving";
@@ -2022,6 +2585,17 @@ namespace SoulAndService
                 }
                 record.LastSafeCoords = coords;
                 record.LastSafeRotation = raised.Rotation;
+                if (record.BloodRitualHoldUntil > Time.unscaledTime
+                    && Time.unscaledTime >= record.NextBloodRitualMovementHoldAt
+                    && record.RaisedNpc != null
+                    && record.RaisedNpc.IsAlive
+                    && PreventSummonMovementMethod != null)
+                {
+                    record.NextBloodRitualMovementHoldAt = Time.unscaledTime + 1.0f;
+                    PreventSummonMovementMethod.Invoke(
+                        record.RaisedNpc.Element<NpcHeroSummon>(),
+                        null);
+                }
             }
         }
 
@@ -2037,10 +2611,17 @@ namespace SoulAndService
 
             SoulProgressionRuntime.CorpseHarvestReceipt harvestReceipt = null;
             string failure = string.Empty;
+            int salvageAward = Mathf.Clamp(
+                Mathf.RoundToInt(
+                    (record.NativeSoulVigor + record.InvestedSoulVigor)
+                    * Mathf.Clamp01(record.SalvageHealthFraction)),
+                0,
+                record.NativeSoulVigor + record.InvestedSoulVigor);
             bool harvestReady = !record.Sacrificed
                 || SoulProgressionRuntime.TryHarvestCorpse(
                     record.CorpseFingerprint,
                     record.QualityTier,
+                    salvageAward,
                     out harvestReceipt);
             bool simplified = harvestReady && TryCreateRemains(
                     record.SourceCorpse,
@@ -2221,6 +2802,10 @@ namespace SoulAndService
                 return;
             }
             Reanimations.Remove(summonId);
+            if (!record.ServiceInitialized && record.InvestedSoulVigor > 0)
+            {
+                SoulProgressionRuntime.RestoreSoulVigor(record.InvestedSoulVigor);
+            }
             if (record.SourceCorpse != null && !record.SourceCorpse.HasBeenDiscarded)
             {
                 record.SourceCorpse.SetInteractability(record.SourceInteractability);
@@ -2248,6 +2833,50 @@ namespace SoulAndService
                 && !((Model)record.QualityHealthTweak).HasBeenDiscarded)
             {
                 ((Model)record.QualityHealthTweak).Discard();
+            }
+        }
+
+        private static void RestoreExecutedServantCorpse(
+            ReanimationRecord record)
+        {
+            if (record == null)
+            {
+                return;
+            }
+            if (record.SourceCorpse != null && !record.SourceCorpse.HasBeenDiscarded)
+            {
+                record.SourceCorpse.SetInteractability(record.SourceInteractability);
+                record.SourceCorpse.TriggerVisualScriptingEvent("OnDeath");
+            }
+            if (record.RaisedLocation != null
+                && !record.RaisedLocation.HasBeenDiscarded
+                && !PendingRaisedDiscards.Contains(record.RaisedLocation))
+            {
+                PendingRaisedDiscards.Add(record.RaisedLocation);
+            }
+        }
+
+        private static void UpdateExecutedServantRemains()
+        {
+            if (ExecutedServantRemains.Count == 0
+                || Time.unscaledTime < _nextExecutedServantCleanupTime)
+            {
+                return;
+            }
+            _nextExecutedServantCleanupTime = Time.unscaledTime
+                + ExecutedServantCleanupSeconds;
+            foreach (KeyValuePair<string, ReanimationRecord> pair
+                in ExecutedServantRemains.ToArray())
+            {
+                ReanimationRecord record = pair.Value;
+                if (record != null
+                    && record.RaisedLocation != null
+                    && !record.RaisedLocation.HasBeenDiscarded)
+                {
+                    continue;
+                }
+                ExecutedServantRemains.Remove(pair.Key);
+                RestoreExecutedServantCorpse(record);
             }
         }
 
@@ -2284,6 +2913,185 @@ namespace SoulAndService
             return summon == null
                 ? (int)SoulSalvageFocusedTargetState.Corpse
                 : (int)SoulSalvageFocusedTargetState.ActiveSummon;
+        }
+
+        internal static int GetHeavySoulRendHoverStateForInterop()
+        {
+            string ignoredText;
+            GameObject ignoredView;
+            return TryGetHeavySoulRendHover(
+                out int state,
+                out ignoredText,
+                out ignoredView)
+                    ? state
+                    : (int)HeavySoulRendHoverState.None;
+        }
+
+        internal static string GetHeavySoulRendHoverTextForInterop()
+        {
+            int ignoredState;
+            GameObject ignoredView;
+            return TryGetHeavySoulRendHover(
+                out ignoredState,
+                out string text,
+                out ignoredView)
+                    ? text
+                    : string.Empty;
+        }
+
+        internal static bool TryGetHeavySoulRendHoverForInteraction(
+            out string text,
+            out GameObject viewObject)
+        {
+            int state;
+            return TryGetHeavySoulRendHover(
+                out state,
+                out text,
+                out viewObject)
+                && state != (int)HeavySoulRendHoverState.ServantFullyRestored;
+        }
+
+        private static bool TryGetHeavySoulRendHover(
+            out int state,
+            out string text,
+            out GameObject viewObject)
+        {
+            state = (int)HeavySoulRendHoverState.None;
+            text = string.Empty;
+            viewObject = null;
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Hero hero = Hero.Current;
+            if (!_heavyCastActive
+                || plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value
+                || hero == null)
+            {
+                return false;
+            }
+
+            Location location;
+            NpcHeroSummon summon;
+            if (TryFindFocusedSoulTargetCached(out location, out summon))
+            {
+                viewObject = location == null || location.Spec == null
+                    ? null
+                    : location.Spec.gameObject;
+                if (summon == null)
+                {
+                    Grailwright.Shared.CorpseQualityTier tier =
+                        Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                            CalculateQuality01(location, null),
+                            true);
+                    int cost = GetReanimationSoulVigorCost(tier);
+                    bool affordable = SoulProgressionRuntime.GetSoulVigor()
+                        + 0.001f >= cost;
+                    state = affordable
+                        ? (int)HeavySoulRendHoverState.Reanimate
+                        : (int)HeavySoulRendHoverState.RequiresSoulVigor;
+                    text = (affordable ? "Reanimate: " : "Requires ")
+                        + cost.ToString(CultureInfo.InvariantCulture)
+                        + " Soul Vigor";
+                    return true;
+                }
+
+                NpcElement servant = summon.ParentModel;
+                float maximumHealth = servant == null || servant.Health == null
+                    ? 0.0f
+                    : Math.Max(
+                        servant.Health.UpperLimit,
+                        servant.Health.ModifiedValue);
+                float healthFraction = maximumHealth <= 0.0f
+                    ? 1.0f
+                    : Mathf.Clamp01(servant.Health.ModifiedValue / maximumHealth);
+                if (healthFraction < ServantEmpowerHealthThreshold)
+                {
+                    state = (int)HeavySoulRendHoverState.RestoreServant;
+                    text = "Restore Servant";
+                }
+                else if (SoulProgressionRuntime.GetNecromanticPower()
+                        >= SoulProgressionRuntime.EmpowermentPower
+                    && !SummonRuntime.IsEmpoweredSummon(summon))
+                {
+                    state = (int)HeavySoulRendHoverState.EmpowerServant;
+                    text = "Empower Servant";
+                }
+                else
+                {
+                    state = (int)HeavySoulRendHoverState.ServantFullyRestored;
+                    text = string.Empty;
+                }
+                return true;
+            }
+
+            if (!plugin.LivingTargetSoulSalvage.Value)
+            {
+                return false;
+            }
+            Location targetLocation;
+            NpcElement target;
+            Collider hitCollider;
+            string rejection;
+            if (!TryFindEligibleLivingTarget(
+                    hero,
+                    out targetLocation,
+                    out target,
+                    out hitCollider,
+                    out rejection)
+                || target == null
+                || target.Health == null
+                || target.Health.Percentage > SoulClaimHealthThreshold)
+            {
+                return false;
+            }
+            viewObject = hitCollider == null ? null : hitCollider.gameObject;
+            float chance = CalculateSoulClaimChance(
+                targetLocation,
+                target,
+                GetActiveFrayedSoulStacks(((Model)target).ID));
+            state = (int)HeavySoulRendHoverState.ClaimSoul;
+            text = "Claim Soul: "
+                + (chance * 100.0f).ToString("0", CultureInfo.InvariantCulture)
+                + "% Chance";
+            return true;
+        }
+
+        private static int GetActiveFrayedSoulStacks(string targetId)
+        {
+            FrayedSoulState frayed;
+            return !string.IsNullOrEmpty(targetId)
+                && FrayedSouls.TryGetValue(targetId, out frayed)
+                && frayed != null
+                && frayed.ExpiresAt > Time.unscaledTime
+                    ? Math.Min(FrayedSoulMaximumStacks, Math.Max(0, frayed.Stacks))
+                    : 0;
+        }
+
+        private static float CalculateSoulClaimChance(
+            Location targetLocation,
+            NpcElement target,
+            int frayedStacks)
+        {
+            float healthFraction = target == null || target.Health == null
+                ? 1.0f
+                : Mathf.Clamp01(target.Health.Percentage);
+            float healthVulnerability = SoulClaimHealthThreshold <= 0.0f
+                ? 0.0f
+                : Mathf.Clamp01(
+                    (SoulClaimHealthThreshold - healthFraction)
+                    / SoulClaimHealthThreshold);
+            Grailwright.Shared.CorpseQualityTier qualityTier =
+                Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                    CalculateQuality01(targetLocation, target),
+                    true);
+            return Mathf.Min(
+                SoulClaimAbsoluteChanceCap,
+                healthVulnerability
+                    * GetSoulClaimPowerChance(
+                        SoulProgressionRuntime.GetNecromanticPower())
+                    * GetSoulClaimQualityFactor(qualityTier)
+                    * (1.0f
+                        + (FrayedSoulChanceBonusPerStack * frayedStacks)));
         }
 
         internal static float GetFocusedTargetQuality01ForInterop()
@@ -2342,10 +3150,116 @@ namespace SoulAndService
             {
                 return false;
             }
-            return IsSoulSalvageItem(
-                    hero.HeroItems.EquippedItem(EquipmentSlotType.MainHand))
-                || IsSoulSalvageItem(
-                    hero.HeroItems.EquippedItem(EquipmentSlotType.OffHand));
+            Item mainHandItem = hero.HeroItems.EquippedItem(
+                EquipmentSlotType.MainHand);
+            Item offHandItem = hero.HeroItems.EquippedItem(
+                EquipmentSlotType.OffHand);
+            return (IsSoulSalvageItem(mainHandItem)
+                    && !IsVersatileWeaponsHandSuppressed(
+                        EquipmentSlotType.MainHand))
+                || (IsSoulSalvageItem(offHandItem)
+                    && !IsVersatileWeaponsHandSuppressed(
+                        EquipmentSlotType.OffHand));
+        }
+
+        internal static bool IsVersatileWeaponsHandSuppressed(
+            EquipmentSlotType slot)
+        {
+            if (!TryResolveVersatileWeaponsApi())
+            {
+                return false;
+            }
+            try
+            {
+                return slot == EquipmentSlotType.MainHand
+                    ? _versatileWeaponsIsMainHandSuppressed()
+                    : _versatileWeaponsIsOffHandSuppressed();
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsIsMainHandSuppressed = null;
+                _versatileWeaponsIsOffHandSuppressed = null;
+                _versatileWeaponsApiUnavailable = true;
+                SoulAndServicePlugin.Instance?.LogWarning(
+                    "Versatile Weapons hand-suppression integration failed and is disabled for this session: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private static bool TryResolveVersatileWeaponsApi()
+        {
+            if (_versatileWeaponsIsMainHandSuppressed != null
+                && _versatileWeaponsIsOffHandSuppressed != null)
+            {
+                return true;
+            }
+            if (_versatileWeaponsApiUnavailable)
+            {
+                return false;
+            }
+
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    VersatileWeaponsPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                _versatileWeaponsApiUnavailable = true;
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                VersatileWeaponsApiTypeName,
+                false);
+            MethodInfo mainMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsMainHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            MethodInfo offMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "IsOffHandSuppressed",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+            if (mainMethod == null
+                || mainMethod.ReturnType != typeof(bool)
+                || offMethod == null
+                || offMethod.ReturnType != typeof(bool))
+            {
+                _versatileWeaponsApiUnavailable = true;
+                SoulAndServicePlugin.Instance?.LogWarning(
+                    "Versatile Weapons is loaded, but its hand-suppression API is unavailable; suppressed Soul Rend hands will use ordinary equipment-slot detection.");
+                return false;
+            }
+
+            try
+            {
+                _versatileWeaponsIsMainHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        mainMethod);
+                _versatileWeaponsIsOffHandSuppressed =
+                    (Func<bool>)Delegate.CreateDelegate(
+                        typeof(Func<bool>),
+                        offMethod);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                _versatileWeaponsApiUnavailable = true;
+                SoulAndServicePlugin.Instance?.LogWarning(
+                    "Versatile Weapons hand-suppression API binding failed; suppressed Soul Rend hands will use ordinary equipment-slot detection: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
         }
 
         private static bool TryFindFocusedSoulTarget(

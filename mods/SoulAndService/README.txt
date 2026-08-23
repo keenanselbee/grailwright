@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 1.0.6
+Soul and Service - Summon Overhaul 2.1.4
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -16,8 +16,10 @@ Default behavior
 - Before Power 30, idle summons settle beside the hero instead of repeatedly
   turning toward random patrol points. At Power 30, Guard assigns the host loose,
   non-overlapping positions behind and beside the hero, beginning 4.5 m away and
-  accepting a 1 m settling area around each position. When the hero stops, those
-  positions remain fixed even if the hero turns in place. One servant at a time
+  accepting a 1 m settling area around each position. Brief taps and sub-meter
+  adjustments do not move the formation: following begins after 0.25 seconds of
+  sustained movement or 1 m of travel, then settles 0.2 seconds after the hero
+  stops. Those positions remain fixed if the hero turns in place. One servant at a time
   may occasionally walk near its position, linger, and return. At the Power 30
   formation unlock, idle movement reaches at most about 1.28 m; it narrows to
   0.75 m at Power 100 and remains the same through Power 200. Mastered servants
@@ -26,7 +28,8 @@ Default behavior
   targeting the hero or another servant, then already-engaged melee threats near
   the hero. Defensive targets may be seen by either the hero or the acting servant.
   It never pulls an uninvolved hostile merely because another servant is fighting.
-  Passive crosshair sharing is off and explicit Attack always wins.
+  Passive crosshair sharing is off; when enabled, its adopted target remains an
+  autonomous suggestion governed by the current behavior. Explicit Attack always wins.
 - At 10 Necromantic Power (about 65 Soul Vigor), hold the remappable Sprint action and aim at a nearby hostile
   to show Attack; tap Interact to order every eligible owned summon onto that target.
 - At 20 Power (about 133 Soul Vigor), keep Sprint held and aim at an owned summon within the configured
@@ -54,12 +57,14 @@ Default behavior
   for three seconds so Guard or Hunt cannot immediately cancel the disengagement.
 - Bulwark assigns servants stable positions in a disciplined forward shield. Its
   first four positions begin 3.5 m from the hero with a 0.5 m settling area, and
-  small stationary facing changes do not continually rotate the line. Servants
+  the line retains the hero's last meaningful movement direction while stationary,
+  so camera look alone cannot rotate it. Servants
   counterattack only recent attackers or enemies threatening the host within 6 m,
   never chase an autonomous threat beyond 8 m, and skip native target acquisition
   when no such threat exists. Explicit Attack temporarily releases them.
 - Hunt assigns distinct, stable perimeter positions beginning 5.5 m from the hero
-  and attacks valid faction-hostile NPCs it can see from its own position. Idle
+  and attacks valid faction-hostile NPCs it can see from its own position, including
+  enemy summons when faction rules mark them hostile. Idle
   hunters make staggered local scouting walks without moving inside 5 m; hosts of
   four or more allow at most two scouts at once. Movement, combat, and commands
   cancel those walks. A servant commits briefly to a valid target and changes to
@@ -68,7 +73,7 @@ Default behavior
   immediate acquisition pass. Servants release the game's hero-centered combat
   slots while pursuing NPC targets.
 - When Battlecry Voice Tuner is installed, every successful Attack, Hold,
-  Follow, Guard, Bulwark, or Hunt order plays one gender-matched necromantic command from the matching
+  Follow, Recall, Guard, Bulwark, or Hunt order plays one gender-matched necromantic command from the matching
   order-specific pool. Each pool avoids its own recent clips; passive and failed
   paths remain silent.
 - Disabling Formation Commands releases every held servant immediately.
@@ -84,7 +89,10 @@ Default behavior
 - Summon idle loops play at 60% volume; combat, hurt, and death sounds are untouched.
 - Soul Vigor is an uncapped, save-backed necromancy statistic. Necromantic
   Power follows Blood Magic Expansion's 0-200 mastery curve, reaching 100 at
-  1,000 Soul Vigor and 200 at 5,000.
+  1,000 Soul Vigor and 200 at 5,000. Soul Vigor is an integer resource: spending
+  it lowers Necromantic Power immediately and can relock commands or Empower
+  until enough Vigor is harvested again. Existing servants are never destroyed
+  merely because a milestone relocks.
 - Command control grows with Necromantic Power: Attack unlocks at Power 10
   (about 65 Soul Vigor), individual Hold and Follow at 20 (about 133), Hold All
   and Follow All at 30 (about 206), behavior control at 50 (about 369), Recall Host
@@ -105,10 +113,20 @@ Default behavior
 - Successful Recall Host and automatic too-far catch-up teleports play the same
   green-dark necromancer summoning effect beneath each servant after arrival.
 - Soul Rend light cast turns an eligible hostile corpse into native simplified
-  remains and grants 2/6/10/20 Soul Vigor for Meager/Worthy/Potent/Prime quality.
-  On a summon, it restores 50% of invested mana at full health, with current
-  health scaling the return. Raised corpses grant their quality reward; ordinary
-  summons grant 1 Soul Vigor, capped at five awards per rolling 60 seconds.
+  remains. Meager/Worthy/Potent/Prime corpses grant randomized integer ranges of
+  2-4/7-11/12-18/24-36 Soul Vigor. Rolls favor the center, corpse quality nudges
+  the result within its tier, and mastery adds only a subtle positive bonus.
+- Every summon costs Soul Vigor. Ordinary summons cost 3; reanimation costs
+  1/3/5/10 for Meager/Worthy/Potent/Prime corpses. The heavy-cast interaction
+  text previews `Reanimate: X Soul Vigor` or `Requires X Soul Vigor` while aimed
+  at a valid corpse. Spending can relock abilities; a Swarm order already in
+  progress is allowed to finish.
+- Light Soul Rend on a summon restores 50% of invested mana at full Health as a
+  whole-number Mana return, with
+  current Health scaling the return. It also recovers the servant's native soul
+  plus invested Vigor in proportion to remaining Health. Immediately summoning
+  and harvesting an ordinary servant therefore returns its 3-Vigor investment
+  but creates no profit; damaged servants return less.
 - With Grail Floating Text, each completed ritual appears as a short Necrotic
   reward. Corpse harvests show `+X Soul Vigor`; servant unbinding shows
   `+X Mana | +Y Soul Vigor`, or Mana alone when ordinary-summon Vigor is capped.
@@ -116,8 +134,9 @@ Default behavior
 - Successful corpse harvests and summon sacrifices play one of forty authored
   FMOD ritual sounds. Meager, Worthy, Potent, and Prime targets use the low,
   medium, high, and max banks. The default 0.85 volume preserves their authored
-  tier loudness, avoids the previous two clips per tier, and varies pitch by up
-  to 0.20 semitones. Failed actions and living-target casts do not play this bank.
+  tier loudness, avoids the previous two clips per tier, varies pitch by up to
+  0.20 semitones, and adds two restrained ethereal echoes by default. Failed
+  actions and living-target casts do not play this bank.
   Raised-servant light harvests complete reliably even when the native spell kills
   the underlying location directly, and play exactly one sound only after
   loot-bearing remains are created.
@@ -155,6 +174,9 @@ Default behavior
   the completion text reports the exact roll, movement and locomotion compensate
   for the larger stride, and Empower cannot stack or reroll. Heavy casting never
   sacrifices the targeted servant when Empower is locked or already applied.
+  While the heavy cast is held over a relevant servant, actionable interaction
+  text is simply `Restore Servant` or `Empower Servant`. A fully restored servant
+  relies on Dishonored Dynamic Crosshair's desaturated heal reticle without text.
 - Raised copies use the game's native hero-summon faction and targeting behavior,
   including autonomous enemy aggression. Authored scene NPCs, bosses, minibosses,
   friendly corpses, and unresolved templates are rejected. The original corpse is
@@ -166,11 +188,35 @@ Default behavior
   also use the Forgotten Cemetery necromancer's native skeleton-summon effect.
 - Raised servants are true native hero summons, so normal summon faction, limits,
   targeting, collision, persistence, and Soul and Service improvements apply. They
-  use the binding cost, corpse quality, and current health for
-  light-salvage returns, capped at 75% of binding cost to prevent a recursive loop.
+  use their randomized native soul value, invested Soul Vigor, and current Health
+  for light-salvage returns.
+- Blood Magic Expansion leaves drained corpses intact. Reanimating one applies a
+  randomized 20-30% current-Health penalty whose center improves with Blood Power.
+  Blood/Life Transfusion can also ritualize an owned living flesh servant. The
+  normal blood reticle remains visible but desaturated while combat blocks the
+  ritual; outside combat the channel holds it in place, drains real Health, and
+  executes it at 20% Health or below. Raised servants complete only their source's
+  remaining one-time rewards and remain available for light Soul Rend after
+  execution. Ordinary spell summons provide healing only, with no XP or Blood
+  Essence; bloodless servants are invalid.
 - Dishonored Dynamic Crosshair can show Necrotic-green Meager/Worthy/Potent/Prime
   reticles over eligible corpses and active owned summons while Soul Rend is
-  equipped, plus distinct Attack, Hold, and Follow icons and command pulses.
+  equipped. Heavy servant service uses the dedicated heal or empower reticle,
+  and commands retain their distinct Attack, Hold, Follow, and Behavior icons.
+
+Soul Rend Inner Light
+---------------------
+
+Each raised Soul Rend hand emits a no-shadow necromantic-green light. Its
+brightness uses the same gentle smoothstep growth as Blood Magic through
+Necromantic Power 0-100, then grows linearly to Power 200; casting triples that
+hand's brightness after 0.3 seconds before it fades back. Soul Rend defaults to a
+restrained 0.8 intensity multiplier. The base intensity, Soul Rend multiplier,
+interior multiplier, three power brightness and range milestones, and fade time
+are configurable. Lights update after animation, include First Person Arms
+Adjuster's current visual offset when available, and explicitly disable HDRP
+shadows and volumetric contribution. Versatile Weapons suppression hides the
+corresponding light while an opposite-hand weapon is being used with both hands.
 
 Custom audio
 ------------
@@ -194,7 +240,8 @@ Config file: BepInEx/config/ks.tgfoa.soul-and-service.cfg
 All timings, distances, target range, full-mastery AI interval, command modifier, Attack prompt, formation commands, pass-through behavior,
 summon-limit bonus, idle volume, Soul Rend mana-return percentage,
 living-target Soul Rend, persistent servants, ritual audio volume, repeat
-avoidance, and pitch variation
+avoidance, pitch variation, echo amount, idle movement amount, and every Soul Rend
+inner-light brightness, Soul Rend intensity, range, interior, and fade control
 can be configured. Settings are also visible in FoA Mod Manager. The final Import
 Previous Settings tab safely imports compatible customized values after a future
 config reset.
@@ -226,7 +273,7 @@ a protected execution outside ordinary Necrotic resistance rules.
 
 Battlecry Voice Tuner is optional. Successful explicit Attack, Hold, Follow,
 Recall Host, Guard, Bulwark, and Hunt orders request one spoken command through
-its public API; Recall Host uses the Follow pool. While owned summons are active
+its public API, with a dedicated pool for each order. While owned summons are active
 at 30 or more Necromantic Power, Soul and Service owns the Take All Items hold
 action for formation and Recall Host commands. Battlecry Voice Tuner's separate
 battlecry hotkey remains available. It stays authoritative
@@ -238,6 +285,11 @@ Follow confirmations last 0.675 seconds. Hold All, Follow All, Recall Host, and
 Behavior confirmations last 1.35 seconds in both native interaction text and their
 matching Dishonored icon pulse. Behavior changes also show Behavior: Guard, Behavior:
 Bulwark, or Behavior: Hunt through Grail Floating Text when it is installed.
+
+Versatile Weapons is optional. Soul Rend retained in a hand hidden by an active
+two-handed grip is not treated as currently equipped: its targeting reticle and
+hover state clear until that hand becomes available again. The spell remains in
+its equipment slot and returns normally when the weapon switches back to one hand.
 
 Raised servants are runtime copies, grant no XP or scripted death reward, and are
 not saved. Heavy cast accepts only runtime-spawned ordinary hostiles, excluding the

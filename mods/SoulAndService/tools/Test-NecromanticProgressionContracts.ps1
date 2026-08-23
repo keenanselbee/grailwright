@@ -9,7 +9,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw
 
 foreach ($required in @(
     'public static class SoulAndServiceApi',
-    'public const int ApiVersion = 5',
+    'public const int ApiVersion = 7',
     'GetLastSummonCommandPulseSeconds',
     'GetSoulVigor',
     'OverrideSoulVigor',
@@ -44,7 +44,8 @@ foreach ($required in @(
     'TryHarvestCorpse(',
     'RollbackCorpseHarvest(',
     'TryRestoreCorpseHarvest(',
-    'HarvestOrdinarySummon()',
+    'RollSoulVigorValue(',
+    'TrySpendSoulVigor(',
     'InvalidateReportedProgression();',
     'private const string MeagerHarvestsKey = "soul_vigor.harvests.meager"',
     'private const string WorthyHarvestsKey = "soul_vigor.harvests.worthy"',
@@ -53,7 +54,9 @@ foreach ($required in @(
     '"TryRecordSoulVigorStatistics"',
     'if (apiVersion < 7)',
     'case Grailwright.Shared.CorpseQualityTier.Prime:',
-    'return 20.0f;',
+    'minimum = 24;',
+    'maximum = 36;',
+    'nominal = 30;',
     '"Necrotic"',
     'Your servants heed your command: Attack.',
     'Your will can anchor a single servant: Hold and Follow.',
@@ -176,7 +179,7 @@ if (!$manifest.Contains('../../tools/shared/CorpseQualityBuckets.cs')) {
 }
 
 foreach ($required in @(
-    'public const int ApiVersion = 5',
+    'public const int ApiVersion = 7',
     'public static bool IsNecroticDamage(object damage)',
     'return SoulSalvageRuntime.IsNecroticDamageForInterop(damage);')) {
     if (!$plugin.Contains($required)) {

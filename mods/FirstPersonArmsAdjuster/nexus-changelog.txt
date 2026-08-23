@@ -1,4 +1,5 @@
-TargetVersion=0.5.9
-BaselineVersion=0.5.8
-Added a live dodge midpoint setting from 0 to 100 percent, defaulting to 50 percent so the presentation retains half of its configured offset at the midpoint.
-Kept chained, redirected, interrupted, and temporarily unloaded dodge animations from snapping the presentation back to its full configured offset mid-dodge.
+TargetVersion=0.6.3
+BaselineVersion=0.5.9
+Based the shared first-person presentation offset on the current arms pivot after look input, preventing rapid left-right turns from using the rendered camera's delayed direction without adding viewmodel smoothing or lag.
+Preserved the single immutable offset shared by arms, equipment, effects, culling, render translation, and optional integrations.
+Added an off-by-default option that excludes visible FPAA head-bob camera movement from HDRP motion blur while preserving moving-object blur and restoring the camera's exact prior value afterward.

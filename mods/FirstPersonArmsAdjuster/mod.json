@@ -2,7 +2,7 @@
   "id": "FirstPersonArmsAdjuster",
   "displayName": "First Person Arms Adjuster",
   "packageName": "FirstPersonArmsAdjuster",
-  "version": "0.5.9",
+  "version": "0.6.3",
   "pluginGuid": "ks.tgfoa.first-person-arms-adjuster",
   "dll": "FirstPersonArmsAdjuster.dll",
   "sourceFiles": [
@@ -19,6 +19,8 @@
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.ParticleSystemModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.VFXModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.Core.Runtime.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.HighDefinition.Runtime.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Unity.Collections.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Unity.Entities.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Unity.Entities.Graphics.dll",

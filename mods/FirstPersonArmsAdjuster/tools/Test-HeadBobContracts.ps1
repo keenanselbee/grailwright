@@ -14,19 +14,26 @@ $source = Get-Content -LiteralPath $sourcePath -Raw
 $requiredFragments = @(
     "UpdateHeadBob();",
     "&& IsHeadBobAccessibilityEnabled()",
-    "|| !IsHeadBobAccessibilityEnabled()",
+    "private bool CanApplyHeadBob(Camera camera)",
+    "if (!CanApplyHeadBob(camera))",
     "Awaken.TG.MVC.World.Any<HeadBobbingSetting>()",
     "nativeIntensity > 0.0f",
     '"EnableHeadBob"',
     '"HeadBobPreset"',
     '"HeadBobSmoothness"',
     '"SprintEmphasis"',
+    '"SuppressMotionBlurDuringHeadBob"',
     "HeadBobPreset.Subtle",
     "HeadBobPreset.Balanced",
     "HeadBobPreset.Strong",
     "hero.IsSprinting",
     "TryApplyHeadBob(camera);",
     "RestoreHeadBob(camera);",
+    "TrySuppressHeadBobCameraMotionBlur(camera);",
+    "HDCamera.GetOrCreate(camera)",
+    "volumeStack.GetComponent<MotionBlur>()",
+    "motionBlur.cameraMotionBlur.value = false;",
+    "RestoreHeadBobMotionBlurSuppression();",
     "camera.transform.TransformVector(",
     "_headBobLocalOffset);",
     "NativeHeadBobIntensityField.GetValue(setting)",
@@ -43,8 +50,8 @@ foreach ($fragment in $requiredFragments) {
 
 if (([regex]::Matches(
         $source,
-        "IsHeadBobAccessibilityEnabled\(\)")).Count -lt 3) {
-    throw "Head bob must check the vanilla accessibility setting while updating and immediately before rendering."
+        "IsHeadBobAccessibilityEnabled\(\)")).Count -lt 2) {
+    throw "Head bob must check the vanilla accessibility setting while updating and through the shared render gate."
 }
 
 $headBobPatch = [regex]::Match(
@@ -80,8 +87,24 @@ foreach ($fragment in $removedFragments) {
 if ($source -notmatch '(?s)"EnableHeadBob",\s*true,.+?Accessibility / Head Bob setting remains the global master switch.+?DisplaySection = "Head Bob"' -or
     $source -notmatch '(?s)"HeadBobPreset",\s*HeadBobPreset\.Balanced,.+?DisplaySection = "Head Bob"' -or
     $source -notmatch '(?s)"HeadBobSmoothness",\s*0\.7f,.+?DisplaySection = "Head Bob"' -or
-    $source -notmatch '(?s)"SprintEmphasis",\s*0\.75f,.+?DisplaySection = "Head Bob"') {
+    $source -notmatch '(?s)"SprintEmphasis",\s*0\.75f,.+?DisplaySection = "Head Bob"' -or
+    $source -notmatch '(?s)"SuppressMotionBlurDuringHeadBob",\s*false,.+?DisplaySection = "Head Bob"') {
     throw "The consolidated head-bob defaults or UI contract changed."
+}
+
+if ($source -notmatch '(?s)TrySuppressHeadBobCameraMotionBlur\(Camera camera\).+?HDCamera\.GetOrCreate\(camera\).+?volumeStack\.GetComponent<MotionBlur>\(\).+?_headBobMotionBlurOriginalCameraValue.+?cameraMotionBlur\.value = false' -or
+    $source -notmatch '(?s)RestoreHeadBobMotionBlurSuppression\(\).+?cameraMotionBlur\.value =\s*_headBobMotionBlurOriginalCameraValue') {
+    throw "Head-bob suppression must disable only HDRP camera motion blur and restore its exact prior value."
+}
+
+$beginCameraRendering = [regex]::Match(
+    $source,
+    '(?s)private void OnBeginCameraRendering\(.+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+if (-not $beginCameraRendering.Contains(
+        'TrySuppressHeadBobCameraMotionBlur(camera);')) {
+    throw "Camera motion blur must be suppressed after HDRP resolves the main camera's volume stack."
 }
 
 Write-Host "First Person Arms Adjuster head-bob contracts passed."

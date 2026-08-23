@@ -1,3 +1,17 @@
+Version 0.6.3
+Based the shared presentation offset on the first-person arms pivot immediately after the game applies current look input, eliminating the delayed rendered-camera direction that remained visible as jerky arms during rapid left-right turns.
+Kept the existing once-per-frame synchronization hook, shared Kandra, Drake, effect, render, and API offset, and a guarded rendered-camera fallback without adding interpolation, viewmodel lag, or per-consumer work.
+
+Version 0.6.2
+Added an off-by-default Suppress Motion Blur During Head Bob setting for players who find whole-camera bob blurry with HDRP motion blur.
+Excluded only the main first-person camera's movement from HDRP motion blur while visible FPAA bob is active, then restored its exact previous value after the render.
+Kept moving-object blur, other cameras, other post-processing features, stationary frames, and the game's saved graphics settings unchanged.
+
+Version 0.6.0
+Captured the shared first-person presentation offset after the hero controller applies the current frame's camera rotation, preventing rapid left-right look reversals from rendering against a stale view direction.
+Kept one immutable offset for Kandra arms, Drake equipment, culling, attached effects, the body render translation, and API consumers so the timing correction does not reintroduce hand, weapon, effect, or compatibility separation.
+Retained the established rendered main-camera coordinate basis and made the current-frame snapshot authoritative before presentation and LateUpdate integrations consume it.
+
 Version 0.5.9
 Added a live DodgeMoveTowardVanillaPercent setting from 0 to 100, with a default of 50 so dodges retain half of the configured presentation offset at their midpoint.
 Kept chained and redirected dodges continuous by starting each restarted dodge from the currently displayed offset instead of snapping back to the full configured position.

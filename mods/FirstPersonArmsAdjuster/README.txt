@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.5.9
+First Person Arms Adjuster 0.6.3
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -33,6 +33,7 @@ EnableHeadBob = true
 HeadBobPreset = Balanced
 HeadBobSmoothness = 0.7
 SprintEmphasis = 0.75
+SuppressMotionBlurDuringHeadBob = false
 MeleeForwardOffset = 0.30
 BowForwardOffset = 0.10
 MagicForwardOffset = 0.30
@@ -58,7 +59,11 @@ the game's arm-moving first-person bob and substitutes this camera-only motion.
 Choose Subtle, Balanced, or Strong with HeadBobPreset. HeadBobSmoothness rounds
 the path with up to 0.18 seconds of filtering. SprintEmphasis uses the Hero's
 native sprint state. Its default 0.75 adds about 56% movement and 19% cadence
-while sprinting; 0 disables the sprint bonus.
+while sprinting; 0 disables the sprint bonus. Enable
+SuppressMotionBlurDuringHeadBob if HDRP motion blur makes the moving view look
+soft. It affects only the main camera's movement on frames with visible FPAA
+bob, preserves moving-object blur, and restores the previous value immediately
+after each render.
 
 AdjustAttachedEffects moves cached Visual Effect Graph and particle-system
 presentation transforms beneath equipped first-person items with the rendered
@@ -107,8 +112,13 @@ supported automatically: its current grip classification determines whether
 the blend applies. If sheathing is interrupted, the configured offset returns
 smoothly over 0.20 seconds.
 
-Version 0.5.9 makes the dodge midpoint configurable and keeps chained dodge
-transitions continuous. Version 0.5.8 adds the animation-timed dodge offset
+Version 0.6.3 bases the shared presentation offset on the current first-person
+arms pivot instead of the rendered camera's delayed transform, keeping rapid
+left-right turns aligned without interpolation, viewmodel lag, or separation
+between arms, equipment, effects, and optional integrations. Version 0.6.2 adds
+optional render-scoped motion-blur suppression for FPAA head bob without
+changing the default presentation. Version 0.5.9 makes the dodge midpoint configurable and
+keeps chained dodge transitions continuous. Version 0.5.8 adds the animation-timed dodge offset
 transition. Version 0.5.6 aligns the stored sections with the established FoA Mod Manager
 layout and removes their numeric prefixes. Version 0.5.5 removes the old native-bob and locomotion-guard path and presents
 the camera-only system as one four-option Head Bob section. Version 0.5.4 enforces the vanilla accessibility gate immediately before every

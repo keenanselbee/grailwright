@@ -31,6 +31,7 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Jobs;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
 using UnityEngine.VFX;
 
@@ -39,8 +40,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.5.9.0")]
-[assembly: AssemblyFileVersion("0.5.9.0")]
+[assembly: AssemblyVersion("0.6.3.0")]
+[assembly: AssemblyFileVersion("0.6.3.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -82,7 +83,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.5.9";
+        public const string PluginVersion = "0.6.3";
         public const string TrueThirdPersonPluginGuid =
             "kane.tgfoa.true-third-person";
 
@@ -186,6 +187,7 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<HeadBobPreset> _headBobPreset;
         private ConfigEntry<float> _headBobSmoothness;
         private ConfigEntry<float> _sprintEmphasis;
+        private ConfigEntry<bool> _suppressMotionBlurDuringHeadBob;
         private ConfigEntry<bool> _diagnostics;
 
         private bool _hasPendingEnabled;
@@ -220,6 +222,8 @@ namespace FirstPersonArmsAdjuster
         private float _pendingHeadBobSmoothness;
         private bool _hasPendingSprintEmphasis;
         private float _pendingSprintEmphasis;
+        private bool _hasPendingSuppressMotionBlurDuringHeadBob;
+        private bool _pendingSuppressMotionBlurDuringHeadBob;
         private bool _hasPendingDiagnostics;
         private bool _pendingDiagnostics;
 
@@ -310,6 +314,11 @@ namespace FirstPersonArmsAdjuster
         private Camera _headBobCamera;
         private Vector3 _headBobOriginalCameraPosition;
         private bool _headBobApplied;
+        private Camera _headBobMotionBlurCamera;
+        private MotionBlur _headBobMotionBlur;
+        private bool _headBobMotionBlurOriginalCameraValue;
+        private bool _headBobMotionBlurSuppressed;
+        private bool _headBobMotionBlurUnavailableReported;
         private float _nextHeadBobDiagnosticTime;
 
         internal static FirstPersonArmsAdjusterPlugin Instance
@@ -379,7 +388,6 @@ namespace FirstPersonArmsAdjuster
             UpdateHeldMeleeOffsetBlend();
             UpdateSprintAttackOffsetBlend();
             UpdateSheathingOffsetBlend();
-            RefreshCurrentVisualWorldOffset();
         }
 
         private void LateUpdate()
@@ -1083,6 +1091,14 @@ namespace FirstPersonArmsAdjuster
             MethodInfo linkedTransformPrefix = AccessTools.Method(
                 typeof(LinkedTransformSystemPatch),
                 nameof(LinkedTransformSystemPatch.Prefix));
+            MethodInfo heroControllerProcessUpdate = AccessTools.Method(
+                typeof(VHeroController),
+                "ProcessUpdate",
+                new[] { typeof(float) });
+            MethodInfo heroControllerProcessUpdatePostfix =
+                AccessTools.Method(
+                    typeof(VHeroControllerProcessUpdatePatch),
+                    nameof(VHeroControllerProcessUpdatePatch.Postfix));
             MethodInfo headBobbingIntensityGetter =
                 AccessTools.PropertyGetter(
                     typeof(HeadBobbingSetting),
@@ -1109,6 +1125,8 @@ namespace FirstPersonArmsAdjuster
                 || kandraPostfix == null
                 || linkedTransformUpdate == null
                 || linkedTransformPrefix == null
+                || heroControllerProcessUpdate == null
+                || heroControllerProcessUpdatePostfix == null
                 || _inputBonesArrayField == null
                 || _readTransformField == null
                 || _bonesInFlightField == null)
@@ -1134,6 +1152,10 @@ namespace FirstPersonArmsAdjuster
             _harmony.Patch(
                 linkedTransformUpdate,
                 prefix: new HarmonyMethod(linkedTransformPrefix));
+            _harmony.Patch(
+                heroControllerProcessUpdate,
+                postfix: new HarmonyMethod(
+                    heroControllerProcessUpdatePostfix));
             if (headBobbingIntensityGetter != null
                 && headBobbingPostfix != null
                 && NativeHeadBobIntensityField != null
@@ -2241,16 +2263,7 @@ namespace FirstPersonArmsAdjuster
                 return;
             }
 
-            Hero hero = Hero.Current;
-            if (_enabled == null
-                || !_enabled.Value
-                || _enableHeadBob == null
-                || !_enableHeadBob.Value
-                || !IsHeadBobAccessibilityEnabled()
-                || hero == null
-                || Hero.TppActive
-                || hero.VHeroController == null
-                || hero.VHeroController.MainCamera != camera)
+            if (!CanApplyHeadBob(camera))
             {
                 return;
             }
@@ -2265,22 +2278,94 @@ namespace FirstPersonArmsAdjuster
             _headBobApplied = true;
         }
 
-        private void RestoreHeadBob(Camera camera = null)
+        private bool CanApplyHeadBob(Camera camera)
         {
-            if (!_headBobApplied
-                || (camera != null
-                    && camera != _headBobCamera))
+            Hero hero = Hero.Current;
+            return camera != null
+                && _enabled != null
+                && _enabled.Value
+                && _enableHeadBob != null
+                && _enableHeadBob.Value
+                && IsHeadBobAccessibilityEnabled()
+                && hero != null
+                && !Hero.TppActive
+                && hero.VHeroController != null
+                && hero.VHeroController.MainCamera == camera;
+        }
+
+        private void TrySuppressHeadBobCameraMotionBlur(Camera camera)
+        {
+            if (_headBobMotionBlurSuppressed
+                || _suppressMotionBlurDuringHeadBob == null
+                || !_suppressMotionBlurDuringHeadBob.Value)
             {
                 return;
             }
 
-            if (_headBobCamera != null)
+            HDCamera hdCamera = HDCamera.GetOrCreate(camera);
+            MotionBlur motionBlur = hdCamera == null
+                ? null
+                : hdCamera.volumeStack.GetComponent<MotionBlur>();
+            if (motionBlur == null
+                || motionBlur.cameraMotionBlur == null)
             {
-                _headBobCamera.transform.position =
-                    _headBobOriginalCameraPosition;
+                if (!_headBobMotionBlurUnavailableReported)
+                {
+                    _headBobMotionBlurUnavailableReported = true;
+                    Logger.LogWarning(
+                        "Could not suppress camera motion blur during head bob because the main HDRP camera has no motion-blur volume state.");
+                }
+                return;
             }
-            _headBobCamera = null;
-            _headBobApplied = false;
+
+            _headBobMotionBlurCamera = camera;
+            _headBobMotionBlur = motionBlur;
+            _headBobMotionBlurOriginalCameraValue =
+                motionBlur.cameraMotionBlur.value;
+            motionBlur.cameraMotionBlur.value = false;
+            _headBobMotionBlurSuppressed = true;
+        }
+
+        private void RestoreHeadBob(Camera camera = null)
+        {
+            bool restoreCamera = _headBobApplied
+                && (camera == null || camera == _headBobCamera);
+            bool restoreMotionBlur = _headBobMotionBlurSuppressed
+                && (camera == null
+                    || camera == _headBobMotionBlurCamera);
+            if (!restoreCamera && !restoreMotionBlur)
+            {
+                return;
+            }
+
+            if (restoreCamera)
+            {
+                if (_headBobCamera != null)
+                {
+                    _headBobCamera.transform.position =
+                        _headBobOriginalCameraPosition;
+                }
+                _headBobCamera = null;
+                _headBobApplied = false;
+            }
+            if (restoreMotionBlur)
+            {
+                RestoreHeadBobMotionBlurSuppression();
+            }
+        }
+
+        private void RestoreHeadBobMotionBlurSuppression()
+        {
+            if (_headBobMotionBlur != null
+                && _headBobMotionBlur.cameraMotionBlur != null)
+            {
+                _headBobMotionBlur.cameraMotionBlur.value =
+                    _headBobMotionBlurOriginalCameraValue;
+            }
+
+            _headBobMotionBlurCamera = null;
+            _headBobMotionBlur = null;
+            _headBobMotionBlurSuppressed = false;
         }
 
         private void ReportHeadBobDiagnostics(
@@ -2351,6 +2436,10 @@ namespace FirstPersonArmsAdjuster
             Camera camera)
         {
             TryApplyHeadBob(camera);
+            if (_headBobApplied && _headBobCamera == camera)
+            {
+                TrySuppressHeadBobCameraMotionBlur(camera);
+            }
             TryApplyRenderOffset(camera);
         }
 
@@ -2530,19 +2619,28 @@ namespace FirstPersonArmsAdjuster
                 * GetDodgeOffsetBlend(hero);
         }
 
+        internal void CaptureVisualWorldOffsetAfterCameraRotation(
+            VHeroController controller)
+        {
+            Hero hero = Hero.Current;
+            if (hero == null || hero.VHeroController != controller)
+            {
+                return;
+            }
+
+            RefreshCurrentVisualWorldOffset(controller);
+        }
+
         internal bool TryGetCurrentVisualWorldOffset(
             out Vector3 worldOffset)
         {
-            if (_currentVisualWorldOffsetFrame != Time.frameCount)
-            {
-                RefreshCurrentVisualWorldOffset();
-            }
-
             worldOffset = _currentVisualWorldOffset;
-            return _hasCurrentVisualWorldOffset;
+            return _currentVisualWorldOffsetFrame == Time.frameCount
+                && _hasCurrentVisualWorldOffset;
         }
 
-        private void RefreshCurrentVisualWorldOffset()
+        private void RefreshCurrentVisualWorldOffset(
+            VHeroController updatedController)
         {
             if (_currentVisualWorldOffsetFrame == Time.frameCount)
             {
@@ -2567,7 +2665,8 @@ namespace FirstPersonArmsAdjuster
                 return;
             }
 
-            VHeroController controller = hero.VHeroController;
+            VHeroController controller = updatedController
+                ?? hero.VHeroController;
             HeroBodyData bodyData = controller == null
                 ? null
                 : controller.BodyData;
@@ -2581,7 +2680,10 @@ namespace FirstPersonArmsAdjuster
                 return;
             }
 
-            _currentVisualWorldOffset = camera.transform.TransformVector(
+            Transform visualBasis = controller.fppParent == null
+                ? camera.transform
+                : controller.fppParent.transform;
+            _currentVisualWorldOffset = visualBasis.TransformVector(
                 GetEffectiveLocalOffset(hero));
             _hasCurrentVisualWorldOffset = true;
         }
@@ -3463,6 +3565,20 @@ namespace FirstPersonArmsAdjuster
                         SectionOrder = 25,
                         Order = 30
                     }));
+            _suppressMotionBlurDuringHeadBob = Config.Bind(
+                "Head Bob",
+                "SuppressMotionBlurDuringHeadBob",
+                false,
+                new ConfigDescription(
+                    "Temporarily excludes the main first-person camera's movement from HDRP motion blur only while FPAA head bob is visible, then restores the exact prior value. Moving objects retain their normal blur. Changes apply immediately.",
+                    null,
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Head Bob",
+                        DisplayName = "Suppress Motion Blur During Head Bob",
+                        SectionOrder = 25,
+                        Order = 40
+                    }));
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
@@ -3685,6 +3801,11 @@ namespace FirstPersonArmsAdjuster
                     "Head Bob",
                     "SprintEmphasis",
                     out _pendingSprintEmphasis);
+            _hasPendingSuppressMotionBlurDuringHeadBob =
+                profile.TryGetCustomizedValue(
+                    "Head Bob",
+                    "SuppressMotionBlurDuringHeadBob",
+                    out _pendingSuppressMotionBlurDuringHeadBob);
             _hasPendingDiagnostics = profile.TryGetCustomizedValue(
                 "Diagnostics",
                 "Diagnostics",
@@ -3816,6 +3937,18 @@ namespace FirstPersonArmsAdjuster
                 _pendingSprintEmphasis,
                 ref restoredCount,
                 ref clampedCount);
+            if (_hasPendingSuppressMotionBlurDuringHeadBob
+                && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                    _suppressMotionBlurDuringHeadBob,
+                    _pendingSuppressMotionBlurDuringHeadBob,
+                    out clamped))
+            {
+                restoredCount++;
+                if (clamped)
+                {
+                    clampedCount++;
+                }
+            }
             if (_hasPendingDiagnostics
                 && Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
                     _diagnostics,
@@ -3888,6 +4021,7 @@ namespace FirstPersonArmsAdjuster
             _hasPendingHeadBobPreset = false;
             _hasPendingHeadBobSmoothness = false;
             _hasPendingSprintEmphasis = false;
+            _hasPendingSuppressMotionBlurDuringHeadBob = false;
             _hasPendingDiagnostics = false;
         }
 
@@ -3987,6 +4121,23 @@ namespace FirstPersonArmsAdjuster
             if (instance != null)
             {
                 instance.ApplyDrakeWeaponOffset(__instance);
+            }
+        }
+    }
+
+    internal static class VHeroControllerProcessUpdatePatch
+    {
+        [HarmonyPriority(Priority.Last)]
+        [HarmonyAfter(
+            FirstPersonArmsAdjusterPlugin.TrueThirdPersonPluginGuid)]
+        internal static void Postfix(VHeroController __instance)
+        {
+            FirstPersonArmsAdjusterPlugin instance =
+                FirstPersonArmsAdjusterPlugin.Instance;
+            if (instance != null)
+            {
+                instance.CaptureVisualWorldOffsetAfterCameraRotation(
+                    __instance);
             }
         }
     }

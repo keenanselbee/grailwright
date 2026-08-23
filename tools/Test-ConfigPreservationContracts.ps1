@@ -63,7 +63,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedSettings('
         Restore = 'RestorePreservedSettings();'
         Save = 'Config.Save();'
-        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset', 'EnableHeadBob', 'HeadBobPreset', 'HeadBobSmoothness', 'SprintEmphasis')
+        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset', 'EnableHeadBob', 'HeadBobPreset', 'HeadBobSmoothness', 'SprintEmphasis', 'SuppressMotionBlurDuringHeadBob')
     },
     [pscustomobject]@{
         Name = 'Blood Magic Expansion'

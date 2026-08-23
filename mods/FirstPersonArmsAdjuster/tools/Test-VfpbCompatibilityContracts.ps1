@@ -17,7 +17,12 @@ $requiredFragments = @(
     'KandraRendererManagerPreLateUpdateEndPatch',
     'instance.ApplyKandraRenderOffset(__instance);',
     'rendererManager.RigManager',
-    'ApplyKandraCullingOffset(translation)'
+    'ApplyKandraCullingOffset(translation)',
+    'typeof(VHeroController)',
+    '"ProcessUpdate"',
+    'VHeroControllerProcessUpdatePatch',
+    'instance.CaptureVisualWorldOffsetAfterCameraRotation(',
+    'RefreshCurrentVisualWorldOffset(controller);'
 )
 
 foreach ($fragment in $requiredFragments) {
@@ -52,16 +57,53 @@ if ($sharedOffsetConsumerCount -ne 5) {
 
 $effectiveOffsetSampleCount = [regex]::Matches(
     $source,
-    'camera\.transform\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)'
+    'visualBasis\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)'
 ).Count
 if ($effectiveOffsetSampleCount -ne 1) {
-    throw "Expected exactly one camera-space sample of the effective visual offset; found $effectiveOffsetSampleCount."
+    throw "Expected exactly one arms-pivot-space sample of the effective visual offset; found $effectiveOffsetSampleCount."
+}
+
+$refreshMethod = [regex]::Match(
+    $source,
+    '(?s)private void RefreshCurrentVisualWorldOffset\(.+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+$visualBasisContract = @'
+Transform visualBasis = controller.fppParent == null
+                ? camera.transform
+                : controller.fppParent.transform;
+'@
+if (-not $refreshMethod.Contains($visualBasisContract)) {
+    throw "The shared visual offset does not prefer the current first-person arms pivot with a guarded main-camera fallback."
+}
+if ([regex]::IsMatch(
+        $refreshMethod,
+        'camera\.transform\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)')) {
+    throw "The shared visual offset still uses the rendered camera directly instead of the current first-person arms pivot."
 }
 
 if ([regex]::IsMatch(
         $source,
-        'camera\.transform\.TransformVector\(\s*localOffset\s*\)')) {
-    throw "A visual path independently resamples the camera-space offset instead of using the per-frame cache."
+        '(?:camera\.transform|controller\.fppParent\.transform)\.TransformVector\(\s*localOffset\s*\)')) {
+    throw "A visual path independently resamples the presentation offset instead of using the per-frame cache."
+}
+
+$updateMethod = [regex]::Match(
+    $source,
+    '(?s)private void Update\(\).+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+if ($updateMethod.Contains('RefreshCurrentVisualWorldOffset')) {
+    throw "The shared visual offset is still captured before the hero controller applies the current frame's camera rotation."
+}
+
+$sharedOffsetGetter = [regex]::Match(
+    $source,
+    '(?s)internal bool TryGetCurrentVisualWorldOffset\(.+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+if ($sharedOffsetGetter.Contains('RefreshCurrentVisualWorldOffset')) {
+    throw "An early API or visual consumer can still lock a stale camera rotation before the authoritative hero-controller capture."
 }
 
 $immutableFrameGuard = @'

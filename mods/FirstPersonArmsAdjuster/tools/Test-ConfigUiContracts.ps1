@@ -34,6 +34,7 @@ $expectedLabels = @(
     "Head Bob Strength",
     "Head Bob Smoothness",
     "Sprint Emphasis",
+    "Suppress Motion Blur During Head Bob",
     "Prevent Body Intrusion",
     "Normal Offset Retained (0-1)",
     "Extra Depth Correction (m)",

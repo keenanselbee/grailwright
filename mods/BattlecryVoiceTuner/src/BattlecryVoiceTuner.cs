@@ -36,8 +36,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.2.4.0")]
-[assembly: AssemblyFileVersion("1.2.4.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -96,9 +96,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.2.4";
+        public const string PluginVersion = "1.3.0";
 
-        private const int CurrentConfigSchemaVersion = 9;
+        private const int CurrentConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -111,12 +111,7 @@ namespace BattlecryVoiceTuner
                         "The existing hearing range multiplier now applies only outdoors.")
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
-            new[]
-            {
-                new ConfigDefinition(
-                    "Testing",
-                    "PlayRandomTestSound")
-            };
+            new ConfigDefinition[0];
 
         private const string CategoryAttack = "Attack";
         private const string CategoryHurt = "Hurt";
@@ -137,6 +132,7 @@ namespace BattlecryVoiceTuner
         private const string SummonAttackCommandId = "summon_attack";
         private const string SummonHoldCommandId = "summon_hold";
         private const string SummonFollowCommandId = "summon_follow";
+        private const string SummonRecallCommandId = "summon_recall";
         private const string SummonGuardCommandId = "summon_guard";
         private const string SummonBulwarkCommandId = "summon_bulwark";
         private const string SummonHuntCommandId = "summon_hunt";
@@ -149,12 +145,14 @@ namespace BattlecryVoiceTuner
         private const string MaleSummonAttackPool = "summon_command:male:attack";
         private const string MaleSummonHoldPool = "summon_command:male:hold";
         private const string MaleSummonFollowPool = "summon_command:male:follow";
+        private const string MaleSummonRecallPool = "summon_command:male:recall";
         private const string MaleSummonGuardPool = "summon_command:male:guard";
         private const string MaleSummonBulwarkPool = "summon_command:male:bulwark";
         private const string MaleSummonHuntPool = "summon_command:male:hunt";
         private const string FemaleSummonAttackPool = "summon_command:female:attack";
         private const string FemaleSummonHoldPool = "summon_command:female:hold";
         private const string FemaleSummonFollowPool = "summon_command:female:follow";
+        private const string FemaleSummonRecallPool = "summon_command:female:recall";
         private const string FemaleSummonGuardPool = "summon_command:female:guard";
         private const string FemaleSummonBulwarkPool = "summon_command:female:bulwark";
         private const string FemaleSummonHuntPool = "summon_command:female:hunt";
@@ -226,6 +224,7 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<VoiceGrowthAttribute> _customPrimaryAttribute;
         private ConfigEntry<VoiceGrowthAttribute> _customSecondaryAttribute;
         private ConfigEntry<float> _customPrimaryAttributeWeight;
+        private ConfigEntry<bool> _nativeVoiceTuningEnabled;
         private ConfigEntry<bool> _includeAttackGrunts;
         private ConfigEntry<bool> _includeHurtGrunts;
         private ConfigEntry<bool> _includeDeathGrunts;
@@ -257,7 +256,6 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<float> _indoorBattlecryAggroRangeMultiplier;
         private ConfigEntry<float> _battlecryAggroDurationSeconds;
         private ConfigEntry<float> _eyesInTheDarkThreat;
-        private ConfigEntry<bool> _playRandomTestSound;
         private ConfigEntry<bool> _diagnostics;
         private readonly List<string> _maleBattlecryPaths =
             new List<string>();
@@ -268,6 +266,8 @@ namespace BattlecryVoiceTuner
         private readonly List<string> _maleSummonHoldPaths =
             new List<string>();
         private readonly List<string> _maleSummonFollowPaths =
+            new List<string>();
+        private readonly List<string> _maleSummonRecallPaths =
             new List<string>();
         private readonly List<string> _maleSummonGuardPaths =
             new List<string>();
@@ -280,6 +280,8 @@ namespace BattlecryVoiceTuner
         private readonly List<string> _femaleSummonHoldPaths =
             new List<string>();
         private readonly List<string> _femaleSummonFollowPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonRecallPaths =
             new List<string>();
         private readonly List<string> _femaleSummonGuardPaths =
             new List<string>();
@@ -312,8 +314,8 @@ namespace BattlecryVoiceTuner
         private bool _battlecrySfxBusLocked;
         private readonly HashSet<NpcAI> _challengedNpcs =
             new HashSet<NpcAI>();
-        private readonly Dictionary<string, float> _pendingPreservedVoiceTuning =
-            new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, object> _pendingPreservedVoiceTuning =
+            new Dictionary<string, object>(StringComparer.Ordinal);
         private int _pendingPreservedInvalidValueCount;
         private float _lastBattlecryTime = float.NegativeInfinity;
         private float _lastCommandVoiceTime = float.NegativeInfinity;
@@ -329,7 +331,6 @@ namespace BattlecryVoiceTuner
         private bool _soulAndServiceCommandApiUnavailable;
         private bool _noBattlecryFilesWarningLogged;
         private bool _noCommandFilesWarningLogged;
-        private bool _resettingTestButton;
         private bool _heroUnderRoof;
 
         private void Awake()
@@ -379,11 +380,6 @@ namespace BattlecryVoiceTuner
 
         private void OnDestroy()
         {
-            if (_playRandomTestSound != null)
-            {
-                _playRandomTestSound.SettingChanged -= OnPlayRandomTestSoundChanged;
-            }
-
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -555,6 +551,45 @@ namespace BattlecryVoiceTuner
                     _pendingPreservedVoiceTuning[settingName] = parsedValue;
                 }
             }
+
+            CapturePreservedVoiceTuningSetting<PitchProcessingMode>(
+                profile,
+                "PitchProcessingMode");
+            CapturePreservedVoiceTuningSetting<bool>(
+                profile,
+                "VoiceGrowthEnabled");
+            CapturePreservedVoiceTuningSetting<VoiceGrowthPreset>(
+                profile,
+                "VoiceGrowthPreset");
+            CapturePreservedVoiceTuningSetting<float>(
+                profile,
+                "VoiceGrowthMaximumSemitones");
+            CapturePreservedVoiceTuningSetting<bool>(
+                profile,
+                "UseTemporaryAttributeModifiers");
+            CapturePreservedVoiceTuningSetting<VoiceGrowthAttribute>(
+                profile,
+                "CustomPrimaryAttribute");
+            CapturePreservedVoiceTuningSetting<VoiceGrowthAttribute>(
+                profile,
+                "CustomSecondaryAttribute");
+            CapturePreservedVoiceTuningSetting<float>(
+                profile,
+                "CustomPrimaryAttributeWeight");
+        }
+
+        private void CapturePreservedVoiceTuningSetting<T>(
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            string settingName)
+        {
+            T value;
+            if (profile.TryGetCustomizedValue(
+                "Voice Tuning",
+                settingName,
+                out value))
+            {
+                _pendingPreservedVoiceTuning[settingName] = value;
+            }
         }
 
         private static bool IsPreservedVoiceTuningSetting(string settingName)
@@ -582,27 +617,67 @@ namespace BattlecryVoiceTuner
 
             int restoredCount = 0;
             int clampedCount = 0;
-            RestorePreservedFloat(
+            RestorePreservedVoiceTuningSetting(
                 "PitchSemitones",
                 _pitchSemitones,
                 ref restoredCount,
                 ref clampedCount);
-            RestorePreservedFloat(
+            RestorePreservedVoiceTuningSetting(
                 "RandomPitchSemitones",
                 _randomPitchSemitones,
                 ref restoredCount,
                 ref clampedCount);
-            RestorePreservedFloat(
+            RestorePreservedVoiceTuningSetting(
                 "VolumeMultiplier",
                 _volumeMultiplier,
                 ref restoredCount,
                 ref clampedCount);
-            RestorePreservedFloat(
+            RestorePreservedVoiceTuningSetting(
+                "PitchProcessingMode",
+                _pitchProcessingMode,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "VoiceGrowthEnabled",
+                _voiceGrowthEnabled,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "VoiceGrowthPreset",
+                _voiceGrowthPreset,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "VoiceGrowthMaximumSemitones",
+                _voiceGrowthMaximumSemitones,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "UseTemporaryAttributeModifiers",
+                _useTemporaryAttributeModifiers,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "CustomPrimaryAttribute",
+                _customPrimaryAttribute,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "CustomSecondaryAttribute",
+                _customSecondaryAttribute,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "CustomPrimaryAttributeWeight",
+                _customPrimaryAttributeWeight,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
                 "CommandVoiceVolumeMultiplier",
                 _commandVoiceVolumeMultiplier,
                 ref restoredCount,
                 ref clampedCount);
-            RestorePreservedFloat(
+            RestorePreservedVoiceTuningSetting(
                 "MaleCommandVoicePitchOffsetSemitones",
                 _maleCommandVoicePitchOffsetSemitones,
                 ref restoredCount,
@@ -619,15 +694,18 @@ namespace BattlecryVoiceTuner
             ClearPendingPreservedVoiceTuning();
         }
 
-        private void RestorePreservedFloat(
+        private void RestorePreservedVoiceTuningSetting<T>(
             string settingName,
-            ConfigEntry<float> entry,
+            ConfigEntry<T> entry,
             ref int restoredCount,
             ref int clampedCount)
         {
-            float preservedValue;
+            object preservedValue;
             if (entry == null
-                || !_pendingPreservedVoiceTuning.TryGetValue(settingName, out preservedValue))
+                || !_pendingPreservedVoiceTuning.TryGetValue(
+                    settingName,
+                    out preservedValue)
+                || !(preservedValue is T))
             {
                 return;
             }
@@ -635,7 +713,7 @@ namespace BattlecryVoiceTuner
             bool clamped;
             if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
                 entry,
-                preservedValue,
+                (T)preservedValue,
                 out clamped))
             {
                 _pendingPreservedInvalidValueCount++;
@@ -681,7 +759,7 @@ namespace BattlecryVoiceTuner
                 UiDescription(
                     "Master toggle for player voice tuning, battlecries, and command voices.",
                     "General",
-                    "Enabled",
+                    "Master Enable",
                     0,
                     0));
 
@@ -697,17 +775,16 @@ namespace BattlecryVoiceTuner
                     0,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
-            _randomPitchSemitones = Config.Bind(
+            _pitchProcessingMode = Config.Bind(
                 "Voice Tuning",
-                "RandomPitchSemitones",
-                0.15f,
+                "PitchProcessingMode",
+                PitchProcessingMode.Natural,
                 UiDescription(
-                    "Maximum random pitch variation added per played sound, in semitones. Set 0 for a fixed pitch.",
+                    "Controls how pitch affects timing for native voice sounds, battlecries, and command voices. Natural changes playback speed with pitch, Balanced reduces that timing change, and TempoPreserving keeps roughly the original duration but can sound more processed.",
                     "Voice Tuning",
-                    "Random Pitch (Semitones)",
+                    "Pitch Processing",
                     1,
-                    1,
-                    new AcceptableValueRange<float>(0.0f, 3.0f)));
+                    1));
 
             _volumeMultiplier = Config.Bind(
                 "Voice Tuning",
@@ -721,16 +798,17 @@ namespace BattlecryVoiceTuner
                     2,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
-            _pitchProcessingMode = Config.Bind(
+            _randomPitchSemitones = Config.Bind(
                 "Voice Tuning",
-                "PitchProcessingMode",
-                PitchProcessingMode.Balanced,
+                "RandomPitchSemitones",
+                0.15f,
                 UiDescription(
-                    "Controls how pitch affects timing. Natural uses playback rate, Balanced splits the shift evenly between playback rate and a tempo-preserving DSP, and TempoPreserving favors the DSP.",
+                    "Maximum random pitch variation added per played sound, in semitones. Set 0 for a fixed pitch.",
                     "Voice Tuning",
-                    "Pitch Processing",
+                    "Random Pitch (Semitones)",
                     1,
-                    3));
+                    3,
+                    new AcceptableValueRange<float>(0.0f, 3.0f)));
 
             _voiceGrowthEnabled = Config.Bind(
                 "Voice Tuning",
@@ -772,10 +850,10 @@ namespace BattlecryVoiceTuner
                 false,
                 UiDescription(
                     "Include temporary attribute modifiers in voice growth. Off keeps equipment, consumables, and short effects from making the voice fluctuate.",
-                    "Voice Tuning",
+                    "Voice Growth - Advanced",
                     "Include Temporary Attributes",
-                    1,
-                    7));
+                    2,
+                    0));
 
             _customPrimaryAttribute = Config.Bind(
                 "Voice Tuning",
@@ -783,10 +861,10 @@ namespace BattlecryVoiceTuner
                 VoiceGrowthAttribute.Strength,
                 UiDescription(
                     "Primary progression attribute used only by the Custom archetype.",
-                    "Voice Tuning",
+                    "Voice Growth - Advanced",
                     "Custom Primary Attribute",
-                    1,
-                    8));
+                    2,
+                    1));
 
             _customSecondaryAttribute = Config.Bind(
                 "Voice Tuning",
@@ -794,10 +872,10 @@ namespace BattlecryVoiceTuner
                 VoiceGrowthAttribute.Endurance,
                 UiDescription(
                     "Secondary progression attribute used only by the Custom archetype.",
-                    "Voice Tuning",
+                    "Voice Growth - Advanced",
                     "Custom Secondary Attribute",
-                    1,
-                    9));
+                    2,
+                    2));
 
             _customPrimaryAttributeWeight = Config.Bind(
                 "Voice Tuning",
@@ -805,11 +883,22 @@ namespace BattlecryVoiceTuner
                 0.75f,
                 UiDescription(
                     "Share of Custom archetype growth supplied by the primary attribute; the secondary attribute supplies the remainder.",
-                    "Voice Tuning",
+                    "Voice Growth - Advanced",
                     "Custom Primary Weight",
-                    1,
-                    10,
+                    2,
+                    3,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _nativeVoiceTuningEnabled = Config.Bind(
+                "Native Voice Events",
+                "NativeVoiceTuningEnabled",
+                true,
+                UiDescription(
+                    "Master toggle for tuning the game's supported native player voice events. Custom battlecries and command voices remain independently controlled.",
+                    "Native Voice Events",
+                    "Native Voice Tuning",
+                    3,
+                    0));
 
             _includeAttackGrunts = Config.Bind(
                 "Native Voice Events",
@@ -819,8 +908,8 @@ namespace BattlecryVoiceTuner
                     "Tune player attack/exertion grunts.",
                     "Native Voice Events",
                     "Attack and Exertion Grunts",
-                    2,
-                    0));
+                    3,
+                    1));
 
             _includeHurtGrunts = Config.Bind(
                 "Native Voice Events",
@@ -830,8 +919,8 @@ namespace BattlecryVoiceTuner
                     "Tune player hurt grunts.",
                     "Native Voice Events",
                     "Hurt Grunts",
-                    2,
-                    1));
+                    3,
+                    2));
 
             _includeDeathGrunts = Config.Bind(
                 "Native Voice Events",
@@ -841,8 +930,8 @@ namespace BattlecryVoiceTuner
                     "Tune player death grunts.",
                     "Native Voice Events",
                     "Death Grunts",
-                    2,
-                    2));
+                    3,
+                    3));
 
             _includeStatusPainGrunts = Config.Bind(
                 "Native Voice Events",
@@ -852,8 +941,8 @@ namespace BattlecryVoiceTuner
                     "Tune player burn, bleed, poison, and drown grunts.",
                     "Native Voice Events",
                     "Status Pain Grunts",
-                    2,
-                    3));
+                    3,
+                    4));
 
             _includePlayerHitFeedback = Config.Bind(
                 "Native Voice Events",
@@ -863,8 +952,8 @@ namespace BattlecryVoiceTuner
                     "Tune SFX_Player_Hit, the player hit-feedback sound used when the player lands a hit.",
                     "Native Voice Events",
                     "Player Hit Feedback",
-                    2,
-                    4));
+                    3,
+                    5));
 
             _includeStaminaDepletedBreathing = Config.Bind(
                 "Native Voice Events",
@@ -874,8 +963,8 @@ namespace BattlecryVoiceTuner
                     "Tune stamina-depleted breathing loops. Off by default because these are longer/looping sounds.",
                     "Native Voice Events",
                     "Stamina-Depleted Breathing",
-                    2,
-                    5));
+                    3,
+                    6));
 
             _battlecryEnabled = Config.Bind(
                 "Battlecry Audio",
@@ -883,9 +972,9 @@ namespace BattlecryVoiceTuner
                 true,
                 UiDescription(
                     "Enable custom battlecry audio and its enemy challenge effect.",
-                    "Battlecry Audio",
+                    "Battlecry",
                     "Enabled",
-                    3,
+                    4,
                     0));
 
             _battlecryVolumeMultiplier = Config.Bind(
@@ -895,9 +984,9 @@ namespace BattlecryVoiceTuner
                 UiDescription(
                     "Additional volume multiplier applied only to custom battlecries after Overall Voice Volume. Battlecries also follow the game's SFX volume category.",
                     "Battlecry Audio",
-                    "Battlecry Volume",
-                    3,
-                    1,
+                    "Additional Battlecry Volume",
+                    5,
+                    0,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
             _battlecryReverbEnabled = Config.Bind(
@@ -907,9 +996,9 @@ namespace BattlecryVoiceTuner
                 UiDescription(
                     "Apply environment-aware reverb only to custom battlecries. Full interiors and the game's roof volumes use the indoor amount; other open-world areas use the outdoor amount.",
                     "Battlecry Audio",
-                    "Dynamic Reverb",
-                    3,
-                    2));
+                    "Environment Reverb",
+                    5,
+                    1));
 
             _outdoorBattlecryReverbAmount = Config.Bind(
                 "Battlecry Audio",
@@ -919,8 +1008,8 @@ namespace BattlecryVoiceTuner
                     "Light reverb amount for battlecries in unroofed open-world areas. Zero is dry; one is the strongest supported effect.",
                     "Battlecry Audio",
                     "Outdoor Reverb Amount",
-                    3,
-                    3,
+                    5,
+                    2,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _indoorBattlecryReverbAmount = Config.Bind(
@@ -931,8 +1020,8 @@ namespace BattlecryVoiceTuner
                     "Strength multiplier for room-scaled reverb and qualifying long reflections in interiors, caves, and the game's roof volumes. Zero is dry; one is the strongest supported effect.",
                     "Battlecry Audio",
                     "Indoor Reverb Amount",
+                    5,
                     3,
-                    4,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
             _maleBattlecryPitchOffsetSemitones = Config.Bind(
@@ -943,8 +1032,8 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to male battlecries after the overall PitchSemitones setting.",
                     "Battlecry Audio",
                     "Male Pitch Offset (Semitones)",
-                    3,
                     5,
+                    4,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _femaleBattlecryPitchOffsetSemitones = Config.Bind(
@@ -955,8 +1044,8 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to female battlecries after the overall PitchSemitones setting.",
                     "Battlecry Audio",
                     "Female Pitch Offset (Semitones)",
-                    3,
-                    6,
+                    5,
+                    5,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
             _recentBattlecryMemory = Config.Bind(
@@ -967,8 +1056,8 @@ namespace BattlecryVoiceTuner
                     "How many recently played battlecries to avoid for each gender when alternatives remain.",
                     "Battlecry Audio",
                     "Recent Sound Memory",
-                    3,
-                    7,
+                    5,
+                    6,
                     new AcceptableValueRange<int>(0, 20)));
 
             _commandVoiceEnabled = Config.Bind(
@@ -979,7 +1068,7 @@ namespace BattlecryVoiceTuner
                     "Play a gender-matched spoken command when a supported mod successfully issues an explicit order.",
                     "Command Voice",
                     "Enabled",
-                    4,
+                    6,
                     0));
 
             _commandVoiceVolumeMultiplier = Config.Bind(
@@ -989,8 +1078,8 @@ namespace BattlecryVoiceTuner
                 UiDescription(
                     "Additional command-only volume multiplier after Overall Voice Volume. Commands follow the game's SFX volume category.",
                     "Command Voice",
-                    "Command Volume",
-                    4,
+                    "Additional Command Volume",
+                    6,
                     1,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -1001,8 +1090,8 @@ namespace BattlecryVoiceTuner
                 UiDescription(
                     "Apply a lighter environment-aware acoustic response to command voices using separate reusable FMOD paths.",
                     "Command Voice",
-                    "Smart Reverb",
-                    4,
+                    "Environment Reverb",
+                    6,
                     2));
 
             _outdoorCommandVoiceReverbAmount = Config.Bind(
@@ -1013,7 +1102,7 @@ namespace BattlecryVoiceTuner
                     "Light geometry-shaped command reverb in unroofed open-world areas.",
                     "Command Voice",
                     "Outdoor Reverb Amount",
-                    4,
+                    6,
                     3,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1025,7 +1114,7 @@ namespace BattlecryVoiceTuner
                     "Room-scaled command reverb in interiors, caves, and roofed spaces.",
                     "Command Voice",
                     "Indoor Reverb Amount",
-                    4,
+                    6,
                     4,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1037,7 +1126,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to male command voices after Overall Pitch.",
                     "Command Voice",
                     "Male Pitch Offset (Semitones)",
-                    4,
+                    6,
                     5,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1049,7 +1138,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to female command voices after Overall Pitch.",
                     "Command Voice",
                     "Female Pitch Offset (Semitones)",
-                    4,
+                    6,
                     6,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1061,7 +1150,7 @@ namespace BattlecryVoiceTuner
                     "How many recently played command voices to avoid within each gender and command-type pool when alternatives remain.",
                     "Command Voice",
                     "Recent Sound Memory",
-                    4,
+                    6,
                     7,
                     new AcceptableValueRange<int>(0, 20)));
 
@@ -1073,7 +1162,7 @@ namespace BattlecryVoiceTuner
                     "Minimum active gameplay seconds between spoken commands, preventing rapid orders from stacking voices.",
                     "Command Voice",
                     "Cooldown (Seconds)",
-                    4,
+                    6,
                     8,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -1083,10 +1172,10 @@ namespace BattlecryVoiceTuner
                 true,
                 UiDescription(
                     "Hold the game's Take All Items action to battlecry. Uses the game's current remapped keyboard or controller binding and does not interfere with taking items from an open container.",
-                    "Battlecry Input",
+                    "Battlecry",
                     "Hold Take All Items",
-                    5,
-                    0));
+                    4,
+                    1));
 
             _battlecryHoldSeconds = Config.Bind(
                 "Battlecry Input",
@@ -1094,10 +1183,10 @@ namespace BattlecryVoiceTuner
                 0.45f,
                 UiDescription(
                     "Seconds the Take All Items action must be held before attempting a battlecry.",
-                    "Battlecry Input",
+                    "Battlecry",
                     "Hold Time (Seconds)",
-                    5,
-                    1,
+                    4,
+                    2,
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
 
             _battlecryHotkey = Config.Bind(
@@ -1106,10 +1195,10 @@ namespace BattlecryVoiceTuner
                 new KeyboardShortcut(KeyCode.None),
                 UiDescription(
                     "Optional separate keyboard or joystick-button shortcut. None disables the separate shortcut.",
-                    "Battlecry Input",
+                    "Battlecry",
                     "Separate Hotkey",
-                    5,
-                    2));
+                    4,
+                    3));
 
             _battlecryCooldownSeconds = Config.Bind(
                 "Battlecry Input",
@@ -1117,10 +1206,10 @@ namespace BattlecryVoiceTuner
                 1.5f,
                 UiDescription(
                     "Minimum active gameplay seconds between battlecries.",
-                    "Battlecry Input",
+                    "Battlecry",
                     "Cooldown (Seconds)",
-                    5,
-                    3,
+                    4,
+                    4,
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
             _battlecryAggroRangeMultiplier = Config.Bind(
@@ -1129,10 +1218,10 @@ namespace BattlecryVoiceTuner
                 3.0f,
                 UiDescription(
                     "Multiplier applied to each hostile NPC's normal maximum hearing range for battlecries in unroofed open-world areas.",
-                    "Battlecry Challenge",
+                    "Battlecry",
                     "Outdoor Hearing Range Multiplier",
-                    6,
-                    0,
+                    4,
+                    5,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _indoorBattlecryAggroRangeMultiplier = Config.Bind(
@@ -1141,10 +1230,10 @@ namespace BattlecryVoiceTuner
                 4.0f,
                 UiDescription(
                     "Multiplier applied to each hostile NPC's normal maximum hearing range in interiors, caves, and the game's roof volumes.",
-                    "Battlecry Challenge",
+                    "Battlecry",
                     "Indoor Hearing Range Multiplier",
+                    4,
                     6,
-                    1,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
             _battlecryAggroDurationSeconds = Config.Bind(
@@ -1153,10 +1242,10 @@ namespace BattlecryVoiceTuner
                 3.0f,
                 UiDescription(
                     "Active gameplay seconds during which newly reached hostile NPCs can hear the challenge.",
-                    "Battlecry Challenge",
+                    "Battlecry",
                     "Challenge Duration (Seconds)",
-                    6,
-                    2,
+                    4,
+                    7,
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
             _eyesInTheDarkThreat = Config.Bind(
@@ -1171,18 +1260,6 @@ namespace BattlecryVoiceTuner
                     0,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
-            _playRandomTestSound = Config.Bind(
-                "Testing",
-                "PlayRandomTestSound",
-                false,
-                UiDescription(
-                    "Pseudo-button. Toggle on to play one random supported one-shot sound, then the mod resets this to false.",
-                    "Testing",
-                    "Play Random Native Voice Sound",
-                    8,
-                    0));
-            _playRandomTestSound.SettingChanged += OnPlayRandomTestSoundChanged;
-
             _diagnostics = Config.Bind(
                 "Diagnostics",
                 "Diagnostics",
@@ -1191,7 +1268,7 @@ namespace BattlecryVoiceTuner
                     "Write detailed match and FMOD result information to the BepInEx log.",
                     "Diagnostics",
                     "Diagnostics",
-                    9,
+                    Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder,
                     0));
 
             RestorePreservedVoiceTuning();
@@ -1337,7 +1414,11 @@ namespace BattlecryVoiceTuner
 
         private void TryTuneEvent(EventDescription eventDescription, ref EventInstance eventInstance)
         {
-            if (_enabled == null || !_enabled.Value || !eventInstance.isValid())
+            if (_enabled == null
+                || !_enabled.Value
+                || _nativeVoiceTuningEnabled == null
+                || !_nativeVoiceTuningEnabled.Value
+                || !eventInstance.isValid())
             {
                 return;
             }
@@ -1593,7 +1674,7 @@ namespace BattlecryVoiceTuner
                 12.0
                 * Math.Log(finalPitchMultiplier, 2.0));
             PitchProcessingMode mode = _pitchProcessingMode == null
-                ? PitchProcessingMode.Balanced
+                ? PitchProcessingMode.Natural
                 : _pitchProcessingMode.Value;
             float rateShare;
             switch (mode)
@@ -2011,11 +2092,6 @@ namespace BattlecryVoiceTuner
             return false;
         }
 
-        private static bool IsTestableCategory(string category)
-        {
-            return category != CategoryStamina;
-        }
-
         private static bool TryGetSupportedEvent(GUID eventGuid, out SupportedVoiceEvent supportedEvent)
         {
             for (int index = 0; index < SupportedEvents.Length; index++)
@@ -2253,22 +2329,17 @@ namespace BattlecryVoiceTuner
                 return;
             }
 
+            string battlecryDirectory = Path.Combine(
+                Path.Combine(pluginDirectory, "audio"),
+                "battlecry");
             DiscoverVoiceFiles(
-                Path.Combine(
-                    Path.Combine(
-                        Path.Combine(pluginDirectory, "audio"),
-                        "battlecry"),
-                    "male"),
-                "*.wav",
+                battlecryDirectory,
+                "hero_male_battlecry_*.wav",
                 MaximumBattlecryFilesPerGender,
                 _maleBattlecryPaths);
             DiscoverVoiceFiles(
-                Path.Combine(
-                    Path.Combine(
-                        Path.Combine(pluginDirectory, "audio"),
-                        "battlecry"),
-                    "female"),
-                "*.wav",
+                battlecryDirectory,
+                "hero_female_battlecry_*.wav",
                 MaximumBattlecryFilesPerGender,
                 _femaleBattlecryPaths);
 
@@ -2287,24 +2358,28 @@ namespace BattlecryVoiceTuner
             _maleSummonAttackPaths.Clear();
             _maleSummonHoldPaths.Clear();
             _maleSummonFollowPaths.Clear();
+            _maleSummonRecallPaths.Clear();
             _maleSummonGuardPaths.Clear();
             _maleSummonBulwarkPaths.Clear();
             _maleSummonHuntPaths.Clear();
             _femaleSummonAttackPaths.Clear();
             _femaleSummonHoldPaths.Clear();
             _femaleSummonFollowPaths.Clear();
+            _femaleSummonRecallPaths.Clear();
             _femaleSummonGuardPaths.Clear();
             _femaleSummonBulwarkPaths.Clear();
             _femaleSummonHuntPaths.Clear();
             ClearRecentPool(MaleSummonAttackPool);
             ClearRecentPool(MaleSummonHoldPool);
             ClearRecentPool(MaleSummonFollowPool);
+            ClearRecentPool(MaleSummonRecallPool);
             ClearRecentPool(MaleSummonGuardPool);
             ClearRecentPool(MaleSummonBulwarkPool);
             ClearRecentPool(MaleSummonHuntPool);
             ClearRecentPool(FemaleSummonAttackPool);
             ClearRecentPool(FemaleSummonHoldPool);
             ClearRecentPool(FemaleSummonFollowPool);
+            ClearRecentPool(FemaleSummonRecallPool);
             ClearRecentPool(FemaleSummonGuardPool);
             ClearRecentPool(FemaleSummonBulwarkPool);
             ClearRecentPool(FemaleSummonHuntPool);
@@ -2336,6 +2411,11 @@ namespace BattlecryVoiceTuner
                 _maleSummonFollowPaths);
             DiscoverVoiceFiles(
                 commandDirectory,
+                "summon_male_recall_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonRecallPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
                 "summon_female_attack_*.wav",
                 MaximumCommandFilesPerPool,
                 _femaleSummonAttackPaths);
@@ -2349,6 +2429,11 @@ namespace BattlecryVoiceTuner
                 "summon_female_follow_*.wav",
                 MaximumCommandFilesPerPool,
                 _femaleSummonFollowPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_recall_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonRecallPaths);
             DiscoverVoiceFiles(
                 commandDirectory,
                 "summon_male_guard_*.wav",
@@ -2388,6 +2473,8 @@ namespace BattlecryVoiceTuner
                 + _maleSummonHoldPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", follow="
                 + _maleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", recall="
+                + _maleSummonRecallPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", guard="
                 + _maleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", bulwark="
@@ -2401,6 +2488,8 @@ namespace BattlecryVoiceTuner
                 + _femaleSummonHoldPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", follow="
                 + _femaleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", recall="
+                + _femaleSummonRecallPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", guard="
                 + _femaleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", bulwark="
@@ -2589,12 +2678,14 @@ namespace BattlecryVoiceTuner
             return _maleSummonAttackPaths.Count > 0
                 || _maleSummonHoldPaths.Count > 0
                 || _maleSummonFollowPaths.Count > 0
+                || _maleSummonRecallPaths.Count > 0
                 || _maleSummonGuardPaths.Count > 0
                 || _maleSummonBulwarkPaths.Count > 0
                 || _maleSummonHuntPaths.Count > 0
                 || _femaleSummonAttackPaths.Count > 0
                 || _femaleSummonHoldPaths.Count > 0
                 || _femaleSummonFollowPaths.Count > 0
+                || _femaleSummonRecallPaths.Count > 0
                 || _femaleSummonGuardPaths.Count > 0
                 || _femaleSummonBulwarkPaths.Count > 0
                 || _femaleSummonHuntPaths.Count > 0;
@@ -2626,6 +2717,17 @@ namespace BattlecryVoiceTuner
                     ? _femaleSummonFollowPaths
                     : _maleSummonFollowPaths;
                 pool = female ? FemaleSummonFollowPool : MaleSummonFollowPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonRecallCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonRecallPaths
+                    : _maleSummonRecallPaths;
+                pool = female ? FemaleSummonRecallPool : MaleSummonRecallPool;
                 return;
             }
             if (String.Equals(
@@ -2682,6 +2784,10 @@ namespace BattlecryVoiceTuner
                 || String.Equals(
                     commandId,
                     SummonFollowCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonRecallCommandId,
                     StringComparison.OrdinalIgnoreCase)
                 || String.Equals(
                     commandId,
@@ -4478,12 +4584,14 @@ namespace BattlecryVoiceTuner
             _maleSummonAttackPaths.Clear();
             _maleSummonHoldPaths.Clear();
             _maleSummonFollowPaths.Clear();
+            _maleSummonRecallPaths.Clear();
             _maleSummonGuardPaths.Clear();
             _maleSummonBulwarkPaths.Clear();
             _maleSummonHuntPaths.Clear();
             _femaleSummonAttackPaths.Clear();
             _femaleSummonHoldPaths.Clear();
             _femaleSummonFollowPaths.Clear();
+            _femaleSummonRecallPaths.Clear();
             _femaleSummonGuardPaths.Clear();
             _femaleSummonBulwarkPaths.Clear();
             _femaleSummonHuntPaths.Clear();
@@ -4691,80 +4799,6 @@ namespace BattlecryVoiceTuner
             }
 
             return true;
-        }
-
-        private void OnPlayRandomTestSoundChanged(object sender, EventArgs e)
-        {
-            if (_resettingTestButton || _playRandomTestSound == null || !_playRandomTestSound.Value)
-            {
-                return;
-            }
-
-            try
-            {
-                PlayRandomTestSound();
-            }
-            catch (Exception ex)
-            {
-                _log.LogWarning("Could not play random " + PluginName + " test sound: " + ex.Message);
-            }
-            finally
-            {
-                ResetTestButton();
-            }
-        }
-
-        private void ResetTestButton()
-        {
-            _resettingTestButton = true;
-            try
-            {
-                _playRandomTestSound.Value = false;
-                Config.Save();
-            }
-            finally
-            {
-                _resettingTestButton = false;
-            }
-        }
-
-        private void PlayRandomTestSound()
-        {
-            List<SupportedVoiceEvent> candidates = new List<SupportedVoiceEvent>();
-            for (int index = 0; index < SupportedEvents.Length; index++)
-            {
-                SupportedVoiceEvent supportedEvent = SupportedEvents[index];
-                if (IsTestableCategory(supportedEvent.Category) && IsCategoryEnabled(supportedEvent.Category))
-                {
-                    candidates.Add(supportedEvent);
-                }
-            }
-
-            if (candidates.Count == 0)
-            {
-                _log.LogWarning("No enabled one-shot " + PluginName + " sounds are available for the random test button.");
-                return;
-            }
-
-            SupportedVoiceEvent selected = candidates[_random.Next(candidates.Count)];
-            EventInstance eventInstance;
-            if (!RuntimeManager.TryCreateInstance(selected.Guid, out eventInstance) || !eventInstance.isValid())
-            {
-                _log.LogWarning("Could not create random " + PluginName + " test sound: " + selected.Path + ".");
-                return;
-            }
-
-            RESULT startResult = eventInstance.start();
-            RuntimeManager.ReleaseInstance(eventInstance);
-
-            if (startResult == RESULT.OK)
-            {
-                _log.LogInfo("Played random " + PluginName + " test sound: " + selected.Label + " (" + selected.Path + ").");
-            }
-            else
-            {
-                _log.LogWarning("Random " + PluginName + " test sound failed to start: " + selected.Path + ". Result=" + startResult + ".");
-            }
         }
 
         private void LogDiagnostic(string message)

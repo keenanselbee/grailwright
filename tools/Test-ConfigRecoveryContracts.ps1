@@ -153,9 +153,6 @@ $expectedPermanentExclusions = @{
         @{ Section = 'Diagnostics'; Key = 'EnableTimescaleOverride' },
         @{ Section = 'Diagnostics'; Key = 'TimescaleOverrideMultiplier' }
     )
-    'BattlecryVoiceTuner' = @(
-        @{ Section = 'Testing'; Key = 'PlayRandomTestSound' }
-    )
 }
 
 $harnessSource = @'

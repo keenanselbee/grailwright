@@ -16,9 +16,9 @@ if ($manifest.id -ne "BattlecryVoiceTuner" -or
 foreach ($required in @(
     'MaximumBattlecryFilesPerGender = 15',
     'audio"),',
-    '"battlecry"),',
-    '"male")',
-    '"female")',
+    '"battlecry");',
+    '"hero_male_battlecry_*.wav"',
+    '"hero_female_battlecry_*.wav"',
     'hero.GetGender() == Gender.Female',
     '? _femaleBattlecryPitchOffsetSemitones.Value',
     ': _maleBattlecryPitchOffsetSemitones.Value',
@@ -83,14 +83,20 @@ if ($source -notmatch '(?s)"RandomPitchSemitones",\s*0\.15f') {
     throw "Random pitch variation must default to 0.15 semitones."
 }
 
-if ($source -notmatch '(?s)"PitchProcessingMode",\s*PitchProcessingMode\.Balanced' -or
-    $source -notmatch 'rateShare = 0\.5f' -or
+if ($source -notmatch '(?s)"PitchProcessingMode",\s*PitchProcessingMode\.Natural' -or
+    $source -notmatch '(?s)_pitchProcessingMode == null\s*\? PitchProcessingMode\.Natural' -or
+    $source -notmatch 'case PitchProcessingMode\.Natural:\s*rateShare = 1f' -or
+    $source -notmatch 'case PitchProcessingMode\.TempoPreserving:\s*rateShare = 0f') {
+    throw "Natural pitch processing must use the full playback-rate shift by default."
+}
+
+if ($source -notmatch 'rateShare = 0\.5f' -or
     $source -notmatch 'PitchDspFftSize = 2048f' -or
     $source -notmatch 'PitchDspAttachTimeoutSeconds = 0\.1f' -or
     $source -notmatch '(?s)QueueEventPitchDsp\(.+setPaused\(true\).+_pendingEventPitchDsps\.Add' -or
     $source -notmatch '(?s)pending\.EventInstance\.setPitch\(.+pending\.EventInstance\.setPaused\(false\)' -or
     $source -notmatch 'ResumePendingEventNaturally\(') {
-    throw "Balanced pitch processing must split pitch between playback rate and a 2048-point DSP by default."
+    throw "Balanced and Tempo Preserving processing must retain their bounded DSP path and natural fallback."
 }
 
 foreach ($required in @(
@@ -113,6 +119,7 @@ foreach ($required in @(
 
 foreach ($contract in @(
     @{ Pattern = '(?s)"VoiceGrowthEnabled",\s*true'; Message = 'enabled voice growth default' },
+    @{ Pattern = '(?s)"NativeVoiceTuningEnabled",\s*true'; Message = 'enabled native voice tuning default' },
     @{ Pattern = '(?s)"VoiceGrowthPreset",\s*VoiceGrowthPreset\.Warrior'; Message = 'Warrior growth preset default' },
     @{ Pattern = '(?s)"VoiceGrowthMaximumSemitones",\s*-6\.0f'; Message = '-6 semitone growth floor' },
     @{ Pattern = '(?s)"UseTemporaryAttributeModifiers",\s*false'; Message = 'permanent attribute default' },
@@ -131,7 +138,9 @@ foreach ($document in @($readme, $nexusFull)) {
         'Adventurer',
         'Custom',
         '-6',
+        'Natural',
         'Balanced',
+        '41%',
         '19%')) {
         if (!$document.Contains($required)) {
             throw "Voice progression documentation is missing: $required"
@@ -165,16 +174,37 @@ if ($source -notmatch '(?s)TryGetBattlecryChannelGroup\(.+TryProbeInteriorAcoust
 foreach ($displaySection in @(
     'General',
     'Voice Tuning',
+    'Voice Growth - Advanced',
     'Native Voice Events',
+    'Battlecry',
     'Battlecry Audio',
-    'Battlecry Input',
-    'Battlecry Challenge',
+    'Command Voice',
     'Optional Integrations',
-    'Testing',
     'Diagnostics')) {
     if (!$source.Contains('"' + $displaySection + '"')) {
         throw "FoA Mod Manager display organization is missing section: $displaySection"
     }
+}
+
+if ($source -notmatch '(?s)"HoldTakeAllItemsForBattlecry".+?"Battlecry",\s*"Hold Take All Items"' -or
+    $source -notmatch '(?s)"BattlecryAggroRangeMultiplier".+?"Battlecry",\s*"Outdoor Hearing Range Multiplier"') {
+    throw "FoA Mod Manager must consolidate battlecry input and challenge controls under Battlecry."
+}
+
+if ($source -notmatch '(?s)"BattlecryReverbEnabled".+?"Environment Reverb"' -or
+    $source -notmatch '(?s)"CommandVoiceReverbEnabled".+?"Environment Reverb"') {
+    throw "Battlecry and command acoustics must use the shared Environment Reverb label."
+}
+
+if ($source.Contains('PlayRandomTestSound') -or
+    $source.Contains('OnPlayRandomTestSoundChanged') -or
+    $source.Contains('IsTestableCategory') -or
+    $source.Contains('"Testing"')) {
+    throw "The retired Testing config and random native-voice test path must remain removed."
+}
+
+if ($source -notmatch '(?s)TryTuneEvent\(.+?_nativeVoiceTuningEnabled == null.+?!_nativeVoiceTuningEnabled\.Value') {
+    throw "Native event tuning must honor its independent master control."
 }
 
 foreach ($required in @(
@@ -234,10 +264,10 @@ if ($source -notmatch '(?s)new Grailwright\.Shared\.ConfigRecoveryKeepCurrentDef
     throw "The former all-environment hearing multiplier must not be imported under its new outdoor-only meaning."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 9' -or
+if ($source -notmatch 'CurrentConfigSchemaVersion = 10' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 9."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 10."
 }
 
 foreach ($required in @(
@@ -264,21 +294,52 @@ foreach ($required in @(
     }
 }
 
-$maleFolder = Join-Path $modRoot "audio\battlecry\male"
-$maleWavs = @(Get-ChildItem -LiteralPath $maleFolder -File -Filter "*.wav")
+$battlecryDirectory = Join-Path $modRoot "audio\battlecry"
+$battlecrySubdirectories = @(Get-ChildItem -LiteralPath $battlecryDirectory -Directory)
+if ($battlecrySubdirectories.Count -ne 0) {
+    throw "Battlecry WAVs must remain in one flat audio/battlecry folder."
+}
+
+$maleWavs = @(Get-ChildItem -LiteralPath $battlecryDirectory -File |
+    Where-Object {
+        $_.Name -match '^hero_male_battlecry_\d{2}\.wav$'
+    })
 if ($maleWavs.Count -ne 15) {
     throw "Expected exactly 15 packaged male battlecries; found $($maleWavs.Count)."
 }
+foreach ($index in 0..14) {
+    $name = 'hero_male_battlecry_{0:D2}.wav' -f $index
+    if (!(Test-Path -LiteralPath (Join-Path $battlecryDirectory $name) -PathType Leaf)) {
+        throw "Missing male battlecry slot: $name"
+    }
+}
 
-$femaleFolder = Join-Path $modRoot "audio\battlecry\female"
-$femaleWavs = @(Get-ChildItem -LiteralPath $femaleFolder -File -Filter "*.wav")
+$femaleWavs = @(Get-ChildItem -LiteralPath $battlecryDirectory -File |
+    Where-Object {
+        $_.Name -match '^hero_female_battlecry_\d{2}\.wav$'
+    })
 if ($femaleWavs.Count -ne 12) {
     throw "Expected exactly 12 packaged female battlecries; found $($femaleWavs.Count)."
 }
+foreach ($index in 0..11) {
+    $name = 'hero_female_battlecry_{0:D2}.wav' -f $index
+    if (!(Test-Path -LiteralPath (Join-Path $battlecryDirectory $name) -PathType Leaf)) {
+        throw "Missing female battlecry slot: $name"
+    }
+}
 
-$femalePlaceholders = @(Get-ChildItem -LiteralPath $femaleFolder -File -Filter "*.wav.placeholder")
+$femalePlaceholders = @(Get-ChildItem -LiteralPath $battlecryDirectory -File |
+    Where-Object {
+        $_.Name -match '^hero_female_battlecry_\d{2}\.wav\.placeholder$'
+    })
 if ($femalePlaceholders.Count -ne 3) {
     throw "Expected exactly 3 open female battlecry placeholder slots; found $($femalePlaceholders.Count)."
+}
+foreach ($index in 12..14) {
+    $name = 'hero_female_battlecry_{0:D2}.wav.placeholder' -f $index
+    if (!(Test-Path -LiteralPath (Join-Path $battlecryDirectory $name) -PathType Leaf)) {
+        throw "Missing female battlecry placeholder slot: $name"
+    }
 }
 
 Write-Host "Battlecry Voice Tuner identity, audio, input, AI, and integration contracts passed."

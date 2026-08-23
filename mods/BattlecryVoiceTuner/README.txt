@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.2.4
+Battlecry Voice Tuner 1.3.0
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -26,13 +26,14 @@ the voice fluctuate. Respeccing permanent attributes immediately reshapes the
 next supported sound.
 
 Overall Pitch remains a manual baseline. Attribute growth, gender or pool
-offsets, and random variation are added to it. Balanced pitch processing then
-splits the final shift evenly between natural playback-rate pitch and FMOD's
-tempo-preserving pitch DSP. A final -6 semitone voice therefore plays about 19%
-longer instead of a full natural rate shift's 41%. Natural and TempoPreserving
-processing modes remain available, and DSP failure safely falls back to the
-full natural shift. Supported native events wait briefly for their hybrid DSP
-path before playback begins, preventing a full-rate onset before the split.
+offsets, and random variation are added to it. Natural pitch processing is the
+default and applies the full final shift through playback rate, preserving its
+original weight and timing character. A final -6 semitone voice therefore
+plays about 41% longer. Balanced splits that shift evenly between playback rate
+and FMOD's tempo-preserving pitch DSP, reducing the increase to about 19%, while
+TempoPreserving keeps roughly the original duration. DSP failure safely falls
+back to the full natural shift. Supported native events wait briefly only when
+their selected processing needs the DSP path, preventing an unprocessed onset.
 
 Battlecry
 ---------
@@ -68,13 +69,13 @@ Command voices
 --------------
 
 Soul and Service can request one spoken command after an explicit Attack, Hold,
-Follow, Guard, Bulwark, or Hunt order succeeds. Each command type and gender has its own matching pool
+Follow, Recall, Guard, Bulwark, or Hunt order succeeds. Each command type and gender has its own matching pool
 and recent-history memory. Automatic targeting, retaliation, and failed commands
 remain silent. The package includes five recordings in each male Attack, Hold,
 and Follow pool and four in each matching female pool. Male commands default to
 +5 semitones, female commands to +1,
-and both retain the overall voice pitch and random variation. Guard, Bulwark,
-and Hunt include two recordings per gender. Commands do not
+and both retain the overall voice pitch and random variation. Recall, Guard,
+Bulwark, and Hunt include two recordings per gender. Commands do not
 challenge enemies or request Wyrd Threat.
 
 Command voices use lighter geometry-aware acoustics than battlecries: 0.10
@@ -87,17 +88,21 @@ remains available.
 Custom audio
 ------------
 
-Place PCM WAV files beside the installed DLL under:
+Keep battlecry PCM WAV files directly under:
 
-audio/battlecry/male
-audio/battlecry/female
+audio/battlecry
 
-Use up to 15 files per folder. The recommended names are battlecry_01.wav
-through battlecry_15.wav. The package includes 15 default male WAVs and 12
-default female WAVs. Female .wav.placeholder files reserve slots 13 through 15
-but are not played; replace their suffix with a real WAV file to fill those
-slots. At least one real WAV is required for a gender. A configurable recent
-history avoids the previous two successful clips by default.
+Use hero_male_battlecry_00.wav through hero_male_battlecry_14.wav and
+hero_female_battlecry_00.wav through hero_female_battlecry_14.wav. The package
+includes all 15 male slots and female slots 00 through 11. Female
+.wav.placeholder files reserve slots 12 through 14 but are not played; replace
+their suffix with a real WAV file to fill those slots. At least one real WAV is
+required for a gender. A configurable recent history avoids the previous two
+successful clips by default.
+
+Versions before 1.2.9 used audio/battlecry/male and audio/battlecry/female with
+battlecry_01.wav through battlecry_15.wav. Move and rename custom files into the
+flat layout above; legacy gender subfolders are no longer scanned.
 
 Summon command audio stays directly under:
 
@@ -108,18 +113,22 @@ Use these flat filename pools:
   summon_male_attack_0.wav through summon_male_attack_4.wav
   summon_male_hold_0.wav through summon_male_hold_4.wav
   summon_male_follow_0.wav through summon_male_follow_4.wav
+  summon_male_recall_0.wav through summon_male_recall_1.wav
   summon_male_guard_0.wav through summon_male_guard_1.wav
   summon_male_bulwark_0.wav through summon_male_bulwark_1.wav
   summon_male_hunt_0.wav through summon_male_hunt_1.wav
   summon_female_attack_0.wav through summon_female_attack_3.wav
   summon_female_hold_0.wav through summon_female_hold_3.wav
   summon_female_follow_0.wav through summon_female_follow_3.wav
+  summon_female_recall_0.wav through summon_female_recall_1.wav
   summon_female_guard_0.wav through summon_female_guard_1.wav
   summon_female_bulwark_0.wav through summon_female_bulwark_1.wav
   summon_female_hunt_0.wav through summon_female_hunt_1.wav
 
-The packaged files preserve their authored loudness. Each matching command and
-gender pool avoids its last two successfully played clips by default.
+The 43 packaged command files are loudness-matched around -15 LUFS with a
+-2 dBTP true-peak ceiling. Their pitch, timing, and dry presentation remain
+unchanged. Custom replacements retain their own authored loudness. Each matching
+command and gender pool avoids its last two successfully played clips by default.
 
 Config
 ------
@@ -129,10 +138,11 @@ BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg
 
 Defaults:
 Enabled = true
+NativeVoiceTuningEnabled = true
 PitchSemitones = 0.0
 RandomPitchSemitones = 0.15
 VolumeMultiplier = 1.0
-PitchProcessingMode = Balanced
+PitchProcessingMode = Natural
 VoiceGrowthEnabled = true
 VoiceGrowthPreset = Warrior
 VoiceGrowthMaximumSemitones = -6.0
@@ -171,16 +181,14 @@ BattlecryAggroRangeMultiplier = 3.0
 IndoorBattlecryAggroRangeMultiplier = 4.0
 BattlecryAggroDurationSeconds = 3.0
 EyesInTheDarkThreat = 10.0
-PlayRandomTestSound = false
 Diagnostics = false
 
-FoA Mod Manager and the generated config use these task-oriented sections:
-General, Voice Tuning, Native Voice Events, Battlecry Audio, Command Voice,
-Battlecry Input, Battlecry Challenge, Optional Integrations, Testing,
-Diagnostics, and the final Import Previous Settings section.
-
-PlayRandomTestSound is a pseudo-button for existing game voice events. It does
-not select custom battlecry files.
+FoA Mod Manager organizes the settings into General, Voice Tuning,
+Voice Growth - Advanced, Native Voice Events, Battlecry, Battlecry Audio,
+Command Voice, Optional Integrations, Diagnostics, and the final Import
+Previous Settings section. Native Voice Tuning is the master for supported
+game voice events; battlecries and command voices keep their own independent
+enable controls.
 
 Compatibility
 -------------

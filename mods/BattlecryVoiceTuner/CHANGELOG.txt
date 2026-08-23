@@ -1,3 +1,31 @@
+Version 1.3.0
+Added explicit migration guidance for custom battlecry files from the retired gender subfolders into the canonical flat 1.2.9 layout.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because this packaging clarification changes no behavior or stored setting.
+
+Version 1.2.9
+Flattened battlecry audio into audio/battlecry and adopted hero_{gender}_battlecry_{00..14}.wav names, matching the command pool's actor-gender-action-index structure while preserving alphabetical ordering above nine slots.
+Renamed all twenty-seven packaged battlecry WAVs and three female placeholders without changing their audio data, pitch, timing, loudness, or pool capacity.
+Custom battlecry users must move and rename files from the retired male and female subfolders into the canonical flat layout; legacy subfolders are no longer scanned.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because the canonical asset layout changes no runtime API or stored setting.
+
+Version 1.2.8
+Loudness-matched all forty-three packaged command voices around -15 LUFS with a -2 dBTP true-peak ceiling and mild peak control, eliminating large generated-volume jumps while leaving pitch and timing unchanged.
+Added a guarded ffmpeg command-voice normalization tool that previews and verifies every gender-and-order pool before replacement, retains reversible originals under .codex-temp, and rejects excess loudness spread or true peaks.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because audio mastering and repository tooling change no runtime API or stored setting.
+
+Version 1.2.7
+Added dedicated male and female Recall command pools with two recordings each, bringing the packaged command-voice total to forty-three.
+Accepted Soul and Service's new summon_recall command ID so successful Recall Host orders no longer reuse the Follow pool.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because the existing string-based command API and all stored settings remain compatible.
+
+Version 1.2.6
+Made Natural the default pitch processing mode, so the full final shift now uses playback rate unless the player chooses Balanced or Tempo Preserving processing.
+Added an independent Native Voice Tuning master control without changing the separate battlecry and command-voice enable controls.
+Renamed the global control to Master Enable in FoA Mod Manager, placed Pitch Processing directly after Overall Pitch, moved Custom-only growth controls into Voice Growth - Advanced, consolidated input and challenge controls under Battlecry, and standardized both acoustic toggles as Environment Reverb.
+Removed the Testing config section and PlayRandomTestSound pseudo-button together with their event handler, reset state, category filtering, and playback code.
+Advanced ConfigSchemaVersion from 9 to 10 because the PitchProcessingMode default changed from Balanced to Natural and PlayRandomTestSound was removed. Compatible manual pitch, processing, voice-growth, and existing approved command-voice customizations remain eligible for conservative recovery.
+Kept BattlecryVoiceTunerApi at version 2.
+
 Version 1.2.4
 Held supported native events briefly while their hybrid pitch DSP attaches, preventing the full natural-rate slowdown from reaching the audible onset. Attachment failures now resume quickly with the safe full natural shift.
 Clarified that Overall Pitch is the manual baseline beneath attribute growth, corrected the packaged command-voice count to thirty-nine, and kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 9 because no stored setting changed.

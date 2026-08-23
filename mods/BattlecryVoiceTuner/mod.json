@@ -2,7 +2,7 @@
   "id": "BattlecryVoiceTuner",
   "displayName": "Battlecry Voice Tuner",
   "packageName": "BattlecryVoiceTuner",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "pluginGuid": "ks.tgfoa.battlecry-voice-tuner",
   "dll": "BattlecryVoiceTuner.dll",
   "sourceFiles": [

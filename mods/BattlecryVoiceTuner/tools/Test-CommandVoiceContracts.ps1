@@ -7,8 +7,6 @@ $source = Get-Content -LiteralPath (
 $readme = Get-Content -LiteralPath (Join-Path $modRoot "README.txt") -Raw
 $audioReadme = Get-Content -LiteralPath (
     Join-Path $modRoot "audio\README.txt") -Raw
-$nexusChangelog = Get-Content -LiteralPath (
-    Join-Path $modRoot "nexus-changelog.txt") -Raw
 $soulSource = Get-Content -LiteralPath (
     Join-Path $modsRoot "SoulAndService\src\SoulAndService.cs") -Raw
 $summonSource = Get-Content -LiteralPath (
@@ -21,6 +19,7 @@ foreach ($required in @(
     'SummonAttackCommandId = "summon_attack"',
     'SummonHoldCommandId = "summon_hold"',
     'SummonFollowCommandId = "summon_follow"',
+    'SummonRecallCommandId = "summon_recall"',
     'SummonGuardCommandId = "summon_guard"',
     'SummonBulwarkCommandId = "summon_bulwark"',
     'SummonHuntCommandId = "summon_hunt"',
@@ -29,12 +28,14 @@ foreach ($required in @(
     '"summon_male_attack_*.wav"',
     '"summon_male_hold_*.wav"',
     '"summon_male_follow_*.wav"',
+    '"summon_male_recall_*.wav"',
     '"summon_male_guard_*.wav"',
     '"summon_male_bulwark_*.wav"',
     '"summon_male_hunt_*.wav"',
     '"summon_female_attack_*.wav"',
     '"summon_female_hold_*.wav"',
     '"summon_female_follow_*.wav"',
+    '"summon_female_recall_*.wav"',
     '"summon_female_guard_*.wav"',
     '"summon_female_bulwark_*.wav"',
     '"summon_female_hunt_*.wav"',
@@ -101,6 +102,7 @@ foreach ($required in @(
     'SummonAttackCommandId = "summon_attack"',
     'SummonHoldCommandId = "summon_hold"',
     'SummonFollowCommandId = "summon_follow"',
+    'SummonRecallCommandId = "summon_recall"',
     'SummonGuardCommandId = "summon_guard"',
     'SummonBulwarkCommandId = "summon_bulwark"',
     'SummonHuntCommandId = "summon_hunt"',
@@ -116,6 +118,9 @@ if (!$commandSummonsBlock.Success -or
     $commandSummonsBlock.Value -notmatch '(?s)if \(plugin != null && commanded > 0\)\s*\{\s*PublishCommand\(') {
     throw "Soul and Service must request one voice only after at least one summon receives the order."
 }
+if ($summonSource -notmatch '(?s)RecallHost\(Hero hero\).*?recalled > 0.*?PublishCommand\(\s*plugin,\s*SummonCommandState\.Follow,\s*SummonRecallCommandId,') {
+    throw "Soul and Service Recall Host must request the dedicated recall voice only after at least one summon is recalled."
+}
 
 $commandDirectory = Join-Path $modRoot "audio\command"
 $subdirectories = @(Get-ChildItem -LiteralPath $commandDirectory -Directory)
@@ -124,22 +129,20 @@ if ($subdirectories.Count -ne 0) {
 }
 $commandWavs = @(Get-ChildItem -LiteralPath $commandDirectory -File |
     Where-Object {
-        $_.Name -match '^summon_(male|female)_(attack|hold|follow|guard|bulwark|hunt)_\d+\.wav$'
+        $_.Name -match '^summon_(male|female)_(attack|hold|follow|recall|guard|bulwark|hunt)_\d+\.wav$'
     })
-if ($commandWavs.Count -ne 39) {
-    throw "Expected 39 flat command-type WAVs, found $($commandWavs.Count)."
+if ($commandWavs.Count -ne 43) {
+    throw "Expected 43 flat command-type WAVs, found $($commandWavs.Count)."
 }
-if (!$nexusChangelog.Contains('thirty-nine gender-matched summon command voices')) {
-    throw "The consolidated Nexus changelog must describe all 39 packaged command voices."
-}
-
 $poolSizes = @{
     'male_attack' = 5
     'male_hold' = 5
     'male_follow' = 5
+    'male_recall' = 2
     'female_attack' = 4
     'female_hold' = 4
     'female_follow' = 4
+    'female_recall' = 2
     'male_guard' = 2
     'male_bulwark' = 2
     'male_hunt' = 2
@@ -201,9 +204,13 @@ foreach ($document in @($readme, $audioReadme)) {
     foreach ($required in @(
         'summon_male_attack_0.wav',
         'summon_female_follow_0.wav',
+        'summon_male_recall_0.wav',
+        'summon_female_recall_0.wav',
         'summon_male_guard_0.wav',
         'summon_female_bulwark_0.wav',
         'summon_male_hunt_0.wav',
+        '-15 LUFS',
+        '-2 dBTP',
         'RecentCommandVoiceMemory',
         '0.50',
         '0.10',
@@ -214,4 +221,4 @@ foreach ($document in @($readme, $audioReadme)) {
     }
 }
 
-Write-Host "Battlecry Voice Tuner command API, audio, repeat, and acoustic contracts passed: 39 WAV files."
+Write-Host "Battlecry Voice Tuner command API, audio, repeat, and acoustic contracts passed: 43 WAV files."

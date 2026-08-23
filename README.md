@@ -33,7 +33,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Global Illumination Addon](mods/KSAddons/KSTGGlobalIlluminationAddon) | 0.1.9 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Global Illumination](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134) |
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
-| [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.2.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
+| [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.3.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
 | [Soul and Service - Summon Overhaul](mods/SoulAndService) | 2.1.4 | Unpublished |
 | [Steel and Bone - Expanded Combat and Difficulty](mods/SteelAndBone) | 3.9.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |

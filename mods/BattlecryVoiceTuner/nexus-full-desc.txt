@@ -20,9 +20,9 @@ Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eye
 [*][b]Advanced geometry-aware acoustics:[/b] Measure surrounding terrain or room shape per cry, then generate location-specific reverb and directional reflections instead of applying one universal preset.[/*]
 [*][b]Native voice tuning:[/b] Adjust supported vocal pitch, add subtle randomized variation, scale overall voice volume, and choose which native categories are affected.[/*]
 [*][b]Attribute-shaped voice progression:[/b] Grow from a neutral starting voice toward a deeper late-game presence through Warrior, Rogue, Mage, Warden, Artisan, Adventurer, or Custom archetypes.[/*]
-[*][b]Balanced pitch processing:[/b] Keep the full audible pitch change while splitting it between natural playback weight and tempo-preserving FMOD processing.[/*]
+[*][b]Three pitch-processing characters:[/b] Use natural playback-rate weight by default, split the shift with Balanced, or favor the original duration with Tempo Preserving.[/*]
 [*][b]Gender-aware battlecries:[/b] Play from 15 included male cries and 12 included female cries, with independent pitch offsets for each pool.[/*]
-[*][b]Spoken summon commands:[/b] Optional Soul and Service integration voices successful Attack, Hold, Follow, Guard, Bulwark, and Hunt orders from separate male and female pools made for each order.[/*]
+[*][b]Spoken summon commands:[/b] Optional Soul and Service integration voices successful Attack, Hold, Follow, Recall, Guard, Bulwark, and Hunt orders from separate male and female pools made for each order.[/*]
 [*][b]Custom voice pools:[/b] Replace or expand either battlecry pool with up to 15 PCM WAV files per gender.[/*]
 [*][b]Better variety:[/b] Battlecry and command pools avoid their previous two successful clips by default.[/*]
 [*][b]Gameplay challenge:[/b] Alert unaware hostiles or provoke already-alert enemies using configurable hearing range and challenge duration.[/*]
@@ -50,9 +50,9 @@ The curve measures growth above the game's innate attribute values and reaches f
 
 [b]Overall Pitch remains fully useful.[/b] It is the manual baseline. Attribute growth is added to it, followed by the relevant male or female battlecry or command offset and the small randomized variation. Respeccing permanent attributes changes the next supported sound without rewriting the config.
 
-[b]Balanced processing keeps the result deep without dragging every line out.[/b] FMOD's ordinary pitch control changes both pitch and playback rate, so a fully natural -6 semitone shift lasts about 41% longer. The default Balanced mode applies -3 semitones through playback rate and -3 through a tempo-preserving pitch DSP: the final voice is still -6, but lasts only about 19% longer. Natural retains the original full playback-rate character, while TempoPreserving favors the DSP. If a DSP cannot be attached, the sound automatically falls back to the full natural shift.
+[b]Natural processing is the default.[/b] FMOD's ordinary pitch control changes both pitch and playback rate, preserving the full weight and timing character of the shift; a natural -6 semitone result lasts about 41% longer. Balanced applies -3 semitones through playback rate and -3 through a tempo-preserving pitch DSP, so the same final voice lasts only about 19% longer. TempoPreserving favors the DSP and keeps roughly the original duration. If a DSP cannot be attached, the sound automatically falls back to the full natural shift.
 
-The same final pitch and processing rules apply to supported native grunts, custom battlecries, spoken commands, and their generated acoustic reflections. Native grunts wait briefly for the hybrid DSP path before playback, preventing a full-rate onset before the split.
+The same final pitch and processing rules apply to supported native grunts, custom battlecries, spoken commands, and their generated acoustic reflections. Native grunts wait briefly when the selected mode needs the DSP path, preventing an unprocessed onset before playback.
 
 [line]
 
@@ -108,10 +108,11 @@ Yes, it is wildly overengineered for such a random feature, but damn if it doesn
 
 [heading][color=#C94A4A][size=5]Necromantic Summon Commands[/size][/color][/heading]
 
-When [b]Soul and Service[/b] successfully issues an explicit [b]Attack[/b], [b]Hold[/b], [b]Follow[/b], [b]Guard[/b], [b]Bulwark[/b], or [b]Hunt[/b] order, Battlecry Voice Tuner can play one gender-matched command word from the pool made for that order. One order produces one voice regardless of summon count. Each gender and order has its own recent-history memory and avoids its recent clips when alternatives remain.
+When [b]Soul and Service[/b] successfully issues an explicit [b]Attack[/b], [b]Hold[/b], [b]Follow[/b], [b]Recall[/b], [b]Guard[/b], [b]Bulwark[/b], or [b]Hunt[/b] order, Battlecry Voice Tuner can play one gender-matched command word from the pool made for that order. One order produces one voice regardless of summon count. Each gender and order has its own recent-history memory and avoids its recent clips when alternatives remain.
 
 [list]
-[*]Includes five Attack, five Hold, and five Follow recordings for male heroes, four of each for female heroes, and two Guard, Bulwark, and Hunt recordings per gender.[/*]
+[*]Includes five Attack, five Hold, and five Follow recordings for male heroes, four of each for female heroes, and two Recall, Guard, Bulwark, and Hunt recordings per gender.[/*]
+[*]All 43 packaged commands are loudness-matched around -15 LUFS with a -2 dBTP true-peak ceiling while retaining their original pitch and timing.[/*]
 [*]Male commands default to +5 semitones and female commands to +1, in addition to overall pitch and subtle random variation.[/*]
 [*]Commands use a separate 0.50 volume multiplier and a short 0.75-second anti-stacking cooldown.[/*]
 [*]Passive target sharing, retaliation, automatic aggression, and failed interactions remain silent.[/*]
@@ -165,15 +166,17 @@ Overall pitch defaults to a neutral 0 semitones with up to 0.15 semitones of ran
 
 [heading][color=#C94A4A][size=5]Custom Battlecry Pools[/size][/color][/heading]
 
-Place PCM WAV files in the installed plugin folder:
+Keep PCM WAV files directly in the installed plugin's flat battlecry folder:
 
 [code]
-audio/battlecry/male/battlecry_01.wav
-audio/battlecry/female/battlecry_01.wav[/code]
+audio/battlecry/hero_male_battlecry_00.wav
+audio/battlecry/hero_female_battlecry_00.wav[/code]
 
-Each folder accepts up to 15 WAV files in alphabetical order. A configurable recent history avoids the previous two successfully played cries for each gender by default.
+Each gender pattern accepts up to 15 WAV files in alphabetical order. A configurable recent history avoids the previous two successfully played cries for each gender by default.
 
-The package includes all 15 male slots and female slots 1 through 12. [b].wav.placeholder[/b] files reserve female slots 13 through 15; placeholders are not played. Replace a placeholder with a real WAV to fill that slot.
+The package includes male slots 00 through 14 and female slots 00 through 11. [b].wav.placeholder[/b] files reserve female slots 12 through 14; placeholders are not played. Replace a placeholder with a real WAV to fill that slot.
+
+Versions before 1.2.9 used separate male and female subfolders with battlecry_01.wav through battlecry_15.wav. Move and rename custom files into the flat layout above; legacy gender subfolders are no longer scanned.
 
 Summon command recordings stay directly in the flat command folder:
 
@@ -181,17 +184,19 @@ Summon command recordings stay directly in the flat command folder:
 audio/command/summon_male_attack_0.wav
 audio/command/summon_male_hold_0.wav
 audio/command/summon_male_follow_0.wav
+audio/command/summon_male_recall_0.wav
 audio/command/summon_male_guard_0.wav
 audio/command/summon_male_bulwark_0.wav
 audio/command/summon_male_hunt_0.wav
 audio/command/summon_female_attack_0.wav
 audio/command/summon_female_hold_0.wav
 audio/command/summon_female_follow_0.wav
+audio/command/summon_female_recall_0.wav
 audio/command/summon_female_guard_0.wav
 audio/command/summon_female_bulwark_0.wav
 audio/command/summon_female_hunt_0.wav[/code]
 
-Attack, Hold, and Follow use male slots 0 through 4 and female slots 0 through 3. Guard, Bulwark, and Hunt use slots 0 through 1 for both genders. Each gender and command type has its own recent-command history.
+Attack, Hold, and Follow use male slots 0 through 4 and female slots 0 through 3. Recall, Guard, Bulwark, and Hunt use slots 0 through 1 for both genders. Each gender and command type has its own recent-command history.
 
 [line]
 
@@ -203,10 +208,11 @@ BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/code]
 [code]
 | Setting                                   | Default | Purpose                                      |
 |-------------------------------------------|---------|----------------------------------------------|
+| NativeVoiceTuningEnabled                  | true    | Master for supported native voice events     |
 | PitchSemitones                            | 0.0     | Overall fixed pitch shift                    |
 | RandomPitchSemitones                      | 0.15    | Per-sound pitch variation                    |
 | VolumeMultiplier                          | 1.0     | Voice and battlecry volume scale             |
-| PitchProcessingMode                       | Balanced| Half natural rate and half pitch DSP         |
+| PitchProcessingMode                       | Natural | Full playback-rate pitch character           |
 | VoiceGrowthEnabled                        | true    | Enable attribute-shaped voice progression    |
 | VoiceGrowthPreset                         | Warrior | Select the progression archetype             |
 | VoiceGrowthMaximumSemitones               | -6.0    | Full-depth archetype pitch contribution      |
@@ -241,7 +247,7 @@ BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/code]
 | EyesInTheDarkThreat                       | 10.0    | Optional Wyrd Threat requested per cry       |
 | Diagnostics                               | false   | Detailed audio, input, AI, and API logs      |[/code]
 
-FoA Mod Manager organizes these settings into General, Voice Tuning, Native Voice Events, Battlecry Audio, Command Voice, Battlecry Input, Battlecry Challenge, Optional Integrations, Testing, and Diagnostics groups.
+FoA Mod Manager organizes these settings into General, Voice Tuning, Voice Growth - Advanced, Native Voice Events, Battlecry, Battlecry Audio, Command Voice, Optional Integrations, and Diagnostics groups. Native Voice Tuning controls supported game voice events, while battlecries and command voices retain independent enable controls.
 
 [line]
 
@@ -276,7 +282,7 @@ Incompatible config updates create a backup and generate current defaults while 
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] is optional; no hard dependency is introduced.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also displays the optional atmospheric Wyrdnight responses used with Eyes in the Dark.[/*]
-[*][b]Soul and Service[/b] is optional; successful Attack, Hold, Follow, Guard, Bulwark, and Hunt orders can request a spoken command through Battlecry Voice Tuner's public API. Soul and Service owns the Take All Items hold action while summons are active; the separate battlecry hotkey remains available.[/*]
+[*][b]Soul and Service[/b] is optional; successful Attack, Hold, Follow, Recall, Guard, Bulwark, and Hunt orders can request a spoken command through Battlecry Voice Tuner's public API. Soul and Service owns the Take All Items hold action while summons are active; the separate battlecry hotkey remains available.[/*]
 [/list]
 
 Battlecry Voice Tuner continues working normally when any optional mod is absent.

@@ -55,7 +55,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedVoiceTuning('
         Restore = 'RestorePreservedVoiceTuning();'
         Save = 'Config.Save();'
-        Tokens = @('PitchSemitones', 'RandomPitchSemitones', 'VolumeMultiplier', 'CommandVoiceVolumeMultiplier', 'MaleCommandVoicePitchOffsetSemitones')
+        Tokens = @('PitchSemitones', 'RandomPitchSemitones', 'VolumeMultiplier', 'PitchProcessingMode', 'VoiceGrowthEnabled', 'VoiceGrowthPreset', 'VoiceGrowthMaximumSemitones', 'UseTemporaryAttributeModifiers', 'CustomPrimaryAttribute', 'CustomSecondaryAttribute', 'CustomPrimaryAttributeWeight', 'CommandVoiceVolumeMultiplier', 'MaleCommandVoicePitchOffsetSemitones')
     },
     [pscustomobject]@{
         Name = 'First Person Arms Adjuster'

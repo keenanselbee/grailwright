@@ -1,8 +1,12 @@
-TargetVersion=1.2.4
-BaselineVersion=1.2.2
+TargetVersion=1.3.0
+BaselineVersion=1.2.4
 
-Held supported native events briefly while their hybrid pitch DSP attaches, preventing the full natural-rate slowdown from reaching the audible onset. Attachment failures now resume quickly with the safe full natural shift.
-Added enabled-by-default attribute voice progression with Warrior, Rogue, Mage, Warden, Artisan, Adventurer, Custom, and Disabled archetypes. Warrior defaults to 75% permanent Strength and 25% permanent Endurance, while every curve starts at the Hero's innate values and reaches its configured full depth at attribute value 40.
-Added a smooth late-weighted progression curve that keeps early growth subtle and reaches a configurable -6 semitone maximum only for exceptional archetype development. Temporary attribute modifiers remain excluded by default, and Overall Pitch, gender offsets, and random variation continue to layer normally.
-Added Natural, Balanced, and Tempo Preserving pitch processing. Balanced is the fresh default and splits the final shift evenly between playback rate and FMOD's pitch-shift DSP, so a -6 semitone voice remains -6 while running about 19% longer instead of 41% longer.
-Applied the same bounded hybrid processing to native supported events, custom battlecries, command voices, and their generated acoustic reflections, with automatic natural-rate fallback when a DSP cannot be attached.
+Added explicit migration guidance for custom battlecry files moving from the retired gender subfolders into the canonical flat layout.
+Flattened battlecry audio into one folder with gender-aware hero_{gender}_battlecry_{00..14}.wav names while preserving every packaged recording unchanged; custom files must move out of the retired gender subfolders into the new layout.
+Loudness-matched all forty-three packaged command voices around -15 LUFS with a -2 dBTP true-peak ceiling while retaining their original pitch and timing.
+Added dedicated male and female Recall command pools so Soul and Service Recall Host orders no longer reuse Follow voices.
+Made Natural the default pitch processing mode, so the full final shift now uses playback rate unless the player chooses Balanced or Tempo Preserving processing.
+Advanced the config schema so untouched Balanced defaults adopt Natural while compatible customized manual pitch, processing, voice-growth, and approved command-voice values remain eligible for conservative recovery.
+Added an independent Native Voice Tuning master control while keeping battlecries and command voices independently configurable.
+Streamlined FoA Mod Manager with clearer master and acoustic labels, a dedicated advanced voice-growth group, and one consolidated Battlecry group for input and challenge controls.
+Removed the Testing config section and its PlayRandomTestSound pseudo-button together with the supporting playback code.

@@ -12,6 +12,7 @@ try {
     'Short' | Set-Content (Join-Path $temp 'mods\\Demo\\nexus-short-desc.txt')
     'Full' | Set-Content (Join-Path $temp 'mods\\Demo\\nexus-full-desc.txt')
     'File row' | Set-Content (Join-Path $temp 'mods\\Demo\\nexus-file-desc.txt')
+    "TargetVersion=1.0.0`nBaselineVersion=0.9.9`nChanged" | Set-Content (Join-Path $temp 'mods\\Demo\\nexus-changelog.txt')
     Set-NexusLivePageSurface -RepoRoot $temp -NexusUrl 'https://www.nexusmods.com/games/demo/mods/1' -Surface shortDescription -Content "Short`r`n" -ObservedAt '2026-08-11T00:00:00.0000000Z'
     Set-NexusLivePageSurface -RepoRoot $temp -NexusUrl 'https://www.nexusmods.com/games/demo/mods/1' -Surface fullDescription -Content 'Elsewhere'
     Set-NexusLiveFileGroupSurfaces -RepoRoot $temp -NexusUrl 'https://www.nexusmods.com/games/demo/mods/1' -GroupId 2 -PackageName Demo -Updates @(
@@ -38,6 +39,18 @@ try {
     if ((@($report | Where-Object { $_.Surface -eq 'fullDescription' -and $_.Status -eq 'drift' }).Count) -ne 1) { throw 'Description drift report failed.' }
     $staleReport = Get-NexusLiveStateReport -RepoRoot $temp
     if ((@($staleReport | Where-Object { $_.Surface -eq 'version' -and $_.Status -eq 'stale' }).Count) -ne 1) { throw 'Stale state report failed.' }
+
+    $browserObservedAt = (Get-Date).ToUniversalTime().ToString('o')
+    $browserEvidence = @(New-NexusBrowserFileGroupStateUpdates -Version '1.0.0' -FileDescription 'File row' -Changelog 'Changed' -ObservedAt $browserObservedAt)
+    if ($browserEvidence.Count -ne 3) { throw 'Browser file-group fallback did not produce all three surfaces.' }
+    if (@($browserEvidence | Where-Object { $_.Status -ne 'verified-read' -or $_.Source -ne 'nexus-browser-file-review' }).Count -ne 0) { throw 'Browser file-group fallback did not classify its evidence as verified-read.' }
+    if (@($browserEvidence.Surface | Sort-Object -Unique) -join ',' -ne 'changelog,fileDescription,version') { throw 'Browser file-group fallback did not include the expected surfaces.' }
+    Set-NexusLiveFileGroupSurfaces -RepoRoot $temp -NexusUrl 'https://www.nexusmods.com/games/demo/mods/1' -GroupId 2 -PackageName Demo -Updates $browserEvidence
+    $browserFallbackReport = Get-NexusLiveStateReport -RepoRoot $temp
+    $browserFallbackRows = @($browserFallbackReport | Where-Object { $_.Surface -in @('version', 'fileDescription', 'changelog') })
+    if ($browserFallbackRows.Count -ne 3) { throw 'Browser file-group fallback report did not include all persisted surfaces.' }
+    if (@($browserFallbackRows | Where-Object { $_.Status -ne 'current' -or $_.Comparison -ne 'current' }).Count -ne 0) { throw 'Fresh browser file-group fallback evidence did not report current.' }
+    if (@($browserFallbackRows | Where-Object { $_.Evidence -ne 'verified-read' -or $_.Source -ne 'nexus-browser-file-review' }).Count -ne 0) { throw 'Browser file-group fallback provenance was not retained in the report.' }
 
     "NexusUrl=https://www.nexusmods.com/games/demo/mods/1`nGroupId=999" | Set-Content (Join-Path $temp 'mods\\Demo\\API.txt')
     $unknownReport = Get-NexusLiveStateReport -RepoRoot $temp

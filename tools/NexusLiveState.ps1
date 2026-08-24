@@ -70,6 +70,42 @@ function New-NexusUploadStateUpdates {
     return $updates
 }
 
+function New-NexusBrowserFileGroupStateUpdates {
+    param(
+        [string]$Version,
+        [AllowEmptyString()][string]$FileDescription,
+        [AllowEmptyString()][string]$Changelog,
+        [string]$ObservedAt = ((Get-Date).ToUniversalTime().ToString('o'))
+    )
+    if ([string]::IsNullOrWhiteSpace($Version)) {
+        throw 'Browser file-group evidence requires a non-empty version.'
+    }
+
+    return @(
+        [pscustomobject]@{
+            Surface = 'version'
+            Content = $Version
+            ObservedAt = $ObservedAt
+            Source = 'nexus-browser-file-review'
+            Status = 'verified-read'
+        },
+        [pscustomobject]@{
+            Surface = 'fileDescription'
+            Content = $FileDescription
+            ObservedAt = $ObservedAt
+            Source = 'nexus-browser-file-review'
+            Status = 'verified-read'
+        },
+        [pscustomobject]@{
+            Surface = 'changelog'
+            Content = $Changelog
+            ObservedAt = $ObservedAt
+            Source = 'nexus-browser-file-review'
+            Status = 'verified-read'
+        }
+    )
+}
+
 function New-NexusLiveState {
     return [pscustomobject]@{
         schemaVersion = $script:NexusLiveStateSchemaVersion

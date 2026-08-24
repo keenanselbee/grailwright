@@ -1,0 +1,3 @@
+TargetVersion=1.3.5
+BaselineVersion=1.3.4
+Added Linux/Proton installation support by packaging plugin folders and runtime assets with portable ZIP paths; Windows and Vortex installs remain unchanged.

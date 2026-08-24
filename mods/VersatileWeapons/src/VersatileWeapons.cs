@@ -12,7 +12,6 @@ using Awaken.TG.MVC.UI.Events;
 using Awaken.TG.Main.Animations.FSM.Heroes.Base;
 using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.Main.Animations.FSM.Heroes.States.Shared;
-using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.General.Configs;
@@ -34,16 +33,15 @@ using Awaken.TG.Main.Utility.Animations.ARAnimator;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
-using FMODUnity;
 using UnityEngine;
 
 [assembly: AssemblyTitle("Versatile Weapons")]
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.8.7.0")]
-[assembly: AssemblyFileVersion("0.8.7.0")]
-[assembly: AssemblyInformationalVersion("0.8.7")]
+[assembly: AssemblyVersion("0.9.0.0")]
+[assembly: AssemblyFileVersion("0.9.0.0")]
+[assembly: AssemblyInformationalVersion("0.9.0")]
 
 namespace VersatileWeapons
 {
@@ -65,7 +63,7 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.8.7";
+        public const string PluginVersion = "0.9.0";
 
         private const int ConfigSchemaVersion = 13;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -81,11 +79,8 @@ namespace VersatileWeapons
         private const float MagicVisualRecoveryDelaySeconds = 1.0f;
         private const float HiddenDrawnWeaponRecoverySeconds = 1.5f;
         private const float GripEquipInputGuardTimeoutSeconds = 3.0f;
-        private const float AudioDiagnosticTransitionWindowSeconds = 4.0f;
         private const float WeaponAudioCallbackGuardSeconds = 4.0f;
         private const int WeaponAudioStableFrames = 2;
-        private const string SuspectedSoulRendWhisperEvent =
-            "{c7f89e29-2578-47cc-b28b-1ede9750d7a7}";
         private const string GripMemoryFileName =
             "VersatileWeaponsGrips.dat";
         private const int GripMemoryFormat = 1;
@@ -207,11 +202,6 @@ namespace VersatileWeapons
         private float _equipFsmResetStartedAt;
         private int _weaponTransitionGeneration;
         private int _equipFsmResetGeneration;
-        private float _audioDiagnosticTransitionStartedAt = -1.0f;
-        private float _audioDiagnosticTransitionUntil = -1.0f;
-        [ThreadStatic]
-        private static HeroAnimatorSubstateMachine
-            _unsheatheAudioDiagnosticFsm;
         [ThreadStatic]
         private static bool _weaponAudioPlaybackBypass;
         private readonly List<Item> _weaponAudioPreviousParticipants =
@@ -219,6 +209,10 @@ namespace VersatileWeapons
         private readonly List<Item> _weaponAudioPreviousAudible =
             new List<Item>();
         private readonly List<Item> _weaponAudioGuardedItems =
+            new List<Item>();
+        private readonly List<Item> _weaponAudioTransitionParticipants =
+            new List<Item>();
+        private readonly List<Item> _weaponAudioTransitionAudible =
             new List<Item>();
         private bool _weaponAudioTransitionActive;
         private bool _weaponAudioTransitionMuted;
@@ -233,6 +227,10 @@ namespace VersatileWeapons
         private Item _gripItem;
         private Item _gripPairedItem;
         private string _gripMemoryContextKey;
+        private string _cachedGripMemoryContextKey;
+        private bool _gripMemoryContextIdentityKnown;
+        private bool _gripMemoryContextUsesGloriousUi;
+        private int _gripMemoryContextSlot;
         private Item _selectedGripControllerItem;
         private bool _selectedGripControllerTwoHanded;
         private bool _selectedGripControllerKnown;
@@ -1325,321 +1323,6 @@ namespace VersatileWeapons
             }
         }
 
-        internal void BeginUnsheatheAudioDiagnostic(
-            EquipWeaponBase<HeroAnimatorSubstateMachine> equipState)
-        {
-            _unsheatheAudioDiagnosticFsm = null;
-            if (_diagnostics == null || !_diagnostics.Value)
-            {
-                return;
-            }
-
-            Hero hero = Hero.Current;
-            HeroAnimatorSubstateMachine sourceFsm = equipState == null
-                ? null
-                : equipState.ParentModel;
-            _unsheatheAudioDiagnosticFsm = sourceFsm;
-            Item sourceItem = sourceFsm == null
-                ? (hero == null ? null : hero.MainHandItem)
-                : sourceFsm.MainHandItem;
-            MagicFSM magicFsm = sourceFsm as MagicFSM;
-            List<HeroAnimatorSubstateMachine> currentFsms =
-                new List<HeroAnimatorSubstateMachine>();
-            if (hero != null)
-            {
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<OneHandedFSM>());
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<TwoHandedFSM>());
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<DualHandedFSM>());
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<MagicMeleeOffHandFSM>());
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<MagicMainHandFSM>());
-                AddEquipFsm(
-                    currentFsms,
-                    hero.TryGetElement<MagicOffHandFSM>());
-            }
-
-            LogDiagnostic(
-                "Unsheathe audio diagnostic: request=game-equip-state"
-                + "; state="
-                + (equipState == null
-                    ? "none"
-                    : equipState.GetType().Name)
-                + "; sourceFsm="
-                + (sourceFsm == null
-                    ? "none"
-                    : sourceFsm.GetType().Name)
-                + "; castingHand="
-                + (magicFsm == null
-                    ? "not-magic"
-                    : magicFsm.CastingHand.ToString())
-                + "; sourceItem="
-                + DescribeAudioDiagnosticItem(sourceItem)
-                + "; mainItem="
-                + DescribeAudioDiagnosticItem(
-                    hero == null ? null : hero.MainHandItem)
-                + "; offItem="
-                + DescribeAudioDiagnosticItem(
-                    hero == null ? null : hero.OffHandItem)
-                + "; mainHand="
-                + DescribeAudioDiagnosticHand(
-                    hero == null ? null : hero.MainHandWeapon)
-                + "; offHand="
-                + DescribeAudioDiagnosticHand(
-                    hero == null ? null : hero.OffHandWeapon)
-                + "; mainSuppressed="
-                + IsMainHandSuppressed()
-                + "; offSuppressed="
-                + IsOffHandSuppressed()
-                + "; heroDrawn="
-                + (hero != null && hero.IsWeaponEquipped)
-                + "; loadout="
-                + (_observedLoadoutIndexKnown
-                    ? _observedLoadoutIndex.ToString(
-                        CultureInfo.InvariantCulture)
-                    : "unknown")
-                + "; refreshStage="
-                + _pairedRefreshStage
-                + "; equipFsmResetStage="
-                + _equipFsmResetStage
-                + "; transitionGeneration="
-                + _weaponTransitionGeneration
-                + "; fsms="
-                + DescribeEquipFsms(currentFsms)
-                + ".");
-        }
-
-        internal static void EndUnsheatheAudioDiagnostic()
-        {
-            _unsheatheAudioDiagnosticFsm = null;
-        }
-
-        internal void RecordFmodTransitionAudioDiagnostic(
-            string route,
-            EventReference eventReference,
-            object[] arguments)
-        {
-            if (_diagnostics == null || !_diagnostics.Value)
-            {
-                return;
-            }
-
-            bool unsheatheCorrelated =
-                _unsheatheAudioDiagnosticFsm != null;
-            bool transitionWindowActive =
-                _audioDiagnosticTransitionUntil >= Time.unscaledTime;
-            if (!unsheatheCorrelated && !transitionWindowActive)
-            {
-                return;
-            }
-
-            GameObject attachedObject = null;
-            UnityEngine.Object debugObject = null;
-            string position = "none";
-            int parameterCount = 0;
-            if (arguments != null)
-            {
-                foreach (object argument in arguments)
-                {
-                    GameObject candidateObject = argument as GameObject;
-                    if (candidateObject != null)
-                    {
-                        attachedObject = candidateObject;
-                        continue;
-                    }
-
-                    if (argument is Vector3)
-                    {
-                        Vector3 value = (Vector3)argument;
-                        position = value.x.ToString(
-                                "0.00",
-                                CultureInfo.InvariantCulture)
-                            + ","
-                            + value.y.ToString(
-                                "0.00",
-                                CultureInfo.InvariantCulture)
-                            + ","
-                            + value.z.ToString(
-                                "0.00",
-                                CultureInfo.InvariantCulture);
-                        continue;
-                    }
-
-                    FMODParameter[] parameterArray =
-                        argument as FMODParameter[];
-                    if (parameterArray != null)
-                    {
-                        parameterCount = parameterArray.Length;
-                        continue;
-                    }
-
-                    ICollection<FMODParameter> parameterCollection =
-                        argument as ICollection<FMODParameter>;
-                    if (parameterCollection != null)
-                    {
-                        parameterCount = parameterCollection.Count;
-                        continue;
-                    }
-
-                    UnityEngine.Object candidateDebugObject =
-                        argument as UnityEngine.Object;
-                    if (candidateDebugObject != null)
-                    {
-                        debugObject = candidateDebugObject;
-                    }
-                }
-            }
-
-            Hero hero = Hero.Current;
-            bool heroAttached = IsHeroAudioObject(
-                hero,
-                attachedObject);
-            if (String.Equals(
-                    route,
-                    "attached",
-                    StringComparison.Ordinal)
-                && !unsheatheCorrelated
-                && !heroAttached)
-            {
-                return;
-            }
-
-            LogDiagnostic(
-                "FMOD transition audio diagnostic: route="
-                + route
-                + "; event="
-                + (eventReference.IsNull
-                    ? "null"
-                    : eventReference.PathOrGuid)
-                + "; unsheatheCorrelated="
-                + unsheatheCorrelated
-                + "; unsheatheSourceFsm="
-                + (_unsheatheAudioDiagnosticFsm == null
-                    ? "none"
-                    : _unsheatheAudioDiagnosticFsm.GetType().Name)
-                + "; attachedObject="
-                + DescribeAudioDiagnosticObject(attachedObject)
-                + "; heroAttached="
-                + heroAttached
-                + "; debugObject="
-                + DescribeAudioDiagnosticObject(debugObject)
-                + "; position="
-                + position
-                + "; parameters="
-                + parameterCount
-                + "; windowGeneration="
-                + _weaponTransitionGeneration
-                + "; windowAge="
-                + (_audioDiagnosticTransitionStartedAt < 0.0f
-                    ? "none"
-                    : (Time.unscaledTime
-                        - _audioDiagnosticTransitionStartedAt).ToString(
-                            "0.000",
-                            CultureInfo.InvariantCulture))
-                + ".");
-        }
-
-        internal void RecordSoulRendAudioLifecycleDiagnostic(
-            string route,
-            EventReference eventReference,
-            UnityEngine.Object owner,
-            bool? asOneShot)
-        {
-            if (_diagnostics == null
-                || !_diagnostics.Value
-                || _audioDiagnosticTransitionUntil < Time.unscaledTime)
-            {
-                return;
-            }
-
-            string eventId = eventReference.IsNull
-                ? "null"
-                : eventReference.PathOrGuid;
-            bool suspectedWhisper = String.Equals(
-                eventId,
-                SuspectedSoulRendWhisperEvent,
-                StringComparison.OrdinalIgnoreCase);
-            if (!suspectedWhisper
-                && !String.Equals(
-                    route,
-                    "magic-idle",
-                    StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            CharacterHandBase hand = owner as CharacterHandBase;
-            Hero hero = Hero.Current;
-            List<string> callChain = new List<string>();
-            System.Diagnostics.StackFrame[] frames =
-                new System.Diagnostics.StackTrace(2, false).GetFrames();
-            if (frames != null)
-            {
-                int frameCount = Math.Min(10, frames.Length);
-                for (int index = 0; index < frameCount; index++)
-                {
-                    MethodBase method = frames[index].GetMethod();
-                    if (method != null)
-                    {
-                        callChain.Add(
-                            (method.DeclaringType == null
-                                ? "unknown"
-                                : method.DeclaringType.Name)
-                            + "."
-                            + method.Name);
-                    }
-                }
-            }
-
-            LogDiagnostic(
-                "Soul Rend audio lifecycle diagnostic: route="
-                + route
-                + "; event="
-                + eventId
-                + "; suspectedWhisper="
-                + suspectedWhisper
-                + "; asOneShot="
-                + (asOneShot.HasValue
-                    ? asOneShot.Value.ToString()
-                    : "not-applicable")
-                + "; owner="
-                + DescribeAudioDiagnosticObject(owner)
-                + "; hand="
-                + DescribeAudioDiagnosticHand(hand)
-                + "; currentMainHand="
-                + (hero != null
-                    && hand != null
-                    && ReferenceEquals(hero.MainHandWeapon, hand))
-                + "; currentOffHand="
-                + (hero != null
-                    && hand != null
-                    && ReferenceEquals(hero.OffHandWeapon, hand))
-                + "; mainSuppressed="
-                + IsMainHandSuppressed()
-                + "; offSuppressed="
-                + IsOffHandSuppressed()
-                + "; transitionGeneration="
-                + _weaponTransitionGeneration
-                + "; windowAge="
-                + (Time.unscaledTime
-                    - _audioDiagnosticTransitionStartedAt).ToString(
-                        "0.000",
-                        CultureInfo.InvariantCulture)
-                + "; callChain="
-                + (callChain.Count == 0
-                    ? "unavailable"
-                    : string.Join(" <- ", callChain.ToArray()))
-                + ".");
-        }
-
         internal void BeginWeaponAudioTransition(string route)
         {
             if (_enabled == null || !_enabled.Value)
@@ -1674,14 +1357,14 @@ namespace VersatileWeapons
             }
             else
             {
-                List<Item> currentParticipants = new List<Item>();
+                _weaponAudioTransitionParticipants.Clear();
                 CollectWeaponAudioState(
                     hero,
-                    currentParticipants,
+                    _weaponAudioTransitionParticipants,
                     null);
                 AddExactItems(
                     _weaponAudioGuardedItems,
-                    currentParticipants);
+                    _weaponAudioTransitionParticipants);
                 _weaponAudioTransitionMuted =
                     _weaponAudioTransitionMuted || hero.MuteEquips;
             }
@@ -1817,11 +1500,14 @@ namespace VersatileWeapons
                 _weaponAudioStableFrames = 0;
             }
 
-            List<Item> currentParticipants = new List<Item>();
-            CollectWeaponAudioState(hero, currentParticipants, null);
+            _weaponAudioTransitionParticipants.Clear();
+            CollectWeaponAudioState(
+                hero,
+                _weaponAudioTransitionParticipants,
+                null);
             AddExactItems(
                 _weaponAudioGuardedItems,
-                currentParticipants);
+                _weaponAudioTransitionParticipants);
 
             bool timedOut = Time.unscaledTime
                 - _weaponAudioTransitionStartedAt
@@ -1866,15 +1552,15 @@ namespace VersatileWeapons
             Hero hero,
             bool timedOut)
         {
-            List<Item> finalParticipants = new List<Item>();
-            List<Item> finalAudible = new List<Item>();
+            _weaponAudioTransitionParticipants.Clear();
+            _weaponAudioTransitionAudible.Clear();
             CollectWeaponAudioState(
                 hero,
-                finalParticipants,
-                finalAudible);
+                _weaponAudioTransitionParticipants,
+                _weaponAudioTransitionAudible);
             AddExactItems(
                 _weaponAudioGuardedItems,
-                finalParticipants);
+                _weaponAudioTransitionParticipants);
 
             _weaponAudioTransitionActive = false;
             _weaponAudioGuardUntil = Time.unscaledTime
@@ -1883,7 +1569,9 @@ namespace VersatileWeapons
             foreach (Item previous in _weaponAudioPreviousAudible)
             {
                 if (!_weaponAudioTransitionMuted
-                    && !ContainsExact(finalParticipants, previous))
+                    && !ContainsExact(
+                        _weaponAudioTransitionParticipants,
+                        previous))
                 {
                     PlayManagedWeaponToggleAudio(
                         hero,
@@ -1891,7 +1579,7 @@ namespace VersatileWeapons
                         false);
                 }
             }
-            foreach (Item current in finalAudible)
+            foreach (Item current in _weaponAudioTransitionAudible)
             {
                 if (!_weaponAudioTransitionMuted
                     && !ContainsExact(
@@ -1914,9 +1602,11 @@ namespace VersatileWeapons
                 + DescribeWeaponAudioItems(
                     _weaponAudioPreviousAudible)
                 + "; finalParticipants="
-                + DescribeWeaponAudioItems(finalParticipants)
+                + DescribeWeaponAudioItems(
+                    _weaponAudioTransitionParticipants)
                 + "; finalAudible="
-                + DescribeWeaponAudioItems(finalAudible)
+                + DescribeWeaponAudioItems(
+                    _weaponAudioTransitionAudible)
                 + ".");
             _weaponAudioPreviousParticipants.Clear();
             _weaponAudioPreviousAudible.Clear();
@@ -2098,31 +1788,6 @@ namespace VersatileWeapons
             _weaponAudioGuardUntil = -1.0f;
         }
 
-        private static bool IsHeroAudioObject(
-            Hero hero,
-            GameObject gameObject)
-        {
-            return hero != null
-                && hero.ParentTransform != null
-                && gameObject != null
-                && (ReferenceEquals(
-                        gameObject,
-                        hero.ParentTransform.gameObject)
-                    || gameObject.transform.IsChildOf(
-                        hero.ParentTransform));
-        }
-
-        private static string DescribeAudioDiagnosticObject(
-            UnityEngine.Object value)
-        {
-            return value == null
-                ? "none"
-                : value.GetType().Name
-                    + "{name="
-                    + value.name
-                    + "}";
-        }
-
         private static string DescribeAudioDiagnosticItem(Item item)
         {
             return item == null
@@ -2139,21 +1804,6 @@ namespace VersatileWeapons
                     + item.IsMagic
                     + ",melee="
                     + item.IsMelee
-                    + "}";
-        }
-
-        private static string DescribeAudioDiagnosticHand(
-            CharacterHandBase hand)
-        {
-            return hand == null
-                ? "none"
-                : hand.GetType().Name
-                    + "{item="
-                    + DescribeAudioDiagnosticItem(hand.Item)
-                    + ",hidden="
-                    + hand.IsHidden
-                    + ",loading="
-                    + hand.IsLoadingAnimator
                     + "}";
         }
 
@@ -2602,11 +2252,16 @@ namespace VersatileWeapons
             Hero hero = Hero.Current;
             ObserveLoadoutIndex(hero);
             ObserveDiagnosticWeaponState(hero);
-
             CharacterHand gripWeapon = FindGripSwitchWeapon(hero);
+            string gripMemoryContextKey = GripMemoryEnabled()
+                || (gripWeapon != null && gripWeapon.Item != null)
+                ? GetGripMemoryContextKey(hero)
+                : null;
             if (gripWeapon == null || gripWeapon.Item == null)
             {
-                ObserveGripMemoryWithoutSupportedWeapon(hero);
+                ObserveGripMemoryWithoutSupportedWeapon(
+                    hero,
+                    gripMemoryContextKey);
                 _drawnWeaponHiddenSince = -1.0f;
                 if (_gripItem != null)
                 {
@@ -2620,7 +2275,9 @@ namespace VersatileWeapons
             }
             else
             {
-                ObserveGripItem(gripWeapon.Item);
+                ObserveGripItem(
+                    gripWeapon.Item,
+                    gripMemoryContextKey);
                 if (_twoHandedGrip)
                 {
                     HidePairedHandForTwoHandedGrip(hero, gripWeapon);
@@ -2632,7 +2289,9 @@ namespace VersatileWeapons
             UpdateOffHandTwoHandedPresentation(hero);
 
             MonitorCanceledPairedHandVisibility(hero);
-            ProcessPendingGripMemoryInvalidation(hero);
+            ProcessPendingGripMemoryInvalidation(
+                hero,
+                gripMemoryContextKey);
 
             if (ProcessRememberedGripAnimationRefresh(
                     hero,
@@ -3117,21 +2776,40 @@ namespace VersatileWeapons
         private string GetGripMemoryContextKey(Hero hero)
         {
             int gloriousUiSlot;
-            if (TryGetGloriousUiWeaponLoadout(
-                out gloriousUiSlot))
+            bool usesGloriousUi = TryGetGloriousUiWeaponLoadout(
+                out gloriousUiSlot);
+            int slot;
+            if (usesGloriousUi)
             {
-                return "G"
-                    + gloriousUiSlot.ToString(
-                        CultureInfo.InvariantCulture);
+                slot = gloriousUiSlot;
+            }
+            else
+            {
+                HeroItems heroItems = hero == null
+                    ? null
+                    : hero.TryGetElement<HeroItems>();
+                if (heroItems == null)
+                {
+                    _gripMemoryContextIdentityKnown = false;
+                    _cachedGripMemoryContextKey = null;
+                    return null;
+                }
+                slot = heroItems.CurrentLoadoutIndex;
             }
 
-            HeroItems heroItems =
-                hero == null ? null : hero.TryGetElement<HeroItems>();
-            return heroItems == null
-                ? null
-                : "N"
-                    + heroItems.CurrentLoadoutIndex.ToString(
-                        CultureInfo.InvariantCulture);
+            if (!_gripMemoryContextIdentityKnown
+                || _gripMemoryContextUsesGloriousUi != usesGloriousUi
+                || _gripMemoryContextSlot != slot)
+            {
+                _gripMemoryContextIdentityKnown = true;
+                _gripMemoryContextUsesGloriousUi = usesGloriousUi;
+                _gripMemoryContextSlot = slot;
+                _cachedGripMemoryContextKey =
+                    (usesGloriousUi ? "G" : "N")
+                    + slot.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return _cachedGripMemoryContextKey;
         }
 
         private bool TryGetGloriousUiWeaponLoadout(out int slot)
@@ -3321,7 +2999,8 @@ namespace VersatileWeapons
         }
 
         private void ObserveGripMemoryWithoutSupportedWeapon(
-            Hero hero)
+            Hero hero,
+            string contextKey)
         {
             if (!GripMemoryEnabled())
             {
@@ -3331,7 +3010,6 @@ namespace VersatileWeapons
                 return;
             }
 
-            string contextKey = GetGripMemoryContextKey(hero);
             if (!String.Equals(
                 _gripMemoryContextKey,
                 contextKey,
@@ -3412,7 +3090,9 @@ namespace VersatileWeapons
                 StringComparison.Ordinal);
         }
 
-        private void ProcessPendingGripMemoryInvalidation(Hero hero)
+        private void ProcessPendingGripMemoryInvalidation(
+            Hero hero,
+            string currentContextKey)
         {
             string contextKey =
                 _pendingGripMemoryInvalidationContextKey;
@@ -3422,7 +3102,7 @@ namespace VersatileWeapons
                 || Time.timeScale <= 0.0f
                 || !String.Equals(
                     contextKey,
-                    GetGripMemoryContextKey(hero),
+                    currentContextKey,
                     StringComparison.Ordinal))
             {
                 return;
@@ -3645,12 +3325,13 @@ namespace VersatileWeapons
             return true;
         }
 
-        private void ObserveGripItem(Item item)
+        private void ObserveGripItem(
+            Item item,
+            string contextKey)
         {
             Hero hero = Hero.Current;
             CharacterHand weapon = FindHandForItem(hero, item);
             Item pairedItem = GetPairedItem(hero, item);
-            string contextKey = GetGripMemoryContextKey(hero);
             bool sameItem = ReferenceEquals(_gripItem, item);
             bool pairingChanged =
                 !ReferenceEquals(_gripPairedItem, pairedItem);
@@ -3833,7 +3514,9 @@ namespace VersatileWeapons
                 return false;
             }
 
-            ObserveGripItem(weapon.Item);
+            ObserveGripItem(
+                weapon.Item,
+                GetGripMemoryContextKey(hero));
             bool previousTwoHandedGrip = _twoHandedGrip;
             _twoHandedGrip = !_twoHandedGrip;
             RememberCurrentGrip(hero, weapon, pairedItem);
@@ -4402,12 +4085,6 @@ namespace VersatileWeapons
             }
 
             _weaponTransitionGeneration++;
-            if (_diagnostics != null && _diagnostics.Value)
-            {
-                _audioDiagnosticTransitionStartedAt = Time.unscaledTime;
-                _audioDiagnosticTransitionUntil = Time.unscaledTime
-                    + AudioDiagnosticTransitionWindowSeconds;
-            }
             _weaponTransitionRefreshPending = true;
             _weaponTransitionRefreshFramesRemaining =
                 WeaponTransitionRefreshWindowFrames;
@@ -7185,193 +6862,6 @@ namespace VersatileWeapons
                     __instance,
                     owner,
                     equip);
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class EquipWeaponUnsheatheAudioDiagnosticPatch
-    {
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(
-                typeof(EquipWeaponBase<HeroAnimatorSubstateMachine>),
-                "PlayUnsheatheAudio",
-                Type.EmptyTypes);
-        }
-
-        private static void Prefix(
-            EquipWeaponBase<HeroAnimatorSubstateMachine> __instance)
-        {
-            Plugin plugin = Plugin.Instance;
-            if (plugin != null)
-            {
-                plugin.BeginUnsheatheAudioDiagnostic(__instance);
-            }
-        }
-
-        private static void Postfix()
-        {
-            Plugin.EndUnsheatheAudioDiagnostic();
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class FmodAttachedOneShotDiagnosticPatch
-    {
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(
-                typeof(FMODManager),
-                "PlayAttachedOneShotWithParameters",
-                new Type[]
-                {
-                    typeof(EventReference),
-                    typeof(GameObject),
-                    typeof(UnityEngine.Object),
-                    typeof(FMODParameter[])
-                });
-        }
-
-        private static void Prefix(
-            EventReference eventReference,
-            object[] __args)
-        {
-            if (Plugin.Instance != null)
-            {
-                Plugin.Instance.RecordFmodTransitionAudioDiagnostic(
-                    "attached",
-                    eventReference,
-                    __args);
-            }
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class FmodOneShotDiagnosticPatch
-    {
-        private static IEnumerable<MethodBase> TargetMethods()
-        {
-            List<MethodBase> targets = new List<MethodBase>();
-            foreach (MethodInfo method in typeof(FMODManager).GetMethods(
-                BindingFlags.Public | BindingFlags.Static))
-            {
-                ParameterInfo[] parameters = method.GetParameters();
-                if (String.Equals(
-                        method.Name,
-                        "PlayOneShot",
-                        StringComparison.Ordinal)
-                    && parameters.Length > 0
-                    && parameters[0].ParameterType
-                        == typeof(EventReference))
-                {
-                    targets.Add(method);
-                }
-            }
-            return targets;
-        }
-
-        private static void Prefix(
-            EventReference eventReference,
-            object[] __args)
-        {
-            if (Plugin.Instance != null)
-            {
-                Plugin.Instance.RecordFmodTransitionAudioDiagnostic(
-                    "one-shot",
-                    eventReference,
-                    __args);
-            }
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class CharacterMagicIdleAudioDiagnosticPatch
-    {
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(
-                typeof(CharacterMagic),
-                "PlayIdleAudioEvent",
-                new Type[] { typeof(EventReference) });
-        }
-
-        private static void Prefix(
-            CharacterMagic __instance,
-            EventReference eventRef)
-        {
-            if (Plugin.Instance != null)
-            {
-                Plugin.Instance.RecordSoulRendAudioLifecycleDiagnostic(
-                    "magic-idle",
-                    eventRef,
-                    __instance,
-                    null);
-            }
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class CharacterHandAudioDiagnosticPatch
-    {
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(
-                typeof(CharacterHandBase),
-                "PlayAudioClip",
-                new Type[]
-                {
-                    typeof(EventReference),
-                    typeof(bool),
-                    typeof(FMODParameter[])
-                });
-        }
-
-        private static void Prefix(
-            CharacterHandBase __instance,
-            EventReference eventReference,
-            bool asOneShot)
-        {
-            if (Plugin.Instance != null)
-            {
-                Plugin.Instance.RecordSoulRendAudioLifecycleDiagnostic(
-                    "character-hand",
-                    eventReference,
-                    __instance,
-                    asOneShot);
-            }
-        }
-    }
-
-    [HarmonyPatch]
-    internal static class HeroControllerAudioDiagnosticPatch
-    {
-        private static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(
-                typeof(VHeroController),
-                "PlayAudioClip",
-                new Type[]
-                {
-                    typeof(EventReference),
-                    typeof(bool),
-                    typeof(GameObject),
-                    typeof(FMODParameter[])
-                });
-        }
-
-        private static void Prefix(
-            VHeroController __instance,
-            EventReference eventReference,
-            bool asOneShot)
-        {
-            if (Plugin.Instance != null)
-            {
-                Plugin.Instance.RecordSoulRendAudioLifecycleDiagnostic(
-                    "hero-controller",
-                    eventReference,
-                    __instance,
-                    asOneShot);
-            }
         }
     }
 

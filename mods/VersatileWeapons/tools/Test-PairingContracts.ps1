@@ -300,6 +300,11 @@ if ($source -notmatch '"RememberGripPerLoadout",\s*true' -or
     $source -notmatch 'TryLoadSlotFile' -or
     $source -notmatch 'GloriousUiPluginGuid' -or
     $source -notmatch '_currentVirtualWeaponSlot' -or
+    $source -notmatch '_cachedGripMemoryContextKey' -or
+    $updateLoop -notmatch '(?s)CharacterHand gripWeapon = FindGripSwitchWeapon\(hero\);\s*string gripMemoryContextKey = GripMemoryEnabled\(\)\s*\|\|\s*\(gripWeapon != null && gripWeapon\.Item != null\)\s*\?\s*GetGripMemoryContextKey\(hero\)\s*:\s*null;' -or
+    $updateLoop -notmatch 'ObserveGripMemoryWithoutSupportedWeapon\(\s*hero,\s*gripMemoryContextKey\)' -or
+    $source -notmatch 'ObserveGripItem\(\s*gripWeapon\.Item,\s*gripMemoryContextKey\)' -or
+    $source -notmatch 'ProcessPendingGripMemoryInvalidation\(\s*hero,\s*gripMemoryContextKey\)' -or
     $readme -notmatch 'RememberGripPerLoadout = true' -or
     $readme -notmatch 'Glorious UI weapon loadout') {
     throw "Grip memory must default on, persist per save, validate exact equipment and owning hand, invalidate changed loadouts, and distinguish Glorious UI virtual slots."
@@ -350,50 +355,30 @@ if ($source -notmatch 'UpdateOffHandTwoHandedPresentation' -or
     throw "An offhand weapon in two-handed grip must move only its loaded view to the main-hand socket and restore that view to the offhand socket afterward."
 }
 
-$unsheatheDiagnostic = [regex]::Match(
-    $source,
-    '(?s)internal void BeginUnsheatheAudioDiagnostic\(.+?(?=\r?\n        internal static void EndUnsheatheAudioDiagnostic)'
-).Value
-$unsheathePatch = [regex]::Match(
-    $source,
-    '(?s)class EquipWeaponUnsheatheAudioDiagnosticPatch.+?(?=\r?\n    \[HarmonyPatch\])'
-).Value
-$fmodDiagnostic = [regex]::Match(
-    $source,
-    '(?s)internal void RecordFmodTransitionAudioDiagnostic\(.+?(?=\r?\n        private )'
-).Value
-$soulRendAudioDiagnostic = [regex]::Match(
-    $source,
-    '(?s)internal void RecordSoulRendAudioLifecycleDiagnostic\(.+?(?=\r?\n        private )'
-).Value
-if ($unsheatheDiagnostic -notmatch '_diagnostics == null \|\| !_diagnostics\.Value' -or
-    $unsheatheDiagnostic -notmatch 'sourceFsm\.MainHandItem' -or
-    $unsheatheDiagnostic -notmatch 'IsMainHandSuppressed\(\)' -or
-    $unsheatheDiagnostic -notmatch 'IsOffHandSuppressed\(\)' -or
-    $unsheatheDiagnostic -notmatch '_equipFsmResetStage' -or
-    $unsheatheDiagnostic -notmatch '_weaponTransitionGeneration' -or
-    $fmodDiagnostic -notmatch '_audioDiagnosticTransitionUntil >= Time\.unscaledTime' -or
-    $fmodDiagnostic -notmatch 'eventReference\.PathOrGuid' -or
-    $fmodDiagnostic -notmatch 'unsheatheSourceFsm=' -or
-    $fmodDiagnostic -notmatch 'heroAttached=' -or
-    $unsheathePatch -notmatch 'typeof\(EquipWeaponBase<HeroAnimatorSubstateMachine>\)' -or
-    $unsheathePatch -notmatch '"PlayUnsheatheAudio"' -or
-    $unsheathePatch -notmatch 'private static void Prefix' -or
-    $unsheathePatch -notmatch 'private static void Postfix' -or
-    $unsheathePatch -match 'return false|____unsheatheSoundPlayed|__result' -or
-    $source -notmatch 'class FmodAttachedOneShotDiagnosticPatch' -or
-    $source -notmatch 'class FmodOneShotDiagnosticPatch' -or
-    $source -notmatch 'AudioDiagnosticTransitionWindowSeconds = 4\.0f' -or
-    $source -notmatch 'SuspectedSoulRendWhisperEvent' -or
-    $soulRendAudioDiagnostic -notmatch 'System\.Diagnostics\.StackTrace' -or
-    $soulRendAudioDiagnostic -notmatch 'currentOffHand=' -or
-    $soulRendAudioDiagnostic -notmatch 'offSuppressed=' -or
-    $source -notmatch 'class CharacterMagicIdleAudioDiagnosticPatch' -or
-    $source -notmatch '"PlayIdleAudioEvent"' -or
-    $source -notmatch 'class CharacterHandAudioDiagnosticPatch' -or
-    $source -notmatch 'class HeroControllerAudioDiagnosticPatch' -or
-    $readme -notmatch 'every game equip-state request for an\s+unsheathe sound') {
-    throw "Transition audio diagnostics must correlate exact unsheathe requests with actual FMOD events during a bounded window."
+$obsoleteAudioDiagnostics = @(
+    'AudioDiagnosticTransitionWindowSeconds',
+    'SuspectedSoulRendWhisperEvent',
+    '_audioDiagnosticTransitionStartedAt',
+    '_audioDiagnosticTransitionUntil',
+    '_unsheatheAudioDiagnosticFsm',
+    'BeginUnsheatheAudioDiagnostic',
+    'EndUnsheatheAudioDiagnostic',
+    'RecordFmodTransitionAudioDiagnostic',
+    'RecordSoulRendAudioLifecycleDiagnostic',
+    'EquipWeaponUnsheatheAudioDiagnosticPatch',
+    'FmodAttachedOneShotDiagnosticPatch',
+    'FmodOneShotDiagnosticPatch',
+    'CharacterMagicIdleAudioDiagnosticPatch',
+    'CharacterHandAudioDiagnosticPatch',
+    'HeroControllerAudioDiagnosticPatch'
+)
+foreach ($obsoleteAudioDiagnostic in $obsoleteAudioDiagnostics) {
+    if ($source.Contains($obsoleteAudioDiagnostic)) {
+        throw "Obsolete global audio diagnostic remains: $obsoleteAudioDiagnostic"
+    }
+}
+if ($readme -match 'FMOD one-shot|unsheathe sound|Soul Rend audio diagnostics|magic-hand\s+idle-audio') {
+    throw "Installed-user troubleshooting still advertises removed global audio diagnostics."
 }
 
 $weaponAudioBegin = [regex]::Match(
@@ -426,7 +411,9 @@ if ($weaponAudioBegin -notmatch 'CollectWeaponAudioState' -or
     $weaponAudioFilter -notmatch '_weaponAudioPlaybackBypass' -or
     $weaponAudioFilter -notmatch '_weaponAudioTransitionActive' -or
     $weaponAudioFilter -notmatch '_weaponAudioGuardUntil' -or
-    $weaponAudioFinalize -notmatch '!ContainsExact\(finalParticipants, previous\)' -or
+    $source -notmatch 'private readonly List<Item> _weaponAudioTransitionParticipants' -or
+    $source -notmatch 'private readonly List<Item> _weaponAudioTransitionAudible' -or
+    $weaponAudioFinalize -notmatch '!ContainsExact\(\s*_weaponAudioTransitionParticipants,\s*previous\)' -or
     $weaponAudioFinalize -notmatch '!ContainsExact\(\s*_weaponAudioPreviousAudible,\s*current\)' -or
     $source -notmatch 'WeaponAudioSlotIsSuppressed' -or
     $source -notmatch '_hiddenPairedHand\.Item' -or

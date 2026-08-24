@@ -1,5 +1,3 @@
-TargetVersion=0.8.7
-BaselineVersion=0.8.1
-
-Normalized weapon-switch audio across native and Glorious UI loadouts. Only final active hand items play equip audio, genuinely removed active items retain their unequip sound, unchanged items do not replay, and VW-stowed paired weapons or spells remain silent.
-Preserved the game's intentionally muted equipment transitions and paused deferred weapon audio while gameplay is stopped.
+TargetVersion=0.9.0
+BaselineVersion=0.8.8
+Reduced steady loadout-context work by caching stable native or Glorious UI grip-memory identity and skipping polling when grip memory is disabled and no supported grip-switch weapon is equipped, while preserving grip behavior and invalidation.

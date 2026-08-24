@@ -1,3 +1,13 @@
+Version 0.9.0
+Skipped native and Glorious UI loadout-context polling when grip memory is disabled and no supported grip-switch weapon is equipped. Supported weapons and enabled grip memory still sample the same context once per update, preserving grip behavior and invalidation while removing unnecessary idle reflection and lookup work.
+
+Version 0.8.9
+Cached the native or Glorious UI grip-memory loadout identity across stable slots and sampled it once per update, eliminating repeated per-frame key formatting and duplicate integration reflection while preserving immediate loadout changes and exact grip-memory validation.
+Reused weapon-audio transition participant buffers instead of allocating new lists on each settling frame and again during finalization; transition ownership, timing, and playback behavior remain unchanged.
+
+Version 0.8.8
+Removed the retired global FMOD one-shot, unsheathe, and magic-hand audio tracing hooks now that weapon-switch audio is settled. Versatile Weapons no longer claims Immersive Footsteps' exact FMOD overload, while its functional weapon-transition audio normalization and focused gameplay diagnostics remain intact.
+
 Version 0.8.7
 Kept the settled weapon-audio transaction silent whenever the game uses MuteEquips for restoration or special equipment work, and paused its timeout while gameplay time is stopped. These safeguards preserve vanilla muted transitions and prevent deferred equipment audio from completing in menus or while paused.
 

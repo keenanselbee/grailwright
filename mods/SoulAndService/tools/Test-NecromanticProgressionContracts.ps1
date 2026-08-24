@@ -9,7 +9,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw
 
 foreach ($required in @(
     'public static class SoulAndServiceApi',
-    'public const int ApiVersion = 7',
+    'public const int ApiVersion = 8',
     'GetLastSummonCommandPulseSeconds',
     'GetSoulVigor',
     'OverrideSoulVigor',
@@ -30,20 +30,30 @@ foreach ($required in @(
     'IndividualFormationPower = 20.0f',
     'GlobalFormationPower = 30.0f',
     'BehaviorCommandPower = 50.0f',
+    'BulwarkBehaviorPower = 60.0f',
     'RecallCommandPower = 70.0f',
     'SwarmCommandPower = 90.0f',
     'EmpowermentPower = 100.0f',
-    'MaximumCommandCapacityPower = 150.0f',
+    'MaximumSummonCapacityPower = 150.0f',
+    'GuardDamageMultiplier = 1.05f',
+    'GuardDamageTakenMultiplier = 0.95f',
+    'BulwarkDamageTakenMultiplier = 0.85f',
+    'HuntDamageMultiplier = 1.10f',
     'GetProgressionSummonLimitBonus()',
     'GetNecromanticPowerFromSoulVigor(before)',
     'GetNecromanticPowerFromSoulVigor(after)',
     'plugin.OverrideSoulVigor.Value',
     'plugin.SoulVigorOverrideValue.Value',
+    'internal static void ShowSoulVigorWanesAfterSpend(int before, int after)',
+    'IsSoulVigorOverrideActive()',
+    'ShowSoulVigorThresholdMessage(',
     'GetBindingIncrement(corpseFingerprint, attempt)',
     'facts.Set(key + ".progress", progress)',
     'TryHarvestCorpse(',
     'RollbackCorpseHarvest(',
     'TryRestoreCorpseHarvest(',
+    'GetOrRollCorpseSoulVigorValue(',
+    'CorpseSoulVigorKey(',
     'RollSoulVigorValue(',
     'TrySpendSoulVigor(',
     'InvalidateReportedProgression();',
@@ -58,16 +68,39 @@ foreach ($required in @(
     'maximum = 36;',
     'nominal = 30;',
     '"Necrotic"',
-    'Your servants heed your command: Attack.',
-    'Your will can anchor a single servant: Hold and Follow.',
-    'Your command reaches the whole host: Hold All and Follow All.',
-    'Your will shapes the host: Guard, Bulwark, and Hunt.',
-    'Your will can recall the scattered host.',
-    'Your host surges at your command: Swarm.',
-    'Your will sustains the host and can Empower a servant.',
-    'Your overmastered will can sustain a still greater host.',
+    'Necromantic Power rises: Attack commands are available.',
+    'Necromantic Power wanes: Attack commands are unavailable.',
+    'Necromantic Power rises: individual Hold and Follow commands are available.',
+    'Necromantic Power wanes: individual Hold and Follow commands are unavailable.',
+    'Necromantic Power rises: Hold All and Follow All are available.',
+    'Necromantic Power wanes: Hold All and Follow All are unavailable.',
+    'Necromantic Power rises: Guard and Hunt behavior control is available; Summon Capacity bonus is +1.',
+    'Necromantic Power wanes: Guard and Hunt behavior control is unavailable; Summon Capacity bonus is lost.',
+    'Necromantic Power rises: Bulwark behavior is available.',
+    'Necromantic Power wanes: Bulwark is unavailable; Guard takes its place.',
+    'Necromantic Power rises: Recall Host is available.',
+    'Necromantic Power wanes: Recall Host is unavailable.',
+    'Necromantic Power rises: Swarm commands are available.',
+    'Necromantic Power wanes: Swarm is unavailable; Attack takes its place.',
+    'Necromantic Power rises: Empower is available; servant upkeep ends; Summon Capacity bonus is +2.',
+    'Necromantic Power wanes: Empower is unavailable; servant upkeep resumes; Summon Capacity bonus is +1.',
+    'Necromantic Power rises: Summon Capacity bonus is +3.',
+    'Necromantic Power wanes: Summon Capacity bonus falls to +2.',
     'GetCorpseIconId(tier)')) {
     if (!$progression.Contains($required)) { throw "Missing necromantic progression contract: $required" }
+}
+if (($progression -notmatch '(?s)private static void ShowSoulVigorThresholdMessages\(.*?if \(IsSoulVigorOverrideActive\(\)\).*?return;') -or
+    ($progression -notmatch '(?s)private static void ShowSoulVigorThresholdMessage\(.*?"necro".*?"High".*?string\.Empty.*?rises \? "Reward" : "Status".*?"Medium"')) {
+    throw 'Soul Vigor threshold feedback must suppress diagnostic overrides and use the approved Necrotic GFT presentation.'
+}
+$trySpendBlock = [regex]::Match(
+    $progression,
+    '(?s)internal static bool TrySpendSoulVigor\(.+?(?=\r?\n\s*(?:internal|private) static)')
+if ((-not $trySpendBlock.Success) -or
+    $trySpendBlock.Value.Contains('ShowSoulVigor') -or
+    ($salvage -notmatch '(?s)OrdinarySummonInvestments\[summonId\] =.*?ShowSoulVigorWanesAfterSpend\(before, after\);') -or
+    ($salvage -notmatch '(?s)CommitSuccessfulBinding\(\s*record\.CorpseFingerprint\);\s*record\.ServiceInitialized = true;.*?SoulProgressionRuntime\.ShowSoulVigorWanesAfterSpend\(\s*vigorBefore,\s*vigorAfter\);')) {
+    throw 'Soul Vigor waning feedback must wait for a durable summon or reanimation investment.'
 }
 foreach ($required in @(
     'private const string SummonBehaviorKey = "soul_vigor.summon_behavior"',
@@ -75,6 +108,14 @@ foreach ($required in @(
     'internal static bool TryCycleSummonBehavior(',
     'facts.Set(SummonBehaviorKey, (int)behavior)')) {
     if (!$progression.Contains($required)) { throw "Missing summon behavior progression contract: $required" }
+}
+if (($progression -notmatch '(?s)GetSummonBehavior\(\).*?behavior == SummonBehavior\.Bulwark.*?power < BulwarkBehaviorPower.*?SummonBehavior\.Guard') -or
+    ($progression -notmatch '(?s)TryCycleSummonBehavior\(.*?current == SummonBehavior\.Guard\s*\? SummonBehavior\.Hunt.*?current == SummonBehavior\.Hunt\s*&& power >= BulwarkBehaviorPower\s*\? SummonBehavior\.Bulwark\s*:\s*SummonBehavior\.Guard')) {
+    throw 'Behavior cycling does not unlock Guard/Hunt at Power 50 and add Bulwark at Power 60.'
+}
+if (($progression -notmatch '(?s)GetSummonDamageMultiplier\(\).*?power < BehaviorCommandPower.*?behavior == SummonBehavior\.Hunt.*?HuntDamageMultiplier.*?behavior == SummonBehavior\.Guard.*?GuardDamageMultiplier') -or
+    ($progression -notmatch '(?s)GetSummonDamageTakenMultiplier\(\).*?power < BehaviorCommandPower.*?behavior == SummonBehavior\.Bulwark.*?BulwarkDamageTakenMultiplier.*?behavior == SummonBehavior\.Guard.*?GuardDamageTakenMultiplier')) {
+    throw 'Behavior damage and mitigation bonuses do not apply only after behavior control unlocks.'
 }
 
 foreach ($legacyContract in @(
@@ -124,7 +165,7 @@ foreach ($required in @(
     if (!$summons.Contains($required)) { throw "Missing upkeep, Swarm, or Empower power contract: $required" }
 }
 if ($summons -notmatch 'SoulProgressionRuntime\s*\.GetProgressionSummonLimitBonus\(\)') {
-    throw 'The native summon limit does not include progression Command Capacity.'
+    throw 'The native summon limit does not include progression Summon Capacity.'
 }
 foreach ($legacyThreshold in @(
     'AttackCommandSoulVigor',
@@ -155,6 +196,7 @@ foreach ($threshold in @(
     @{ Before = 132; At = 133; Power = 20 },
     @{ Before = 205; At = 206; Power = 30 },
     @{ Before = 368; At = 369; Power = 50 },
+    @{ Before = 462; At = 463; Power = 60 },
     @{ Before = 566; At = 567; Power = 70 },
     @{ Before = 825; At = 826; Power = 90 },
     @{ Before = 999; At = 1000; Power = 100 },
@@ -164,8 +206,8 @@ foreach ($threshold in @(
         throw "Soul Vigor does not cross Power $($threshold.Power) between $($threshold.Before) and $($threshold.At)."
     }
 }
-if ($progression -notmatch '(?s)GetProgressionSummonLimitBonus\(\).*?power >= MaximumCommandCapacityPower.*?return 3;.*?power >= EmpowermentPower.*?return 2;.*?power >= BehaviorCommandPower \? 1 : 0;') {
-    throw 'Command capacity does not grant +1/+2/+3 at Power 50/100/150.'
+if ($progression -notmatch '(?s)GetProgressionSummonLimitBonus\(\).*?power >= MaximumSummonCapacityPower.*?return 3;.*?power >= EmpowermentPower.*?return 2;.*?power >= BehaviorCommandPower \? 1 : 0;') {
+    throw 'Summon Capacity does not grant +1/+2/+3 at Power 50/100/150.'
 }
 if ($summons -notmatch '(?s)if \(!plugin\.IsEnabled\)\s*\{.*?ClearAllServantPowerStates\(\);.*?RestoreAllCollisionPairs\(\);.*?RemoveAllAwarenessTargets\(\);.*?ExplicitCommandTargets\.Clear\(\);.*?return;\s*\}') {
     throw "Disabling Soul and Service does not remove its injected awareness targets."
@@ -179,7 +221,7 @@ if (!$manifest.Contains('../../tools/shared/CorpseQualityBuckets.cs')) {
 }
 
 foreach ($required in @(
-    'public const int ApiVersion = 7',
+    'public const int ApiVersion = 8',
     'public static bool IsNecroticDamage(object damage)',
     'return SoulSalvageRuntime.IsNecroticDamageForInterop(damage);')) {
     if (!$plugin.Contains($required)) {

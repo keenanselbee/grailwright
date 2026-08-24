@@ -1,65 +1,9 @@
-TargetVersion=2.2.0
-BaselineVersion=1.0.6
-Let explicit Attack and Swarm pursuit bypass a saved Hold anchor without erasing the servant's eventual return position.
-Reasserted still-valid autonomous Hunt targets when native AI drops their priority override or combat selection, preventing brief formation pullback.
-Made Bulwark follow meaningful travel while moving, then deliberately face a stationary camera direction only after a stable 30-degree turn, placing its shield wall in front without camera-driven circling.
-Reduced Recall and Recall Host holds from 2.0 to 1.5 seconds while preserving the shorter release window for Hold All and Follow All.
-Made Attack and Swarm targeting tolerate small visible-body gaps and brief aim drift without stealing deliberate servant focus.
-Kept explicit Attack and Swarm orders authoritative by reasserting their native target until it becomes invalid, another direct order replaces it, or Recall cancels it.
-Expanded Hunt to the native 45-meter tether, shared hero-or-servant sight, and attacker-first threat priority, while releasing formation movement throughout pursuit.
-Returned raised servants' direct corpse identities to Blood Magic Expansion so saturated, spent, and bloodless blocked ritual reticles resolve reliably.
-Made Empower recognize Kandra-rendered creature bodies, allowing visible growth without scaling controller or navigation roots.
-Added a safe native-corpse bridge so light Abhartach's Calling can sacrifice only its explicitly targeted eligible owned servant without duplicate progression or loot.
-Made Empower visibly scale a cached renderer-bearing model root without touching the locomotion controller or scanning the hierarchy each frame.
-Sampled meaningful hero movement once per rendered frame so camera turns and minor taps cannot churn stationary formations between sparse AI decisions.
-Reported a raised servant's actual starting Health after all retention and Blood Magic penalties.
-Made successful Recall and Recall Host orders request Battlecry Voice Tuner's dedicated Recall pool instead of reusing Follow voices.
-Ignored brief player taps and sub-meter adjustments across Guard, Bulwark, and Hunt, while sustained travel still moves and cleanly resettles the formation.
-Aligned Soul Rend hand lights after animation and with First Person Arms Adjuster's visual offset when installed.
-Matched Blood Magic's restrained light presentation with smoothstep novice-to-mastery growth, a 0.8 Soul Rend intensity multiplier, and explicit HDRP shadow and volumetric suppression.
-Kept stationary Bulwark screens immune to small camera corrections while allowing deliberate stable camera turns to redirect the wall.
-Allowed servants to target summoned enemies when faction rules mark them hostile.
-Made optional passive crosshair sharing behavior-bound autonomous guidance rather than persistent explicit Attack authority.
-Simplified each servant to one directly addressed awareness record, cached host combat state per frame, and restored native targeting only when custom prerequisites are unavailable.
-Removed fully-restored interaction text while retaining Dishonored's desaturated heal reticle, and rounded actual Soul Rend Mana restoration to whole Mana.
-Added configurable green Soul Rend hand lights with Blood Magic-style power growth, interior scaling, cast brightening, fading, and no shadows.
-Stopped stationary Guard formations from following camera look, added an overall idle-movement amount for Guard and Hunt wandering, and added restrained ethereal echoes to light Soul Rend audio.
-Turned Soul Vigor into a spendable necromantic resource: ordinary summons cost 3, corpses cost 1/3/5/10 by quality, and spending lowers current Power and can relock commands.
-Tripled natural soul values, added subtle quality-weighted integer variance and mastery extraction, and replaced free summon farming with once-only Health-scaled recovery of native soul plus invested Vigor.
-Added contextual Heavy Soul Rend interaction text for reanimation cost, final Soul Claim chance, servant restoration, and Empower, plus a feedback-only fully-restored signal so crosshair integrations can show its unavailable presentation without generic interaction text.
-Made Soul Rend targeting respect Versatile Weapons hand suppression, so a spell hidden by an active two-handed grip no longer produces necromantic targeting until its hand becomes available again.
-Added optional Blood Magic Expansion integration so drained bodies raise wounded and eligible owned flesh servants can pay out their source's remaining blood ritual.
-Exposed owned ordinary flesh summons such as Corpse Eaters as healing-only Blood Magic ritual targets with no XP or Blood Essence, while raised servants retain their source-bound one-time rewards.
-Kept eligible servant identity available during combat so Blood Magic can show its desaturated blocked reticle without allowing the ritual to channel.
-Servants executed by that ritual now remain valid once-only light Soul Rend targets, preserving Health-scaled salvage and their source loot.
-Widened Guard spacing and added a settling tolerance so servants hold formation without crowding the hero.
-Made Recall choose side-biased positions for a lone servant, reject misleading navigation snaps, and preserve recalled slots until the hero moves or gives a new command.
-Made summon responsiveness improve smoothly with Soul Vigor from a deliberate novice cadence to the configured full-mastery response speed.
-Made stationary Guard formations remain settled instead of rotating with small changes to the hero's facing.
-Added restrained idle life: one servant at a time may occasionally take a short Walk near its formation position, linger, and return, while movement, combat, or commands cancel it immediately.
-Made idle discipline improve through Power 100: Guard formations begin with about 1.28 meters of maximum movement at their Power 30 unlock, narrow to 0.75 meters at Power 100, and remain unchanged through Power 200.
-Reduced runtime overhead through shared formation work, bounded refresh cadences, cached idle destinations, a single host movement budget, and a one-per-second navigation-placement limit.
-Released native hero-centered combat slots whenever servants pursue NPC targets, so Hunt changes and Attack orders engage promptly instead of keeping servants clustered near the hero.
-Refined Guard into a threat-only bodyguard that no longer pulls uninvolved hostiles simply because the host is fighting.
-Made Bulwark hold a steadier, wider forward line, skip unnecessary native target acquisition, and counterattack only genuine threats inside a short defensive leash.
-Made Hunt commit briefly to valid targets instead of switching for marginal distance changes.
-Made behavior changes perform one immediate acquisition pass while preserving the ongoing Soul Vigor response cadence.
-Kept autonomous overrides behind native combat-target acceptance so unreachable or rejected enemies do not leave servants following without attacking.
-Let Guard, Bulwark, and Hunt recognize relevant threats seen by either the hero or the acting servant.
-Tightened small Bulwark formations into forward-facing arcs instead of placing two servants almost directly beside the hero.
-Made Empower clearly scale size, damage, and resistance by a reported lower-biased 1.2x-1.5x roll.
-Shortened the Soul Rend heavy tooltip to emphasize Empower's combat effects while leaving visible growth to communicate its size scaling.
-Established a clear behavior spacing ladder: Bulwark at 3.5 meters, Guard at 4.5, and Hunt at 5.5.
-Moved Hunt onto stable perimeter slots with staggered local scouting walks, a 5-meter inner boundary, and at most two simultaneous scouts in larger hosts.
-Made mastered Guard walks recur moderately sooner while retaining their disciplined 0.75-meter range and one-servant movement limit.
-Made Empowered servants retain their rolled visible growth through animation and visual refreshes.
-Corrected empowered locomotion so servants no longer skate after Swarm consumes its first-hit boost.
-Reduced formation overhead by suppressing identical patrol requests, sharing Bulwark candidate queries, and caching Steel and Bone awareness interop.
-Made Soul and Service authoritative over owned-servant target decisions so native recalculation no longer competes with behavior logic.
-Protected explicit Attack and Swarm targets from autonomous cleanup, preventing servants from striking once and skating back to the hero.
-Made behavior changes retain targets valid under the new mode and refresh before enforcing the new formation.
-Made heavy Soul Rend restore one servant by 20%-50% maximum Health with Soul Vigor progression, reserving Empower for servants at 95% Health or higher.
-Let the 95% mercy threshold top off and Empower in one ritual while lower-health casts perform restoration only.
-Moved Empower growth enforcement after animation updates and added bounded transform and rendered-bounds diagnostics.
-Aligned Soul Vigor rewards with Blood Magic Expansion's concise progression grammar and short Reward presentation.
-Combined servant-unbinding recovery as +Mana | +Soul Vigor without duplicating a Grail Floating Text Mana event.
+TargetVersion=2.5.2
+BaselineVersion=2.4.7
+Made Guard and Hunt tolerate more local hero movement before reforming, including during combat, while retaining deliberate travel response.
+Made Bulwark Advance acquire its forward slots immediately, converge quickly while meaningfully displaced, settle within a wider hysteretic arrival zone, and probe deterministic nearby reachable positions when terrain blocks an exact slot, including while the hero keeps moving.
+Removed avoidable Soul Rend hand-light work when the feature or spell is inactive and replaced per-frame state-name conversions with typed checks.
+Consolidated reanimation runes and optional dark-green smoke into one pooled body effect per servant and removed the weaker fire-wisp option.
+Added an enabled-by-default dynamic particle budget that preserves full density for small hosts and progressively reduces per-servant rune and smoke particles as the reanimated host grows.
+Limited allocation-free summon collider discovery to initialization and the game's collider-toggle events, removing speculative recurring hierarchy scans.
+Tightened heavy Soul Rend's ground-aim corpse assist from 1 meter to 0.4 meters while preserving direct-target priority.

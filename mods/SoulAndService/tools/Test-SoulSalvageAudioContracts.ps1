@@ -21,6 +21,11 @@ foreach ($required in @(
     'internal ConfigEntry<bool> AvoidRecentSoulSalvageAudioRepeats',
     'internal ConfigEntry<int> RecentSoulSalvageAudioMemory',
     'internal ConfigEntry<float> SoulSalvageAudioRandomPitchSemitones',
+    'internal ConfigEntry<float> FemaleSoulSalvageAudioPitchSemitones',
+    'internal ConfigEntry<float> MaleSoulSalvageAudioPitchSemitones',
+    'internal ConfigEntry<float> FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones',
+    'internal ConfigEntry<float> MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones',
+    'internal ConfigEntry<float> NonHumanoidSoulSalvageAudioPitchSemitones',
     'internal ConfigEntry<float> SoulSalvageAudioEchoAmount',
     '"PlaySoulSalvageAudio",',
     '"SoulSalvageAudioVolume",',
@@ -30,7 +35,16 @@ foreach ($required in @(
     '"AvoidRecentSoulSalvageAudioRepeats",',
     '"RecentSoulSalvageAudioMemory",',
     '"SoulSalvageAudioRandomPitchSemitones",',
-    '0.20f,')) {
+    '0.20f,',
+    '"FemaleSoulSalvageAudioPitchSemitones",',
+    '3.0f,',
+    '"MaleSoulSalvageAudioPitchSemitones",',
+    '-3.0f,',
+    '"FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",',
+    '-1.0f,',
+    '"MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",',
+    '"NonHumanoidSoulSalvageAudioPitchSemitones",',
+    '-6.0f,')) {
     if (!$pluginSource.Contains($required)) {
         throw "Soul Salvage audio configuration is missing: $required"
     }
@@ -42,6 +56,14 @@ foreach ($required in @(
     'AvoidRecentSoulSalvageAudioRepeats.Value',
     'RecentSoulSalvageAudioMemory.Value',
     'SoulSalvageAudioRandomPitchSemitones.Value',
+    'FemaleSoulSalvageAudioPitchSemitones.Value',
+    'MaleSoulSalvageAudioPitchSemitones.Value',
+    'FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones',
+    'MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones',
+    'NonHumanoidSoulSalvageAudioPitchSemitones.Value',
+    'SoulSalvageAudioTargetClass.FemaleMonster',
+    'SoulSalvageAudioTargetClass.MaleMonster',
+    'SoulSalvageAudioTargetClass.UnknownMonster',
     'MaximumRangeDistance = 30.0f',
     'MinimumRangeVolume = 0.10f',
     'GetRangeVolumeMultiplier(',
@@ -49,6 +71,8 @@ foreach ($required in @(
     'Mathf.Pow(2.0f, semitones / 12.0f)',
     'GetTierFallbacks(',
     'SoundsByPath[path] = sound;',
+    'RuntimeManager.CoreSystem.playSound(',
+    'FMOD.Channel channel;',
     'pair.Value.release();')) {
     if (!$audioSource.Contains($required)) {
         throw "Soul Salvage FMOD runtime contract is missing: $required"
@@ -78,18 +102,32 @@ foreach ($required in @(
     'SoulSalvageAudioRuntime.Shutdown();',
     'CompleteLightSummonHarvest(__instance);',
     'CompleteLightSummonHarvest(_lightTarget);',
-    'SoulSalvageAudioRuntime.Play(tier, true, corpse.Coords);',
+    'GetSoulSalvageAudioTargetClass(',
+    'NonHumanoidSoulAudioTerms',
+    'sourceNpc.GetGender()',
+    'dummy.GetGender()',
     'hasAudioPosition,',
-    'record.LastSafeCoords);')) {
+    'audioTargetClass);')) {
     if (!$salvageSource.Contains($required)) {
         throw "Soul Salvage playback hook is missing: $required"
     }
 }
-if ($salvageSource -notmatch '(?s)if \(!raisedSacrifice\)\s*\{\s*SoulSalvageAudioRuntime\.Play\(\s*audioTier,\s*hasAudioPosition,\s*audioPosition\);') {
-    throw "Ordinary summon sacrifice does not play exactly outside the raised-servant path."
+if ($salvageSource -notmatch '(?s)SoulSalvageAudioRuntime\.Play\(\s*audioTier,\s*hasAudioPosition,\s*audioPosition,\s*audioTargetClass\);') {
+    throw "Summon sacrifice audio is not shared by ordinary and raised servants."
 }
-if ($salvageSource -notmatch '(?s)if \(record\.Sacrificed\)\s*\{\s*SoulSalvageAudioRuntime\.Play\(\s*record\.QualityTier,\s*true,\s*record\.LastSafeCoords\);') {
-    throw "Raised-servant audio is not restricted to successful light sacrifice."
+if ($salvageSource -match '(?s)if \(record\.Sacrificed\)\s*\{\s*SoulSalvageAudioRuntime\.Play') {
+    throw "Raised-servant audio is still deferred to remains cleanup."
+}
+$corpseHarvestBlock = [regex]::Match(
+    $salvageSource,
+    '(?s)private static void TryHarvestCorpse\(.+?(?=\r?\n\s*private static void ApplySoulRend\()')
+$classificationIndex = $corpseHarvestBlock.Value.IndexOf(
+    'SoulSalvageAudioTargetClass audioTargetClass =')
+$remainsIndex = $corpseHarvestBlock.Value.IndexOf('TryCreateRemains(')
+$classificationCapturedBeforeRemains = $corpseHarvestBlock.Success -and
+    $classificationIndex -ge 0 -and $classificationIndex -lt $remainsIndex
+if (!$classificationCapturedBeforeRemains) {
+    throw "Corpse audio classification must be captured before remains replacement discards its source."
 }
 $livingBlock = [regex]::Match(
     $salvageSource,
@@ -168,6 +206,10 @@ foreach ($document in @($readme, $nexus, $matrix)) {
     foreach ($required in @(
         '0.85',
         '0.20',
+        '+3',
+        '-3',
+        '+2',
+        '-6',
         '30',
         'Meager',
         'Worthy',

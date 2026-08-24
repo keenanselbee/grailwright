@@ -9,6 +9,16 @@ using UnityEngine;
 
 namespace SoulAndService
 {
+    internal enum SoulSalvageAudioTargetClass
+    {
+        Unknown,
+        Female,
+        Male,
+        UnknownMonster,
+        FemaleMonster,
+        MaleMonster
+    }
+
     internal static class SoulSalvageAudioRuntime
     {
         private const string LowTier = "low";
@@ -44,7 +54,8 @@ namespace SoulAndService
         internal static void Play(
             Grailwright.Shared.CorpseQualityTier qualityTier,
             bool hasSourcePosition,
-            Vector3 sourcePosition)
+            Vector3 sourcePosition,
+            SoulSalvageAudioTargetClass targetClass)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             if (plugin == null
@@ -82,7 +93,7 @@ namespace SoulAndService
                 hasSourcePosition,
                 sourcePosition);
             float volume = baseVolume * rangeMultiplier;
-            float pitch = GetPitchMultiplier(plugin);
+            float pitch = GetPitchMultiplier(plugin, targetClass);
             if (TryPlay(path, volume, pitch))
             {
                 RememberRecentPath(plugin, selectedTier, path);
@@ -356,19 +367,61 @@ namespace SoulAndService
                     Math.Min(20, plugin.RecentSoulSalvageAudioMemory.Value));
         }
 
-        private static float GetPitchMultiplier(SoulAndServicePlugin plugin)
+        private static float GetPitchMultiplier(
+            SoulAndServicePlugin plugin,
+            SoulSalvageAudioTargetClass targetClass)
         {
+            float femalePitch = plugin.FemaleSoulSalvageAudioPitchSemitones == null
+                ? 3.0f
+                : plugin.FemaleSoulSalvageAudioPitchSemitones.Value;
+            float malePitch = plugin.MaleSoulSalvageAudioPitchSemitones == null
+                ? -3.0f
+                : plugin.MaleSoulSalvageAudioPitchSemitones.Value;
+            float semitones;
+            switch (targetClass)
+            {
+                case SoulSalvageAudioTargetClass.Female:
+                    semitones = femalePitch;
+                    break;
+                case SoulSalvageAudioTargetClass.Male:
+                    semitones = malePitch;
+                    break;
+                case SoulSalvageAudioTargetClass.FemaleMonster:
+                    semitones = femalePitch
+                        + (plugin.FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones
+                                == null
+                            ? -1.0f
+                            : plugin.FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones
+                                .Value);
+                    break;
+                case SoulSalvageAudioTargetClass.MaleMonster:
+                    semitones = malePitch
+                        + (plugin.MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones
+                                == null
+                            ? -3.0f
+                            : plugin.MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones
+                                .Value);
+                    break;
+                case SoulSalvageAudioTargetClass.UnknownMonster:
+                    semitones = plugin.NonHumanoidSoulSalvageAudioPitchSemitones == null
+                        ? -6.0f
+                        : plugin.NonHumanoidSoulSalvageAudioPitchSemitones.Value;
+                    break;
+                default:
+                    semitones = 0.0f;
+                    break;
+            }
+            semitones = Mathf.Clamp(semitones, -12.0f, 12.0f);
             float semitoneRange = plugin.SoulSalvageAudioRandomPitchSemitones == null
                 ? 0.20f
                 : Math.Max(
                     0.0f,
                     plugin.SoulSalvageAudioRandomPitchSemitones.Value);
-            if (semitoneRange <= 0.0f)
+            if (semitoneRange > 0.0f)
             {
-                return 1.0f;
+                semitones += (float)(
+                    (Random.NextDouble() * 2.0 - 1.0) * semitoneRange);
             }
-            float semitones = (float)(
-                (Random.NextDouble() * 2.0 - 1.0) * semitoneRange);
             return Mathf.Pow(2.0f, semitones / 12.0f);
         }
 

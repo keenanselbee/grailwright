@@ -11,6 +11,7 @@ using Awaken.TG.MVC.Elements;
 using Awaken.TG.Main.AI.SummonsAndAllies;
 using Awaken.TG.Main.AI.Utils;
 using Awaken.TG.Main.Character;
+using Awaken.TG.Main.Character.Features;
 using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
@@ -42,10 +43,19 @@ namespace SoulAndService
         private const string SoulSalvageTemplateGuid =
             "7bdd3a1b62fb53d46b8a28142c18a110";
         private const string SoulRendDisplayName = "Soul Rend";
+        private const float GroundTargetRadius = 0.4f;
+        private const float GroundTargetMinimumNormalY = 0.50f;
+        private const int GroundTargetColliderBufferSize = 64;
+        private const int SoulTargetRaycastBufferSize = 64;
+        private const float FrayedSoulCleanupIntervalSeconds = 0.25f;
         private const string GenericRaisedServantPortraitKey =
             "759a3e6e96ddae742ab8cde19fae42f0";
         private const string SkeletonSummonVfxKey =
             "0d139743aa2c21d4da0c81fb4e609890";
+        private const string BloodRitualLesserVfxKey =
+            "d858e5e33ccd9ec4ea9b3099ee02d32e";
+        private const string BloodRitualGreaterVfxKey =
+            "bfa9aa86addeec347877ffb0fc0b4315";
         private const float NativeManaRefundMultiplier = 0.75f;
         private const float HeavyCastManaCostMultiplier = 2.0f;
         private const float ServantEmpowerHealthThreshold = 0.95f;
@@ -68,8 +78,16 @@ namespace SoulAndService
         private const float SoulClaimPowerNormalChance = 0.175f;
         private const float SoulClaimPowerMaximumChance = 0.30f;
         private const float SoulClaimAbsoluteChanceCap = 0.35f;
-        private const int OrdinarySummonVigorCost = 3;
+        private const int OrdinarySummonVigorCostPerTier = 3;
         private const float ExecutedServantCleanupSeconds = 1.0f;
+        private static readonly string[] NonHumanoidSoulAudioTerms =
+        {
+            "Animal", "Animal_Prey", "Skeleton", "BoneMask", "HitBones",
+            "Construct", "SarrasCreature", "ReefboundBody", "Wyrd", "Spirit",
+            "Flora", "Plant", "Swarm", "Monster", "Undead", "Zombie",
+            "Abomination", "Wolf", "Bear", "Boar", "Spider", "Wyrm",
+            "Golem", "Grindleow", "Corpse Eater", "CorpseEater"
+        };
         private const string BloodMagicPluginGuid =
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicApiTypeName =
@@ -114,6 +132,14 @@ namespace SoulAndService
             internal float ExpiresAt;
         }
 
+        private sealed class RaycastHitDistanceComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit left, RaycastHit right)
+            {
+                return left.distance.CompareTo(right.distance);
+            }
+        }
+
         private sealed class NecroticDamageMarker
         {
         }
@@ -132,8 +158,40 @@ namespace SoulAndService
                 new Dictionary<string, ReanimationRecord>();
         private static readonly Dictionary<string, int> OrdinarySummonInvestments =
             new Dictionary<string, int>();
+        private static readonly Dictionary<string, int> VanillaSummonTiers =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "984887087a27f3b4bacd13b76c3e2c33", 1 }, // Summon Corpse Eater
+                { "c92e54c117a0c6f44aab42ec471d5ae4", 1 }, // Summon Grindylow
+                { "3bd577472a0191c44bf298a82553cf3b", 1 }, // Wolf's Call
+                { "2fd5cb39f6fd1824d9140dd0c9254b9a", 2 }, // Summon Redcap
+                { "5aba3cd999b809445a4911f79fe38ebd", 2 }, // Skeleton Army
+                { "3fda4c8c6e837a140b073135af120753", 3 }, // Summon Battlemage
+                { "12d6c99da0f976c48be3b2a668e9072a", 3 }, // Skeleton Knight
+                { "0bec60b30a30b904bacf180b9355c23c", 3 }, // Summon Crystal Crawler
+                { "7a26e25196836554b88af907781341f3", 3 }, // Summon Keeper
+                { "25461a54337b680499007ff4d56e4136", 3 }, // Summon Master Assassin
+                { "1f621fba5096f354397c7c283ca26f9a", 3 }, // Call of the Depths
+                { "7ab9829d6ebdcfd4e935fc658a6201f8", 4 }, // Ghost of Broc Meala
+                { "ff98f521a7336aa44b5e953297ec9097", 4 }, // Summon Kamelot Spearman
+                { "3cd88e22cc736294f9c5470e534878b9", 4 }, // Summon Sir Lancelot
+                { "b0dbfbbad4fd39d4488d3e1eec8ed6e0", 4 }, // Summon Remor Archer
+                { "9cb2498afdb7608469294b5a9c659435", 4 }, // Summon Remor Warrior
+                { "cc2e07161c27b1f408632026ae14c961", 4 }, // Shoal Lancer
+                { "0bc3c17f04146974b9c7c94eec737bda", 5 }, // Pyre Golem
+                { "bdc07f76c5922634dbabfd54222c6615", 5 }, // Rime Golem
+                { "0b828151247e64f43b043b2f1f93068f", 5 }, // Storm Golem
+                { "419148188657ccd45b84ebbd7a7346d3", 5 }, // Mire Golem
+                { "5638f9b619f60ec4f89ce6890eb885f9", 5 }, // Gawain
+                { "dcd6ea6c09cccd5468e825da785f4b4b", 5 }, // Bertilak
+                { "a339badda1efbe841ac49fcd62f13888", 5 }, // Sir Vast
+                { "a4d083ffa4d64f143a7bb019e53b2d0d", 5 }, // Sea Bite
+                { "b477a2b9fc1970244936cd5ccb096628", 6 } // Sir Galahad
+            };
         private static readonly Dictionary<string, FrayedSoulState> FrayedSouls =
             new Dictionary<string, FrayedSoulState>();
+        private static readonly List<string> FrayedSoulRemovalBuffer =
+            new List<string>();
         private static readonly ConditionalWeakTable<Damage, NecroticDamageMarker>
             NecroticDamageMarkers =
                 new ConditionalWeakTable<Damage, NecroticDamageMarker>();
@@ -145,6 +203,10 @@ namespace SoulAndService
             new List<Location>();
         private static readonly Dictionary<string, ItemStats> SoulSalvageItems =
             new Dictionary<string, ItemStats>();
+        private static readonly List<string> SoulSalvageItemRemovalBuffer =
+            new List<string>();
+        private static readonly List<string> ExecutedServantRemovalBuffer =
+            new List<string>();
         private static readonly Dictionary<string, StatTweak> HeavyCostTweaks =
             new Dictionary<string, StatTweak>();
         private static readonly Dictionary<Type, Dictionary<string, PropertyInfo>>
@@ -157,6 +219,15 @@ namespace SoulAndService
             new HashSet<MagicItemTemplateInfo>();
         private static readonly HashSet<MagicItemTemplateInfo> HeavyCastInfos =
             new HashSet<MagicItemTemplateInfo>();
+        private static readonly Dictionary<MagicItemTemplateInfo, int>
+            OrdinarySummonCastTiers =
+                new Dictionary<MagicItemTemplateInfo, int>();
+        private static readonly Collider[] GroundTargetColliderBuffer =
+            new Collider[GroundTargetColliderBufferSize];
+        private static readonly RaycastHit[] SoulTargetRaycastBuffer =
+            new RaycastHit[SoulTargetRaycastBufferSize];
+        private static readonly RaycastHitDistanceComparer SoulTargetHitComparer =
+            new RaycastHitDistanceComparer();
         private static readonly FieldInfo LocationInitializerField =
             AccessTools.Field(typeof(Location), "_initializer");
         private static readonly FieldInfo SimplifiedDeadBodyReplacementField =
@@ -174,6 +245,7 @@ namespace SoulAndService
         private static float _lightHealthFraction;
         private static float _lightMaximumManaReturn;
         private static float _itemRefreshDelay;
+        private static float _nextFrayedSoulCleanupAt;
         private static float _nextReanimationPositionRefreshTime;
         private static bool _creatingRaisedServant;
         private static MethodInfo _bloodMagicGetExsanguinationSeverityMethod;
@@ -251,13 +323,17 @@ namespace SoulAndService
                 RequireMethod(typeof(MagicItemTemplateInfo), "get_MagicDescription"),
                 prefix: new HarmonyMethod(
                     typeof(SoulSalvageRuntime),
-                    nameof(BeforeGetMagicDescription)));
+                    nameof(BeforeGetMagicDescription)),
+                postfix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(AfterGetMagicDescription)));
         }
 
         internal static void Update()
         {
             UpdateSoulSalvageItems();
             UpdateReanimationPositions();
+            ReanimationGlyphRuntime.Update();
             UpdateExecutedServantRemains();
             RemoveExpiredFrayedSouls();
 
@@ -301,9 +377,15 @@ namespace SoulAndService
             SoulSalvageItems.Clear();
             LightCastInfos.Clear();
             HeavyCastInfos.Clear();
+            OrdinarySummonCastTiers.Clear();
             FrayedSouls.Clear();
+            FrayedSoulRemovalBuffer.Clear();
+            SoulSalvageItemRemovalBuffer.Clear();
+            ExecutedServantRemovalBuffer.Clear();
+            _nextFrayedSoulCleanupAt = 0.0f;
             OrdinarySummonInvestments.Clear();
             ClearLightCastState();
+            ReanimationGlyphRuntime.Shutdown();
             SoulSalvageAudioRuntime.Shutdown();
         }
 
@@ -322,6 +404,7 @@ namespace SoulAndService
             }
             if (record.BloodRitualExecuted)
             {
+                ReanimationGlyphRuntime.Remove(summonId);
                 Reanimations.Remove(summonId);
                 if (record.RaisedLocation != null
                     && !record.RaisedLocation.HasBeenDiscarded)
@@ -373,26 +456,40 @@ namespace SoulAndService
             {
                 return;
             }
+            int summonTier = GetOrdinarySummonTier(summon.Item);
+            int vigorCost = GetOrdinarySummonSoulVigorCost(
+                summonTier,
+                SoulProgressionRuntime.GetNecromanticPower());
+            RegisterOrdinarySummonCastInfo(summon.Item, summonTier);
             if (SoulProgressionRuntime.TrySpendSoulVigor(
-                OrdinarySummonVigorCost,
+                vigorCost,
                 out int before,
                 out int after))
             {
-                OrdinarySummonInvestments[summonId] = after < before
-                    ? OrdinarySummonVigorCost
-                    : 0;
+                int committedVigor = after < before ? vigorCost : 0;
+                OrdinarySummonInvestments[summonId] = committedVigor;
+                SoulProgressionRuntime.ShowSoulVigorWanesAfterSpend(before, after);
+                if (committedVigor > 0)
+                {
+                    SoulProgressionRuntime.ShowSummonCreated(
+                        GetSummonDisplayName(summon),
+                        committedVigor);
+                }
                 plugin.LogDiagnostic(
-                    "Invested 3 Soul Vigor in ordinary summon " + summonId
+                    "Invested " + committedVigor.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor in tier "
+                    + summonTier.ToString(CultureInfo.InvariantCulture)
+                    + " ordinary summon " + summonId
                     + "; balance=" + before + " -> " + after + ".");
                 return;
             }
 
             plugin.LogDiagnostic(
                 "Rejected ordinary summon " + summonId
-                + " because it requires 3 Soul Vigor.");
-            SoulProgressionRuntime.ShowSoulClaimFeedback(
-                "Requires 3 Soul Vigor",
-                highPriority: false);
+                + " because it requires "
+                + vigorCost.ToString(CultureInfo.InvariantCulture)
+                + " Soul Vigor.");
+            SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
             summon.ParentModel.OnCompletelyInitialized(
                 delegate
                 {
@@ -405,12 +502,23 @@ namespace SoulAndService
 
         private static void AfterItemStatsInitialized(ItemStats __instance)
         {
-            if (__instance == null || !IsSoulSalvageItem(__instance.ParentModel))
+            Item item = __instance == null ? null : __instance.ParentModel;
+            if (item == null)
             {
                 return;
             }
 
-            Item item = __instance.ParentModel;
+            int summonTier;
+            if (item.Template != null
+                && VanillaSummonTiers.TryGetValue(item.Template.GUID, out summonTier))
+            {
+                RegisterOrdinarySummonCastInfo(item, summonTier);
+            }
+            if (!IsSoulSalvageItem(item))
+            {
+                return;
+            }
+
             string itemId = ((Model)item).ID;
             RemoveHeavyCostTweak(itemId);
             SoulSalvageItems[itemId] = __instance;
@@ -458,12 +566,75 @@ namespace SoulAndService
                 return true;
             }
 
-            __result = "Corpses: Bind and reanimate."
+            __result = "Corpses: Bind and reanimate; cost scales with soul quality."
                 + (plugin.LivingTargetSoulSalvage.Value
                     ? "\nWounded enemies: Attempt Soul Claim below 40% Health."
                     : string.Empty)
                 + "\nServants: Restore Health; at 95%, Empower at 1,000 Soul Vigor.";
             return false;
+        }
+
+        private static void AfterGetMagicDescription(
+            MagicItemTemplateInfo __instance,
+            ref string __result)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            int summonTier;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value
+                || __instance == null
+                || !OrdinarySummonCastTiers.TryGetValue(__instance, out summonTier))
+            {
+                return;
+            }
+
+            int vigorCost = GetOrdinarySummonSoulVigorCost(
+                summonTier,
+                SoulProgressionRuntime.GetNecromanticPower());
+            string costLine = "Soul Vigor Cost: "
+                + vigorCost.ToString(CultureInfo.InvariantCulture);
+            __result = string.IsNullOrWhiteSpace(__result)
+                ? costLine
+                : __result.TrimEnd() + "\n" + costLine;
+        }
+
+        private static void RegisterOrdinarySummonCastInfo(Item item, int summonTier)
+        {
+            if (item != null && item.HeavyCastInfo != null && summonTier > 0)
+            {
+                OrdinarySummonCastTiers[item.HeavyCastInfo] = summonTier;
+            }
+        }
+
+        private static int GetOrdinarySummonTier(Item item)
+        {
+            int summonTier;
+            if (item != null
+                && item.Template != null
+                && VanillaSummonTiers.TryGetValue(item.Template.GUID, out summonTier))
+            {
+                return summonTier;
+            }
+            if (item != null && item.Tags != null)
+            {
+                for (int tier = 6; tier >= 1; tier--)
+                {
+                    if (item.Tags.Contains(
+                            "item:tier" + tier.ToString(CultureInfo.InvariantCulture)))
+                    {
+                        return tier;
+                    }
+                }
+            }
+            return 1;
+        }
+
+        private static int GetOrdinarySummonSoulVigorCost(int summonTier, float power)
+        {
+            return GetPowerScaledSoulVigorCost(
+                Math.Max(1, summonTier) * OrdinarySummonVigorCostPerTier,
+                power);
         }
 
         private static void UpdateSoulSalvageItems()
@@ -488,19 +659,25 @@ namespace SoulAndService
                 }
             }
 
-            foreach (string itemId in SoulSalvageItems.Keys.ToArray())
+            SoulSalvageItemRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, ItemStats> pair in SoulSalvageItems)
             {
-                ItemStats stats = SoulSalvageItems[itemId];
+                string itemId = pair.Key;
+                ItemStats stats = pair.Value;
                 if (stats == null
                     || ((Model)stats).HasBeenDiscarded
                     || stats.ParentModel == null
                     || ((Model)stats.ParentModel).HasBeenDiscarded)
                 {
-                    RemoveHeavyCostTweak(itemId);
-                    SoulSalvageItems.Remove(itemId);
+                    SoulSalvageItemRemovalBuffer.Add(itemId);
                     continue;
                 }
                 EnsureHeavyCostTweak(itemId, stats);
+            }
+            foreach (string itemId in SoulSalvageItemRemovalBuffer)
+            {
+                RemoveHeavyCostTweak(itemId);
+                SoulSalvageItems.Remove(itemId);
             }
         }
 
@@ -885,6 +1062,7 @@ namespace SoulAndService
             Grailwright.Shared.CorpseQualityTier audioTier;
             bool hasAudioPosition = false;
             Vector3 audioPosition = Vector3.zero;
+            SoulSalvageAudioTargetClass audioTargetClass;
             string displayName;
             bool raisedSacrifice = Reanimations.TryGetValue(
                 summonId,
@@ -896,6 +1074,11 @@ namespace SoulAndService
                 qualityTier = raisedRecord.QualityTier;
                 audioTier = raisedRecord.QualityTier;
                 displayName = raisedRecord.SourceDisplayName;
+                hasAudioPosition = true;
+                audioPosition = raisedRecord.LastSafeCoords;
+                audioTargetClass = GetSoulSalvageAudioTargetClass(
+                    raisedRecord.SourceCorpse,
+                    raisedRecord.RaisedNpc);
             }
             else
             {
@@ -923,6 +1106,9 @@ namespace SoulAndService
                 audioTier = Grailwright.Shared.CorpseQualityBuckets.GetTier(
                     CalculateQuality01(summonLocation, summon.ParentModel),
                     true);
+                audioTargetClass = GetSoulSalvageAudioTargetClass(
+                    summonLocation,
+                    summon.ParentModel);
                 displayName = summonLocation == null
                     ? "summon"
                     : GetCorpseDisplayName(summonLocation);
@@ -942,13 +1128,11 @@ namespace SoulAndService
                 SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
                     soulVigorAward);
             }
-            if (!raisedSacrifice)
-            {
-                SoulSalvageAudioRuntime.Play(
-                    audioTier,
-                    hasAudioPosition,
-                    audioPosition);
-            }
+            SoulSalvageAudioRuntime.Play(
+                audioTier,
+                hasAudioPosition,
+                audioPosition,
+                audioTargetClass);
             plugin.LogDiagnostic(
                 "Soul Rend unbound " + summonId
                 + ": investedMana=" + _lightOriginalMana.ToString("0.##")
@@ -1104,6 +1288,45 @@ namespace SoulAndService
                 location == null ? Quaternion.identity : location.Rotation).Forget();
         }
 
+        private static void SpawnBloodRitualVfx(ReanimationRecord record)
+        {
+            if (record == null
+                || record.RaisedNpc == null
+                || record.RaisedNpc.HasBeenDiscarded)
+            {
+                return;
+            }
+
+            string vfxKey;
+            switch (record.QualityTier)
+            {
+                case Grailwright.Shared.CorpseQualityTier.Meager:
+                case Grailwright.Shared.CorpseQualityTier.Worthy:
+                    vfxKey = BloodRitualLesserVfxKey;
+                    break;
+                case Grailwright.Shared.CorpseQualityTier.Potent:
+                case Grailwright.Shared.CorpseQualityTier.Prime:
+                    vfxKey = BloodRitualGreaterVfxKey;
+                    break;
+                default:
+                    return;
+            }
+
+            Vector3 vfxPosition = record.RaisedNpc.Coords;
+            if (record.RaisedNpc.VFXBodyMarker != null
+                && record.RaisedNpc.VFXBodyMarker.Mesh != null)
+            {
+                var localBounds =
+                    record.RaisedNpc.VFXBodyMarker.Mesh.localBoundingSphere;
+                vfxPosition = record.RaisedNpc.VFXBodyMarker.transform.TransformPoint(
+                    new Vector3(localBounds.x, localBounds.y, localBounds.z));
+            }
+            PrefabPool.InstantiateAndReturn(
+                new ShareableARAssetReference(vfxKey),
+                vfxPosition,
+                Quaternion.identity).Forget();
+        }
+
         private static void TryUseLightCast(Item sourceItem)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
@@ -1172,6 +1395,10 @@ namespace SoulAndService
             string displayName = executedServant
                 ? executedRecord.SourceDisplayName
                 : GetCorpseDisplayName(corpse);
+            SoulSalvageAudioTargetClass audioTargetClass =
+                GetSoulSalvageAudioTargetClass(
+                executedServant ? executedRecord.SourceCorpse : corpse,
+                executedServant ? executedRecord.RaisedNpc : null);
             SoulProgressionRuntime.CorpseHarvestReceipt harvestReceipt;
             int executedAward = executedServant
                 ? Mathf.Clamp(
@@ -1231,7 +1458,11 @@ namespace SoulAndService
                 0.0f);
             SoulProgressionRuntime.ShowCommandUnlocksAfterCorpseHarvest(
                 harvestReceipt);
-            SoulSalvageAudioRuntime.Play(tier, true, corpse.Coords);
+            SoulSalvageAudioRuntime.Play(
+                tier,
+                true,
+                corpse.Coords,
+                audioTargetClass);
             plugin.LogDiagnostic(
                 "Soul Rend harvested " + displayName
                 + "; quality=" + tier
@@ -1466,13 +1697,18 @@ namespace SoulAndService
             float quality01 = CalculateQuality01(targetLocation, target);
             Grailwright.Shared.CorpseQualityTier qualityTier =
                 Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
-            int vigorCost = GetReanimationSoulVigorCost(qualityTier);
+            string corpseFingerprint = GetCorpseFingerprint(targetLocation);
+            int nativeSoulVigor =
+                SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
+                    corpseFingerprint,
+                    qualityTier,
+                    quality01);
+            int vigorCost = GetReanimationSoulVigorCost(
+                nativeSoulVigor,
+                power);
             if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
             {
-                SoulProgressionRuntime.ShowSoulClaimFeedback(
-                    "Requires " + vigorCost.ToString(CultureInfo.InvariantCulture)
-                    + " Soul Vigor",
-                    highPriority: false);
+                SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
                 return;
             }
             float qualityFactor = GetSoulClaimQualityFactor(qualityTier);
@@ -1562,7 +1798,10 @@ namespace SoulAndService
                 sourceItem,
                 targetLocation,
                 bindingAlreadyWon: true,
-                summonLimitAlreadyChecked: true);
+                summonLimitAlreadyChecked: true,
+                preparedCorpseFingerprint: corpseFingerprint,
+                preparedNativeSoulVigor: nativeSoulVigor,
+                preparedVigorCost: vigorCost);
         }
 
         private static float GetSoulClaimPowerChance(float power)
@@ -1631,23 +1870,70 @@ namespace SoulAndService
         {
             if (FrayedSouls.Count == 0)
             {
+                _nextFrayedSoulCleanupAt = 0.0f;
                 return;
             }
             float now = Time.unscaledTime;
-            foreach (string targetId in FrayedSouls
-                .Where(pair => pair.Value == null || pair.Value.ExpiresAt <= now)
-                .Select(pair => pair.Key)
-                .ToArray())
+            if (now < _nextFrayedSoulCleanupAt)
+            {
+                return;
+            }
+            _nextFrayedSoulCleanupAt = now + FrayedSoulCleanupIntervalSeconds;
+            FrayedSoulRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, FrayedSoulState> pair in FrayedSouls)
+            {
+                if (pair.Value == null || pair.Value.ExpiresAt <= now)
+                {
+                    FrayedSoulRemovalBuffer.Add(pair.Key);
+                }
+            }
+            foreach (string targetId in FrayedSoulRemovalBuffer)
             {
                 FrayedSouls.Remove(targetId);
             }
+        }
+
+        private static RaycastHit[] GetSortedSoulTargetHits(
+            Vector3 origin,
+            Vector3 direction,
+            out int hitCount)
+        {
+            hitCount = Physics.RaycastNonAlloc(
+                origin,
+                direction,
+                SoulTargetRaycastBuffer,
+                SoulSalvageRange,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            if (hitCount < SoulTargetRaycastBuffer.Length)
+            {
+                Array.Sort(
+                    SoulTargetRaycastBuffer,
+                    0,
+                    hitCount,
+                    SoulTargetHitComparer);
+                return SoulTargetRaycastBuffer;
+            }
+
+            RaycastHit[] overflowHits = Physics.RaycastAll(
+                origin,
+                direction,
+                SoulSalvageRange,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            Array.Sort(overflowHits, SoulTargetHitComparer);
+            hitCount = overflowHits.Length;
+            return overflowHits;
         }
 
         private static void TryRaiseCorpse(
             Item sourceItem,
             Location source,
             bool bindingAlreadyWon,
-            bool summonLimitAlreadyChecked)
+            bool summonLimitAlreadyChecked,
+            string preparedCorpseFingerprint = null,
+            int preparedNativeSoulVigor = 0,
+            int preparedVigorCost = 0)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
@@ -1678,16 +1964,31 @@ namespace SoulAndService
             float quality01 = CalculateQuality01(source, null);
             Grailwright.Shared.CorpseQualityTier qualityTier =
                 Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
-            int vigorCost = GetReanimationSoulVigorCost(qualityTier);
+            string corpseFingerprint = string.IsNullOrEmpty(
+                preparedCorpseFingerprint)
+                    ? GetCorpseFingerprint(source)
+                    : preparedCorpseFingerprint;
+            int nativeSoulVigor = preparedNativeSoulVigor > 0
+                ? preparedNativeSoulVigor
+                : SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
+                    corpseFingerprint,
+                    qualityTier,
+                    quality01);
+            float reanimationPower = SoulProgressionRuntime.GetNecromanticPower();
+            int vigorCost = preparedVigorCost > 0
+                ? preparedVigorCost
+                : GetReanimationSoulVigorCost(
+                    nativeSoulVigor,
+                    reanimationPower);
             if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
             {
                 plugin.ShowSoulSalvageHeavyCastDiagnostic(
                     "Soul Rend: requires "
                     + vigorCost.ToString(CultureInfo.InvariantCulture)
                     + " Soul Vigor.");
+                SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
                 return;
             }
-            string corpseFingerprint = GetCorpseFingerprint(source);
             float bindingProgress01;
             float bindingResistance;
             if (!bindingAlreadyWon
@@ -1725,6 +2026,7 @@ namespace SoulAndService
                     "Soul Rend: requires "
                     + vigorCost.ToString(CultureInfo.InvariantCulture)
                     + " Soul Vigor.");
+                SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
                 return;
             }
             int committedVigor = vigorAfter < vigorBefore ? vigorCost : 0;
@@ -1776,9 +2078,7 @@ namespace SoulAndService
                     QualityTier = qualityTier,
                     BindingManaCost = bindingManaCost,
                     InvestedSoulVigor = committedVigor,
-                    NativeSoulVigor = SoulProgressionRuntime.RollSoulVigorValue(
-                        qualityTier,
-                        quality01),
+                    NativeSoulVigor = nativeSoulVigor,
                     OriginalCoords = source.Coords,
                     OriginalRotation = source.Rotation,
                     LastSafeCoords = raised.Coords,
@@ -1894,9 +2194,14 @@ namespace SoulAndService
                             SoulProgressionRuntime.CommitSuccessfulBinding(
                                 record.CorpseFingerprint);
                             record.ServiceInitialized = true;
+                            ReanimationGlyphRuntime.Attach(summonId, npc);
+                            SoulProgressionRuntime.ShowSoulVigorWanesAfterSpend(
+                                vigorBefore,
+                                vigorAfter);
                             SoulProgressionRuntime.ShowResurrection(
                                 record.SourceDisplayName,
-                                record.QualityTier);
+                                record.QualityTier,
+                                record.InvestedSoulVigor);
                         }
                         catch (Exception exception)
                         {
@@ -1932,20 +2237,24 @@ namespace SoulAndService
         }
 
         private static int GetReanimationSoulVigorCost(
-            Grailwright.Shared.CorpseQualityTier tier)
+            int nativeSoulVigor,
+            float power)
         {
-            switch (tier)
-            {
-                case Grailwright.Shared.CorpseQualityTier.Worthy:
-                    return 3;
-                case Grailwright.Shared.CorpseQualityTier.Potent:
-                    return 5;
-                case Grailwright.Shared.CorpseQualityTier.Prime:
-                    return 10;
-                case Grailwright.Shared.CorpseQualityTier.Meager:
-                default:
-                    return 1;
-            }
+            return GetPowerScaledSoulVigorCost(nativeSoulVigor, power);
+        }
+
+        private static int GetPowerScaledSoulVigorCost(int baseCost, float power)
+        {
+            float safePower = Mathf.Clamp(power, 0.0f, 200.0f);
+            float multiplier = safePower <= 100.0f
+                ? Mathf.Lerp(2.0f, 1.0f, safePower / 100.0f)
+                : Mathf.Lerp(
+                    1.0f,
+                    0.5f,
+                    (safePower - 100.0f) / 100.0f);
+            return Math.Max(
+                1,
+                Mathf.CeilToInt(Math.Max(0, baseCost) * multiplier));
         }
 
         private static float GetBloodExsanguinationSeverity(object sourceCorpse)
@@ -2160,6 +2469,7 @@ namespace SoulAndService
                 string summonId = ((Model)record.RaisedNpc.Element<NpcHeroSummon>()).ID;
                 Vector3 coords = record.RaisedLocation.Coords;
                 Quaternion rotation = record.RaisedLocation.Rotation;
+                ReanimationGlyphRuntime.Remove(summonId);
                 Reanimations.Remove(summonId);
                 record.SourceCorpse.MoveAndRotateTo(coords, rotation, true);
                 record.SourceCorpse.SetInteractability(record.SourceInteractability);
@@ -2246,6 +2556,7 @@ namespace SoulAndService
             if (completed)
             {
                 record.BloodRitualHoldUntil = Time.unscaledTime + 8.0f;
+                SpawnBloodRitualVfx(record);
             }
             else if (channeling)
             {
@@ -2371,6 +2682,140 @@ namespace SoulAndService
                 : source.DebugName;
         }
 
+        private static string GetSummonDisplayName(NpcHeroSummon summon)
+        {
+            Location location = summon == null || summon.ParentModel == null
+                ? null
+                : summon.ParentModel.ParentModel;
+            if (location != null)
+            {
+                return GetCorpseDisplayName(location);
+            }
+            return summon == null
+                || summon.Item == null
+                || string.IsNullOrWhiteSpace(summon.Item.DisplayName)
+                    ? "Summon"
+                    : summon.Item.DisplayName.Replace("\r", " ").Replace("\n", " ").Trim();
+        }
+
+        private static SoulSalvageAudioTargetClass GetSoulSalvageAudioTargetClass(
+            Location source,
+            NpcElement npc)
+        {
+            object template = npc != null
+                ? (object)npc.Template
+                : source == null ? null : NpcTemplate.FromNpcOrDummy(source);
+            object[] owners =
+            {
+                source,
+                source == null ? null : source.Template,
+                npc,
+                template
+            };
+            bool isMonster = false;
+            foreach (object owner in owners)
+            {
+                if (SoulAudioValueContainsAny(owner, NonHumanoidSoulAudioTerms, 0))
+                {
+                    isMonster = true;
+                    break;
+                }
+            }
+
+            NpcElement sourceNpc = npc;
+            if (sourceNpc == null && source != null)
+            {
+                sourceNpc = source.TryGetElement<NpcElement>();
+            }
+            Gender gender = sourceNpc == null
+                ? Gender.None
+                : sourceNpc.GetGender();
+            if (gender == Gender.None && source != null)
+            {
+                NpcDummy dummy = source.TryGetElement<NpcDummy>();
+                if (dummy != null)
+                {
+                    gender = dummy.GetGender();
+                }
+            }
+
+            if (isMonster)
+            {
+                return gender == Gender.Female
+                    ? SoulSalvageAudioTargetClass.FemaleMonster
+                    : gender == Gender.Male
+                        ? SoulSalvageAudioTargetClass.MaleMonster
+                        : SoulSalvageAudioTargetClass.UnknownMonster;
+            }
+            return gender == Gender.Female
+                ? SoulSalvageAudioTargetClass.Female
+                : gender == Gender.Male
+                    ? SoulSalvageAudioTargetClass.Male
+                    : SoulSalvageAudioTargetClass.Unknown;
+        }
+
+        private static bool SoulAudioValueContainsAny(
+            object value,
+            string[] terms,
+            int depth)
+        {
+            if (value == null || depth > 2)
+            {
+                return false;
+            }
+            string text = value as string;
+            if (text == null
+                && (value.GetType().IsEnum
+                    || value.GetType().IsPrimitive
+                    || value is decimal))
+            {
+                text = value.ToString();
+            }
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                return terms.Any(term => text.IndexOf(
+                    term,
+                    StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+            IEnumerable enumerable = value as IEnumerable;
+            if (enumerable != null)
+            {
+                int count = 0;
+                foreach (object item in enumerable)
+                {
+                    if (count++ >= 32)
+                    {
+                        break;
+                    }
+                    if (SoulAudioValueContainsAny(item, terms, depth + 1))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if (depth >= 2)
+            {
+                return false;
+            }
+            string[] members =
+            {
+                "Name", "DisplayName", "DebugName", "TechnicalName",
+                "SurfaceType", "Tags", "AbstractTypes", "_abstractTypes"
+            };
+            foreach (string member in members)
+            {
+                if (SoulAudioValueContainsAny(
+                    GetMemberValue(value, member),
+                    terms,
+                    depth + 1))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static bool TryFindEligibleCorpse(
             Hero hero,
             out Location source,
@@ -2381,20 +2826,28 @@ namespace SoulAndService
             hero.VHeroController.Raycaster.GetViewRay(
                 out Vector3 origin,
                 out Vector3 direction);
-            RaycastHit[] hits = Physics.RaycastAll(
+            RaycastHit[] hits = GetSortedSoulTargetHits(
                 origin,
                 direction,
-                SoulSalvageRange,
-                ~0,
-                QueryTriggerInteraction.Ignore);
-            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
-            foreach (RaycastHit hit in hits)
+                out int hitCount);
+            if (hitCount > 0)
             {
+                RaycastHit hit = hits[0];
                 VLocation view = hit.collider == null
                     ? null
                     : hit.collider.GetComponentInParent<LocationParent>()
                         ?.GetComponentInChildren<VLocation>();
                 Location candidate = view == null ? null : view.Target;
+                if (IsGroundSoulRendSurface(hit, candidate)
+                    && TryFindNearestEligibleCorpse(
+                        hero,
+                        hit.point,
+                        hit.normal,
+                        out source))
+                {
+                    rejection = string.Empty;
+                    return true;
+                }
                 if (candidate == null || candidate.HasBeenDiscarded)
                 {
                     rejection = "the line of sight was blocked before a corpse";
@@ -2411,6 +2864,74 @@ namespace SoulAndService
             return false;
         }
 
+        private static bool IsGroundSoulRendSurface(
+            RaycastHit hit,
+            Location candidate)
+        {
+            if (hit.collider == null
+                || hit.normal.y < GroundTargetMinimumNormalY)
+            {
+                return false;
+            }
+            if (candidate == null || candidate.HasBeenDiscarded)
+            {
+                return true;
+            }
+            return candidate.TryGetElement<Corpse>() == null
+                && candidate.TryGetElement<NpcElement>() == null;
+        }
+
+        private static bool TryFindNearestEligibleCorpse(
+            Hero hero,
+            Vector3 impactPoint,
+            Vector3 surfaceNormal,
+            out Location source)
+        {
+            source = null;
+            int count = Physics.OverlapSphereNonAlloc(
+                impactPoint,
+                GroundTargetRadius,
+                GroundTargetColliderBuffer,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            float nearestDistanceSqr = float.PositiveInfinity;
+            for (int i = 0; i < count; i++)
+            {
+                Collider collider = GroundTargetColliderBuffer[i];
+                GroundTargetColliderBuffer[i] = null;
+                VLocation view = collider == null
+                    ? null
+                    : collider.GetComponentInParent<LocationParent>()
+                        ?.GetComponentInChildren<VLocation>();
+                Location candidate = view == null ? null : view.Target;
+                string rejection;
+                if (candidate == null
+                    || candidate.HasBeenDiscarded
+                    || !TryValidateEligibleCorpse(
+                        hero,
+                        candidate,
+                        out rejection))
+                {
+                    continue;
+                }
+
+                Vector3 closestPoint = collider.ClosestPoint(impactPoint);
+                Vector3 offset = closestPoint - impactPoint;
+                if (Vector3.Dot(offset, surfaceNormal) < -0.10f)
+                {
+                    continue;
+                }
+                float distanceSqr = offset.sqrMagnitude;
+                if (distanceSqr >= nearestDistanceSqr)
+                {
+                    continue;
+                }
+                nearestDistanceSqr = distanceSqr;
+                source = candidate;
+            }
+            return source != null;
+        }
+
         private static bool TryFindEligibleLivingTarget(
             Hero hero,
             out Location source,
@@ -2425,15 +2946,13 @@ namespace SoulAndService
             hero.VHeroController.Raycaster.GetViewRay(
                 out Vector3 origin,
                 out Vector3 direction);
-            RaycastHit[] hits = Physics.RaycastAll(
+            RaycastHit[] hits = GetSortedSoulTargetHits(
                 origin,
                 direction,
-                SoulSalvageRange,
-                ~0,
-                QueryTriggerInteraction.Ignore);
-            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
-            foreach (RaycastHit hit in hits)
+                out int hitCount);
+            if (hitCount > 0)
             {
+                RaycastHit hit = hits[0];
                 VLocation view = hit.collider == null
                     ? null
                     : hit.collider.GetComponentInParent<LocationParent>()
@@ -2725,6 +3244,7 @@ namespace SoulAndService
                 SoulProgressionRuntime.RollbackCorpseHarvest(harvestReceipt);
             }
 
+            ReanimationGlyphRuntime.Remove(summonId);
             Reanimations.Remove(summonId);
             if (!simplified
                 && record.SourceCorpse != null
@@ -2760,13 +3280,6 @@ namespace SoulAndService
                             record.ManaReturnedOnSacrifice);
                         SoulProgressionRuntime.ShowCommandUnlocksAfterCorpseHarvest(
                             harvestReceipt);
-                    }
-                    if (record.Sacrificed)
-                    {
-                        SoulSalvageAudioRuntime.Play(
-                            record.QualityTier,
-                            true,
-                            record.LastSafeCoords);
                     }
                     plugin.LogDiagnostic(
                         "Soul Rend ended " + record.SourceDisplayName
@@ -2878,6 +3391,7 @@ namespace SoulAndService
             {
                 return;
             }
+            ReanimationGlyphRuntime.Remove(summonId);
             Reanimations.Remove(summonId);
             if (!record.ServiceInitialized && record.InvestedSoulVigor > 0)
             {
@@ -2942,8 +3456,9 @@ namespace SoulAndService
             }
             _nextExecutedServantCleanupTime = Time.unscaledTime
                 + ExecutedServantCleanupSeconds;
+            ExecutedServantRemovalBuffer.Clear();
             foreach (KeyValuePair<string, ReanimationRecord> pair
-                in ExecutedServantRemains.ToArray())
+                in ExecutedServantRemains)
             {
                 ReanimationRecord record = pair.Value;
                 if (record != null
@@ -2952,7 +3467,12 @@ namespace SoulAndService
                 {
                     continue;
                 }
-                ExecutedServantRemains.Remove(pair.Key);
+                ExecutedServantRemovalBuffer.Add(pair.Key);
+            }
+            foreach (string locationId in ExecutedServantRemovalBuffer)
+            {
+                ReanimationRecord record = ExecutedServantRemains[locationId];
+                ExecutedServantRemains.Remove(locationId);
                 RestoreExecutedServantCorpse(record);
             }
         }
@@ -3056,11 +3576,19 @@ namespace SoulAndService
                     : location.Spec.gameObject;
                 if (summon == null)
                 {
+                    float quality01 = CalculateQuality01(location, null);
                     Grailwright.Shared.CorpseQualityTier tier =
                         Grailwright.Shared.CorpseQualityBuckets.GetTier(
-                            CalculateQuality01(location, null),
+                            quality01,
                             true);
-                    int cost = GetReanimationSoulVigorCost(tier);
+                    int nativeSoulVigor =
+                        SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
+                            GetCorpseFingerprint(location),
+                            tier,
+                            quality01);
+                    int cost = GetReanimationSoulVigorCost(
+                        nativeSoulVigor,
+                        SoulProgressionRuntime.GetNecromanticPower());
                     bool affordable = SoulProgressionRuntime.GetSoulVigor()
                         + 0.001f >= cost;
                     state = affordable
@@ -3356,20 +3884,27 @@ namespace SoulAndService
             hero.VHeroController.Raycaster.GetViewRay(
                 out Vector3 origin,
                 out Vector3 direction);
-            RaycastHit[] hits = Physics.RaycastAll(
+            RaycastHit[] hits = GetSortedSoulTargetHits(
                 origin,
                 direction,
-                SoulSalvageRange,
-                ~0,
-                QueryTriggerInteraction.Ignore);
-            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
-            foreach (RaycastHit hit in hits)
+                out int hitCount);
+            if (hitCount > 0)
             {
+                RaycastHit hit = hits[0];
                 VLocation view = hit.collider == null
                     ? null
                     : hit.collider.GetComponentInParent<LocationParent>()
                         ?.GetComponentInChildren<VLocation>();
                 Location candidate = view == null ? null : view.Target;
+                if (IsGroundSoulRendSurface(hit, candidate)
+                    && TryFindNearestEligibleCorpse(
+                        hero,
+                        hit.point,
+                        hit.normal,
+                        out location))
+                {
+                    return true;
+                }
                 if (candidate == null || candidate.HasBeenDiscarded)
                 {
                     return false;

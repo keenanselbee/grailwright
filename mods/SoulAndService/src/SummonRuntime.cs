@@ -19,6 +19,8 @@ using Awaken.TG.Main.AI.Movement.RootMotions;
 using Awaken.TG.Main.AI.Movement.States;
 using Awaken.TG.Main.AI.SummonsAndAllies;
 using Awaken.TG.Main.AI.Utils;
+using Awaken.TG.Main.Animations.FSM.Npc.Base;
+using Awaken.TG.Main.Animations.FSM.Npc.Machines;
 using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Fights;
@@ -59,9 +61,9 @@ namespace SoulAndService
         private const float GuardMeleeThreatRange = 8.0f;
         private const float GuardFormationInnerRadius = 4.5f;
         private const float GuardFormationRingSpacing = 1.5f;
-        private const float GuardAnchorTolerance = 1.0f;
+        private const float GuardAnchorTolerance = 1.25f;
         private const float GuardLeaderMovingSpeed = 0.15f;
-        private const float GuardAnchorRebaseDistance = 1.5f;
+        private const float GuardAnchorRebaseDistance = 2.0f;
         private const float GuardIdleNoviceWanderRadius = 1.5f;
         private const float GuardIdleMasterWanderRadius = 0.75f;
         private const float GuardIdleNoviceMinimumStillSeconds = 12.0f;
@@ -74,20 +76,46 @@ namespace SoulAndService
         private const float GuardIdleHostAttemptCooldownSeconds = 1.0f;
         private const float GuardIdleMovementTolerance = 0.20f;
         private const float GuardIdleReturnTolerance = 0.25f;
-        private const float BulwarkDefenseRange = 6.0f;
-        private const float BulwarkCombatLeash = 8.0f;
-        private const float BulwarkAnchorTolerance = 0.5f;
+        private const float BulwarkCloseGuardDefenseRange = 5.0f;
+        private const float BulwarkCloseGuardCombatLeash = 6.0f;
+        private const float BulwarkCloseGuardLocalEngageRange = 2.5f;
+        private const float BulwarkCloseGuardLocalRetentionRange = 4.0f;
+        private const float BulwarkAdvanceBreachRange = 3.0f;
+        private const float BulwarkAdvanceRetentionRange = 4.0f;
+        private const float BulwarkAdvanceCombatLeash = 5.5f;
+        private const float BulwarkTargetCandidateRange = 10.0f;
+        private const float BulwarkAnchorTolerance = 0.75f;
+        private const float BulwarkAdvanceAnchorTolerance = 1.25f;
+        private const float BulwarkAdvanceResumeDistance = 1.75f;
+        private const float BulwarkAdvanceRunDistance = 2.0f;
+        private const float BulwarkAdvanceAnchorUpdateDistance = 0.35f;
+        private const float BulwarkAdvanceProgressDistance = 0.10f;
+        private const float BulwarkAdvanceBlockedSeconds = 0.75f;
+        private const float BulwarkAdvanceFallbackSeconds = 1.0f;
+        private const float BulwarkAdvanceFallbackProbeRadius = 0.75f;
+        private const float BulwarkAdvanceFallbackMinimumOffset = 0.35f;
+        private const float BulwarkAdvanceFallbackCandidateSnapDistance = 0.50f;
+        private const float BulwarkAdvanceMaximumAnchorSnapDistance = 1.5f;
         private const float BulwarkFormationInnerRadius = 3.5f;
         private const float BulwarkFormationRingSpacing = 1.0f;
         private const int BulwarkFormationSlotsPerRing = 4;
+        private const int BulwarkCloseGuardSlotsPerRing = 5;
+        private const float BulwarkAdvancePredictionSeconds = 0.40f;
         private const float BulwarkCameraFacingHoldSeconds = 0.30f;
+        private const float BulwarkCameraFacingCooldownSeconds = 0.45f;
         private const float BulwarkCameraFacingMinimumAngle = 30.0f;
         private const float BulwarkCameraFacingStabilityAngle = 12.0f;
+        private const float BulwarkCatchUpStartDistance = 2.0f;
+        private const float BulwarkCatchUpStopDistance = 1.0f;
+        private const float BulwarkAdvanceCatchUpStartDistance = 2.0f;
+        private const float BulwarkAdvanceCatchUpStopDistance = 1.25f;
+        private const float BulwarkAdvanceCatchUpMinimumMultiplier = 1.60f;
+        private const float BulwarkAdvanceMaximumMovementMultiplier = 1.75f;
         private const float HuntFormationInnerRadius = 5.5f;
         private const float HuntFormationRingSpacing = 2.0f;
         private const int HuntFormationSlotsPerRing = 6;
-        private const float HuntAnchorTolerance = 0.5f;
-        private const float HuntAnchorRebaseDistance = 2.0f;
+        private const float HuntAnchorTolerance = 1.25f;
+        private const float HuntAnchorRebaseDistance = 2.5f;
         private const float HuntIdleWanderRadius = 1.5f;
         private const float HuntIdleMinimumHeroDistance = 5.0f;
         private const float HuntIdleMinimumStillSeconds = 8.0f;
@@ -116,16 +144,21 @@ namespace SoulAndService
         private const float AutonomousLineOfSightCacheSeconds = 0.25f;
         private const float BulwarkTargetCandidateCacheSeconds = 0.10f;
         private const float FormationPatrolAnchorUpdateDistance = 0.10f;
-        private const float FormationLeaderTravelDeadZone = 1.0f;
-        private const float FormationLeaderMovementStartSeconds = 0.25f;
+        private const float FormationLeaderTravelDeadZone = 1.5f;
+        private const float FormationLeaderMovementStartSeconds = 0.45f;
         private const float FormationLeaderMovementStopSpeed = 0.15f;
-        private const float FormationLeaderSettleSeconds = 0.20f;
+        private const float FormationLeaderSettleSeconds = 0.35f;
         private const float SteelAndBoneAwarenessCacheSeconds = 1.0f;
         private const float AutonomousTargetMinimumCommitmentSeconds = 1.75f;
         private const float AutonomousTargetSwitchDistanceRatio = 0.80f;
         private const float NoviceAiDecisionInterval = 0.75f;
         private const float AiDecisionIntervalRefreshSeconds = 0.50f;
         private const float ControllerRefreshSeconds = 0.10f;
+        private const float FormationHostFallbackRefreshSeconds = 1.0f;
+        private const float HeldSummonPruneIntervalSeconds = 1.0f;
+        private const float AnimationWatchdogMovementSpeed = 0.10f;
+        private const float AnimationWatchdogRecoveryCooldownSeconds = 2.0f;
+        private const int AnimationWatchdogFailureSamples = 3;
         private const float ControlDiagnosticMinimumIntervalSeconds = 0.25f;
         private const float TransientStatePruneIntervalSeconds = 0.25f;
         private const float StandardCommandFeedbackSeconds = 0.675f;
@@ -141,6 +174,7 @@ namespace SoulAndService
         private const float SwarmMovementMultiplier = 1.25f;
         private const float SwarmFirstHitMultiplier = 1.25f;
         private const float MaximumCommandMovementMultiplier = 1.50f;
+        private const float HuntBehaviorMovementMultiplier = 1.10f;
         private const float BulwarkLeaderMovingSpeed = 0.15f;
         private const float BulwarkLeaderRunSpeed = 3.0f;
         private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
@@ -162,6 +196,16 @@ namespace SoulAndService
         {
             internal Collider SummonCollider;
             internal Collider HeroCollider;
+        }
+
+        private sealed class CollisionState
+        {
+            internal GameObject AlivePrefab;
+            internal Collider HeroCollider;
+            internal readonly List<CollisionPair> Pairs =
+                new List<CollisionPair>();
+            internal readonly HashSet<int> SummonColliderIds =
+                new HashSet<int>();
         }
 
         private sealed class ScalingTweaks
@@ -241,6 +285,17 @@ namespace SoulAndService
             internal bool Returning;
         }
 
+        private sealed class BulwarkAdvanceSlotState
+        {
+            internal Vector3 DesiredAnchor;
+            internal Vector3 ResolvedAnchor;
+            internal Vector3 LastProgressPosition;
+            internal float LastProgressAt;
+            internal float FallbackUntil;
+            internal bool HasAnchor;
+            internal bool Satisfied;
+        }
+
         private sealed class FormationCommandViewCache
         {
             internal GameObject ViewObject;
@@ -253,6 +308,35 @@ namespace SoulAndService
             internal float ExpiresAt;
             internal float MovementMultiplier;
             internal StatTweak MovementTweak;
+        }
+
+        private sealed class BehaviorSpeedState
+        {
+            internal float Multiplier;
+            internal StatTweak MovementTweak;
+        }
+
+        private sealed class CatchUpSpeedState
+        {
+            internal float Multiplier;
+            internal StatTweak MovementTweak;
+        }
+
+        private sealed class SpawnReadinessState
+        {
+            internal NpcHeroSummon Summon;
+            internal float EarliestReleaseAt;
+        }
+
+        private sealed class AnimationWatchdogState
+        {
+            internal int FailedMovingSamples;
+            internal float NextRecoveryAt;
+            internal bool HasPositionSample;
+            internal Vector3 LastPosition;
+            internal float LastPositionSampleAt;
+            internal object LastAnimationState;
+            internal double LastAnimationTime;
         }
 
         private sealed class EmpowermentState
@@ -282,10 +366,15 @@ namespace SoulAndService
             }
         }
 
-        private static readonly Dictionary<string, List<CollisionPair>> CollisionPairs =
-            new Dictionary<string, List<CollisionPair>>();
-        private static readonly Dictionary<string, StatTweak> SpeedTweaks =
-            new Dictionary<string, StatTweak>();
+        private static readonly Dictionary<string, CollisionState> CollisionPairs =
+            new Dictionary<string, CollisionState>();
+        private static readonly List<Collider> CollisionColliderBuffer =
+            new List<Collider>();
+        private static readonly Dictionary<string, CatchUpSpeedState> SpeedTweaks =
+            new Dictionary<string, CatchUpSpeedState>();
+        private static readonly Dictionary<string, BehaviorSpeedState>
+            BehaviorSpeedStates =
+                new Dictionary<string, BehaviorSpeedState>();
         private static readonly Dictionary<string, ScalingTweaks> InvocationTweaks =
             new Dictionary<string, ScalingTweaks>();
         private static readonly HashSet<string> StabilizedPatrols =
@@ -317,6 +406,12 @@ namespace SoulAndService
         private static readonly Dictionary<string, HeldSummonState>
             HeldSummons =
                 new Dictionary<string, HeldSummonState>();
+        private static readonly HashSet<string> ActiveHeldSummonIds =
+            new HashSet<string>();
+        private static readonly List<string> HeldSummonRemovalBuffer =
+            new List<string>();
+        private static readonly List<string> StateRemovalBuffer =
+            new List<string>();
         private static readonly Dictionary<string, GuardIdleState>
             GuardIdleStates =
                 new Dictionary<string, GuardIdleState>();
@@ -336,12 +431,21 @@ namespace SoulAndService
         private static readonly Dictionary<string, Vector3>
             FormationPatrolAnchors =
                 new Dictionary<string, Vector3>();
+        private static readonly Dictionary<string, BulwarkAdvanceSlotState>
+            BulwarkAdvanceSlotStates =
+                new Dictionary<string, BulwarkAdvanceSlotState>();
         private static readonly Dictionary<int, float>
             LocomotionPlaybackMultipliers =
                 new Dictionary<int, float>();
         private static readonly Dictionary<string, float>
             NextControllerRefreshBySummon =
                 new Dictionary<string, float>();
+        private static readonly Dictionary<string, SpawnReadinessState>
+            SpawnReadinessBySummon =
+                new Dictionary<string, SpawnReadinessState>();
+        private static readonly Dictionary<string, AnimationWatchdogState>
+            AnimationWatchdogsBySummon =
+                new Dictionary<string, AnimationWatchdogState>();
         private static readonly Dictionary<string, string>
             LastControlDiagnosticBySummon =
                 new Dictionary<string, string>();
@@ -358,10 +462,11 @@ namespace SoulAndService
         private static float _nextTransientStatePruneTime;
         private static float _nextAiDecisionIntervalRefreshTime;
         private static float _cachedAiDecisionInterval = NoviceAiDecisionInterval;
-        private static int _formationHostCacheFrame = -1;
         private static Hero _formationHostCacheHero;
         private static NpcHeroSummon[] _formationHostCache =
             new NpcHeroSummon[0];
+        private static float _formationHostCacheExpiresAt;
+        private static float _nextHeldSummonPruneTime;
         private static int _hostCombatCacheFrame = -1;
         private static Hero _hostCombatCacheHero;
         private static bool _hostCombatCacheValue;
@@ -404,6 +509,7 @@ namespace SoulAndService
         private static bool _hasBulwarkViewCandidate;
         private static Vector3 _bulwarkViewCandidate = Vector3.forward;
         private static float _bulwarkViewCandidateSince = -1.0f;
+        private static float _bulwarkFacingCooldownUntil;
         private static bool _hasGuardForward;
         private static Vector3 _guardForward = Vector3.forward;
         private static Hero _formationFacingHero;
@@ -432,11 +538,16 @@ namespace SoulAndService
             AccessTools.Field(CharacterLocationsType, "_oldestIndex");
         private static readonly FieldInfo EmptyCountField =
             AccessTools.Field(CharacterLocationsType, "_emptyCount");
+        private static readonly FieldInfo MovementPreventedField =
+            AccessTools.Field(typeof(NpcAlly), "_movementPrevented");
 
         internal static void Patch(Harmony harmony)
         {
             harmony.Patch(
                 RequireMethod(typeof(NpcAlly), "UnityUpdate"),
+                prefix: new HarmonyMethod(
+                    typeof(SummonRuntime),
+                    nameof(BeforeNpcAllyUnityUpdate)),
                 transpiler: new HarmonyMethod(
                     typeof(SummonRuntime),
                     nameof(TranspileAiTick)));
@@ -637,8 +748,11 @@ namespace SoulAndService
                 HuntIdleStates.Clear();
                 HuntIdleMoverIds.Clear();
                 FormationPatrolAnchors.Clear();
+                BulwarkAdvanceSlotStates.Clear();
                 LastControlDiagnosticBySummon.Clear();
                 NextControlDiagnosticBySummon.Clear();
+                ReleaseAllSpawnReadinessLocks();
+                AnimationWatchdogsBySummon.Clear();
                 _guardIdleMoverId = null;
                 _nextIdleHostAttemptAt = 0.0f;
                 ResetBulwarkFacingState();
@@ -698,6 +812,7 @@ namespace SoulAndService
             HuntIdleStates.Clear();
             HuntIdleMoverIds.Clear();
             FormationPatrolAnchors.Clear();
+            BulwarkAdvanceSlotStates.Clear();
             _bulwarkTargetCandidateExpiresAt = 0.0f;
             _bulwarkTargetCandidates = new NpcElement[0];
             _guardIdleMoverId = null;
@@ -709,16 +824,23 @@ namespace SoulAndService
             ResetFormationLeaderMotion();
             FormationCommandViewCaches.Clear();
             NextControllerRefreshBySummon.Clear();
+            ReleaseAllSpawnReadinessLocks();
+            AnimationWatchdogsBySummon.Clear();
             LastControlDiagnosticBySummon.Clear();
             NextControlDiagnosticBySummon.Clear();
             ClearAllServantPowerStates();
             ResetTakeAllItemsHold();
             ResetBehaviorCommandHold();
-            foreach (StatTweak tweak in SpeedTweaks.Values.ToArray())
+            foreach (CatchUpSpeedState state in SpeedTweaks.Values.ToArray())
             {
-                DiscardTweak(tweak);
+                DiscardTweak(state.MovementTweak);
             }
             SpeedTweaks.Clear();
+            foreach (BehaviorSpeedState state in BehaviorSpeedStates.Values.ToArray())
+            {
+                DiscardTweak(state.MovementTweak);
+            }
+            BehaviorSpeedStates.Clear();
             foreach (ScalingTweaks tweaks in InvocationTweaks.Values.ToArray())
             {
                 DiscardScalingTweaks(tweaks);
@@ -733,9 +855,12 @@ namespace SoulAndService
             _nextTransientStatePruneTime = 0.0f;
             _nextAiDecisionIntervalRefreshTime = 0.0f;
             _cachedAiDecisionInterval = NoviceAiDecisionInterval;
-            _formationHostCacheFrame = -1;
             _formationHostCacheHero = null;
             _formationHostCache = new NpcHeroSummon[0];
+            _formationHostCacheExpiresAt = 0.0f;
+            _nextHeldSummonPruneTime = 0.0f;
+            ActiveHeldSummonIds.Clear();
+            HeldSummonRemovalBuffer.Clear();
             _hostCombatCacheFrame = -1;
             _hostCombatCacheHero = null;
             _hostCombatCacheValue = false;
@@ -811,11 +936,7 @@ namespace SoulAndService
             float elapsed = Math.Min(_upkeepElapsed, 2.0f);
             _upkeepElapsed = 0.0f;
             Hero hero = Hero.Current;
-            NpcHeroSummon[] summons = hero == null
-                ? new NpcHeroSummon[0]
-                : World.All<NpcHeroSummon>()
-                    .Where(summon => IsOwnedSummon(summon, hero))
-                    .ToArray();
+            NpcHeroSummon[] summons = GetFormationHost(hero);
             float percentPerMinute = GetUpkeepPercentPerMinute(
                 summons.Length,
                 SoulProgressionRuntime.GetNecromanticPower());
@@ -894,9 +1015,16 @@ namespace SoulAndService
             {
                 empowermentMovement = empowerment.MovementMultiplier;
             }
+            float behaviorMovement = SoulProgressionRuntime.GetNecromanticPower()
+                    >= SoulProgressionRuntime.BehaviorCommandPower
+                && SoulProgressionRuntime.GetSummonBehavior()
+                    == SummonBehavior.Hunt
+                    ? HuntBehaviorMovementMultiplier
+                    : 1.0f;
             float movementMultiplier = Math.Min(
                 SwarmMovementMultiplier,
-                MaximumCommandMovementMultiplier / empowermentMovement);
+                MaximumCommandMovementMultiplier
+                    / (empowermentMovement * behaviorMovement));
             SwarmState state = new SwarmState
             {
                 Target = target,
@@ -920,8 +1048,8 @@ namespace SoulAndService
 
         private static void UpdateSwarmStates()
         {
-            foreach (KeyValuePair<string, SwarmState> pair
-                in SwarmStates.ToArray())
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, SwarmState> pair in SwarmStates)
             {
                 SwarmState state = pair.Value;
                 if (state.Target == null
@@ -929,8 +1057,12 @@ namespace SoulAndService
                     || !state.Target.IsAlive
                     || Time.time >= state.ExpiresAt)
                 {
-                    ClearSwarm(pair.Key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
+            }
+            foreach (string summonId in StateRemovalBuffer)
+            {
+                ClearSwarm(summonId);
             }
         }
 
@@ -1051,14 +1183,14 @@ namespace SoulAndService
             }
             Transform visualRoot = controller.AlivePrefab.transform;
             if (!ReferenceEquals(visualRoot, controller.transform)
-                && HasRenderableGeometry(visualRoot))
+                && IsSafeEmpowermentVisualRoot(controller, visualRoot))
             {
                 return visualRoot;
             }
             Transform ancestor = visualRoot.parent;
             while (ancestor != null && !ReferenceEquals(ancestor, controller.transform))
             {
-                if (HasRenderableGeometry(ancestor))
+                if (IsSafeEmpowermentVisualRoot(controller, ancestor))
                 {
                     return ancestor;
                 }
@@ -1068,7 +1200,9 @@ namespace SoulAndService
                 && !ReferenceEquals(
                     controller.Animator.transform,
                     controller.transform)
-                && HasRenderableGeometry(controller.Animator.transform))
+                && IsSafeEmpowermentVisualRoot(
+                    controller,
+                    controller.Animator.transform))
             {
                 return controller.Animator.transform;
             }
@@ -1076,9 +1210,33 @@ namespace SoulAndService
                 && !ReferenceEquals(
                     controller.RootMotion.transform,
                     controller.transform)
-                && HasRenderableGeometry(controller.RootMotion.transform)
+                && IsSafeEmpowermentVisualRoot(
+                    controller,
+                    controller.RootMotion.transform)
                     ? controller.RootMotion.transform
                     : null;
+        }
+
+        private static bool IsSafeEmpowermentVisualRoot(
+            NpcController controller,
+            Transform root)
+        {
+            if (!HasRenderableGeometry(root))
+            {
+                return false;
+            }
+            if (root.GetComponentInChildren<KandraRenderer>(true) == null)
+            {
+                return true;
+            }
+
+            Transform animatorRoot = controller == null
+                || controller.Animator == null
+                    ? null
+                    : controller.Animator.transform;
+            return animatorRoot != null
+                && !ReferenceEquals(root, animatorRoot)
+                && animatorRoot.IsChildOf(root);
         }
 
         private static bool HasRenderableGeometry(Transform root)
@@ -1089,16 +1247,37 @@ namespace SoulAndService
             }
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
-                if (renderer != null
-                    && !string.Equals(
-                        renderer.GetType().Name,
-                        "ParticleSystemRenderer",
-                        StringComparison.Ordinal))
+                if (!IsEffectOnlyRenderer(renderer))
                 {
                     return true;
                 }
             }
             return root.GetComponentInChildren<KandraRenderer>(true) != null;
+        }
+
+        private static bool IsEffectOnlyRenderer(Renderer renderer)
+        {
+            if (renderer == null)
+            {
+                return true;
+            }
+            string rendererType = renderer.GetType().Name;
+            return string.Equals(
+                    rendererType,
+                    "ParticleSystemRenderer",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    rendererType,
+                    "TrailRenderer",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    rendererType,
+                    "LineRenderer",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    rendererType,
+                    "VFXRenderer",
+                    StringComparison.Ordinal);
         }
 
         private static void EnsureEmpowermentVisualEnforcer(
@@ -1148,11 +1327,7 @@ namespace SoulAndService
             foreach (Renderer renderer in visualRoot
                 .GetComponentsInChildren<Renderer>(true))
             {
-                if (renderer == null
-                    || string.Equals(
-                        renderer.GetType().Name,
-                        "ParticleSystemRenderer",
-                        StringComparison.Ordinal)
+                if (IsEffectOnlyRenderer(renderer)
                     || !renderer.gameObject.activeInHierarchy)
                 {
                     continue;
@@ -1268,11 +1443,7 @@ namespace SoulAndService
             bool found = false;
             foreach (Renderer renderer in visualRoot.GetComponentsInChildren<Renderer>(true))
             {
-                if (renderer == null
-                    || string.Equals(
-                        renderer.GetType().Name,
-                        "ParticleSystemRenderer",
-                        StringComparison.Ordinal)
+                if (IsEffectOnlyRenderer(renderer)
                     || !renderer.gameObject.activeInHierarchy)
                 {
                     continue;
@@ -1354,6 +1525,48 @@ namespace SoulAndService
                     + replaced + ".");
             }
             return result;
+        }
+
+        private static void BeforeNpcAllyUnityUpdate(NpcAlly __instance)
+        {
+            if (SpawnReadinessBySummon.Count == 0
+                || __instance == null
+                || __instance.ParentModel == null)
+            {
+                return;
+            }
+            string summonId = GetSummonId(__instance.ParentModel);
+            SpawnReadinessState readiness;
+            if (string.IsNullOrEmpty(summonId)
+                || !SpawnReadinessBySummon.TryGetValue(
+                    summonId,
+                    out readiness))
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null || !plugin.IsEnabled)
+            {
+                if (now >= readiness.EarliestReleaseAt)
+                {
+                    MovementPreventedField.SetValue(__instance, false);
+                }
+                SpawnReadinessBySummon.Remove(summonId);
+                return;
+            }
+            NpcGeneralFSM generalFsm;
+            if (now < readiness.EarliestReleaseAt
+                || !HasPlayingGeneralAnimation(
+                    __instance.ParentModel,
+                    out generalFsm))
+            {
+                MovementPreventedField.SetValue(__instance, true);
+                return;
+            }
+            MovementPreventedField.SetValue(__instance, false);
+            SpawnReadinessBySummon.Remove(summonId);
         }
 
         private static IEnumerable<CodeInstruction> TranspileSpawnRecovery(
@@ -1583,6 +1796,7 @@ namespace SoulAndService
                     out heldState))
             {
                 FormationPatrolAnchors.Remove(((Model)summon).ID);
+                BulwarkAdvanceSlotStates.Remove(((Model)summon).ID);
                 ClearIdleMovementState(((Model)summon).ID);
                 float anchorDistanceSqr =
                     (heldState.Anchor - summon.ParentModel.Coords).sqrMagnitude;
@@ -1603,6 +1817,7 @@ namespace SoulAndService
                 && TryGetRecallAnchor(summon, out recallAnchor))
             {
                 FormationPatrolAnchors.Remove(((Model)summon).ID);
+                BulwarkAdvanceSlotStates.Remove(((Model)summon).ID);
                 ClearIdleMovementState(((Model)summon).ID);
                 float anchorDistanceSqr =
                     (recallAnchor - summon.ParentModel.Coords).sqrMagnitude;
@@ -1619,6 +1834,10 @@ namespace SoulAndService
             }
 
             SummonBehavior behavior = SoulProgressionRuntime.GetSummonBehavior();
+            if (behavior != SummonBehavior.Bulwark)
+            {
+                BulwarkAdvanceSlotStates.Remove(((Model)summon).ID);
+            }
             bool usesGuardFormation = behavior == SummonBehavior.Guard
                 && HasGlobalFormationControl();
             bool hasPriorityTarget = hasExplicitCommandTarget
@@ -1636,6 +1855,7 @@ namespace SoulAndService
             {
                 string summonId = ((Model)summon).ID;
                 FormationPatrolAnchors.Remove(summonId);
+                BulwarkAdvanceSlotStates.Remove(summonId);
                 StabilizedPatrols.Remove(summonId);
                 patrol.UpdateRadius(NativePatrolRadius);
                 return false;
@@ -1647,11 +1867,15 @@ namespace SoulAndService
             {
                 float anchorTolerance = 0.0f;
                 bool gentleIdleMovement = false;
+                bool bulwarkAdvance = false;
                 Vector3 anchor;
                 if (behavior == SummonBehavior.Bulwark)
                 {
+                    bulwarkAdvance = IsBulwarkAdvanceHeld(Hero.Current);
                     anchor = GetBulwarkAnchor(summon);
-                    anchorTolerance = BulwarkAnchorTolerance;
+                    anchorTolerance = bulwarkAdvance
+                        ? BulwarkAdvanceAnchorTolerance
+                        : BulwarkAnchorTolerance;
                 }
                 else if (behavior == SummonBehavior.Hunt)
                 {
@@ -1688,17 +1912,25 @@ namespace SoulAndService
 
                 StabilizedPatrols.Add(((Model)summon).ID);
                 patrol.UpdateRadius(anchorTolerance);
-                UpdateFormationPatrolPlace(summon, patrol, anchor);
+                UpdateFormationPatrolPlace(
+                    summon,
+                    patrol,
+                    anchor,
+                    bulwarkAdvance
+                        ? BulwarkAdvanceAnchorUpdateDistance
+                        : FormationPatrolAnchorUpdateDistance);
                 patrol.UpdateVelocityScheme(
                     gentleIdleMovement
                         ? VelocityScheme.Walk
                         : GetBulwarkVelocityScheme(
                             summon.Ally,
-                            anchorDistanceSqr));
+                            anchorDistanceSqr,
+                            bulwarkAdvance));
                 return false;
             }
 
             FormationPatrolAnchors.Remove(((Model)summon).ID);
+            BulwarkAdvanceSlotStates.Remove(((Model)summon).ID);
 
             float distanceSqr =
                 (summon.Ally.Coords - summon.ParentModel.Coords).sqrMagnitude;
@@ -2016,11 +2248,9 @@ namespace SoulAndService
 
         private static NpcHeroSummon[] GetFormationHost(Hero hero)
         {
-            int frame = Time.frameCount;
-            if (_formationHostCacheFrame != frame
-                || !ReferenceEquals(_formationHostCacheHero, hero))
+            if (!ReferenceEquals(_formationHostCacheHero, hero)
+                || Time.unscaledTime >= _formationHostCacheExpiresAt)
             {
-                _formationHostCacheFrame = frame;
                 _formationHostCacheHero = hero;
                 _formationHostCache = hero == null
                     ? new NpcHeroSummon[0]
@@ -2028,8 +2258,16 @@ namespace SoulAndService
                         .Where(candidate => IsOwnedSummon(candidate, hero))
                         .OrderBy(candidate => ((Model)candidate).ID)
                         .ToArray();
+                _formationHostCacheExpiresAt = Time.unscaledTime
+                    + FormationHostFallbackRefreshSeconds;
             }
             return _formationHostCache;
+        }
+
+        private static void InvalidateFormationHostCache()
+        {
+            _formationHostCacheHero = null;
+            _formationHostCacheExpiresAt = 0.0f;
         }
 
         private static Vector3 GetGuardIdleAnchor(
@@ -2056,7 +2294,12 @@ namespace SoulAndService
 
             bool heroMoving = IsFormationLeaderMoving(hero);
             bool hostInCombat = IsHostInCombat(hero);
-            if (heroMoving || hostInCombat)
+            if (hostInCombat)
+            {
+                CancelGuardIdleMovement(summonId, state);
+                state.NextWanderAt = 0.0f;
+            }
+            if (heroMoving)
             {
                 state.FormationAnchor = liveAnchor;
                 state.HeroOrigin = hero.Coords;
@@ -2075,6 +2318,11 @@ namespace SoulAndService
                 state.HeroOrigin = hero.Coords;
                 state.HasAnchor = true;
                 ScheduleNextGuardIdleWander(state);
+            }
+
+            if (hostInCombat)
+            {
+                return state.FormationAnchor;
             }
 
             if (GetIdleMovementAmount() <= 0.001f)
@@ -2295,7 +2543,12 @@ namespace SoulAndService
 
             bool heroMoving = IsFormationLeaderMoving(hero);
             bool hostInCombat = IsHostInCombat(hero);
-            if (heroMoving || hostInCombat)
+            if (hostInCombat)
+            {
+                CancelHuntIdleMovement(summonId, state);
+                state.NextWanderAt = 0.0f;
+            }
+            if (heroMoving)
             {
                 state.FormationAnchor = liveAnchor;
                 state.HeroOrigin = hero.Coords;
@@ -2314,6 +2567,11 @@ namespace SoulAndService
                 state.HeroOrigin = hero.Coords;
                 state.HasAnchor = true;
                 ScheduleNextHuntIdleWander(state);
+            }
+
+            if (hostInCombat)
+            {
+                return state.FormationAnchor;
             }
 
             float idleMovementAmount = GetIdleMovementAmount();
@@ -2588,26 +2846,264 @@ namespace SoulAndService
             {
                 index = 0;
             }
-            int ring = index / BulwarkFormationSlotsPerRing;
-            int firstInRing = ring * BulwarkFormationSlotsPerRing;
+            bool advanceHeld = IsBulwarkAdvanceHeld(hero);
+            int slotsPerRing = advanceHeld
+                ? BulwarkFormationSlotsPerRing
+                : BulwarkCloseGuardSlotsPerRing;
+            int ring = index / slotsPerRing;
+            int firstInRing = ring * slotsPerRing;
             int countInRing = Math.Min(
-                BulwarkFormationSlotsPerRing,
+                slotsPerRing,
                 host.Length - firstInRing);
             int slot = index - firstInRing;
-            float halfArc = countInRing == 2
-                ? 25.0f
-                : countInRing == 3
-                    ? 45.0f
-                    : 60.0f;
-            float angle = countInRing <= 1
-                ? 0.0f
-                : Mathf.Lerp(-halfArc, halfArc, slot / (countInRing - 1.0f));
+            float angle;
+            if (advanceHeld)
+            {
+                float halfArc = countInRing == 2
+                    ? 25.0f
+                    : countInRing == 3
+                        ? 45.0f
+                        : 60.0f;
+                angle = countInRing <= 1
+                    ? 0.0f
+                    : Mathf.Lerp(
+                        -halfArc,
+                        halfArc,
+                        slot / (countInRing - 1.0f));
+            }
+            else
+            {
+                angle = countInRing <= 1
+                    ? 180.0f
+                    : Mathf.Lerp(
+                        90.0f,
+                        270.0f,
+                        slot / (countInRing - 1.0f));
+            }
             float distance = BulwarkFormationInnerRadius
                 + (BulwarkFormationRingSpacing * ring);
-            UpdateBulwarkFacing(hero);
-            return GetFormationLeaderAnchor(hero)
+            Vector3 leaderAnchor = advanceHeld
+                ? hero.Coords
+                : GetFormationLeaderAnchor(hero);
+            Vector3 formationForward;
+            if (advanceHeld)
+            {
+                UpdateBulwarkFacing(hero);
+                formationForward = _bulwarkForward;
+                leaderAnchor += hero.HorizontalVelocity
+                    * BulwarkAdvancePredictionSeconds;
+            }
+            else
+            {
+                formationForward = GetGuardFormationForward(hero);
+            }
+            Vector3 desiredAnchor = leaderAnchor
                 + (Quaternion.AngleAxis(angle, Vector3.up)
-                    * _bulwarkForward * distance);
+                    * formationForward * distance);
+            if (!advanceHeld)
+            {
+                BulwarkAdvanceSlotStates.Remove(((Model)summon).ID);
+                return desiredAnchor;
+            }
+            return GetStabilizedBulwarkAdvanceAnchor(summon, desiredAnchor);
+        }
+
+        private static Vector3 GetStabilizedBulwarkAdvanceAnchor(
+            NpcHeroSummon summon,
+            Vector3 desiredAnchor)
+        {
+            if (summon == null || summon.ParentModel == null)
+            {
+                return desiredAnchor;
+            }
+            string summonId = ((Model)summon).ID;
+            BulwarkAdvanceSlotState state;
+            if (!BulwarkAdvanceSlotStates.TryGetValue(summonId, out state))
+            {
+                state = new BulwarkAdvanceSlotState();
+                BulwarkAdvanceSlotStates[summonId] = state;
+            }
+
+            float now = Time.unscaledTime;
+            Vector3 summonPosition = summon.ParentModel.Coords;
+            float desiredDistance = Vector3.Distance(
+                summonPosition,
+                desiredAnchor);
+            if (!state.HasAnchor)
+            {
+                state.DesiredAnchor = desiredAnchor;
+                state.ResolvedAnchor = desiredAnchor;
+                state.LastProgressPosition = summonPosition;
+                state.LastProgressAt = now;
+                state.HasAnchor = true;
+            }
+
+            if (state.Satisfied)
+            {
+                if (desiredDistance <= BulwarkAdvanceResumeDistance)
+                {
+                    return state.ResolvedAnchor;
+                }
+                state.Satisfied = false;
+                state.FallbackUntil = 0.0f;
+                state.DesiredAnchor = desiredAnchor;
+                state.ResolvedAnchor = desiredAnchor;
+                state.LastProgressPosition = summonPosition;
+                state.LastProgressAt = now;
+            }
+
+            bool desiredMoved = (state.DesiredAnchor - desiredAnchor).sqrMagnitude
+                >= BulwarkAdvanceAnchorUpdateDistance
+                    * BulwarkAdvanceAnchorUpdateDistance;
+            if (desiredMoved)
+            {
+                state.DesiredAnchor = desiredAnchor;
+                if (state.FallbackUntil <= now
+                    || desiredDistance > BulwarkAdvanceResumeDistance)
+                {
+                    state.FallbackUntil = 0.0f;
+                    state.ResolvedAnchor = desiredAnchor;
+                }
+            }
+
+            if (state.FallbackUntil > now)
+            {
+                return state.ResolvedAnchor;
+            }
+            if (state.FallbackUntil > 0.0f)
+            {
+                state.FallbackUntil = 0.0f;
+                state.ResolvedAnchor = desiredAnchor;
+                state.LastProgressPosition = summonPosition;
+                state.LastProgressAt = now;
+            }
+
+            float resolvedDistance = Vector3.Distance(
+                summonPosition,
+                state.ResolvedAnchor);
+            if (resolvedDistance <= BulwarkAdvanceAnchorTolerance)
+            {
+                state.Satisfied = true;
+                state.LastProgressPosition = summonPosition;
+                state.LastProgressAt = now;
+                return state.ResolvedAnchor;
+            }
+            if ((summonPosition - state.LastProgressPosition).sqrMagnitude
+                >= BulwarkAdvanceProgressDistance
+                    * BulwarkAdvanceProgressDistance)
+            {
+                state.LastProgressPosition = summonPosition;
+                state.LastProgressAt = now;
+                return state.ResolvedAnchor;
+            }
+            if (now - state.LastProgressAt < BulwarkAdvanceBlockedSeconds)
+            {
+                return state.ResolvedAnchor;
+            }
+
+            Vector3 fallbackAnchor;
+            if (!TryResolveReachableBulwarkAnchor(
+                    summonPosition,
+                    desiredAnchor,
+                    out fallbackAnchor))
+            {
+                fallbackAnchor = summonPosition;
+            }
+            state.ResolvedAnchor = fallbackAnchor;
+            state.LastProgressPosition = summonPosition;
+            state.LastProgressAt = now;
+            state.FallbackUntil = now + BulwarkAdvanceFallbackSeconds;
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin != null)
+            {
+                plugin.LogDiagnostic(
+                    "Bulwark accepted a reachable temporary slot for "
+                    + summonId + " after "
+                    + BulwarkAdvanceBlockedSeconds.ToString("0.##")
+                    + " seconds without progress.");
+            }
+            return fallbackAnchor;
+        }
+
+        private static bool TryResolveReachableBulwarkAnchor(
+            Vector3 summonPosition,
+            Vector3 desiredAnchor,
+            out Vector3 resolvedAnchor)
+        {
+            resolvedAnchor = desiredAnchor;
+            if (AstarPath.active == null)
+            {
+                return false;
+            }
+            Pathfinding.GraphNode sourceNode = AstarPath.active.GetNearest(
+                summonPosition,
+                Pathfinding.NNConstraint.Walkable).node;
+            if (sourceNode == null)
+            {
+                return false;
+            }
+
+            Vector3 approach = desiredAnchor - summonPosition;
+            approach.y = 0.0f;
+            if (approach.sqrMagnitude <= 0.001f)
+            {
+                approach = Vector3.forward;
+            }
+            else
+            {
+                approach.Normalize();
+            }
+            Vector3 side = Vector3.Cross(Vector3.up, approach).normalized;
+            float bestDistanceSqr = float.PositiveInfinity;
+            bool found = false;
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                Vector3 candidate = desiredAnchor;
+                switch (attempt)
+                {
+                    case 1:
+                        candidate += side * BulwarkAdvanceFallbackProbeRadius;
+                        break;
+                    case 2:
+                        candidate -= side * BulwarkAdvanceFallbackProbeRadius;
+                        break;
+                    case 3:
+                        candidate -= approach * BulwarkAdvanceFallbackProbeRadius;
+                        break;
+                    case 4:
+                        candidate += approach * BulwarkAdvanceFallbackProbeRadius;
+                        break;
+                }
+                Pathfinding.NNInfo nearest = AstarPath.active.GetNearest(
+                    candidate,
+                    Pathfinding.NNConstraint.Walkable);
+                if (nearest.node == null
+                    || !Pathfinding.PathUtilities.IsPathPossible(
+                        sourceNode,
+                        nearest.node)
+                    || (nearest.position - candidate).sqrMagnitude
+                        > BulwarkAdvanceFallbackCandidateSnapDistance
+                            * BulwarkAdvanceFallbackCandidateSnapDistance)
+                {
+                    continue;
+                }
+                float desiredOffsetSqr =
+                    (nearest.position - desiredAnchor).sqrMagnitude;
+                if (desiredOffsetSqr
+                        < BulwarkAdvanceFallbackMinimumOffset
+                            * BulwarkAdvanceFallbackMinimumOffset
+                    || desiredOffsetSqr
+                        > BulwarkAdvanceMaximumAnchorSnapDistance
+                            * BulwarkAdvanceMaximumAnchorSnapDistance
+                    || desiredOffsetSqr >= bestDistanceSqr)
+                {
+                    continue;
+                }
+                bestDistanceSqr = desiredOffsetSqr;
+                resolvedAnchor = nearest.position;
+                found = true;
+            }
+            return found;
         }
 
         private static void UpdateBulwarkFacing(Hero hero)
@@ -2639,20 +3135,8 @@ namespace SoulAndService
                 return;
             }
 
-            Vector3 movementForward = hero.HorizontalVelocity;
-            movementForward.y = 0.0f;
-            if (IsFormationLeaderMoving(hero)
-                && movementForward.magnitude >= BulwarkLeaderMovingSpeed)
-            {
-                _bulwarkForward = movementForward.normalized;
-                _hasBulwarkForward = true;
-                _hasBulwarkViewCandidate = false;
-                _bulwarkViewCandidateSince = -1.0f;
-                return;
-            }
-
             Vector3 viewForward = hero.VHeroController == null
-                ? Vector3.forward
+                ? Vector3.zero
                 : hero.VHeroController.transform.forward;
             VCHeroRaycaster raycaster = hero.VHeroController == null
                 ? null
@@ -2665,6 +3149,15 @@ namespace SoulAndService
             viewForward.y = 0.0f;
             if (viewForward.sqrMagnitude <= 0.0001f)
             {
+                Vector3 movementForward = hero.HorizontalVelocity;
+                movementForward.y = 0.0f;
+                if (!_hasBulwarkForward
+                    && IsFormationLeaderMoving(hero)
+                    && movementForward.magnitude >= BulwarkLeaderMovingSpeed)
+                {
+                    _bulwarkForward = movementForward.normalized;
+                    _hasBulwarkForward = true;
+                }
                 return;
             }
             viewForward.Normalize();
@@ -2680,6 +3173,10 @@ namespace SoulAndService
             {
                 _hasBulwarkViewCandidate = false;
                 _bulwarkViewCandidateSince = -1.0f;
+                return;
+            }
+            if (Time.unscaledTime < _bulwarkFacingCooldownUntil)
+            {
                 return;
             }
             if (!_hasBulwarkViewCandidate
@@ -2698,6 +3195,8 @@ namespace SoulAndService
             }
 
             _bulwarkForward = viewForward;
+            _bulwarkFacingCooldownUntil = Time.unscaledTime
+                + BulwarkCameraFacingCooldownSeconds;
             _hasBulwarkViewCandidate = false;
             _bulwarkViewCandidateSince = -1.0f;
         }
@@ -2711,6 +3210,7 @@ namespace SoulAndService
             _hasBulwarkViewCandidate = false;
             _bulwarkViewCandidate = Vector3.forward;
             _bulwarkViewCandidateSince = -1.0f;
+            _bulwarkFacingCooldownUntil = 0.0f;
         }
 
         private static Vector3 GetGuardAnchor(NpcHeroSummon summon)
@@ -2735,6 +3235,14 @@ namespace SoulAndService
                 : Mathf.Lerp(105.0f, 255.0f, slot / (countInRing - 1.0f));
             float distance = GuardFormationInnerRadius
                 + (GuardFormationRingSpacing * ring);
+            Vector3 formationForward = GetGuardFormationForward(hero);
+            return GetFormationLeaderAnchor(hero)
+                + (Quaternion.AngleAxis(angle, Vector3.up)
+                    * formationForward * distance);
+        }
+
+        private static Vector3 GetGuardFormationForward(Hero hero)
+        {
             Vector3 movementForward = hero.HorizontalVelocity;
             movementForward.y = 0.0f;
             if (IsFormationLeaderMoving(hero)
@@ -2754,8 +3262,7 @@ namespace SoulAndService
                     : initialForward.normalized;
                 _hasGuardForward = true;
             }
-            return GetFormationLeaderAnchor(hero)
-                + (Quaternion.AngleAxis(angle, Vector3.up) * _guardForward * distance);
+            return _guardForward;
         }
 
         private static void EnsureFormationFacingHero(Hero hero)
@@ -2772,11 +3279,27 @@ namespace SoulAndService
 
         private static VelocityScheme GetBulwarkVelocityScheme(
             ICharacter leader,
-            float anchorDistanceSqr)
+            float anchorDistanceSqr,
+            bool advanceHeld)
         {
             float leaderSpeed = leader == null
                 ? 0.0f
                 : leader.HorizontalVelocity.magnitude;
+            if (advanceHeld)
+            {
+                if (anchorDistanceSqr
+                    > BulwarkAdvanceRunDistance * BulwarkAdvanceRunDistance)
+                {
+                    return VelocityScheme.Run;
+                }
+                if (anchorDistanceSqr
+                    > BulwarkAdvanceAnchorTolerance
+                        * BulwarkAdvanceAnchorTolerance)
+                {
+                    return VelocityScheme.Trot;
+                }
+                return VelocityScheme.Walk;
+            }
             if (anchorDistanceSqr > 25.0f
                 || leaderSpeed >= BulwarkLeaderRunSpeed)
             {
@@ -2890,9 +3413,11 @@ namespace SoulAndService
                 || !WithFactionUtils.WantToFight(summon.ParentModel, target)
                 || GetAutonomousTargetPriority(
                     target,
+                    summon.ParentModel,
                     SoulProgressionRuntime.GetSummonBehavior(),
                     hero,
-                    IsHostInCombat(hero)) == int.MaxValue)
+                    IsHostInCombat(hero),
+                    retainBulwarkTarget: false) == int.MaxValue)
             {
                 return;
             }
@@ -2944,6 +3469,22 @@ namespace SoulAndService
                 >= SoulProgressionRuntime.RecallCommandPower;
         }
 
+        private static bool IsSprintActionHeld(Hero hero)
+        {
+            PlayerInput input = hero == null || hero.VHeroController == null
+                ? null
+                : hero.VHeroController.Input;
+            return input != null
+                && input.GetButtonHeld(KeyBindings.Gameplay.Sprint);
+        }
+
+        private static bool IsBulwarkAdvanceHeld(Hero hero)
+        {
+            return SoulProgressionRuntime.GetSummonBehavior()
+                    == SummonBehavior.Bulwark
+                && IsSprintActionHeld(hero);
+        }
+
         private static bool IsTargetCommandModifierHeld(
             SoulAndServicePlugin plugin,
             Hero hero)
@@ -2959,11 +3500,7 @@ namespace SoulAndService
             {
                 return true;
             }
-            PlayerInput input = hero.VHeroController == null
-                ? null
-                : hero.VHeroController.Input;
-            return input != null
-                && input.GetButtonHeld(KeyBindings.Gameplay.Sprint);
+            return IsSprintActionHeld(hero);
         }
 
         private static bool CanCommandSummons(
@@ -3395,22 +3932,7 @@ namespace SoulAndService
                 foreach (Renderer renderer
                     in viewObject.GetComponentsInChildren<Renderer>(true))
                 {
-                    string rendererType = renderer == null
-                        ? string.Empty
-                        : renderer.GetType().Name;
-                    if (renderer == null
-                        || string.Equals(
-                            rendererType,
-                            "ParticleSystemRenderer",
-                            StringComparison.Ordinal)
-                        || string.Equals(
-                            rendererType,
-                            "TrailRenderer",
-                            StringComparison.Ordinal)
-                        || string.Equals(
-                            rendererType,
-                            "LineRenderer",
-                            StringComparison.Ordinal))
+                    if (IsEffectOnlyRenderer(renderer))
                     {
                         continue;
                     }
@@ -4002,19 +4524,36 @@ namespace SoulAndService
         {
             if (HeldSummons.Count == 0)
             {
+                _nextHeldSummonPruneTime = 0.0f;
                 return;
             }
-
-            HashSet<string> activeIds = new HashSet<string>(
-                World.All<NpcHeroSummon>()
-                    .Where(summon => IsOwnedSummon(summon, Hero.Current))
-                    .Select(summon => ((Model)summon).ID));
-            foreach (string summonId in HeldSummons.Keys.ToArray())
+            if (Time.unscaledTime < _nextHeldSummonPruneTime)
             {
-                if (!activeIds.Contains(summonId))
+                return;
+            }
+            _nextHeldSummonPruneTime = Time.unscaledTime
+                + HeldSummonPruneIntervalSeconds;
+
+            ActiveHeldSummonIds.Clear();
+            Hero hero = Hero.Current;
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
+            {
+                if (IsOwnedSummon(summon, hero))
                 {
-                    HeldSummons.Remove(summonId);
+                    ActiveHeldSummonIds.Add(((Model)summon).ID);
                 }
+            }
+            HeldSummonRemovalBuffer.Clear();
+            foreach (string summonId in HeldSummons.Keys)
+            {
+                if (!ActiveHeldSummonIds.Contains(summonId))
+                {
+                    HeldSummonRemovalBuffer.Add(summonId);
+                }
+            }
+            foreach (string summonId in HeldSummonRemovalBuffer)
+            {
+                HeldSummons.Remove(summonId);
             }
         }
 
@@ -4038,7 +4577,9 @@ namespace SoulAndService
         {
             if (summon != null)
             {
-                FormationPatrolAnchors.Remove(((Model)summon).ID);
+                string summonId = ((Model)summon).ID;
+                FormationPatrolAnchors.Remove(summonId);
+                BulwarkAdvanceSlotStates.Remove(summonId);
             }
             if (summon == null
                 || !StabilizedPatrols.Remove(((Model)summon).ID))
@@ -4061,7 +4602,8 @@ namespace SoulAndService
         private static void UpdateFormationPatrolPlace(
             NpcHeroSummon summon,
             Patrol patrol,
-            Vector3 anchor)
+            Vector3 anchor,
+            float updateDistance)
         {
             if (summon == null || patrol == null)
             {
@@ -4073,8 +4615,7 @@ namespace SoulAndService
                     summonId,
                     out previousAnchor)
                 && (previousAnchor - anchor).sqrMagnitude
-                    <= FormationPatrolAnchorUpdateDistance
-                        * FormationPatrolAnchorUpdateDistance)
+                    <= updateDistance * updateDistance)
             {
                 return;
             }
@@ -4592,7 +5133,7 @@ namespace SoulAndService
                 : hero.VHeroController.Input;
             return CanMaintainBehaviorCommandHold()
                 && input != null
-                && input.GetButtonHeld(KeyBindings.Gameplay.Sprint)
+                && IsSprintActionHeld(hero)
                 && _commandInteractable == null
                 && !hero.VHeroController.Raycaster.GetAvailableActions().Any();
         }
@@ -4678,6 +5219,7 @@ namespace SoulAndService
             HuntIdleStates.Clear();
             HuntIdleMoverIds.Clear();
             FormationPatrolAnchors.Clear();
+            BulwarkAdvanceSlotStates.Clear();
             _bulwarkTargetCandidateExpiresAt = 0.0f;
             _bulwarkTargetCandidates = new NpcElement[0];
             _guardIdleMoverId = null;
@@ -4919,10 +5461,26 @@ namespace SoulAndService
             {
                 return;
             }
+            string summonId = GetSummonId(__instance.ParentModel);
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (!string.IsNullOrEmpty(summonId)
+                && plugin != null
+                && plugin.IsEnabled)
+            {
+                SpawnReadinessBySummon[summonId] = new SpawnReadinessState
+                {
+                    Summon = __instance,
+                    EarliestReleaseAt = Time.unscaledTime
+                        + GetSpawnRecoverySeconds()
+                };
+                AnimationWatchdogsBySummon.Remove(summonId);
+            }
+            InvalidateFormationHostCache();
             __instance.ParentModel.OnCompletelyInitialized(
                 delegate
                 {
-                    ApplyPlayerPassThrough(__instance);
+                    InvalidateFormationHostCache();
+                    ApplyPlayerPassThrough(__instance, true);
                 });
             SoulSalvageRuntime.OnSummonInitialized(__instance);
 
@@ -5043,10 +5601,12 @@ namespace SoulAndService
 
         private static void AfterToggleWalkThroughColliders(NpcHeroSummon __instance)
         {
-            ApplyPlayerPassThrough(__instance);
+            ApplyPlayerPassThrough(__instance, true);
         }
 
-        private static void ApplyPlayerPassThrough(NpcHeroSummon summon)
+        private static void ApplyPlayerPassThrough(
+            NpcHeroSummon summon,
+            bool forceRefresh = false)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
@@ -5066,42 +5626,64 @@ namespace SoulAndService
             }
 
             string id = ((Model)summon).ID;
-            List<CollisionPair> pairs;
-            if (!CollisionPairs.TryGetValue(id, out pairs))
-            {
-                pairs = new List<CollisionPair>();
-                CollisionPairs[id] = pairs;
-            }
-
+            GameObject alivePrefab = summon.ParentModel.Controller.AlivePrefab;
             Collider heroCollider = hero.VHeroController.Controller;
-            foreach (Collider collider in summon.ParentModel.Controller.AlivePrefab
-                .GetComponentsInChildren<Collider>(true))
+            CollisionState state;
+            if (CollisionPairs.TryGetValue(id, out state)
+                && (forceRefresh
+                    || !ReferenceEquals(state.AlivePrefab, alivePrefab)
+                    || !ReferenceEquals(state.HeroCollider, heroCollider)))
+            {
+                RestoreCollisionPairs(id);
+                state = null;
+            }
+            if (state != null)
+            {
+                return;
+            }
+            state = new CollisionState
+            {
+                AlivePrefab = alivePrefab,
+                HeroCollider = heroCollider
+            };
+            CollisionPairs[id] = state;
+            RefreshPlayerPassThroughColliders(state);
+        }
+
+        private static void RefreshPlayerPassThroughColliders(
+            CollisionState state)
+        {
+            CollisionColliderBuffer.Clear();
+            state.AlivePrefab.GetComponentsInChildren<Collider>(
+                true,
+                CollisionColliderBuffer);
+            foreach (Collider collider in CollisionColliderBuffer)
             {
                 if (collider == null
                     || collider.isTrigger
-                    || ReferenceEquals(collider, heroCollider)
-                    || pairs.Any(pair => pair.SummonCollider == collider
-                        && pair.HeroCollider == heroCollider))
+                    || ReferenceEquals(collider, state.HeroCollider)
+                    || !state.SummonColliderIds.Add(collider.GetInstanceID()))
                 {
                     continue;
                 }
-                Physics.IgnoreCollision(heroCollider, collider, true);
-                pairs.Add(new CollisionPair
+                Physics.IgnoreCollision(state.HeroCollider, collider, true);
+                state.Pairs.Add(new CollisionPair
                 {
-                    HeroCollider = heroCollider,
+                    HeroCollider = state.HeroCollider,
                     SummonCollider = collider
                 });
             }
+            CollisionColliderBuffer.Clear();
         }
 
         private static void RestoreCollisionPairs(string id)
         {
-            List<CollisionPair> pairs;
-            if (!CollisionPairs.TryGetValue(id, out pairs))
+            CollisionState state;
+            if (!CollisionPairs.TryGetValue(id, out state))
             {
                 return;
             }
-            foreach (CollisionPair pair in pairs)
+            foreach (CollisionPair pair in state.Pairs)
             {
                 if (pair.HeroCollider != null && pair.SummonCollider != null)
                 {
@@ -5149,11 +5731,17 @@ namespace SoulAndService
         private static void AfterNpcControllerUpdate(NpcController __instance)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-            if (__instance == null || __instance.Npc == null || !__instance.Npc.IsHeroSummon)
+            if (__instance == null || __instance.Npc == null)
+            {
+                return;
+            }
+            if (!__instance.Npc.IsHeroSummon)
             {
                 return;
             }
             string summonId = GetSummonId(__instance.Npc);
+            NpcHeroSummon summon = __instance.Npc
+                .TryGetElement<NpcHeroSummon>();
             float nextRefresh;
             if (string.IsNullOrEmpty(summonId)
                 || (NextControllerRefreshBySummon.TryGetValue(
@@ -5167,8 +5755,173 @@ namespace SoulAndService
                 + ControllerRefreshSeconds;
 
             ApplyIdleVolume(__instance, plugin);
-            UpdateCatchUpSpeed(__instance, plugin);
-            UpdateEmpoweredPresentation(__instance);
+            UpdateAnimationWatchdog(
+                __instance,
+                plugin,
+                summon,
+                summonId);
+            UpdateCatchUpSpeed(__instance, plugin, summon, summonId);
+            UpdateBehaviorSpeed(__instance, plugin, summon, summonId);
+            UpdateEmpoweredPresentation(__instance, summonId);
+        }
+
+        private static void UpdateAnimationWatchdog(
+            NpcController controller,
+            SoulAndServicePlugin plugin,
+            NpcHeroSummon summon,
+            string id)
+        {
+            NpcElement npc = controller == null ? null : controller.Npc;
+            Hero hero = Hero.Current;
+            if (string.IsNullOrEmpty(id)
+                || plugin == null
+                || !plugin.IsEnabled
+                || !IsOwnedSummon(summon, hero)
+                || SpawnReadinessBySummon.ContainsKey(id))
+            {
+                if (!string.IsNullOrEmpty(id))
+                {
+                    AnimationWatchdogsBySummon.Remove(id);
+                }
+                return;
+            }
+
+            AnimationWatchdogState state;
+            if (!AnimationWatchdogsBySummon.TryGetValue(id, out state))
+            {
+                state = new AnimationWatchdogState();
+                AnimationWatchdogsBySummon[id] = state;
+            }
+            if (!IsMovingForAnimationWatchdog(controller, npc, state))
+            {
+                ResetAnimationWatchdog(state);
+                return;
+            }
+
+            NpcGeneralFSM generalFsm;
+            bool playing = HasPlayingGeneralAnimation(npc, out generalFsm);
+            if (generalFsm == null)
+            {
+                return;
+            }
+            NpcAnimatorState animatorState = generalFsm.CurrentAnimatorState;
+            var animationState = animatorState == null
+                ? null
+                : animatorState.CurrentState;
+            bool idleWhileMoving = animatorState != null
+                && animatorState.Type == NpcStateType.Idle;
+            bool movementStateStalled = playing
+                && animatorState != null
+                && animatorState.Type == NpcStateType.Movement
+                && ReferenceEquals(state.LastAnimationState, animationState)
+                && Math.Abs(animationState.TimeD - state.LastAnimationTime)
+                    <= 0.001;
+            state.LastAnimationState = animationState;
+            state.LastAnimationTime = animationState == null
+                ? 0.0
+                : animationState.TimeD;
+            if (playing && !idleWhileMoving && !movementStateStalled)
+            {
+                state.FailedMovingSamples = 0;
+                return;
+            }
+
+            state.FailedMovingSamples++;
+            if (state.FailedMovingSamples < AnimationWatchdogFailureSamples
+                || Time.unscaledTime < state.NextRecoveryAt)
+            {
+                return;
+            }
+
+            string recovery;
+            if (idleWhileMoving || movementStateStalled)
+            {
+                npc.SetAnimatorState(
+                    NpcFSMType.GeneralFSM,
+                    NpcStateType.Movement,
+                    0.0f);
+                recovery = idleWhileMoving
+                    ? "moving-idle mismatch"
+                    : "stalled movement state";
+            }
+            else
+            {
+                generalFsm.EnableFSM();
+                recovery = "stopped animation state";
+            }
+            plugin.LogDiagnostic(
+                "Recovered summon locomotion for " + id + ": " + recovery + ".");
+            state.FailedMovingSamples = 0;
+            state.NextRecoveryAt = Time.unscaledTime
+                + AnimationWatchdogRecoveryCooldownSeconds;
+            state.LastAnimationState = null;
+            state.LastAnimationTime = 0.0;
+        }
+
+        private static bool IsMovingForAnimationWatchdog(
+            NpcController controller,
+            NpcElement npc,
+            AnimationWatchdogState state)
+        {
+            if (controller == null
+                || npc == null
+                || state == null
+                || controller.RichAI == null
+                || !controller.RichAI.canMove)
+            {
+                return false;
+            }
+            float now = Time.unscaledTime;
+            Vector3 position = npc.Coords;
+            Vector3 displacement = state.HasPositionSample
+                ? position - state.LastPosition
+                : Vector3.zero;
+            displacement.y = 0.0f;
+            float sampleSeconds = state.HasPositionSample
+                ? now - state.LastPositionSampleAt
+                : 0.0f;
+            bool movingByDisplacement = sampleSeconds > 0.0001f
+                && sampleSeconds <= 1.0f
+                && displacement.sqrMagnitude
+                    >= AnimationWatchdogMovementSpeed
+                        * AnimationWatchdogMovementSpeed
+                        * sampleSeconds * sampleSeconds;
+            state.HasPositionSample = true;
+            state.LastPosition = position;
+            state.LastPositionSampleAt = now;
+
+            Vector3 velocity = controller.RichAI.velocity;
+            velocity.y = 0.0f;
+            return movingByDisplacement
+                || velocity.sqrMagnitude
+                    >= AnimationWatchdogMovementSpeed
+                        * AnimationWatchdogMovementSpeed;
+        }
+
+        private static bool HasPlayingGeneralAnimation(
+            NpcElement npc,
+            out NpcGeneralFSM generalFsm)
+        {
+            generalFsm = npc == null
+                ? null
+                : npc.TryGetElement<NpcGeneralFSM>();
+            if (generalFsm == null || generalFsm.CurrentAnimatorState == null)
+            {
+                return false;
+            }
+            var state = generalFsm.CurrentAnimatorState.CurrentState;
+            return state != null && state.IsValid && state.IsPlaying;
+        }
+
+        private static void ResetAnimationWatchdog(AnimationWatchdogState state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+            state.FailedMovingSamples = 0;
+            state.LastAnimationState = null;
+            state.LastAnimationTime = 0.0;
         }
 
         private static void ApplyIdleVolume(
@@ -5188,14 +5941,11 @@ namespace SoulAndService
 
         private static void UpdateCatchUpSpeed(
             NpcController controller,
-            SoulAndServicePlugin plugin)
+            SoulAndServicePlugin plugin,
+            NpcHeroSummon summon,
+            string id)
         {
             NpcElement npc = controller.Npc;
-            string id = GetSummonId(npc);
-            if (string.IsNullOrEmpty(id))
-            {
-                return;
-            }
             bool shouldBoost = false;
             float multiplier = 1.0f;
             Hero hero = Hero.Current;
@@ -5203,13 +5953,52 @@ namespace SoulAndService
                 && plugin.IsEnabled
                 && hero != null
                 && npc.NpcAI != null
-                && !npc.NpcAI.InCombat
                 && npc.GetCurrentTarget() == null)
             {
-                float threshold = plugin.TrotDistance.Value;
-                shouldBoost = (hero.Coords - npc.Coords).sqrMagnitude
-                    > threshold * threshold;
                 multiplier = plugin.CatchUpSpeedMultiplier.Value;
+                bool bulwarkCatchUp = summon != null
+                    && SoulProgressionRuntime.GetSummonBehavior()
+                        == SummonBehavior.Bulwark
+                    && !HeldSummons.ContainsKey(id)
+                    && !PendingRecallPlacements.ContainsKey(id)
+                    && !HasActivePriorityTarget(summon);
+                if (bulwarkCatchUp)
+                {
+                    bool advanceHeld = IsBulwarkAdvanceHeld(hero);
+                    Vector3 anchor = GetBulwarkAnchor(summon);
+                    float threshold = SpeedTweaks.ContainsKey(id)
+                        ? advanceHeld
+                            ? BulwarkAdvanceCatchUpStopDistance
+                            : BulwarkCatchUpStopDistance
+                        : advanceHeld
+                            ? BulwarkAdvanceCatchUpStartDistance
+                            : BulwarkCatchUpStartDistance;
+                    shouldBoost = (anchor - npc.Coords).sqrMagnitude
+                        > threshold * threshold;
+                    if (advanceHeld)
+                    {
+                        float existingMovement = 1.0f;
+                        EmpowermentState empowerment;
+                        if (EmpowermentStates.TryGetValue(id, out empowerment))
+                        {
+                            existingMovement *= empowerment.MovementMultiplier;
+                        }
+                        multiplier = Math.Min(
+                            Math.Max(
+                                multiplier,
+                                BulwarkAdvanceCatchUpMinimumMultiplier),
+                            Math.Max(
+                                1.0f,
+                                BulwarkAdvanceMaximumMovementMultiplier
+                                    / existingMovement));
+                    }
+                }
+                else if (!npc.NpcAI.InCombat)
+                {
+                    float threshold = plugin.TrotDistance.Value;
+                    shouldBoost = (hero.Coords - npc.Coords).sqrMagnitude
+                        > threshold * threshold;
+                }
             }
 
             if (!shouldBoost || multiplier <= 1.0f)
@@ -5218,8 +6007,14 @@ namespace SoulAndService
                 return;
             }
 
-            if (!SpeedTweaks.ContainsKey(id)
-                && npc.CharacterStats != null
+            CatchUpSpeedState current;
+            if (SpeedTweaks.TryGetValue(id, out current)
+                && Math.Abs(current.Multiplier - multiplier) <= 0.0001f)
+            {
+                return;
+            }
+            RemoveSpeedTweak(id);
+            if (npc.CharacterStats != null
                 && npc.CharacterStats.MovementSpeedMultiplier != null)
             {
                 StatTweak tweak = StatTweak.Multi(
@@ -5228,18 +6023,18 @@ namespace SoulAndService
                     null,
                     npc);
                 ((Model)tweak).MarkedNotSaved = true;
-                SpeedTweaks[id] = tweak;
+                SpeedTweaks[id] = new CatchUpSpeedState
+                {
+                    Multiplier = multiplier,
+                    MovementTweak = tweak
+                };
             }
         }
 
-        private static void UpdateEmpoweredPresentation(NpcController controller)
+        private static void UpdateEmpoweredPresentation(
+            NpcController controller,
+            string id)
         {
-            NpcElement npc = controller.Npc;
-            string id = GetSummonId(npc);
-            if (string.IsNullOrEmpty(id))
-            {
-                return;
-            }
             EmpowermentState empowerment;
             if (EmpowermentStates.TryGetValue(id, out empowerment))
             {
@@ -5260,12 +6055,15 @@ namespace SoulAndService
             {
                 playback *= swarm.MovementMultiplier;
             }
-            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-            if (SpeedTweaks.ContainsKey(id)
-                && plugin != null
-                && plugin.CatchUpSpeedMultiplier != null)
+            CatchUpSpeedState catchUpSpeed;
+            if (SpeedTweaks.TryGetValue(id, out catchUpSpeed))
             {
-                playback *= plugin.CatchUpSpeedMultiplier.Value;
+                playback *= catchUpSpeed.Multiplier;
+            }
+            BehaviorSpeedState behaviorSpeed;
+            if (BehaviorSpeedStates.TryGetValue(id, out behaviorSpeed))
+            {
+                playback *= behaviorSpeed.Multiplier;
             }
             int rootMotionId = rootMotion.GetInstanceID();
             if (Math.Abs(playback - 1.0f) <= 0.0001f)
@@ -5276,6 +6074,71 @@ namespace SoulAndService
             {
                 LocomotionPlaybackMultipliers[rootMotionId] = playback;
             }
+        }
+
+        private static void UpdateBehaviorSpeed(
+            NpcController controller,
+            SoulAndServicePlugin plugin,
+            NpcHeroSummon summon,
+            string id)
+        {
+            NpcElement npc = controller.Npc;
+            bool pursuing = npc.NpcAI != null
+                && (npc.NpcAI.InCombat
+                    || npc.GetCurrentTarget() != null
+                    || (summon != null && HasActivePriorityTarget(summon)));
+            bool shouldBoost = plugin != null
+                && plugin.IsEnabled
+                && SoulProgressionRuntime.GetNecromanticPower()
+                    >= SoulProgressionRuntime.BehaviorCommandPower
+                && SoulProgressionRuntime.GetSummonBehavior()
+                    == SummonBehavior.Hunt
+                && pursuing;
+            if (!shouldBoost)
+            {
+                RemoveBehaviorSpeedState(id);
+                return;
+            }
+
+            float otherCommandMovement = 1.0f;
+            EmpowermentState empowerment;
+            if (EmpowermentStates.TryGetValue(id, out empowerment))
+            {
+                otherCommandMovement *= empowerment.MovementMultiplier;
+            }
+            SwarmState swarm;
+            if (SwarmStates.TryGetValue(id, out swarm))
+            {
+                otherCommandMovement *= swarm.MovementMultiplier;
+            }
+            float multiplier = Math.Min(
+                HuntBehaviorMovementMultiplier,
+                Math.Max(
+                    1.0f,
+                    MaximumCommandMovementMultiplier / otherCommandMovement));
+            BehaviorSpeedState current;
+            if (BehaviorSpeedStates.TryGetValue(id, out current)
+                && Math.Abs(current.Multiplier - multiplier) <= 0.0001f)
+            {
+                return;
+            }
+            RemoveBehaviorSpeedState(id);
+            BehaviorSpeedState state = new BehaviorSpeedState
+            {
+                Multiplier = multiplier
+            };
+            if (multiplier > 1.0f
+                && npc.CharacterStats != null
+                && npc.CharacterStats.MovementSpeedMultiplier != null)
+            {
+                state.MovementTweak = StatTweak.Multi(
+                    npc.CharacterStats.MovementSpeedMultiplier,
+                    multiplier,
+                    null,
+                    npc);
+                ((Model)state.MovementTweak).MarkedNotSaved = true;
+            }
+            BehaviorSpeedStates[id] = state;
         }
 
         private static void BeforeRootMotionUpdateAnimator(
@@ -5302,14 +6165,18 @@ namespace SoulAndService
                 return;
             }
             string id = ((Model)__instance).ID;
+            InvalidateFormationHostCache();
             StabilizedPatrols.Remove(id);
             FormationPatrolAnchors.Remove(id);
+            BulwarkAdvanceSlotStates.Remove(id);
             ExplicitCommandTargets.Remove(id);
             AutonomousTargetOverrides.Remove(id);
             HeldSummons.Remove(id);
             ClearIdleMovementState(id);
             FormationCommandViewCaches.Remove(id);
             NextControllerRefreshBySummon.Remove(id);
+            SpawnReadinessBySummon.Remove(id);
+            AnimationWatchdogsBySummon.Remove(id);
             LastControlDiagnosticBySummon.Remove(id);
             NextControlDiagnosticBySummon.Remove(id);
             PendingTeleportVfxBySummon.Remove(id);
@@ -5317,6 +6184,7 @@ namespace SoulAndService
             RecallTargetSuppressionUntil.Remove(id);
             RestoreCollisionPairs(id);
             RemoveSpeedTweak(id);
+            RemoveBehaviorSpeedState(id);
             ClearSwarm(id);
             ClearEmpowerment(id);
             if (__instance.ParentModel != null
@@ -5446,7 +6314,7 @@ namespace SoulAndService
             float transferredSight = 1.0f
                 + (SteelAndBoneTransferFraction * (sightMultiplier - 1.0f));
             float awarenessRange = behavior == SummonBehavior.Bulwark
-                ? BulwarkDefenseRange
+                ? BulwarkTargetCandidateRange
                 : behavior == SummonBehavior.Hunt
                     ? HuntAwarenessRange
                     : BaseSummonAwarenessRange
@@ -5457,8 +6325,12 @@ namespace SoulAndService
                     awarenessRange,
                     HeldSummonCombatLeash);
             }
+            bool bulwarkAdvanceHeld = behavior == SummonBehavior.Bulwark
+                && IsBulwarkAdvanceHeld(hero);
             float retentionRange = behavior == SummonBehavior.Bulwark
-                ? BulwarkCombatLeash
+                ? bulwarkAdvanceHeld
+                    ? BulwarkAdvanceCombatLeash
+                    : BulwarkCloseGuardCombatLeash
                 : Math.Min(
                     NativeSummonCommandRange,
                     awarenessRange + 5.0f);
@@ -5513,21 +6385,27 @@ namespace SoulAndService
                     || ReferenceEquals(target, owner)
                     || !target.IsAlive
                     || target.IsUnconscious
-                    || !WithFactionUtils.WantToFight(owner, target)
-                    || !HasAutonomousTargetLineOfSight(
-                        summon,
-                        hero,
-                        target,
-                        behavior))
+                    || !WithFactionUtils.WantToFight(owner, target))
                 {
                     continue;
                 }
                 int priority = GetAutonomousTargetPriority(
                     target,
+                    owner,
                     behavior,
                     hero,
-                    hostInCombat);
+                    hostInCombat,
+                    retainBulwarkTarget: behavior == SummonBehavior.Bulwark
+                        && ReferenceEquals(target, committedTarget));
                 if (priority == int.MaxValue)
+                {
+                    continue;
+                }
+                if (!HasAutonomousTargetLineOfSight(
+                        summon,
+                        hero,
+                        target,
+                        behavior))
                 {
                     continue;
                 }
@@ -5578,12 +6456,16 @@ namespace SoulAndService
                     || !WithFactionUtils.WantToFight(owner, record.Target)
                     || GetAutonomousTargetPriority(
                         record.Target,
+                        owner,
                         behavior,
                         hero,
-                        hostInCombat) == int.MaxValue;
+                        hostInCombat,
+                        retainBulwarkTarget: true) == int.MaxValue;
                 float distanceSqr = invalid
                     ? float.PositiveInfinity
-                    : (record.Target.Coords - awarenessCenter).sqrMagnitude;
+                    : behavior == SummonBehavior.Bulwark
+                        ? (owner.Coords - hero.Coords).sqrMagnitude
+                        : (record.Target.Coords - awarenessCenter).sqrMagnitude;
                 bool beyondRetention = distanceSqr
                     > retentionRange * retentionRange;
                 bool selected = ReferenceEquals(record.Target, bestTarget);
@@ -5689,9 +6571,11 @@ namespace SoulAndService
 
         private static int GetAutonomousTargetPriority(
             NpcElement target,
+            NpcElement owner,
             SummonBehavior behavior,
             Hero hero,
-            bool hostInCombat)
+            bool hostInCombat,
+            bool retainBulwarkTarget)
         {
             if (target == null)
             {
@@ -5715,16 +6599,77 @@ namespace SoulAndService
                 : (target.Coords - hero.Coords).sqrMagnitude;
             if (behavior == SummonBehavior.Bulwark)
             {
-                if (heroDistanceSqr
-                    > BulwarkDefenseRange * BulwarkDefenseRange)
+                bool advanceHeld = IsBulwarkAdvanceHeld(hero);
+                if (advanceHeld)
                 {
-                    return int.MaxValue;
+                    float advanceOwnerHeroDistanceSqr = owner == null || hero == null
+                        ? float.PositiveInfinity
+                        : (owner.Coords - hero.Coords).sqrMagnitude;
+                    if (advanceOwnerHeroDistanceSqr
+                        > BulwarkAdvanceCombatLeash
+                            * BulwarkAdvanceCombatLeash)
+                    {
+                        return int.MaxValue;
+                    }
+                    float breachRange = retainBulwarkTarget
+                        ? BulwarkAdvanceRetentionRange
+                        : BulwarkAdvanceBreachRange;
+                    if ((target.Coords - owner.Coords).sqrMagnitude
+                        > breachRange * breachRange)
+                    {
+                        return int.MaxValue;
+                    }
+                    return recentAttacker
+                        ? 0
+                        : targetingProtected ? 1 : 2;
                 }
-                if (recentAttacker)
+
+                float hostRange = retainBulwarkTarget
+                    ? BulwarkCloseGuardCombatLeash
+                    : BulwarkCloseGuardDefenseRange;
+                float ownerHeroDistanceSqr = owner == null || hero == null
+                    ? float.PositiveInfinity
+                    : (owner.Coords - hero.Coords).sqrMagnitude;
+                if (retainBulwarkTarget)
                 {
-                    return 0;
+                    if (ownerHeroDistanceSqr > hostRange * hostRange)
+                    {
+                        return int.MaxValue;
+                    }
+                    if (recentAttacker)
+                    {
+                        return 0;
+                    }
+                    if (targetingProtected)
+                    {
+                        return 1;
+                    }
                 }
-                return targetingProtected ? 1 : int.MaxValue;
+                else
+                {
+                    if (heroDistanceSqr <= hostRange * hostRange)
+                    {
+                        if (recentAttacker)
+                        {
+                            return 0;
+                        }
+                        if (targetingProtected)
+                        {
+                            return 1;
+                        }
+                    }
+                    if (ownerHeroDistanceSqr > hostRange * hostRange)
+                    {
+                        return int.MaxValue;
+                    }
+                }
+                float localRange = retainBulwarkTarget
+                    ? BulwarkCloseGuardLocalRetentionRange
+                    : BulwarkCloseGuardLocalEngageRange;
+                return (target.Coords - owner.Coords).sqrMagnitude
+                        <= localRange * localRange
+                    ? 2
+                    : int.MaxValue;
             }
             if (recentAttacker)
             {
@@ -5961,30 +6906,43 @@ namespace SoulAndService
         {
             float now = Time.unscaledTime;
             Hero hero = Hero.Current;
-            foreach (string key in RecentAttackers.Keys.ToArray())
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, RecentAttackerRecord> pair
+                in RecentAttackers)
             {
-                RecentAttackerRecord record = RecentAttackers[key];
+                RecentAttackerRecord record = pair.Value;
                 if (record == null
                     || record.Target == null
                     || record.Target.HasBeenDiscarded
                     || !record.Target.IsAlive
                     || record.ExpiresAt < now)
                 {
-                    RecentAttackers.Remove(key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
             }
-            foreach (string key in PendingTeleportVfxBySummon.Keys.ToArray())
+            foreach (string key in StateRemovalBuffer)
             {
-                PendingTeleportVfx pending = PendingTeleportVfxBySummon[key];
+                RecentAttackers.Remove(key);
+            }
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, PendingTeleportVfx> pair
+                in PendingTeleportVfxBySummon)
+            {
+                PendingTeleportVfx pending = pair.Value;
                 if (pending == null || now - pending.RequestedAt > 10.0f)
                 {
-                    PendingTeleportVfxBySummon.Remove(key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
             }
-            foreach (string key in PendingRecallPlacements.Keys.ToArray())
+            foreach (string key in StateRemovalBuffer)
             {
-                PendingRecallPlacement placement =
-                    PendingRecallPlacements[key];
+                PendingTeleportVfxBySummon.Remove(key);
+            }
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, PendingRecallPlacement> pair
+                in PendingRecallPlacements)
+            {
+                PendingRecallPlacement placement = pair.Value;
                 if (placement == null
                     || (!placement.DestinationConsumed
                         && placement.ExpiresAt < now)
@@ -5994,24 +6952,39 @@ namespace SoulAndService
                                 > RecallPlacementHeroMoveReleaseDistance
                                     * RecallPlacementHeroMoveReleaseDistance)))
                 {
-                    PendingRecallPlacements.Remove(key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
             }
-            foreach (string key in RecallTargetSuppressionUntil.Keys.ToArray())
+            foreach (string key in StateRemovalBuffer)
             {
-                if (RecallTargetSuppressionUntil[key] < now)
+                PendingRecallPlacements.Remove(key);
+            }
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, float> pair
+                in RecallTargetSuppressionUntil)
+            {
+                if (pair.Value < now)
                 {
-                    RecallTargetSuppressionUntil.Remove(key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
             }
-            foreach (string key in AutonomousLineOfSightByTarget.Keys.ToArray())
+            foreach (string key in StateRemovalBuffer)
             {
-                AutonomousLineOfSightRecord cached =
-                    AutonomousLineOfSightByTarget[key];
+                RecallTargetSuppressionUntil.Remove(key);
+            }
+            StateRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, AutonomousLineOfSightRecord> pair
+                in AutonomousLineOfSightByTarget)
+            {
+                AutonomousLineOfSightRecord cached = pair.Value;
                 if (cached == null || cached.ExpiresAt < now)
                 {
-                    AutonomousLineOfSightByTarget.Remove(key);
+                    StateRemovalBuffer.Add(pair.Key);
                 }
+            }
+            foreach (string key in StateRemovalBuffer)
+            {
+                AutonomousLineOfSightByTarget.Remove(key);
             }
         }
 
@@ -6040,17 +7013,19 @@ namespace SoulAndService
             }
             NpcElement npcTarget = currentTarget as NpcElement;
             if (IsTrackedAutonomousTarget(summon, npcTarget)
-                || (HasAutonomousTargetLineOfSight(
+                || (GetAutonomousTargetPriority(
+                        npcTarget,
+                        summon.ParentModel,
+                        behavior,
+                        Hero.Current,
+                        IsHostInCombat(Hero.Current),
+                        retainBulwarkTarget: false)
+                        != int.MaxValue
+                    && HasAutonomousTargetLineOfSight(
                         summon,
                         Hero.Current,
                         npcTarget,
-                        behavior)
-                    && GetAutonomousTargetPriority(
-                        npcTarget,
-                        behavior,
-                        Hero.Current,
-                        IsHostInCombat(Hero.Current))
-                        != int.MaxValue))
+                        behavior)))
             {
                 return;
             }
@@ -6212,11 +7187,41 @@ namespace SoulAndService
 
         private static void RemoveSpeedTweak(string id)
         {
-            StatTweak tweak;
-            if (SpeedTweaks.TryGetValue(id, out tweak))
+            CatchUpSpeedState state;
+            if (SpeedTweaks.TryGetValue(id, out state))
             {
-                DiscardTweak(tweak);
+                DiscardTweak(state.MovementTweak);
                 SpeedTweaks.Remove(id);
+            }
+        }
+
+        private static void ReleaseAllSpawnReadinessLocks()
+        {
+            float now = Time.unscaledTime;
+            foreach (SpawnReadinessState state
+                in SpawnReadinessBySummon.Values.ToArray())
+            {
+                if (state != null
+                    && state.Summon != null
+                    && now >= state.EarliestReleaseAt)
+                {
+                    MovementPreventedField.SetValue(state.Summon, false);
+                }
+            }
+            SpawnReadinessBySummon.Clear();
+        }
+
+        private static void RemoveBehaviorSpeedState(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                return;
+            }
+            BehaviorSpeedState state;
+            if (BehaviorSpeedStates.TryGetValue(id, out state))
+            {
+                DiscardTweak(state.MovementTweak);
+                BehaviorSpeedStates.Remove(id);
             }
         }
 

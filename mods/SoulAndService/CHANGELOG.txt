@@ -1,3 +1,228 @@
+Version 2.5.2
+-----
+- Made blocked Bulwark Advance servants measure their own positional progress so a
+  moving hero no longer resets the 0.75-second recovery timer, then probe a small
+  deterministic set of distinct nearby reachable slots instead of accepting the
+  original blocked destination again.
+- Cleared cached Advance arrival state whenever the effective behavior is no longer
+  Bulwark, including temporary Guard fallback when Necromantic Power falls below 60.
+- Skipped magic-FSM discovery while the Soul Rend hand-light feature is unavailable
+  or neither hand has Soul Rend equipped, and replaced per-frame state-name strings
+  with typed equip-state checks.
+- Kept config schema 11 and API version 8 because these corrections change no stored
+  setting meaning, default, or public signature.
+
+Version 2.5.1
+-----
+- Let Guard and Hunt ignore more incidental hero movement before reforming by widening
+  their travel gate, settle delay, anchor tolerance, and stationary rebase distances;
+  combat still cancels voluntary wandering without forcing every small anchor update.
+- Made Sprint-held Bulwark Advance use the hero's live predicted position immediately,
+  Run while meaningfully displaced, Trot near its slot, and settle inside a 1.25-meter
+  arrival zone that does not resume correction until displacement exceeds 1.75 meters.
+- Added a cached blocked-slot fallback that checks navigation only after 0.75 seconds
+  without progress, accepts a nearby reachable point for one second, and otherwise
+  holds the servant's current position instead of repeatedly chasing an impossible slot.
+- Kept config schema 11 and API version 8 because these formation changes alter no
+  stored setting meaning, default, or public signature.
+
+Version 2.5.0
+-----
+- Removed the optional fire-wisp layer and consolidated runes plus optional dark-green
+  smoke into one pooled body effect per reanimated servant, cutting enabled rune-and-
+  smoke VFX instances in half while retaining independent controls for both channels.
+- Added Dynamic Particle Budget, enabled by default. One through three active raised
+  servants retain full configured density; larger hosts progressively share four
+  rune-density and three smoke-density equivalents with 25% and 15% per-servant floors.
+- Increased config schema from 10 to 11 because the Fire Enabled, Fire Intensity, and
+  Fire Particle Amount settings were removed. Compatible customized rune, smoke, and
+  general settings are preserved across the reset; API version 8 remains unchanged.
+
+Version 2.4.9
+-----
+- Limited allocation-free pass-through hierarchy discovery to summon initialization
+  and the game's collider-toggle events, removing speculative recurring rescans.
+- Kept config schema 10 and API version 8 because this optimization changes no
+  stored setting meaning, default, or public signature.
+
+Version 2.4.8
+-----
+- Added a five-second allocation-free hierarchy safeguard for unusual colliders
+  added to a summon after initialization while retaining immediate lifecycle refreshes.
+- Tightened heavy Soul Rend's ground-aim corpse assist from 1 meter to 0.4 meters
+  while preserving direct-target priority and all cost and eligibility checks.
+- Kept config schema 10 and API version 8 because these corrections change no
+  stored setting meaning, default, or public signature.
+
+Version 2.4.7
+-----
+- Removed reflective HDRP hand-light configuration from every rendered frame;
+  each hand now caches and configures the game's typed light data once while
+  preserving live intensity, range, fade, cast boost, and compatibility behavior.
+- Reused summon lifecycle and maintenance state for formation membership, upkeep,
+  collision pass-through, controller updates, transient cleanup, and held-command
+  cleanup instead of repeating global scans, hierarchy scans, and managed allocations.
+- Made normal Soul Rend focus raycasts allocation-free with a correctness-preserving
+  overflow fallback, and rejected ineligible autonomous targets before line-of-sight
+  raycasts without changing target priority or sight rules.
+- Reused cleanup buffers and sampled reanimation VFX settings once per refresh pass,
+  preserving all configured layers, particles, retry behavior, and visual fidelity.
+- Kept config schema 10 and API version 8 because these optimizations change no
+  setting meaning, default, gameplay rule, or public signature.
+
+Version 2.4.5
+-----
+- Let heavy Soul Rend aimed at the ground select the nearest eligible corpse within
+  1 meter while preserving direct-target priority and normal cost and eligibility
+  checks.
+- Made released Bulwark Close Guard follow Guard's last meaningful movement
+  direction and ignore camera turns, while Sprint-held Advance retains its
+  predictive camera-facing wall.
+- Expanded the bounded locomotion watchdog to detect moving servants stuck in a
+  playing idle or stalled movement state and re-enter native movement animation.
+- Added a Reanimation VFX section with a master switch, independent rune, smoke,
+  and fire-wisp toggles, per-layer intensity, and per-layer particle amount. The
+  current rune-only presentation remains the default.
+- Kept config schema 10 and API version 8 because new settings bind compatibly and
+  no existing setting meaning, default, or public signature changed.
+
+Version 2.4.3
+-----
+- Kept newly created servants movement-locked until their native locomotion animation
+  is ready, then added bounded recovery for rare later animation stalls while moving.
+- Increased only the body-bound rune brightness by another 1.5x and removed the
+  separate green dripping particles without changing rune density, size, or opacity.
+- Kept config schema 10 and API version 8 because these runtime corrections change no
+  setting meaning, default, or public signature.
+
+Version 2.4.0
+-----
+- Turned Bulwark into two live stances driven by the actual remappable Sprint action:
+  hold for a predictive 3.5-meter forward Advance wall, or release for a 3.5-meter
+  Close Guard across the sides and rear that clears the forward firing lane.
+- Gave displaced Advance servants forced Run movement and a 1.6x catch-up floor,
+  capped with Empower at 1.75x total movement and synchronized with locomotion
+  playback, so the shield can keep ahead of a sprinting hero without skating.
+- Made Bulwark combat stance-aware. Advance breaks only for nearby breaches and uses
+  a short pursuit leash; Close Guard protects a tighter zone and returns quickly,
+  while explicit Attack and Swarm orders remain authoritative.
+- Kept config schema 10 and API version 8 because this behavior uses the existing
+  remappable Sprint action and changes no setting or public signature.
+
+Version 2.3.9
+-----
+- Shortened rune lifetime and refreshed surface samples more frequently so the green
+  signature stays closer to moving, animated servant bodies without losing coverage.
+- Increased the rune and sparkle HDR color intensity by exactly 1.5x while retaining
+  the restrained fragment size, zero smoke, and absence of a real light source.
+- Kept config schema 10 and API version 8 because this VFX tuning changes no setting
+  or public signature.
+
+Version 2.3.8
+-----
+- Prevented attached rune VFX renderers from being mistaken for servant geometry, so
+  Empower again scales the animated model and command range uses physical body bounds.
+- Gave the restrained rune signature continuous surface emission and enough HDR green
+  visibility to read across body sizes without adding smoke or an actual light source.
+- Kept config schema 10 and API version 8 because these runtime corrections change no
+  setting or public signature.
+
+Version 2.3.7
+-----
+- Corrected the reanimation rune effect's native addressable key so its persistent
+  body-bound presentation can load in game.
+- Centered Blood Ritual completion bursts on a raised servant's animated body instead
+  of its ground-level navigation position, improving visibility on animals and monsters.
+- Kept config schema 10 and API version 8 because these VFX corrections change no
+  setting or public signature.
+
+Version 2.3.6
+-----
+- Gave every reanimated corpse a restrained green rune signature that follows its
+  animated body across humanoids and creatures and cleans up when service ends.
+- Kept config schema 10 and API version 8 because this presentation change adds no
+  setting or public signature.
+
+Version 2.3.5
+-----
+- Made all 26 active summon spells cost Soul Vigor by summon tier. At Power 100,
+  tier-one through tier-six spells cost 3/6/9/12/15/18; Power 0 doubles those
+  costs and Power 200 halves them, rounded up, with smooth scaling between.
+- Added exact live summon costs to spell tooltips and concise Grail Floating Text
+  messages for successful summoning, successful reanimation, and insufficient Vigor.
+- Clarified Soul Rend's heavy tooltip without adding config detail. Config schema 10
+  and API version 8 remain unchanged because no setting or public signature changed.
+
+Version 2.3.4
+-----
+- Made each corpse keep one quality-scaled Soul Vigor value. Reanimation now costs 2x that value at Power 0, 1x at Power 100, and 0.5x at Power 200, with smooth scaling, exact hover pricing, and stable retries.
+
+Version 2.3.3
+-----
+- Renamed Command Capacity to Summon Capacity across threshold feedback, configuration help, and player documentation so the progression benefit clearly describes what it expands.
+
+Version 2.3.2
+-----
+- Aligned threshold messages with the derived gameplay rating by naming Necromantic Power as rising or waning instead of Soul Vigor.
+
+Version 2.3.1
+-----
+- Made repeatable Soul Vigor threshold feedback state whether each command or Summon Capacity benefit rises or wanes, including the Power 50/100/150 capacity and upkeep changes. Diagnostic Soul Vigor overrides suppress these messages while real awards continue.
+
+Version 2.3.0
+-----
+- Prevented ordinary non-summon NPC updates from passing null IDs into the behavior-speed state lookup.
+
+Version 2.2.9
+-----
+- Prevented Empower from scaling a Kandra mesh leaf or its animator/root-motion object. Kandra servants now use a cached visual container above the complete animated rig, preserving locomotion while retaining visible growth.
+- Kept config schema 10 and API version 8 because this visual-root correction changes no stored setting or public signature.
+
+Version 2.2.8
+-----
+- Enforced the Hunt, Swarm, and Empower 1.50x combined movement ceiling immediately when Swarm begins, closing the brief interval before the next servant refresh.
+- Kept config schema 10 and API version 8 because this command-speed correction changes no setting or public signature.
+
+Version 2.2.7
+-----
+- Gave each unlocked servant behavior a distinct combat identity: Guard deals 5% more damage and takes 5% less, Bulwark takes 15% less damage, and Hunt deals 10% more damage with 10% faster movement while pursuing or fighting.
+- Kept Hunt, Swarm, and Empower movement within the existing combined 1.50x ceiling and made the transient Hunt speed state clear safely when combat, pursuit, behavior, ownership, or the mod ends.
+- Kept config schema 10 and API version 8 because these fixed behavior bonuses add no setting or public signature.
+
+Version 2.2.6
+-----
+- Made Soul Rend ritual audio follow runtime target gender: female and male targets default to +3 and -3 semitones, while recognized female and male monsters add -1 and -3 for final defaults of +2 and -6. Gender-unknown monsters retain the configurable -6-semitone fallback.
+- Split behavior progression so Guard and Hunt unlock at Power 50 while the more disciplined Bulwark formation joins at Power 60, about 463 Soul Vigor. Cycling skips Bulwark while locked, and a saved Bulwark safely falls back to Guard until Power 60 is restored.
+- Kept config schema 10 and API version 8 because the pitch settings are additive and no public signature changed.
+
+Version 2.2.5
+-----
+- Made Bulwark seed its facing from meaningful movement when first-person view direction is temporarily unavailable, avoiding an arbitrary world-forward turn during load or hero transitions.
+- Kept config schema 10 and API version 8 because this fallback fix changes no stored setting or public signature.
+
+Version 2.2.4
+-----
+- Made Bulwark follow deliberate camera intent while moving or stationary, with stable-turn gating, a short turn cooldown, and wider settling tolerance so strafing, backpedaling, and camera sweeps cannot spin or churn the shield wall.
+- Let untargeted Bulwark servants use the configured catch-up speed while more than 2 meters from their assigned slot, including during host combat, then return to normal speed within 1 meter.
+- Expanded Bulwark's defensive zone to 7 meters and added local contact engagement: a servant within 7 meters of the hero may attack a hostile within 3 meters of itself, retain that target to 5 meters, and disengage after crossing the 8-meter leash.
+- Kept config schema 10 and API version 8 because the existing catch-up setting retains its meaning and no stored type, default, or public signature changed.
+
+Version 2.2.3
+-----
+- Added tiered native blood bursts when Corpse Ritual completes on a raised servant: Meager and Worthy servants use the lighter effect, while Potent and Prime servants use the stronger effect with their original audio and camera impulse intact.
+- Kept config schema 10 and API version 8 because this presentation change alters no stored setting or public signature.
+
+Version 2.2.2
+-----
+- Resolved a discarded corpse's non-humanoid audio classification before replacing it with simplified remains, preserving the intended creature pitch without retaining runtime state.
+- Kept config schema 10 and API version 8 because this is a timing fix only.
+
+Version 2.2.1
+-----
+- Made every successful summon sacrifice play its independent Soul Rend ritual sound immediately, including raised servants, so rapid unbinding overlaps naturally without waiting for remains cleanup.
+- Added a configurable -6-semitone pitch offset for clearly non-humanoid Soul Rend targets such as animals, skeletons, and monsters; humanoid and unknown targets retain authored pitch.
+- Kept config schema 10 and API version 8 because the new audio setting is additive and no public signature changed.
+
 Version 2.2.0
 -----
 - Let an explicit Attack or Swarm order bypass a servant's saved Hold position without deleting it, preserving authoritative pursuit and the return to that anchor after the target becomes invalid.
@@ -322,7 +547,7 @@ Version 0.8.6
 - Coalesced overlapping asynchronous teleport requests so the first confirmed
   arrival plays one necromancer VFX and a failed callback cannot consume it early.
 - Shared short-lived physical line-of-sight results across the host to reduce
-  duplicate raycasts as Command Capacity grows.
+  duplicate raycasts as Summon Capacity grows.
 - Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the
   public API and every stored setting, type, name, and default remain compatible.
 
@@ -343,7 +568,7 @@ Version 0.8.5
   targets, ends servant combat, and requests native safe teleports around the hero.
 - Added the green-dark necromancer summoning VFX after each successful Recall Host
   or automatic too-far catch-up teleport. Failed teleport requests remain silent.
-- Added Command Capacity: the native summon limit gains +1/+2/+3 at Power 50/100/150.
+- Added Summon Capacity: the native summon limit gains +1/+2/+3 at Power 50/100/150.
   The existing configured Summon Limit Bonus remains additive, and lowering the
   effective limit never despawns an active servant.
 - Kept SoulAndServiceApi at version 5 and ConfigSchemaVersion at 8 because the

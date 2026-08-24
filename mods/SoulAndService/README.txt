@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 2.2.0
+Soul and Service - Summon Overhaul 2.5.2
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -10,15 +10,17 @@ Default behavior
 
 - Summon AI decisions begin at a deliberate 0.75-second interval at Power 0 and
   improve smoothly to the configured 0.25-second interval at Power 100. New
-  summons recover 0.10 seconds after spawning.
+  summons remain movement-locked for at least 0.10 seconds and until their native
+  animation is ready. A bounded recovery also corrects servants that later move
+  with an idle or stalled locomotion state.
 - Idle summons trot at 4 m, run at 8 m, and use the native safe teleport at 35 m.
 - A 1.25x catch-up speed applies only out of combat.
 - Before Power 30, idle summons settle beside the hero instead of repeatedly
   turning toward random patrol points. At Power 30, Guard assigns the host loose,
   non-overlapping positions behind and beside the hero, beginning 4.5 m away and
-  accepting a 1 m settling area around each position. Brief taps and sub-meter
-  adjustments do not move the formation: following begins after 0.25 seconds of
-  sustained movement or 1 m of travel, then settles 0.2 seconds after the hero
+  accepting a 1.25 m settling area around each position. Brief taps and small
+  adjustments do not move the formation: following begins after 0.45 seconds of
+  sustained movement or 1.5 m of travel, then settles 0.35 seconds after the hero
   stops. Those positions remain fixed if the hero turns in place. One servant at a time
   may occasionally walk near its position, linger, and return. At the Power 30
   formation unlock, idle movement reaches at most about 1.28 m; it narrows to
@@ -29,7 +31,9 @@ Default behavior
   the hero. Defensive targets may be seen by either the hero or the acting servant.
   It never pulls an uninvolved hostile merely because another servant is fighting.
   Passive crosshair sharing is off; when enabled, its adopted target remains an
-  autonomous suggestion governed by the current behavior. Explicit Attack always wins.
+  autonomous suggestion governed by the current behavior. Explicit Attack always
+  wins. Once behavior control unlocks at Power 50, Guard grants +5% damage dealt
+  and reduces damage taken by 5%.
 - At 10 Necromantic Power (about 65 Soul Vigor), hold the remappable Sprint action
   and aim at a nearby hostile to show Attack; tap Interact to order every eligible
   owned summon onto that target. Targeting tolerates small gaps around the visible
@@ -48,9 +52,11 @@ Default behavior
   when it is installed.
 - At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds
   with at least one servant active and nothing meaningful under the crosshair to
-  cycle Guard, Bulwark, and Hunt. No charging prompt appears. Completion briefly
-  shows Behavior: Guard, Behavior: Bulwark, or Behavior: Hunt. Keep Sprint held,
-  release only Interact, and hold Interact again to cycle immediately.
+  cycle Guard and Hunt. At 60 Power (about 463 Soul Vigor), Bulwark joins the
+  cycle. No charging prompt appears. Completion briefly shows the selected
+  behavior. Keep Sprint held, release only Interact, and hold Interact again to
+  cycle immediately. If Power falls below 60 while Bulwark is selected, servants
+  safely use Guard until Bulwark unlocks again.
 - At 70 Power (about 567 Soul Vigor), keep holding Take All Items for 1.5 seconds
   to Recall the active servant or Recall Host when several are active. The shorter
   formation command is cancelled; every servant drops its hold and explicit target,
@@ -59,15 +65,20 @@ Default behavior
   than directly behind. The host keeps those places until the hero moves 2 m or a
   new command or behavior change releases them. Autonomous targets remain suppressed
   for three seconds so Guard or Hunt cannot immediately cancel the disengagement.
-- Bulwark assigns servants stable positions in a disciplined forward shield. Its
-  first four positions begin 3.5 m from the hero with a 0.5 m settling area. While
-  travelling, meaningful movement direction immediately leads the wall. While
-  stationary, looking at least 30 degrees away for 0.3 seconds turns it toward the
-  stable camera direction once, so servants can body-block the area in front without
-  chasing small aim corrections or ordinary camera scanning. Servants
-  counterattack only recent attackers or enemies threatening the host within 6 m,
-  never chase an autonomous threat beyond 8 m, and skip native target acquisition
-  when no such threat exists. Explicit Attack temporarily releases them.
+- Bulwark has two live stances at the same 3.5 m radius. Holding the remappable
+  Sprint action forms a predictive forward Advance wall; released Sprint moves the
+  host into a Close Guard across the sides and rear, leaving the forward firing lane
+  open. Advance forces Run while displaced and uses a temporary 1.6x catch-up floor,
+  capped with Empower at 1.75x total movement, until servants regain their slots.
+  Advance follows deliberate camera intent while moving or stationary, so strafing,
+  backpedaling, and small aim corrections do not spin it around. Close Guard instead
+  follows Guard's last meaningful movement direction and ignores camera turns.
+  Advance breaks only
+  for threats breaching within 3 m of a servant and retains them to 4 m within a
+  5.5 m hero leash. Close Guard protects a 5 m zone, engages locally within 2.5 m,
+  retains to 4 m, and returns servants after a 6 m leash. Explicit Attack and Swarm
+  always release the formation. Once Bulwark unlocks at Power 60, it reduces damage
+  taken by 15%.
 - Hunt assigns distinct, stable perimeter positions beginning 5.5 m from the hero
   and aggressively seeks valid faction-hostile NPCs within 45 m when either the hero
   or the acting servant has line of sight, including enemy summons when faction rules
@@ -79,7 +90,9 @@ Default behavior
   an equal threat only when the replacement is meaningfully closer; higher-priority
   threats can still take precedence immediately. Behavior changes perform one
   immediate acquisition pass. Servants release the game's hero-centered combat
-  slots while pursuing NPC targets.
+  slots while pursuing NPC targets. At Power 50, Hunt grants +10% damage dealt and
+  +10% movement speed while pursuing a target or fighting. Hunt, Swarm, and Empower
+  movement remain capped at a combined 1.50x.
 - When Battlecry Voice Tuner is installed, every successful Attack, Hold,
   Follow, Recall, Guard, Bulwark, or Hunt order plays one gender-matched necromantic command from the matching
   order-specific pool. Each pool avoids its own recent clips; passive and failed
@@ -90,7 +103,7 @@ Default behavior
   owned summons. Outside combat they return to vanilla interception, while bespoke
   scripted ray spells retain their native behavior.
 - Rest dismisses ordinary and reanimated servants by default. Persistent Servants
-  can keep the active host through rest. Command Capacity adds +1/+2/+3 to the
+  can keep the active host through rest. Summon Capacity adds +1/+2/+3 to the
   native summon limit at Power 50/100/150; the configured flat bonus is additional.
 - Replacement summons recover missing Invocation of Might scaling only when the
   outgoing summon proves that the native effect is active.
@@ -103,9 +116,9 @@ Default behavior
   merely because a milestone relocks.
 - Command control grows with Necromantic Power: Attack unlocks at Power 10
   (about 65 Soul Vigor), individual Hold and Follow at 20 (about 133), Hold All
-  and Follow All at 30 (about 206), behavior control at 50 (about 369), Recall Host
-  at 70 (about 567), and Swarm at 90 (about 826). Grail Floating Text can announce
-  each milestone in Necrotic green.
+  and Follow All at 30 (about 206), Guard/Hunt behavior control at 50 (about 369),
+  Bulwark at 60 (about 463), Recall Host at 70 (about 567), and Swarm at 90
+  (about 826). Grail Floating Text can announce each milestone in Necrotic green.
 - At Power 90, the Attack prompt and completion text become Swarm. The upgraded
   order lasts five seconds, retains its Attack voice without per-use GFT, and lets
   servants close up to
@@ -113,41 +126,53 @@ Default behavior
   the commanded target. Misses do not consume the bonus and repeated orders refresh
   rather than stack it.
 - At Power 0/100/200, owned summons deal 0.75x/1.25x/1.50x damage and take
-  1.25x/0.75x/0.50x damage. Normal summons receive the same benefits.
+  1.25x/0.75x/0.50x damage before behavior bonuses. Guard adds +5% damage and
+  5% mitigation, Bulwark adds 15% mitigation, and Hunt adds +10% damage plus
+  +10% pursuit/combat movement. Normal summons receive the same benefits.
 - Guard evaluates eligible enemies within 30 m by default, Hunt actively searches
-  within the native 45 m command tether, and Bulwark defends a 6 m zone with an
-  8 m combat leash. When Steel and Bone is loaded, Guard inherits 80% of its active
-  sight increase and autonomous targets gain 80% of its aggro-persistence increase.
+  within the native 45 m command tether, and Bulwark uses its stance-specific breach,
+  defense, and pursuit zones described above. When Steel and Bone is
+  loaded, Guard inherits 80% of its active sight increase and autonomous targets
+  gain 80% of its aggro-persistence increase.
 - Successful Recall Host and automatic too-far catch-up teleports play the same
   green-dark necromancer summoning effect beneath each servant after arrival.
 - Soul Rend light cast turns an eligible hostile corpse into native simplified
   remains. Meager/Worthy/Potent/Prime corpses grant randomized integer ranges of
   2-4/7-11/12-18/24-36 Soul Vigor. Rolls favor the center, corpse quality nudges
   the result within its tier, and mastery adds only a subtle positive bonus.
-- Every summon costs Soul Vigor. Ordinary summons cost 3; reanimation costs
-  1/3/5/10 for Meager/Worthy/Potent/Prime corpses. The heavy-cast interaction
-  text previews `Reanimate: X Soul Vigor` or `Requires X Soul Vigor` while aimed
-  at a valid corpse. Spending can relock abilities; a Swarm order already in
-  progress is allowed to finish.
+- Every summon costs Soul Vigor. At Power 100, tier-one through tier-six summon
+  spells cost 3/6/9/12/15/18; Power 0 doubles those costs and Power 200 halves
+  them, rounded up, with smooth scaling between. Each spell shows its exact cost.
+  Corpse reanimation uses the same Power curve against that corpse's stable,
+  quality-scaled soul value. The heavy-cast interaction previews its exact cost.
+  A heavy cast aimed at the ground selects the nearest eligible corpse within 0.4 m
+  when no direct target is under the crosshair.
+  Spending can relock abilities; a Swarm order already in progress may finish.
 - Light Soul Rend on a summon restores 50% of invested mana at full Health as a
   whole-number Mana return, with
   current Health scaling the return. It also recovers the servant's native soul
   plus invested Vigor in proportion to remaining Health. Immediately summoning
-  and harvesting an ordinary servant therefore returns its 3-Vigor investment
-  but creates no profit; damaged servants return less.
+  and harvesting an ordinary servant therefore returns its investment but creates
+  no profit; damaged servants return less.
 - With Grail Floating Text, each completed ritual appears as a short Necrotic
   reward. Corpse harvests show `+X Soul Vigor`; servant unbinding shows
   `+X Mana | +Y Soul Vigor`, or Mana alone when ordinary-summon Vigor is capped.
   GFT has no separate Mana-restoration event, so the combined line duplicates none.
-- Successful corpse harvests and summon sacrifices play one of forty authored
-  FMOD ritual sounds. Meager, Worthy, Potent, and Prime targets use the low,
-  medium, high, and max banks. The default 0.85 volume preserves their authored
-  tier loudness, avoids the previous two clips per tier, varies pitch by up to
-  0.20 semitones, and adds two restrained ethereal echoes by default. Failed
-  actions and living-target casts do not play this bank.
-  Raised-servant light harvests complete reliably even when the native spell kills
-  the underlying location directly, and play exactly one sound only after
-  loot-bearing remains are created.
+  Successful summons and reanimations report the servant name and exact Vigor
+  spent; unaffordable attempts show `Requires X Soul Vigor`.
+- Successful corpse harvests and summon sacrifices each start an independent one
+  of forty authored FMOD ritual sounds, so rapidly unbinding several servants
+  keeps one overlapping sound per completed cast. Meager, Worthy, Potent, and
+  Prime targets use the low, medium, high, and max banks. The default 0.85 volume
+  preserves their authored tier loudness, avoids the previous two clips per tier,
+  varies pitch by up to 0.20 semitones, and adds two restrained ethereal echoes.
+  Runtime female and male targets default to +3 and -3 semitones. Recognized
+  female and male monsters add -1 and -3 more, producing final defaults of +2
+  and -6. Gender-unknown monsters use the configurable -6-semitone fallback;
+  other unknown targets retain normal pitch. Failed actions and living-target
+  casts do not play this bank. Raised-servant light
+  harvests complete reliably even when the native spell kills the underlying
+  location directly.
 - Against an eligible living hostile, Soul Rend's light cast deals a normal
   hero-attributed generic magical hit worth 50%/100%/200% of a comparable tier-one
   light offensive spell at Necromantic Power 0/100/200. Compatible mods can identify
@@ -191,9 +216,15 @@ Default behavior
   hidden during service; death or light-cast harvest leaves its loot-bearing native
   simplified remains at the servant's last safe position, with the source position
   as fallback. Unload, shutdown, and failed initialization restore the source instead.
-  Raised servants retain their native NPC portrait
-  when valid; otherwise the vanilla skeleton-summon portrait is used. Successful raises
-  also use the Forgotten Cemetery necromancer's native skeleton-summon effect.
+  Every raised servant carries a restrained green rune signature across its animated
+  body. The Reanimation VFX section can disable the whole signature or independently
+  control its rune and dark-green smoke channels, including intensity and particle
+  amount; smoke remains off by default. Both channels share one pooled effect per
+  servant, and the default dynamic particle budget reduces their density as the active
+  reanimated host grows while preserving full density for small hosts. It retains its
+  native NPC portrait when valid;
+  otherwise the vanilla skeleton-summon portrait is used. Successful raises also use
+  the Forgotten Cemetery necromancer's native skeleton-summon effect.
 - Raised servants are true native hero summons, so normal summon faction, limits,
   targeting, collision, persistence, and Soul and Service improvements apply. They
   use their randomized native soul value, invested Soul Vigor, and current Health
@@ -204,8 +235,10 @@ Default behavior
   normal blood reticle remains visible but desaturated while combat blocks the
   ritual; outside combat the channel holds it in place, drains real Health, and
   executes it at 20% Health or below. Raised servants complete only their source's
-  remaining one-time rewards and remain available for light Soul Rend after
-  execution. Ordinary spell summons provide healing only, with no XP or Blood
+  remaining one-time rewards and play a native blood burst on completion: Meager
+  and Worthy servants use the lighter effect, while Potent and Prime servants use
+  the stronger effect. They remain available for light Soul Rend after execution.
+  Ordinary spell summons provide healing only, with no XP or Blood
   Essence; bloodless servants are invalid but retain desaturated crosshair
   feedback. Light Abhartach's Calling can instead sacrifice only the eligible
   owned flesh servant under the crosshair, even in combat. The servant becomes
@@ -254,7 +287,9 @@ All timings, distances, target range, full-mastery AI interval, command modifier
 summon-limit bonus, idle volume, Soul Rend mana-return percentage,
 living-target Soul Rend, persistent servants, ritual audio volume, repeat
 avoidance, pitch variation, echo amount, idle movement amount, and every Soul Rend
-inner-light brightness, Soul Rend intensity, range, interior, and fade control
+inner-light brightness, Soul Rend intensity, range, interior, and fade control,
+plus both reanimation VFX channels, their intensity and particle amount, and dynamic
+particle budgeting,
 can be configured. Settings are also visible in FoA Mod Manager. The final Import
 Previous Settings tab safely imports compatible customized values after a future
 config reset.

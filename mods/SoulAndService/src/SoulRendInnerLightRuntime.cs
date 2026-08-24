@@ -2,12 +2,14 @@ using System;
 using System.Reflection;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
+using Awaken.TG.Main.Animations.FSM.Heroes.Base;
 using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
 using BepInEx.Bootstrap;
 using UnityEngine;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace SoulAndService
 {
@@ -34,6 +36,7 @@ namespace SoulAndService
             internal readonly string ObjectName;
             internal GameObject LightObject;
             internal Light Light;
+            internal HDAdditionalLightData HdrpData;
             internal Transform Anchor;
             internal Hero AnchorHero;
             internal float NextAnchorProbeAt;
@@ -63,8 +66,6 @@ namespace SoulAndService
         private static TryGetVisualWorldOffset _tryGetVisualWorldOffset;
         private static bool _firstPersonArmsAdjusterBridgeResolved;
         private static bool _firstPersonArmsAdjusterFailureLogged;
-        private static Type _hdAdditionalLightDataType;
-        private static bool _hdAdditionalLightDataResolved;
         private static bool _hdAdditionalLightDataFailureLogged;
 
         internal static void Update()
@@ -75,6 +76,26 @@ namespace SoulAndService
             {
                 UpdateHand(MainHand, null, null, false);
                 UpdateHand(OffHand, null, null, false);
+                return;
+            }
+
+            bool featureEnabled = plugin.IsEnabled
+                && plugin.SoulSalvageOverhaul != null
+                && plugin.SoulSalvageOverhaul.Value
+                && plugin.SoulRendInnerLightEnabled != null
+                && plugin.SoulRendInnerLightEnabled.Value
+                && plugin.SoulRendInnerLightIntensity != null
+                && plugin.SoulRendInnerLightIntensity.Value
+                    > MinimumVisibleIntensity
+                && hero.HeroItems != null;
+            bool mainHandEligible = featureEnabled
+                && IsSoulRendEquipped(hero, MainHand);
+            bool offHandEligible = featureEnabled
+                && IsSoulRendEquipped(hero, OffHand);
+            if (!mainHandEligible && !offHandEligible)
+            {
+                UpdateHand(MainHand, hero, null, false);
+                UpdateHand(OffHand, hero, null, false);
                 return;
             }
 
@@ -100,12 +121,12 @@ namespace SoulAndService
                 MainHand,
                 hero,
                 mainFsm,
-                ShouldShow(plugin, hero, MainHand, mainFsm));
+                ShouldShow(mainHandEligible, mainFsm));
             UpdateHand(
                 OffHand,
                 hero,
                 offFsm,
-                ShouldShow(plugin, hero, OffHand, offFsm));
+                ShouldShow(offHandEligible, offFsm));
         }
 
         internal static void LateUpdate()
@@ -133,46 +154,38 @@ namespace SoulAndService
             _tryGetVisualWorldOffset = null;
             _firstPersonArmsAdjusterBridgeResolved = false;
             _firstPersonArmsAdjusterFailureLogged = false;
-            _hdAdditionalLightDataType = null;
-            _hdAdditionalLightDataResolved = false;
             _hdAdditionalLightDataFailureLogged = false;
         }
 
-        private static bool ShouldShow(
-            SoulAndServicePlugin plugin,
+        private static bool IsSoulRendEquipped(
             Hero hero,
-            HandLightState state,
-            MagicFSM fsm)
+            HandLightState state)
         {
-            if (!plugin.IsEnabled
-                || plugin.SoulSalvageOverhaul == null
-                || !plugin.SoulSalvageOverhaul.Value
-                || plugin.SoulRendInnerLightEnabled == null
-                || !plugin.SoulRendInnerLightEnabled.Value
-                || plugin.SoulRendInnerLightIntensity == null
-                || plugin.SoulRendInnerLightIntensity.Value <= MinimumVisibleIntensity
+            if (hero == null
                 || hero.HeroItems == null
-                || SoulSalvageRuntime.IsVersatileWeaponsHandSuppressed(state.Slot))
+                || SoulSalvageRuntime.IsVersatileWeaponsHandSuppressed(
+                    state.Slot))
             {
                 return false;
             }
 
             Item item = hero.HeroItems.EquippedItem(state.Slot);
-            if (!SoulSalvageRuntime.IsSoulSalvageItem(item) || fsm == null)
-            {
-                return false;
-            }
-
-            string currentState = fsm.CurrentStateType.ToString();
-            string nextState = fsm.CurrentStateToEnterType.ToString();
-            return !IsHiddenState(currentState) && !IsHiddenState(nextState);
+            return SoulSalvageRuntime.IsSoulSalvageItem(item);
         }
 
-        private static bool IsHiddenState(string state)
+        private static bool ShouldShow(bool handEligible, MagicFSM fsm)
         {
-            return string.IsNullOrEmpty(state)
-                || string.Equals(state, "Empty", StringComparison.OrdinalIgnoreCase)
-                || state.IndexOf("UnEquip", StringComparison.OrdinalIgnoreCase) >= 0;
+            return handEligible
+                && fsm != null
+                && !IsHiddenState(fsm.CurrentStateType)
+                && !IsHiddenState(fsm.CurrentStateToEnterType);
+        }
+
+        private static bool IsHiddenState(HeroStateType state)
+        {
+            return state == HeroStateType.Empty
+                || state == HeroStateType.UnEquipWeapon
+                || state == HeroStateType.UnEquipWeaponAlternate;
         }
 
         private static void UpdateHand(
@@ -231,7 +244,6 @@ namespace SoulAndService
                     Time.unscaledDeltaTime * reference / fadeSeconds);
             }
             state.Light.intensity = nextIntensity;
-            ConfigureHdrpData(state, nextIntensity);
             bool visible = nextIntensity > MinimumVisibleIntensity;
             state.Light.enabled = visible;
             state.LightObject.SetActive(visible);
@@ -254,15 +266,47 @@ namespace SoulAndService
             {
                 state.Light = state.LightObject.GetComponent<Light>()
                     ?? state.LightObject.AddComponent<Light>();
+                state.HdrpData = null;
             }
 
+            if (state.HdrpData == null)
+            {
+                ConfigureHandLight(state);
+            }
+            return true;
+        }
+
+        private static void ConfigureHandLight(HandLightState state)
+        {
             state.Light.type = LightType.Point;
             state.Light.color = SoulRendColor;
             state.Light.shadows = LightShadows.None;
             state.Light.bounceIntensity = 0.0f;
             state.Light.cullingMask = ~0;
             state.Light.renderMode = LightRenderMode.Auto;
-            return true;
+            try
+            {
+                state.HdrpData = state.Light
+                    .GetComponent<HDAdditionalLightData>()
+                    ?? state.LightObject.AddComponent<HDAdditionalLightData>();
+                state.HdrpData.lightDimmer = 1.0f;
+                state.HdrpData.volumetricDimmer = 0.0f;
+                state.HdrpData.affectDiffuse = true;
+                state.HdrpData.affectSpecular = true;
+                state.HdrpData.EnableShadows(false);
+                state.HdrpData.shadowDimmer = 0.0f;
+                state.HdrpData.volumetricShadowDimmer = 0.0f;
+            }
+            catch (Exception exception)
+            {
+                if (!_hdAdditionalLightDataFailureLogged)
+                {
+                    _hdAdditionalLightDataFailureLogged = true;
+                    SoulAndServicePlugin.Instance?.LogWarning(
+                        "Soul Rend HDRP hand-light setup failed: "
+                        + exception.GetBaseException().Message + ".");
+                }
+            }
         }
 
         private static Transform ResolveAnchor(HandLightState state, Hero hero)
@@ -467,126 +511,6 @@ namespace SoulAndService
             SoulAndServicePlugin.Instance?.LogWarning(message);
         }
 
-        private static void ConfigureHdrpData(
-            HandLightState state,
-            float renderIntensity)
-        {
-            if (state.Light == null || state.LightObject == null)
-            {
-                return;
-            }
-            Type hdType = ResolveHdAdditionalLightDataType();
-            if (hdType == null)
-            {
-                return;
-            }
-            try
-            {
-                Component hdData = state.Light.GetComponent(hdType)
-                    ?? state.LightObject.AddComponent(hdType);
-                TrySetMember(
-                    hdData,
-                    new[] { "intensity", "m_Intensity" },
-                    renderIntensity);
-                TrySetMember(
-                    hdData,
-                    new[] { "lightDimmer", "m_LightDimmer" },
-                    1.0f);
-                TrySetMember(
-                    hdData,
-                    new[] { "volumetricDimmer", "m_VolumetricDimmer" },
-                    0.0f);
-                TrySetMember(
-                    hdData,
-                    new[] { "affectDiffuse", "m_AffectDiffuse" },
-                    true);
-                TrySetMember(
-                    hdData,
-                    new[] { "affectSpecular", "m_AffectSpecular" },
-                    true);
-                MethodInfo enableShadows = hdType.GetMethod(
-                    "EnableShadows",
-                    BindingFlags.Instance
-                        | BindingFlags.Public
-                        | BindingFlags.NonPublic,
-                    null,
-                    new[] { typeof(bool) },
-                    null);
-                enableShadows?.Invoke(hdData, new object[] { false });
-                TrySetMember(
-                    hdData,
-                    new[]
-                    {
-                        "shadowDimmer",
-                        "m_ShadowDimmer",
-                        "shadowIntensity"
-                    },
-                    0.0f);
-            }
-            catch (Exception exception)
-            {
-                if (!_hdAdditionalLightDataFailureLogged)
-                {
-                    _hdAdditionalLightDataFailureLogged = true;
-                    SoulAndServicePlugin.Instance?.LogWarning(
-                        "Soul Rend HDRP hand-light setup failed: "
-                        + exception.GetBaseException().Message + ".");
-                }
-            }
-        }
-
-        private static Type ResolveHdAdditionalLightDataType()
-        {
-            if (_hdAdditionalLightDataResolved)
-            {
-                return _hdAdditionalLightDataType;
-            }
-            _hdAdditionalLightDataResolved = true;
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                Type type = assembly.GetType(
-                    "UnityEngine.Rendering.HighDefinition.HDAdditionalLightData",
-                    false);
-                if (type != null)
-                {
-                    _hdAdditionalLightDataType = type;
-                    break;
-                }
-            }
-            return _hdAdditionalLightDataType;
-        }
-
-        private static bool TrySetMember(
-            object instance,
-            string[] memberNames,
-            object value)
-        {
-            if (instance == null)
-            {
-                return false;
-            }
-            const BindingFlags Flags = BindingFlags.Instance
-                | BindingFlags.Public
-                | BindingFlags.NonPublic;
-            Type type = instance.GetType();
-            foreach (string memberName in memberNames)
-            {
-                PropertyInfo property = type.GetProperty(memberName, Flags);
-                if (property != null && property.CanWrite)
-                {
-                    property.SetValue(instance, value, null);
-                    return true;
-                }
-                FieldInfo field = type.GetField(memberName, Flags);
-                if (field != null)
-                {
-                    field.SetValue(instance, value);
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private static bool IsInterior()
         {
             try
@@ -615,6 +539,7 @@ namespace SoulAndService
             }
             state.LightObject = null;
             state.Light = null;
+            state.HdrpData = null;
             state.Anchor = null;
             state.AnchorHero = null;
             state.NextAnchorProbeAt = 0.0f;

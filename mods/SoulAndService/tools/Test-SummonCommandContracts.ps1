@@ -15,9 +15,12 @@ $manifest = Get-Content -LiteralPath (
 if (!$manifest.Contains('Awaken.Kandra.dll')) {
     throw 'Soul and Service does not compile against the Kandra renderer assembly used by Empower.'
 }
+if (!$manifest.Contains('Animancer.dll')) {
+    throw 'Soul and Service does not compile against the native animation state assembly used by summon readiness.'
+}
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 10',
+    'ConfigSchemaVersion = 11',
     'public enum SummonBehavior',
     'Guard = 0',
     'Bulwark = 1',
@@ -43,7 +46,8 @@ foreach ($required in @(
     }
 }
 
-if ($runtimeSource -notmatch '(?s)GetGuardAnchor\(.*?movementForward = hero\.HorizontalVelocity;.*?_guardForward = movementForward\.normalized;.*?Quaternion\.AngleAxis\(angle, Vector3\.up\) \* _guardForward') {
+if (($runtimeSource -notmatch '(?s)GetGuardAnchor\(.*?formationForward = GetGuardFormationForward\(hero\).*?Quaternion\.AngleAxis\(angle, Vector3\.up\).*?formationForward') -or
+    ($runtimeSource -notmatch '(?s)GetGuardFormationForward\(Hero hero\).*?movementForward = hero\.HorizontalVelocity;.*?_guardForward = movementForward\.normalized;.*?return _guardForward')) {
     throw "Guard formation facing is not latched from meaningful hero movement."
 }
 if ($runtimeSource -notmatch '(?s)internal static void Update\(\).*?if \(!plugin\.IsEnabled\).*?return;.*?UpdateFormationLeaderMotion\(Hero\.Current\);.*?UpdateSwarmStates\(\);') {
@@ -131,10 +135,12 @@ foreach ($required in @(
     'ExplicitCommandTargets',
     'GetBulwarkAnchor(summon)',
     'GetGuardAnchor(summon)',
+    'GetGuardFormationForward(hero)',
     'GetBulwarkVelocityScheme(',
     'leader.HorizontalVelocity.magnitude',
     'BulwarkLeaderRunSpeed = 3.0f',
     'BulwarkCameraFacingHoldSeconds = 0.30f',
+    'BulwarkCameraFacingCooldownSeconds = 0.45f',
     'BulwarkCameraFacingMinimumAngle = 30.0f',
     'BulwarkCameraFacingStabilityAngle = 12.0f',
     'behavior == SummonBehavior.Hunt',
@@ -143,8 +149,8 @@ foreach ($required in @(
     'GuardMeleeThreatRange = 8.0f',
     'GuardFormationInnerRadius = 4.5f',
     'GuardFormationRingSpacing = 1.5f',
-    'GuardAnchorTolerance = 1.0f',
-    'GuardAnchorRebaseDistance = 1.5f',
+    'GuardAnchorTolerance = 1.25f',
+    'GuardAnchorRebaseDistance = 2.0f',
     'GuardIdleNoviceWanderRadius = 1.5f',
     'GuardIdleMasterWanderRadius = 0.75f',
     'GuardIdleNoviceMinimumStillSeconds = 12.0f',
@@ -169,6 +175,11 @@ foreach ($required in @(
     'NoviceAiDecisionInterval = 0.75f',
     'AiDecisionIntervalRefreshSeconds = 0.50f',
     'ControllerRefreshSeconds = 0.10f',
+    'AnimationWatchdogMovementSpeed = 0.10f',
+    'AnimationWatchdogRecoveryCooldownSeconds = 2.0f',
+    'AnimationWatchdogFailureSamples = 3',
+    'SpawnReadinessBySummon',
+    'AnimationWatchdogsBySummon',
     'TransientStatePruneIntervalSeconds = 0.25f',
     'NextControllerRefreshBySummon',
     'ControlDiagnosticMinimumIntervalSeconds = 0.25f',
@@ -177,15 +188,41 @@ foreach ($required in @(
     'AutonomousLineOfSightCacheSeconds = 0.25f',
     'AutonomousTargetMinimumCommitmentSeconds = 1.75f',
     'AutonomousTargetSwitchDistanceRatio = 0.80f',
-    'BulwarkDefenseRange = 6.0f',
-    'BulwarkCombatLeash = 8.0f',
-    'BulwarkAnchorTolerance = 0.5f',
+    'BulwarkCloseGuardDefenseRange = 5.0f',
+    'BulwarkCloseGuardCombatLeash = 6.0f',
+    'BulwarkCloseGuardLocalEngageRange = 2.5f',
+    'BulwarkCloseGuardLocalRetentionRange = 4.0f',
+    'BulwarkAdvanceBreachRange = 3.0f',
+    'BulwarkAdvanceRetentionRange = 4.0f',
+    'BulwarkAdvanceCombatLeash = 5.5f',
+    'BulwarkTargetCandidateRange = 10.0f',
+    'BulwarkAnchorTolerance = 0.75f',
+    'BulwarkAdvanceAnchorTolerance = 1.25f',
+    'BulwarkAdvanceResumeDistance = 1.75f',
+    'BulwarkAdvanceRunDistance = 2.0f',
+    'BulwarkAdvanceAnchorUpdateDistance = 0.35f',
+    'BulwarkAdvanceProgressDistance = 0.10f',
+    'BulwarkAdvanceBlockedSeconds = 0.75f',
+    'BulwarkAdvanceFallbackSeconds = 1.0f',
+    'BulwarkAdvanceFallbackProbeRadius = 0.75f',
+    'BulwarkAdvanceFallbackMinimumOffset = 0.35f',
+    'BulwarkAdvanceFallbackCandidateSnapDistance = 0.50f',
+    'BulwarkAdvanceMaximumAnchorSnapDistance = 1.5f',
+    'BulwarkCatchUpStartDistance = 2.0f',
+    'BulwarkCatchUpStopDistance = 1.0f',
+    'BulwarkAdvanceCatchUpStartDistance = 2.0f',
+    'BulwarkAdvanceCatchUpStopDistance = 1.25f',
     'BulwarkFormationInnerRadius = 3.5f',
     'BulwarkFormationSlotsPerRing = 4',
+    'BulwarkCloseGuardSlotsPerRing = 5',
+    'BulwarkAdvancePredictionSeconds = 0.40f',
+    'BulwarkAdvanceCatchUpMinimumMultiplier = 1.60f',
+    'BulwarkAdvanceMaximumMovementMultiplier = 1.75f',
     'EnsureFormationFacingHero(hero)',
     'HuntFormationInnerRadius = 5.5f',
     'HuntFormationSlotsPerRing = 6',
-    'HuntAnchorTolerance = 0.5f',
+    'HuntAnchorTolerance = 1.25f',
+    'HuntAnchorRebaseDistance = 2.5f',
     'HuntIdleMinimumHeroDistance = 5.0f',
     'HuntMultipleWandererHostSize = 4',
     'HuntMaximumConcurrentWanderers = 2',
@@ -212,7 +249,8 @@ foreach ($required in @(
     'npc.HealthElement.Kill()',
     'TryEmpowerSummon(',
     'Mathf.Clamp(multiplier, 1.20f, 1.50f)',
-    'string id = GetSummonId(npc);',
+    'NpcHeroSummon summon = __instance.Npc',
+    'UpdateEmpoweredPresentation(__instance, summonId);',
     'GetSummonId(receiver)',
     'GetSummonId(dealer)',
     ': empowerment.MovementMultiplier;',
@@ -230,22 +268,34 @@ if ($pluginSource.Contains('PreventDismissOnRest') -or
 foreach ($required in @(
     'ShouldPassThroughOwnedSummon(',
     'hero.HeroCombat.IsHeroInFight',
-    'npc.NpcAI.InCombat')) {
+    'npc.NpcAI.InCombat',
+    'CollisionColliderBuffer',
+    'RefreshPlayerPassThroughColliders(state)')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Hybrid attack-collision behavior is missing: $required"
     }
+}
+if ($runtimeSource -notmatch '(?s)AfterToggleWalkThroughColliders\(.*?ApplyPlayerPassThrough\(__instance, true\).*?ApplyPlayerPassThrough\(.*?if \(state != null\)\s*\{\s*return;\s*\}.*?RefreshPlayerPassThroughColliders\(state\).*?RefreshPlayerPassThroughColliders\(\s*CollisionState state\).*?CollisionColliderBuffer\.Clear\(\).*?GetComponentsInChildren<Collider>\(\s*true,\s*CollisionColliderBuffer\).*?SummonColliderIds\.Add\(collider\.GetInstanceID\(\)\).*?IgnoreCollision\(state\.HeroCollider, collider, true\)') {
+    throw 'Player pass-through does not limit allocation-free hierarchy discovery to initialization and forced native collider refreshes.'
+}
+if ($runtimeSource.Contains('.GetComponentsInChildren<Collider>(true)')) {
+    throw 'Player pass-through restored an allocating summon-collider hierarchy scan.'
+}
+if ($runtimeSource.Contains('CollisionHierarchySafetyRefreshSeconds') -or
+    $runtimeSource.Contains('NextHierarchyRefreshAt')) {
+    throw 'Player pass-through retained a recurring collider hierarchy safety scan.'
 }
 
 if ($runtimeSource.Contains('SummonAttackAction : AbstractHeroAction')) {
     throw "Attack command must not fire the target NPC's normal interaction scripting."
 }
-if ($runtimeSource -notmatch '(?s)UpdateEmpoweredPresentation\(NpcController controller\).*?string id = GetSummonId\(npc\);.*?EmpowermentStates\.TryGetValue\(id, out empowerment\).*?SwarmStates\.TryGetValue\(id, out swarm\)') {
-    throw 'Empower and Swarm presentation do not resolve the owning summon element consistently.'
+if ($runtimeSource -notmatch '(?s)UpdateEmpoweredPresentation\(\s*NpcController controller,\s*string id\).*?EmpowermentStates\.TryGetValue\(id, out empowerment\).*?SwarmStates\.TryGetValue\(id, out swarm\)') {
+    throw 'Empower and Swarm presentation do not reuse the owning summon ID consistently.'
 }
 if ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?GetEmpowermentVisualRoot\(controller\).*?expectedScale.*?OriginalLocalScale.*?OriginalLocalPosition.*?visualRoot\.localScale = expectedScale') {
     throw 'Empower does not continually enforce its visual-only scale from a stable baseline.'
 }
-if ($runtimeSource -notmatch '(?s)VisualMarker.*?NextVisualRootLookupTime.*?ApplyEmpowermentVisual\(.*?!ReferenceEquals\(state\.VisualMarker, visualMarker\).*?Time\.unscaledTime < state\.NextVisualRootLookupTime.*?Time\.unscaledTime \+ 0\.5f.*?GetEmpowermentVisualRoot\(controller\).*?GetEmpowermentVisualRoot\(NpcController controller\).*?HasRenderableGeometry\(visualRoot\).*?while \(ancestor != null && !ReferenceEquals\(ancestor, controller\.transform\)\).*?HasRenderableGeometry\(ancestor\).*?private static bool HasRenderableGeometry\(Transform root\).*?GetComponentsInChildren<Renderer>\(true\).*?ParticleSystemRenderer.*?GetComponentInChildren<KandraRenderer>\(true\)') {
+if ($runtimeSource -notmatch '(?s)VisualMarker.*?NextVisualRootLookupTime.*?ApplyEmpowermentVisual\(.*?!ReferenceEquals\(state\.VisualMarker, visualMarker\).*?Time\.unscaledTime < state\.NextVisualRootLookupTime.*?Time\.unscaledTime \+ 0\.5f.*?GetEmpowermentVisualRoot\(controller\).*?GetEmpowermentVisualRoot\(NpcController controller\).*?IsSafeEmpowermentVisualRoot\(controller, visualRoot\).*?while \(ancestor != null && !ReferenceEquals\(ancestor, controller\.transform\)\).*?IsSafeEmpowermentVisualRoot\(controller, ancestor\).*?private static bool IsSafeEmpowermentVisualRoot\(.*?HasRenderableGeometry\(root\).*?GetComponentInChildren<KandraRenderer>\(true\).*?!ReferenceEquals\(root, animatorRoot\).*?animatorRoot\.IsChildOf\(root\).*?private static bool HasRenderableGeometry\(Transform root\).*?GetComponentsInChildren<Renderer>\(true\).*?IsEffectOnlyRenderer\(renderer\).*?GetComponentInChildren<KandraRenderer>\(true\).*?private static bool IsEffectOnlyRenderer\(Renderer renderer\).*?"ParticleSystemRenderer".*?"TrailRenderer".*?"LineRenderer".*?"VFXRenderer"') {
     throw 'Empower does not cache a renderer-bearing visual root below the locomotion controller.'
 }
 if (!$runtimeSource.Contains('kandraRenderers=') -or
@@ -307,20 +357,51 @@ if ($runtimeSource -match '(?s)HandleBehaviorCommandInput\(.*?CanMaintainBehavio
 if ($runtimeSource -notmatch '(?s)UIKeyUpAction.*?_formationCommandArmedForRelease.*?!_recallCommandAttemptedForHold.*?CommandAllFormation\(Hero\.Current\).*?UpdateTakeAllItemsHold\(\).*?FormationCommandHoldSeconds.*?RecallCommandHoldSeconds.*?RecallHost\(Hero\.Current\)') {
     throw "Take All does not cleanly separate release-based formation commands from the two-second Recall Host command."
 }
-if ($runtimeSource -notmatch '(?s)GetBulwarkVelocityScheme\(.*?leader\.HorizontalVelocity\.magnitude.*?BulwarkLeaderRunSpeed.*?VelocityScheme\.Run.*?BulwarkLeaderMovingSpeed.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk') {
-    throw "Bulwark locomotion does not account for leader movement speed."
+if ($runtimeSource -notmatch '(?s)GetBulwarkVelocityScheme\(.*?bool advanceHeld.*?leader\.HorizontalVelocity\.magnitude.*?if \(advanceHeld\).*?BulwarkAdvanceRunDistance.*?VelocityScheme\.Run.*?BulwarkAdvanceAnchorTolerance.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk.*?BulwarkLeaderRunSpeed.*?VelocityScheme\.Run.*?BulwarkLeaderMovingSpeed.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk') {
+    throw "Bulwark locomotion does not run for distant Advance recovery, trot on approach, and retain leader-aware Close Guard movement."
 }
-if ($runtimeSource -notmatch '(?s)GetBulwarkAnchor\(.*?EnsureFormationFacingHero\(hero\).*?countInRing == 2.*?25\.0f.*?countInRing == 3.*?45\.0f.*?60\.0f.*?UpdateBulwarkFacing\(hero\).*?Quaternion\.AngleAxis\(angle, Vector3\.up\).*?_bulwarkForward') {
-    throw "Bulwark formation is not widened around its latched facing."
+if ($runtimeSource -notmatch '(?s)GetBulwarkAnchor\(.*?EnsureFormationFacingHero\(hero\).*?advanceHeld = IsBulwarkAdvanceHeld\(hero\).*?BulwarkFormationSlotsPerRing.*?BulwarkCloseGuardSlotsPerRing.*?if \(advanceHeld\).*?countInRing == 2.*?25\.0f.*?countInRing == 3.*?45\.0f.*?60\.0f.*?else.*?180\.0f.*?90\.0f.*?270\.0f.*?BulwarkFormationInnerRadius.*?leaderAnchor = advanceHeld\s*\? hero\.Coords\s*:\s*GetFormationLeaderAnchor\(hero\).*?if \(advanceHeld\)\s*\{.*?UpdateBulwarkFacing\(hero\).*?formationForward = _bulwarkForward.*?hero\.HorizontalVelocity\s*\* BulwarkAdvancePredictionSeconds.*?\}\s*else\s*\{.*?formationForward = GetGuardFormationForward\(hero\).*?GetStabilizedBulwarkAdvanceAnchor\(summon, desiredAnchor\)') {
+    throw "Bulwark does not switch between its predictive forward wall and 3.5-meter side/rear guard slots."
 }
-if ($runtimeSource -notmatch '(?s)UpdateBulwarkFacing\(Hero hero\).*?_bulwarkFacingFrame == Time\.frameCount.*?SoulProgressionRuntime\.GetSummonBehavior\(\).*?SummonBehavior\.Bulwark.*?movementForward = hero\.HorizontalVelocity.*?IsFormationLeaderMoving\(hero\).*?_bulwarkForward = movementForward\.normalized.*?Raycaster.*?GetViewRay.*?Vector3\.Angle\(_bulwarkForward, viewForward\).*?BulwarkCameraFacingMinimumAngle.*?Vector3\.Angle\(_bulwarkViewCandidate, viewForward\).*?BulwarkCameraFacingStabilityAngle.*?BulwarkCameraFacingHoldSeconds.*?_bulwarkForward = viewForward') {
-    throw "Bulwark facing does not prefer meaningful travel and latch deliberate stable camera intent."
+if (($runtimeSource -notmatch '(?s)class BulwarkAdvanceSlotState.*?DesiredAnchor.*?ResolvedAnchor.*?LastProgressPosition.*?LastProgressAt.*?FallbackUntil.*?HasAnchor.*?Satisfied') -or
+    ($runtimeSource -notmatch '(?s)GetStabilizedBulwarkAdvanceAnchor\(.*?BulwarkAdvanceSlotStates\.TryGetValue.*?if \(state\.Satisfied\).*?BulwarkAdvanceResumeDistance.*?state\.Satisfied = false.*?BulwarkAdvanceAnchorUpdateDistance.*?BulwarkAdvanceAnchorTolerance.*?summonPosition - state\.LastProgressPosition.*?BulwarkAdvanceProgressDistance.*?BulwarkAdvanceBlockedSeconds.*?TryResolveReachableBulwarkAnchor.*?BulwarkAdvanceFallbackSeconds')) {
+    throw "Bulwark Advance does not retain per-servant arrival hysteresis and invoke blocked-slot recovery only after progress stalls."
+}
+$desiredMoveBlock = [regex]::Match(
+    $runtimeSource,
+    '(?s)bool desiredMoved = .*?(?=\s*if \(state\.FallbackUntil > now\))')
+if (!$desiredMoveBlock.Success -or
+    $desiredMoveBlock.Value.Contains('LastProgressAt = now') -or
+    $desiredMoveBlock.Value.Contains('LastProgressPosition = summonPosition')) {
+    throw "Moving the desired Bulwark slot still resets servant progress and can suppress blocked-slot recovery."
+}
+if ($runtimeSource -notmatch '(?s)TryResolveReachableBulwarkAnchor\(.*?sourceNode = AstarPath\.active\.GetNearest\(.*?NNConstraint\.Walkable.*?for \(int attempt = 0; attempt < 5; attempt\+\+\).*?BulwarkAdvanceFallbackProbeRadius.*?PathUtilities\.IsPathPossible.*?BulwarkAdvanceFallbackCandidateSnapDistance.*?BulwarkAdvanceFallbackMinimumOffset.*?BulwarkAdvanceMaximumAnchorSnapDistance.*?resolvedAnchor = nearest\.position.*?return found;') {
+    throw "Bulwark blocked-slot recovery does not select a distinct nearby reachable walkable anchor from bounded deterministic probes."
+}
+if ($runtimeSource -notmatch '(?s)behavior = SoulProgressionRuntime\.GetSummonBehavior\(\);.*?behavior != SummonBehavior\.Bulwark.*?BulwarkAdvanceSlotStates\.Remove') {
+    throw "Effective behavior fallback does not clear stale Bulwark Advance arrival state."
+}
+if ($runtimeSource -notmatch '(?s)UpdateFormationPatrolPlace\(\s*summon,\s*patrol,\s*anchor,\s*bulwarkAdvance\s*\? BulwarkAdvanceAnchorUpdateDistance\s*:\s*FormationPatrolAnchorUpdateDistance\).*?GetBulwarkVelocityScheme\(\s*summon\.Ally,\s*anchorDistanceSqr,\s*bulwarkAdvance\)') {
+    throw "Bulwark Advance does not use its lower-churn anchor updates and stance-aware locomotion in the patrol path."
+}
+if ($runtimeSource -notmatch '(?s)UpdateBulwarkFacing\(Hero hero\).*?_bulwarkFacingFrame == Time\.frameCount.*?SoulProgressionRuntime\.GetSummonBehavior\(\).*?SummonBehavior\.Bulwark.*?Raycaster.*?GetViewRay.*?viewForward\.sqrMagnitude.*?movementForward = hero\.HorizontalVelocity.*?!_hasBulwarkForward.*?_bulwarkForward = movementForward\.normalized.*?if \(!_hasBulwarkForward\).*?_bulwarkForward = viewForward.*?Vector3\.Angle\(_bulwarkForward, viewForward\).*?BulwarkCameraFacingMinimumAngle.*?_bulwarkFacingCooldownUntil.*?Vector3\.Angle\(_bulwarkViewCandidate, viewForward\).*?BulwarkCameraFacingStabilityAngle.*?BulwarkCameraFacingHoldSeconds.*?_bulwarkForward = viewForward.*?BulwarkCameraFacingCooldownSeconds') {
+    throw "Bulwark facing does not latch stable camera intent with movement-only fallback and turn cooldown."
 }
 if ($runtimeSource -notmatch '(?s)bool BeforeFindTarget\(.*?return !RefreshAutonomousTargets\(summon, plugin, behavior\);.*?return true;.*?bool RefreshAutonomousTargets\(.*?owner == null \|\| hero == null \|\| grid == null.*?return false;') {
     throw "Owned servants do not fall back to native targeting only when custom prerequisites are unavailable."
 }
-if ($runtimeSource -notmatch '(?s)GetAutonomousTargetPriority\(.*?behavior == SummonBehavior\.Bulwark.*?BulwarkDefenseRange.*?recentAttacker.*?return 0;.*?targetingProtected \? 1 : int\.MaxValue.*?if \(recentAttacker\).*?return 0;.*?if \(targetingProtected\).*?return 1;.*?target\.NpcAI\.InCombat.*?GuardMeleeThreatRange.*?return 2;.*?return int\.MaxValue;') {
-    throw "Guard and Bulwark do not preserve their defensive threat-only priority orders."
+if (($runtimeSource -notmatch '(?s)GetAutonomousTargetPriority\(\s*NpcElement target,\s*NpcElement owner,.*?bool retainBulwarkTarget\).*?behavior == SummonBehavior\.Bulwark.*?advanceHeld = IsBulwarkAdvanceHeld\(hero\).*?BulwarkAdvanceCombatLeash.*?retainBulwarkTarget\s*\? BulwarkAdvanceRetentionRange\s*:\s*BulwarkAdvanceBreachRange.*?target\.Coords - owner\.Coords.*?return recentAttacker\s*\? 0\s*:\s*targetingProtected \? 1 : 2;.*?retainBulwarkTarget\s*\? BulwarkCloseGuardCombatLeash\s*:\s*BulwarkCloseGuardDefenseRange.*?owner\.Coords - hero\.Coords.*?recentAttacker.*?return 0;.*?if \(targetingProtected\).*?return 1;.*?retainBulwarkTarget\s*\? BulwarkCloseGuardLocalRetentionRange\s*:\s*BulwarkCloseGuardLocalEngageRange.*?target\.Coords - owner\.Coords.*?\? 2\s*:\s*int\.MaxValue.*?if \(recentAttacker\).*?return 0;.*?if \(targetingProtected\).*?return 1;.*?target\.NpcAI\.InCombat.*?GuardMeleeThreatRange.*?return 2;.*?return int\.MaxValue;') -or
+    ($runtimeSource -notmatch '(?s)awarenessRange = behavior == SummonBehavior\.Bulwark\s*\? BulwarkTargetCandidateRange.*?GetAutonomousTargetPriority\(\s*target,\s*owner,\s*behavior,\s*hero,\s*hostInCombat,\s*retainBulwarkTarget: behavior == SummonBehavior\.Bulwark\s*&& ReferenceEquals\(target, committedTarget\)\)')) {
+    throw "Guard and both Bulwark stances do not preserve their bounded defensive priorities."
+}
+if ($runtimeSource -notmatch '(?s)UpdateCatchUpSpeed\(.*?GetSummonBehavior\(\).*?SummonBehavior\.Bulwark.*?!HeldSummons\.ContainsKey\(id\).*?!PendingRecallPlacements\.ContainsKey\(id\).*?!HasActivePriorityTarget\(summon\).*?advanceHeld = IsBulwarkAdvanceHeld\(hero\).*?GetBulwarkAnchor\(summon\).*?BulwarkAdvanceCatchUpStopDistance.*?BulwarkCatchUpStopDistance.*?BulwarkAdvanceCatchUpStartDistance.*?BulwarkCatchUpStartDistance.*?BulwarkAdvanceCatchUpMinimumMultiplier.*?BulwarkAdvanceMaximumMovementMultiplier.*?existingMovement.*?else if \(!npc\.NpcAI\.InCombat\)') {
+    throw "Bulwark servants do not use stance-aware hysteretic catch-up without affecting combat pursuit."
+}
+if ($runtimeSource -notmatch '(?s)class CatchUpSpeedState.*?Multiplier.*?MovementTweak.*?UpdateCatchUpSpeed\(.*?Math\.Abs\(current\.Multiplier - multiplier\).*?new CatchUpSpeedState.*?Multiplier = multiplier.*?MovementTweak = tweak.*?UpdateEmpoweredPresentation\(.*?SpeedTweaks\.TryGetValue\(id, out catchUpSpeed\).*?playback \*= catchUpSpeed\.Multiplier') {
+    throw "Bulwark Advance catch-up does not update safely or keep locomotion playback synchronized."
+}
+if ($runtimeSource -notmatch '(?s)IsSprintActionHeld\(Hero hero\).*?KeyBindings\.Gameplay\.Sprint.*?IsBulwarkAdvanceHeld\(Hero hero\).*?SummonBehavior\.Bulwark.*?IsSprintActionHeld\(hero\).*?IsTargetCommandModifierHeld\(.*?TargetCommandModifierMode\.None.*?return true;.*?return IsSprintActionHeld\(hero\);') {
+    throw "Bulwark stance does not read the actual remappable Sprint action independently of the optional target-command modifier."
 }
 if ($runtimeSource -match 'return hostInCombat \? 3 : int\.MaxValue') {
     throw "Guard still falls back to pulling any visible faction-hostile once the host enters combat."
@@ -371,7 +452,7 @@ if (($runtimeSource -notmatch '(?s)awarenessRange = behavior == SummonBehavior\.
 if ($runtimeSource -notmatch '(?s)HasExplicitCommandTarget\(summon\).*?RemoveAwarenessTargetsForSummon\(\s*summon,\s*ExplicitCommandTargets\[summonId\]\);') {
     throw "Autonomous refresh can still remove the live explicit command target."
 }
-if ($runtimeSource -notmatch '(?s)bool invalid = record\.Target == null.*?GetAutonomousTargetPriority\(\s*record\.Target,\s*behavior,\s*hero,\s*hostInCombat\) == int\.MaxValue') {
+if ($runtimeSource -notmatch '(?s)bool invalid = record\.Target == null.*?GetAutonomousTargetPriority\(\s*record\.Target,\s*owner,\s*behavior,\s*hero,\s*hostInCombat,\s*retainBulwarkTarget: true\) == int\.MaxValue') {
     throw "Behavior changes do not invalidate autonomous targets forbidden by the new mode."
 }
 if ($runtimeSource -notmatch '(?s)selectedTarget == null.*?ForceAddCombatTarget\(.*?owner\.NpcAI != null && !owner\.NpcAI\.InCombat.*?owner\.NpcAI\.EnterCombatWith\(\s*selectedTarget,\s*forceChange: true\).*?SetAutonomousTargetOverride') {
@@ -407,8 +488,8 @@ if ($runtimeSource -notmatch '(?s)BeforeNpcTeleport\(.*?PendingRecallPlacements\
 if ($runtimeSource -notmatch '(?s)GetAiTickInterval\(NpcAlly ally\).*?return 2\.5f;.*?configuredInterval.*?NoviceAiDecisionInterval.*?GetNecromanticPower\(\) / 100\.0f.*?Mathf\.Lerp\(.*?noviceInterval.*?configuredInterval.*?AiDecisionIntervalRefreshSeconds') {
     throw "Hero-summon decision speed does not progress from novice to configured full-mastery responsiveness."
 }
-if ($runtimeSource -notmatch '(?s)GetFormationHost\(Hero hero\).*?Time\.frameCount.*?World\.All<NpcHeroSummon>\(\).*?OrderBy.*?GetHuntAnchor\(.*?GetFormationHost\(hero\).*?GetBulwarkAnchor\(.*?GetFormationHost\(hero\).*?GetGuardAnchor\(.*?GetFormationHost\(hero\)') {
-    throw "Guard, Bulwark, and Hunt do not share the ordered formation host once per frame."
+if ($runtimeSource -notmatch '(?s)GetFormationHost\(Hero hero\).*?_formationHostCacheExpiresAt.*?World\.All<NpcHeroSummon>\(\).*?OrderBy.*?FormationHostFallbackRefreshSeconds.*?InvalidateFormationHostCache\(\).*?GetHuntAnchor\(.*?GetFormationHost\(hero\).*?GetBulwarkAnchor\(.*?GetFormationHost\(hero\).*?GetGuardAnchor\(.*?GetFormationHost\(hero\)') {
+    throw "Guard, Bulwark, and Hunt do not share the lifecycle-invalidated ordered formation host."
 }
 if ($runtimeSource -notmatch '(?s)EnsureFormationFacingHero\(Hero hero\).*?ReferenceEquals\(_formationFacingHero, hero\).*?return;.*?_formationFacingHero = hero.*?ResetBulwarkFacingState\(\).*?_hasGuardForward = false') {
     throw "Guard and Bulwark facing caches are not reset when the active hero changes."
@@ -419,12 +500,12 @@ if ($runtimeSource -notmatch '(?s)IsHostInCombat\(Hero hero\).*?Time\.frameCount
 if ($runtimeSource -notmatch '(?s)AwarenessTargets\.TryGetValue\(summonId, out record\).*?AwarenessTargets\.Remove\(summonId\).*?AwarenessTargets\[summonId\] = new AwarenessTargetRecord') {
     throw "Autonomous awareness is not maintained as one direct record per summon."
 }
-if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(.*?IsFormationLeaderMoving\(hero\).*?IsHostInCombat\(hero\).*?GuardAnchorRebaseDistance.*?state\.FormationAnchor = liveAnchor.*?state\.Wandering.*?state\.Returning.*?_guardIdleMoverId') {
+if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(.*?IsFormationLeaderMoving\(hero\).*?IsHostInCombat\(hero\).*?if \(hostInCombat\).*?CancelGuardIdleMovement.*?if \(heroMoving\).*?state\.FormationAnchor = liveAnchor.*?GuardAnchorRebaseDistance.*?if \(hostInCombat\)\s*\{\s*return state\.FormationAnchor;.*?state\.Wandering.*?state\.Returning.*?_guardIdleMoverId') {
     throw "Stationary Guard anchors are not latched with bounded wander and return states."
 }
-if (($runtimeSource -notmatch '(?s)FormationLeaderTravelDeadZone = 1\.0f.*?FormationLeaderMovementStartSeconds = 0\.25f.*?FormationLeaderSettleSeconds = 0\.20f.*?UpdateFormationLeaderMotion\(Hero hero\).*?Time\.frameCount.*?traveledBeyondDeadZone.*?sustainedMovement.*?_formationLeaderMoving = true') -or
-    ($runtimeSource -notmatch '(?s)GetHuntAnchor\(.*?GetFormationLeaderAnchor\(hero\).*?GetBulwarkAnchor\(.*?GetFormationLeaderAnchor\(hero\).*?GetGuardAnchor\(.*?IsFormationLeaderMoving\(hero\).*?GetFormationLeaderAnchor\(hero\)')) {
-    throw "Guard, Bulwark, and Hunt do not share meaningful leader-movement hysteresis."
+if (($runtimeSource -notmatch '(?s)FormationLeaderTravelDeadZone = 1\.5f.*?FormationLeaderMovementStartSeconds = 0\.45f.*?FormationLeaderSettleSeconds = 0\.35f.*?UpdateFormationLeaderMotion\(Hero hero\).*?Time\.frameCount.*?traveledBeyondDeadZone.*?sustainedMovement.*?_formationLeaderMoving = true') -or
+    ($runtimeSource -notmatch '(?s)GetHuntAnchor\(.*?GetFormationLeaderAnchor\(hero\).*?GetBulwarkAnchor\(.*?leaderAnchor = advanceHeld\s*\? hero\.Coords\s*:\s*GetFormationLeaderAnchor\(hero\).*?GetGuardAnchor\(.*?GetGuardFormationForward\(hero\).*?GetFormationLeaderAnchor\(hero\).*?GetGuardFormationForward\(Hero hero\).*?IsFormationLeaderMoving\(hero\)')) {
+    throw "Guard, Hunt, and released Bulwark do not share the lazier leader-movement gate while Advance bypasses it."
 }
 if ($runtimeSource -notmatch '(?s)GetGuardIdleAnchor\(\s*summon,\s*out anchorTolerance,\s*out gentleIdleMovement\).*?gentleIdleMovement\s*\? VelocityScheme\.Walk') {
     throw "Guard idle wandering and returning do not use gentle walking locomotion."
@@ -444,7 +525,7 @@ if ($runtimeSource -notmatch '(?s)GetHuntIdleAnchor\(.*?IsFormationLeaderMoving\
 if ($runtimeSource -notmatch '(?s)GetHuntAnchor\(.*?HuntFormationSlotsPerRing.*?90\.0f \+ \(\(360\.0f \* slot\) / countInRing\).*?HuntFormationInnerRadius.*?HuntFormationRingSpacing') {
     throw "Hunt does not distribute servants across stable full-perimeter rings."
 }
-if ($runtimeSource -notmatch '(?s)UpdateFormationPatrolPlace\(.*?FormationPatrolAnchors\.TryGetValue.*?FormationPatrolAnchorUpdateDistance.*?patrol\.UpdatePlace\(anchor\)') {
+if ($runtimeSource -notmatch '(?s)UpdateFormationPatrolPlace\(.*?float updateDistance.*?FormationPatrolAnchors\.TryGetValue.*?updateDistance \* updateDistance.*?patrol\.UpdatePlace\(anchor\)') {
     throw 'Stable formations still request an identical navigation destination every AI decision.'
 }
 if ($runtimeSource -notmatch '(?s)GetAutonomousTargetCandidates\(.*?behavior != SummonBehavior\.Bulwark.*?_bulwarkTargetCandidateExpiresAt.*?grid\.GetNpcsInSphere\(.*?\.ToArray\(\)') {
@@ -462,20 +543,46 @@ if ($runtimeSource -notmatch '(?s)CommandSummons\(.*?ClearIdleMovementState\(sum
 if ($runtimeSource -notmatch '(?s)CycleSummonBehavior\(\).*?GuardIdleStates\.Clear\(\).*?HuntIdleStates\.Clear\(\).*?HuntIdleMoverIds\.Clear\(\).*?_nextIdleHostAttemptAt = 0\.0f') {
     throw "Behavior changes do not clear prior Guard and Hunt idle movement state."
 }
-if ($runtimeSource -notmatch '(?s)AfterNpcControllerUpdate\(NpcController __instance\).*?NextControllerRefreshBySummon\.TryGetValue.*?ControllerRefreshSeconds.*?ApplyIdleVolume.*?UpdateCatchUpSpeed.*?UpdateEmpoweredPresentation') {
+if ($runtimeSource -notmatch '(?s)AfterNpcControllerUpdate\(NpcController __instance\).*?NextControllerRefreshBySummon\.TryGetValue.*?ControllerRefreshSeconds.*?ApplyIdleVolume.*?UpdateAnimationWatchdog.*?UpdateCatchUpSpeed.*?UpdateBehaviorSpeed.*?UpdateEmpoweredPresentation') {
     throw "Per-controller summon presentation work is not bounded to its refresh cadence."
+}
+if (($runtimeSource -notmatch '(?s)RequireMethod\(typeof\(NpcAlly\), "UnityUpdate"\).*?BeforeNpcAllyUnityUpdate.*?TranspileAiTick') -or
+    ($runtimeSource -notmatch '(?s)AfterSummonInit\(NpcHeroSummon __instance\).*?SpawnReadinessBySummon\[summonId\].*?EarliestReleaseAt = Time\.unscaledTime.*?GetSpawnRecoverySeconds\(\)') -or
+    ($runtimeSource -notmatch '(?s)BeforeNpcAllyUnityUpdate\(NpcAlly __instance\).*?SpawnReadinessBySummon\.Count == 0.*?now < readiness\.EarliestReleaseAt.*?HasPlayingGeneralAnimation.*?MovementPreventedField\.SetValue\(__instance, true\).*?MovementPreventedField\.SetValue\(__instance, false\).*?SpawnReadinessBySummon\.Remove\(summonId\)')) {
+    throw 'New summons are not held through both the configured minimum and native animation readiness.'
+}
+if (($runtimeSource -notmatch '(?s)UpdateAnimationWatchdog\(.*?IsOwnedSummon\(summon, hero\).*?SpawnReadinessBySummon\.ContainsKey\(id\).*?IsMovingForAnimationWatchdog\(controller, npc, state\).*?HasPlayingGeneralAnimation\(npc, out generalFsm\).*?idleWhileMoving.*?NpcStateType\.Idle.*?movementStateStalled.*?NpcStateType\.Movement.*?animationState\.TimeD.*?FailedMovingSamples\+\+.*?AnimationWatchdogFailureSamples.*?npc\.SetAnimatorState\(\s*NpcFSMType\.GeneralFSM,\s*NpcStateType\.Movement.*?generalFsm\.EnableFSM\(\).*?Recovered summon locomotion.*?AnimationWatchdogRecoveryCooldownSeconds') -or
+    ($runtimeSource -notmatch '(?s)IsMovingForAnimationWatchdog\(.*?controller\.RichAI\.canMove.*?npc\.Coords.*?LastPosition.*?movingByDisplacement.*?controller\.RichAI\.velocity.*?AnimationWatchdogMovementSpeed') -or
+    ($runtimeSource -notmatch '(?s)HasPlayingGeneralAnimation\(.*?TryGetElement<NpcGeneralFSM>\(\).*?CurrentAnimatorState\.CurrentState.*?state\.IsValid.*?state\.IsPlaying') -or
+    ($runtimeSource -notmatch '(?s)ResetAnimationWatchdog\(AnimationWatchdogState state\).*?FailedMovingSamples = 0.*?LastAnimationState = null.*?LastAnimationTime = 0\.0')) {
+    throw 'Owned moving summons do not use the bounded native animation FSM watchdog.'
+}
+if (($runtimeSource -notmatch '(?s)AfterSummonDiscard\(.*?SpawnReadinessBySummon\.Remove\(id\).*?AnimationWatchdogsBySummon\.Remove\(id\)') -or
+    ($runtimeSource -notmatch '(?s)Shutdown\(\).*?ReleaseAllSpawnReadinessLocks\(\).*?AnimationWatchdogsBySummon\.Clear\(\)')) {
+    throw 'Summon animation readiness and watchdog state is not cleaned up with runtime ownership.'
+}
+if (($runtimeSource -notmatch '(?s)HuntBehaviorMovementMultiplier = 1\.10f.*?UpdateBehaviorSpeed\(.*?GetNecromanticPower\(\).*?>= SoulProgressionRuntime\.BehaviorCommandPower.*?GetSummonBehavior\(\).*?SummonBehavior\.Hunt.*?pursuing') -or
+    ($runtimeSource -notmatch '(?s)BeginSwarm\(.*?behaviorMovement.*?SummonBehavior\.Hunt.*?HuntBehaviorMovementMultiplier.*?MaximumCommandMovementMultiplier\s*/ \(empowermentMovement \* behaviorMovement\)') -or
+    ($runtimeSource -notmatch '(?s)UpdateBehaviorSpeed\(.*?otherCommandMovement.*?empowerment\.MovementMultiplier.*?swarm\.MovementMultiplier.*?MaximumCommandMovementMultiplier / otherCommandMovement.*?BehaviorSpeedStates\[id\] = state') -or
+    ($runtimeSource -notmatch '(?s)UpdateEmpoweredPresentation\(.*?BehaviorSpeedStates\.TryGetValue.*?playback \*= behaviorSpeed\.Multiplier') -or
+    ($runtimeSource -notmatch '(?s)AfterSummonDiscard\(.*?RemoveBehaviorSpeedState\(id\).*?RemoveBehaviorSpeedState\(.*?DiscardTweak\(state\.MovementTweak\).*?BehaviorSpeedStates\.Remove\(id\)')) {
+    throw "Hunt pursuit speed is not transient, capped with Swarm and Empower, or cleaned up safely."
+}
+if ($runtimeSource -notmatch '(?s)RemoveBehaviorSpeedState\(string id\).*?string\.IsNullOrEmpty\(id\).*?return;.*?BehaviorSpeedStates\.TryGetValue\(id, out state\)') {
+    throw "Behavior speed cleanup does not reject null or empty IDs before dictionary lookup."
 }
 
 foreach ($required in @(
     '45 m',
-    'returns its 3-Vigor investment',
-    'Version under test: 2.2.0',
+    'returns its investment but creates',
+    'Version under test: 2.5.2',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',
     'SAS-SMOKE-25',
     'SAS-SMOKE-32',
-    'SAS-SMOKE-33')) {
+    'SAS-SMOKE-33',
+    'SAS-SMOKE-43')) {
     if (!$readme.Contains($required) -and !$matrix.Contains($required)) {
         throw "Summon command documentation is missing: $required"
     }

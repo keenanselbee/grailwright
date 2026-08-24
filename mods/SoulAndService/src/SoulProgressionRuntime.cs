@@ -38,10 +38,15 @@ namespace SoulAndService
         internal const float IndividualFormationPower = 20.0f;
         internal const float GlobalFormationPower = 30.0f;
         internal const float BehaviorCommandPower = 50.0f;
+        internal const float BulwarkBehaviorPower = 60.0f;
         internal const float RecallCommandPower = 70.0f;
         internal const float SwarmCommandPower = 90.0f;
         internal const float EmpowermentPower = 100.0f;
-        internal const float MaximumCommandCapacityPower = 150.0f;
+        internal const float MaximumSummonCapacityPower = 150.0f;
+        internal const float GuardDamageMultiplier = 1.05f;
+        internal const float GuardDamageTakenMultiplier = 0.95f;
+        internal const float BulwarkDamageTakenMultiplier = 0.85f;
+        internal const float HuntDamageMultiplier = 1.10f;
         private const string DeedsPluginGuid = "ks.tgfoa.deeds-of-avalon";
         private const string DeedsApiTypeName = "DeedsOfAvalon.StatisticsApi";
         private const string GrailFloatingTextPluginGuid =
@@ -168,7 +173,8 @@ namespace SoulAndService
 
         internal static SummonBehavior GetSummonBehavior()
         {
-            if (GetNecromanticPower() < BehaviorCommandPower)
+            float power = GetNecromanticPower();
+            if (power < BehaviorCommandPower)
             {
                 return SummonBehavior.Guard;
             }
@@ -179,10 +185,14 @@ namespace SoulAndService
             }
             EnsureInitialized(facts);
             int stored = facts.Get(SummonBehaviorKey, (int)SummonBehavior.Guard);
-            return stored >= (int)SummonBehavior.Guard
+            SummonBehavior behavior = stored >= (int)SummonBehavior.Guard
                 && stored <= (int)SummonBehavior.Hunt
                     ? (SummonBehavior)stored
                     : SummonBehavior.Guard;
+            return behavior == SummonBehavior.Bulwark
+                    && power < BulwarkBehaviorPower
+                ? SummonBehavior.Guard
+                : behavior;
         }
 
         internal static bool TryCycleSummonBehavior(
@@ -199,11 +209,13 @@ namespace SoulAndService
                 return false;
             }
             EnsureInitialized(facts);
+            float power = GetNecromanticPower();
             SummonBehavior current = GetSummonBehavior();
             behavior = current == SummonBehavior.Guard
-                ? SummonBehavior.Bulwark
-                : current == SummonBehavior.Bulwark
-                    ? SummonBehavior.Hunt
+                ? SummonBehavior.Hunt
+                : current == SummonBehavior.Hunt
+                    && power >= BulwarkBehaviorPower
+                    ? SummonBehavior.Bulwark
                     : SummonBehavior.Guard;
             facts.Set(SummonBehaviorKey, (int)behavior);
             return true;
@@ -212,23 +224,43 @@ namespace SoulAndService
         internal static float GetSummonDamageMultiplier()
         {
             float power = GetNecromanticPower();
-            return power <= 100.0f
+            float progressionMultiplier = power <= 100.0f
                 ? Mathf.Lerp(0.75f, 1.25f, power / 100.0f)
                 : Mathf.Lerp(1.25f, 1.50f, (power - 100.0f) / 100.0f);
+            if (power < BehaviorCommandPower)
+            {
+                return progressionMultiplier;
+            }
+            SummonBehavior behavior = GetSummonBehavior();
+            return progressionMultiplier * (behavior == SummonBehavior.Hunt
+                ? HuntDamageMultiplier
+                : behavior == SummonBehavior.Guard
+                    ? GuardDamageMultiplier
+                    : 1.0f);
         }
 
         internal static float GetSummonDamageTakenMultiplier()
         {
             float power = GetNecromanticPower();
-            return power <= 100.0f
+            float progressionMultiplier = power <= 100.0f
                 ? Mathf.Lerp(1.25f, 0.75f, power / 100.0f)
                 : Mathf.Lerp(0.75f, 0.50f, (power - 100.0f) / 100.0f);
+            if (power < BehaviorCommandPower)
+            {
+                return progressionMultiplier;
+            }
+            SummonBehavior behavior = GetSummonBehavior();
+            return progressionMultiplier * (behavior == SummonBehavior.Bulwark
+                ? BulwarkDamageTakenMultiplier
+                : behavior == SummonBehavior.Guard
+                    ? GuardDamageTakenMultiplier
+                    : 1.0f);
         }
 
         internal static int GetProgressionSummonLimitBonus()
         {
             float power = GetNecromanticPower();
-            if (power >= MaximumCommandCapacityPower)
+            if (power >= MaximumSummonCapacityPower)
             {
                 return 3;
             }
@@ -334,7 +366,10 @@ namespace SoulAndService
             return TryHarvestCorpse(
                 corpseFingerprint,
                 tier,
-                RollSoulVigorValue(tier, quality01),
+                GetOrRollCorpseSoulVigorValue(
+                    corpseFingerprint,
+                    tier,
+                    quality01),
                 out receipt);
         }
 
@@ -406,6 +441,30 @@ namespace SoulAndService
                 LogProgressionWarning(
                     "Soul Vigor rollback failed after remains could not be created.");
             }
+        }
+
+        internal static int GetOrRollCorpseSoulVigorValue(
+            string corpseFingerprint,
+            Grailwright.Shared.CorpseQualityTier tier,
+            float quality01)
+        {
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return RollSoulVigorValue(tier, quality01);
+            }
+
+            EnsureInitialized(facts);
+            string key = CorpseSoulVigorKey(corpseFingerprint);
+            int stored = Math.Max(0, facts.Get(key, 0));
+            if (stored > 0)
+            {
+                return stored;
+            }
+
+            int rolled = RollSoulVigorValue(tier, quality01);
+            facts.Set(key, rolled);
+            return rolled;
         }
 
         internal static int RollSoulVigorValue(
@@ -588,15 +647,52 @@ namespace SoulAndService
 
         internal static void ShowResurrection(
             string displayName,
-            Grailwright.Shared.CorpseQualityTier tier)
+            Grailwright.Shared.CorpseQualityTier tier,
+            int vigorCost)
         {
-            string text = displayName + " reanimated";
+            string text = displayName + " reanimated"
+                + (vigorCost > 0
+                    ? ": -" + vigorCost.ToString(CultureInfo.InvariantCulture)
+                        + " Soul Vigor"
+                    : string.Empty);
             TryShowGft(
                 "soul-resurrection",
                 text,
                 GetCorpseIconId(tier),
                 "High",
                 string.Empty);
+        }
+
+        internal static void ShowSummonCreated(string displayName, int vigorCost)
+        {
+            if (vigorCost <= 0)
+            {
+                return;
+            }
+            TryShowGft(
+                "soul-summoning",
+                displayName + " summoned: -"
+                    + vigorCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor",
+                "necro",
+                "Normal",
+                string.Empty,
+                "Status",
+                "Short");
+        }
+
+        internal static void ShowInsufficientSoulVigor(int vigorCost)
+        {
+            TryShowGft(
+                "soul-vigor-required",
+                "Requires " + vigorCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor",
+                "necro",
+                "Normal",
+                "soul-vigor-required",
+                "Status",
+                "Short",
+                "Warning");
         }
 
         internal static void ShowSoulVigorHarvest(
@@ -669,7 +765,7 @@ namespace SoulAndService
             {
                 return;
             }
-            ShowCommandUnlocks(
+            ShowSoulVigorThresholdMessages(
                 receipt.BeforeSoulVigor,
                 SaturatingAdd(receipt.BeforeSoulVigor, receipt.Award));
         }
@@ -686,93 +782,193 @@ namespace SoulAndService
                 return;
             }
             float after = Math.Max(0.0f, facts.Get(SoulVigorKey, 0.0f));
-            ShowCommandUnlocks(Math.Max(0.0f, after - award), after);
+            ShowSoulVigorThresholdMessages(Math.Max(0.0f, after - award), after);
         }
 
-        private static void ShowCommandUnlocks(float before, float after)
+        internal static void ShowSoulVigorWanesAfterSpend(int before, int after)
         {
+            if (after >= before)
+            {
+                return;
+            }
+            ShowSoulVigorThresholdMessages(before, after);
+        }
+
+        private static void ShowSoulVigorThresholdMessages(float before, float after)
+        {
+            if (IsSoulVigorOverrideActive())
+            {
+                return;
+            }
             float beforePower = GetNecromanticPowerFromSoulVigor(before);
             float afterPower = GetNecromanticPowerFromSoulVigor(after);
             if (beforePower < AttackCommandPower
                 && afterPower >= AttackCommandPower)
             {
-                TryShowGft(
-                    "soul-command-attack-unlocked",
-                    "Your servants heed your command: Attack.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-attack",
+                    "Necromantic Power rises: Attack commands are available.",
+                    true);
+            }
+            if (beforePower >= AttackCommandPower
+                && afterPower < AttackCommandPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-attack",
+                    "Necromantic Power wanes: Attack commands are unavailable.",
+                    false);
             }
             if (beforePower < IndividualFormationPower
                 && afterPower >= IndividualFormationPower)
             {
-                TryShowGft(
-                    "soul-command-formation-unlocked",
-                    "Your will can anchor a single servant: Hold and Follow.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-formation",
+                    "Necromantic Power rises: individual Hold and Follow commands are available.",
+                    true);
+            }
+            if (beforePower >= IndividualFormationPower
+                && afterPower < IndividualFormationPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-formation",
+                    "Necromantic Power wanes: individual Hold and Follow commands are unavailable.",
+                    false);
             }
             if (beforePower < GlobalFormationPower
                 && afterPower >= GlobalFormationPower)
             {
-                TryShowGft(
-                    "soul-command-global-unlocked",
-                    "Your command reaches the whole host: Hold All and Follow All.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-global",
+                    "Necromantic Power rises: Hold All and Follow All are available.",
+                    true);
+            }
+            if (beforePower >= GlobalFormationPower
+                && afterPower < GlobalFormationPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-global",
+                    "Necromantic Power wanes: Hold All and Follow All are unavailable.",
+                    false);
             }
             if (beforePower < BehaviorCommandPower
                 && afterPower >= BehaviorCommandPower)
             {
-                TryShowGft(
-                    "soul-command-behavior-unlocked",
-                    "Your will shapes the host: Guard, Bulwark, and Hunt.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-behavior",
+                    "Necromantic Power rises: Guard and Hunt behavior control is available; Summon Capacity bonus is +1.",
+                    true);
+            }
+            if (beforePower >= BehaviorCommandPower
+                && afterPower < BehaviorCommandPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-behavior",
+                    "Necromantic Power wanes: Guard and Hunt behavior control is unavailable; Summon Capacity bonus is lost.",
+                    false);
+            }
+            if (beforePower < BulwarkBehaviorPower
+                && afterPower >= BulwarkBehaviorPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-bulwark",
+                    "Necromantic Power rises: Bulwark behavior is available.",
+                    true);
+            }
+            if (beforePower >= BulwarkBehaviorPower
+                && afterPower < BulwarkBehaviorPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-bulwark",
+                    "Necromantic Power wanes: Bulwark is unavailable; Guard takes its place.",
+                    false);
             }
             if (beforePower < RecallCommandPower
                 && afterPower >= RecallCommandPower)
             {
-                TryShowGft(
-                    "soul-command-recall-unlocked",
-                    "Your will can recall the scattered host.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-recall",
+                    "Necromantic Power rises: Recall Host is available.",
+                    true);
+            }
+            if (beforePower >= RecallCommandPower
+                && afterPower < RecallCommandPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-recall",
+                    "Necromantic Power wanes: Recall Host is unavailable.",
+                    false);
             }
             if (beforePower < SwarmCommandPower
                 && afterPower >= SwarmCommandPower)
             {
-                TryShowGft(
-                    "soul-command-swarm-unlocked",
-                    "Your host surges at your command: Swarm.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-swarm",
+                    "Necromantic Power rises: Swarm commands are available.",
+                    true);
+            }
+            if (beforePower >= SwarmCommandPower
+                && afterPower < SwarmCommandPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-swarm",
+                    "Necromantic Power wanes: Swarm is unavailable; Attack takes its place.",
+                    false);
             }
             if (beforePower < EmpowermentPower
                 && afterPower >= EmpowermentPower)
             {
-                TryShowGft(
-                    "soul-empowerment-unlocked",
-                    "Your will sustains the host and can Empower a servant.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-empowerment",
+                    "Necromantic Power rises: Empower is available; servant upkeep ends; Summon Capacity bonus is +2.",
+                    true);
             }
-            if (beforePower < MaximumCommandCapacityPower
-                && afterPower >= MaximumCommandCapacityPower)
+            if (beforePower >= EmpowermentPower
+                && afterPower < EmpowermentPower)
             {
-                TryShowGft(
-                    "soul-command-capacity-mastered",
-                    "Your overmastered will can sustain a still greater host.",
-                    "necro",
-                    "High",
-                    string.Empty);
+                ShowSoulVigorThresholdMessage(
+                    "soul-empowerment",
+                    "Necromantic Power wanes: Empower is unavailable; servant upkeep resumes; Summon Capacity bonus is +1.",
+                    false);
             }
+            if (beforePower < MaximumSummonCapacityPower
+                && afterPower >= MaximumSummonCapacityPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-summon-capacity",
+                    "Necromantic Power rises: Summon Capacity bonus is +3.",
+                    true);
+            }
+            if (beforePower >= MaximumSummonCapacityPower
+                && afterPower < MaximumSummonCapacityPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-summon-capacity",
+                    "Necromantic Power wanes: Summon Capacity bonus falls to +2.",
+                    false);
+            }
+        }
+
+        private static void ShowSoulVigorThresholdMessage(
+            string eventId,
+            string text,
+            bool rises)
+        {
+            TryShowGft(
+                eventId + (rises ? "-rises" : "-wanes"),
+                text,
+                "necro",
+                "High",
+                string.Empty,
+                rises ? "Reward" : "Status",
+                "Medium");
+        }
+
+        private static bool IsSoulVigorOverrideActive()
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            return plugin != null
+                && plugin.OverrideSoulVigor != null
+                && plugin.OverrideSoulVigor.Value;
         }
 
         internal static string GetSoulClaimFailureMessage()
@@ -917,6 +1113,12 @@ namespace SoulAndService
         private static string HarvestKey(string corpseFingerprint)
         {
             return "harvest."
+                + StableHash(corpseFingerprint).ToString("x8", CultureInfo.InvariantCulture);
+        }
+
+        private static string CorpseSoulVigorKey(string corpseFingerprint)
+        {
+            return "native_soul."
                 + StableHash(corpseFingerprint).ToString("x8", CultureInfo.InvariantCulture);
         }
 
@@ -1093,7 +1295,8 @@ namespace SoulAndService
             string priority,
             string collapseKey,
             string category = "Status",
-            string durationBucket = "Medium")
+            string durationBucket = "Medium",
+            string style = "Necrotic")
         {
             ResolveGftBridge();
             if (_gftTryShowEventMethod == null)
@@ -1109,7 +1312,7 @@ namespace SoulAndService
                         SoulAndServicePlugin.PluginGuid,
                         eventId,
                         text,
-                        "Necrotic",
+                        style,
                         category,
                         priority,
                         collapseKey,

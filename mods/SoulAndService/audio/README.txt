@@ -14,5 +14,10 @@ slots are skipped. If a full tier is missing, Soul and Service falls back throug
 nearby quality tiers. Sounds are loaded lazily and cached by FMOD after first use.
 
 The packaged sounds intentionally retain their authored loudness differences.
-Playback volume, recent-repeat protection, repeat memory, and random pitch range
-are configurable in the Audio section of ks.tgfoa.soul-and-service.cfg.
+Every successful ritual starts an independent FMOD channel and may overlap a
+previous ritual. Playback volume, recent-repeat protection, repeat memory, random
+pitch range, and echoes are configurable. Runtime female and male targets default
+to +3 and -3 semitones. Recognized female and male monsters add -1 and -3 more,
+for final defaults of +2 and -6. Gender-unknown monsters use the configurable
+-6-semitone fallback; other unknown targets retain authored pitch. All pitch
+values are configurable in the Audio section of ks.tgfoa.soul-and-service.cfg.

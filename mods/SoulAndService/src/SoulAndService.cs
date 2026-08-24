@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("2.2.0.0")]
-[assembly: AssemblyFileVersion("2.2.0.0")]
-[assembly: AssemblyInformationalVersion("2.2.0")]
+[assembly: AssemblyVersion("2.5.2.0")]
+[assembly: AssemblyFileVersion("2.5.2.0")]
+[assembly: AssemblyInformationalVersion("2.5.2")]
 
 namespace SoulAndService
 {
@@ -93,9 +93,9 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "2.2.0";
+        public const string PluginVersion = "2.5.2";
 
-        private const int ConfigSchemaVersion = 10;
+        private const int ConfigSchemaVersion = 11;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -140,6 +140,11 @@ namespace SoulAndService
         internal ConfigEntry<bool> AvoidRecentSoulSalvageAudioRepeats;
         internal ConfigEntry<int> RecentSoulSalvageAudioMemory;
         internal ConfigEntry<float> SoulSalvageAudioRandomPitchSemitones;
+        internal ConfigEntry<float> FemaleSoulSalvageAudioPitchSemitones;
+        internal ConfigEntry<float> MaleSoulSalvageAudioPitchSemitones;
+        internal ConfigEntry<float> FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones;
+        internal ConfigEntry<float> MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones;
+        internal ConfigEntry<float> NonHumanoidSoulSalvageAudioPitchSemitones;
         internal ConfigEntry<float> SoulSalvageAudioEchoAmount;
         internal ConfigEntry<bool> SoulSalvageOverhaul;
         internal ConfigEntry<bool> LivingTargetSoulSalvage;
@@ -155,6 +160,14 @@ namespace SoulAndService
         internal ConfigEntry<float> SoulRendInnerLightMasteryRange;
         internal ConfigEntry<float> SoulRendInnerLightMaximumPowerRange;
         internal ConfigEntry<float> SoulRendInnerLightFadeSeconds;
+        internal ConfigEntry<bool> ReanimationVfxEnabled;
+        internal ConfigEntry<bool> ReanimationRunesEnabled;
+        internal ConfigEntry<float> ReanimationRuneIntensity;
+        internal ConfigEntry<int> ReanimationRuneParticleAmount;
+        internal ConfigEntry<bool> ReanimationSmokeEnabled;
+        internal ConfigEntry<float> ReanimationSmokeIntensity;
+        internal ConfigEntry<int> ReanimationSmokeParticleAmount;
+        internal ConfigEntry<bool> ReanimationDynamicParticleBudget;
         internal ConfigEntry<bool> Diagnostics;
         internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
         internal ConfigEntry<bool> OverrideSoulVigor;
@@ -314,6 +327,8 @@ namespace SoulAndService
                     return 10;
                 case "Soul Rend Inner Light":
                     return 15;
+                case "Reanimation VFX":
+                    return 17;
                 case "Following":
                     return 20;
                 case "Targeting":
@@ -384,7 +399,7 @@ namespace SoulAndService
                 "SpawnRecoverySeconds",
                 0.10f,
                 new ConfigDescription(
-                    "Seconds a newly created summon remains movement-locked.",
+                    "Minimum seconds a newly created summon remains movement-locked. Movement releases once its native animation is ready.",
                     new AcceptableValueRange<float>(0.0f, 1.5f)));
 
             TrotDistance = BindOrdered(
@@ -413,7 +428,7 @@ namespace SoulAndService
                 "CatchUpSpeedMultiplier",
                 1.25f,
                 new ConfigDescription(
-                    "Movement-speed multiplier used only while an out-of-combat summon is catching up.",
+                    "Movement-speed multiplier used while an out-of-combat summon catches up or an untargeted Bulwark servant closes on its assigned shield-line position.",
                     new AcceptableValueRange<float>(1.0f, 2.0f)));
             IdleMovementAmount = BindOrdered(
                 "Following",
@@ -438,7 +453,7 @@ namespace SoulAndService
                 "Targeting",
                 "FormationCommands",
                 true,
-                "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (about 567 Soul Vigor), release before 1.5 seconds for the formation command or keep holding to Recall Host. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard, Bulwark, and Hunt.");
+                    "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (about 567 Soul Vigor), release before 1.5 seconds for the formation command or keep holding to Recall Host. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard and Hunt. Guard grants +5% damage and 5% damage reduction; Hunt grants +10% damage and +10% pursuit speed. Bulwark joins at Power 60 (about 463 Soul Vigor) with 15% damage reduction. In Bulwark, hold the remappable Sprint action to drive the host into an advancing forward wall; release it for a 3.5-meter close guard that clears the forward firing lane.");
             TargetCommandModifier = BindOrdered(
                 "Targeting",
                 "TargetCommandModifier",
@@ -476,7 +491,7 @@ namespace SoulAndService
                 "SummonLimitBonus",
                 0,
                 new ConfigDescription(
-                    "Additional flat bonus beyond the native limit and the +1/+2/+3 command-capacity bonuses unlocked at Necromantic Power 50/100/150.",
+                    "Additional flat bonus beyond the native limit and the +1/+2/+3 Summon Capacity bonuses unlocked at Necromantic Power 50/100/150.",
                     new AcceptableValueRange<int>(0, 20)));
 
             RepairInvocationScaling = BindOrdered(
@@ -536,6 +551,46 @@ namespace SoulAndService
                     "Random FMOD pitch variation in semitones. Zero disables it.",
                     new AcceptableValueRange<float>(0.0f, 12.0f)),
                 "Soul Rend Audio Random Pitch Semitones");
+            FemaleSoulSalvageAudioPitchSemitones = BindOrdered(
+                "Audio",
+                "FemaleSoulSalvageAudioPitchSemitones",
+                3.0f,
+                new ConfigDescription(
+                    "Pitch offset in semitones for Soul Rend targets whose runtime body is explicitly female.",
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)),
+                "Female Soul Rend Audio Pitch Semitones");
+            MaleSoulSalvageAudioPitchSemitones = BindOrdered(
+                "Audio",
+                "MaleSoulSalvageAudioPitchSemitones",
+                -3.0f,
+                new ConfigDescription(
+                    "Pitch offset in semitones for Soul Rend targets whose runtime body is explicitly male.",
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)),
+                "Male Soul Rend Audio Pitch Semitones");
+            FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones = BindOrdered(
+                "Audio",
+                "FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",
+                -1.0f,
+                new ConfigDescription(
+                    "Additional pitch adjustment for clearly non-humanoid Soul Rend targets whose runtime body is explicitly female. The default combines with the female offset for a final +2 semitones.",
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)),
+                "Female Monster Soul Rend Audio Pitch Adjustment Semitones");
+            MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones = BindOrdered(
+                "Audio",
+                "MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",
+                -3.0f,
+                new ConfigDescription(
+                    "Additional pitch adjustment for clearly non-humanoid Soul Rend targets whose runtime body is explicitly male. The default combines with the male offset for a final -6 semitones.",
+                    new AcceptableValueRange<float>(-12.0f, 12.0f)),
+                "Male Monster Soul Rend Audio Pitch Adjustment Semitones");
+            NonHumanoidSoulSalvageAudioPitchSemitones = BindOrdered(
+                "Audio",
+                "NonHumanoidSoulSalvageAudioPitchSemitones",
+                -6.0f,
+                new ConfigDescription(
+                    "Fallback pitch offset in semitones for clearly non-humanoid Soul Rend targets whose runtime gender is unknown. Other unknown targets retain normal pitch.",
+                    new AcceptableValueRange<float>(-12.0f, 0.0f)),
+                "Non-Humanoid Soul Rend Audio Pitch Semitones");
             SoulSalvageAudioEchoAmount = BindOrdered(
                 "Audio",
                 "SoulSalvageAudioEchoAmount",
@@ -642,6 +697,61 @@ namespace SoulAndService
                     "Seconds used to fade the green hand lights in and out. Zero switches instantly.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
+            ReanimationVfxEnabled = BindOrdered(
+                "Reanimation VFX",
+                "Enabled",
+                true,
+                "Master switch for the persistent body-bound VFX on reanimated servants.");
+            ReanimationDynamicParticleBudget = BindOrdered(
+                "Reanimation VFX",
+                "DynamicParticleBudget",
+                true,
+                "Automatically reduce per-servant rune and smoke particle density as the active reanimated host grows. The configured particle amounts remain the maximum, the full presentation is retained for small hosts, and this setting adds no per-frame work.",
+                "Dynamic Particle Budget");
+            ReanimationRunesEnabled = BindOrdered(
+                "Reanimation VFX",
+                "RunesEnabled",
+                true,
+                "Show the subtle glowing rune tattoos on reanimated servants.",
+                "Runes Enabled");
+            ReanimationRuneIntensity = BindOrdered(
+                "Reanimation VFX",
+                "RuneIntensity",
+                1.0f,
+                new ConfigDescription(
+                    "Brightness of the rune layer. Zero disables the layer.",
+                    new AcceptableValueRange<float>(0.0f, 3.0f)),
+                "Rune Intensity");
+            ReanimationRuneParticleAmount = BindOrdered(
+                "Reanimation VFX",
+                "RuneParticleAmount",
+                100,
+                new ConfigDescription(
+                    "Rune particle amount as a percentage of the default. Lower values improve performance; zero disables the layer.",
+                    new AcceptableValueRange<int>(0, 200)),
+                "Rune Particle Amount");
+            ReanimationSmokeEnabled = BindOrdered(
+                "Reanimation VFX",
+                "SmokeEnabled",
+                false,
+                "Add restrained body-bound dark-green smoke within the same pooled effect as the runes. Disabled by default.",
+                "Smoke Enabled");
+            ReanimationSmokeIntensity = BindOrdered(
+                "Reanimation VFX",
+                "SmokeIntensity",
+                0.35f,
+                new ConfigDescription(
+                    "Opacity of the optional smoke layer. Zero disables the layer.",
+                    new AcceptableValueRange<float>(0.0f, 3.0f)),
+                "Smoke Intensity");
+            ReanimationSmokeParticleAmount = BindOrdered(
+                "Reanimation VFX",
+                "SmokeParticleAmount",
+                50,
+                new ConfigDescription(
+                    "Smoke particle amount as a percentage of its restrained baseline. Lower values improve performance; zero disables the layer.",
+                    new AcceptableValueRange<int>(0, 200)),
+                "Smoke Particle Amount");
             Diagnostics = BindOrdered(
                 "Diagnostics",
                 "Diagnostics",
@@ -800,6 +910,11 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Audio", "AvoidRecentSoulSalvageAudioRepeats");
             CapturePreservedValue<int>(profile, "Audio", "RecentSoulSalvageAudioMemory");
             CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioRandomPitchSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "FemaleSoulSalvageAudioPitchSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "MaleSoulSalvageAudioPitchSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones");
+            CapturePreservedValue<float>(profile, "Audio", "NonHumanoidSoulSalvageAudioPitchSemitones");
             CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioEchoAmount");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableLivingTargetSoulSalvage");
@@ -815,6 +930,14 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MasteryRange");
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MaximumPowerRange");
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "FadeSeconds");
+            CapturePreservedValue<bool>(profile, "Reanimation VFX", "Enabled");
+            CapturePreservedValue<bool>(profile, "Reanimation VFX", "DynamicParticleBudget");
+            CapturePreservedValue<bool>(profile, "Reanimation VFX", "RunesEnabled");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "RuneIntensity");
+            CapturePreservedValue<int>(profile, "Reanimation VFX", "RuneParticleAmount");
+            CapturePreservedValue<bool>(profile, "Reanimation VFX", "SmokeEnabled");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "SmokeIntensity");
+            CapturePreservedValue<int>(profile, "Reanimation VFX", "SmokeParticleAmount");
             CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
             CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
@@ -866,6 +989,11 @@ namespace SoulAndService
             RestorePreservedValue(AvoidRecentSoulSalvageAudioRepeats, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(RecentSoulSalvageAudioMemory, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageAudioRandomPitchSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(FemaleSoulSalvageAudioPitchSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(MaleSoulSalvageAudioPitchSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(NonHumanoidSoulSalvageAudioPitchSemitones, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageAudioEchoAmount, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(LivingTargetSoulSalvage, ref restored, ref clamped, ref invalid);
@@ -881,6 +1009,14 @@ namespace SoulAndService
             RestorePreservedValue(SoulRendInnerLightMasteryRange, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightMaximumPowerRange, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightFadeSeconds, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationVfxEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationRunesEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationRuneIntensity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationRuneParticleAmount, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationSmokeEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationSmokeIntensity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationSmokeParticleAmount, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationDynamicParticleBudget, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(Diagnostics, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShowGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
             Logger.LogInfo(

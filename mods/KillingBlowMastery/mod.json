@@ -2,7 +2,7 @@
   "id": "KillingBlowMastery",
   "displayName": "Killing Blow Mastery",
   "packageName": "KillingBlowMastery",
-  "version": "1.7.5",
+  "version": "1.9.3",
   "pluginGuid": "ks.tgfoa.killing-blow-mastery",
   "dll": "KillingBlowMastery.dll",
   "sourceFiles": [
@@ -16,6 +16,7 @@
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.IMGUIModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.TextRenderingModule.dll",

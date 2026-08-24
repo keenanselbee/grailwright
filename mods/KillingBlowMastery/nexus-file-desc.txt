@@ -1,1 +1,1 @@
-Adds source-specific finisher sounds, non-corporeal enemy cues, and proficiency XP for the skill that lands the kill.
+Default-on weapon mastery turns low-health enemies into increasingly generous Execution opportunities, backed by visceral finisher sounds and proficiency rewards.

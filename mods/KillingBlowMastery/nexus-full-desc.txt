@@ -1,10 +1,14 @@
 [center][url=https://www.nexusmods.com/profile/keenanselbee/mods?gameId=5886&sortBy=downloads][img width=400,height=400]https://staticdelivery.nexusmods.com/mods/1704/images/27633/27633-1785657285-397105425.png[/img][/url][/center]
 [center][color=#C94A4A][size=6]Killing Blow Mastery[/size][/color]
-[i]Finisher sounds and modest proficiency XP for the skill that lands the kill.[/i][/center]
+[i]Weapon-mastery Executions, finisher sounds, and proficiency XP for the skill that lands the kill.[/i][/center]
 
 [line]
 
-[b]Killing Blow Mastery - Finisher Sounds and Proficiency XP[/b] gives a small extra combat proficiency reward to the skill that actually lands an enemy's killing blow.
+[b]Killing Blow Mastery[/b] turns combat executions into a weapon-mastery system. Executions unlock at 25 proficiency, then become available across a wider low-health window as skill with the selected weapon rises toward 100.
+
+[b][color=#D9A441]Weapon-mastery Executions and expanded enemy selection are enabled by default. Animal and Animal_Prey families remain excluded for animation safety.[/color][/b]
+
+It also gives a small extra combat proficiency reward to the skill that actually lands an enemy's killing blow.
 
 The goal is to make side weapons, shields, archery, and magic less painful to train without turning last-hitting into a replacement for normal combat practice. Soften an enemy with your main setup, swap to the weapon or spell you want to train, and earn a modest finishing bonus if that source lands the kill.
 
@@ -14,10 +18,11 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
+[*][b]Weapon-mastery Executions:[/b] Unlock Execute at 25 proficiency with a 10% health window, then expand that window smoothly to 25% at proficiency 100.[/*]
+[*][b]Selected-weapon progression:[/b] Use the proficiency of the weapon that actually supplies the execution animation, including main hand, off hand, normal-finisher fallback, and Versatile Weapons grips.[/*]
 [*][b]Finishing-skill XP:[/b] Reward One-Handed, Two-Handed, Unarmed, Archery, Shield, or Magic when that skill lands the killing blow.[/*]
 [*][b]Controlled progression:[/b] Base the modest bonus on enemy XP with configurable minimum and cap values, including recent supported damage-over-time attribution.[/*]
 [*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages. GFT 2.3.1+ adds specific sword, axe, blunt, dagger, and spear icons for recognized handed weapons; sickles use the One-Handed Axe icon.[/*]
-[*][b]Optional GloryKills:[/b] Replace the normal living-enemy combat execution rules with an Execute interaction at 15% health, or turn combat executions and automatic melee finishers off independently.[/*]
 [*][b]Weapon-aware finishers:[/b] Route FMOD sounds through blades, axes, blunt weapons, bows, shields, unarmed attacks, and distinct magic pools.[/*]
 [*][b]Large included sound library:[/b] Use 165 effects across standard, optional dry bloodless-target, and non-corporeal variants, with several selectable sound modes.[/*]
 [/list]
@@ -30,7 +35,7 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 [*][b]Minimum:[/b] 1 proficiency XP.[/*]
 [*][b]Maximum:[/b] 100 proficiency XP.[/*]
 [*][b]Damage-over-time kills:[/b] supported when the kill can be traced to a recent hero damage source.[/*]
-[*][b]Combat executions:[/b] Vanilla behavior by default; GloryKill uses a configurable 15% current-health threshold.[/*]
+[*][b]Combat executions:[/b] Execution behavior by default; unlock at 25 weapon proficiency and scale from a 10% to 25% current-health threshold.[/*]
 [*][b]Automatic melee finishers:[/b] enabled by default and independently configurable.[/*]
 [*][b]Notifications:[/b] on by default, shown as [b]Killing blow: +8 Two-Handed[/b].[/*]
 [*][b]Sounds:[/b] weapon-specific FMOD finisher sounds by default, with non-corporeal enemy sounds and bloodless variants enabled when matching files exist.[/*]
@@ -76,23 +81,39 @@ Magic
 
 [line]
 
-[heading][color=#C94A4A][size=5]Combat Finishers and GloryKills[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Combat Finishers and Executions[/size][/color][/heading]
 [b]AutomaticCombatFinishersEnabled[/b] controls the killing-blow animations the game starts automatically during ordinary melee attacks. It is enabled by default.
 
 [b]CombatExecutionMode[/b] controls the separate interaction available while aiming at a living enemy:
 [list]
 [*][b]Vanilla:[/b] Preserve the game's normal combat execution rules.[/*]
-[*][b]GloryKill:[/b] Show [b]Execute[/b] for an eligible hostile combatant at or below the configured health threshold while the hero is close enough and has a melee weapon.[/*]
+[*][b]Execution:[/b] Unlock [b]Execute[/b] through melee-weapon proficiency, then widen its low-health window as mastery rises.[/*]
 [*][b]Off:[/b] Remove only the living-enemy combat execution interaction.[/*]
 [/list]
 
-The GloryKill threshold defaults to 15% of maximum health. The game's normal distance, kill-prevention, and external-death safeguards remain active. After those checks pass, KBM first selects from the equipped melee weapon's loaded execution animations, then falls back to its loaded normal finisher animations when the execution list has no playable hero animation. The game's situational direction, stagger, and random-chance filters do not block the prompt. Loaded animation assets and the native target-template restriction still apply. GloryKills use the existing finisher animation system and still count as killing blows for this mod's normal rewards.
+[b]Executions are a progression system, not an instant low-level power.[/b] They unlock at 25 proficiency with the weapon that supplies the selected animation. From there, their health window grows linearly:
 
-[b]ExpandedGloryKillTargets[/b] is experimental and disabled by default. The shipped combat execution animations are authored for humanoid targets. Enabling this option lets additional hostile enemy templates attempt them, but unsupported body types can animate or align incorrectly.
+[code]
+| Weapon proficiency | Execution window |
+|--------------------|------------------|
+| Below 25           | Locked           |
+| 25                 | 10% health       |
+| 50                 | 15% health       |
+| 75                 | 20% health       |
+| 100                | 25% health       |
+[/code]
+
+KBM follows the weapon the game actually selects. Main-hand, off-hand, and normal-finisher fallback animations use their own effective proficiency, and the Versatile Weapons integration respects the current One-Handed or Two-Handed grip. A high-level weapon in the other hand cannot authorize a low-level weapon's Execution.
+
+The game's normal distance, kill-prevention, and external-death safeguards remain active. After those checks pass, KBM first selects from the equipped melee weapon's loaded execution animations, then falls back to its loaded normal finisher animations when the execution list has no playable hero animation. The game's situational direction, stagger, and random-chance filters do not block the prompt. Loaded animation assets and the native target-template restriction still apply. Executions use the existing finisher animation system and still count as killing blows for this mod's normal rewards.
+
+[b]ExpandedExecutionTargets[/b] is enabled by default, letting additional hostile enemy templates attempt the shipped humanoid execution animations after applying [b]ExpandedExecutionExcludedAbstracts[/b]. That editable exact-match list defaults to [b]Animal;Animal_Prey[/b], preventing wolves, bears, wildlife, and other animal-classified rigs from attempting badly aligned humanoid animations. Disable expanded targets for the native humanoid restriction, remove a family name to allow it, or clear the list to allow every expanded target. The setting description lists all known game abstract families for reference.
+
+KBM Executions suppress the selected execution asset's slow-motion flag only during their scoped start and restore its exact original value immediately afterward. KBM does not add visual or audio slow motion. Ordinary automatic kill cams remain untouched and retain the game's native slow motion and audio.
 
 These settings do not alter the separate hold-interact story execution used for important unconscious NPCs. Disable automatic combat finishers and set combat execution mode to Off to remove combat finisher animations while leaving those story executions intact.
 
-When [b]Diagnostics[/b] is enabled, throttled per-target log entries identify health and safety rejections, missing execution lists, native animation-selection failures, the native activation delay, and successful Execute-prompt availability.
+When [b]Diagnostics[/b] is enabled, throttled per-target log entries identify selected-weapon proficiency and its calculated health threshold, health and safety rejections, missing execution lists, native animation-selection failures, the native activation delay, and successful Execute-prompt availability.
 
 [line]
 
@@ -259,6 +280,8 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
+FoA Mod Manager organizes the controls into focused General, Combat Finishers, Weapon Skills, Notifications, Reward Audio, Advanced Audio Routing, Advanced, and Diagnostics sections. These display groups and clearer labels do not move the underlying config keys or reset customized values.
+
 [line]
 
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
@@ -285,5 +308,5 @@ BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It is also optional but required for the default shared reward text route.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] makes the current grip select the One-Handed or Two-Handed killing-blow bonus, notification skill, weapon-family icon, and finisher sound. Native weapon proficiency remains the fallback without the integration.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] makes the current grip select the One-Handed or Two-Handed Execution progression, killing-blow bonus, notification skill, weapon-family icon, and finisher sound. Native weapon proficiency remains the fallback without the integration.[/*]
 [/list]

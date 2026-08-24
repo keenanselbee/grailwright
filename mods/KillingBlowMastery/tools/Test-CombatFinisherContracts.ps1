@@ -6,19 +6,68 @@ $ErrorActionPreference = "Stop"
 
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -LiteralPath (Join-Path $modRoot "src\KillingBlowMastery.cs") -Raw
+foreach ($removedAsset in @("audio\slowmo.wav", "audio\slowmo.pkf")) {
+    if (Test-Path -LiteralPath (Join-Path $modRoot $removedAsset)) {
+        throw "Removed Execution slow-motion asset returned: $removedAsset"
+    }
+}
 $contracts = @(
     '"AutomaticCombatFinishersEnabled",',
     '"CombatExecutionMode",',
     'CombatExecutionModeVanilla,',
-    'CombatExecutionModeGloryKill,',
+    'CombatExecutionModeExecution,',
     'CombatExecutionModeOff))',
-    '"GloryKillHealthPercent",',
-    '15.0f,',
+    '"ExecutionMinimumProficiency",',
+    '25,',
+    'new AcceptableValueRange<int>(0, 100)',
+    '"ExecutionHealthPercentAtUnlock",',
+    '10.0f,',
+    '"ExecutionHealthPercentAtMastery",',
+    '25.0f,',
     'new AcceptableValueRange<float>(1.0f, 30.0f)',
-    '"ExpandedGloryKillTargets",',
-    'false,',
+    '"ExpandedExecutionTargets",',
+    '"ExpandedExecutionExcludedAbstracts",',
+    'DefaultExpandedExecutionExcludedAbstracts =',
+    '"Animal;Animal_Prey";',
+    'KnownExecutionTargetAbstracts =',
+    'Animal, Animal_Prey, Bandit, BigHumanoid, Bloody, BoneMask, Boss,',
+    'ChallengeModeSpawn, Cultist, DalRiataBody, Female, Foredweller,',
+    'Ghost, Giant, Human, Humanoid, Male, MiniBoss, Monster,',
+    'ReefboundBody, Scourge, Skeleton, Summon, Tainted, WyrdnessBound, Zombie',
+    'string displaySection = GetConfigDisplaySection(section, key);',
+    'GetConfigDisplayName(key)',
+    'return "Combat Finishers";',
+    'return "Reward Audio";',
+    'return "Advanced Audio Routing";',
+    'return "Automatic Kill-Cam Animations";',
+    'return "Combat Execution Mode";',
+    'return "Execution Unlock Proficiency";',
+    'return "Health Threshold at Unlock (%)";',
+    'return "Health Threshold at Mastery (%)";',
+    'return "Expand Target Types";',
+    'return "Excluded Target Families";',
+    'return "Sound Distance Fade";',
+    'Known families (26): ',
+    'Use GrailFloatingText, GameHud, Both, or Off.',
     '"TryTriggerFinisherBeforeAttack"',
     '"CanBeTriggered"',
+    'PatchExecutionFinisherStart(executionActionType);',
+    'AccessTools.Method(executionActionType, "OnStart")',
+    'private static class ExecutionFinisherStartPatch',
+    'private static class ExecutionFinisherLifecyclePatch',
+    'FinisherStateTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.States.Overrides.FinisherState"',
+    'AccessTools.Method(finisherStateType, "OnFinisherStarted")',
+    'AccessTools.Method(finisherStateType, "OnExit")',
+    'object cachedData = GetOptionalFieldValue(',
+    '"_cachedData")',
+    'AccessTools.Field(',
+    '"slowDownTime")',
+    'state.DisableSlowDownTime();',
+    'Execution FinisherStarted:',
+    'Execution FinisherEnded/OnExit:',
+    'Execution Finisher still active:',
+    'private void Update()',
+    'ReportActiveExecutionFinisherLifecycle();',
     'AccessTools.PropertyGetter(executionActionType, "DefaultActionName")',
     '__result = "Execute";',
     'GetBoolProperty(npcAi, "InCombat", false)',
@@ -26,8 +75,8 @@ $contracts = @(
     'GetBoolProperty(npc, "IsUnconscious", false)',
     'GetBoolProperty(npc, "IsInRagdoll", false)',
     'GetBoolProperty(npc, "CanUseExternalCustomDeath", false)',
-    'healthPercent > _gloryKillHealthPercent.Value',
-    'Instance._gloryKillHealthPercent.Value / 100.0f',
+    'healthPercent > maximumExecutionHealthPercent',
+    'Instance.GetExecutionMaximumHealthPercent() / 100.0f',
     'CacheAutomaticFinisherFallbackAccessor(finisherHandlingType);',
     '"AttackTriesToStart"',
     '"FinishersList"',
@@ -38,15 +87,20 @@ $contracts = @(
     'cachedDamageField.SetValue(executionAction, arguments[4]);',
     '"targetAbstracts"',
     'if (expandedTargets)',
+    'IsExpandedExecutionTargetAllowed(',
+    'GetExpandedExecutionExcludedAbstracts();',
+    'NormalizeExecutionAbstractName(',
+    '"excluded abstract family "',
     'hasToBeStaggered',
     'hasToBeUnconscious',
     'hasToBeRagdolled',
     'requiredState',
     'public static Exception Finalizer(',
     '__state.Restore();',
-    'GloryKillDiagnosticRepeatSeconds = 3.0f',
-    'GloryKill eligibility: target=',
+    'ExecutionDiagnosticRepeatSeconds = 3.0f',
+    'Execution eligibility: target=',
     'blocked: health=',
+    'blocked: expanded Execution ',
     'blocked: target disallows external custom-death animations',
     'blocked: target NpcAI was not in combat',
     'blocked: equipped melee weapon had no loaded execution or normal finisher list',
@@ -55,27 +109,39 @@ $contracts = @(
     'DescribeAnimationReadiness()',
     'completed-null=',
     'waiting for the native 0.6-second activation delay',
-    'string availableSource = state != null',
-    '"available: "',
-    '+ availableSource',
-    '+ " accepted; Execute prompt should be visible; "',
+    'TryValidateExecutionProgression(',
+    'GetExecutionProficiencyLevel(',
+    'GetExecutionHealthPercent(',
+    'GetExecutionMaximumHealthPercent()',
+    'ClearExecutionCandidate(executionAction);',
+    '"_activationTime"',
+    'ref bool __result,',
+    'ref __result,',
     'CustomDeathAnimationTypeName = "Awaken.TG.Main.AI.Combat.CustomDeath.CustomDeathAnimation"',
     'AccessTools.Method(customDeathAnimationType, "CheckConditions")',
     'FinishersListTypeName = "Awaken.TG.Main.Fights.Finishers.FinishersList"',
     'AccessTools.Method(finishersListType, "CheckGlobalConditions")',
-    'private static class GloryKillGlobalConditionsPatch',
+    'AccessTools.Method(finishersListType, "CheckDefaultHpCondition")',
+    'private static class ExecutionGlobalConditionsPatch',
     'state.RecordGlobalConditionsBypass(__instance);',
+    'private static class ExecutionDefaultHpConditionPatch',
     'FinisherDataTypeName = "Awaken.TG.Main.Fights.Finishers.FinisherData"',
-    'private static class GloryKillFinisherDataConditionsPatch',
+    'private static class ExecutionFinisherDataConditionsPatch',
     'state.RecordCandidateConditionResult(__result);',
     'global-bypassed-lists=',
     'candidate-checks=',
     'candidate-accepted=',
     'candidate-rejected=',
-    'private static GloryKillEvaluationState _activeGloryKillEvaluation;',
+    'private static ExecutionEvaluationState _activeExecutionEvaluation;',
     'preparedState.Activate();',
-    'private static class GloryKillAnimationConditionsPatch',
-    'if (_activeGloryKillEvaluation == null)'
+    'private static class ExecutionAnimationConditionsPatch',
+    'if (_activeExecutionEvaluation == null)',
+    '"General\nCombatExecutionMode"',
+    '"General\nExecutionMinimumProficiency"',
+    '"General\nExecutionHealthPercentAtUnlock"',
+    '"General\nExecutionHealthPercentAtMastery"',
+    '"General\nExpandedExecutionTargets"',
+    '"General\nExpandedExecutionExcludedAbstracts"'
 )
 
 foreach ($contract in $contracts) {
@@ -84,12 +150,108 @@ foreach ($contract in $contracts) {
     }
 }
 
+if ($source -notmatch '_combatExecutionMode\s*=\s*BindOrdered\s*\(\s*"General"\s*,\s*"CombatExecutionMode"\s*,\s*CombatExecutionModeExecution\s*,') {
+    throw "Execution must remain the default combat execution mode."
+}
+
+if ($source -notmatch '_expandedExecutionTargets\s*=\s*BindOrdered\s*\(\s*"General"\s*,\s*"ExpandedExecutionTargets"\s*,\s*true\s*,') {
+    throw "Expanded enemy selection must remain enabled by default."
+}
+
+if ($source -notmatch 'hpValueField\.SetValue\s*\(\s*healthCondition\s*,\s*Instance\.GetExecutionMaximumHealthPercent\(\)\s*/\s*100\.0f\s*\);') {
+    throw "Execution health conditions must receive the normalized mastery ceiling."
+}
+
+if ($source -notmatch '\(proficiencyLevel\s*-\s*minimumProficiency\)\s*/\s*\(100\.0f\s*-\s*minimumProficiency\)') {
+    throw "Execution health progression must interpolate from the unlock proficiency through 100."
+}
+
+if ($source -notmatch 'return\s+healthPercent\s*>\s*0\.0f\s*&&\s*healthPercent\s*<=\s*threshold;') {
+    throw "The selected weapon proficiency threshold must gate final Execution availability."
+}
+
+$expectedThresholds = @{
+    25 = 10.0
+    50 = 15.0
+    75 = 20.0
+    100 = 25.0
+}
+foreach ($entry in $expectedThresholds.GetEnumerator()) {
+    $progress = ($entry.Key - 25) / 75.0
+    $threshold = 10.0 + (25.0 - 10.0) * $progress
+    if ([Math]::Abs($threshold - $entry.Value) -gt 0.001) {
+        throw "Execution progression table drifted at proficiency $($entry.Key)."
+    }
+}
+
+if ($source -notmatch 'private\s+static\s+class\s+ExecutionDefaultHpConditionPatch\s*\{\s*public\s+static\s+bool\s+Prefix\s*\(\s*ref\s+bool\s+__result\s*\)\s*\{\s*if\s*\(\s*_activeExecutionEvaluation\s*==\s*null\s*\)\s*\{\s*return\s+true;\s*\}\s*__result\s*=\s*true;\s*return\s+false;') {
+    throw "Execution default-health bypass must remain scoped to active Execution evaluation."
+}
+
+if ($source -notmatch 'private\s+ExecutionFinisherStartState\s+BeginExecutionFinisherStart\s*\(\s*object\s+executionAction\s*\)\s*\{\s*if\s*\(\s*!_enabled\.Value\s*\|\|\s*!string\.Equals\s*\(\s*GetCombatExecutionMode\s*\(\s*\)\s*,\s*CombatExecutionModeExecution') {
+    throw "Execution slow-motion suppression must remain scoped to enabled Execution interaction starts."
+}
+
+if ($source -notmatch 'if\s*\(\s*state\.HasSlowDownTimeField\s*\)\s*\{\s*state\.DisableSlowDownTime\s*\(\s*\);\s*\}') {
+    throw "Every KBM Execution must temporarily disable only its selected cached finisher asset's native slow-motion flag."
+}
+
+if ($source -notmatch '_slowDownTimeField\.SetValue\s*\(\s*_cachedData\s*,\s*false\s*\);' -or $source -notmatch '_slowDownTimeField\.SetValue\s*\(\s*_cachedData\s*,\s*OriginalSlowDownTime\.Value\s*\);') {
+    throw "Execution slowDownTime must be suppressed and restored to its exact original value."
+}
+
+if ($source -notmatch 'public\s+static\s+void\s+Postfix\s*\(\s*ExecutionFinisherStartState\s+__state\s*\)' -or $source -notmatch 'public\s+static\s+Exception\s+Finalizer\s*\(\s*Exception\s+__exception\s*,\s*ExecutionFinisherStartState\s+__state\s*\)') {
+    throw "Execution slowDownTime restoration must run through both postfix and finalizer paths."
+}
+
+if ($source -notmatch 'if\s*\(\s*_restored\s*\)\s*\{\s*return;\s*\}') {
+    throw "Execution temporary slowDownTime restoration must be idempotent."
+}
+
+if ($source -notmatch '_expandedExecutionTargets\.Value\s*\)\s*\{\s*string\s+exclusionReason;\s*if\s*\(\s*!IsExpandedExecutionTargetAllowed\s*\(\s*npc\s*,\s*out\s+exclusionReason\s*\)\s*\)') {
+    throw "Expanded Execution targets must pass the abstract-family exclusion gate before finisher conditions are modified."
+}
+
+if ($source -notmatch 'base\.Config\.Bind\s*\(\s*section\s*,\s*key\s*,\s*defaultValue\s*,\s*Grailwright\.Shared\.ConfigUiDescription\.Create\s*\(\s*description\.Description\s*,\s*displaySection') {
+    throw "FoA Mod Manager display sections must remain metadata-only while Config.Bind retains the original storage section and key."
+}
+
+if ($source -match 'new\s+AcceptableValueList<string>\s*\(\s*"GrailFloatingText"\s*,\s*"GameHud"') {
+    throw "NotificationMode must retain free-text compatibility with its supported legacy aliases unless a schema reset is introduced."
+}
+
+if ($source -notmatch 'string\.Equals\s*\(\s*abstractName\s*,\s*excludedAbstracts\[i\]\s*,\s*StringComparison\.OrdinalIgnoreCase\s*\)' -or $source -notmatch 'release\.Invoke\s*\(\s*pooledAbstracts\s*,\s*null\s*\)') {
+    throw "Expanded target abstract exclusions must use exact case-insensitive inherited-family matching and release the game's pooled list."
+}
+
+$removedSlowMotionContracts = @(
+    'GloryKill',
+    'Glory Kill',
+    '"ExecutionSlowMotion"',
+    'DirectTimeMultiplier',
+    'ExecutionCinematic',
+    'FmodTimeScaleParameterName',
+    'ExecutionSlowMotionCue',
+    'slowmo.wav',
+    'GetRewardSoundCinematicPitchMultiplier',
+    'UpdateActiveRewardSoundSlowMotionPitch'
+)
+foreach ($removed in $removedSlowMotionContracts) {
+    if ($source.IndexOf($removed, [StringComparison]::Ordinal) -ge 0) {
+        throw "Removed KBM Execution slow-motion code returned: $removed"
+    }
+}
+
+if ($source -match 'Time\.timeScale\s*=') {
+    throw "Killing Blow Mastery must not assign Time.timeScale directly."
+}
+
 if ($source.IndexOf('KillUnconsciousAction', [StringComparison]::Ordinal) -ge 0) {
     throw "Combat finisher controls must not patch or reference the story KillUnconsciousAction."
 }
 
-if ($source.IndexOf('private const int ConfigSchemaVersion = 15;', [StringComparison]::Ordinal) -lt 0) {
-    throw "Adding combat finisher settings must not advance the config schema."
+if ($source.IndexOf('private const int ConfigSchemaVersion = 19;', [StringComparison]::Ordinal) -lt 0) {
+    throw "The new Execution and expanded-target defaults require schema 19."
 }
 
 Write-Output "Killing Blow Mastery combat finisher contracts passed."

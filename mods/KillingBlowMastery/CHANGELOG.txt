@@ -1,3 +1,58 @@
+Version 1.9.3
+Made proficiency-scaled Execution mode the default combat execution behavior.
+Enabled expanded enemy selection by default while retaining Animal and Animal_Prey safety exclusions.
+Advanced ConfigSchemaVersion from 18 to 19 because CombatExecutionMode and ExpandedExecutionTargets received materially different defaults; values matching the previous defaults regenerate with the new defaults while non-default customizations remain conservatively recoverable.
+
+Version 1.9.1
+Renamed the former GloryKill mode and all current player-facing controls, diagnostics, and implementation surfaces to Executions.
+Added weapon-proficiency progression: Executions unlock at proficiency 25 with a 10% health window, then scale linearly through 15% at 50, 20% at 75, and 25% at 100.
+Execution eligibility now follows the weapon that supplies the selected main-hand, off-hand, or normal-finisher fallback animation, including Versatile Weapons' effective grip proficiency.
+Progression-blocked candidates now clear their cached animation and activation delay so another equipped weapon cannot authorize an Execution.
+Advanced ConfigSchemaVersion from 17 to 18 because the combat mode value and expanded-target settings were renamed and the fixed GloryKillHealthPercent setting was replaced by three Execution progression settings; affected controls regenerate with the new defaults.
+Promoted weapon-mastery Executions to a central feature throughout the Nexus page, short description, and file description.
+
+Version 1.8.4
+Reorganized FoA Mod Manager settings into focused General, Combat Finishers, Reward Audio, and Advanced Audio Routing display sections without moving stored config keys or changing ConfigSchemaVersion.
+Clarified GloryKill dependencies, the distinction between automatic kill cams and the interactive Execute prompt, expanded-target rig risks, GoatTest's purpose, and sound distance fade behavior.
+Added concise player-facing labels for the longest or least intuitive setting names while retaining their existing config identities.
+Clarified the canonical GrailFloatingText, GameHud, Both, and Off NotificationMode values while retaining compatibility with existing aliases.
+
+Version 1.8.3
+Removed all configurable KBM GloryKill visual slow motion, FMOD TimeScale mixing, award-sound slowdown, custom slow-motion cue playback, and the slowmo.wav asset.
+KBM GloryKills now temporarily suppress only the selected execution asset's native slow-motion flag and restore its exact original value, while ordinary automatic kill cams retain the game's native slow motion and audio.
+Added ExpandedGloryKillExcludedAbstracts with Animal and Animal_Prey defaults, exact inherited-family matching, safe classification failure handling, and all 26 known abstract names in the setting description.
+Expanded diagnostics now identify the matched excluded abstract family or a target-classification inspection failure.
+Advanced ConfigSchemaVersion from 16 to 17 because the obsolete slow-motion settings were removed; combat-finisher mode, GloryKill threshold, expanded-target controls, and existing approved durable settings remain conservatively recoverable.
+
+Version 1.8.2
+Changed the default Cinematic game-mix and award-sound audio curve to start at 0.5x and smoothly return to normal over 1.5 real-time seconds.
+Added an optional included slowmo.wav cue for Cinematic GloryKills, enabled by default at 0.75 volume with independently configurable subtle pitch variation.
+The slow-motion cue now uses its own four-second smooth volume fade so its tail can finish after the visual slow-motion modifier is safely removed.
+Expanded Cinematic diagnostics with the cue's active state, live volume, pitch multiplier, and start/stop lifecycle.
+Advanced ConfigSchemaVersion from 15 to 16 because the existing GloryKillSlowMotionAudioScale default changed from 0.35 to 0.5; untouched old configs regenerate with the new default while customized durable settings remain conservatively recoverable.
+
+Version 1.8.1
+Restricted Cinematic pitch updates to each tracked award channel's original FMOD sound so recycled channel handles cannot affect unrelated audio.
+
+Version 1.8.0
+Added toggleable GameMix audio for Cinematic GloryKills through the game's native FMOD TimeScale parameter, with an independent 0.35x audio-scale control.
+Synchronized the native game mix and KBM award sounds to the existing real-time hold and smooth fade curve.
+KBM award sounds now retain their randomized base pitch, apply the Cinematic audio multiplier while active, and restore that exact base pitch during cleanup.
+Expanded Cinematic diagnostics with the base game scale, owned visual and audio scales, requested FMOD scale, observed FMOD value/final value, and active reward-channel count.
+
+Version 1.7.9
+Added Cinematic GloryKill slow motion with full-scene defaults of 0.35x for 0.8 real-time seconds, followed by a 1.2-second smooth fade to normal speed.
+Added configurable Cinematic scale, hold, and fade controls while retaining Off as the default and Native for comparison.
+KBM now owns and removes its exact Cinematic time modifier after the curve, a replacement GloryKill, scene transition, plugin shutdown, or start failure.
+Expanded Cinematic diagnostics with configuration, phase, owned scale, observed time scale, and cleanup reason.
+
+Version 1.7.8
+Added optional GloryKill slow motion controls: Off is the default to avoid persistent native slowdown, while Native keeps the selected finisher animation's built-in slow motion.
+Added GloryKill finisher lifecycle diagnostics for selected slow-motion mode, native start and exit time scale, elapsed duration, and a throttled still-active signal when cleanup does not occur.
+
+Version 1.7.7
+Bypassed the native default-health rejection only during KBM's scoped GloryKill evaluation after its explicit health threshold and safety checks pass.
+
 Version 1.7.5
 Bypassed the game's remaining list-level finisher filters only during KBM's scoped GloryKill evaluation after its explicit health and safety checks pass.
 Expanded GloryKill diagnostics with bypassed-list and accepted or rejected per-candidate condition counts.

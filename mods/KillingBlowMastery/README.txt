@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.7.5
+Version 1.9.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -11,7 +11,7 @@ when rewards are awarded.
 
 Full Nexus name:
 
-Killing Blow Mastery - Finisher Sounds and Proficiency XP
+Killing Blow Mastery - Weapon Executions, Finisher Sounds, and Proficiency XP
 
 The goal is to make side-skill training less tedious without replacing normal
 combat progression. You can do most of the work with your main weapon, swap for
@@ -22,20 +22,27 @@ Configuration is created at:
 BepInEx/config/ks.tgfoa.killing-blow-mastery.cfg
 
 Killing Blow Mastery starts from a clean plugin identity and uses
-ConfigSchemaVersion 15. Older KS Killing Blow configs are ignored. Future
-schema resets preserve finisher distance fade, reward volume and pitch,
+ConfigSchemaVersion 19. Older KS Killing Blow configs are ignored. Schema 19
+makes proficiency-scaled Executions and expanded enemy selection the defaults.
+The earlier schema reset renamed the previous execution controls and replaced
+the fixed health threshold with weapon-proficiency progression. Future schema
+resets preserve the new Execution progression settings, combat-finisher mode,
+expanded target controls, finisher distance fade, reward volume and pitch,
 notification format, and bloodless whitelist terms by exact current setting
-name. Numeric values are clamped to their
-current supported ranges and invalid values are skipped.
+name. Numeric values are clamped to their current supported ranges and invalid
+values are skipped.
 
 Default behavior:
 
 Enabled = true
-ConfigSchemaVersion = 15
+ConfigSchemaVersion = 19
 AutomaticCombatFinishersEnabled = true
-CombatExecutionMode = Vanilla
-GloryKillHealthPercent = 15
-ExpandedGloryKillTargets = false
+CombatExecutionMode = Execution
+ExecutionMinimumProficiency = 25
+ExecutionHealthPercentAtUnlock = 10
+ExecutionHealthPercentAtMastery = 25
+ExpandedExecutionTargets = true
+ExpandedExecutionExcludedAbstracts = Animal;Animal_Prey
 FinisherSoundMode = WeaponSpecific
 FinisherSoundRangeVolume = 1
 BonusPercentOfEnemyXP = 4
@@ -61,8 +68,14 @@ RecentSoundMemory = 2
 RandomPitchSemitones = 0.35
 
 FoA Mod Manager section order:
-General, Weapon Skills, Notifications, Audio, Advanced, Diagnostics, and the
-final Import Previous Settings section.
+General, Combat Finishers, Weapon Skills, Notifications, Reward Audio, Advanced
+Audio Routing, Advanced, Diagnostics, and the final Import Previous Settings
+section. These player-facing groups do not change the underlying config keys or
+their stored sections.
+
+The Mod Manager uses shorter labels for the longest settings. Hover descriptions
+state when Execution-only controls apply and distinguish Sound Distance Fade from
+the separate Reward Sound Volume control.
 
 Eligible combat skills:
 
@@ -95,27 +108,55 @@ CombatExecutionMode controls only the combat interaction attached to a living
 enemy:
 
 Vanilla -> keep the game's normal combat execution rules.
-GloryKill -> show Execute when an eligible hostile combatant is at or below the
-configured health threshold and the hero is close enough with a melee weapon.
+Execution -> default; unlock Execute through the selected melee weapon's
+proficiency, then expand its low-health window as that proficiency rises.
 Off -> remove the combat Execute interaction.
 
-GloryKillHealthPercent defaults to 15. The prompt uses current health as a
-percentage of maximum health. The game's normal distance, external-death, and
-kill-prevention checks still apply. Eligible GloryKills use the game's existing
-finisher animations and still produce normal killing-blow rewards.
+Executions unlock at 25 proficiency with the weapon that supplies the selected
+animation. Their health window then grows linearly from 10% at proficiency 25
+to 25% at proficiency 100:
 
-In GloryKill mode, KBM first selects from the equipped melee weapon's loaded
+Proficiency below 25 -> Locked
+Proficiency 25 -> 10% health
+Proficiency 50 -> 15% health
+Proficiency 75 -> 20% health
+Proficiency 100 -> 25% health
+
+The prompt uses current health as a percentage of maximum health. The game's
+normal distance, external-death, and kill-prevention checks still apply.
+Eligible Executions use the game's existing finisher animations and still
+produce normal killing-blow rewards.
+
+In Execution mode, KBM first selects from the equipped melee weapon's loaded
 execution animations after its explicit health and safety checks. If that list
 has no playable hero animation, KBM falls back to the weapon's loaded normal
 finisher animations. Situational animation filters such as attack direction,
 stagger state, and random chance do not block the prompt. Loaded animation
 assets are still required, and the native humanoid target-template restriction
-remains unless ExpandedGloryKillTargets is enabled.
+remains unless ExpandedExecutionTargets is enabled.
 
-ExpandedGloryKillTargets is experimental and off by default. The game ships its
-combat execution animations for humanoid targets. Enabling this setting lets
-additional hostile enemy templates try those animations, but unsupported body
-types can align or animate incorrectly.
+The proficiency check follows the weapon the game actually selects, including
+main-hand, off-hand, normal-finisher fallback, and Versatile Weapons' effective
+One-Handed or Two-Handed grip. A different high-level equipped weapon cannot
+authorize a lower-level weapon's Execution.
+
+ExpandedExecutionTargets is on by default. It lets additional hostile enemy
+templates try the game's humanoid execution animations after applying
+ExpandedExecutionExcludedAbstracts. The default exclusions are Animal and
+Animal_Prey, covering wolves, bears, wildlife, and other animal-classified
+creatures whose rigs do not align reliably. Matching is exact and
+case-insensitive. Remove a family name to allow it, or clear the list to allow
+all expanded targets.
+
+The known abstract-family names are Animal, Animal_Prey, Bandit, BigHumanoid,
+Bloody, BoneMask, Boss, ChallengeModeSpawn, Cultist, DalRiataBody, Female,
+Foredweller, Ghost, Giant, Human, Humanoid, Male, MiniBoss, Monster,
+ReefboundBody, Scourge, Skeleton, Summon, Tainted, WyrdnessBound, and Zombie.
+
+KBM Executions suppress the selected execution asset's slow-motion flag only
+for the scoped Execution start, then restore its exact original value. KBM does
+not add visual or audio slow motion. The game's ordinary automatic kill cams
+remain untouched and can use their native slow motion and audio normally.
 
 These controls do not patch the separate hold-interact execution used for
 important unconscious NPCs. To remove all combat finisher animations while
@@ -148,7 +189,7 @@ The mod looks for numbered WAV files beside KillingBlowMastery.dll or inside an
 audio folder beside it. It loads only files that exist, with up to five files per
 pool.
 
-The included runtime WAVs are processed as mono 44.1 kHz 16-bit PCM, with
+The included reward WAVs are processed as mono 44.1 kHz 16-bit PCM, with
 conservative leading-silence trimming and about -3 dB peak headroom.
 
 For audio testing, set FinisherSoundMode = GoatTest. When enabled, every awarded
@@ -294,18 +335,21 @@ custom format if you want the target name shown.
 Diagnostics:
 
 Turn Diagnostics on to log kill source, resolved proficiency, enemy XP, awarded
-bonus, notification route, reward sound pool, and throttled per-target GloryKill
-eligibility decisions. GloryKill diagnostics identify the rejected safety or
-health gate, missing finisher lists, execution and fallback animation-handle
-readiness, the native 0.6-second activation delay, and when the Execute prompt
-should be available.
+bonus, notification route, reward sound pool, and throttled per-target Execution
+eligibility decisions. Execution diagnostics identify the rejected safety or
+health gate, selected weapon proficiency, calculated health threshold, missing
+finisher lists, execution and fallback animation-handle readiness, the native
+0.6-second activation delay, and when the Execute prompt should be available.
+Expanded-target rejections identify the exact excluded abstract family or a
+target-classification inspection failure.
 
 Compatibility:
 
 Versatile Weapons 0.3.0+ is an optional soft integration. Its current grip
-selects the One-Handed or Two-Handed killing-blow bonus, notification skill,
-weapon-family icon, and finisher sound pool. Native weapon proficiency remains
-the fallback when Versatile Weapons is absent, disabled, or unavailable.
+selects the One-Handed or Two-Handed Execution progression, killing-blow bonus,
+notification skill, weapon-family icon, and finisher sound pool. Native weapon
+proficiency remains the fallback when Versatile Weapons is absent, disabled, or
+unavailable.
 
 Build:
 

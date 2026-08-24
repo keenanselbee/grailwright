@@ -17,9 +17,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.7.5.0")]
-[assembly: AssemblyFileVersion("1.7.5.0")]
-[assembly: AssemblyInformationalVersion("1.7.5")]
+[assembly: AssemblyVersion("1.9.3.0")]
+[assembly: AssemblyFileVersion("1.9.3.0")]
+[assembly: AssemblyInformationalVersion("1.9.3")]
 
 namespace KillingBlowMastery
 {
@@ -30,7 +30,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.7.5";
+        public const string PluginVersion = "1.9.3";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -46,6 +46,7 @@ namespace KillingBlowMastery
         private const string ProfStatTypeName = "Awaken.TG.Main.General.StatTypes.ProfStatType";
         private const string FinisherHandlingElementTypeName = "Awaken.TG.Main.Heroes.FinisherHandlingElement";
         private const string FinisherExecutionActionTypeName = "Awaken.TG.Main.Heroes.FinisherExecutionAction";
+        private const string FinisherStateTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.States.Overrides.FinisherState";
         private const string FinishersListTypeName = "Awaken.TG.Main.Fights.Finishers.FinishersList";
         private const string FinisherDataTypeName = "Awaken.TG.Main.Fights.Finishers.FinisherData";
         private const string CustomDeathAnimationTypeName = "Awaken.TG.Main.AI.Combat.CustomDeath.CustomDeathAnimation";
@@ -104,13 +105,21 @@ namespace KillingBlowMastery
         private const string FinisherSoundModeGoatTest = "GoatTest";
         private const string FinisherSoundModeOff = "Off";
         private const string CombatExecutionModeVanilla = "Vanilla";
-        private const string CombatExecutionModeGloryKill = "GloryKill";
+        private const string CombatExecutionModeExecution = "Execution";
         private const string CombatExecutionModeOff = "Off";
-        private const float GloryKillDiagnosticRepeatSeconds = 3.0f;
+        private const string DefaultExpandedExecutionExcludedAbstracts =
+            "Animal;Animal_Prey";
+        private const string KnownExecutionTargetAbstracts =
+            "Animal, Animal_Prey, Bandit, BigHumanoid, Bloody, BoneMask, Boss, " +
+            "ChallengeModeSpawn, Cultist, DalRiataBody, Female, Foredweller, " +
+            "Ghost, Giant, Human, Humanoid, Male, MiniBoss, Monster, " +
+            "ReefboundBody, Scourge, Skeleton, Summon, Tainted, WyrdnessBound, Zombie";
+        private const float ExecutionDiagnosticRepeatSeconds = 3.0f;
+        private const float ExecutionLifecycleDiagnosticRepeatSeconds = 3.0f;
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
-        private const int ConfigSchemaVersion = 15;
+        private const int ConfigSchemaVersion = 19;
         private const int ConfigRecoveryBaselineSchema = 13;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -121,7 +130,9 @@ namespace KillingBlowMastery
         internal static KillingBlowMasteryPlugin Instance;
         internal static ManualLogSource Log;
         [ThreadStatic]
-        private static GloryKillEvaluationState _activeGloryKillEvaluation;
+        private static ExecutionEvaluationState _activeExecutionEvaluation;
+        [ThreadStatic]
+        private static ExecutionFinisherStartState _activeExecutionFinisherStart;
 
         private Harmony _harmony;
         private Type _npcElementType;
@@ -152,8 +163,11 @@ namespace KillingBlowMastery
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<bool> _automaticCombatFinishersEnabled;
         private ConfigEntry<string> _combatExecutionMode;
-        private ConfigEntry<float> _gloryKillHealthPercent;
-        private ConfigEntry<bool> _expandedGloryKillTargets;
+        private ConfigEntry<int> _executionMinimumProficiency;
+        private ConfigEntry<float> _executionHealthPercentAtUnlock;
+        private ConfigEntry<float> _executionHealthPercentAtMastery;
+        private ConfigEntry<bool> _expandedExecutionTargets;
+        private ConfigEntry<string> _expandedExecutionExcludedAbstracts;
         private ConfigEntry<float> _bonusPercentOfEnemyXp;
         private ConfigEntry<float> _minimumBonusXp;
         private ConfigEntry<float> _maximumBonusXp;
@@ -204,9 +218,10 @@ namespace KillingBlowMastery
         private bool _grailFloatingTextUnavailableLogged;
         private bool _versatileWeaponsBridgeResolved;
         private bool _versatileWeaponsBridgeFailureLogged;
-        private object _lastGloryKillDiagnosticTarget;
-        private string _lastGloryKillDiagnosticStatus;
-        private float _lastGloryKillDiagnosticTime = -9999.0f;
+        private object _lastExecutionDiagnosticTarget;
+        private string _lastExecutionDiagnosticStatus;
+        private float _lastExecutionDiagnosticTime = -9999.0f;
+        private ExecutionFinisherLifecycleState _activeExecutionFinisher;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
         private string[] _cachedBloodlessSoundBlacklistTerms = new string[0];
@@ -216,10 +231,16 @@ namespace KillingBlowMastery
         private string[] _cachedNonCorporealSoundTerms = new string[0];
         private string _cachedNonCorporealSoundExclusionTermsRaw;
         private string[] _cachedNonCorporealSoundExclusionTerms = new string[0];
+        private string _cachedExpandedExecutionExcludedAbstractsRaw;
+        private string[] _cachedExpandedExecutionExcludedAbstracts = new string[0];
         private readonly Dictionary<string, float> _pendingPreservedCalibrationFloats =
             new Dictionary<string, float>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _pendingPreservedManualOverrides =
             new Dictionary<string, string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, bool> _pendingPreservedBoolOverrides =
+            new Dictionary<string, bool>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _pendingPreservedIntOverrides =
+            new Dictionary<string, int>(StringComparer.Ordinal);
         private int _pendingPreservedInvalidValueCount;
 
         private void Awake()
@@ -274,6 +295,11 @@ namespace KillingBlowMastery
             }
         }
 
+        private void Update()
+        {
+            ReportActiveExecutionFinisherLifecycle();
+        }
+
         private ConfigEntry<T> BindOrdered<T>(
             string section,
             string key,
@@ -301,12 +327,13 @@ namespace KillingBlowMastery
                 return base.Config.Bind(section, key, defaultValue, description);
             }
 
+            string displaySection = GetConfigDisplaySection(section, key);
             int order;
-            if (!_configSettingOrders.TryGetValue(section, out order))
+            if (!_configSettingOrders.TryGetValue(displaySection, out order))
             {
                 order = 0;
             }
-            _configSettingOrders[section] = order + 10;
+            _configSettingOrders[displaySection] = order + 10;
 
             return base.Config.Bind(
                 section,
@@ -314,11 +341,77 @@ namespace KillingBlowMastery
                 defaultValue,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     description.Description,
-                    section,
-                    HumanizeConfigKey(key),
-                    GetConfigSectionOrder(section),
+                    displaySection,
+                    GetConfigDisplayName(key),
+                    GetConfigSectionOrder(displaySection),
                     order,
                     description.AcceptableValues));
+        }
+
+        private static string GetConfigDisplaySection(
+            string storageSection,
+            string key)
+        {
+            switch (key)
+            {
+                case "AutomaticCombatFinishersEnabled":
+                case "CombatExecutionMode":
+                case "ExecutionMinimumProficiency":
+                case "ExecutionHealthPercentAtUnlock":
+                case "ExecutionHealthPercentAtMastery":
+                case "ExpandedExecutionTargets":
+                case "ExpandedExecutionExcludedAbstracts":
+                    return "Combat Finishers";
+                case "FinisherSoundMode":
+                case "FinisherSoundRangeVolume":
+                    return "Reward Audio";
+                case "UseKillingBlowFallbackForClassifiedKills":
+                case "UseNonCorporealEnemySounds":
+                case "NonCorporealSoundTerms":
+                case "NonCorporealSoundExclusionTerms":
+                case "UseBloodlessSoundVariants":
+                case "BloodlessSoundBlacklistTerms":
+                case "BloodlessSoundWhitelistTerms":
+                    return "Advanced Audio Routing";
+            }
+
+            return string.Equals(
+                    storageSection,
+                    "Audio",
+                    StringComparison.Ordinal)
+                ? "Reward Audio"
+                : storageSection;
+        }
+
+        private static string GetConfigDisplayName(string key)
+        {
+            switch (key)
+            {
+                case "AutomaticCombatFinishersEnabled":
+                    return "Automatic Kill-Cam Animations";
+                case "CombatExecutionMode":
+                    return "Combat Execution Mode";
+                case "ExecutionMinimumProficiency":
+                    return "Execution Unlock Proficiency";
+                case "ExecutionHealthPercentAtUnlock":
+                    return "Health Threshold at Unlock (%)";
+                case "ExecutionHealthPercentAtMastery":
+                    return "Health Threshold at Mastery (%)";
+                case "ExpandedExecutionTargets":
+                    return "Expand Target Types";
+                case "ExpandedExecutionExcludedAbstracts":
+                    return "Excluded Target Families";
+                case "FinisherSoundMode":
+                    return "Sound Style";
+                case "FinisherSoundRangeVolume":
+                    return "Sound Distance Fade";
+                case "BonusPercentOfEnemyXP":
+                    return "Bonus XP (% of Enemy XP)";
+                case "RandomPitchSemitones":
+                    return "Pitch Variation (Semitones)";
+                default:
+                    return HumanizeConfigKey(key);
+            }
         }
 
         private static int GetConfigSectionOrder(string section)
@@ -327,14 +420,18 @@ namespace KillingBlowMastery
             {
                 case "General":
                     return 0;
-                case "Weapon Skills":
+                case "Combat Finishers":
                     return 10;
-                case "Notifications":
+                case "Weapon Skills":
                     return 20;
-                case "Audio":
+                case "Notifications":
                     return 30;
-                case "Advanced":
+                case "Reward Audio":
                     return 40;
+                case "Advanced Audio Routing":
+                    return 50;
+                case "Advanced":
+                    return 60;
                 case "Diagnostics":
                     return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
                 default:
@@ -380,35 +477,56 @@ namespace KillingBlowMastery
                 "General",
                 "AutomaticCombatFinishersEnabled",
                 true,
-                "Allow the game's automatic killing-blow animations during normal melee attacks. Disable this and set CombatExecutionMode to Off to remove all combat finishers without affecting story executions.");
+                "Allow the game's automatic kill-cam animations after normal melee killing blows. This is independent of Combat Execution Mode. Disable both controls to remove combat finishers without affecting story executions.");
             _combatExecutionMode = BindOrdered(
                 "General",
                 "CombatExecutionMode",
-                CombatExecutionModeVanilla,
+                CombatExecutionModeExecution,
                 new ConfigDescription(
-                    "Combat interaction finishers: Vanilla keeps the game's rules, GloryKill offers Execute against eligible hostile combatants at low health, and Off removes only combat interaction finishers.",
+                    "Controls the interactive Execute prompt: Vanilla keeps the game's rules, Execution offers Execute against eligible hostile combatants at low health, and Off removes only the interactive combat prompt. Automatic kill-cam animations are controlled separately.",
                     new AcceptableValueList<string>(
+                        CombatExecutionModeExecution,
                         CombatExecutionModeVanilla,
-                        CombatExecutionModeGloryKill,
                         CombatExecutionModeOff)));
-            _gloryKillHealthPercent = BindOrdered(
+            _executionMinimumProficiency = BindOrdered(
                 "General",
-                "GloryKillHealthPercent",
-                15.0f,
+                "ExecutionMinimumProficiency",
+                25,
                 new ConfigDescription(
-                    "Current-health threshold for the GloryKill Execute prompt, as a percentage of maximum health.",
-                    new AcceptableValueRange<float>(1.0f, 30.0f)));
-            _expandedGloryKillTargets = BindOrdered(
+                    "Minimum proficiency required with the weapon selected for an Execution. Below this level, the Execute prompt is unavailable.",
+                    new AcceptableValueRange<int>(0, 100)));
+            _executionHealthPercentAtUnlock = BindOrdered(
                 "General",
-                "ExpandedGloryKillTargets",
-                false,
-                "Experimental: try humanoid finisher animations on additional hostile enemy templates. Disabled by default because unsupported skeletons can animate or align incorrectly.");
+                "ExecutionHealthPercentAtUnlock",
+                10.0f,
+                new ConfigDescription(
+                    "Target-health threshold when the selected weapon proficiency first unlocks Executions.",
+                    new AcceptableValueRange<float>(1.0f, 30.0f)));
+            _executionHealthPercentAtMastery = BindOrdered(
+                "General",
+                "ExecutionHealthPercentAtMastery",
+                25.0f,
+                new ConfigDescription(
+                    "Target-health threshold at 100 proficiency. Values below the unlock threshold are clamped up so higher proficiency never reduces the Execution range.",
+                    new AcceptableValueRange<float>(1.0f, 30.0f)));
+            _expandedExecutionTargets = BindOrdered(
+                "General",
+                "ExpandedExecutionTargets",
+                true,
+                "Used only when Combat Execution Mode is Execution. Try humanoid finisher animations on additional hostile enemy templates after applying Excluded Target Families. Non-humanoid rigs may misalign if their family is allowed.");
+            _expandedExecutionExcludedAbstracts = BindOrdered(
+                "General",
+                "ExpandedExecutionExcludedAbstracts",
+                DefaultExpandedExecutionExcludedAbstracts,
+                "Used only when Expand Target Types is enabled. Rejects a target when any inherited abstract family matches this list; matching is exact and case-insensitive. Default: Animal;Animal_Prey. Separate names with semicolons, commas, pipes, or new lines. Remove a name to allow that family, or leave the list empty to exclude none. Known families (26): "
+                    + KnownExecutionTargetAbstracts
+                    + ".");
             _finisherSoundMode = BindOrdered(
                 "General",
                 "FinisherSoundMode",
                 FinisherSoundModeWeaponSpecific,
                 new ConfigDescription(
-                    "Reward sound style: WeaponSpecific, Soulslike, GoatTest, or Off.",
+                    "Reward sound style: WeaponSpecific uses contextual pools, Soulslike uses the shared dramatic pool, GoatTest is a novelty/testing sound, and Off disables reward sounds.",
                     new AcceptableValueList<string>(
                         FinisherSoundModeWeaponSpecific,
                         FinisherSoundModeSoulslike,
@@ -419,7 +537,7 @@ namespace KillingBlowMastery
                 "FinisherSoundRangeVolume",
                 1.0f,
                 new ConfigDescription(
-                    "How strongly finisher sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.",
+                    "How strongly reward sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve. This does not change the base volume.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _bonusPercentOfEnemyXp = BindOrdered(
                 "General",
@@ -468,7 +586,11 @@ namespace KillingBlowMastery
             _notificationsEnabled = BindOrdered("Notifications", "NotificationsEnabled", true, "Show an in-game HUD notification when killing-blow proficiency XP is awarded.");
             _notificationMinimumXp = BindOrdered("Notifications", "NotificationMinimumXP", 1.0f, "Minimum awarded bonus XP required before showing an in-game notification.");
             _notificationTextFormat = BindOrdered("Notifications", "NotificationTextFormat", DefaultNotificationTextFormat, "HUD notification text. Tokens: {xp}, {skill}, {enemy}, {weapon}, {enemyXP}.");
-            _notificationMode = BindOrdered("Notifications", "NotificationMode", "GrailFloatingText", "Notification route: GrailFloatingText, GameHud, Both, or Off.");
+            _notificationMode = BindOrdered(
+                "Notifications",
+                "NotificationMode",
+                "GrailFloatingText",
+                "Where killing-blow reward notifications appear. Use GrailFloatingText, GameHud, Both, or Off.");
             _rewardSoundVolume = BindOrdered(
                 "Audio",
                 "RewardSoundVolume",
@@ -499,7 +621,7 @@ namespace KillingBlowMastery
                 new ConfigDescription(
                     "Random reward-sound pitch variation in semitones. Zero disables pitch randomization.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log kill source, rewards, audio routing, and throttled per-target GloryKill eligibility decisions.");
+            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log kill source, rewards, audio routing, and throttled per-target Execution eligibility decisions.");
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -653,6 +775,30 @@ namespace KillingBlowMastery
                         _pendingPreservedCalibrationFloats[settingId] = parsedValue;
                     }
                 }
+                else if (IsPreservedIntOverride(settingId))
+                {
+                    int preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedIntOverrides[settingId] =
+                            preservedValue;
+                    }
+                }
+                else if (IsPreservedBoolOverride(settingId))
+                {
+                    bool preservedValue;
+                    if (profile.TryGetCustomizedValue(
+                        currentSection,
+                        settingName,
+                        out preservedValue))
+                    {
+                        _pendingPreservedBoolOverrides[settingId] =
+                            preservedValue;
+                    }
+                }
                 else if (IsPreservedManualOverride(settingId))
                 {
                     string preservedValue;
@@ -670,20 +816,40 @@ namespace KillingBlowMastery
 
         private static bool IsPreservedCalibrationFloat(string settingId)
         {
-            return string.Equals(settingId, "General\nFinisherSoundRangeVolume", StringComparison.Ordinal)
+            return string.Equals(settingId, "General\nExecutionHealthPercentAtUnlock", StringComparison.Ordinal)
+                || string.Equals(settingId, "General\nExecutionHealthPercentAtMastery", StringComparison.Ordinal)
+                || string.Equals(settingId, "General\nFinisherSoundRangeVolume", StringComparison.Ordinal)
                 || string.Equals(settingId, "Audio\nRewardSoundVolume", StringComparison.Ordinal)
                 || string.Equals(settingId, "Audio\nRandomPitchSemitones", StringComparison.Ordinal);
         }
 
+        private static bool IsPreservedIntOverride(string settingId)
+        {
+            return string.Equals(
+                settingId,
+                "General\nExecutionMinimumProficiency",
+                StringComparison.Ordinal);
+        }
+
+        private static bool IsPreservedBoolOverride(string settingId)
+        {
+            return string.Equals(settingId, "General\nAutomaticCombatFinishersEnabled", StringComparison.Ordinal)
+                || string.Equals(settingId, "General\nExpandedExecutionTargets", StringComparison.Ordinal);
+        }
+
         private static bool IsPreservedManualOverride(string settingId)
         {
-            return string.Equals(settingId, "Notifications\nNotificationTextFormat", StringComparison.Ordinal)
+            return string.Equals(settingId, "General\nCombatExecutionMode", StringComparison.Ordinal)
+                || string.Equals(settingId, "General\nExpandedExecutionExcludedAbstracts", StringComparison.Ordinal)
+                || string.Equals(settingId, "Notifications\nNotificationTextFormat", StringComparison.Ordinal)
                 || string.Equals(settingId, "Audio\nBloodlessSoundWhitelistTerms", StringComparison.Ordinal);
         }
 
         private void RestorePreservedConfigValues()
         {
             if (_pendingPreservedCalibrationFloats.Count == 0
+                && _pendingPreservedIntOverrides.Count == 0
+                && _pendingPreservedBoolOverrides.Count == 0
                 && _pendingPreservedManualOverrides.Count == 0
                 && _pendingPreservedInvalidValueCount == 0)
             {
@@ -692,9 +858,16 @@ namespace KillingBlowMastery
 
             int restoredCount = 0;
             int clampedCount = 0;
+            RestorePreservedInt("General\nExecutionMinimumProficiency", _executionMinimumProficiency, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("General\nExecutionHealthPercentAtUnlock", _executionHealthPercentAtUnlock, ref restoredCount, ref clampedCount);
+            RestorePreservedFloat("General\nExecutionHealthPercentAtMastery", _executionHealthPercentAtMastery, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("General\nFinisherSoundRangeVolume", _finisherSoundRangeVolume, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nRewardSoundVolume", _rewardSoundVolume, ref restoredCount, ref clampedCount);
             RestorePreservedFloat("Audio\nRandomPitchSemitones", _randomPitchSemitones, ref restoredCount, ref clampedCount);
+            RestorePreservedBool("General\nAutomaticCombatFinishersEnabled", _automaticCombatFinishersEnabled, ref restoredCount);
+            RestorePreservedBool("General\nExpandedExecutionTargets", _expandedExecutionTargets, ref restoredCount);
+            RestorePreservedString("General\nCombatExecutionMode", _combatExecutionMode, ref restoredCount);
+            RestorePreservedString("General\nExpandedExecutionExcludedAbstracts", _expandedExecutionExcludedAbstracts, ref restoredCount);
             RestorePreservedString("Notifications\nNotificationTextFormat", _notificationTextFormat, ref restoredCount);
             RestorePreservedString("Audio\nBloodlessSoundWhitelistTerms", _bloodlessSoundWhitelistTerms, ref restoredCount);
 
@@ -765,9 +938,71 @@ namespace KillingBlowMastery
             }
         }
 
+        private void RestorePreservedInt(
+            string settingId,
+            ConfigEntry<int> entry,
+            ref int restoredCount,
+            ref int clampedCount)
+        {
+            int preservedValue;
+            if (entry == null
+                || !_pendingPreservedIntOverrides.TryGetValue(
+                    settingId,
+                    out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (!Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                _pendingPreservedInvalidValueCount++;
+                return;
+            }
+
+            if (clamped)
+            {
+                clampedCount++;
+            }
+            restoredCount++;
+        }
+
+        private void RestorePreservedBool(
+            string settingId,
+            ConfigEntry<bool> entry,
+            ref int restoredCount)
+        {
+            bool preservedValue;
+            if (entry == null
+                || !_pendingPreservedBoolOverrides.TryGetValue(
+                    settingId,
+                    out preservedValue))
+            {
+                return;
+            }
+
+            bool clamped;
+            if (Grailwright.Shared.ConfigPreviousSettingsRecovery.TryRestore(
+                entry,
+                preservedValue,
+                out clamped))
+            {
+                restoredCount++;
+            }
+            else
+            {
+                _pendingPreservedInvalidValueCount++;
+            }
+        }
+
         private void ClearPendingPreservedConfigValues()
         {
             _pendingPreservedCalibrationFloats.Clear();
+            _pendingPreservedIntOverrides.Clear();
+            _pendingPreservedBoolOverrides.Clear();
             _pendingPreservedManualOverrides.Clear();
             _pendingPreservedInvalidValueCount = 0;
         }
@@ -947,7 +1182,7 @@ namespace KillingBlowMastery
                 nameof(CombatExecutionActionNamePatch.Postfix));
             if (actionNameGetter == null || actionNamePostfix == null)
             {
-                Log.LogWarning("Could not patch the GloryKill interaction label; the game default label will remain in use.");
+                Log.LogWarning("Could not patch the Execution interaction label; the game default label will remain in use.");
             }
             else
             {
@@ -958,9 +1193,11 @@ namespace KillingBlowMastery
                 }
                 catch (Exception ex)
                 {
-                    Log.LogWarning("Failed to patch the GloryKill interaction label: " + ex.GetBaseException().Message);
+                    Log.LogWarning("Failed to patch the Execution interaction label: " + ex.GetBaseException().Message);
                 }
             }
+
+            PatchExecutionFinisherStart(executionActionType);
 
             Type customDeathAnimationType = AccessTools.TypeByName(
                 CustomDeathAnimationTypeName);
@@ -968,11 +1205,11 @@ namespace KillingBlowMastery
                 ? null
                 : AccessTools.Method(customDeathAnimationType, "CheckConditions");
             MethodInfo conditionsPrefix = AccessTools.Method(
-                typeof(GloryKillAnimationConditionsPatch),
-                nameof(GloryKillAnimationConditionsPatch.Prefix));
+                typeof(ExecutionAnimationConditionsPatch),
+                nameof(ExecutionAnimationConditionsPatch.Prefix));
             if (conditionsOriginal == null || conditionsPrefix == null)
             {
-                Log.LogWarning("Could not patch GloryKill animation conditions; GloryKill may retain the game's situational animation restrictions.");
+                Log.LogWarning("Could not patch Execution animation conditions; Execution may retain the game's situational animation restrictions.");
             }
             else
             {
@@ -985,7 +1222,7 @@ namespace KillingBlowMastery
                 }
                 catch (Exception ex)
                 {
-                    Log.LogWarning("Failed to patch GloryKill animation conditions: " + ex.GetBaseException().Message);
+                    Log.LogWarning("Failed to patch Execution animation conditions: " + ex.GetBaseException().Message);
                 }
             }
 
@@ -994,11 +1231,11 @@ namespace KillingBlowMastery
                 ? null
                 : AccessTools.Method(finishersListType, "CheckGlobalConditions");
             MethodInfo globalConditionsPrefix = AccessTools.Method(
-                typeof(GloryKillGlobalConditionsPatch),
-                nameof(GloryKillGlobalConditionsPatch.Prefix));
+                typeof(ExecutionGlobalConditionsPatch),
+                nameof(ExecutionGlobalConditionsPatch.Prefix));
             if (globalConditionsOriginal == null || globalConditionsPrefix == null)
             {
-                Log.LogWarning("Could not patch GloryKill list-level conditions; native global finisher filters may still block the prompt.");
+                Log.LogWarning("Could not patch Execution list-level conditions; native global finisher filters may still block the prompt.");
             }
             else
             {
@@ -1011,7 +1248,32 @@ namespace KillingBlowMastery
                 }
                 catch (Exception ex)
                 {
-                    Log.LogWarning("Failed to patch GloryKill list-level conditions: " + ex.GetBaseException().Message);
+                    Log.LogWarning("Failed to patch Execution list-level conditions: " + ex.GetBaseException().Message);
+                }
+            }
+
+            MethodInfo defaultHpConditionOriginal = finishersListType == null
+                ? null
+                : AccessTools.Method(finishersListType, "CheckDefaultHpCondition");
+            MethodInfo defaultHpConditionPrefix = AccessTools.Method(
+                typeof(ExecutionDefaultHpConditionPatch),
+                nameof(ExecutionDefaultHpConditionPatch.Prefix));
+            if (defaultHpConditionOriginal == null || defaultHpConditionPrefix == null)
+            {
+                Log.LogWarning("Could not patch Execution default health conditions; native default-health rejection may still block the prompt.");
+            }
+            else
+            {
+                try
+                {
+                    _harmony.Patch(
+                        defaultHpConditionOriginal,
+                        prefix: new HarmonyMethod(defaultHpConditionPrefix));
+                    LogDiagnostic("Patched " + FinishersListTypeName + ".CheckDefaultHpCondition.");
+                }
+                catch (Exception ex)
+                {
+                    Log.LogWarning("Failed to patch Execution default health conditions: " + ex.GetBaseException().Message);
                 }
             }
 
@@ -1020,12 +1282,12 @@ namespace KillingBlowMastery
                 ? null
                 : AccessTools.Method(finisherDataType, "CheckConditions");
             MethodInfo finisherDataConditionsPostfix = AccessTools.Method(
-                typeof(GloryKillFinisherDataConditionsPatch),
-                nameof(GloryKillFinisherDataConditionsPatch.Postfix));
+                typeof(ExecutionFinisherDataConditionsPatch),
+                nameof(ExecutionFinisherDataConditionsPatch.Postfix));
             if (finisherDataConditionsOriginal == null
                 || finisherDataConditionsPostfix == null)
             {
-                Log.LogWarning("Could not patch GloryKill candidate diagnostics; per-animation condition results will be unavailable.");
+                Log.LogWarning("Could not patch Execution candidate diagnostics; per-animation condition results will be unavailable.");
             }
             else
             {
@@ -1038,8 +1300,84 @@ namespace KillingBlowMastery
                 }
                 catch (Exception ex)
                 {
-                    Log.LogWarning("Failed to patch GloryKill candidate diagnostics: " + ex.GetBaseException().Message);
+                    Log.LogWarning("Failed to patch Execution candidate diagnostics: " + ex.GetBaseException().Message);
                 }
+            }
+        }
+
+        private void PatchExecutionFinisherStart(Type executionActionType)
+        {
+            MethodInfo onStartOriginal = executionActionType == null
+                ? null
+                : AccessTools.Method(executionActionType, "OnStart");
+            MethodInfo onStartPrefix = AccessTools.Method(
+                typeof(ExecutionFinisherStartPatch),
+                nameof(ExecutionFinisherStartPatch.Prefix));
+            MethodInfo onStartPostfix = AccessTools.Method(
+                typeof(ExecutionFinisherStartPatch),
+                nameof(ExecutionFinisherStartPatch.Postfix));
+            MethodInfo onStartFinalizer = AccessTools.Method(
+                typeof(ExecutionFinisherStartPatch),
+                nameof(ExecutionFinisherStartPatch.Finalizer));
+            if (onStartOriginal == null
+                || onStartPrefix == null
+                || onStartPostfix == null
+                || onStartFinalizer == null)
+            {
+                Log.LogWarning("Could not patch Execution finisher start; scoped slow-motion suppression and lifecycle diagnostics are unavailable.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    onStartOriginal,
+                    prefix: new HarmonyMethod(onStartPrefix),
+                    postfix: new HarmonyMethod(onStartPostfix),
+                    finalizer: new HarmonyMethod(onStartFinalizer));
+                LogDiagnostic("Patched " + FinisherExecutionActionTypeName + ".OnStart.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Failed to patch Execution finisher start: " + ex.GetBaseException().Message);
+                return;
+            }
+
+            Type finisherStateType = AccessTools.TypeByName(FinisherStateTypeName);
+            MethodInfo finisherStartedOriginal = finisherStateType == null
+                ? null
+                : AccessTools.Method(finisherStateType, "OnFinisherStarted");
+            MethodInfo finisherStartedPostfix = AccessTools.Method(
+                typeof(ExecutionFinisherLifecyclePatch),
+                nameof(ExecutionFinisherLifecyclePatch.FinisherStartedPostfix));
+            MethodInfo finisherExitedOriginal = finisherStateType == null
+                ? null
+                : AccessTools.Method(finisherStateType, "OnExit");
+            MethodInfo finisherExitedPostfix = AccessTools.Method(
+                typeof(ExecutionFinisherLifecyclePatch),
+                nameof(ExecutionFinisherLifecyclePatch.FinisherExitedPostfix));
+            if (finisherStartedOriginal == null
+                || finisherStartedPostfix == null
+                || finisherExitedOriginal == null
+                || finisherExitedPostfix == null)
+            {
+                Log.LogWarning("Could not patch Execution finisher lifecycle diagnostics; FinisherStarted/OnExit telemetry is unavailable.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    finisherStartedOriginal,
+                    postfix: new HarmonyMethod(finisherStartedPostfix));
+                _harmony.Patch(
+                    finisherExitedOriginal,
+                    postfix: new HarmonyMethod(finisherExitedPostfix));
+                LogDiagnostic("Patched " + FinisherStateTypeName + " lifecycle diagnostics.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Failed to patch Execution finisher lifecycle diagnostics: " + ex.GetBaseException().Message);
             }
         }
 
@@ -1070,7 +1408,7 @@ namespace KillingBlowMastery
                         "AttackTriesToStart");
                     _tryFindFinisherMethod = methods[i];
                     LogDiagnostic(
-                        "Resolved the normal combat-finisher fallback for GloryKill selection.");
+                        "Resolved the normal combat-finisher fallback for Execution selection.");
                     return;
                 }
                 catch
@@ -1081,7 +1419,7 @@ namespace KillingBlowMastery
             }
 
             Log.LogWarning(
-                "Could not resolve the normal combat-finisher fallback; GloryKill will use only the game's interaction execution lists.");
+                "Could not resolve the normal combat-finisher fallback; Execution will use only the game's interaction execution lists.");
         }
 
         private bool AutomaticCombatFinishersAllowed
@@ -1102,32 +1440,177 @@ namespace KillingBlowMastery
             string mode = _combatExecutionMode.Value == null
                 ? string.Empty
                 : _combatExecutionMode.Value.Trim();
-            if (string.Equals(mode, CombatExecutionModeGloryKill, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(mode, CombatExecutionModeExecution, StringComparison.OrdinalIgnoreCase))
             {
-                return CombatExecutionModeGloryKill;
+                return CombatExecutionModeExecution;
             }
             if (string.Equals(mode, CombatExecutionModeOff, StringComparison.OrdinalIgnoreCase))
             {
                 return CombatExecutionModeOff;
             }
-            return CombatExecutionModeVanilla;
+            return CombatExecutionModeExecution;
         }
 
-        private bool TryPrepareGloryKillEvaluation(
+        private ExecutionFinisherStartState BeginExecutionFinisherStart(
+            object executionAction)
+        {
+            if (!_enabled.Value
+                || !string.Equals(
+                    GetCombatExecutionMode(),
+                    CombatExecutionModeExecution,
+                    StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            object cachedData = GetOptionalFieldValue(
+                executionAction,
+                "_cachedData");
+            if (cachedData == null)
+            {
+                LogDiagnostic("Execution FinisherStart: selected data was unavailable.");
+                return null;
+            }
+
+            FieldInfo slowDownTimeField = AccessTools.Field(
+                cachedData.GetType(),
+                "slowDownTime");
+            bool? originalSlowDownTime = null;
+            if (slowDownTimeField == null
+                || slowDownTimeField.FieldType != typeof(bool))
+            {
+                Log.LogWarning("Could not read Execution slowDownTime; the selected Execution asset may retain native slow motion.");
+            }
+            else
+            {
+                try
+                {
+                    originalSlowDownTime = (bool)slowDownTimeField.GetValue(cachedData);
+                }
+                catch (Exception ex)
+                {
+                    Log.LogWarning("Could not read Execution slowDownTime: " + ex.GetBaseException().Message);
+                    slowDownTimeField = null;
+                }
+            }
+
+            ExecutionFinisherStartState state = new ExecutionFinisherStartState(
+                cachedData,
+                slowDownTimeField,
+                originalSlowDownTime);
+            state.Activate();
+            if (state.HasSlowDownTimeField)
+            {
+                state.DisableSlowDownTime();
+            }
+
+            LogDiagnostic(
+                "Execution FinisherStart: assetSlowDownTime="
+                + state.DescribeOriginalSlowDownTime()
+                + ", temporaryAssetFlag="
+                + state.DescribeTemporarySlowDownTime()
+                + ".");
+            return state;
+        }
+
+        private void OnExecutionFinisherStarted(
+            object finisherState,
+            object runtimeData,
+            ExecutionFinisherStartState startState)
+        {
+            if (startState == null
+                || !ReferenceEquals(_activeExecutionFinisherStart, startState))
+            {
+                return;
+            }
+
+            object payloadValue = GetOptionalFieldValue(runtimeData, "slowDownTime");
+            bool? payloadSlowDownTime = payloadValue is bool
+                ? (bool)payloadValue
+                : (bool?)null;
+
+            _activeExecutionFinisher = new ExecutionFinisherLifecycleState(
+                finisherState,
+                payloadSlowDownTime,
+                Time.unscaledTime,
+                Time.realtimeSinceStartup);
+            LogDiagnostic(
+                "Execution FinisherStarted: assetSlowDownTime="
+                + startState.DescribeOriginalSlowDownTime()
+                + ", payloadSlowDownTime="
+                + DescribeNullableBool(payloadSlowDownTime)
+                + ", timeScale="
+                + FormatFloat(Time.timeScale)
+                + ".");
+        }
+
+        private void OnExecutionFinisherExited(object finisherState)
+        {
+            ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
+            if (state == null || !ReferenceEquals(state.FinisherState, finisherState))
+            {
+                return;
+            }
+
+            _activeExecutionFinisher = null;
+            LogDiagnostic(
+                "Execution FinisherEnded/OnExit: elapsedUnscaled="
+                + FormatFloat(Time.unscaledTime - state.StartedUnscaledTime)
+                + "s, elapsedRealtime="
+                + FormatFloat(Time.realtimeSinceStartup - state.StartedRealtime)
+                + "s, timeScale="
+                + FormatFloat(Time.timeScale)
+                + ".");
+        }
+
+        private void ReportActiveExecutionFinisherLifecycle()
+        {
+            ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
+            if (!_diagnostics.Value || state == null)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now - state.LastLifecycleDiagnosticUnscaledTime
+                < ExecutionLifecycleDiagnosticRepeatSeconds)
+            {
+                return;
+            }
+
+            state.LastLifecycleDiagnosticUnscaledTime = now;
+            Log.LogInfo(
+                "Execution Finisher still active: payloadSlowDownTime="
+                + DescribeNullableBool(state.PayloadSlowDownTime)
+                + ", elapsedUnscaled="
+                + FormatFloat(now - state.StartedUnscaledTime)
+                + "s, elapsedRealtime="
+                + FormatFloat(Time.realtimeSinceStartup - state.StartedRealtime)
+                + "s, timeScale="
+                + FormatFloat(Time.timeScale)
+                + ".");
+        }
+
+        private static string DescribeNullableBool(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "unavailable";
+        }
+
+        private bool TryPrepareExecutionEvaluation(
             object executionAction,
-            out GloryKillEvaluationState state)
+            out ExecutionEvaluationState state)
         {
             state = null;
             if (executionAction == null)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     null,
                     "blocked: combat execution action was unavailable");
                 return false;
             }
             if (_isHostileToHeroMethod == null)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     executionAction,
                     "blocked: IsHostileToHero accessor was unavailable");
                 return false;
@@ -1141,48 +1624,48 @@ namespace KillingBlowMastery
                 "_npcPointingTowards");
             if (finisherHandling == null)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     executionAction,
                     "blocked: FinisherHandlingElement was unavailable");
                 return false;
             }
             if (npc == null)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     executionAction,
                     "blocked: no NPC is under the combat targeting ray");
                 return false;
             }
             if (GetBoolProperty(npc, "HasBeenDiscarded", false))
             {
-                LogGloryKillEligibility(npc, "blocked: target was discarded");
+                LogExecutionEligibility(npc, "blocked: target was discarded");
                 return false;
             }
             if (!GetBoolProperty(npc, "IsAlive", false))
             {
-                LogGloryKillEligibility(npc, "blocked: target was not alive");
+                LogExecutionEligibility(npc, "blocked: target was not alive");
                 return false;
             }
             if (GetBoolProperty(npc, "IsDying", false))
             {
-                LogGloryKillEligibility(npc, "blocked: target was already dying");
+                LogExecutionEligibility(npc, "blocked: target was already dying");
                 return false;
             }
             if (GetBoolProperty(npc, "IsUnconscious", false))
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: target was unconscious; story executions remain separate");
                 return false;
             }
             if (GetBoolProperty(npc, "IsInRagdoll", false))
             {
-                LogGloryKillEligibility(npc, "blocked: target was ragdolled");
+                LogExecutionEligibility(npc, "blocked: target was ragdolled");
                 return false;
             }
             if (!GetBoolProperty(npc, "CanUseExternalCustomDeath", false))
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: target disallows external custom-death animations");
                 return false;
@@ -1192,14 +1675,14 @@ namespace KillingBlowMastery
             {
                 if (!(bool)_isHostileToHeroMethod.Invoke(null, new[] { npc }))
                 {
-                    LogGloryKillEligibility(npc, "blocked: target was not hostile to the hero");
+                    LogExecutionEligibility(npc, "blocked: target was not hostile to the hero");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                LogDiagnostic("Could not verify GloryKill target hostility: " + ex.GetBaseException().Message);
-                LogGloryKillEligibility(
+                LogDiagnostic("Could not verify Execution target hostility: " + ex.GetBaseException().Message);
+                LogExecutionEligibility(
                     npc,
                     "blocked: hostility check threw "
                     + ex.GetBaseException().GetType().Name);
@@ -1209,12 +1692,12 @@ namespace KillingBlowMastery
             object npcAi = GetOptionalPropertyValue(npc, "NpcAI");
             if (npcAi == null)
             {
-                LogGloryKillEligibility(npc, "blocked: target had no active NpcAI");
+                LogExecutionEligibility(npc, "blocked: target had no active NpcAI");
                 return false;
             }
             if (!GetBoolProperty(npcAi, "InCombat", false))
             {
-                LogGloryKillEligibility(npc, "blocked: target NpcAI was not in combat");
+                LogExecutionEligibility(npc, "blocked: target NpcAI was not in combat");
                 return false;
             }
 
@@ -1228,7 +1711,7 @@ namespace KillingBlowMastery
                 && foundXpRewardAllowed
                 && !xpRewardAllowed)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: XpRewardAllowed was false and the matching safeguard is enabled");
                 return false;
@@ -1246,7 +1729,7 @@ namespace KillingBlowMastery
                 -1.0f);
             if (currentHealth <= 0.0f || maximumHealth <= 0.0f)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: health values were unavailable; current="
                     + FormatFloat(currentHealth)
@@ -1255,10 +1738,12 @@ namespace KillingBlowMastery
                 return false;
             }
             float healthPercent = currentHealth * 100.0f / maximumHealth;
+            float maximumExecutionHealthPercent =
+                GetExecutionMaximumHealthPercent();
             if (healthPercent <= 0.0f
-                || healthPercent > _gloryKillHealthPercent.Value)
+                || healthPercent > maximumExecutionHealthPercent)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: health="
                     + FormatFloat(currentHealth)
@@ -1267,9 +1752,23 @@ namespace KillingBlowMastery
                     + " ("
                     + FormatFloat(healthPercent)
                     + "%), threshold="
-                    + FormatFloat(_gloryKillHealthPercent.Value)
-                    + "%");
+                    + FormatFloat(maximumExecutionHealthPercent)
+                    + "% maximum at mastery");
                 return false;
+            }
+
+            if (_expandedExecutionTargets.Value)
+            {
+                string exclusionReason;
+                if (!IsExpandedExecutionTargetAllowed(
+                    npc,
+                    out exclusionReason))
+                {
+                    LogExecutionEligibility(
+                        npc,
+                        "blocked: expanded Execution " + exclusionReason);
+                    return false;
+                }
             }
 
             object hero = GetOptionalPropertyValue(finisherHandling, "ParentModel");
@@ -1279,7 +1778,7 @@ namespace KillingBlowMastery
             bool offHandEligible = GetBoolProperty(offHandItem, "IsMelee", false);
             if (!mainHandEligible && !offHandEligible)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: no equipped melee item; main="
                     + DescribeObject(mainHandItem)
@@ -1326,7 +1825,7 @@ namespace KillingBlowMastery
             if (executionLists.Count == 0
                 && automaticFinisherLists.Count == 0)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     npc,
                     "blocked: equipped melee weapon had no loaded execution or normal finisher list; mainWeapon="
                     + DescribeObject(mainHandWeapon)
@@ -1343,7 +1842,7 @@ namespace KillingBlowMastery
                 return false;
             }
 
-            GloryKillEvaluationState preparedState = new GloryKillEvaluationState();
+            ExecutionEvaluationState preparedState = new ExecutionEvaluationState();
             try
             {
                 for (int i = 0; i < executionLists.Count; i++)
@@ -1352,7 +1851,7 @@ namespace KillingBlowMastery
                     PrepareExecutionList(
                         executionLists[i],
                         preparedState,
-                        _expandedGloryKillTargets.Value);
+                        _expandedExecutionTargets.Value);
                 }
                 for (int i = 0; i < automaticFinisherLists.Count; i++)
                 {
@@ -1365,7 +1864,7 @@ namespace KillingBlowMastery
                         PrepareExecutionList(
                             automaticFinisherLists[i],
                             preparedState,
-                            _expandedGloryKillTargets.Value);
+                            _expandedExecutionTargets.Value);
                     }
                 }
                 preparedState.Activate();
@@ -1375,8 +1874,8 @@ namespace KillingBlowMastery
             catch (Exception ex)
             {
                 preparedState.Restore();
-                LogDiagnostic("Could not prepare GloryKill finisher conditions: " + ex.GetBaseException().Message);
-                LogGloryKillEligibility(
+                LogDiagnostic("Could not prepare Execution finisher conditions: " + ex.GetBaseException().Message);
+                LogExecutionEligibility(
                     npc,
                     "blocked: temporary finisher-condition preparation threw "
                     + ex.GetBaseException().GetType().Name);
@@ -1386,7 +1885,7 @@ namespace KillingBlowMastery
 
         private bool TryCacheAutomaticFinisherFallback(
             object executionAction,
-            GloryKillEvaluationState state)
+            ExecutionEvaluationState state)
         {
             if (_tryFindFinisherMethod == null
                 || _automaticFinisherTrigger == null
@@ -1421,7 +1920,7 @@ namespace KillingBlowMastery
                 || cachedFinisherListField == null
                 || cachedDamageField == null)
             {
-                LogGloryKillEligibility(
+                LogExecutionEligibility(
                     executionAction,
                     "blocked: normal-finisher fallback could not access the native execution cache");
                 return false;
@@ -1466,10 +1965,10 @@ namespace KillingBlowMastery
             }
         }
 
-        private void OnGloryKillNativeEvaluationCompleted(
+        private void OnExecutionNativeEvaluationCompleted(
             object executionAction,
-            bool available,
-            GloryKillEvaluationState state)
+            ref bool available,
+            ExecutionEvaluationState state)
         {
             object finisherHandling = GetOptionalFieldValue(
                 executionAction,
@@ -1477,31 +1976,14 @@ namespace KillingBlowMastery
             object npc = GetOptionalFieldValue(
                 finisherHandling,
                 "_npcPointingTowards");
-            if (available)
-            {
-                object availableList = GetOptionalFieldValue(
-                    executionAction,
-                    "_cachedFinisherList");
-                string availableSource = state != null
-                    && state.IsAutomaticFinisherList(availableList)
-                        ? "normal-finisher fallback"
-                        : "native execution";
-                LogGloryKillEligibility(
-                    npc ?? executionAction,
-                    "available: "
-                    + availableSource
-                    + " accepted; Execute prompt should be visible; "
-                    + state.DescribeConditionEvaluation());
-                return;
-            }
-
             object cachedData = GetOptionalFieldValue(
                 executionAction,
                 "_cachedData");
             object cachedList = GetOptionalFieldValue(
                 executionAction,
                 "_cachedFinisherList");
-            if (cachedData == null
+            if (!available
+                && cachedData == null
                 && TryCacheAutomaticFinisherFallback(
                     executionAction,
                     state))
@@ -1519,7 +2001,43 @@ namespace KillingBlowMastery
                     && state.IsAutomaticFinisherList(cachedList)
                         ? "normal-finisher fallback"
                         : "native execution";
-                LogGloryKillEligibility(
+                string progressionStatus;
+                if (!TryValidateExecutionProgression(
+                    executionAction,
+                    npc,
+                    out progressionStatus))
+                {
+                    available = false;
+                    ClearExecutionCandidate(executionAction);
+                    LogExecutionEligibility(
+                        npc ?? executionAction,
+                        "blocked: "
+                        + progressionStatus
+                        + "; selected "
+                        + source
+                        + "; "
+                        + (state == null
+                            ? "condition evaluation unavailable"
+                            : state.DescribeConditionEvaluation()));
+                    return;
+                }
+
+                if (available)
+                {
+                    LogExecutionEligibility(
+                        npc ?? executionAction,
+                        "available: "
+                        + source
+                        + " accepted; "
+                        + progressionStatus
+                        + "; Execute prompt should be visible; "
+                        + (state == null
+                            ? "condition evaluation unavailable"
+                            : state.DescribeConditionEvaluation()));
+                    return;
+                }
+
+                LogExecutionEligibility(
                     npc ?? executionAction,
                     "pending: "
                     + source
@@ -1527,13 +2045,18 @@ namespace KillingBlowMastery
                     + DescribeObject(cachedData)
                     + ", list="
                     + DescribeObject(cachedList)
+                    + "; "
+                    + progressionStatus
                     + "; waiting for the native 0.6-second activation delay; "
-                    + state.DescribeConditionEvaluation());
+                    + (state == null
+                        ? "condition evaluation unavailable"
+                        : state.DescribeConditionEvaluation()));
                 return;
             }
 
             string failureStatus =
                 "blocked: native execution and normal-finisher fallback found no compatible loaded animation";
+            available = false;
             if (_diagnostics.Value)
             {
                 failureStatus += "; "
@@ -1543,12 +2066,199 @@ namespace KillingBlowMastery
                             + "; "
                             + state.DescribeConditionEvaluation());
             }
-            LogGloryKillEligibility(
+            LogExecutionEligibility(
                 npc ?? executionAction,
                 failureStatus);
         }
 
-        private void LogGloryKillEligibility(object target, string status)
+        private bool TryValidateExecutionProgression(
+            object executionAction,
+            object npc,
+            out string status)
+        {
+            object cachedDamageOutcome = GetOptionalFieldValue(
+                executionAction,
+                "_cachedDamageOutcome");
+            object damage = GetOptionalPropertyValue(
+                cachedDamageOutcome,
+                "Damage")
+                ?? GetOptionalFieldValue(cachedDamageOutcome, "Damage");
+            object item = GetOptionalPropertyValue(damage, "Item")
+                ?? GetOptionalFieldValue(damage, "Item");
+            if (item == null)
+            {
+                status = "selected execution weapon was unavailable";
+                return false;
+            }
+
+            object proficiency = ResolveItemProficiency(item);
+            string proficiencyName = DescribeProficiency(proficiency);
+            object finisherHandling = GetOptionalFieldValue(
+                executionAction,
+                "_finisherHandlingElement");
+            object hero = GetOptionalPropertyValue(
+                finisherHandling,
+                "ParentModel");
+            int proficiencyLevel = GetExecutionProficiencyLevel(
+                hero,
+                proficiency);
+            if (proficiencyLevel < 0)
+            {
+                status = "could not resolve a supported melee proficiency for "
+                    + DescribeObject(item);
+                return false;
+            }
+
+            int minimumProficiency = Math.Max(
+                0,
+                Math.Min(100, _executionMinimumProficiency.Value));
+            if (proficiencyLevel < minimumProficiency)
+            {
+                status = proficiencyName
+                    + " proficiency="
+                    + proficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                    + ", required="
+                    + minimumProficiency.ToString(CultureInfo.InvariantCulture);
+                return false;
+            }
+
+            object health = GetOptionalPropertyValue(npc, "Health");
+            object maxHealth = GetOptionalPropertyValue(npc, "MaxHealth");
+            float currentHealth = GetOptionalFloatProperty(
+                health,
+                "ModifiedValue",
+                -1.0f);
+            float maximumHealth = GetOptionalFloatProperty(
+                maxHealth,
+                "ModifiedValue",
+                -1.0f);
+            if (currentHealth <= 0.0f || maximumHealth <= 0.0f)
+            {
+                status = "target health was unavailable during proficiency validation";
+                return false;
+            }
+
+            float healthPercent = currentHealth * 100.0f / maximumHealth;
+            float threshold = GetExecutionHealthPercent(
+                proficiencyLevel,
+                minimumProficiency);
+            status = proficiencyName
+                + " proficiency="
+                + proficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                + ", threshold="
+                + FormatFloat(threshold)
+                + "%, health="
+                + FormatFloat(healthPercent)
+                + "%";
+            return healthPercent > 0.0f && healthPercent <= threshold;
+        }
+
+        private int GetExecutionProficiencyLevel(
+            object hero,
+            object proficiency)
+        {
+            string propertyName = null;
+            if (ReferenceEquals(proficiency, _oneHandedProf))
+            {
+                propertyName = "OneHanded";
+            }
+            else if (ReferenceEquals(proficiency, _twoHandedProf))
+            {
+                propertyName = "TwoHanded";
+            }
+            else if (ReferenceEquals(proficiency, _unarmedProf))
+            {
+                propertyName = "Unarmed";
+            }
+            else if (ReferenceEquals(proficiency, _shieldProf))
+            {
+                propertyName = "Shield";
+            }
+            if (propertyName == null)
+            {
+                return -1;
+            }
+
+            object proficiencyStats = GetOptionalPropertyValue(
+                hero,
+                "ProficiencyStats");
+            object stat = GetOptionalPropertyValue(
+                proficiencyStats,
+                propertyName);
+            int level = GetOptionalIntProperty(stat, "ModifiedInt", -1);
+            if (level >= 0)
+            {
+                return Math.Min(100, level);
+            }
+
+            float modifiedValue = GetOptionalFloatProperty(
+                stat,
+                "ModifiedValue",
+                -1.0f);
+            return modifiedValue < 0.0f
+                ? -1
+                : Math.Min(100, (int)Math.Floor(modifiedValue));
+        }
+
+        private float GetExecutionHealthPercent(
+            int proficiencyLevel,
+            int minimumProficiency)
+        {
+            float unlockThreshold = Math.Max(
+                1.0f,
+                Math.Min(30.0f, _executionHealthPercentAtUnlock.Value));
+            float masteryThreshold = GetExecutionMaximumHealthPercent();
+            float progression = minimumProficiency >= 100
+                ? 1.0f
+                : Math.Max(
+                    0.0f,
+                    Math.Min(
+                        1.0f,
+                        (proficiencyLevel - minimumProficiency)
+                            / (100.0f - minimumProficiency)));
+            return unlockThreshold
+                + (masteryThreshold - unlockThreshold) * progression;
+        }
+
+        private float GetExecutionMaximumHealthPercent()
+        {
+            float unlockThreshold = Math.Max(
+                1.0f,
+                Math.Min(30.0f, _executionHealthPercentAtUnlock.Value));
+            float masteryThreshold = Math.Max(
+                1.0f,
+                Math.Min(30.0f, _executionHealthPercentAtMastery.Value));
+            return Math.Max(unlockThreshold, masteryThreshold);
+        }
+
+        private void ClearExecutionCandidate(object executionAction)
+        {
+            try
+            {
+                MethodInfo clearCaches = AccessTools.Method(
+                    executionAction.GetType(),
+                    "ClearCaches");
+                if (clearCaches != null)
+                {
+                    clearCaches.Invoke(executionAction, null);
+                }
+                FieldInfo activationTime = AccessTools.Field(
+                    executionAction.GetType(),
+                    "_activationTime");
+                if (activationTime != null)
+                {
+                    activationTime.SetValue(executionAction, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogDiagnostic(
+                    "Could not clear a progression-blocked Execution candidate: "
+                    + ex.GetBaseException().Message);
+            }
+        }
+
+        private void LogExecutionEligibility(object target, string status)
         {
             if (!_diagnostics.Value)
             {
@@ -1556,29 +2266,199 @@ namespace KillingBlowMastery
             }
 
             float now = Time.unscaledTime;
-            if (ReferenceEquals(target, _lastGloryKillDiagnosticTarget)
+            if (ReferenceEquals(target, _lastExecutionDiagnosticTarget)
                 && string.Equals(
                     status,
-                    _lastGloryKillDiagnosticStatus,
+                    _lastExecutionDiagnosticStatus,
                     StringComparison.Ordinal)
-                && now - _lastGloryKillDiagnosticTime
-                    < GloryKillDiagnosticRepeatSeconds)
+                && now - _lastExecutionDiagnosticTime
+                    < ExecutionDiagnosticRepeatSeconds)
             {
                 return;
             }
 
-            _lastGloryKillDiagnosticTarget = target;
-            _lastGloryKillDiagnosticStatus = status;
-            _lastGloryKillDiagnosticTime = now;
+            _lastExecutionDiagnosticTarget = target;
+            _lastExecutionDiagnosticStatus = status;
+            _lastExecutionDiagnosticTime = now;
             object template = GetOptionalPropertyValue(target, "Template");
             Log.LogInfo(
-                "GloryKill eligibility: target="
+                "Execution eligibility: target="
                 + DescribeObject(target)
                 + ", template="
                 + DescribeObject(template)
                 + "; "
                 + status
                 + ".");
+        }
+
+        private bool IsExpandedExecutionTargetAllowed(
+            object npc,
+            out string reason)
+        {
+            reason = string.Empty;
+            string[] excludedAbstracts =
+                GetExpandedExecutionExcludedAbstracts();
+            if (excludedAbstracts.Length == 0)
+            {
+                return true;
+            }
+
+            object template = GetOptionalPropertyValue(npc, "Template");
+            if (template == null)
+            {
+                reason = "could not inspect the target template's abstract families";
+                return false;
+            }
+
+            object pooledAbstracts = null;
+            try
+            {
+                pooledAbstracts = GetOptionalPropertyValue(
+                    template,
+                    "AbstractTypes");
+                object abstractValues = GetOptionalFieldValue(
+                    pooledAbstracts,
+                    "value");
+                if (abstractValues == null)
+                {
+                    abstractValues = GetOptionalPropertyValue(
+                        pooledAbstracts,
+                        "Value");
+                }
+                if (abstractValues == null)
+                {
+                    reason = "could not inspect the target template's inherited abstract families";
+                    return false;
+                }
+
+                foreach (object abstractTemplate in EnumerateObjects(abstractValues))
+                {
+                    string abstractName = NormalizeExecutionAbstractName(
+                        GetOptionalPropertyValue(
+                            abstractTemplate,
+                            "DebugName") as string);
+                    if (abstractName.Length == 0)
+                    {
+                        abstractName = NormalizeExecutionAbstractName(
+                            abstractTemplate == null
+                                ? string.Empty
+                                : abstractTemplate.ToString());
+                    }
+
+                    for (int i = 0; i < excludedAbstracts.Length; i++)
+                    {
+                        if (string.Equals(
+                            abstractName,
+                            excludedAbstracts[i],
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            reason = "excluded abstract family " + abstractName;
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                reason = "abstract-family inspection failed ("
+                    + ex.GetBaseException().GetType().Name
+                    + ")";
+                return false;
+            }
+            finally
+            {
+                if (pooledAbstracts != null)
+                {
+                    try
+                    {
+                        MethodInfo release = AccessTools.Method(
+                            pooledAbstracts.GetType(),
+                            "Release");
+                        if (release != null)
+                        {
+                            release.Invoke(pooledAbstracts, null);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
+        private string[] GetExpandedExecutionExcludedAbstracts()
+        {
+            string raw = _expandedExecutionExcludedAbstracts == null
+                ? string.Empty
+                : (_expandedExecutionExcludedAbstracts.Value ?? string.Empty);
+            if (raw == _cachedExpandedExecutionExcludedAbstractsRaw)
+            {
+                return _cachedExpandedExecutionExcludedAbstracts;
+            }
+
+            _cachedExpandedExecutionExcludedAbstractsRaw = raw;
+            string[] configured = SplitTerms(raw);
+            List<string> normalized = new List<string>();
+            for (int i = 0; i < configured.Length; i++)
+            {
+                string abstractName = NormalizeExecutionAbstractName(
+                    configured[i]);
+                if (abstractName.Length == 0)
+                {
+                    continue;
+                }
+
+                bool alreadyAdded = false;
+                for (int j = 0; j < normalized.Count; j++)
+                {
+                    if (string.Equals(
+                        normalized[j],
+                        abstractName,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        alreadyAdded = true;
+                        break;
+                    }
+                }
+                if (!alreadyAdded)
+                {
+                    normalized.Add(abstractName);
+                }
+            }
+
+            _cachedExpandedExecutionExcludedAbstracts = normalized.ToArray();
+            return _cachedExpandedExecutionExcludedAbstracts;
+        }
+
+        private static string NormalizeExecutionAbstractName(string value)
+        {
+            string normalized = string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Trim();
+            if (normalized.StartsWith(
+                "Abstract:",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized.Substring("Abstract:".Length);
+            }
+            if (normalized.StartsWith(
+                "Abstract_NPCTemplate_",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized.Substring(
+                    "Abstract_NPCTemplate_".Length);
+            }
+            else if (normalized.StartsWith(
+                "NPCTemplate_Abstract_",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized.Substring(
+                    "NPCTemplate_Abstract_".Length);
+            }
+
+            return normalized.Trim();
         }
 
         private static void AddUniqueReference(List<object> values, object value)
@@ -1609,7 +2489,7 @@ namespace KillingBlowMastery
 
         private static void PrepareExecutionList(
             object executionList,
-            GloryKillEvaluationState state,
+            ExecutionEvaluationState state,
             bool expandedTargets)
         {
             FieldInfo healthConditionField = AccessTools.Field(
@@ -1640,7 +2520,7 @@ namespace KillingBlowMastery
                 Enum.ToObject(conditionField.FieldType, 4));
             hpValueField.SetValue(
                 healthCondition,
-                Instance._gloryKillHealthPercent.Value / 100.0f);
+                Instance.GetExecutionMaximumHealthPercent() / 100.0f);
             state.SetField(executionList, healthConditionField, healthCondition);
 
             object globalConditions = GetFieldValue(executionList, "globalConditions");
@@ -1847,7 +2727,7 @@ namespace KillingBlowMastery
         }
 
         private static void SetEnumField(
-            GloryKillEvaluationState state,
+            ExecutionEvaluationState state,
             object target,
             string fieldName,
             int value)
@@ -1861,7 +2741,7 @@ namespace KillingBlowMastery
         }
 
         private static void SetFieldIfPresent(
-            GloryKillEvaluationState state,
+            ExecutionEvaluationState state,
             object target,
             string fieldName,
             object value)
@@ -3070,13 +3950,24 @@ namespace KillingBlowMastery
 
         private float GetRandomPitchMultiplier()
         {
-            float semitones = Math.Max(0.0f, _randomPitchSemitones.Value);
+            float ignoredOffset;
+            return GetRandomPitchMultiplier(
+                _randomPitchSemitones.Value,
+                out ignoredOffset);
+        }
+
+        private float GetRandomPitchMultiplier(
+            float maximumSemitones,
+            out float offset)
+        {
+            float semitones = Math.Max(0.0f, maximumSemitones);
             if (semitones <= 0.001f)
             {
+                offset = 0.0f;
                 return 1.0f;
             }
 
-            float offset = (float)((_random.NextDouble() * 2.0 - 1.0) * semitones);
+            offset = (float)((_random.NextDouble() * 2.0 - 1.0) * semitones);
             return (float)Math.Pow(2.0, offset / 12.0);
         }
 
@@ -4599,7 +5490,138 @@ namespace KillingBlowMastery
             }
         }
 
-        private sealed class GloryKillEvaluationState
+        private sealed class ExecutionFinisherStartState
+        {
+            private readonly object _cachedData;
+            private readonly FieldInfo _slowDownTimeField;
+            private ExecutionFinisherStartState _previousActiveState;
+            private bool _activated;
+            private bool _slowDownTimeDisabled;
+            private bool _restored;
+
+            public readonly bool? OriginalSlowDownTime;
+
+            public ExecutionFinisherStartState(
+                object cachedData,
+                FieldInfo slowDownTimeField,
+                bool? originalSlowDownTime)
+            {
+                _cachedData = cachedData;
+                _slowDownTimeField = slowDownTimeField;
+                OriginalSlowDownTime = originalSlowDownTime;
+            }
+
+            public bool HasSlowDownTimeField
+            {
+                get { return _slowDownTimeField != null && OriginalSlowDownTime.HasValue; }
+            }
+
+            public void Activate()
+            {
+                if (_activated)
+                {
+                    return;
+                }
+
+                _activated = true;
+                _previousActiveState = _activeExecutionFinisherStart;
+                _activeExecutionFinisherStart = this;
+            }
+
+            public void DisableSlowDownTime()
+            {
+                if (!HasSlowDownTimeField || _slowDownTimeDisabled)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _slowDownTimeField.SetValue(_cachedData, false);
+                    _slowDownTimeDisabled = true;
+                }
+                catch (Exception ex)
+                {
+                    if (Log != null)
+                    {
+                        Log.LogWarning(
+                            "Could not temporarily disable Execution slowDownTime: "
+                            + ex.GetBaseException().Message);
+                    }
+                }
+            }
+
+            public void Restore()
+            {
+                if (_restored)
+                {
+                    return;
+                }
+                _restored = true;
+
+                try
+                {
+                    if (_slowDownTimeDisabled)
+                    {
+                        _slowDownTimeField.SetValue(
+                            _cachedData,
+                            OriginalSlowDownTime.Value);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (Log != null)
+                    {
+                        Log.LogWarning(
+                            "Failed to restore Execution slowDownTime: "
+                            + ex.GetBaseException().Message);
+                    }
+                }
+                finally
+                {
+                    if (_activated
+                        && ReferenceEquals(_activeExecutionFinisherStart, this))
+                    {
+                        _activeExecutionFinisherStart = _previousActiveState;
+                    }
+                    _previousActiveState = null;
+                }
+            }
+
+            public string DescribeOriginalSlowDownTime()
+            {
+                return DescribeNullableBool(OriginalSlowDownTime);
+            }
+
+            public string DescribeTemporarySlowDownTime()
+            {
+                return _slowDownTimeDisabled ? "false" : "unchanged";
+            }
+        }
+
+        private sealed class ExecutionFinisherLifecycleState
+        {
+            public readonly object FinisherState;
+            public readonly bool? PayloadSlowDownTime;
+            public readonly float StartedUnscaledTime;
+            public readonly float StartedRealtime;
+            public float LastLifecycleDiagnosticUnscaledTime;
+
+            public ExecutionFinisherLifecycleState(
+                object finisherState,
+                bool? payloadSlowDownTime,
+                float startedUnscaledTime,
+                float startedRealtime)
+            {
+                FinisherState = finisherState;
+                PayloadSlowDownTime = payloadSlowDownTime;
+                StartedUnscaledTime = startedUnscaledTime;
+                StartedRealtime = startedRealtime;
+                LastLifecycleDiagnosticUnscaledTime = startedUnscaledTime;
+            }
+        }
+
+        private sealed class ExecutionEvaluationState
         {
             private readonly List<FieldMutation> _mutations =
                 new List<FieldMutation>();
@@ -4611,7 +5633,7 @@ namespace KillingBlowMastery
                 new List<object>();
             private int _candidateConditionChecks;
             private int _candidateConditionAccepted;
-            private GloryKillEvaluationState _previousActiveState;
+            private ExecutionEvaluationState _previousActiveState;
             private bool _activated;
             private bool _restored;
 
@@ -4675,8 +5697,8 @@ namespace KillingBlowMastery
                     return;
                 }
                 _activated = true;
-                _previousActiveState = _activeGloryKillEvaluation;
-                _activeGloryKillEvaluation = this;
+                _previousActiveState = _activeExecutionEvaluation;
+                _activeExecutionEvaluation = this;
             }
 
             public void SetField(
@@ -4698,9 +5720,9 @@ namespace KillingBlowMastery
                 _restored = true;
 
                 if (_activated
-                    && ReferenceEquals(_activeGloryKillEvaluation, this))
+                    && ReferenceEquals(_activeExecutionEvaluation, this))
                 {
-                    _activeGloryKillEvaluation = _previousActiveState;
+                    _activeExecutionEvaluation = _previousActiveState;
                 }
                 _previousActiveState = null;
 
@@ -4717,7 +5739,7 @@ namespace KillingBlowMastery
                         if (Log != null)
                         {
                             Log.LogWarning(
-                                "Failed to restore a temporary GloryKill condition: "
+                                "Failed to restore a temporary Execution condition: "
                                 + ex.GetBaseException().Message);
                         }
                     }
@@ -4762,7 +5784,7 @@ namespace KillingBlowMastery
             public static bool Prefix(
                 object __instance,
                 ref bool __result,
-                out GloryKillEvaluationState __state)
+                out ExecutionEvaluationState __state)
             {
                 __state = null;
                 if (Instance == null)
@@ -4781,13 +5803,13 @@ namespace KillingBlowMastery
                 }
                 if (!string.Equals(
                     mode,
-                    CombatExecutionModeGloryKill,
+                    CombatExecutionModeExecution,
                     StringComparison.Ordinal))
                 {
                     return true;
                 }
 
-                if (!Instance.TryPrepareGloryKillEvaluation(
+                if (!Instance.TryPrepareExecutionEvaluation(
                     __instance,
                     out __state))
                 {
@@ -4799,16 +5821,16 @@ namespace KillingBlowMastery
 
             public static void Postfix(
                 object __instance,
-                bool __result,
-                GloryKillEvaluationState __state)
+                ref bool __result,
+                ExecutionEvaluationState __state)
             {
                 if (__state != null)
                 {
                     if (Instance != null)
                     {
-                        Instance.OnGloryKillNativeEvaluationCompleted(
+                        Instance.OnExecutionNativeEvaluationCompleted(
                             __instance,
-                            __result,
+                            ref __result,
                             __state);
                     }
                     __state.Restore();
@@ -4818,13 +5840,13 @@ namespace KillingBlowMastery
             public static Exception Finalizer(
                 object __instance,
                 Exception __exception,
-                GloryKillEvaluationState __state)
+                ExecutionEvaluationState __state)
             {
                 if (__state != null)
                 {
                     if (__exception != null && Instance != null)
                     {
-                        Instance.LogGloryKillEligibility(
+                        Instance.LogExecutionEligibility(
                             __instance,
                             "blocked: native finisher evaluation threw "
                             + __exception.GetBaseException().GetType().Name);
@@ -4842,7 +5864,7 @@ namespace KillingBlowMastery
                 if (Instance != null
                     && string.Equals(
                         Instance.GetCombatExecutionMode(),
-                        CombatExecutionModeGloryKill,
+                        CombatExecutionModeExecution,
                         StringComparison.Ordinal))
                 {
                     __result = "Execute";
@@ -4850,11 +5872,68 @@ namespace KillingBlowMastery
             }
         }
 
-        private static class GloryKillAnimationConditionsPatch
+        private static class ExecutionFinisherStartPatch
+        {
+            public static void Prefix(
+                object __instance,
+                out ExecutionFinisherStartState __state)
+            {
+                __state = Instance == null
+                    ? null
+                    : Instance.BeginExecutionFinisherStart(__instance);
+            }
+
+            public static void Postfix(ExecutionFinisherStartState __state)
+            {
+                if (__state != null)
+                {
+                    __state.Restore();
+                }
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                ExecutionFinisherStartState __state)
+            {
+                if (__state != null)
+                {
+                    __state.Restore();
+                }
+                return __exception;
+            }
+        }
+
+        private static class ExecutionFinisherLifecyclePatch
+        {
+            public static void FinisherStartedPostfix(
+                object __instance,
+                object data)
+            {
+                ExecutionFinisherStartState startState =
+                    _activeExecutionFinisherStart;
+                if (Instance != null && startState != null)
+                {
+                    Instance.OnExecutionFinisherStarted(
+                        __instance,
+                        data,
+                        startState);
+                }
+            }
+
+            public static void FinisherExitedPostfix(object __instance)
+            {
+                if (Instance != null)
+                {
+                    Instance.OnExecutionFinisherExited(__instance);
+                }
+            }
+        }
+
+        private static class ExecutionAnimationConditionsPatch
         {
             public static bool Prefix(ref bool __result)
             {
-                if (_activeGloryKillEvaluation == null)
+                if (_activeExecutionEvaluation == null)
                 {
                     return true;
                 }
@@ -4864,11 +5943,11 @@ namespace KillingBlowMastery
             }
         }
 
-        private static class GloryKillGlobalConditionsPatch
+        private static class ExecutionGlobalConditionsPatch
         {
             public static bool Prefix(object __instance, ref bool __result)
             {
-                GloryKillEvaluationState state = _activeGloryKillEvaluation;
+                ExecutionEvaluationState state = _activeExecutionEvaluation;
                 if (state == null)
                 {
                     return true;
@@ -4880,11 +5959,25 @@ namespace KillingBlowMastery
             }
         }
 
-        private static class GloryKillFinisherDataConditionsPatch
+        private static class ExecutionDefaultHpConditionPatch
+        {
+            public static bool Prefix(ref bool __result)
+            {
+                if (_activeExecutionEvaluation == null)
+                {
+                    return true;
+                }
+
+                __result = true;
+                return false;
+            }
+        }
+
+        private static class ExecutionFinisherDataConditionsPatch
         {
             public static void Postfix(bool __result)
             {
-                GloryKillEvaluationState state = _activeGloryKillEvaluation;
+                ExecutionEvaluationState state = _activeExecutionEvaluation;
                 if (state != null)
                 {
                     state.RecordCandidateConditionResult(__result);

@@ -1,5 +1,3 @@
-TargetVersion=0.6.3
-BaselineVersion=0.5.9
-Based the shared first-person presentation offset on the current arms pivot after look input, preventing rapid left-right turns from using the rendered camera's delayed direction without adding viewmodel smoothing or lag.
-Preserved the single immutable offset shared by arms, equipment, effects, culling, render translation, and optional integrations.
-Added an off-by-default option that excludes visible FPAA head-bob camera movement from HDRP motion blur while preserving moving-object blur and restoring the camera's exact prior value afterward.
+TargetVersion=0.8.6
+BaselineVersion=0.8.4
+Changed the default bow-draw ceiling from 67 to 33 percent, producing about 0.10 metres of positive FPAA depth from the default 0.30 metre bow offset, and regenerated untouched old defaults through schema 20 while preserving compatible customized values.

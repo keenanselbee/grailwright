@@ -17,12 +17,19 @@ $requiredFragments = @(
     'KandraRendererManagerPreLateUpdateEndPatch',
     'instance.ApplyKandraRenderOffset(__instance);',
     'rendererManager.RigManager',
-    'ApplyKandraCullingOffset(translation)',
+    'ApplyKandraCullingOffset(',
+    'torsoRendererRetraction);',
     'typeof(VHeroController)',
     '"ProcessUpdate"',
     'VHeroControllerProcessUpdatePatch',
     'instance.CaptureVisualWorldOffsetAfterCameraRotation(',
-    'RefreshCurrentVisualWorldOffset(controller);'
+    'RefreshCurrentVisualWorldOffset(controller);',
+    'GetViewmodelHeadBobFollowWorldOffset(camera)',
+    '_currentShoulderRetractionWorldOffset',
+    'Time.timeScale <= 0.0f',
+    'RefreshCurrentVisualWorldOffset(null);',
+    'ReportPausedRenderOffsetFallback();',
+    'during paused rendering because VHeroController.ProcessUpdate did not provide a current-frame snapshot'
 )
 
 foreach ($fragment in $requiredFragments) {
@@ -46,6 +53,72 @@ foreach ($fragment in $forbiddenFragments) {
     }
 }
 
+$allocationReuseFragments = @(
+    '_kandraCullingRendererSlots',
+    '_kandraCullingRendererTranslations',
+    '_retainedDrakeEntities',
+    '_restoredDrakeEntities',
+    '_weaponEntityAccessScanBuffer',
+    '_attachedEffectCandidates',
+    '_visualEffectScanBuffer',
+    '_particleSystemScanBuffer',
+    'bodyData.GetComponentsInChildren(true, bodyRigs);',
+    'bodyData.GetComponentsInChildren(true, renderers);',
+    'weapon.GetComponentsInChildren(true, weaponAccesses);',
+    'root.GetComponentsInChildren(true, visualEffects);',
+    'root.GetComponentsInChildren(true, particleSystems);',
+    'RestoreDrakeOffsets(entityManager, retainedEntities, true);'
+)
+
+foreach ($fragment in $allocationReuseFragments) {
+    if (-not $source.Contains($fragment)) {
+        throw "Missing native presentation allocation reuse: $fragment"
+    }
+}
+
+$sceneCacheCleanup = [regex]::Match(
+    $source,
+    '(?s)private void ClearSceneCaches\(\).+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+$sceneBufferCleanupFragments = @(
+    '_kandraCullingRendererSlots.Clear();',
+    '_kandraCullingRendererTranslations.Clear();',
+    '_kandraRigRefreshRigs.Clear();',
+    '_kandraRigRefreshBodyRigs.Clear();',
+    '_kandraRigRefreshRenderers.Clear();',
+    '_staleShoulderBoneProfiles.Clear();',
+    '_retainedDrakeEntities.Clear();',
+    '_restoredDrakeEntities.Clear();',
+    '_weaponEntityAccesses.Clear();',
+    '_weaponEntityAccessScanBuffer.Clear();',
+    '_attachedEffectExcludedRoots.Clear();',
+    '_attachedEffectCandidates.Clear();',
+    '_visualEffectScanBuffer.Clear();',
+    '_particleSystemScanBuffer.Clear();'
+)
+
+foreach ($fragment in $sceneBufferCleanupFragments) {
+    if (-not $sceneCacheCleanup.Contains($fragment)) {
+        throw "Scene teardown must release reusable presentation-buffer references: $fragment"
+    }
+}
+
+$kandraCullingMethod = [regex]::Match(
+    $source,
+    '(?s)private int ApplyKandraCullingOffset\(.+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+$drakeOffsetMethod = [regex]::Match(
+    $source,
+    '(?s)internal void ApplyDrakeWeaponOffset\(.+?^        }',
+    [System.Text.RegularExpressions.RegexOptions]::Multiline
+).Value
+if ($kandraCullingMethod -match 'new List<' -or
+    $drakeOffsetMethod -match 'new HashSet<') {
+    throw "Per-frame Kandra or Drake synchronization recreated a managed collection."
+}
+
 $sharedOffsetConsumer = 'TryGetCurrentVisualWorldOffset(out worldOffset)'
 $sharedOffsetConsumerCount = [regex]::Matches(
     $source,
@@ -57,10 +130,10 @@ if ($sharedOffsetConsumerCount -ne 5) {
 
 $effectiveOffsetSampleCount = [regex]::Matches(
     $source,
-    'visualBasis\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)'
+    'GetEffectiveLocalOffset\(hero\)'
 ).Count
 if ($effectiveOffsetSampleCount -ne 1) {
-    throw "Expected exactly one arms-pivot-space sample of the effective visual offset; found $effectiveOffsetSampleCount."
+    throw "Expected exactly one sample of the effective configured visual offset; found $effectiveOffsetSampleCount."
 }
 
 $refreshMethod = [regex]::Match(
@@ -76,6 +149,9 @@ Transform visualBasis = controller.fppParent == null
 if (-not $refreshMethod.Contains($visualBasisContract)) {
     throw "The shared visual offset does not prefer the current first-person arms pivot with a guarded main-camera fallback."
 }
+if ($refreshMethod -notmatch '(?s)configuredLocalOffset =\s*GetEffectiveLocalOffset\(hero\).+?configuredWorldOffset = visualBasis\.TransformVector\(\s*configuredLocalOffset\).+?viewmodelHeadBobWorldOffset =\s*GetViewmodelHeadBobFollowWorldOffset\(camera\).+?_currentVisualWorldOffset = configuredWorldOffset\s*\+ viewmodelHeadBobWorldOffset') {
+    throw "The shared visual offset must preserve one arms-pivot-space configured sample and add one exact camera-space head-bob compensation sample."
+}
 if ([regex]::IsMatch(
         $refreshMethod,
         'camera\.transform\.TransformVector\(\s*GetEffectiveLocalOffset\(hero\)\s*\)')) {
@@ -84,7 +160,7 @@ if ([regex]::IsMatch(
 
 if ([regex]::IsMatch(
         $source,
-        '(?:camera\.transform|controller\.fppParent\.transform)\.TransformVector\(\s*localOffset\s*\)')) {
+        '(?:camera\.transform|controller\.fppParent\.transform)\.TransformVector\(\s*(?:localOffset|configuredWorldOffset|viewmodelHeadBobWorldOffset)\s*\)')) {
     throw "A visual path independently resamples the presentation offset instead of using the per-frame cache."
 }
 
@@ -102,8 +178,14 @@ $sharedOffsetGetter = [regex]::Match(
     '(?s)internal bool TryGetCurrentVisualWorldOffset\(.+?^        }',
     [System.Text.RegularExpressions.RegexOptions]::Multiline
 ).Value
-if ($sharedOffsetGetter.Contains('RefreshCurrentVisualWorldOffset')) {
-    throw "An early API or visual consumer can still lock a stale camera rotation before the authoritative hero-controller capture."
+if ($sharedOffsetGetter -notmatch '(?s)if \(_currentVisualWorldOffsetFrame != Time\.frameCount\s*&& Time\.timeScale <= 0\.0f\)\s*\{\s*RefreshCurrentVisualWorldOffset\(null\);\s*ReportPausedRenderOffsetFallback\(\);\s*\}' -or
+    $sharedOffsetGetter -notmatch '(?s)ReportPausedRenderOffsetFallback\(\);\s*\}\s*worldOffset = _currentVisualWorldOffset') {
+    throw "The render fallback must refresh only a missing paused-frame snapshot before returning the shared offset."
+}
+if ([regex]::Matches(
+        $sharedOffsetGetter,
+        'RefreshCurrentVisualWorldOffset').Count -ne 1) {
+    throw "The shared offset getter contains an additional path that could lock a stale gameplay camera rotation."
 }
 
 $immutableFrameGuard = @'

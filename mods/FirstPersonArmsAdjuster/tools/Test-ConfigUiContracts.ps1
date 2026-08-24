@@ -15,9 +15,9 @@ $expectedSections = @(
     "General",
     "Position",
     "Equipment Depth",
+    "Advanced - Retraction Profile",
     "Head Bob",
-    "Advanced - Melee Guards",
-    "Advanced - Dodge Guard",
+    "Advanced - Animation Guards",
     "Advanced - Effects",
     "Diagnostics"
 )
@@ -26,6 +26,21 @@ $expectedLabels = @(
     "General / Unarmed Depth Offset (m)",
     "Horizontal Offset (m)",
     "Vertical Offset (m)",
+    "Shoulder Retraction (m)",
+    "Spine Retraction (%)",
+    "Spine1 Retraction (%)",
+    "Spine2 Retraction (%)",
+    "Left Shoulder Retraction (%)",
+    "Right Shoulder Retraction (%)",
+    "Upper-Arm Retraction (%)",
+    "Forearm Retraction (%)",
+    "Lower Torso Retraction (%)",
+    "Chest Helper Retraction (%)",
+    "Shoulder-Fix Retraction (%)",
+    "Native Cloth Retraction (%)",
+    "Torso Renderer Retraction (%)",
+    "Test Retraction Bone Name",
+    "Test Bone Retraction (%)",
     "Use Separate Equipment Depths",
     "Melee Depth Offset (m)",
     "Bow Depth Offset (m)",
@@ -34,12 +49,22 @@ $expectedLabels = @(
     "Head Bob Strength",
     "Head Bob Smoothness",
     "Sprint Emphasis",
+    "Head Bob Speed (%)",
+    "Stabilize Viewmodel During Head Bob",
+    "Viewmodel Head-Bob Follow (%)",
     "Suppress Motion Blur During Head Bob",
-    "Prevent Body Intrusion",
+    "Temporal-Safe Head Bob Timing (Test)",
+    "Enable Animation Guards",
+    "Enable Attack Guards",
+    "Enable Dodge Guard",
+    "Enable Sheathing Guard",
+    "Enable Bow Draw Guard",
+    "Bow Draw Maximum Offset (%)",
+    "Use Shared Guard Target",
+    "Shared Move Toward Vanilla (%)",
     "Normal Offset Retained (0-1)",
     "Extra Depth Correction (m)",
     "Extra Vertical Correction (m)",
-    "Move Toward Vanilla (%)",
     "Keep Attached Effects Aligned",
     "Diagnostics"
 )
@@ -64,8 +89,8 @@ foreach ($label in $expectedLabels) {
 }
 
 if ($source -notmatch '(?s)"ConfigSchemaVersion",\s*ConfigSchemaVersion,.+BrowsableAttribute\(false\)' -or
-    $source -notmatch 'private const int ConfigSchemaVersion = 14;') {
-    throw "The schema marker must remain hidden and use schema 13 after removing and renaming the old camera-motion settings."
+    $source -notmatch 'private const int ConfigSchemaVersion = 20;') {
+    throw "The schema marker must remain hidden and use schema 19 after consolidating animation guards and adopting the new defaults."
 }
 
 Write-Host "First Person Arms Adjuster config UI contracts passed."

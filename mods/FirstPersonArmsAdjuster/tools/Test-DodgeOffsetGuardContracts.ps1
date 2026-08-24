@@ -12,24 +12,33 @@ if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
 
 $source = Get-Content -LiteralPath $sourcePath -Raw
 $requiredFragments = @(
-    "DodgeEndNormalizedTime = 0.90f",
-    "DodgeRestoreSeconds = 0.08f",
-    "DodgeReentryEpsilon = 0.001f",
-    '"DodgeMoveTowardVanillaPercent"',
-    "50.0f",
-    'new AcceptableValueRange<float>(0.0f, 100.0f)',
-    "hero.TryGetElement<LegsFSM>()",
+    "DodgeRetractionMaximumMeters = 0.25f",
+    "DodgeRetractionBlendInSeconds = 0.06f",
+    "DodgeRetractionBlendOutSeconds = 0.20f",
+    "DodgeRetractionHoldSeconds = 0.12f",
+    "DodgeActivitySignalGraceSeconds = 0.05f",
+    "UpdateDodgeShoulderRetractionBlend();",
+    "hero.Elements<LegsFSM>()",
     "IsDodgeState(legs.CurrentStateType)",
-    "animatorState.TimeElapsedNormalized",
-    "normalizedTime + DodgeReentryEpsilon",
-    "_dodgeEntryOffsetBlend = _dodgeOffsetBlend",
-    "return _dodgeOffsetBlend",
-    "moveTowardVanillaPercent / 100.0f",
-    "minimumBlend = 1.0f - strength",
-    "Mathf.LerpUnclamped(",
+    "legs.CurrentStateToEnterType",
+    "_dodgeShoulderRetractionHoldUntil = now",
+    "_lastDodgeActivitySignalTime",
+    "NotifyDodgeActivity()",
+    "typeof(DashBaseState)",
+    '"OnHeroDashed"',
+    '"OnHeroDashedForward"',
+    '"OnUpdate"',
+    "DodgeActivityPatch.Postfix",
+    "now < _dodgeShoulderRetractionHoldUntil",
+    "Time.unscaledDeltaTime / duration",
+    "_dodgeShoulderRetractionBlend = Mathf.MoveTowards(",
     "state >= HeroStateType.DashFront",
     "state <= HeroStateType.DashBackRight",
-    "* GetDodgeOffsetBlend(hero)"
+    "configuredShoulderRetraction",
+    "DodgeRetractionMaximumMeters",
+    "dodgeRetractionRemaining",
+    "dodgeRetractionProgress",
+    "Fading shoulder retraction toward 0.25 metres for the dodge guard."
 )
 
 foreach ($fragment in $requiredFragments) {
@@ -38,4 +47,15 @@ foreach ($fragment in $requiredFragments) {
     }
 }
 
-Write-Host "First Person Arms Adjuster dodge offset guard contracts passed."
+foreach ($retiredFragment in @(
+    'DodgeMoveTowardVanillaPercent',
+    'GetDodgeOffsetBlend(',
+    'dodgeRetainedScale',
+    '_dodgeOffsetBlend'
+)) {
+    if ($source.Contains($retiredFragment)) {
+        throw "Retired whole-viewmodel dodge behavior remains: $retiredFragment"
+    }
+}
+
+Write-Host "First Person Arms Adjuster dynamic dodge-retraction guard contracts passed."

@@ -14,9 +14,10 @@ $source = Get-Content -LiteralPath $sourcePath -Raw
 $requiredFragments = @(
     "HeroStateType.LightAttackForward",
     "UpdateSprintAttackOffsetBlend();",
-    "SprintAttackBlendOutSeconds = 0.05f",
-    "SprintAttackBlendInSeconds = 0.20f",
-    "* (1.0f - _sprintAttackOffsetBlend)",
+    "SprintAttackBlendOutSeconds = 0.12f",
+    "SprintAttackBlendInSeconds = 0.22f",
+    "sprintAttackRetainedScale =",
+    "* sprintAttackRetainedScale",
     '"Blending the first-person offset to vanilla for a sprint attack."'
 )
 

@@ -63,7 +63,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedSettings('
         Restore = 'RestorePreservedSettings();'
         Save = 'Config.Save();'
-        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset', 'EnableHeadBob', 'HeadBobPreset', 'HeadBobSmoothness', 'SprintEmphasis', 'SuppressMotionBlurDuringHeadBob')
+        Tokens = @('ForwardOffset', 'HorizontalOffset', 'VerticalOffset', 'ShoulderRetraction', 'SpineRetractionPercent', 'Spine1RetractionPercent', 'Spine2RetractionPercent', 'LeftShoulderRetractionPercent', 'RightShoulderRetractionPercent', 'UpperArmRetractionPercent', 'ForearmRetractionPercent', 'LowerTorsoRetractionPercent', 'ChestHelperRetractionPercent', 'ShoulderFixRetractionPercent', 'NativeClothRetractionPercent', 'TestRetractionBoneName', 'TestBoneRetractionPercent', 'EnableHeadBob', 'HeadBobPreset', 'HeadBobSmoothness', 'SprintEmphasis', 'SuppressMotionBlurDuringHeadBob')
     },
     [pscustomobject]@{
         Name = 'Blood Magic Expansion'

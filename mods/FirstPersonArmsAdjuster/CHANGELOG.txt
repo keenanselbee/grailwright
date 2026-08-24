@@ -1,3 +1,128 @@
+Version 0.8.6
+Changed the default Bow Draw Maximum Offset from 67 to 33 percent, so the default 0.30 metre Bow Depth Offset contributes about 0.10 metres while drawing, matching the validated setting.
+Advanced ConfigSchemaVersion from 19 to 20 because the existing bow-draw ceiling default changed. The stale config is backed up and regenerated; an untouched old 67 percent default adopts 33 percent, while compatible customized values remain eligible for recovery.
+Cleared every reusable Kandra, Drake, weapon-entity, and attached-effect scratch buffer during scene-cache teardown so old scene component wrappers are released promptly without discarding reusable capacity or changing runtime behavior.
+
+Version 0.8.5
+Reused Kandra culling, Drake entity tracking, weapon entity-access, and attached-effect discovery buffers instead of recreating their managed collections during render synchronization and periodic hierarchy refreshes.
+Switched recurring component discovery to Unity's list-based overloads, reused attached-effect state storage, hoisted each Drake access transform conversion out of its entity loop, and avoided a redundant ECS dependency completion after the same update already completed it. Refresh timing, job ordering, diagnostics, and visible behavior remain unchanged.
+
+Version 0.8.4
+Gave the bow guard priority over melee attack guards throughout pull, hold, release, and the gradual post-shot restoration, preventing overlapping one-handed attack states from masking the restored bow offset.
+Excluded the already-smoothed melee correction from final offset composition while bow priority is active, so residual attack-guard blending cannot briefly pull the restored bow position back toward vanilla.
+Required melee FSM layers to be active before their current or pending attack states can trigger either attack-detection path, preventing inactive stale layers from influencing first-person presentation.
+ConfigSchemaVersion remains 19 because this corrects guard arbitration without changing any setting, default, type, section, or meaning.
+
+Version 0.8.3
+Changed dodge activation from unreliable frame polling to the native successful-dash callbacks plus the active DashBaseState update, while retaining FSM enumeration as a compatibility fallback.
+Accelerated dodge retraction to a 0.06-second ease-out toward 0.25 metres so torso correction begins before the dodge pose can expose Cloth2, while retaining the chained-dodge hold and 0.20-second restoration.
+Anchored bow restoration to BowRelease's native projectile-fire threshold at normalized time 0.05 instead of retaining the draw ceiling through the complete release animation.
+Extended bow restoration from 0.22 to 0.40 seconds so it begins just after the arrow fires but returns to the configured offset more gradually; cancelled draws use the same gradual restoration.
+ConfigSchemaVersion remains 19 because these changes only correct internal guard detection and transition timing without changing any setting, default, type, section, or meaning.
+
+Version 0.8.2
+Replaced dodge movement toward vanilla with dynamic shoulder retraction: every directional dodge now eases from the configured retraction toward 0.25 metres, holds maximum correction across rapid chained dodges, and smoothly restores without shifting the complete viewmodel offset.
+Smoothed attack and sprint-attack guard transitions and made bow guarding follow normalized pull progress during arrow nocking before holding its ceiling through the held and release phases and easing out after release or cancellation.
+Changed the default bow depth to 0.30 metres and the default bow-draw ceiling to 67 percent, producing about 0.20 metres of positive FPAA depth during draw.
+Changed the default Shoulder Retraction from 0.25 to 0.05 metres so normal poses use a lighter correction while the dodge guard can dynamically reach the supported 0.25 metre maximum.
+Consolidated the raw attack guard and held-melee tuning settings into Advanced - Animation Guards and removed the obsolete DodgeMoveTowardVanillaPercent setting and Advanced - Dodge Guard section.
+Advanced ConfigSchemaVersion from 18 to 19 because bow and shoulder defaults changed, guard settings moved sections, and the retired dodge-offset setting was removed; compatible customized settings with unchanged current section and key names remain recoverable.
+
+Version 0.8.1
+Expanded shared attack guarding across every normal melee light and heavy phase, including initial, chained, tired, forward, charged, held, release, and alternate states, while retaining the narrower established behavior when shared targeting is disabled.
+Expanded sheathing guarding from active two-handed melee grips to normal and alternate unequip states across melee, dual-wield, bow, and magic equipment.
+Changed simultaneous shared guards to use the strongest move-toward-vanilla influence instead of multiplying independent retained-offset factors, preventing overlapping states from over-correcting the viewmodel.
+Added an enabled-by-default bow-draw guard for pull, hold, release, and cancelled draw with a live 0-100 percent maximum tied dynamically to BowForwardOffset; the default 100 percent keeps a 0.10 bow depth at a 0.10 metre ceiling without changing animation, aim, or projectile origin.
+Adopted the validated player configuration as the new defaults: 0.25 Shoulder Retraction; 0/0/100/100/100/30/20 standard retraction profile; 50 percent torso-renderer retraction; shared guard targeting at 50 percent; 75 percent head-bob speed; full stabilized viewmodel follow; and temporal-safe timing enabled. Diagnostics remains disabled by default.
+Advanced ConfigSchemaVersion from 17 to 18 because these validated presentation, retraction, guard, and head-bob defaults materially replace the previous defaults; compatible customized settings remain recoverable.
+
+Version 0.7.9
+Added an Advanced - Animation Guards section with a master switch and independent attack, dodge, and two-handed sheathing toggles, all enabled by default to preserve current behavior.
+Added an off-by-default shared 0-100 percent Move Toward Vanilla target for enabled animation guards; 0 retains the configured FPAA position and 100 reaches vanilla.
+Kept the established held-heavy, sprint-attack, dodge, and sheathing targets unchanged while shared targeting is off, and made shared mode override held-melee retained-scale and extra corrections so every selected guard reaches the same exact target.
+Moved only the attack toggle's FoA Mod Manager presentation into the consolidated section while retaining its existing raw config key and section for compatibility.
+ConfigSchemaVersion remains 17 because all new controls are additive with compatibility-preserving defaults and the attack control change is display metadata only.
+
+Version 0.7.8
+Replaced the temporary renderer-isolation selector with a permanent Torso Renderer Retraction control after diagnostics confirmed that the obstruction belongs to the second native Cloth renderer, whose mesh and material identify it as torso geometry.
+Added a live 0-400 percent renderer-specific weight, defaulting to 100 percent of the master Shoulder Retraction distance, with semantic Torso matching and Cloth2 as a compatibility fallback.
+Assigned only the matched torso renderer to a dedicated render rig so its complete skinned surface can retract without moving the first-person arms, hands, weapons, or other cloth renderers, while retaining the existing bone job and per-renderer culling alignment.
+Advanced ConfigSchemaVersion from 16 to 17 because RendererIsolationTarget was removed after completing its diagnostic purpose; compatible durable settings remain recoverable and the new torso-renderer weight starts at its current default.
+
+Version 0.7.6
+Kept missing or independently disabled renderer-isolation targets in a stable observed state so the half-second discovery refresh does not repeat identical missing/restored diagnostics while still detecting a renderer that later appears or becomes enabled.
+ConfigSchemaVersion remains 16 because renderer-isolation choices and all existing settings retain their 0.7.5 meanings and defaults.
+
+Version 0.7.5
+Added an off-by-default Renderer Isolation Target diagnostic with None, FppBody, Cloth1, Cloth2, and Cloth3 choices for identifying native first-person geometry that does not respond to bone retraction.
+Temporarily unregisters only the selected Kandra renderer, restores it before switching targets, and automatically restores FPAA-owned isolation when the mod is disabled, third person starts, the scene changes, or the plugin unloads.
+Logged the selected renderer's full hierarchy path, Kandra mesh, materials, and stable body/cloth candidate ordinals so identical Cloth objects and dynamically added third cloth renderers can be distinguished.
+ConfigSchemaVersion remains 16 because the new diagnostic selector is independently bound, defaults to None, and does not alter existing settings or behavior.
+
+Version 0.7.4
+Added off-by-default live 0-400 percent grouped controls for the native Hips lower-torso bone, four left/right chest-helper bones, two shoulder-fix helpers, and the complete Cloth_Skirt group discovered on the FppArms rig.
+Applied grouped correction additively with the existing standard profile and exact-name test target inside the same single Kandra bone job, leaving hands and weapon sockets unchanged unless explicitly selected by the diagnostic target.
+Guarded native-cloth correction behind a verified contiguous Cloth_Skirt index range so an unfamiliar rig layout cannot sweep unrelated bones, and expanded Diagnostics with resolved group indices, counts, contiguity, and effective metres.
+ConfigSchemaVersion remains 16 because all four grouped controls are additive and disabled by default, preserving existing behavior and settings.
+
+Version 0.7.3
+Added an off-by-default exact-name Test Retraction Bone target and a live 0-400 percent additive test control for identifying native first-person mesh regions weighted outside the standard spine, shoulder, and arm profile.
+Expanded Diagnostics with the complete indexed bone inventory for every native first-person Kandra rig, the selected test bone and resolved index, and every discovered renderer path with its rig name.
+Kept exploratory retraction inside the existing single Kandra bone job, cache-rebuilding immediately when the test name changes, with no root transform mutation, additional render pass, or automatic hand movement.
+ConfigSchemaVersion remains 16 because the diagnostic target settings are additive, disabled by default, and do not alter existing behavior.
+
+Version 0.7.2
+Added live 0-200 percent retraction-profile controls for Spine, Spine1, Spine2, left shoulder, right shoulder, upper arms, and forearms, with defaults matching the established 35/75/100/100/100/60/20 percent curve.
+Allowed asymmetric shoulder testing and up to twice the master Shoulder Retraction distance per region while keeping both hands fixed at zero and retaining the existing single Kandra bone job.
+Expanded Diagnostics with effective metres for every adjustable region and a change-triggered per-rig report of all matched spine, shoulder, upper-arm, and forearm bone indices.
+ConfigSchemaVersion remains 16 because these are additive live controls whose defaults reproduce the existing retraction profile.
+
+Version 0.7.1
+Extended Shoulder Retraction from 0.10 to 0.25 metres and removed the active equipment-depth cap, allowing the rendered torso to move behind its vanilla position when attack poses expose body geometry.
+Added the lower Spine bone at 35 percent, strengthened Spine1 from 35 to 75 percent, and retained full Spine2 and shoulder movement with the existing upper-arm and forearm taper to zero at the hands.
+Kept the correction inside the existing single Kandra bone job and steadily active through attack, dodge, sheathing, and interaction guards, with no additional render pass or gameplay-transform changes.
+Advanced ConfigSchemaVersion from 15 to 16 because Shoulder Retraction now has a stronger uncapped meaning; legacy customized values are not automatically restored, while other compatible durable settings remain recoverable.
+
+Version 0.7.0
+Added an off-by-default Shoulder Retraction setting from 0.00 to 0.10 metres for reducing upper-body and shoulder visibility introduced by positive first-person depth offsets; start around 0.02 to 0.04.
+Applied the correction after animation inside the existing Kandra bone job, with fixed tapering from Spine1 through Spine2 and the shoulders, upper arms, and forearms to zero at the hands so weapon sockets, aim, gameplay transforms, physics, projectiles, and third person remain unchanged.
+Kept shoulder retraction steadily active while the established heavy-attack, sprint-attack, dodge, sheathing, and interaction guards adjust the complete presentation; the correction is independently capped by the active equipment category's positive forward offset.
+Cached only managed per-rig shoulder bone indices, rebuilding when rig bone counts change and clearing them with the existing scene caches, so the feature adds no render pass, second bone job, persistent native allocation, or per-weapon work.
+Added live Diagnostics reporting for configured and applied retraction, world offset, affected bone count, and affected rig count. ConfigSchemaVersion remains 15 because the new setting is an independently bound addition and existing settings keep their meanings and defaults.
+
+Version 0.6.9
+Added an off-by-default Stabilize Viewmodel During Head Bob toggle that forces arms, weapons, effects, culling, and visual integrations to follow FPAA's exact camera-space bob translation, overriding the partial follow percentage.
+Separated configured positioning from head-bob compensation so normal offsets remain based on the first-person arms pivot while bob follow uses the camera's actual world-space vector, removing the rotational basis mismatch that could leave residual viewmodel movement at 100 percent.
+Added a live Head Bob Speed setting from 50 to 150 percent, defaulting to 100, which scales cadence after the soft-knee limiter without changing amplitude, movement speed, sprint emphasis, temporal timing, or render cost.
+Expanded diagnostics with the speed-scaled target cadence and camera, applied-stabilization, and remaining-bob world vectors. ConfigSchemaVersion remains 15 because both new settings are independently bound additions and existing settings keep their meanings and defaults.
+
+Version 0.6.8
+Added a live Viewmodel Head-Bob Follow setting from 0 to 100 percent, defaulting to 75 so arms and held visuals follow most of the camera translation while retaining one quarter of the apparent relative motion.
+Applied the follow component through the existing shared post-camera-rotation visual offset so Kandra arms, body rendering, Drake equipment, attached effects, culling, and API integrations remain aligned.
+Kept the follow render-only and behind the established head-bob, first-person, accessibility, and main-camera gates; aim, attacks, colliders, projectiles, camera motion, temporal timing, and third person remain unchanged.
+Added follow percentage startup and runtime diagnostics. ConfigSchemaVersion remains 15 because adding this independently bound setting does not invalidate existing config values.
+
+Version 0.6.7
+Replaced the hard jog-cadence clamp with a continuous soft-knee curve that preserves speed and preset differences before approaching the same safe 3.2 walking and 4.2 maximum-sprint limits.
+Changed Head Bob Smoothness to ease cadence and vertical/lateral amplitude transitions instead of filtering the completed waveform, preserving steady jogging strength and the intended two-step lateral-to-vertical gait at every smoothness value.
+Added smoothed cadence and vertical/lateral amplitude values to Diagnostics and deterministic soft-limit contract coverage.
+Advanced ConfigSchemaVersion from 14 to 15 because Head Bob Smoothness now controls gait response rather than final waveform filtering; regenerated defaults use the new behavior while compatible customized settings remain recoverable.
+Kept temporal-safe HDRP timing, motion-blur suppression, presets, Sprint Emphasis, render scope, camera restoration, viewmodel positioning, and compatibility integrations unchanged.
+
+Version 0.6.6
+Kept the configured first-person arms, body, weapons, effects, and integration offsets active when the pause menu stops VHeroController.ProcessUpdate while HDRP continues rendering.
+Added a pause-only render fallback that recalculates a missing current-frame offset from the live first-person arms pivot, retaining the authoritative post-camera-rotation snapshot throughout normal gameplay.
+Added a rate-limited Diagnostics line when the paused-render fallback supplies the shared offset.
+
+Version 0.6.5
+Capped the distance-driven vertical head-bob cadence at a smoothly blended 3.2 cycles per second while walking and 4.2 while sprinting, preventing high movement speeds and Strong sprint settings from producing unnaturally rapid stepping.
+Kept the existing preset amplitudes, lateral-to-vertical gait relationship, smoothing, sprint blending, temporal-safe timing, render scope, and restoration behavior unchanged.
+Added raw and effective vertical cadence values to Diagnostics so movement-speed input and limiting can be confirmed independently.
+
+Version 0.6.4
+Added an off-by-default Temporal Safe Head Bob Timing A/B setting. When enabled, FPAA applies the unchanged main-camera bob immediately before HDRP records its current and previous temporal view matrices instead of at the later camera-render callback, then uses the existing end-of-render and next-update restoration safeguards. This targets TAA, DLSS, and FSR smearing without changing bob motion, viewmodel positioning, yaw stabilization, rendering quality, or render-pass count.
+Added Diagnostics confirmation of the application phase and whether HDRP captured the exact bobbed camera position.
+
 Version 0.6.3
 Based the shared presentation offset on the first-person arms pivot immediately after the game applies current look input, eliminating the delayed rendered-camera direction that remained visible as jerky arms during rapid left-right turns.
 Kept the existing once-per-frame synchronization hook, shared Kandra, Drake, effect, render, and API offset, and a guarded rendered-camera fallback without adding interpolation, viewmodel lag, or per-consumer work.

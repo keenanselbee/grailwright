@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.6.3
+First Person Arms Adjuster 0.8.6
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -6,8 +6,8 @@ Platforms: Windows and Linux through Proton.
 First Person Arms Adjuster is an experimental prototype for Tainted Grail:
 The Fall of Avalon. It moves the rendered first-person body, arms, weapons, and
 held arrows in camera space without changing the world camera or field of view.
-It also provides camera-only first-person head bob that never moves the shared
-arm and body rig.
+It also provides camera-only first-person head bob with optional render-only
+viewmodel follow that never changes the gameplay arm and body rig.
 
 Config
 ------
@@ -16,54 +16,162 @@ Config file:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 
 FoA Mod Manager and the generated config organize the live controls into
-General, Position, Equipment Depth, Head Bob, Advanced - Melee Guards,
-Advanced - Dodge Guard, Advanced - Effects, Diagnostics, and the final Import
-Previous Settings section.
-Friendly labels show metres and signed directions while the stored config keys
-below remain unchanged.
+General, Position, Equipment Depth, Advanced - Retraction Profile, Head Bob,
+Advanced - Animation Guards, Advanced - Effects,
+Diagnostics, and the final Import Previous Settings section.
+Friendly labels show metres and signed directions. Guard controls now share one
+raw section as well as one FoA Mod Manager section.
 
 Defaults:
 Enabled = true
 ForwardOffset = 0.30
 HorizontalOffset = 0.0
 VerticalOffset = 0.0
+ShoulderRetraction = 0.05
+SpineRetractionPercent = 0
+Spine1RetractionPercent = 0
+Spine2RetractionPercent = 100
+LeftShoulderRetractionPercent = 100
+RightShoulderRetractionPercent = 100
+UpperArmRetractionPercent = 30
+ForearmRetractionPercent = 20
+LowerTorsoRetractionPercent = 0
+ChestHelperRetractionPercent = 0
+ShoulderFixRetractionPercent = 0
+NativeClothRetractionPercent = 0
+TorsoRendererRetractionPercent = 50
+TestRetractionBoneName =
+TestBoneRetractionPercent = 0
 UseCategoryForwardOffsets = true
 AdjustAttachedEffects = true
 EnableHeadBob = true
 HeadBobPreset = Balanced
 HeadBobSmoothness = 0.7
 SprintEmphasis = 0.75
+HeadBobSpeedPercent = 75
+StabilizeViewmodelDuringHeadBob = true
+ViewmodelHeadBobFollowPercent = 100
 SuppressMotionBlurDuringHeadBob = false
+TemporalSafeHeadBobTiming = true
 MeleeForwardOffset = 0.30
-BowForwardOffset = 0.10
+BowForwardOffset = 0.30
 MagicForwardOffset = 0.30
+EnableAnimationGuards = true
 MitigateHeldMeleeBodyIntrusion = true
+EnableDodgeGuard = true
+EnableSheathingGuard = true
+EnableBowDrawGuard = true
+BowDrawMaximumOffsetPercent = 33
+UseSharedGuardTarget = true
+SharedMoveTowardVanillaPercent = 50
 HeldMeleeOffsetScale = 1.0
 HeldMeleeExtraForwardOffset = -0.05
 HeldMeleeExtraVerticalOffset = -0.05
-DodgeMoveTowardVanillaPercent = 50
 Diagnostics = false
 
 Offsets are measured in meters relative to the camera. Positive ForwardOffset
 moves the first-person model farther away, positive HorizontalOffset moves it
 right, and positive VerticalOffset moves it up. Changes apply live.
 
-Category offsets are enabled by default so melee and magic use 0.30 while bows
-use 0.10. Unarmed and unrecognized equipment continue to use ForwardOffset.
+Category offsets are enabled by default so melee, bows, and magic use 0.30.
+Unarmed and unrecognized equipment continue to use ForwardOffset.
+
+ShoulderRetraction is a render-only correction for torso and
+shoulder geometry that becomes visible during first-person poses. Values from
+0.02 to 0.04 remain useful for light correction, while the default 0.05 provides
+a moderate correction during normal poses. It retracts Spine, Spine1,
+Spine2, and the shoulder region toward or behind the camera, tapers through the
+upper arms and forearms, and reaches zero at the hands so held weapons retain
+their configured position. The correction is independent of equipment depth
+and remains independent while FPAA's attack, sheathing, and interaction guards
+adjust the complete presentation. Dodge guarding temporarily raises retraction
+toward 0.25 metres, then restores the configured value. It does not change the
+live skeleton, aim, physics, projectiles, camera, or third person. Upgrading to
+0.7.1 regenerates this stronger setting at 0; set it again after the restart.
+
+Advanced - Retraction Profile exposes the percentage of the master distance
+applied to each matched region. Spine, Spine1, and Spine2 are independent;
+left and right shoulders are independent; upper arms and forearms use shared
+percentages. Every value updates live from 0 to 200 percent. At a master value
+of 0.25, 200 percent moves that region 0.50 metres. Defaults use the validated
+0/0/100/100/100/30/20 profile, and hands remain fixed at zero. Keep neighboring percentages
+reasonably close when possible because large discontinuities can stretch
+vertices blended across adjacent bones.
+
+Four off-by-default grouped controls cover native FppArms geometry outside the
+normal taper. LowerTorsoRetractionPercent targets Hips;
+ChestHelperRetractionPercent targets both Breast_Base and Breast pairs;
+ShoulderFixRetractionPercent targets both ShoulderFix helpers; and
+NativeClothRetractionPercent targets every contiguous Cloth_Skirt bone. Each
+accepts 0 to 400 percent of the master distance and is additive with the normal
+profile. Native cloth movement is skipped if a future rig does not store the
+matching bones in one contiguous range, preventing unrelated bones from being
+moved accidentally.
+
+TorsoRendererRetractionPercent controls the complete native torso-garment
+renderer identified during isolation testing as Cloth2. FPAA prefers its Torso
+mesh or material name and uses the second Cloth renderer only as a compatibility
+fallback. Its default 50 percent moves that renderer by half the master Shoulder
+Retraction distance; the live 0 to 400 percent range permits stronger or weaker
+correction. FPAA gives only this renderer a dedicated render rig, so the arms,
+hands, weapons, and other cloth renderers keep their normal bone profile. The
+master ShoulderRetraction defaults to 0.05, producing 0.025 metres of dedicated
+torso-renderer correction outside dodges.
+
+When visible geometry does not respond to the standard profile, enable
+Diagnostics with ShoulderRetraction above 0. FPAA logs every native Kandra rig,
+its complete indexed bone list, and each renderer path and rig. Copy one exact
+bone name into TestRetractionBoneName, then raise TestBoneRetractionPercent from
+0 while watching the problem pose. The test accepts 0 to 400 percent and is
+additive when the selected bone already belongs to the normal profile. Change
+one bone at a time. Avoid hand, finger, and weapon-socket names so the diagnostic
+does not move held equipment. Clear the name and return the percentage to 0
+after identifying the mesh owner.
 
 Head bob applies distance-driven vertical and side-to-side movement only while
-the main first-person camera renders, then restores the camera. It does not move
-the arms, body rig, camera depth, aim, or third-person camera. The game's
+the main first-person camera renders, then restores the camera. It does not
+change the gameplay arm and body rig, camera depth, aim, or third-person camera.
+The game's
 Accessibility / Head Bob setting is the global master switch; FPAA suppresses
 the game's arm-moving first-person bob and substitutes this camera-only motion.
-Choose Subtle, Balanced, or Strong with HeadBobPreset. HeadBobSmoothness rounds
-the path with up to 0.18 seconds of filtering. SprintEmphasis uses the Hero's
-native sprint state. Its default 0.75 adds about 56% movement and 19% cadence
-while sprinting; 0 disables the sprint bonus. Enable
+Choose Subtle, Balanced, or Strong with HeadBobPreset. HeadBobSmoothness eases
+changes in cadence and vertical/lateral strength over 0.02 to 0.18 seconds; it
+does not filter or weaken the steady jogging waveform. SprintEmphasis uses the
+Hero's native sprint state. Its default 0.75 adds about 56% movement and 19%
+raw cadence while sprinting; 0 disables the sprint bonus. Vertical cadence
+remains distance-driven and follows a continuous soft-knee curve as it
+approaches 3.2 cycles per second while walking and up to 4.2 while sprinting.
+This prevents rapid in-place stepping without flattening ordinary acceleration
+or preset differences into an abrupt fixed cadence. HeadBobSpeedPercent scales
+that soft-limited result from 50% to 150% without changing movement strength,
+player speed, or SprintEmphasis; the default 75% slows the normal gait cadence.
+
+ViewmodelHeadBobFollowPercent controls how much of the camera-only translation
+is shared in exact camera space by the first-person arms and held presentation.
+The default 100 removes the motion caused by FPAA bob, and the default-enabled
+StabilizeViewmodelDuringHeadBob toggle enforces the same exact compensation.
+Disable stabilization and lower the percentage to restore relative movement. It
+cannot remove movement authored into native weapon animations. The shared
+render-only offset keeps arms, equipment, effects, culling, and integrations
+aligned and never changes aim, attacks, colliders, projectiles, or the camera's
+own motion. Enable
 SuppressMotionBlurDuringHeadBob if HDRP motion blur makes the moving view look
 soft. It affects only the main camera's movement on frames with visible FPAA
 bob, preserves moving-object blur, and restores the previous value immediately
 after each render.
+
+TemporalSafeHeadBobTiming is enabled by default to avoid temporal blur.
+FPAA applies the same camera-only bob immediately before HDRP
+records its current and previous camera matrices, rather than at the later
+camera-render callback. This can reduce TAA, DLSS, or FSR smearing without
+changing the bob path, viewmodel position, render quality, or render-pass
+count. Disable it to restore the established timing instantly.
+
+When the pause menu stops the hero controller update but continues rendering,
+FPAA refreshes a missing presentation-offset snapshot from the current
+first-person arms pivot. This keeps arms, equipment, effects, and integrations
+at their configured positions without allowing a render callback to replace
+the authoritative post-camera-rotation snapshot during normal gameplay.
 
 AdjustAttachedEffects moves cached Visual Effect Graph and particle-system
 presentation transforms beneath equipped first-person items with the rendered
@@ -74,24 +182,36 @@ receive the offset once. Gameplay item roots, lights, colliders, rigidbodies,
 character controllers, sockets, and projectile origins remain unchanged.
 Disable it if another mod intentionally owns the same equipped effect transforms.
 
-Held melee mitigation is enabled by default. While a one-handed, two-handed,
-dual-wielded, or alternate melee heavy attack is raised or held, the complete
-viewmodel offset eases toward HeldMeleeOffsetScale. The default 1.0 retains the
-configured position while enabling the held-only corrections and state blend.
-The configured position and corrections ease back after release or cancel.
+Advanced - Animation Guards provides a master switch plus independent attack,
+dodge, all-equipment sheathing, and bow-draw toggles. Shared targeting is enabled
+by default and makes every normal melee attack and sheathing state use
+SharedMoveTowardVanillaPercent. At 0 the configured FPAA position remains, at 50
+half remains at the strongest point, and at 100 the viewmodel reaches vanilla.
+Overlapping guards use the strongest influence instead of multiplying together.
+Shared mode overrides held-melee retained-scale and extra-correction tuning.
+Dodge guarding instead changes only Shoulder Retraction.
 
-The same body-intrusion switch also handles the game's dedicated one-handed and
-two-handed sprint attacks. When LightAttackForward begins, the complete visual
-offset rapidly returns to the vanilla position and stays there for the attack.
-It restores the configured position smoothly after the sprint attack ends.
+The bow-draw guard follows normalized pull progress so its correction enters
+gradually while the arrow is nocked and holds through the held pose. Release
+restoration begins immediately after the native normalized 0.05 projectile-fire
+threshold and eases over 0.40 seconds; cancellation uses the same gradual return.
+Its default 33 percent ceiling
+follows BowForwardOffset dynamically: a bow depth of 0.30 allows about 0.10
+metres of positive FPAA depth during draw. It can only reduce FPAA's added depth
+and does not change bow animation, aim, or projectile origin.
 
-During every forward, backward, sideways, and diagonal dodge, the complete
-presentation offset follows the dodge animation toward vanilla and back to the
-configured position before it ends. DodgeMoveTowardVanillaPercent controls the
-midpoint: 0 keeps the configured offset, 50 retains half of it, and 100 reaches
-vanilla. Chained or redirected dodges continue from the currently displayed
-offset instead of snapping outward mid-animation. Arms, equipment, and attached
-presentation effects remain aligned throughout.
+Attack guarding is enabled by default. With shared targeting, every normal melee
+light and heavy phase, including initial, chained, tired, forward, charged,
+held, release, and alternate states, eases toward the common target. Disabling
+shared targeting restores the established held-heavy and forward-attack coverage
+with HeldMeleeOffsetScale and the held-only corrections.
+
+During every forward, backward, sideways, and diagonal dodge, native dash
+callbacks immediately drive Shoulder Retraction toward the 0.25 metre maximum
+with a fast 0.06-second ease-out. The active dash state refreshes a short hold
+through rapid chained or redirected dodges, then retraction eases back over 0.20
+seconds. The complete presentation offset, arms, weapons, and attached effects
+do not move toward vanilla.
 
 Set HeldMeleeOffsetScale between 0.0 and 1.0 to retain part of the normal
 offset during the held pose, or disable MitigateHeldMeleeBodyIntrusion to keep
@@ -103,16 +223,42 @@ after the retained-offset scale. Their default -0.05 forward and -0.05 vertical
 correction pulls the charge pose toward the camera near plane and slightly down.
 Both accept -0.50 to 0.50 and update live for per-animation tuning.
 
-During a melee weapon's active two-handed grip, the complete presentation offset
-eases back to the vanilla position from 45% through 90% of the sheathing
-animation. This lets adjusted arms and equipment retreat before the game hides
-the first-person viewmodel. One-handed grips, bows, spells, and unarmed states
-keep their normal presentation throughout sheathing. Versatile Weapons is
-supported automatically: its current grip classification determines whether
-the blend applies. If sheathing is interrupted, the configured offset returns
-smoothly over 0.20 seconds.
+During normal or alternate sheathing, the complete presentation offset eases
+toward the configured guard target from 45% through 90% of the animation. This
+covers melee, dual-wield, bows, and magic through their shared unequip states.
+If sheathing is interrupted, the configured offset returns smoothly over 0.20
+seconds.
 
-Version 0.6.3 bases the shared presentation offset on the current first-person
+Version 0.8.6 changes the default bow-draw ceiling to 33 percent and clears
+reusable presentation-scan buffers during scene transitions. Version 0.8.3 makes dodge detection event-driven and anchors gradual bow
+restoration to the exact projectile-fire point. Version 0.8.2 adds dynamic dodge retraction, smoother guard transitions, and the
+new 0.30 bow depth, 67 percent draw ceiling, and 0.05 retraction defaults while
+consolidating animation-guard settings. Version 0.8.1 adopts the validated presentation defaults, expands shared guard
+coverage to all normal melee attacks and all equipment sheathing, combines
+overlapping guards by strongest influence, and adds a dynamic bow-draw ceiling.
+Version 0.7.9 adds consolidated animation-guard toggles and an opt-in shared
+move-toward-vanilla target while preserving every existing default behavior.
+Version 0.7.8 replaces the temporary renderer-isolation test with a permanent
+independently weighted correction for the confirmed Cloth2 torso renderer.
+Version 0.7.6 keeps an unavailable or already-disabled isolation target quiet
+until its renderer state changes. Version 0.7.5 adds safe one-at-a-time native body and cloth renderer isolation
+for identifying geometry that does not respond to any rig bone. Version 0.7.4 adds permanent off-by-default lower-torso, chest-helper,
+shoulder-fix, and native-cloth groups. Version 0.7.3 adds exact-name native bone testing plus complete indexed bone
+and renderer diagnostics for geometry outside the normal profile. Version 0.7.2 adds live per-region spine, shoulder, and arm retraction tuning
+with asymmetric shoulder control and matched-bone diagnostics. Version 0.7.1 extends shoulder retraction through the chest and behind the
+vanilla position while keeping hands and weapons fixed. Version 0.7.0 adds
+targeted render-only shoulder retraction without moving the hands or held
+weapons. Version 0.6.9 adds exact camera-space viewmodel stabilization and adjustable
+head-bob speed without changing bob strength. Version 0.6.8 adds adjustable
+render-only viewmodel follow so camera bob can
+remain expressive without moving arms and held visuals as heavily. Version
+0.6.7 gives jogging a continuous soft cadence limit and smooths gait
+response without attenuating or distorting the completed waveform. Version
+0.6.6 keeps the shared presentation offset active while the pause menu
+stops gameplay updates. Version 0.6.5 limits high-speed vertical cadence to a natural walk-to-sprint
+range without changing bob strength, smoothing, or temporal rendering. Version
+0.6.4 adds an off-by-default temporal-safe head-bob timing test so HDRP
+can capture the bobbed camera pose before temporal processing. Version 0.6.3 bases the shared presentation offset on the current first-person
 arms pivot instead of the rendered camera's delayed transform, keeping rapid
 left-right turns aligned without interpolation, viewmodel lag, or separation
 between arms, equipment, effects, and optional integrations. Version 0.6.2 adds

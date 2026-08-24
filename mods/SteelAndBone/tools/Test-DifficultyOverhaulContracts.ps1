@@ -271,6 +271,10 @@ Assert-Contract ($difficultySource.Contains('presetShare = 0.08f;') -and $diffic
 Assert-Contract ($difficultySource.Contains('class EnemyMovementSpeedTweak : StatTweak')) "Enemy movement does not use an owned native stat tweak."
 Assert-Contract ($difficultySource.Contains('npc.CharacterStats.MovementSpeedMultiplier')) "Enemy movement does not use the native movement-speed stat."
 Assert-Contract ($difficultySource.Contains('npc.IsInCombat()')) "Enemy movement is not limited to combat."
+Assert-Contract ($difficultySource.Contains('"EnemyMovementSpeedMultiplier"')) "Enemy movement does not expose a custom multiplier."
+Assert-Contract ($difficultySource.Contains('new AcceptableValueRange<float>(1.0f, 2.0f)')) "Enemy movement multiplier range is not x1.00 to x2.00."
+Assert-Contract ($difficultySource.Contains('GetPresetEnemyMovementSpeedMultiplier(_preset.Value)')) "Enemy movement multiplier does not follow preset defaults."
+Assert-Contract ($difficultySource.Contains('((configuredMultiplier - 1.0f) * mobilityShare)')) "Enemy movement multiplier does not preserve mobility-tier scaling."
 Assert-Contract ($difficultySource.Contains('npcType == NpcType.Boss') -and $difficultySource.Contains('npcType == NpcType.MiniBoss')) "Boss and miniboss movement is not preserved."
 Assert-Contract ($difficultySource.Contains('weight >= 250 ? 0.0f : weight >= 150 ? 0.5f : 1.0f')) "Large and massive enemy movement tiers are missing."
 Assert-Contract ($difficultySource.Contains('npcType == NpcType.Critter') -and $difficultySource.Contains('!npc.Template.requiresPathToTarget')) "Scripted critters or non-pathing actors can receive enemy movement scaling."
@@ -346,6 +350,7 @@ $requiredSettings = @(
     "EnemyAttackSlotCap",
     "ModifyEnemyAttackRecovery",
     "ModifyEnemyMovementSpeed",
+    "EnemyMovementSpeedMultiplier",
     "ModifyHostileArrowVelocity",
     "HostileArcherAimScatter",
     "ModifyEnemySightRange",
@@ -651,4 +656,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 3.9.9 difficulty contracts passed."
+Write-Output "Steel and Bone 4.0.0 difficulty contracts passed."

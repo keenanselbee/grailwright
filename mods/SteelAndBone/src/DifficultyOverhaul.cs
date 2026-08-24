@@ -130,6 +130,7 @@ namespace SteelAndBone
         private ConfigEntry<int> _enemyAttackSlotCap;
         private ConfigEntry<bool> _modifyEnemyAttackRecovery;
         private ConfigEntry<bool> _modifyEnemyMovementSpeed;
+        private ConfigEntry<float> _enemyMovementSpeedMultiplier;
         private ConfigEntry<bool> _modifyHostileArrowVelocity;
         private ConfigEntry<float> _hostileArcherAimScatter;
         private ConfigEntry<bool> _modifyEnemySightRange;
@@ -498,7 +499,18 @@ namespace SteelAndBone
                 "Difficulty - Enemies",
                 "ModifyEnemyMovementSpeed",
                 true,
-                ConfigUi("Increase combat movement speed by up to 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled. Ordinary agile enemies receive the full bonus; Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half; Heavy-armored, massive, boss, and scripted enemies retain their vanilla speed.", "Difficulty - Enemies", "Enemy Movement Speed", 70, 30));
+                ConfigUi("Apply Enemy Movement Speed Multiplier during combat when Difficulty Modifiers is enabled. Ordinary agile enemies receive the full bonus; Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half; Heavy-armored, massive, boss, and scripted enemies retain their vanilla speed.", "Difficulty - Enemies", "Enemy Movement Speed", 70, 30));
+            _enemyMovementSpeedMultiplier = Config.Bind(
+                "Difficulty - Enemies",
+                "EnemyMovementSpeedMultiplier",
+                GetPresetEnemyMovementSpeedMultiplier(_preset.Value),
+                ConfigUi(
+                    "Maximum combat movement multiplier for eligible hostile enemies when Enemy Movement Speed and Difficulty Modifiers are enabled. Changing Preset resets this to 1.00 for Tempered, 1.05 for Hardened, or 1.10 for Crucible; customize it afterward if desired. Medium and restricted enemy tiers receive less or no bonus.",
+                    "Difficulty - Enemies",
+                    "Enemy Movement Speed Multiplier",
+                    70,
+                    35,
+                    new AcceptableValueRange<float>(1.0f, 2.0f)));
             _modifyHostileArrowVelocity = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyHostileArrowVelocity",
@@ -592,6 +604,7 @@ namespace SteelAndBone
             {
                 ApplyPresetEffectivenessFeedbackSensitivity();
                 ApplyPresetWeakSpotDamageBonus();
+                ApplyPresetEnemyMovementSpeedMultiplier();
                 ApplyPresetHostileArcherAimScatter();
                 ApplyPresetPreventFoodUseInCombat();
                 ApplyPresetCombatSustainabilityMultipliers();
@@ -1579,10 +1592,41 @@ namespace SteelAndBone
             return 1.0f;
         }
 
-        private float PresetEnemyMovementSpeedMultiplier(NpcElement npc)
+        private static float GetPresetEnemyMovementSpeedMultiplier(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Hardened:
+                    return 1.05f;
+                case Preset.Crucible:
+                    return 1.10f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private void ApplyPresetEnemyMovementSpeedMultiplier()
+        {
+            if (_enemyMovementSpeedMultiplier == null || _preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetEnemyMovementSpeedMultiplier(_preset.Value);
+            if (Math.Abs(_enemyMovementSpeedMultiplier.Value - presetValue) > NeutralTolerance)
+            {
+                _enemyMovementSpeedMultiplier.Value = presetValue;
+            }
+        }
+
+        private float ConfiguredEnemyMovementSpeedMultiplier(NpcElement npc)
         {
             float mobilityShare = EnemyMovementMobilityShare(npc);
-            return 1.0f + PresetPenaltyAmount() * mobilityShare;
+            float configuredMultiplier = _enemyMovementSpeedMultiplier == null
+                ? 1.0f
+                : Mathf.Clamp(_enemyMovementSpeedMultiplier.Value, 1.0f, 2.0f);
+            return 1.0f + ((configuredMultiplier - 1.0f) * mobilityShare);
         }
 
         private float EnemyMovementMobilityShare(NpcElement npc)
@@ -4349,7 +4393,7 @@ namespace SteelAndBone
             }
 
             float multiplier = EnemyMovementSpeedTargetIsEligible(npc)
-                ? PresetEnemyMovementSpeedMultiplier(npc)
+                ? ConfiguredEnemyMovementSpeedMultiplier(npc)
                 : 1.0f;
             Stat movementSpeed = npc.CharacterStats == null
                 ? null

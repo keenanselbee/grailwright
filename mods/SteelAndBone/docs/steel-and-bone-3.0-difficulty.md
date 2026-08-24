@@ -27,7 +27,7 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Passive shield share of effective Block | 8% | 10% | 12% | `PassiveShieldProtectionEnabled` |
 | Enemy attack slots | +0 | +1 | +2 | `ModifyEnemyAttackSlots` |
 | Enemy attack recovery | 1.00 | 0.95 | 0.90 | `ModifyEnemyAttackRecovery` |
-| Common enemy combat movement | 1.00 | Up to 1.05 | Up to 1.10 | `ModifyEnemyMovementSpeed` |
+| Common enemy combat movement | 1.00 | Up to 1.05 | Up to 1.10 | `ModifyEnemyMovementSpeed`, `EnemyMovementSpeedMultiplier` |
 | Player poise damage dealt | 1.00 | 0.95 | 0.90 | `ModifyPlayerPoiseDamageDealt` |
 | Safe same-class potions before poisoning | 2 | 2 | 2 | `ModifyPotionOverdrinking` |
 | Third-potion poisoning window (seconds) | 5 | 10 | 15 | `ModifyPotionOverdrinking` |
@@ -63,7 +63,7 @@ Tenacity reduces player-caused poise, force, and enemy stamina damage at full st
 | Enemy sight | One-second loaded-NPC reconciliation plus non-saved `StatTweak` elements | Multiply `NpcStats.SightLengthMultiplier` only for living, active, hostile, non-allied native-AI actors. Preserve authored ranges, visibility, line of sight, and alert buildup. |
 | Enemy hearing | `AINoises.MakeHeroFootstepNoise` prefix | Scale only the native hero footstep noise range. Preserve noise strength, wall checks, armor noise, and each NPC's authored hearing. |
 | Aggro persistence | `NpcAIDistancesUtils.CombatAggroDecreaseModifierByDistanceToLastIdlePoint` postfix | Slow positive native combat-aggro decay only for living hostile enemies. Do not patch chase boundaries, forced combat/alert exit, or target-loss rules. |
-| Enemy movement | The same one-second reconciliation plus non-saved `StatTweak` elements | Multiply `CharacterStats.MovementSpeedMultiplier` only for living, active, hostile combatants. Apply the full preset bonus to ordinary agile enemies; cap Medium, Elite, Beholder, and Slugholder enemies at half; exclude Heavy armor, bears, constructs, flora, bosses, minibosses, Critters, and non-pathing actors. |
+| Enemy movement | The same one-second reconciliation plus non-saved `StatTweak` elements | Multiply `CharacterStats.MovementSpeedMultiplier` only for living, active, hostile combatants. Let `EnemyMovementSpeedMultiplier` tune the preset's x1.00/x1.05/x1.10 default up to x2.00. Apply the full configured bonus to ordinary agile enemies; cap Medium, Elite, Beholder, and Slugholder enemies at half; exclude Heavy armor, bears, constructs, flora, bosses, minibosses, Critters, and non-pathing actors. |
 | Player arrows | `BowFSM.FireProjectileInternal` prefix plus filtered `DamageDealingProjectile.ProcessFixedUpdate` postfix | Scale the native launch vector by preset, then apply the independent gravity multiplier only to active player-owned arrows. Preserve native aim, projectile offsets, draw strength, collision, payloads, and damage. |
 | Hostile arrows | `CombatBehaviourUtils.FireProjectile` prefix/transpiler/finalizer | Apply the configured minimum native aim-point scatter, then scale clamped speed before movement prediction and ballistic solving, only for hostile NPC Quiver projectiles. Preserve larger authored scatter, native gravity, and damage. |
 | Armor penalties | Non-saved tweak on `HeroStats.ArmorPenaltyMultiplier` | Let native tier penalties, proficiency mitigation, and overload rules remain authoritative. |

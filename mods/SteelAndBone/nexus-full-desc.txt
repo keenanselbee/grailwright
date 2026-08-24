@@ -131,7 +131,7 @@ Progressive Tenacity begins after level 20, giving regular enemies a small benef
 
 Enemies see and hear farther, retain combat attention longer, and coordinate more simultaneous attacks as the preset rises. Attack opportunities also return sooner, making groups less likely to wait passively while one enemy fights alone.
 
-Hardened and Crucible give ordinary agile enemies a modest combat movement bonus. Heavy enemies, bosses, constructs, plants, bears, scripted creatures, and non-pathing actors retain their native speed. Line of sight, walls, chase boundaries, and individual enemy behavior continue to work normally.
+Hardened and Crucible give ordinary agile enemies a modest combat movement bonus. [b]EnemyMovementSpeedMultiplier[/b] defaults to x1.00 / x1.05 / x1.10 by preset and can be tuned as high as x2.00 afterward; restricted enemy tiers still receive less or no bonus. Heavy enemies, bosses, constructs, plants, bears, scripted creatures, and non-pathing actors retain their native speed. Line of sight, walls, chase boundaries, and individual enemy behavior continue to work normally.
 
 
 [b]Projectile combat[/b]

@@ -1,5 +1,5 @@
 Steel and Bone
-Version 3.9.9
+Version 4.0.0
 
 Platforms: Windows and Linux through Proton.
 
@@ -68,7 +68,7 @@ Standard food always lasts four times its native duration and restores 1 stamina
 
 Stamina Depleted uses Smooth vignette presentation by default. Steel and Bone keeps the game's existing image but replaces its repeating flash and abrupt removal with one eased fade in and fade out over 0.30 seconds. Native restores the original presentation, while Off hides both the HUD vignette and stamina-depleted post-process. All modes retain native exhaustion audio, movement penalties, action restrictions, and status behavior. StaminaDepletedVignetteFadeSeconds adjusts the Smooth transition from 0.05 to 2 seconds.
 
-Enemy movement tuning multiplies the game's native combat movement stat without changing attack animation speed. Exposed, Light-armored, and ordinary agile enemies such as wolves and swarms receive the full 0%/5%/10% preset bonus. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed. It applies only to living, active, hostile combatants and can also affect native movement during lunging attacks.
+Enemy movement tuning multiplies the game's native combat movement stat without changing attack animation speed. EnemyMovementSpeedMultiplier defaults to x1.00/x1.05/x1.10 by preset and can be tuned from x1.00 to x2.00 afterward. Exposed, Light-armored, and ordinary agile enemies such as wolves and swarms receive the full bonus. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed. It applies only to living, active, hostile combatants and can also affect native movement during lunging attacks.
 
 Vanilla attack slots are Story/Easy 1, Normal/Challenge 2, Hard 3, and Survival 4. Steel and Bone adds 0/1/2 and caps only its own increase at 6 by default.
 
@@ -109,6 +109,7 @@ ModifyEnemyAttackSlots = true
 EnemyAttackSlotCap = 6
 ModifyEnemyAttackRecovery = true
 ModifyEnemyMovementSpeed = true
+EnemyMovementSpeedMultiplier = 1.05
 ModifyHostileArrowVelocity = true
 HostileArcherAimScatter = 1.25
 ModifyEnemySightRange = true

@@ -1,3 +1,8 @@
+Version 4.0.0
+Added EnemyMovementSpeedMultiplier as an x1.00 to x2.00 combat-movement tuning control. Presets set it to x1.00, x1.05, or x1.10, and players can customize it afterward.
+Kept the existing mobility safeguards: ordinary agile enemies receive the full configured bonus, Medium and Elite tiers receive at most half, and Heavy, massive, boss, scripted, and non-pathing enemies remain at native speed.
+Kept ConfigSchemaVersion 26 because the new setting is additive and existing configs can adopt its current preset default safely.
+
 Version 3.9.9
 Split Blood and Necrotic magic into complementary biological and spiritual matchup matrices across flesh, undead, skeletons, constructs, spirits, sea creatures, and flora or fungus.
 Made Blood damage classification consume Blood Magic Expansion's exact damage-object API when available, retaining text matching only as a soft-compatibility fallback.

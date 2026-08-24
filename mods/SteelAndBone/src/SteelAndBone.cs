@@ -32,9 +32,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("3.9.9.0")]
-[assembly: AssemblyFileVersion("3.9.9.0")]
-[assembly: AssemblyInformationalVersion("3.9.9")]
+[assembly: AssemblyVersion("4.0.0.0")]
+[assembly: AssemblyFileVersion("4.0.0.0")]
+[assembly: AssemblyInformationalVersion("4.0.0")]
 
 namespace SteelAndBone
 {
@@ -167,7 +167,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "3.9.9";
+        public const string PluginVersion = "4.0.0";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -901,6 +901,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyMovementSpeed, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _enemyMovementSpeedMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyHostileArrowVelocity, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _hostileArcherAimScatter, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemySightRange, ref restoredCount, ref clampedCount);

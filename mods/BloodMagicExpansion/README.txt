@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v10
-Version: 3.1.1
+Version: 3.1.4
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -48,6 +48,7 @@ An internal power curve unlocks Blood/Life and Abhartach bonuses from zero
 Ready a blood spell with raised hands to cast a scalable red inner player light
 Feed on living enemies for capped XP ticks during combat
 Hear a short randomized FMOD ritual sound on successful corpse drains
+See a quality-matched blood burst erupt from a successfully drained corpse
 ```
 
 Corpse XP comes from the enemy's vanilla effective kill XP, including the

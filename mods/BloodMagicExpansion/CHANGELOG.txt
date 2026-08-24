@@ -1,3 +1,18 @@
+Version 3.1.4
+Cached each blood-spell hand light's typed HDRP data and moved its invariant setup
+out of the rendered-frame update, preserving live brightness, range, fade, cast
+boost, readiness, First Person Arms Adjuster, and Versatile Weapons behavior.
+Kept ConfigSchemaVersion at 23 because this changes no stored setting or behavior.
+
+Version 3.1.3
+Added separate Grail Floating Text Blood Power milestones at 25 through 200 after a completed corpse ritual, while diagnostic Blood Essence overrides remain silent.
+Kept ConfigSchemaVersion at 23 because this adds presentation behavior without changing stored settings.
+
+Version 3.1.2
+Added a quality-matched blood burst at the target when a normal corpse ritual completes: Meager and Worthy use VFX_Explosion_Blood_T2_NoDecal, while Potent and Prime use VFX_Explosion_Blood_T3_NoDecal.
+Kept the existing Soul and Service servant effect separate so raised-servant rituals do not play the burst twice.
+Kept ConfigSchemaVersion at 23 because this adds presentation behavior without changing stored settings.
+
 Version 3.1.1
 Recognized a reanimated servant's hidden source corpse through its owning game location, restoring saturated, spent, and bloodless blocked reticles reliably for raised Corpse Eaters and other servants.
 Made owned-servant targeting tolerant of small animated collider gaps, retained valid focus for 0.18 seconds, respected nearer obstructions, and shared one target snapshot across reticle state, quality, and tier queries.

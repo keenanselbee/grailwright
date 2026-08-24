@@ -1,16 +1,4 @@
-TargetVersion=3.1.1
-BaselineVersion=2.9.4
+TargetVersion=3.1.4
+BaselineVersion=3.1.3
 
-Fixed raised-servant corpse ownership recognition so eligible, spent, and bloodless blocked reticles remain reliable.
-Added lightweight, obstruction-aware servant aim tolerance and shared one targeting snapshot across reticle state, quality, and tier queries.
-Allowed light Abhartach's Calling to sacrifice only the explicitly targeted eligible owned flesh servant through its native corpse explosion, with no progression or loot duplication; heavy Abhartach remains corpse-only.
-Persisted each drained body's exact 20-30% reanimation penalty across save and reload without adding runtime scans.
-Revalidated owned servants before committing healing, XP, or Blood Essence rewards.
-Fixed corpse targeting and Dishonored corpse-reticle feedback while using True Third Person.
-Added owned ordinary flesh summons such as Corpse Eaters to servant blood rituals as healing-only targets, with no XP or Blood Essence loop.
-Kept eligible servant blood reticles visible as desaturated blocked targets during combat and as desaturated spent targets after draining.
-Consolidated detailed Blood Magic diagnostics behind one switch, kept in-game GFT summaries independently toggleable, and grouped the temporary Blood Essence override with those diagnostic controls.
-Blood rituals now consume a corpse's blood while leaving its body intact, allowing the same remains to be reanimated or harvested by Soul Rend afterward.
-Added restrained integer Blood Essence extraction variance that can only improve the tier's normal award and grows subtly with Blood Power.
-Added optional Soul and Service integration: drained corpses raise with a one-time 20%-30% current-Health penalty, and eligible owned raised flesh servants can be blood-ritualed for the source's normal one-time rewards.
-Removed the obsolete corpse-simplification setting through the normal backed-up schema reset and durable-setting recovery.
+Removed per-frame HDRP reflection and redundant invariant setup from both blood-spell hand lights while preserving their full behavior.

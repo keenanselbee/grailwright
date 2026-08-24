@@ -41,6 +41,9 @@ foreach ($required in @(
     'TryExsanguinateOwnedBloodServant',
     'SetOwnedBloodServantRitualState',
     'ReportCorpseDrained(corpseQuality);',
+    'CorpseRitualLesserVfxKey =',
+    'CorpseRitualGreaterVfxKey =',
+    'SpawnCorpseRitualVfx(',
     'CorpseLeechSoundRangeVolume", 1.0f',
     'CorpseLeechMaximumRangeDistance = 30.0f',
     'CorpseLeechMinimumRangeVolume = 0.10f',
@@ -127,6 +130,23 @@ if (!$paymentBlock.Success -or
     $healingIndex -lt 0 -or
     $servantPreflightIndex -gt $healingIndex) {
     throw 'Owned servants must be revalidated before corpse-leech healing or progression is committed.'
+}
+
+if (!$paymentBlock.Value.Contains('if (state.LiveServantTarget == null)') -or
+    !$paymentBlock.Value.Contains('SpawnCorpseRitualVfx(')) {
+    throw 'Normal corpse rituals do not spawn their quality-matched blood VFX, or servant rituals could duplicate it.'
+}
+
+$vfxBlock = [regex]::Match(
+    $source,
+    '(?s)private void SpawnCorpseRitualVfx\(.+?(?=\r?\n\s*private )')
+if (!$vfxBlock.Success -or
+    !$vfxBlock.Value.Contains('CorpseLeechWorthyQualityMax') -or
+    !$vfxBlock.Value.Contains('CorpseRitualLesserVfxKey') -or
+    !$vfxBlock.Value.Contains('CorpseRitualGreaterVfxKey') -or
+    !$vfxBlock.Value.Contains('PrefabPool.InstantiateAndReturn(') -or
+    !$vfxBlock.Value.Contains('corpsePosition')) {
+    throw 'Corpse ritual VFX does not preserve the intended quality mapping and target position.'
 }
 
 $servantResolver = [regex]::Match(

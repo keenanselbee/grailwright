@@ -207,6 +207,80 @@ foreach ($milestone in $powerMilestones) {
     Assert-Near (Get-BloodPower $milestone[0]) $milestone[1] "Blood Power at $($milestone[0]) Essence"
 }
 
+$notificationMilestones = @(
+    @{ Power = '25.0f'; EventId = 'blood-magic-power-25'; Text = 'Blood Power rises: Your blood arts gather strength.' },
+    @{ Power = '50.0f'; EventId = 'blood-magic-power-50'; Text = 'Blood Power rises: Your command of blood magic deepens.' },
+    @{ Power = '75.0f'; EventId = 'blood-magic-power-75'; Text = 'Blood Power rises: Your blood rites answer with growing force.' },
+    @{ Power = '100.0f'; EventId = 'blood-magic-power-100'; Text = 'Blood Power rises: Your blood arts reach a new height.' },
+    @{ Power = '125.0f'; EventId = 'blood-magic-power-125'; Text = 'Blood Power rises: Your blood arts surpass their former limits.' },
+    @{ Power = '150.0f'; EventId = 'blood-magic-power-150'; Text = 'Blood Power rises: Your command of blood magic grows formidable.' },
+    @{ Power = '175.0f'; EventId = 'blood-magic-power-175'; Text = 'Blood Power rises: Your blood arts approach their peak.' },
+    @{ Power = '200.0f'; EventId = 'blood-magic-power-200'; Text = 'Blood Power rises: Your command of blood magic reaches its apex.' }
+)
+foreach ($milestone in $notificationMilestones) {
+    $expected = 'new BloodPowerMilestone(' + $milestone.Power + ', "' + $milestone.EventId + '", "' + $milestone.Text + '")'
+    if (!$source.Contains($expected)) {
+        throw "Missing Blood Power notification milestone: $($milestone.Power)."
+    }
+}
+
+$milestoneFeedbackBlock = [regex]::Match(
+    $source,
+    '(?s)private void ShowBloodPowerMilestonesAfterProgression\(.+?(?=\r?\n\s*private )')
+if (!$milestoneFeedbackBlock.Success -or
+    $milestoneFeedbackBlock.Value -notmatch '_overrideBloodEssence != null && _overrideBloodEssence\.Value' -or
+    $milestoneFeedbackBlock.Value -notmatch 'GetBloodPowerFromEssence\(receipt\.BeforeEssence\)' -or
+    $milestoneFeedbackBlock.Value -notmatch 'GetBloodPowerFromEssence\(\s*SaturatingAdd\(receipt\.BeforeEssence, receipt\.Award\)\)' -or
+    $milestoneFeedbackBlock.Value -notmatch 'beforePower < milestone\.Power && afterPower >= milestone\.Power' -or
+    $milestoneFeedbackBlock.Value -notmatch 'TryShowBloodPowerMilestone\(milestone\)') {
+    throw 'Blood Power milestone feedback must compare saved Essence crossings and suppress diagnostic overrides.'
+}
+
+$presentationBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryShowBloodPowerMilestone\(.+?(?=\r?\n\s*private )')
+if (!$presentationBlock.Success -or
+    !$source.Contains('GrailFloatingTextBloodPowerStyle = "Red"') -or
+    !$source.Contains('GrailFloatingTextBloodPowerIconId = "magic_blood"') -or
+    !$source.Contains('GrailFloatingTextBloodPowerDurationBucket = "Medium"') -or
+    $presentationBlock.Value -notmatch '_grailFloatingTextTryShowEventMethod\.Invoke' -or
+    $presentationBlock.Value -notmatch '"Reward"' -or
+    $presentationBlock.Value -notmatch '"High"' -or
+    $presentationBlock.Value -notmatch 'string\.Empty') {
+    throw 'Blood Power milestone feedback must use the approved GFT event presentation.'
+}
+
+$bridgeBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryResolveGrailFloatingTextBridge\(.+?(?=\r?\n\s*private )')
+if (!$bridgeBlock.Success -or
+    $bridgeBlock.Value -notmatch '_grailFloatingTextTryShowEventMethod = AccessTools\.Method\(' -or
+    $bridgeBlock.Value -notmatch '"TryShowEvent"' -or
+    $bridgeBlock.Value -notmatch 'typeof\(float\),\s*typeof\(float\)') {
+    throw 'Blood Power milestone feedback must resolve the GFT TryShowEvent signature through the optional bridge.'
+}
+
+$corpsePaymentBlock = [regex]::Match(
+    $source,
+    '(?s)private void PayCorpseLeech\(.+?(?=\r?\n\s*private )')
+$corpseRewardIndex = $corpsePaymentBlock.Value.IndexOf(
+    'TryClaimGrailFloatingTextCorpseXp(',
+    [StringComparison]::Ordinal)
+$corpseXpCommittedIndex = $corpsePaymentBlock.Value.IndexOf(
+    'state.XpAwarded = true;',
+    [StringComparison]::Ordinal)
+$corpseMilestoneIndex = $corpsePaymentBlock.Value.IndexOf(
+    'ShowBloodPowerMilestonesAfterProgression(essenceReceipt);',
+    [StringComparison]::Ordinal)
+if (!$corpsePaymentBlock.Success -or
+    $corpseRewardIndex -lt 0 -or
+    $corpseXpCommittedIndex -lt 0 -or
+    $corpseMilestoneIndex -lt 0 -or
+    $corpseRewardIndex -ge $corpseMilestoneIndex -or
+    $corpseXpCommittedIndex -ge $corpseMilestoneIndex) {
+    throw 'Blood Power milestones must follow the separate reward line and irreversible XP transaction.'
+}
+
 $brightnessMilestones = @(
     @(0.0, 0.2),
     @(25.0, 0.48125),

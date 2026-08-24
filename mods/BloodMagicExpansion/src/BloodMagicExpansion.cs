@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Awaken.TG.Assets;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
 using Awaken.TG.Main.Fights;
@@ -22,16 +23,18 @@ using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using Cysharp.Threading.Tasks;
 using FMODUnity;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering.HighDefinition;
 
 [assembly: AssemblyTitle("Blood Magic Expansion")]
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("3.1.1.0")]
-[assembly: AssemblyFileVersion("3.1.1.0")]
+[assembly: AssemblyVersion("3.1.4.0")]
+[assembly: AssemblyFileVersion("3.1.4.0")]
 
 namespace BloodMagicExpansion
 {
@@ -54,7 +57,7 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "3.1.1";
+        public const string PluginVersion = "3.1.4";
         private const int ConfigSchemaVersion = 23;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -137,6 +140,20 @@ namespace BloodMagicExpansion
         private const string GrailFloatingTextBloodHealingStyle = "Red";
         private const string GrailFloatingTextBloodHealingIconId = "magic_blood";
         private const string GrailFloatingTextShortDurationBucket = "Short";
+        private const string GrailFloatingTextBloodPowerStyle = "Red";
+        private const string GrailFloatingTextBloodPowerIconId = "magic_blood";
+        private const string GrailFloatingTextBloodPowerDurationBucket = "Medium";
+        private static readonly BloodPowerMilestone[] BloodPowerMilestones =
+        {
+            new BloodPowerMilestone(25.0f, "blood-magic-power-25", "Blood Power rises: Your blood arts gather strength."),
+            new BloodPowerMilestone(50.0f, "blood-magic-power-50", "Blood Power rises: Your command of blood magic deepens."),
+            new BloodPowerMilestone(75.0f, "blood-magic-power-75", "Blood Power rises: Your blood rites answer with growing force."),
+            new BloodPowerMilestone(100.0f, "blood-magic-power-100", "Blood Power rises: Your blood arts reach a new height."),
+            new BloodPowerMilestone(125.0f, "blood-magic-power-125", "Blood Power rises: Your blood arts surpass their former limits."),
+            new BloodPowerMilestone(150.0f, "blood-magic-power-150", "Blood Power rises: Your command of blood magic grows formidable."),
+            new BloodPowerMilestone(175.0f, "blood-magic-power-175", "Blood Power rises: Your blood arts approach their peak."),
+            new BloodPowerMilestone(200.0f, "blood-magic-power-200", "Blood Power rises: Your command of blood magic reaches its apex.")
+        };
         private const float LiveDrainHealingEligibilitySeconds = 0.25f;
         private const string BloodSpellInnerLightMainHandObjectName = "BloodMagicExpansionMainHandLight";
         private const string BloodSpellInnerLightOffHandObjectName = "BloodMagicExpansionOffHandLight";
@@ -155,6 +172,10 @@ namespace BloodMagicExpansion
         private const string CorpseLeechMediumTier = "medium";
         private const string CorpseLeechHighTier = "high";
         private const string CorpseLeechMaxTier = "max";
+        private const string CorpseRitualLesserVfxKey =
+            "d858e5e33ccd9ec4ea9b3099ee02d32e";
+        private const string CorpseRitualGreaterVfxKey =
+            "bfa9aa86addeec347877ffb0fc0b4315";
         private const float CorpseLeechMaximumRangeDistance = 30.0f;
         private const float CorpseLeechMinimumRangeVolume = 0.10f;
         private const float ServantTargetToleranceRadius = 0.15f;
@@ -204,6 +225,7 @@ namespace BloodMagicExpansion
         private MethodInfo _grailFloatingTextTryCancelXpGainClaimMethod;
         private MethodInfo _grailFloatingTextTrySetBuiltInEventClaimMethod;
         private MethodInfo _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod;
+        private MethodInfo _grailFloatingTextTryShowEventMethod;
         private MethodInfo _deedsOfAvalonRecordCorpseDrainMethod;
         private MethodInfo _deedsOfAvalonSetCorpseDrainStatisticsMethod;
         private MethodInfo _deedsOfAvalonRecordBloodMagicProgressionMethod;
@@ -500,7 +522,6 @@ namespace BloodMagicExpansion
         private int _bloodSpellInnerLightActivationLogsRemaining = 32;
         private bool _corpseLeechSoundPathsResolved;
         private bool _loggedMissingCorpseLeechSounds;
-        private bool _loggedBloodSpellInnerLightHdrpUnavailable;
         private bool _loggedVanillaXpFalloffUnavailable;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextUnavailableLogged;
@@ -516,8 +537,6 @@ namespace BloodMagicExpansion
         private Func<bool> _versatileWeaponsIsOffHandSuppressed;
         private TryGetFirstPersonArmsVisualWorldOffsetDelegate
             _tryGetFirstPersonArmsVisualWorldOffset;
-        private Type _hdAdditionalLightDataType;
-        private bool _hdAdditionalLightDataResolved;
         private MethodInfo _heroGetter;
         private MethodInfo _gameConstantsGetter;
         private MethodInfo _skillUnitsSkillMethod;
@@ -1030,8 +1049,6 @@ namespace BloodMagicExpansion
                 handState.LightObject.SetActive(true);
             }
 
-            ConfigureBloodSpellInnerLight(handState);
-
             float nextIntensity = targetIntensity;
             float fadeSeconds = GetBloodSpellInnerLightFadeSeconds();
             if (!immediateFadeOut && fadeSeconds > 0.0f)
@@ -1042,7 +1059,7 @@ namespace BloodMagicExpansion
             }
 
             handState.Light.intensity = nextIntensity;
-            ConfigureBloodSpellInnerLightHdrpData(handState, nextIntensity);
+            handState.Light.range = GetBloodSpellInnerLightRange();
 
             bool visible = targetBrightness > BloodSpellInnerLightMinimumIntensity ||
                 nextIntensity > BloodSpellInnerLightMinimumIntensity;
@@ -1468,6 +1485,7 @@ namespace BloodMagicExpansion
                 {
                     handState.Light = handState.LightObject.AddComponent<Light>();
                 }
+                handState.HdrpData = null;
             }
 
             if (handState.LightObject.transform.parent != null)
@@ -1479,7 +1497,10 @@ namespace BloodMagicExpansion
                     + " light for world-space hand following.");
             }
 
-            ConfigureBloodSpellInnerLight(handState);
+            if (handState.HdrpData == null)
+            {
+                ConfigureBloodSpellInnerLight(handState);
+            }
             return true;
         }
 
@@ -1685,68 +1706,30 @@ namespace BloodMagicExpansion
 
             handState.Light.type = LightType.Point;
             handState.Light.color = BloodSpellInnerLightColor;
-            handState.Light.range = GetBloodSpellInnerLightRange();
             handState.Light.shadows = LightShadows.None;
             handState.Light.bounceIntensity = 0.0f;
             handState.Light.cullingMask = ~0;
             handState.Light.renderMode = LightRenderMode.Auto;
-        }
-
-        private void ConfigureBloodSpellInnerLightHdrpData(
-            BloodSpellInnerLightHandState handState,
-            float renderIntensity)
-        {
-            if (handState.Light == null || handState.LightObject == null)
-            {
-                return;
-            }
-
-            Type hdType = ResolveHdAdditionalLightDataType();
-            if (hdType == null)
-            {
-                if (!_loggedBloodSpellInnerLightHdrpUnavailable)
-                {
-                    _loggedBloodSpellInnerLightHdrpUnavailable = true;
-                    LogBloodSpellInnerLightDiagnostic(
-                        "HDRP additional light data type was not found; using Unity Light fields only.");
-                }
-
-                return;
-            }
-
             try
             {
-                Component hdData = handState.Light.GetComponent(hdType);
-                if (hdData == null)
+                handState.HdrpData = handState.Light
+                    .GetComponent<HDAdditionalLightData>();
+                if (handState.HdrpData == null)
                 {
-                    hdData = handState.LightObject.AddComponent(hdType);
+                    handState.HdrpData = handState.LightObject
+                        .AddComponent<HDAdditionalLightData>();
                     LogBloodSpellInnerLightDiagnostic(
                         "added HDRP additional light data to "
                         + handState.Hand
                         + " Light object.");
                 }
-
-                TrySetFirstFloatMember(
-                    hdData,
-                    new[] { "intensity", "m_Intensity" },
-                    renderIntensity);
-                TrySetFirstFloatMember(
-                    hdData,
-                    new[] { "lightDimmer", "m_LightDimmer" },
-                    1.0f);
-                TrySetFirstFloatMember(
-                    hdData,
-                    new[] { "volumetricDimmer", "m_VolumetricDimmer" },
-                    0.0f);
-                TrySetFirstMemberValue(
-                    hdData,
-                    new[] { "affectDiffuse", "m_AffectDiffuse" },
-                    true);
-                TrySetFirstMemberValue(
-                    hdData,
-                    new[] { "affectSpecular", "m_AffectSpecular" },
-                    true);
-                DisableHdrpShadows(hdType, hdData);
+                handState.HdrpData.lightDimmer = 1.0f;
+                handState.HdrpData.volumetricDimmer = 0.0f;
+                handState.HdrpData.affectDiffuse = true;
+                handState.HdrpData.affectSpecular = true;
+                handState.HdrpData.EnableShadows(false);
+                handState.HdrpData.shadowDimmer = 0.0f;
+                handState.HdrpData.volumetricShadowDimmer = 0.0f;
             }
             catch (Exception exception)
             {
@@ -1754,91 +1737,6 @@ namespace BloodMagicExpansion
                     "HDRP additional light data setup failed: "
                     + exception.Message);
             }
-        }
-
-        private Type ResolveHdAdditionalLightDataType()
-        {
-            if (_hdAdditionalLightDataResolved)
-            {
-                return _hdAdditionalLightDataType;
-            }
-
-            _hdAdditionalLightDataResolved = true;
-            Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            for (int i = 0; i < assemblies.Length; i++)
-            {
-                Type type = assemblies[i].GetType(
-                    "UnityEngine.Rendering.HighDefinition.HDAdditionalLightData",
-                    false);
-                if (type == null)
-                {
-                    continue;
-                }
-
-                _hdAdditionalLightDataType = type;
-                return _hdAdditionalLightDataType;
-            }
-
-            return null;
-        }
-
-        private bool TrySetFirstFloatMember(
-            object instance,
-            string[] memberNames,
-            float value)
-        {
-            for (int i = 0; i < memberNames.Length; i++)
-            {
-                if (TrySetFloatMember(instance, memberNames[i], value))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool TrySetFirstMemberValue(
-            object instance,
-            string[] memberNames,
-            object value)
-        {
-            for (int i = 0; i < memberNames.Length; i++)
-            {
-                if (TrySetMemberValue(instance, memberNames[i], value))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private void DisableHdrpShadows(Type hdType, object hdData)
-        {
-            const BindingFlags Flags =
-                BindingFlags.Instance |
-                BindingFlags.Public |
-                BindingFlags.NonPublic;
-            MethodInfo enableShadows = hdType.GetMethod(
-                "EnableShadows",
-                Flags,
-                null,
-                new[] { typeof(bool) },
-                null);
-            if (enableShadows != null)
-            {
-                enableShadows.Invoke(hdData, new object[] { false });
-            }
-
-            TrySetFirstFloatMember(
-                hdData,
-                new[] { "shadowDimmer", "m_ShadowDimmer", "shadowIntensity" },
-                0.0f);
-            TrySetFirstFloatMember(
-                hdData,
-                new[] { "volumetricShadowDimmer", "m_VolumetricShadowDimmer" },
-                0.0f);
         }
 
         private void DestroyBloodSpellInnerLight()
@@ -1856,6 +1754,7 @@ namespace BloodMagicExpansion
 
             handState.LightObject = null;
             handState.Light = null;
+            handState.HdrpData = null;
             handState.Anchor = null;
             handState.AnchorPropertyName = null;
             handState.NextAnchorProbeTime = 0.0f;
@@ -4540,6 +4439,8 @@ namespace BloodMagicExpansion
                 }
             }
 
+            ShowBloodPowerMilestonesAfterProgression(essenceReceipt);
+
             state.Exhausted = true;
             state.ExsanguinationSeverity = RollExsanguinationSeverity();
             PersistCorpseExsanguinationSeverity(state);
@@ -4573,6 +4474,13 @@ namespace BloodMagicExpansion
             TouchCorpseState(state);
             _focusedCorpse = null;
 
+            if (state.LiveServantTarget == null)
+            {
+                SpawnCorpseRitualVfx(
+                    corpseQuality,
+                    state.HasPosition,
+                    state.LastKnownPosition);
+            }
             PlayCorpseLeechSound(
                 corpseQuality,
                 state.HasPosition,
@@ -4582,6 +4490,25 @@ namespace BloodMagicExpansion
                 ReportCorpseDrained(corpseQuality);
             }
             state.LoggedReject = false;
+        }
+
+        private void SpawnCorpseRitualVfx(
+            float corpseQuality,
+            bool hasCorpsePosition,
+            Vector3 corpsePosition)
+        {
+            if (!hasCorpsePosition)
+            {
+                return;
+            }
+
+            string vfxKey = Mathf.Clamp01(corpseQuality) <= CorpseLeechWorthyQualityMax
+                ? CorpseRitualLesserVfxKey
+                : CorpseRitualGreaterVfxKey;
+            PrefabPool.InstantiateAndReturn(
+                new ShareableARAssetReference(vfxKey),
+                corpsePosition,
+                Quaternion.identity).Forget();
         }
 
         private float RollExsanguinationSeverity()
@@ -4868,6 +4795,27 @@ namespace BloodMagicExpansion
             {
                 Log.LogError(
                     "Blood Essence rollback failed after character XP could not be awarded.");
+            }
+        }
+
+        private void ShowBloodPowerMilestonesAfterProgression(
+            BloodEssenceAwardReceipt receipt)
+        {
+            if (receipt == null ||
+                (_overrideBloodEssence != null && _overrideBloodEssence.Value))
+            {
+                return;
+            }
+
+            float beforePower = GetBloodPowerFromEssence(receipt.BeforeEssence);
+            float afterPower = GetBloodPowerFromEssence(
+                SaturatingAdd(receipt.BeforeEssence, receipt.Award));
+            foreach (BloodPowerMilestone milestone in BloodPowerMilestones)
+            {
+                if (beforePower < milestone.Power && afterPower >= milestone.Power)
+                {
+                    TryShowBloodPowerMilestone(milestone);
+                }
             }
         }
 
@@ -9060,6 +9008,44 @@ namespace BloodMagicExpansion
                 true);
         }
 
+        private bool TryShowBloodPowerMilestone(BloodPowerMilestone milestone)
+        {
+            if (milestone == null ||
+                !TryResolveGrailFloatingTextBridge() ||
+                _grailFloatingTextTryShowEventMethod == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object result = _grailFloatingTextTryShowEventMethod.Invoke(
+                    null,
+                    new object[]
+                    {
+                        PluginGuid,
+                        milestone.EventId,
+                        milestone.Text,
+                        GrailFloatingTextBloodPowerStyle,
+                        "Reward",
+                        "High",
+                        string.Empty,
+                        GrailFloatingTextBloodPowerIconId,
+                        GrailFloatingTextBloodPowerDurationBucket,
+                        0.25f,
+                        0.95f
+                    });
+                return result is bool && (bool)result;
+            }
+            catch (Exception exception)
+            {
+                LogGrailFloatingTextUnavailableOnce(
+                    "Grail Floating Text failed to show Blood Power progress: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
         private bool TryClaimGrailFloatingTextXp(
             float amount,
             string eventId,
@@ -9330,7 +9316,8 @@ namespace BloodMagicExpansion
                 return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
                     _grailFloatingTextTryClaimXpGainMethod != null ||
                     _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
-                    _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null;
+                    _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null ||
+                    _grailFloatingTextTryShowEventMethod != null;
             }
 
             _grailFloatingTextBridgeResolved = true;
@@ -9421,10 +9408,29 @@ namespace BloodMagicExpansion
                         typeof(bool)
                     });
 
+            _grailFloatingTextTryShowEventMethod = AccessTools.Method(
+                apiType,
+                "TryShowEvent",
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(string),
+                    typeof(float),
+                    typeof(float)
+                });
+
             if (_grailFloatingTextTryClaimConsolidatedXpGainMethod == null &&
                 _grailFloatingTextTryClaimXpGainMethod == null &&
                 _grailFloatingTextTrySetBuiltInEventClaimMethod == null &&
-                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod == null)
+                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod == null &&
+                _grailFloatingTextTryShowEventMethod == null)
             {
                 LogGrailFloatingTextUnavailableOnce("Grail Floating Text is loaded, but its required claim APIs are unavailable.");
             }
@@ -9432,7 +9438,8 @@ namespace BloodMagicExpansion
             return _grailFloatingTextTryClaimConsolidatedXpGainMethod != null ||
                 _grailFloatingTextTryClaimXpGainMethod != null ||
                 _grailFloatingTextTrySetBuiltInEventClaimMethod != null ||
-                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null;
+                _grailFloatingTextTrySetBuiltInEventPresentationClaimMethod != null ||
+                _grailFloatingTextTryShowEventMethod != null;
         }
 
         private void LogGrailFloatingTextUnavailableOnce(string message)
@@ -13378,6 +13385,20 @@ namespace BloodMagicExpansion
             internal float Award { get; private set; }
         }
 
+        private sealed class BloodPowerMilestone
+        {
+            internal BloodPowerMilestone(float power, string eventId, string text)
+            {
+                Power = power;
+                EventId = eventId;
+                Text = text;
+            }
+
+            internal float Power { get; private set; }
+            internal string EventId { get; private set; }
+            internal string Text { get; private set; }
+        }
+
         private sealed class CorpseState
         {
             public int DebugId;
@@ -13446,6 +13467,7 @@ namespace BloodMagicExpansion
             public bool ImmediateFadeOutRequested;
             public GameObject LightObject;
             public Light Light;
+            public HDAdditionalLightData HdrpData;
             public Transform Anchor;
             public string AnchorPropertyName;
 

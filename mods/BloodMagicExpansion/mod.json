@@ -2,7 +2,7 @@
   "id": "BloodMagicExpansion",
   "displayName": "Blood Magic Expansion",
   "packageName": "BloodMagicExpansion",
-  "version": "3.1.1",
+  "version": "3.1.4",
   "pluginGuid": "ks.tgfoa.blood-magic-expansion",
   "dll": "BloodMagicExpansion.dll",
   "sourceFiles": [
@@ -17,10 +17,13 @@
     "%BEPINEX%/BepInEx/core/BepInEx.dll",
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/UniTask.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.Core.Runtime.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Unity.RenderPipelines.HighDefinition.Runtime.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Unity.VisualScripting.Flow.dll",
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll"
   ]

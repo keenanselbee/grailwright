@@ -16,7 +16,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | --- | --- | --- |
 | [Ambush Integrity - Stealth Overhaul](mods/AmbushIntegrity) | 0.1.8 | Unpublished |
 | [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.1.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.1.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.9.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.5.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |

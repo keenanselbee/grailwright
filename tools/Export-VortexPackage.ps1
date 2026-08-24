@@ -240,7 +240,8 @@ function Test-ShouldSkipExportFile {
         return $true
     }
 
-    if ($File.Extension -in @(".zip", ".7z", ".rar", ".nupkg", ".pdb", ".pdn", ".tmp")) {
+    # Editors may leave peak-cache sidecars beside authored audio. They are not runtime assets.
+    if ($File.Extension -in @(".zip", ".7z", ".rar", ".nupkg", ".pdb", ".pdn", ".pkf", ".tmp")) {
         return $true
     }
 

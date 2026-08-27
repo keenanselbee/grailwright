@@ -17,12 +17,46 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.9.3.0")]
-[assembly: AssemblyFileVersion("1.9.3.0")]
-[assembly: AssemblyInformationalVersion("1.9.3")]
+[assembly: AssemblyVersion("1.9.6.0")]
+[assembly: AssemblyFileVersion("1.9.6.0")]
+[assembly: AssemblyInformationalVersion("1.9.6")]
 
 namespace KillingBlowMastery
 {
+    public static class ExecutionVisualApi
+    {
+        public const int ApiVersion = 1;
+        public const int PhaseReady = 1;
+        public const int PhaseActive = 2;
+        public const int PhaseCompleted = 3;
+
+        public static bool TryGetState(
+            out int sequence,
+            out int phase,
+            out object target,
+            out float progress01,
+            out bool targetDeathConfirmed)
+        {
+            KillingBlowMasteryPlugin plugin = KillingBlowMasteryPlugin.Instance;
+            if (plugin == null)
+            {
+                sequence = 0;
+                phase = 0;
+                target = null;
+                progress01 = 0.0f;
+                targetDeathConfirmed = false;
+                return false;
+            }
+
+            return plugin.TryGetExecutionVisualStateForInterop(
+                out sequence,
+                out phase,
+                out target,
+                out progress01,
+                out targetDeathConfirmed);
+        }
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(GrailFloatingTextPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
@@ -30,7 +64,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.9.3";
+        public const string PluginVersion = "1.9.6";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -116,6 +150,9 @@ namespace KillingBlowMastery
             "ReefboundBody, Scourge, Skeleton, Summon, Tainted, WyrdnessBound, Zombie";
         private const float ExecutionDiagnosticRepeatSeconds = 3.0f;
         private const float ExecutionLifecycleDiagnosticRepeatSeconds = 3.0f;
+        private const float NativeFinisherStuckWarningSeconds = 6.0f;
+        private const float ExecutionReadyStateSeconds = 0.5f;
+        private const float ExecutionCompletedStateSeconds = 1.0f;
         private const int DefaultRewardSoundSlots = 5;
         private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
@@ -133,6 +170,8 @@ namespace KillingBlowMastery
         private static ExecutionEvaluationState _activeExecutionEvaluation;
         [ThreadStatic]
         private static ExecutionFinisherStartState _activeExecutionFinisherStart;
+        [ThreadStatic]
+        private static AutomaticFinisherTriggerState _activeAutomaticFinisherTrigger;
 
         private Harmony _harmony;
         private Type _npcElementType;
@@ -203,6 +242,7 @@ namespace KillingBlowMastery
         private ConfigEntry<int> _recentSoundMemory;
         private ConfigEntry<float> _randomPitchSemitones;
         private ConfigEntry<bool> _diagnostics;
+        private ConfigEntry<bool> _fullPotencyExecutions;
         private readonly Dictionary<string, int> _configSettingOrders =
             new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -222,6 +262,11 @@ namespace KillingBlowMastery
         private string _lastExecutionDiagnosticStatus;
         private float _lastExecutionDiagnosticTime = -9999.0f;
         private ExecutionFinisherLifecycleState _activeExecutionFinisher;
+        private NativeFinisherDiagnosticState _activeNativeFinisherDiagnostic;
+        private int _nextNativeFinisherDiagnosticSequence;
+        private object _executionReadyTarget;
+        private float _executionReadyExpiresAt = -9999.0f;
+        private int _nextExecutionSequence;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
         private string[] _cachedBloodlessSoundBlacklistTerms = new string[0];
@@ -275,6 +320,10 @@ namespace KillingBlowMastery
 
         private void OnDestroy()
         {
+            _activeExecutionFinisher = null;
+            _activeNativeFinisherDiagnostic = null;
+            _executionReadyTarget = null;
+
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -298,6 +347,15 @@ namespace KillingBlowMastery
         private void Update()
         {
             ReportActiveExecutionFinisherLifecycle();
+            ReportActiveNativeFinisherDiagnostic();
+            ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
+            if (state != null
+                && state.Finished
+                && Time.unscaledTime - state.FinishedUnscaledTime
+                    >= ExecutionCompletedStateSeconds)
+            {
+                _activeExecutionFinisher = null;
+            }
         }
 
         private ConfigEntry<T> BindOrdered<T>(
@@ -621,7 +679,16 @@ namespace KillingBlowMastery
                 new ConfigDescription(
                     "Random reward-sound pitch variation in semitones. Zero disables pitch randomization.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log kill source, rewards, audio routing, and throttled per-target Execution eligibility decisions.");
+            _diagnostics = BindOrdered(
+                "Diagnostics",
+                "Diagnostics",
+                false,
+                "Log kill source, rewards, audio routing, Execution eligibility, and every combat finisher's native slow-motion lifecycle and cleanup.");
+            _fullPotencyExecutions = BindOrdered(
+                "Diagnostics",
+                "FullPotencyExecutions",
+                false,
+                "When Diagnostics is enabled, test Executions as if the selected weapon proficiency were 100. This unlocks the configured mastery health threshold without changing proficiency, rewards, or save data.");
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -1120,7 +1187,16 @@ namespace KillingBlowMastery
             MethodInfo automaticPrefix = AccessTools.Method(
                 typeof(AutomaticCombatFinisherPatch),
                 nameof(AutomaticCombatFinisherPatch.Prefix));
-            if (automaticOriginal == null || automaticPrefix == null)
+            MethodInfo automaticPostfix = AccessTools.Method(
+                typeof(AutomaticCombatFinisherPatch),
+                nameof(AutomaticCombatFinisherPatch.Postfix));
+            MethodInfo automaticFinalizer = AccessTools.Method(
+                typeof(AutomaticCombatFinisherPatch),
+                nameof(AutomaticCombatFinisherPatch.Finalizer));
+            if (automaticOriginal == null
+                || automaticPrefix == null
+                || automaticPostfix == null
+                || automaticFinalizer == null)
             {
                 Log.LogWarning("Could not patch automatic combat finishers; AutomaticCombatFinishersEnabled is unavailable.");
             }
@@ -1128,7 +1204,11 @@ namespace KillingBlowMastery
             {
                 try
                 {
-                    _harmony.Patch(automaticOriginal, new HarmonyMethod(automaticPrefix));
+                    _harmony.Patch(
+                        automaticOriginal,
+                        prefix: new HarmonyMethod(automaticPrefix),
+                        postfix: new HarmonyMethod(automaticPostfix),
+                        finalizer: new HarmonyMethod(automaticFinalizer));
                     LogDiagnostic("Patched " + FinisherHandlingElementTypeName + ".TryTriggerFinisherBeforeAttack.");
                 }
                 catch (Exception ex)
@@ -1324,44 +1404,60 @@ namespace KillingBlowMastery
                 || onStartPostfix == null
                 || onStartFinalizer == null)
             {
-                Log.LogWarning("Could not patch Execution finisher start; scoped slow-motion suppression and lifecycle diagnostics are unavailable.");
-                return;
+                Log.LogWarning("Could not patch Execution finisher start; scoped Execution slow-motion suppression is unavailable.");
             }
-
-            try
+            else
             {
-                _harmony.Patch(
-                    onStartOriginal,
-                    prefix: new HarmonyMethod(onStartPrefix),
-                    postfix: new HarmonyMethod(onStartPostfix),
-                    finalizer: new HarmonyMethod(onStartFinalizer));
-                LogDiagnostic("Patched " + FinisherExecutionActionTypeName + ".OnStart.");
-            }
-            catch (Exception ex)
-            {
-                Log.LogWarning("Failed to patch Execution finisher start: " + ex.GetBaseException().Message);
-                return;
+                try
+                {
+                    _harmony.Patch(
+                        onStartOriginal,
+                        prefix: new HarmonyMethod(onStartPrefix),
+                        postfix: new HarmonyMethod(onStartPostfix),
+                        finalizer: new HarmonyMethod(onStartFinalizer));
+                    LogDiagnostic("Patched " + FinisherExecutionActionTypeName + ".OnStart.");
+                }
+                catch (Exception ex)
+                {
+                    Log.LogWarning("Failed to patch Execution finisher start: " + ex.GetBaseException().Message);
+                }
             }
 
             Type finisherStateType = AccessTools.TypeByName(FinisherStateTypeName);
             MethodInfo finisherStartedOriginal = finisherStateType == null
                 ? null
                 : AccessTools.Method(finisherStateType, "OnFinisherStarted");
+            MethodInfo finisherStartedPrefix = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherStartedPrefix));
             MethodInfo finisherStartedPostfix = AccessTools.Method(
-                typeof(ExecutionFinisherLifecyclePatch),
-                nameof(ExecutionFinisherLifecyclePatch.FinisherStartedPostfix));
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherStartedPostfix));
+            MethodInfo finisherStartedFinalizer = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherStartedFinalizer));
             MethodInfo finisherExitedOriginal = finisherStateType == null
                 ? null
                 : AccessTools.Method(finisherStateType, "OnExit");
+            MethodInfo finisherExitedPrefix = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherExitedPrefix));
             MethodInfo finisherExitedPostfix = AccessTools.Method(
-                typeof(ExecutionFinisherLifecyclePatch),
-                nameof(ExecutionFinisherLifecyclePatch.FinisherExitedPostfix));
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherExitedPostfix));
+            MethodInfo finisherExitedFinalizer = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.FinisherExitedFinalizer));
             if (finisherStartedOriginal == null
+                || finisherStartedPrefix == null
                 || finisherStartedPostfix == null
+                || finisherStartedFinalizer == null
                 || finisherExitedOriginal == null
-                || finisherExitedPostfix == null)
+                || finisherExitedPrefix == null
+                || finisherExitedPostfix == null
+                || finisherExitedFinalizer == null)
             {
-                Log.LogWarning("Could not patch Execution finisher lifecycle diagnostics; FinisherStarted/OnExit telemetry is unavailable.");
+                Log.LogWarning("Could not patch combat finisher lifecycle diagnostics; FinisherStarted/OnExit telemetry is unavailable.");
                 return;
             }
 
@@ -1369,15 +1465,55 @@ namespace KillingBlowMastery
             {
                 _harmony.Patch(
                     finisherStartedOriginal,
-                    postfix: new HarmonyMethod(finisherStartedPostfix));
+                    prefix: new HarmonyMethod(finisherStartedPrefix),
+                    postfix: new HarmonyMethod(finisherStartedPostfix),
+                    finalizer: new HarmonyMethod(finisherStartedFinalizer));
                 _harmony.Patch(
                     finisherExitedOriginal,
-                    postfix: new HarmonyMethod(finisherExitedPostfix));
-                LogDiagnostic("Patched " + FinisherStateTypeName + " lifecycle diagnostics.");
+                    prefix: new HarmonyMethod(finisherExitedPrefix),
+                    postfix: new HarmonyMethod(finisherExitedPostfix),
+                    finalizer: new HarmonyMethod(finisherExitedFinalizer));
+                LogDiagnostic("Patched " + FinisherStateTypeName + " all-finisher lifecycle diagnostics.");
             }
             catch (Exception ex)
             {
-                Log.LogWarning("Failed to patch Execution finisher lifecycle diagnostics: " + ex.GetBaseException().Message);
+                Log.LogWarning("Failed to patch combat finisher lifecycle diagnostics: " + ex.GetBaseException().Message);
+                return;
+            }
+
+            MethodInfo removeSlowdownsOriginal = AccessTools.Method(
+                finisherStateType,
+                "RemoveSlowdowns");
+            MethodInfo removeSlowdownsPrefix = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.RemoveSlowdownsPrefix));
+            MethodInfo removeSlowdownsPostfix = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.RemoveSlowdownsPostfix));
+            MethodInfo removeSlowdownsFinalizer = AccessTools.Method(
+                typeof(CombatFinisherLifecyclePatch),
+                nameof(CombatFinisherLifecyclePatch.RemoveSlowdownsFinalizer));
+            if (removeSlowdownsOriginal == null
+                || removeSlowdownsPrefix == null
+                || removeSlowdownsPostfix == null
+                || removeSlowdownsFinalizer == null)
+            {
+                Log.LogWarning("Could not patch native finisher slowdown cleanup; RemoveSlowdowns telemetry is unavailable.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    removeSlowdownsOriginal,
+                    prefix: new HarmonyMethod(removeSlowdownsPrefix),
+                    postfix: new HarmonyMethod(removeSlowdownsPostfix),
+                    finalizer: new HarmonyMethod(removeSlowdownsFinalizer));
+                LogDiagnostic("Patched " + FinisherStateTypeName + ".RemoveSlowdowns diagnostics.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning("Failed to patch native finisher slowdown cleanup diagnostics: " + ex.GetBaseException().Message);
             }
         }
 
@@ -1472,6 +1608,13 @@ namespace KillingBlowMastery
                 return null;
             }
 
+            object finisherHandling = GetOptionalFieldValue(
+                executionAction,
+                "_finisherHandlingElement");
+            object executionTarget = GetOptionalFieldValue(
+                finisherHandling,
+                "_npcPointingTowards");
+
             FieldInfo slowDownTimeField = AccessTools.Field(
                 cachedData.GetType(),
                 "slowDownTime");
@@ -1497,7 +1640,8 @@ namespace KillingBlowMastery
             ExecutionFinisherStartState state = new ExecutionFinisherStartState(
                 cachedData,
                 slowDownTimeField,
-                originalSlowDownTime);
+                originalSlowDownTime,
+                executionTarget);
             state.Activate();
             if (state.HasSlowDownTimeField)
             {
@@ -1511,6 +1655,333 @@ namespace KillingBlowMastery
                 + state.DescribeTemporarySlowDownTime()
                 + ".");
             return state;
+        }
+
+        private AutomaticFinisherTriggerState BeginAutomaticFinisherTrigger()
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return null;
+            }
+
+            AutomaticFinisherTriggerState state =
+                new AutomaticFinisherTriggerState();
+            state.Activate();
+            return state;
+        }
+
+        private NativeFinisherDiagnosticState BeginNativeFinisherDiagnostic(
+            object finisherState,
+            object runtimeData)
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return null;
+            }
+
+            NativeFinisherDiagnosticState previous =
+                _activeNativeFinisherDiagnostic;
+            if (previous != null && !previous.Exited)
+            {
+                Log.LogWarning(
+                    "Combat Finisher diagnostic replaced before OnExit: sequence="
+                    + previous.Sequence.ToString(CultureInfo.InvariantCulture)
+                    + ", source="
+                    + previous.Source
+                    + ", elapsedRealtime="
+                    + FormatFloat(
+                        Time.realtimeSinceStartup
+                            - previous.StartedRealtime)
+                    + "s, timeScale="
+                    + FormatFloat(Time.timeScale)
+                    + ", nativeSlowdowns="
+                    + DescribeNativeFinisherSlowdownCount(
+                        previous.FinisherState)
+                    + ".");
+            }
+
+            object payloadValue = GetOptionalFieldValue(
+                runtimeData,
+                "slowDownTime");
+            bool? payloadSlowDownTime = payloadValue is bool
+                ? (bool)payloadValue
+                : (bool?)null;
+            object target = GetOptionalFieldValue(runtimeData, "target");
+            string source = _activeExecutionFinisherStart != null
+                ? "KBMExecution"
+                : _activeAutomaticFinisherTrigger != null
+                    ? "Automatic"
+                    : "Other";
+
+            _nextNativeFinisherDiagnosticSequence++;
+            if (_nextNativeFinisherDiagnosticSequence <= 0)
+            {
+                _nextNativeFinisherDiagnosticSequence = 1;
+            }
+
+            NativeFinisherDiagnosticState state =
+                new NativeFinisherDiagnosticState(
+                    finisherState,
+                    target,
+                    source,
+                    _nextNativeFinisherDiagnosticSequence,
+                    payloadSlowDownTime,
+                    Time.timeScale,
+                    Time.unscaledTime,
+                    Time.realtimeSinceStartup);
+            _activeNativeFinisherDiagnostic = state;
+            return state;
+        }
+
+        private void OnNativeFinisherStarted(
+            NativeFinisherDiagnosticState state)
+        {
+            if (state == null
+                || !ReferenceEquals(_activeNativeFinisherDiagnostic, state))
+            {
+                return;
+            }
+
+            state.Started = true;
+            LogDiagnostic(
+                "Combat FinisherStarted: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", target="
+                + DescribeObject(state.Target)
+                + ", payloadSlowDownTime="
+                + DescribeNullableBool(state.PayloadSlowDownTime)
+                + ", timeScaleBefore="
+                + FormatFloat(state.TimeScaleBeforeStart)
+                + ", timeScaleAfter="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNativeFinisherSlowdownCount(state.FinisherState)
+                + ", progress="
+                + DescribeNativeFinisherProgress(state.FinisherState)
+                + ".");
+        }
+
+        private void OnNativeFinisherStartFailed(
+            NativeFinisherDiagnosticState state,
+            Exception exception)
+        {
+            if (state == null || exception == null)
+            {
+                return;
+            }
+
+            Log.LogWarning(
+                "Combat FinisherStarted threw: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", payloadSlowDownTime="
+                + DescribeNullableBool(state.PayloadSlowDownTime)
+                + ", timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNativeFinisherSlowdownCount(state.FinisherState)
+                + ", exception="
+                + exception.GetBaseException().GetType().Name
+                + ": "
+                + exception.GetBaseException().Message);
+            if (ReferenceEquals(_activeNativeFinisherDiagnostic, state))
+            {
+                _activeNativeFinisherDiagnostic = null;
+            }
+        }
+
+        private NativeFinisherDiagnosticState BeginNativeFinisherExit(
+            object finisherState)
+        {
+            NativeFinisherDiagnosticState state =
+                _activeNativeFinisherDiagnostic;
+            if (state == null
+                || !ReferenceEquals(state.FinisherState, finisherState))
+            {
+                return null;
+            }
+
+            state.ExitBegan = true;
+            LogDiagnostic(
+                "Combat Finisher OnExit begin: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", elapsedRealtime="
+                + FormatFloat(
+                    Time.realtimeSinceStartup - state.StartedRealtime)
+                + "s, timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNativeFinisherSlowdownCount(finisherState)
+                + ", cleanupObserved="
+                + state.CleanupObserved.ToString()
+                + ", progress="
+                + DescribeNativeFinisherProgress(finisherState)
+                + ".");
+            return state;
+        }
+
+        private void OnNativeFinisherExited(
+            NativeFinisherDiagnosticState state)
+        {
+            if (state == null
+                || !ReferenceEquals(_activeNativeFinisherDiagnostic, state))
+            {
+                return;
+            }
+
+            state.Exited = true;
+            state.ExitedUnscaledTime = Time.unscaledTime;
+            int? slowdownCount = GetNativeFinisherSlowdownCount(
+                state.FinisherState);
+            string message = "Combat Finisher OnExit complete: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", elapsedRealtime="
+                + FormatFloat(
+                    Time.realtimeSinceStartup - state.StartedRealtime)
+                + "s, timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNullableInt(slowdownCount)
+                + ", cleanupObserved="
+                + state.CleanupObserved.ToString()
+                + ".";
+            if (slowdownCount.HasValue && slowdownCount.Value > 0)
+            {
+                Log.LogWarning(message + " Native finisher slowdown handles remain attached.");
+            }
+            else if (state.PayloadSlowDownTime == true
+                && Time.timeScale <= 0.05f)
+            {
+                Log.LogWarning(
+                    message
+                    + " Native handles are clear, but gameplay time remains near zero; another modifier or failed modifier removal may be responsible.");
+            }
+            else
+            {
+                LogDiagnostic(message);
+            }
+        }
+
+        private void OnNativeFinisherExitFailed(
+            NativeFinisherDiagnosticState state,
+            Exception exception)
+        {
+            if (state == null || exception == null)
+            {
+                return;
+            }
+
+            Log.LogWarning(
+                "Combat Finisher OnExit threw: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNativeFinisherSlowdownCount(state.FinisherState)
+                + ", exception="
+                + exception.GetBaseException().GetType().Name
+                + ": "
+                + exception.GetBaseException().Message);
+        }
+
+        private NativeFinisherSlowdownRemovalState
+            BeginNativeFinisherSlowdownRemoval(object finisherState)
+        {
+            NativeFinisherDiagnosticState state =
+                _activeNativeFinisherDiagnostic;
+            if (state == null
+                || !ReferenceEquals(state.FinisherState, finisherState))
+            {
+                return null;
+            }
+
+            int? slowdownCount = GetNativeFinisherSlowdownCount(finisherState);
+            if (state.CleanupObserved
+                && slowdownCount.HasValue
+                && slowdownCount.Value == 0)
+            {
+                return null;
+            }
+
+            state.CleanupAttemptCount++;
+            return new NativeFinisherSlowdownRemovalState(
+                state,
+                slowdownCount,
+                Time.timeScale,
+                GetNativeFinisherProgress(finisherState));
+        }
+
+        private void OnNativeFinisherSlowdownsRemoved(
+            NativeFinisherSlowdownRemovalState removalState)
+        {
+            if (removalState == null)
+            {
+                return;
+            }
+
+            NativeFinisherDiagnosticState state = removalState.Finisher;
+            state.CleanupObserved = true;
+            int? slowdownCountAfter = GetNativeFinisherSlowdownCount(
+                state.FinisherState);
+            string message = "Combat Finisher RemoveSlowdowns: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", attempt="
+                + state.CleanupAttemptCount.ToString(CultureInfo.InvariantCulture)
+                + ", progress="
+                + DescribeNullableFloat(removalState.ProgressBefore)
+                + ", nativeSlowdownsBefore="
+                + DescribeNullableInt(removalState.SlowdownCountBefore)
+                + ", nativeSlowdownsAfter="
+                + DescribeNullableInt(slowdownCountAfter)
+                + ", timeScaleBefore="
+                + FormatFloat(removalState.TimeScaleBefore)
+                + ", timeScaleAfter="
+                + FormatFloat(Time.timeScale)
+                + ".";
+            if (slowdownCountAfter.HasValue && slowdownCountAfter.Value > 0)
+            {
+                Log.LogWarning(message + " Native slowdown cleanup did not clear every handle.");
+            }
+            else
+            {
+                LogDiagnostic(message);
+            }
+        }
+
+        private void OnNativeFinisherSlowdownRemovalFailed(
+            NativeFinisherSlowdownRemovalState removalState,
+            Exception exception)
+        {
+            if (removalState == null || exception == null)
+            {
+                return;
+            }
+
+            NativeFinisherDiagnosticState state = removalState.Finisher;
+            Log.LogWarning(
+                "Combat Finisher RemoveSlowdowns threw: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", nativeSlowdownsBefore="
+                + DescribeNullableInt(removalState.SlowdownCountBefore)
+                + ", timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", exception="
+                + exception.GetBaseException().GetType().Name
+                + ": "
+                + exception.GetBaseException().Message);
         }
 
         private void OnExecutionFinisherStarted(
@@ -1529,11 +2000,19 @@ namespace KillingBlowMastery
                 ? (bool)payloadValue
                 : (bool?)null;
 
+            _nextExecutionSequence++;
+            if (_nextExecutionSequence <= 0)
+            {
+                _nextExecutionSequence = 1;
+            }
             _activeExecutionFinisher = new ExecutionFinisherLifecycleState(
                 finisherState,
+                startState.Target,
+                _nextExecutionSequence,
                 payloadSlowDownTime,
                 Time.unscaledTime,
                 Time.realtimeSinceStartup);
+            _executionReadyTarget = null;
             LogDiagnostic(
                 "Execution FinisherStarted: assetSlowDownTime="
                 + startState.DescribeOriginalSlowDownTime()
@@ -1552,7 +2031,8 @@ namespace KillingBlowMastery
                 return;
             }
 
-            _activeExecutionFinisher = null;
+            state.Finished = true;
+            state.FinishedUnscaledTime = Time.unscaledTime;
             LogDiagnostic(
                 "Execution FinisherEnded/OnExit: elapsedUnscaled="
                 + FormatFloat(Time.unscaledTime - state.StartedUnscaledTime)
@@ -1566,7 +2046,7 @@ namespace KillingBlowMastery
         private void ReportActiveExecutionFinisherLifecycle()
         {
             ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
-            if (!_diagnostics.Value || state == null)
+            if (!_diagnostics.Value || state == null || state.Finished)
             {
                 return;
             }
@@ -1591,9 +2071,223 @@ namespace KillingBlowMastery
                 + ".");
         }
 
+        private void ReportActiveNativeFinisherDiagnostic()
+        {
+            NativeFinisherDiagnosticState state =
+                _activeNativeFinisherDiagnostic;
+            if (state == null)
+            {
+                return;
+            }
+            if (state.Exited)
+            {
+                if (Time.unscaledTime - state.ExitedUnscaledTime
+                    >= ExecutionCompletedStateSeconds)
+                {
+                    _activeNativeFinisherDiagnostic = null;
+                }
+                return;
+            }
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            float elapsedRealtime =
+                Time.realtimeSinceStartup - state.StartedRealtime;
+            int? slowdownCount = GetNativeFinisherSlowdownCount(
+                state.FinisherState);
+            if (!state.StuckWarningLogged
+                && state.PayloadSlowDownTime == true
+                && elapsedRealtime >= NativeFinisherStuckWarningSeconds
+                && Time.timeScale <= 0.05f
+                && (!slowdownCount.HasValue || slowdownCount.Value > 0))
+            {
+                state.StuckWarningLogged = true;
+                Log.LogWarning(
+                    "Combat Finisher possible stuck native slowdown: sequence="
+                    + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                    + ", source="
+                    + state.Source
+                    + ", elapsedRealtime="
+                    + FormatFloat(elapsedRealtime)
+                    + "s, OnExitStarted="
+                    + state.ExitBegan.ToString()
+                    + ", cleanupObserved="
+                    + state.CleanupObserved.ToString()
+                    + ", timeScale="
+                    + FormatFloat(Time.timeScale)
+                    + ", nativeSlowdowns="
+                    + DescribeNullableInt(slowdownCount)
+                    + ", progress="
+                    + DescribeNativeFinisherProgress(state.FinisherState)
+                    + ".");
+            }
+
+            float now = Time.unscaledTime;
+            if (now - state.LastLifecycleDiagnosticUnscaledTime
+                < ExecutionLifecycleDiagnosticRepeatSeconds)
+            {
+                return;
+            }
+
+            state.LastLifecycleDiagnosticUnscaledTime = now;
+            Log.LogInfo(
+                "Combat Finisher still active: sequence="
+                + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                + ", source="
+                + state.Source
+                + ", payloadSlowDownTime="
+                + DescribeNullableBool(state.PayloadSlowDownTime)
+                + ", elapsedRealtime="
+                + FormatFloat(elapsedRealtime)
+                + "s, timeScale="
+                + FormatFloat(Time.timeScale)
+                + ", nativeSlowdowns="
+                + DescribeNullableInt(slowdownCount)
+                + ", cleanupObserved="
+                + state.CleanupObserved.ToString()
+                + ", progress="
+                + DescribeNativeFinisherProgress(state.FinisherState)
+                + ".");
+        }
+
+        private int? GetNativeFinisherSlowdownCount(object finisherState)
+        {
+            if (finisherState == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                FieldInfo field = AccessTools.Field(
+                    finisherState.GetType(),
+                    "_slowDowns");
+                if (field == null)
+                {
+                    return null;
+                }
+
+                object value = field.GetValue(finisherState);
+                Array slowdowns = value as Array;
+                return value == null
+                    ? 0
+                    : slowdowns == null
+                        ? (int?)null
+                        : slowdowns.Length;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private float? GetNativeFinisherProgress(object finisherState)
+        {
+            object value = GetOptionalPropertyValue(
+                finisherState,
+                "TimeElapsedNormalized");
+            return value is float
+                ? Mathf.Clamp01((float)value)
+                : (float?)null;
+        }
+
+        private string DescribeNativeFinisherSlowdownCount(
+            object finisherState)
+        {
+            return DescribeNullableInt(
+                GetNativeFinisherSlowdownCount(finisherState));
+        }
+
+        private string DescribeNativeFinisherProgress(object finisherState)
+        {
+            return DescribeNullableFloat(
+                GetNativeFinisherProgress(finisherState));
+        }
+
         private static string DescribeNullableBool(bool? value)
         {
             return value.HasValue ? value.Value.ToString() : "unavailable";
+        }
+
+        private string DescribeNullableFloat(float? value)
+        {
+            return value.HasValue
+                ? FormatFloat(value.Value)
+                : "unavailable";
+        }
+
+        private static string DescribeNullableInt(int? value)
+        {
+            return value.HasValue
+                ? value.Value.ToString(CultureInfo.InvariantCulture)
+                : "unavailable";
+        }
+
+        private void SetExecutionReadyState(object target, bool available)
+        {
+            if (!available || target == null)
+            {
+                _executionReadyTarget = null;
+                _executionReadyExpiresAt = -9999.0f;
+                return;
+            }
+
+            _executionReadyTarget = target;
+            _executionReadyExpiresAt = Time.unscaledTime
+                + ExecutionReadyStateSeconds;
+        }
+
+        internal bool TryGetExecutionVisualStateForInterop(
+            out int sequence,
+            out int phase,
+            out object target,
+            out float progress01,
+            out bool targetDeathConfirmed)
+        {
+            ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
+            if (state != null)
+            {
+                sequence = state.Sequence;
+                phase = state.Finished
+                    ? ExecutionVisualApi.PhaseCompleted
+                    : ExecutionVisualApi.PhaseActive;
+                target = state.Target;
+                targetDeathConfirmed = state.TargetDeathConfirmed;
+                if (state.Finished)
+                {
+                    progress01 = 1.0f;
+                }
+                else
+                {
+                    object rawProgress = GetOptionalPropertyValue(
+                        state.FinisherState,
+                        "TimeElapsedNormalized");
+                    progress01 = rawProgress is float
+                        ? Mathf.Clamp01((float)rawProgress)
+                        : 0.0f;
+                }
+                return target != null;
+            }
+
+            if (_executionReadyTarget != null
+                && Time.unscaledTime <= _executionReadyExpiresAt)
+            {
+                sequence = 0;
+                phase = ExecutionVisualApi.PhaseReady;
+                target = _executionReadyTarget;
+                progress01 = 0.0f;
+                targetDeathConfirmed = false;
+                return true;
+            }
+
+            sequence = 0;
+            phase = 0;
+            target = null;
+            progress01 = 0.0f;
+            targetDeathConfirmed = false;
+            return false;
         }
 
         private bool TryPrepareExecutionEvaluation(
@@ -2019,6 +2713,7 @@ namespace KillingBlowMastery
                         + (state == null
                             ? "condition evaluation unavailable"
                             : state.DescribeConditionEvaluation()));
+                    SetExecutionReadyState(npc, false);
                     return;
                 }
 
@@ -2034,6 +2729,7 @@ namespace KillingBlowMastery
                         + (state == null
                             ? "condition evaluation unavailable"
                             : state.DescribeConditionEvaluation()));
+                    SetExecutionReadyState(npc, true);
                     return;
                 }
 
@@ -2051,6 +2747,7 @@ namespace KillingBlowMastery
                     + (state == null
                         ? "condition evaluation unavailable"
                         : state.DescribeConditionEvaluation()));
+                SetExecutionReadyState(npc, false);
                 return;
             }
 
@@ -2069,6 +2766,7 @@ namespace KillingBlowMastery
             LogExecutionEligibility(
                 npc ?? executionAction,
                 failureStatus);
+            SetExecutionReadyState(npc, false);
         }
 
         private bool TryValidateExecutionProgression(
@@ -2099,15 +2797,23 @@ namespace KillingBlowMastery
             object hero = GetOptionalPropertyValue(
                 finisherHandling,
                 "ParentModel");
-            int proficiencyLevel = GetExecutionProficiencyLevel(
+            int actualProficiencyLevel = GetExecutionProficiencyLevel(
                 hero,
                 proficiency);
-            if (proficiencyLevel < 0)
+            if (actualProficiencyLevel < 0)
             {
                 status = "could not resolve a supported melee proficiency for "
                     + DescribeObject(item);
                 return false;
             }
+
+            bool fullPotencyTest = _diagnostics != null
+                && _diagnostics.Value
+                && _fullPotencyExecutions != null
+                && _fullPotencyExecutions.Value;
+            int proficiencyLevel = fullPotencyTest
+                ? 100
+                : actualProficiencyLevel;
 
             int minimumProficiency = Math.Max(
                 0,
@@ -2116,7 +2822,10 @@ namespace KillingBlowMastery
             {
                 status = proficiencyName
                     + " proficiency="
-                    + proficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                    + actualProficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                    + (fullPotencyTest
+                        ? ", effective=100 (FullPotency test)"
+                        : string.Empty)
                     + ", required="
                     + minimumProficiency.ToString(CultureInfo.InvariantCulture);
                 return false;
@@ -2144,7 +2853,10 @@ namespace KillingBlowMastery
                 minimumProficiency);
             status = proficiencyName
                 + " proficiency="
-                + proficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                + actualProficiencyLevel.ToString(CultureInfo.InvariantCulture)
+                + (fullPotencyTest
+                    ? ", effective=100 (FullPotency test)"
+                    : string.Empty)
                 + ", threshold="
                 + FormatFloat(threshold)
                 + "%, health="
@@ -2759,6 +3471,15 @@ namespace KillingBlowMastery
 
         internal void OnNpcDeath(object npc, object damageOutcome)
         {
+            ExecutionFinisherLifecycleState executionState =
+                _activeExecutionFinisher;
+            if (executionState != null
+                && !executionState.Finished
+                && ReferenceEquals(executionState.Target, npc))
+            {
+                executionState.TargetDeathConfirmed = true;
+            }
+
             if (!_enabled.Value || npc == null || damageOutcome == null)
             {
                 return;
@@ -5500,15 +6221,18 @@ namespace KillingBlowMastery
             private bool _restored;
 
             public readonly bool? OriginalSlowDownTime;
+            public readonly object Target;
 
             public ExecutionFinisherStartState(
                 object cachedData,
                 FieldInfo slowDownTimeField,
-                bool? originalSlowDownTime)
+                bool? originalSlowDownTime,
+                object target)
             {
                 _cachedData = cachedData;
                 _slowDownTimeField = slowDownTimeField;
                 OriginalSlowDownTime = originalSlowDownTime;
+                Target = target;
             }
 
             public bool HasSlowDownTimeField
@@ -5599,21 +6323,129 @@ namespace KillingBlowMastery
             }
         }
 
+        private sealed class AutomaticFinisherTriggerState
+        {
+            private AutomaticFinisherTriggerState _previousActiveState;
+            private bool _activated;
+            private bool _restored;
+
+            public void Activate()
+            {
+                if (_activated)
+                {
+                    return;
+                }
+
+                _activated = true;
+                _previousActiveState = _activeAutomaticFinisherTrigger;
+                _activeAutomaticFinisherTrigger = this;
+            }
+
+            public void Restore()
+            {
+                if (_restored)
+                {
+                    return;
+                }
+                _restored = true;
+
+                if (_activated
+                    && ReferenceEquals(
+                        _activeAutomaticFinisherTrigger,
+                        this))
+                {
+                    _activeAutomaticFinisherTrigger = _previousActiveState;
+                }
+                _previousActiveState = null;
+            }
+        }
+
+        private sealed class NativeFinisherDiagnosticState
+        {
+            public readonly object FinisherState;
+            public readonly object Target;
+            public readonly string Source;
+            public readonly int Sequence;
+            public readonly bool? PayloadSlowDownTime;
+            public readonly float TimeScaleBeforeStart;
+            public readonly float StartedUnscaledTime;
+            public readonly float StartedRealtime;
+            public float LastLifecycleDiagnosticUnscaledTime;
+            public int CleanupAttemptCount;
+            public bool Started;
+            public bool ExitBegan;
+            public bool CleanupObserved;
+            public bool StuckWarningLogged;
+            public bool Exited;
+            public float ExitedUnscaledTime;
+
+            public NativeFinisherDiagnosticState(
+                object finisherState,
+                object target,
+                string source,
+                int sequence,
+                bool? payloadSlowDownTime,
+                float timeScaleBeforeStart,
+                float startedUnscaledTime,
+                float startedRealtime)
+            {
+                FinisherState = finisherState;
+                Target = target;
+                Source = source;
+                Sequence = sequence;
+                PayloadSlowDownTime = payloadSlowDownTime;
+                TimeScaleBeforeStart = timeScaleBeforeStart;
+                StartedUnscaledTime = startedUnscaledTime;
+                StartedRealtime = startedRealtime;
+                LastLifecycleDiagnosticUnscaledTime =
+                    startedUnscaledTime;
+            }
+        }
+
+        private sealed class NativeFinisherSlowdownRemovalState
+        {
+            public readonly NativeFinisherDiagnosticState Finisher;
+            public readonly int? SlowdownCountBefore;
+            public readonly float TimeScaleBefore;
+            public readonly float? ProgressBefore;
+
+            public NativeFinisherSlowdownRemovalState(
+                NativeFinisherDiagnosticState finisher,
+                int? slowdownCountBefore,
+                float timeScaleBefore,
+                float? progressBefore)
+            {
+                Finisher = finisher;
+                SlowdownCountBefore = slowdownCountBefore;
+                TimeScaleBefore = timeScaleBefore;
+                ProgressBefore = progressBefore;
+            }
+        }
+
         private sealed class ExecutionFinisherLifecycleState
         {
             public readonly object FinisherState;
+            public readonly object Target;
+            public readonly int Sequence;
             public readonly bool? PayloadSlowDownTime;
             public readonly float StartedUnscaledTime;
             public readonly float StartedRealtime;
             public float LastLifecycleDiagnosticUnscaledTime;
+            public bool TargetDeathConfirmed;
+            public bool Finished;
+            public float FinishedUnscaledTime;
 
             public ExecutionFinisherLifecycleState(
                 object finisherState,
+                object target,
+                int sequence,
                 bool? payloadSlowDownTime,
                 float startedUnscaledTime,
                 float startedRealtime)
             {
                 FinisherState = finisherState;
+                Target = target;
+                Sequence = sequence;
                 PayloadSlowDownTime = payloadSlowDownTime;
                 StartedUnscaledTime = startedUnscaledTime;
                 StartedRealtime = startedRealtime;
@@ -5767,15 +6599,43 @@ namespace KillingBlowMastery
 
         private static class AutomaticCombatFinisherPatch
         {
-            public static bool Prefix(ref bool __result)
+            public static bool Prefix(
+                ref bool __result,
+                out AutomaticFinisherTriggerState __state)
             {
-                if (Instance == null || Instance.AutomaticCombatFinishersAllowed)
+                __state = null;
+                if (Instance == null)
                 {
+                    return true;
+                }
+                if (Instance.AutomaticCombatFinishersAllowed)
+                {
+                    __state = Instance.BeginAutomaticFinisherTrigger();
                     return true;
                 }
 
                 __result = false;
                 return false;
+            }
+
+            public static void Postfix(
+                AutomaticFinisherTriggerState __state)
+            {
+                if (__state != null)
+                {
+                    __state.Restore();
+                }
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                AutomaticFinisherTriggerState __state)
+            {
+                if (__state != null)
+                {
+                    __state.Restore();
+                }
+                return __exception;
             }
         }
 
@@ -5903,29 +6763,117 @@ namespace KillingBlowMastery
             }
         }
 
-        private static class ExecutionFinisherLifecyclePatch
+        private static class CombatFinisherLifecyclePatch
         {
+            public static void FinisherStartedPrefix(
+                object __instance,
+                object data,
+                out NativeFinisherDiagnosticState __state)
+            {
+                __state = Instance == null
+                    ? null
+                    : Instance.BeginNativeFinisherDiagnostic(
+                        __instance,
+                        data);
+            }
+
             public static void FinisherStartedPostfix(
                 object __instance,
-                object data)
+                object data,
+                NativeFinisherDiagnosticState __state)
             {
                 ExecutionFinisherStartState startState =
                     _activeExecutionFinisherStart;
-                if (Instance != null && startState != null)
+                if (Instance == null)
+                {
+                    return;
+                }
+                if (startState != null)
                 {
                     Instance.OnExecutionFinisherStarted(
                         __instance,
                         data,
                         startState);
                 }
+                Instance.OnNativeFinisherStarted(__state);
             }
 
-            public static void FinisherExitedPostfix(object __instance)
+            public static Exception FinisherStartedFinalizer(
+                Exception __exception,
+                NativeFinisherDiagnosticState __state)
+            {
+                if (Instance != null && __exception != null)
+                {
+                    Instance.OnNativeFinisherStartFailed(
+                        __state,
+                        __exception);
+                }
+                return __exception;
+            }
+
+            public static void FinisherExitedPrefix(
+                object __instance,
+                out NativeFinisherDiagnosticState __state)
+            {
+                __state = Instance == null
+                    ? null
+                    : Instance.BeginNativeFinisherExit(__instance);
+            }
+
+            public static void FinisherExitedPostfix(
+                object __instance,
+                NativeFinisherDiagnosticState __state)
             {
                 if (Instance != null)
                 {
                     Instance.OnExecutionFinisherExited(__instance);
+                    Instance.OnNativeFinisherExited(__state);
                 }
+            }
+
+            public static Exception FinisherExitedFinalizer(
+                Exception __exception,
+                NativeFinisherDiagnosticState __state)
+            {
+                if (Instance != null && __exception != null)
+                {
+                    Instance.OnNativeFinisherExitFailed(
+                        __state,
+                        __exception);
+                }
+                return __exception;
+            }
+
+            public static void RemoveSlowdownsPrefix(
+                object __instance,
+                out NativeFinisherSlowdownRemovalState __state)
+            {
+                __state = Instance == null
+                    ? null
+                    : Instance.BeginNativeFinisherSlowdownRemoval(
+                        __instance);
+            }
+
+            public static void RemoveSlowdownsPostfix(
+                NativeFinisherSlowdownRemovalState __state)
+            {
+                if (Instance != null)
+                {
+                    Instance.OnNativeFinisherSlowdownsRemoved(__state);
+                }
+            }
+
+            public static Exception RemoveSlowdownsFinalizer(
+                Exception __exception,
+                NativeFinisherSlowdownRemovalState __state)
+            {
+                if (Instance != null && __exception != null)
+                {
+                    Instance.OnNativeFinisherSlowdownRemovalFailed(
+                        __state,
+                        __exception);
+                }
+                return __exception;
             }
         }
 

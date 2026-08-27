@@ -1,1 +1,1 @@
-Default-on weapon mastery turns low-health enemies into increasingly generous Execution opportunities, backed by visceral finisher sounds and proficiency rewards.
+Master weapons through interactive executions, give killing blows visceral source-specific sounds, and reward the combat skill that finishes the fight.

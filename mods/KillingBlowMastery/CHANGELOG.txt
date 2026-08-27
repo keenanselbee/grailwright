@@ -1,3 +1,14 @@
+Version 1.9.6
+Expanded Diagnostics across every combat finisher, including automatic vanilla kill cams, with exact origin, target, native slowdown flag, normalized progress, real elapsed time, observed gameplay time scale, and owned slowdown-handle count.
+Added exception-safe start, native RemoveSlowdowns, and OnExit telemetry plus a real-time warning when the native Finisher slowdown remains attached near zero time scale for six seconds.
+Added diagnostics-only FullPotencyExecutions testing, disabled by default, to simulate proficiency 100 and the configured mastery health threshold without changing actual proficiency, rewards, or save data.
+Kept ConfigSchemaVersion at 19 because the new testing control is additive and defaults off.
+
+Version 1.9.4
+Added execution-visual API v1 with exact ready and active targets, real normalized finisher progress, target-matched death confirmation, and an observable completion state.
+Enabled Dishonored Dynamic Crosshair to present corpse-quality Execute previews without changing execution eligibility, damage, rewards, or timing.
+Kept ConfigSchemaVersion at 19 because this optional presentation integration adds no setting or default.
+
 Version 1.9.3
 Made proficiency-scaled Execution mode the default combat execution behavior.
 Enabled expanded enemy selection by default while retaining Animal and Animal_Prey safety exclusions.

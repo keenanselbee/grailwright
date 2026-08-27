@@ -36,6 +36,8 @@ $contracts = @(
     'ReefboundBody, Scourge, Skeleton, Summon, Tainted, WyrdnessBound, Zombie',
     'string displaySection = GetConfigDisplaySection(section, key);',
     'GetConfigDisplayName(key)',
+    '"FullPotencyExecutions",',
+    'private ConfigEntry<bool> _fullPotencyExecutions;',
     'return "Combat Finishers";',
     'return "Reward Audio";',
     'return "Advanced Audio Routing";',
@@ -54,10 +56,12 @@ $contracts = @(
     'PatchExecutionFinisherStart(executionActionType);',
     'AccessTools.Method(executionActionType, "OnStart")',
     'private static class ExecutionFinisherStartPatch',
-    'private static class ExecutionFinisherLifecyclePatch',
+    'private static class CombatFinisherLifecyclePatch',
     'FinisherStateTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.States.Overrides.FinisherState"',
     'AccessTools.Method(finisherStateType, "OnFinisherStarted")',
     'AccessTools.Method(finisherStateType, "OnExit")',
+    'AccessTools.Method(',
+    '"RemoveSlowdowns")',
     'object cachedData = GetOptionalFieldValue(',
     '"_cachedData")',
     'AccessTools.Field(',
@@ -66,6 +70,16 @@ $contracts = @(
     'Execution FinisherStarted:',
     'Execution FinisherEnded/OnExit:',
     'Execution Finisher still active:',
+    'Combat FinisherStarted:',
+    'Combat Finisher OnExit begin:',
+    'Combat Finisher OnExit complete:',
+    'Combat Finisher RemoveSlowdowns:',
+    'Combat Finisher still active:',
+    'Combat Finisher possible stuck native slowdown:',
+    '"_slowDowns"',
+    'NativeFinisherStuckWarningSeconds = 6.0f',
+    'private static AutomaticFinisherTriggerState _activeAutomaticFinisherTrigger;',
+    'BeginAutomaticFinisherTrigger()',
     'private void Update()',
     'ReportActiveExecutionFinisherLifecycle();',
     'AccessTools.PropertyGetter(executionActionType, "DefaultActionName")',
@@ -158,6 +172,15 @@ if ($source -notmatch '_expandedExecutionTargets\s*=\s*BindOrdered\s*\(\s*"Gener
     throw "Expanded enemy selection must remain enabled by default."
 }
 
+if ($source -notmatch '_fullPotencyExecutions\s*=\s*BindOrdered\s*\(\s*"Diagnostics"\s*,\s*"FullPotencyExecutions"\s*,\s*false\s*,') {
+    throw "Full Potency Executions must remain a disabled-by-default Diagnostics control."
+}
+
+if ($source -notmatch 'bool\s+fullPotencyTest\s*=\s*_diagnostics\s*!=\s*null\s*&&\s*_diagnostics\.Value\s*&&\s*_fullPotencyExecutions\s*!=\s*null\s*&&\s*_fullPotencyExecutions\.Value;' -or
+    $source -notmatch 'int\s+proficiencyLevel\s*=\s*fullPotencyTest\s*\?\s*100\s*:\s*actualProficiencyLevel;') {
+    throw "Full Potency Executions must require Diagnostics and simulate proficiency 100 without replacing the actual proficiency read."
+}
+
 if ($source -notmatch 'hpValueField\.SetValue\s*\(\s*healthCondition\s*,\s*Instance\.GetExecutionMaximumHealthPercent\(\)\s*/\s*100\.0f\s*\);') {
     throw "Execution health conditions must receive the normalized mastery ceiling."
 }
@@ -202,6 +225,18 @@ if ($source -notmatch '_slowDownTimeField\.SetValue\s*\(\s*_cachedData\s*,\s*fal
 
 if ($source -notmatch 'public\s+static\s+void\s+Postfix\s*\(\s*ExecutionFinisherStartState\s+__state\s*\)' -or $source -notmatch 'public\s+static\s+Exception\s+Finalizer\s*\(\s*Exception\s+__exception\s*,\s*ExecutionFinisherStartState\s+__state\s*\)') {
     throw "Execution slowDownTime restoration must run through both postfix and finalizer paths."
+}
+
+if ($source -notmatch 'private\s+static\s+class\s+AutomaticCombatFinisherPatch[\s\S]*?out\s+AutomaticFinisherTriggerState\s+__state[\s\S]*?BeginAutomaticFinisherTrigger\(\)[\s\S]*?public\s+static\s+void\s+Postfix[\s\S]*?__state\.Restore\(\);[\s\S]*?public\s+static\s+Exception\s+Finalizer') {
+    throw "Automatic finisher origin tracking must remain scoped and restore through postfix and finalizer paths."
+}
+
+if ($source -notmatch 'private\s+static\s+class\s+CombatFinisherLifecyclePatch[\s\S]*?FinisherStartedPrefix[\s\S]*?FinisherStartedPostfix[\s\S]*?FinisherStartedFinalizer[\s\S]*?FinisherExitedPrefix[\s\S]*?FinisherExitedPostfix[\s\S]*?FinisherExitedFinalizer[\s\S]*?RemoveSlowdownsPrefix[\s\S]*?RemoveSlowdownsPostfix[\s\S]*?RemoveSlowdownsFinalizer') {
+    throw "All-finisher diagnostics must retain exception-safe start, exit, and native slowdown-cleanup telemetry."
+}
+
+if ($source -notmatch 'state\.PayloadSlowDownTime\s*==\s*true[\s\S]*?elapsedRealtime\s*>=\s*NativeFinisherStuckWarningSeconds[\s\S]*?Time\.timeScale\s*<=\s*0\.05f[\s\S]*?slowdownCount\.Value\s*>\s*0') {
+    throw "Native finisher diagnostics must warn when an owned slowdown remains stuck beyond the real-time guard."
 }
 
 if ($source -notmatch 'if\s*\(\s*_restored\s*\)\s*\{\s*return;\s*\}') {
@@ -252,6 +287,26 @@ if ($source.IndexOf('KillUnconsciousAction', [StringComparison]::Ordinal) -ge 0)
 
 if ($source.IndexOf('private const int ConfigSchemaVersion = 19;', [StringComparison]::Ordinal) -lt 0) {
     throw "The new Execution and expanded-target defaults require schema 19."
+}
+
+if ($source -notmatch 'public\s+static\s+class\s+ExecutionVisualApi[\s\S]*?public\s+const\s+int\s+ApiVersion\s*=\s*1;[\s\S]*?TryGetState\(') {
+    throw "The reflection-safe Execution visual API v1 is missing."
+}
+
+if ($source -notmatch 'GetOptionalFieldValue\(\s*finisherHandling,\s*"_npcPointingTowards"\s*\)[\s\S]*?new ExecutionFinisherStartState\([\s\S]*?executionTarget\)') {
+    throw "Execution start does not retain the exact selected NPC target."
+}
+
+if ($source -notmatch 'GetOptionalPropertyValue\(\s*state\.FinisherState,\s*"TimeElapsedNormalized"\s*\)') {
+    throw "Execution visual progress does not use the finisher state's normalized animation time."
+}
+
+if ($source -notmatch 'ReferenceEquals\(executionState\.Target, npc\)[\s\S]*?executionState\.TargetDeathConfirmed = true;') {
+    throw "Execution death confirmation is not correlated to the exact active target."
+}
+
+if ($source -notmatch 'state\.Finished = true;' -or $source -notmatch 'PhaseCompleted' -or $source -notmatch 'ExecutionCompletedStateSeconds') {
+    throw "Execution completion is not retained long enough for presentation consumers to observe it."
 }
 
 Write-Output "Killing Blow Mastery combat finisher contracts passed."

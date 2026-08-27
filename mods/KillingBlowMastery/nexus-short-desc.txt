@@ -1,1 +1,1 @@
-Enables weapon-mastery Executions and expanded enemy selection by default: unlock Execute at 25 proficiency and grow its window from 10% to 25% health as skill rises. Also adds source-specific finisher sounds and configurable proficiency XP.
+Turn growing weapon mastery into decisive, hands-on executions. Wounded enemies become vulnerable to an Execute prompt as your skill improves, while killing blows strengthen the combat skill behind them and land with tailored sounds for weapons, shields, bows, fists, and magic.

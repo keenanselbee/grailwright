@@ -1,7 +1,5 @@
-TargetVersion=1.9.3
-BaselineVersion=1.8.4
-Renamed the former GloryKill mode to Executions across current settings, diagnostics, and documentation.
-Executions now unlock at weapon proficiency 25 with a 10% health window and scale linearly to 25% health at proficiency 100.
-Execution eligibility follows the weapon that supplies the selected main-hand, off-hand, or normal-finisher fallback animation, including Versatile Weapons' effective grip proficiency.
-Made proficiency-scaled Execution mode and expanded enemy selection the defaults while retaining Animal and Animal_Prey safety exclusions.
-Advanced ConfigSchemaVersion from 17 to 18 for the Execution rename and proficiency-progression settings, then from 18 to 19 for the new combat-mode and expanded-target defaults; compatible non-default customizations remain recoverable.
+TargetVersion=1.9.6
+BaselineVersion=1.9.3
+Added every-combat-finisher diagnostics for automatic vanilla kill cams and KBM Executions, including native slowdown ownership, progress, time scale, cleanup, OnExit, and stuck-slowdown warnings.
+Added a diagnostics-only Full Potency Executions test that simulates proficiency 100 and the mastery health threshold without changing proficiency, rewards, or save data.
+Added optional execution-visual state for Dishonored Dynamic Crosshair, including exact target identity, real finisher progress, confirmed target death, and a safe completed state.

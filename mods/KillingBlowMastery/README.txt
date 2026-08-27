@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.9.3
+Version 1.9.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -66,6 +66,8 @@ BloodlessSoundWhitelistTerms =
 AvoidRecentSoundRepeats = true
 RecentSoundMemory = 2
 RandomPitchSemitones = 0.35
+Diagnostics = false
+FullPotencyExecutions = false
 
 FoA Mod Manager section order:
 General, Combat Finishers, Weapon Skills, Notifications, Reward Audio, Advanced
@@ -126,6 +128,13 @@ The prompt uses current health as a percentage of maximum health. The game's
 normal distance, external-death, and kill-prevention checks still apply.
 Eligible Executions use the game's existing finisher animations and still
 produce normal killing-blow rewards.
+
+With Steel and Bone 4.0.1 and Dishonored Dynamic Crosshair 3.6.2, an eligible
+Execute prompt previews the target's actual Meager, Worthy, Potent, or Prime
+corpse-quality skull in white. During the finisher, that same skull follows the
+real animation progress toward killing-blow dark red. Confirmed target-matched
+feedback hands off near the end to Dishonored's normal layered killing-blow
+marker; cancelled finishers never create a false kill marker.
 
 In Execution mode, KBM first selects from the equipped melee weapon's loaded
 execution animations after its explicit health and safety checks. If that list
@@ -342,6 +351,19 @@ finisher lists, execution and fallback animation-handle readiness, the native
 0.6-second activation delay, and when the Execute prompt should be available.
 Expanded-target rejections identify the exact excluded abstract family or a
 target-classification inspection failure.
+
+Diagnostics also traces every combat finisher, including automatic vanilla kill
+cams. Start, native RemoveSlowdowns cleanup, and OnExit entries include the
+origin, target, native slowdown flag, normalized progress, real elapsed time,
+gameplay time scale, and attached native slowdown-handle count. A warning is
+written if a native Finisher slowdown remains attached near zero time scale for
+six real-time seconds or if cleanup or exit throws.
+
+FullPotencyExecutions is a Diagnostics-only test control. When both settings are
+enabled, Execution eligibility treats the selected weapon proficiency as 100
+and uses ExecutionHealthPercentAtMastery. It does not change the character's
+actual proficiency, killing-blow rewards, or save data. Disable Diagnostics to
+restore actual-proficiency behavior immediately.
 
 Compatibility:
 

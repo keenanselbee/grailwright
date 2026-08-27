@@ -15,9 +15,11 @@ Current addon folders:
 
 Original mod targets:
 
-- Better Movement Addon 0.1.6: for Better Movement 1.3.0. It adds
+- Better Movement Addon 0.2.2: for Better Movement 1.3.0. It adds
   terrain-aware positional slide audio, including continuing downhill slides,
-  live surface transitions, and edited terrain Foley.
+  live surface transitions, and edited terrain Foley, plus optional one-second
+  combat blending plus progressive options to halve or suppress speed bonuses,
+  restore vanilla mobility rules, or disable every Better Movement feature in combat.
 - Better Volumetric Fog Addon 0.1.2: for Better Volumetric Fog 1.0.2-mono,
   which loads in BepInEx as plugin version 1.0.0. It replaces recurring global
   Fog discovery with an event-fed cache and uses Low quality only in interiors
@@ -25,10 +27,12 @@ Original mod targets:
 - Wyrd Sight Addon 1.2.6: for Wyrd Sight, which loads in BepInEx as plugin
   version 1.2.0. Its pulse also reveals untaken quest givers with Balanced
   story-lock filtering and an integrated, event-driven golden outline by default.
-- All Lights Cast Shadows Addon 1.2.7: for All Lights Cast Shadows Mono file
+- All Lights Cast Shadows Addon 2.0.5: bounded, view-aware selection for the All Lights Cast Shadows Mono file
   1.0.0-mono, which loads in BepInEx as plugin version 1.2.0. It restores
   shadow state, protects bonfire lighting, limits atlas pressure, and can
-  temporarily lower shadow cost during outdoor combat.
+  temporarily lower shadow cost during outdoor combat. An optional directional
+  shadow transition shortens the weak-shadow handoff at dawn and dusk, with
+  live real-time normalization when Eyes in the Dark is installed.
 - Contact Shadows Addon 0.1.3: for Contact Shadows 1.0.0-mono. It enables the
   effect only in interiors by default, keeps up to four stable nearby point or
   spot lights active, and exactly restores touched light, camera, and volume

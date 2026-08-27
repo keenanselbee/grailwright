@@ -12,8 +12,8 @@ Each addon has its own folder and README. Install only the addons whose original
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]All Lights Cast Shadows Addon 1.2.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
-[*][b]Better Movement Addon 0.1.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
+[*][b]All Lights Cast Shadows Addon 2.0.5[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]Better Movement Addon 0.2.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
 [*][b]Better Volumetric Fog Addon 0.1.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] 1.0.2-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
 [*][b]Contact Shadows Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
 [*][b]Global Illumination Addon 0.1.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] 1.0.0.[/*]
@@ -24,15 +24,20 @@ Each addon has its own folder and README. Install only the addons whose original
 [line]
 
 [heading][color=#C94A4A][size=5]All Lights Cast Shadows Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url].
+Performance-focused companion controller for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url]. It keeps the original mod's toggle and lighting intent while replacing its broad state capture with bounded, stable selection.
 
 [list]
-[*][b]Reliable restoration:[/b] Restores the game's original shadow quality and each light's original shadow settings when it no longer needs protection or either mod is disabled.[/*]
-[*][b]Firelight protection:[/b] Prevents bonfire, campfire, and optional user-added lights from being blocked by nearby firepit stones.[/*]
-[*][b]Safer shadow limits:[/b] Gives lights upgraded by the original mod a safe 256 shadow-resolution limit by default without raising lights that already use a lower value.[/*]
-[*][b]Combat performance:[/b] Lowers the shadow limit to 128 during outdoor fights, then restores it five seconds after combat. Optional controls can also reduce the number or range of upgraded lights.[/*]
-[*][b]Clean integration and feedback:[/b] Works through the original mod's own scans, adds no constant light search, and never changes its JSON file. Grail Floating Text can confirm actual parent toggle changes independently. Diagnostics keeps detailed log counts, while the default-on ShowGrailFloatingTextDiagnostics switch controls in-game shadow summaries and remains inactive unless Diagnostics is enabled.[/*]
+[*][b]Permanent safe bounds:[/b] Selects at most 16 nearby lights, 25 metres, and 48 estimated shadow-map faces by default. Point lights cost six faces and spot lights cost one; stricter original-mod or combat limits still win.[/*]
+[*][b]Stable view-aware selection:[/b] Prioritizes lights whose illumination affects the camera, with retention distance, view-exit grace, an offscreen reserve, and bounded swaps to reduce flicker, popping, and atlas churn.[/*]
+[*][b]Targeted compatibility exclusions:[/b] Leaves Wyrd Sight highlights, summons, interface previews, lockpicking, the portable Bonfire, configured firelights, and optional user-added paths under their authored lighting.[/*]
+[*][b]Player-light ownership:[/b] When MageLight or No Player Light is installed, the exact HeroLight hierarchy remains entirely under that mod. MageLight's active point-light shadow reserves six faces from the permanent budget; No Player Light reserves none. If both are installed, the addon warns that MageLight can reactivate the light disabled by No Player Light.[/*]
+[*][b]Optional dawn and dusk improvement:[/b] Shortens the existing directional-shadow handoff without adding another light or shadow map. It is off by default; with Eyes in the Dark installed, the addon can convert a real-seconds target through the live world-clock rate so daylight and threat-scaled nights keep a consistent transition.[/*]
+[*][b]Exact, low-churn state ownership:[/b] Captures only final selected lights, conditionally changes native and HDRP shadow values, suppresses newly added volumetric shadows by default, leaves authored update modes untouched, and restores every value it changed when released.[/*]
+[*][b]Reversible atlas and combat controls:[/b] Caps promoted shadow resolution at 256 without raising lower authored values, lowers the cap to 128 during outdoor fights, and can optionally reduce light count or range until five seconds after combat.[/*]
+[*][b]Clean integration and feedback:[/b] Uses one nearby discovery pass followed by lightweight cached refreshes, never edits the parent's JSON, and keeps toggle notifications, detailed diagnostics, collapsed Grail Floating Text summaries, and previous-settings recovery.[/*]
 [/list]
+
+[b]Architecture credit:[/b] The updated safe-selector, bounded-ownership, semantic-exclusion, and restoration design was adapted from TGAllLightsCastShadowsSafe by [url=https://forums.nexusmods.com/profile/194045963-pupkidze007/]pupkidze007[/url].
 
 Config file:
 
@@ -46,6 +51,7 @@ Companion addon for Better Movement 1.3.0 or newer.
 
 [list]
 [*][b]Terrain-aware slide sounds:[/b] Adds continuous audio to slides, including extended downhill movement. Recognizes terrain, constructed floors, and shallow water across eleven surface families.[/*]
+[*][b]Progressive combat overrides:[/b] Keep Better Movement intact, retain half of its positive movement-speed bonuses, smoothly remove them, also restore vanilla mobility rules, or suppress every Better Movement feature during combat. Every speed-tier transition takes one second. Full Vanilla waits for active movement actions to finish, handles the parent's independent stamina and FOV changes, and never rewrites its config.[/*]
 [*][b]Smooth surface changes:[/b] Crossfades when a slide reaches a different surface and adjusts volume and pitch with sliding speed.[/*]
 [*][b]Complete sound sets:[/b] Includes two slide loops plus start and stop variations for every supported surface.[/*]
 [*][b]3D and custom audio:[/b] Plays sounds from the player's position and supports replaceable WAV folders for custom sound packs.[/*]

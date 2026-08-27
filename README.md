@@ -231,6 +231,8 @@ the older variant, enables the new version, and performs one normal deployment.
 A fully disabled mod stays disabled. While Vortex is open, the extension also
 registers the new staging folder through Vortex's supported mod-creation event,
 so ordinary staging does not require a Vortex restart or manual refresh.
+When several versions are waiting, activation is collapsed to the highest semantic
+version in each enabled mod group and the settled batch is deployed once.
 
 Live version uploads then promote the exact staged release. The publisher
 compares every staged file with the uploaded archive before queuing it. The

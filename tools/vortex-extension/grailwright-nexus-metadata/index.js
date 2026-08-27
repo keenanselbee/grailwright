@@ -12,6 +12,7 @@ const PENDING_LOG_REPEAT_MS = 5 * 60 * 1000;
 const DEPLOY_TIMEOUT_MS = 10 * 60 * 1000;
 const CREATE_MOD_TIMEOUT_MS = 30 * 1000;
 const ATTRIBUTE_VERIFY_TIMEOUT_MS = 5000;
+const ACTIVATION_SETTLE_MS = 250;
 
 class PendingPromotionError extends Error {}
 
@@ -267,10 +268,25 @@ async function completeLocalGroupingRequest(api, bridgeRoot, requestPath, reques
     request.stagedModId,
     attributes,
   );
-  const activation = await activateNewLocalVersion(api, request, {
-    ...verified.mod.attributes,
-  });
 
+  return {
+    bridgeRoot,
+    requestPath,
+    request,
+    attributes,
+    targetAttributes: { ...verified.mod.attributes },
+  };
+}
+
+async function acknowledgeLocalGroupingRequest(completion) {
+  const {
+    bridgeRoot,
+    requestPath,
+    request,
+    attributes,
+    activation,
+    targetAttributes,
+  } = completion;
   const acknowledgementRoot = path.join(bridgeRoot, "acknowledgements");
   await fs.promises.mkdir(acknowledgementRoot, { recursive: true });
   await writeJsonAtomic(path.join(acknowledgementRoot, `${request.requestId}.json`), {
@@ -281,9 +297,9 @@ async function completeLocalGroupingRequest(api, bridgeRoot, requestPath, reques
     gameId: request.gameId,
     stagedModId: request.stagedModId,
     grouping: {
-      modId: verified.mod.attributes?.modId,
+      modId: targetAttributes?.modId,
       logicalFileName: attributes.logicalFileName,
-      source: verified.mod.attributes?.source,
+      source: targetAttributes?.source,
       collectionReady: attributes.grailwrightCollectionReady,
     },
     activation,
@@ -291,7 +307,7 @@ async function completeLocalGroupingRequest(api, bridgeRoot, requestPath, reques
   await fs.promises.unlink(requestPath);
   vortex.log("info", "Grailwright grouped local staged mod", {
     modId: request.stagedModId,
-    nexusModId: verified.mod.attributes?.modId,
+    nexusModId: targetAttributes?.modId,
     version: attributes.version,
     activationStatus: activation.status,
   });
@@ -320,7 +336,7 @@ function deployMods(api) {
   });
 }
 
-async function activateNewLocalVersion(api, request, targetAttributes) {
+async function activateNewLocalVersion(api, request, targetAttributes, options = {}) {
   const state = api.getState();
   const profile = typeof vortex.selectors.activeProfile === "function"
     ? vortex.selectors.activeProfile(state)
@@ -354,6 +370,16 @@ async function activateNewLocalVersion(api, request, targetAttributes) {
     api.events.emit("mods-enabled", [request.stagedModId], true, request.gameId, changeOptions);
   }
 
+  if (options.deferDeployment === true) {
+    return {
+      status: "switched",
+      profileId: profile.id,
+      disabledModIds: plan.disableModIds,
+      enabledModId: request.stagedModId,
+      deployment: "pending",
+    };
+  }
+
   try {
     await deployMods(api);
     return {
@@ -384,6 +410,57 @@ async function activateNewLocalVersion(api, request, targetAttributes) {
       deploymentError: error.message,
     };
   }
+}
+
+async function activateLocalGroupingBatch(api, completions, settleMs = ACTIVATION_SETTLE_MS) {
+  const ordered = [...completions].sort((left, right) => (
+    core.compareVersions(right.attributes.version, left.attributes.version)
+  ));
+  const switched = [];
+  for (const completion of ordered) {
+    completion.activation = await activateNewLocalVersion(
+      api,
+      completion.request,
+      completion.targetAttributes,
+      { deferDeployment: true },
+    );
+    if (completion.activation.status === "switched") {
+      switched.push(completion);
+    }
+  }
+
+  if (switched.length === 0) {
+    return completions;
+  }
+  if (settleMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, settleMs));
+  }
+
+  let deploymentError;
+  try {
+    await deployMods(api);
+  } catch (error) {
+    deploymentError = error;
+    vortex.log("error", "Grailwright batched active mod versions but deployment failed", {
+      modIds: switched.map((completion) => completion.request.stagedModId),
+      error: error.message,
+    });
+    if (typeof api.showErrorNotification === "function") {
+      api.showErrorNotification(
+        "Grailwright version switch needs deployment",
+        error,
+        { allowReport: false },
+      );
+    }
+  }
+
+  switched.forEach((completion) => {
+    completion.activation.deployment = deploymentError === undefined ? "completed" : "failed";
+    if (deploymentError !== undefined) {
+      completion.activation.deploymentError = deploymentError.message;
+    }
+  });
+  return completions;
 }
 
 async function failRequest(bridgeRoot, requestPath, request, error) {
@@ -615,7 +692,7 @@ async function processLocalGroupingRequest(api, bridgeRoot, requestPath) {
   }
   await discoverStagedMod(api, request);
   const { stagedMod } = findStagedMod(api, request);
-  await completeLocalGroupingRequest(api, bridgeRoot, requestPath, request, stagedMod);
+  return completeLocalGroupingRequest(api, bridgeRoot, requestPath, request, stagedMod);
 }
 
 async function processRequest(api, bridgeRoot, requestPath) {
@@ -721,11 +798,15 @@ function main(context) {
       const requestFiles = (await fs.promises.readdir(root))
         .filter((name) => name.endsWith(".json"))
         .sort();
+      const completed = [];
       for (const requestFile of requestFiles) {
         const requestPath = path.join(root, requestFile);
         const pendingKey = `${queueName}|${requestFile}`;
         try {
-          await handler(context.api, bridgeRoot, requestPath);
+          const result = await handler(context.api, bridgeRoot, requestPath);
+          if (result !== undefined) {
+            completed.push(result);
+          }
           pendingLogState.delete(pendingKey);
         } catch (error) {
           if (error instanceof PendingPromotionError || error?.code === "ENOENT") {
@@ -749,6 +830,7 @@ function main(context) {
           }
         }
       }
+      return completed;
     };
 
     const processQueue = async () => {
@@ -758,7 +840,15 @@ function main(context) {
       processing = true;
       try {
         await processRequestDirectory(requestsRoot, processRequest, "Nexus promotion");
-        await processRequestDirectory(groupingRequestsRoot, processLocalGroupingRequest, "local grouping");
+        const localGroupings = await processRequestDirectory(
+          groupingRequestsRoot,
+          processLocalGroupingRequest,
+          "local grouping",
+        );
+        await activateLocalGroupingBatch(context.api, localGroupings);
+        for (const completion of localGroupings) {
+          await acknowledgeLocalGroupingRequest(completion);
+        }
         await refreshCollectionReadiness();
       } catch (error) {
         vortex.log("error", "Could not process Grailwright Nexus metadata queue", { error: error.message });
@@ -777,6 +867,7 @@ function main(context) {
 }
 
 module.exports = {
+  activateLocalGroupingBatch,
   activateNewLocalVersion,
   buildInitialStagedAttributes,
   default: main,

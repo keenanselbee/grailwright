@@ -313,6 +313,7 @@ module.exports = {
   buildLocalGroupingAttributes,
   buildModAttributes,
   catalogIdentifiesMod,
+  compareVersions,
   findMatchingNexusMetadata,
   normalizedHash,
   shouldLogPending,

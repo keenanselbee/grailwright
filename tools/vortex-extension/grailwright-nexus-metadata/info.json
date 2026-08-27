@@ -1,6 +1,6 @@
 {
   "name": "Grailwright Nexus Metadata",
   "author": "Keenan Selbee",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Discovers, verifies, and repairs Grailwright test-stage grouping, activates newer enabled variants, and promotes published releases to exact Nexus metadata."
 }

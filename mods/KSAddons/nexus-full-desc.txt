@@ -14,27 +14,26 @@ Each addon has its own folder and README. Install only the addons whose original
 [list]
 [*][b]All Lights Cast Shadows Addon 2.0.5[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
 [*][b]Better Movement Addon 0.2.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
-[*][b]Better Volumetric Fog Addon 0.1.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] 1.0.2-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
-[*][b]Contact Shadows Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
-[*][b]Global Illumination Addon 0.1.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] 1.0.0.[/*]
-[*][b]Persistent Corpses Addon 1.1.0[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
-[*][b]Wyrd Sight Addon 1.2.6[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]Better Volumetric Fog Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] 1.0.2-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
+[*][b]Contact Shadows Addon 0.1.4[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
+[*][b]Global Illumination Addon 0.1.9[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] 1.0.0.[/*]
+[*][b]Persistent Corpses Addon 1.1.1[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] 1.0.0.[/*]
+[*][b]Wyrd Sight Addon 1.2.8[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url], which loads in BepInEx as plugin version 1.2.0.[/*]
 [/list]
 
 [line]
 
 [heading][color=#C94A4A][size=5]All Lights Cast Shadows Addon[/size][/color][/heading]
-Performance-focused companion controller for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url]. It keeps the original mod's toggle and lighting intent while replacing its broad state capture with bounded, stable selection.
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] that preserves its rich shadowed-light experience while managing nearby lights through stable, view-aware performance limits. It reduces flicker, shadow popping, and sudden performance spikes, protects special and player-owned lighting, and restores every value it changes.
 
 [list]
-[*][b]Permanent safe bounds:[/b] Selects at most 16 nearby lights, 25 metres, and 48 estimated shadow-map faces by default. Point lights cost six faces and spot lights cost one; stricter original-mod or combat limits still win.[/*]
-[*][b]Stable view-aware selection:[/b] Prioritizes lights whose illumination affects the camera, with retention distance, view-exit grace, an offscreen reserve, and bounded swaps to reduce flicker, popping, and atlas churn.[/*]
-[*][b]Targeted compatibility exclusions:[/b] Leaves Wyrd Sight highlights, summons, interface previews, lockpicking, the portable Bonfire, configured firelights, and optional user-added paths under their authored lighting.[/*]
-[*][b]Player-light ownership:[/b] When MageLight or No Player Light is installed, the exact HeroLight hierarchy remains entirely under that mod. MageLight's active point-light shadow reserves six faces from the permanent budget; No Player Light reserves none. If both are installed, the addon warns that MageLight can reactivate the light disabled by No Player Light.[/*]
-[*][b]Optional dawn and dusk improvement:[/b] Shortens the existing directional-shadow handoff without adding another light or shadow map. It is off by default; with Eyes in the Dark installed, the addon can convert a real-seconds target through the live world-clock rate so daylight and threat-scaled nights keep a consistent transition.[/*]
-[*][b]Exact, low-churn state ownership:[/b] Captures only final selected lights, conditionally changes native and HDRP shadow values, suppresses newly added volumetric shadows by default, leaves authored update modes untouched, and restores every value it changed when released.[/*]
-[*][b]Reversible atlas and combat controls:[/b] Caps promoted shadow resolution at 256 without raising lower authored values, lowers the cap to 128 during outdoor fights, and can optionally reduce light count or range until five seconds after combat.[/*]
-[*][b]Clean integration and feedback:[/b] Uses one nearby discovery pass followed by lightweight cached refreshes, never edits the parent's JSON, and keeps toggle notifications, detailed diagnostics, collapsed Grail Floating Text summaries, and previous-settings recovery.[/*]
+[*][b]Performance-safe limits:[/b] Keeps up to 16 nearby lights within 25 metres and a 48-face estimated shadow budget by default. Stricter limits from the original mod or the combat settings still win.[/*]
+[*][b]Stable lighting while moving:[/b] Prioritizes lights that affect the current view and changes the selected set gradually, reducing flicker, shadow popping, and sudden performance spikes as the camera moves.[/*]
+[*][b]Protected special lighting:[/b] Leaves Wyrd Sight highlights, summons, interface previews, lockpicking, the portable Bonfire, configured firelights, and optional user exclusions under their original lighting systems.[/*]
+[*][b]Player-light compatibility:[/b] Leaves the player light entirely under MageLight or No Player Light when either is installed. If both are present, the addon warns that MageLight can reactivate the light disabled by No Player Light.[/*]
+[*][b]Optional dawn and dusk improvement:[/b] Can shorten the weak-shadow transition around sunrise and sunset without adding another light or shadow map. It is off by default and can stay consistent with the changing world-clock speed from Eyes in the Dark.[/*]
+[*][b]Reversible performance controls:[/b] Suppresses added volumetric shadows by default, caps promoted shadow resolution without raising lower authored values, and lowers the cap during outdoor combat. Every lighting value changed by the addon is restored when released.[/*]
+[*][b]Clean parent integration and feedback:[/b] Keeps the original mod's toggle and shadow-strength settings, never edits its JSON, and supports toggle notifications, detailed diagnostics, Grail Floating Text summaries, and previous-settings recovery.[/*]
 [/list]
 
 [b]Architecture credit:[/b] The updated safe-selector, bounded-ownership, semantic-exclusion, and restoration design was adapted from TGAllLightsCastShadowsSafe by [url=https://forums.nexusmods.com/profile/194045963-pupkidze007/]pupkidze007[/url].
@@ -46,16 +45,15 @@ BepInEx/config/ks.tgfoa.tg-all-lights-cast-shadows-addon.cfg[/code]
 
 [line]
 
-[heading][color=#C94A4A][size=5]KS Better Movement Addon[/size][/color][/heading]
-Companion addon for Better Movement 1.3.0 or newer.
+[heading][color=#C94A4A][size=5]Better Movement Addon[/size][/color][/heading]
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer that gives sliding responsive, terrain-matched 3D audio and configurable behavior during combat. Slides transition naturally across eleven surface families, while combat modes can retain, soften, or suspend Better Movement without rewriting its settings.
 
 [list]
-[*][b]Terrain-aware slide sounds:[/b] Adds continuous audio to slides, including extended downhill movement. Recognizes terrain, constructed floors, and shallow water across eleven surface families.[/*]
-[*][b]Progressive combat overrides:[/b] Keep Better Movement intact, retain half of its positive movement-speed bonuses, smoothly remove them, also restore vanilla mobility rules, or suppress every Better Movement feature during combat. Every speed-tier transition takes one second. Full Vanilla waits for active movement actions to finish, handles the parent's independent stamina and FOV changes, and never rewrites its config.[/*]
-[*][b]Smooth surface changes:[/b] Crossfades when a slide reaches a different surface and adjusts volume and pitch with sliding speed.[/*]
-[*][b]Complete sound sets:[/b] Includes two slide loops plus start and stop variations for every supported surface.[/*]
-[*][b]3D and custom audio:[/b] Plays sounds from the player's position and supports replaceable WAV folders for custom sound packs.[/*]
-[*][b]Immersive Footsteps compatibility:[/b] Keeps ordinary steps from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/257]Immersive Footsteps[/url] separate from continuous slide-audio playback.[/*]
+[*][b]Terrain-aware slide audio:[/b] Adds continuous sounds to ordinary and extended downhill slides across eleven terrain, floor, and shallow-water surface families.[/*]
+[*][b]Natural slide transitions:[/b] Uses start, loop, and stop sounds, crossfades when the surface changes, and adjusts volume and pitch with sliding speed.[/*]
+[*][b]Flexible combat behavior:[/b] Keep Better Movement unchanged, retain half of its movement-speed bonuses, smoothly remove those bonuses, restore vanilla mobility rules, or suppress every Better Movement feature during combat. Changes blend over one second, while Full Vanilla waits for active movement actions to finish and safely handles the original mod's separate stamina and FOV changes without rewriting its config.[/*]
+[*][b]3D and customizable audio:[/b] Plays sounds from the player's position and supports replaceable WAV folders for custom sound packs.[/*]
+[*][b]Immersive Footsteps compatibility:[/b] Keeps regular footsteps from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/257]Immersive Footsteps[/url] separate from continuous slide audio.[/*]
 [/list]
 
 [b]Audio source:[/b] Edited material from [url=https://www.asoundeffect.com/sound-library/footsteps-full-bundle/]Footsteps: Full Bundle[/url] by Sound Armoury / Matt J Hart, used under license.
@@ -68,7 +66,7 @@ BepInEx/config/ks.tgfoa.better-movement-addon.cfg[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Better Volumetric Fog Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url].
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] that improves performance and focuses its cleaner volumetric lighting where it matters most. It uses efficient cached fog discovery, enhances verified interiors by default, and restores vanilla volumetrics outdoors, during loading, and whenever the enhancement is inactive.
 
 [list]
 [*][b]Smoother fog discovery:[/b] Replaces the original mod's repeated search through every loaded Fog object with a cache that is seeded once and updated by HDRP volume events.[/*]
@@ -86,7 +84,7 @@ BepInEx/config/ks.tgfoa.tg-volumetric-fix-addon.cfg[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Contact Shadows Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url].
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] that concentrates stronger local shadow detail around the nearby interior lights that benefit from it most. It maintains a stable four-light budget by default, avoids repeated scene-wide searches, and fully restores every touched light and camera when inactive.
 
 [list]
 [*][b]Interior focus:[/b] Enables contact shadows only in interiors by default, where nearby local lighting provides the strongest visual improvement.[/*]
@@ -104,7 +102,7 @@ BepInEx/config/ks.tgfoa.tg-contact-shadows-addon.cfg[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Global Illumination Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url].
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/134]Global Illumination[/url] that adapts lighting quality to sustained performance instead of forcing every scene to carry the same cost. It starts conservatively, adjusts one tier at a time with separate indoor and outdoor limits, preserves the original brightness, and restores the parent mod's settings when inactive.
 
 [list]
 [*][b]Performance-first startup:[/b] New scenes start at Performance by default, then raise quality only after sustained FPS meets the target.[/*]
@@ -132,7 +130,7 @@ BepInEx/config/ks.tgfoa.tg-global-illumination-addon.cfg[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Persistent Corpses Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url].
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228]Persistent Corpses[/url] that makes restored bodies settle naturally and gives you control over how many corpses remain in the world. It conceals unstable ragdolls until they are ready, offers Limited, All, and Vanilla retention modes, and performs cautious long-rest cleanup while preserving visible loot.
 
 [list]
 [*][b]Smooth corpse restoration:[/b] Restored bodies can briefly appear standing and then fall over. The addon conceals them while ragdoll physics settles, then reveals them in a natural resting pose.[/*]
@@ -150,7 +148,7 @@ BepInEx/config/ks.tgfoa.persistent-corpses-addon.cfg[/code]
 [line]
 
 [heading][color=#C94A4A][size=5]Wyrd Sight Addon[/size][/color][/heading]
-Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url].
+Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94]Wyrd Sight[/url] that turns highlighting into extendable timed pulses and can reveal eligible quest givers. It respects progression locks, spreads background work out to reduce stutter, and immediately removes its outlines and rendering resources when disabled.
 
 [list]
 [*][b]Timed Wyrd Sight pulses:[/b] Changes the Highlight Key from a toggle into a timed pulse. Repeated presses extend the pulse, and the addon never turns off Wyrd Sight activated by something else.[/*]

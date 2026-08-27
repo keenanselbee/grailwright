@@ -46,13 +46,14 @@ Command audio
 =============
 
 Keep command WAV files directly under audio/command. Soul and Service Attack,
-Hold, Follow, Recall, Guard, Bulwark, and Hunt orders use separate gender-matched pools and recent histories.
+Hold, Follow, Recall, Raise All, Guard, Bulwark, and Hunt orders use separate gender-matched pools and recent histories.
 The files use these exact filename patterns:
 
 summon_male_attack_0.wav through summon_male_attack_4.wav
 summon_male_hold_0.wav through summon_male_hold_4.wav
 summon_male_follow_0.wav through summon_male_follow_4.wav
 summon_male_recall_0.wav through summon_male_recall_1.wav
+summon_male_raiseall_0.wav through summon_male_raiseall_1.wav
 summon_male_guard_0.wav through summon_male_guard_1.wav
 summon_male_bulwark_0.wav through summon_male_bulwark_1.wav
 summon_male_hunt_0.wav through summon_male_hunt_1.wav
@@ -60,6 +61,7 @@ summon_female_attack_0.wav through summon_female_attack_3.wav
 summon_female_hold_0.wav through summon_female_hold_3.wav
 summon_female_follow_0.wav through summon_female_follow_3.wav
 summon_female_recall_0.wav through summon_female_recall_1.wav
+summon_female_raiseall_0.wav through summon_female_raiseall_1.wav
 summon_female_guard_0.wav through summon_female_guard_1.wav
 summon_female_bulwark_0.wav through summon_female_bulwark_1.wav
 summon_female_hunt_0.wav through summon_female_hunt_1.wav
@@ -71,7 +73,7 @@ command pitch offsets default to +5 and +1 semitones. RecentCommandVoiceMemory
 defaults to 2 and avoids those successfully played clips within the same command
 and gender pool when alternatives remain.
 
-The 43 packaged command files are loudness-matched around -15 LUFS with a
+The 47 packaged command files are loudness-matched around -15 LUFS with a
 -2 dBTP true-peak ceiling. This processing leaves pitch and timing unchanged.
 Custom replacement files play at their own authored loudness.
 

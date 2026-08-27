@@ -212,7 +212,7 @@ if ($inputFull.Equals($outputFull, [System.StringComparison]::OrdinalIgnoreCase)
 $ffmpeg = Get-FfmpegPath -RequestedPath $FfmpegPath
 $files = @(Get-ChildItem -LiteralPath $inputFull -File -Filter "*.wav" |
     Where-Object {
-        $_.Name -match '^summon_(male|female)_(attack|hold|follow|recall|guard|bulwark|hunt)_\d+\.wav$'
+        $_.Name -match '^summon_(male|female)_(attack|hold|follow|recall|raiseall|guard|bulwark|hunt)_\d+\.wav$'
     } |
     Sort-Object Name)
 if ($files.Count -eq 0) {

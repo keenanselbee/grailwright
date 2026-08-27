@@ -20,6 +20,7 @@ foreach ($required in @(
     'SummonHoldCommandId = "summon_hold"',
     'SummonFollowCommandId = "summon_follow"',
     'SummonRecallCommandId = "summon_recall"',
+    'SummonRaiseAllCommandId = "summon_raiseall"',
     'SummonGuardCommandId = "summon_guard"',
     'SummonBulwarkCommandId = "summon_bulwark"',
     'SummonHuntCommandId = "summon_hunt"',
@@ -29,6 +30,7 @@ foreach ($required in @(
     '"summon_male_hold_*.wav"',
     '"summon_male_follow_*.wav"',
     '"summon_male_recall_*.wav"',
+    '"summon_male_raiseall_*.wav"',
     '"summon_male_guard_*.wav"',
     '"summon_male_bulwark_*.wav"',
     '"summon_male_hunt_*.wav"',
@@ -36,6 +38,7 @@ foreach ($required in @(
     '"summon_female_hold_*.wav"',
     '"summon_female_follow_*.wav"',
     '"summon_female_recall_*.wav"',
+    '"summon_female_raiseall_*.wav"',
     '"summon_female_guard_*.wav"',
     '"summon_female_bulwark_*.wav"',
     '"summon_female_hunt_*.wav"',
@@ -103,6 +106,7 @@ foreach ($required in @(
     'SummonHoldCommandId = "summon_hold"',
     'SummonFollowCommandId = "summon_follow"',
     'SummonRecallCommandId = "summon_recall"',
+    'SummonRaiseAllCommandId = "summon_raiseall"',
     'SummonGuardCommandId = "summon_guard"',
     'SummonBulwarkCommandId = "summon_bulwark"',
     'SummonHuntCommandId = "summon_hunt"',
@@ -115,11 +119,14 @@ $commandSummonsBlock = [regex]::Match(
     $summonSource,
     '(?s)private static int CommandSummons\(.+?(?=\r?\n\s*private static void PublishCommand\()')
 if (!$commandSummonsBlock.Success -or
-    $commandSummonsBlock.Value -notmatch '(?s)if \(plugin != null && commanded > 0\)\s*\{\s*PublishCommand\(') {
+    $commandSummonsBlock.Value -notmatch '(?s)if \(plugin != null && commanded > 0\)\s*\{.*?PublishCommand\(') {
     throw "Soul and Service must request one voice only after at least one summon receives the order."
 }
 if ($summonSource -notmatch '(?s)RecallHost\(Hero hero\).*?recalled > 0.*?PublishCommand\(\s*plugin,\s*SummonCommandState\.Follow,\s*SummonRecallCommandId,') {
     throw "Soul and Service Recall Host must request the dedicated recall voice only after at least one summon is recalled."
+}
+if ($summonSource -notmatch '(?s)RaiseAll\(Hero hero\).*?raised <= 0.*?return;.*?PublishCommand\(\s*plugin,\s*SummonCommandState\.RaiseAll,\s*SummonRaiseAllCommandId,') {
+    throw "Soul and Service Raise All must request one dedicated voice only after at least one corpse begins reanimating."
 }
 
 $commandDirectory = Join-Path $modRoot "audio\command"
@@ -129,20 +136,22 @@ if ($subdirectories.Count -ne 0) {
 }
 $commandWavs = @(Get-ChildItem -LiteralPath $commandDirectory -File |
     Where-Object {
-        $_.Name -match '^summon_(male|female)_(attack|hold|follow|recall|guard|bulwark|hunt)_\d+\.wav$'
+        $_.Name -match '^summon_(male|female)_(attack|hold|follow|recall|raiseall|guard|bulwark|hunt)_\d+\.wav$'
     })
-if ($commandWavs.Count -ne 43) {
-    throw "Expected 43 flat command-type WAVs, found $($commandWavs.Count)."
+if ($commandWavs.Count -ne 47) {
+    throw "Expected 47 flat command-type WAVs, found $($commandWavs.Count)."
 }
 $poolSizes = @{
     'male_attack' = 5
     'male_hold' = 5
     'male_follow' = 5
     'male_recall' = 2
+    'male_raiseall' = 2
     'female_attack' = 4
     'female_hold' = 4
     'female_follow' = 4
     'female_recall' = 2
+    'female_raiseall' = 2
     'male_guard' = 2
     'male_bulwark' = 2
     'male_hunt' = 2
@@ -206,6 +215,8 @@ foreach ($document in @($readme, $audioReadme)) {
         'summon_female_follow_0.wav',
         'summon_male_recall_0.wav',
         'summon_female_recall_0.wav',
+        'summon_male_raiseall_0.wav',
+        'summon_female_raiseall_0.wav',
         'summon_male_guard_0.wav',
         'summon_female_bulwark_0.wav',
         'summon_male_hunt_0.wav',
@@ -221,4 +232,4 @@ foreach ($document in @($readme, $audioReadme)) {
     }
 }
 
-Write-Host "Battlecry Voice Tuner command API, audio, repeat, and acoustic contracts passed: 43 WAV files."
+Write-Host "Battlecry Voice Tuner command API, audio, repeat, and acoustic contracts passed: 47 WAV files."

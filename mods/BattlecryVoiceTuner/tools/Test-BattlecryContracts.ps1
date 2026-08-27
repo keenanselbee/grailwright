@@ -148,6 +148,105 @@ foreach ($document in @($readme, $nexusFull)) {
     }
 }
 
+foreach ($required in @(
+    'SoulAndService.SoulAndServiceApi',
+    'BloodMagicExpansion.BloodMagicApi',
+    '"GetNecromanticPower"',
+    '"GetBloodPower"',
+    '(0.75f * dominant) + (0.25f * convergence)',
+    'blood * (0.75f + (0.25f * soul))',
+    'soul * (0.75f + (0.25f * blood))',
+    'DSP_TYPE.DISTORTION',
+    'DSP_DISTORTION.LEVEL',
+    'DSP_TYPE.LOWPASS',
+    'DSP_LOWPASS.CUTOFF',
+    'DSP_TYPE.ECHO',
+    'DSP_ECHO.DELAY',
+    'DSP_ECHO.FEEDBACK',
+    'DSP_ECHO.WETLEVEL',
+    'DemonicVoicePreset.Minimal',
+    'DemonicVoicePreset.Demonic',
+    'DemonicVoicePreset.Abyssal',
+    'DemonicVoicePreset.Custom',
+    'DemonicPresetSettings.Minimal',
+    'DemonicPresetSettings.Demonic',
+    'DemonicPresetSettings.Abyssal',
+    'Math.Pow(rawSoul, curveExponent)',
+    'Math.Pow(rawBlood, curveExponent)',
+    'shadow.setWetDryMix(',
+    'WithoutSoulLayers()',
+    'TryAttachDemonicDsps(',
+    'ActiveChannelDemonicDsps',
+    'DemonicVoiceProfile')) {
+    if (!$source.Contains($required)) {
+        throw "Dynamic demonic voice contract is missing: $required"
+    }
+}
+
+foreach ($contract in @(
+    @{ Pattern = '(?s)"DynamicDemonicVoiceEnabled",\s*true'; Message = 'enabled dynamic demonic voice default' },
+    @{ Pattern = '(?s)"DemonicVoicePreset",\s*DemonicVoicePreset\.Demonic'; Message = 'Demonic fresh-config profile' },
+    @{ Pattern = '(?s)"MaximumDemonicStrength",\s*1\.0f'; Message = 'full effect-strength default' },
+    @{ Pattern = '(?s)"IncludeNativeVocalEvents",\s*true'; Message = 'native vocal inclusion default' },
+    @{ Pattern = '(?s)"IncludeBattlecries",\s*true'; Message = 'battlecry inclusion default' },
+    @{ Pattern = '(?s)"DemonicProgressionCurveExponent",\s*0\.80f'; Message = 'Demonic custom curve starting point' },
+    @{ Pattern = '(?s)"MaximumProgressionPitchSemitones",\s*-3\.25f'; Message = 'Demonic custom pitch starting point' },
+    @{ Pattern = '(?s)"MaximumDemonicDistortion",\s*0\.18f'; Message = 'Demonic custom distortion starting point' },
+    @{ Pattern = '(?s)"MinimumDemonicLowpassCutoffHz",\s*4200\.0f'; Message = 'Demonic custom low-pass starting point' },
+    @{ Pattern = '(?s)"DemonicEchoDelayMs",\s*80\.0f'; Message = 'Demonic custom echo delay starting point' },
+    @{ Pattern = '(?s)"MaximumDemonicEchoFeedbackPercent",\s*16\.0f'; Message = 'Demonic custom echo feedback starting point' },
+    @{ Pattern = '(?s)"MaximumDemonicEchoWetLevelDb",\s*-25\.0f'; Message = 'Demonic custom echo wet starting point' },
+    @{ Pattern = '(?s)"MaximumDemonicShadowPitchSemitones",\s*-7\.0f'; Message = 'Demonic custom shadow pitch starting point' },
+    @{ Pattern = '(?s)"MaximumDemonicShadowMixDb",\s*-21\.0f'; Message = 'Demonic custom shadow mix starting point' })) {
+    if ($source -notmatch $contract.Pattern) {
+        throw "Dynamic demonic voice is missing the $($contract.Message)."
+    }
+}
+
+foreach ($presetContract in @(
+    @{ Pattern = '(?s)DemonicPresetSettings Minimal =.+?1\.0f,.+?-2\.5f,.+?0\.10f,.+?5500f,.+?100f,.+?10f,.+?-36f,.+?-80f'; Message = 'exact legacy Minimal profile' },
+    @{ Pattern = '(?s)DemonicPresetSettings Demonic =.+?0\.80f,.+?-3\.25f,.+?0\.18f,.+?4200f,.+?80f,.+?16f,.+?-25f,.+?-7f,.+?-21f'; Message = 'balanced Demonic profile' },
+    @{ Pattern = '(?s)DemonicPresetSettings Abyssal =.+?0\.65f,.+?-4\.0f,.+?0\.27f,.+?3200f,.+?60f,.+?22f,.+?-17f,.+?-12f,.+?-14f'; Message = 'strong Abyssal profile' })) {
+    if ($source -notmatch $presetContract.Pattern) {
+        throw "Dynamic demonic voice is missing the $($presetContract.Message)."
+    }
+}
+
+if ($source -notmatch '(?s)WithoutSoulLayers\(\).+?false,\s*0f,\s*0f,\s*false' -or
+    $source -notmatch '(?s)ScheduleAcousticReflections\(.+?WithoutSoulLayers\(\)') {
+    throw 'Synthetic acoustic reflections must not duplicate the supernatural echo or shadow voice.'
+}
+
+if ($source -notmatch '(?s)ShouldApplyDemonicVoiceToNativeEvent\(.+?CategoryHitFeedback' -or
+    $source -notmatch '(?s)TryTuneEvent\(.+?BuildDemonicVoiceProfile\(.+?QueueEventPitchDsp\(' -or
+    $source -notmatch '(?s)TryPlayBattlecry\(.+?BuildDemonicVoiceProfile\(.+?TryPlayBattlecrySound\(') {
+    throw 'Dynamic demonic voice must affect supported native vocal events and battlecries while excluding non-vocal hit feedback.'
+}
+
+$commandPlaybackBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryPlayCommand\(.+?(?=\r?\n\s*private bool HasAnyCommandFiles\()')
+if (!$commandPlaybackBlock.Success -or
+    $commandPlaybackBlock.Value.Contains('BuildDemonicVoiceProfile(') -or
+    $commandPlaybackBlock.Value.Contains('TryAttachDemonicDsps(')) {
+    throw 'Spoken commands must remain structurally excluded from dynamic demonic progression.'
+}
+
+foreach ($document in @($readme, $nexusFull)) {
+    foreach ($required in @(
+        'Soul Vigor',
+        'Blood Essence',
+        '5,000',
+        'distortion',
+        'low-pass',
+        'echo',
+        'commands')) {
+        if (!$document.Contains($required)) {
+            throw "Dynamic demonic voice documentation is missing: $required"
+        }
+    }
+}
+
 if ($source -notmatch '(?s)"BattlecryVolumeMultiplier",\s*0\.5f') {
     throw "Battlecry volume scaling must have an independent 0.5 default."
 }
@@ -175,6 +274,8 @@ foreach ($displaySection in @(
     'General',
     'Voice Tuning',
     'Voice Growth - Advanced',
+    'Demonic Progression',
+    'Demonic Progression - Advanced',
     'Native Voice Events',
     'Battlecry',
     'Battlecry Audio',

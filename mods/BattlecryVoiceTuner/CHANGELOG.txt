@@ -1,3 +1,19 @@
+Version 1.4.2
+Refined all four packaged Raise All command recordings for a louder, more triumphant mass-reanimation delivery, then loudness-matched both gender pools to the existing command-voice contract with safe true-peak headroom.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because this release changes packaged audio rather than the command API or stored settings.
+
+Version 1.4.1
+Added enabled-by-default demonic voice progression for supported native vocalizations and custom battlecries, sampling Soul and Service Necromantic Power and Blood Magic Expansion Blood Power only when each sound begins. Soul Vigor drives supernatural echo and a lower spectral shadow, Blood Essence drives visceral distortion, and their combined 5,000-point mastery deepens pitch and darkens the voice through a perceptual low-pass.
+Blended 75% of the stronger optional progression with 25% of their convergence, allowing either discipline to produce a strong identity while reserving the complete King's Elegy-inspired suite for mastery of both.
+Added Minimal, Demonic, and Abyssal profiles: Minimal preserves the original subtle King's Elegy-inspired targets, Demonic is the stronger fresh default, and Abyssal brings the lower shadow and supernatural treatment decisively forward. Custom exposes the same curve, pitch, distortion, low-pass, echo, and shadow targets for individual tuning.
+Kept the main Demonic Progression tab focused on its enable, profile, strength, and scope while moving individual Custom targets into Demonic Progression - Advanced.
+Kept native SFX_Player_Hit feedback and all spoken summon commands structurally outside the demonic path, and kept synthetic battlecry reflections free of duplicated supernatural echo and shadow layers while inheriting the direct voice's pitch, distortion, and darkness.
+Kept ConfigSchemaVersion at 10 because the release only adds settings relative to the previous published version, and kept BattlecryVoiceTunerApi at version 2 because the command contract is unchanged.
+
+Version 1.3.2
+Added dedicated male and female Raise All command pools with two packaged recordings per gender for Soul and Service's Power 200 mass-reanimation command.
+Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because the existing string command API and stored settings remain compatible.
+
 Version 1.3.1
 Republished the 1.3.0 feature set under a new package version so Nexus and Vortex can reference the same immutable release payload.
 Kept BattlecryVoiceTunerApi at version 2 and ConfigSchemaVersion at 10 because this release changes no behavior, public contract, setting, or default.

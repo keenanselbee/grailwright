@@ -1,4 +1,7 @@
-TargetVersion=1.3.1
-BaselineVersion=1.3.0
+TargetVersion=1.4.2
+BaselineVersion=1.3.1
 
-Republished the 1.3.0 feature set under a new package version so Nexus and Vortex can reference the same immutable release payload.
+Added progression-driven demonic treatment for supported native vocalizations and custom battlecries. Soul Vigor supplies spectral echo and a lower shadow voice, Blood Essence supplies visceral distortion, and combined mastery adds pitch depth and tonal darkness, reaching the full profile when both resources reach 5,000.
+Added Minimal, Demonic, and Abyssal profiles plus a Custom mode. Minimal preserves the original subtle treatment, Demonic is the stronger fresh default, and Abyssal makes the complete transformation deliberately monstrous.
+Sampled optional progression only when each sound begins, preserved clean spoken commands and non-vocal hit feedback, excluded supernatural Soul layers from synthetic reflections, and separated the simple profile controls from Custom-only advanced tuning.
+Refined and loudness-matched all four packaged Raise All recordings for a more triumphant mass-reanimation command with safe true-peak headroom.

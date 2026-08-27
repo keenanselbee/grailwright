@@ -36,8 +36,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.3.1.0")]
-[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyVersion("1.4.2.0")]
+[assembly: AssemblyFileVersion("1.4.2.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -89,6 +89,14 @@ namespace BattlecryVoiceTuner
         TempoPreserving
     }
 
+    public enum DemonicVoicePreset
+    {
+        Minimal,
+        Demonic,
+        Abyssal,
+        Custom
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.eyes-in-the-dark", BepInDependency.DependencyFlags.SoftDependency)]
@@ -96,7 +104,7 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.3.1";
+        public const string PluginVersion = "1.4.2";
 
         private const int CurrentConfigSchemaVersion = 10;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -129,10 +137,13 @@ namespace BattlecryVoiceTuner
         private const float PitchDspAttachTimeoutSeconds = 0.1f;
         private const float PitchDspMinimumSemitones = 0.01f;
         private const float PitchDspFftSize = 2048f;
+        private const float DemonicDspMinimumIntensity = 0.001f;
+        private const float DemonicOpenLowpassCutoffHz = 20000f;
         private const string SummonAttackCommandId = "summon_attack";
         private const string SummonHoldCommandId = "summon_hold";
         private const string SummonFollowCommandId = "summon_follow";
         private const string SummonRecallCommandId = "summon_recall";
+        private const string SummonRaiseAllCommandId = "summon_raiseall";
         private const string SummonGuardCommandId = "summon_guard";
         private const string SummonBulwarkCommandId = "summon_bulwark";
         private const string SummonHuntCommandId = "summon_hunt";
@@ -140,12 +151,17 @@ namespace BattlecryVoiceTuner
             "ks.tgfoa.soul-and-service";
         private const string SoulAndServiceApiTypeName =
             "SoulAndService.SoulAndServiceApi";
+        private const string BloodMagicPluginGuid =
+            "ks.tgfoa.blood-magic-expansion";
+        private const string BloodMagicApiTypeName =
+            "BloodMagicExpansion.BloodMagicApi";
         private const string MaleBattlecryPool = "battlecry:male";
         private const string FemaleBattlecryPool = "battlecry:female";
         private const string MaleSummonAttackPool = "summon_command:male:attack";
         private const string MaleSummonHoldPool = "summon_command:male:hold";
         private const string MaleSummonFollowPool = "summon_command:male:follow";
         private const string MaleSummonRecallPool = "summon_command:male:recall";
+        private const string MaleSummonRaiseAllPool = "summon_command:male:raiseall";
         private const string MaleSummonGuardPool = "summon_command:male:guard";
         private const string MaleSummonBulwarkPool = "summon_command:male:bulwark";
         private const string MaleSummonHuntPool = "summon_command:male:hunt";
@@ -153,6 +169,7 @@ namespace BattlecryVoiceTuner
         private const string FemaleSummonHoldPool = "summon_command:female:hold";
         private const string FemaleSummonFollowPool = "summon_command:female:follow";
         private const string FemaleSummonRecallPool = "summon_command:female:recall";
+        private const string FemaleSummonRaiseAllPool = "summon_command:female:raiseall";
         private const string FemaleSummonGuardPool = "summon_command:female:guard";
         private const string FemaleSummonBulwarkPool = "summon_command:female:bulwark";
         private const string FemaleSummonHuntPool = "summon_command:female:hunt";
@@ -224,6 +241,20 @@ namespace BattlecryVoiceTuner
         private ConfigEntry<VoiceGrowthAttribute> _customPrimaryAttribute;
         private ConfigEntry<VoiceGrowthAttribute> _customSecondaryAttribute;
         private ConfigEntry<float> _customPrimaryAttributeWeight;
+        private ConfigEntry<bool> _dynamicDemonicVoiceEnabled;
+        private ConfigEntry<DemonicVoicePreset> _demonicVoicePreset;
+        private ConfigEntry<float> _maximumDemonicStrength;
+        private ConfigEntry<float> _demonicProgressionCurveExponent;
+        private ConfigEntry<float> _maximumProgressionPitchSemitones;
+        private ConfigEntry<bool> _includeNativeDemonicVoice;
+        private ConfigEntry<bool> _includeBattlecryDemonicVoice;
+        private ConfigEntry<float> _maximumDemonicDistortion;
+        private ConfigEntry<float> _minimumDemonicLowpassCutoffHz;
+        private ConfigEntry<float> _demonicEchoDelayMs;
+        private ConfigEntry<float> _maximumDemonicEchoFeedbackPercent;
+        private ConfigEntry<float> _maximumDemonicEchoWetLevelDb;
+        private ConfigEntry<float> _maximumDemonicShadowPitchSemitones;
+        private ConfigEntry<float> _maximumDemonicShadowMixDb;
         private ConfigEntry<bool> _nativeVoiceTuningEnabled;
         private ConfigEntry<bool> _includeAttackGrunts;
         private ConfigEntry<bool> _includeHurtGrunts;
@@ -269,6 +300,8 @@ namespace BattlecryVoiceTuner
             new List<string>();
         private readonly List<string> _maleSummonRecallPaths =
             new List<string>();
+        private readonly List<string> _maleSummonRaiseAllPaths =
+            new List<string>();
         private readonly List<string> _maleSummonGuardPaths =
             new List<string>();
         private readonly List<string> _maleSummonBulwarkPaths =
@@ -282,6 +315,8 @@ namespace BattlecryVoiceTuner
         private readonly List<string> _femaleSummonFollowPaths =
             new List<string>();
         private readonly List<string> _femaleSummonRecallPaths =
+            new List<string>();
+        private readonly List<string> _femaleSummonRaiseAllPaths =
             new List<string>();
         private readonly List<string> _femaleSummonGuardPaths =
             new List<string>();
@@ -297,6 +332,8 @@ namespace BattlecryVoiceTuner
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly List<ActiveChannelPitchDsp> _activeChannelPitchDsps =
             new List<ActiveChannelPitchDsp>();
+        private readonly List<ActiveChannelDemonicDsps> _activeChannelDemonicDsps =
+            new List<ActiveChannelDemonicDsps>();
         private readonly List<PendingEventPitchDsp> _pendingEventPitchDsps =
             new List<PendingEventPitchDsp>();
         private readonly List<ActiveEventPitchDsp> _activeEventPitchDsps =
@@ -328,7 +365,11 @@ namespace BattlecryVoiceTuner
         private bool _eyesApiResolved;
         private MethodInfo _eyesBattlecryMethod;
         private MethodInfo _soulAndServiceShouldOwnTakeAllHoldMethod;
+        private MethodInfo _soulAndServiceGetNecromanticPowerMethod;
+        private MethodInfo _bloodMagicGetBloodPowerMethod;
         private bool _soulAndServiceCommandApiUnavailable;
+        private bool _soulAndServiceProgressionApiUnavailable;
+        private bool _bloodMagicProgressionApiUnavailable;
         private bool _noBattlecryFilesWarningLogged;
         private bool _noCommandFilesWarningLogged;
         private bool _heroUnderRoof;
@@ -390,7 +431,11 @@ namespace BattlecryVoiceTuner
             ReleaseBattlecrySounds();
             ReleaseCommandSounds();
             _soulAndServiceShouldOwnTakeAllHoldMethod = null;
+            _soulAndServiceGetNecromanticPowerMethod = null;
+            _bloodMagicGetBloodPowerMethod = null;
             _soulAndServiceCommandApiUnavailable = false;
+            _soulAndServiceProgressionApiUnavailable = false;
+            _bloodMagicProgressionApiUnavailable = false;
 
             if (ReferenceEquals(_instance, this))
             {
@@ -525,6 +570,7 @@ namespace BattlecryVoiceTuner
 
                 if (!String.Equals(currentSection, "1. Core", StringComparison.Ordinal)
                     && !String.Equals(currentSection, "Voice Tuning", StringComparison.Ordinal)
+                    && !String.Equals(currentSection, "Demonic Voice", StringComparison.Ordinal)
                     && !String.Equals(currentSection, "Command Voice", StringComparison.Ordinal))
                 {
                     continue;
@@ -554,37 +600,62 @@ namespace BattlecryVoiceTuner
 
             CapturePreservedVoiceTuningSetting<PitchProcessingMode>(
                 profile,
+                "Voice Tuning",
                 "PitchProcessingMode");
             CapturePreservedVoiceTuningSetting<bool>(
                 profile,
+                "Voice Tuning",
                 "VoiceGrowthEnabled");
             CapturePreservedVoiceTuningSetting<VoiceGrowthPreset>(
                 profile,
+                "Voice Tuning",
                 "VoiceGrowthPreset");
             CapturePreservedVoiceTuningSetting<float>(
                 profile,
+                "Voice Tuning",
                 "VoiceGrowthMaximumSemitones");
             CapturePreservedVoiceTuningSetting<bool>(
                 profile,
+                "Voice Tuning",
                 "UseTemporaryAttributeModifiers");
             CapturePreservedVoiceTuningSetting<VoiceGrowthAttribute>(
                 profile,
+                "Voice Tuning",
                 "CustomPrimaryAttribute");
             CapturePreservedVoiceTuningSetting<VoiceGrowthAttribute>(
                 profile,
+                "Voice Tuning",
                 "CustomSecondaryAttribute");
             CapturePreservedVoiceTuningSetting<float>(
                 profile,
+                "Voice Tuning",
                 "CustomPrimaryAttributeWeight");
+            CapturePreservedVoiceTuningSetting<bool>(
+                profile,
+                "Demonic Voice",
+                "DynamicDemonicVoiceEnabled");
+            CapturePreservedVoiceTuningSetting<DemonicVoicePreset>(
+                profile,
+                "Demonic Voice",
+                "DemonicVoicePreset");
+            CapturePreservedVoiceTuningSetting<bool>(
+                profile,
+                "Demonic Voice",
+                "IncludeNativeVocalEvents");
+            CapturePreservedVoiceTuningSetting<bool>(
+                profile,
+                "Demonic Voice",
+                "IncludeBattlecries");
         }
 
         private void CapturePreservedVoiceTuningSetting<T>(
             Grailwright.Shared.ConfigRecoveryCustomizationProfile profile,
+            string section,
             string settingName)
         {
             T value;
             if (profile.TryGetCustomizedValue(
-                "Voice Tuning",
+                section,
                 settingName,
                 out value))
             {
@@ -597,6 +668,16 @@ namespace BattlecryVoiceTuner
             return String.Equals(settingName, "PitchSemitones", StringComparison.Ordinal)
                 || String.Equals(settingName, "RandomPitchSemitones", StringComparison.Ordinal)
                 || String.Equals(settingName, "VolumeMultiplier", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicStrength", StringComparison.Ordinal)
+                || String.Equals(settingName, "DemonicProgressionCurveExponent", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumProgressionPitchSemitones", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicDistortion", StringComparison.Ordinal)
+                || String.Equals(settingName, "MinimumDemonicLowpassCutoffHz", StringComparison.Ordinal)
+                || String.Equals(settingName, "DemonicEchoDelayMs", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicEchoFeedbackPercent", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicEchoWetLevelDb", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicShadowPitchSemitones", StringComparison.Ordinal)
+                || String.Equals(settingName, "MaximumDemonicShadowMixDb", StringComparison.Ordinal)
                 || String.Equals(
                     settingName,
                     "CommandVoiceVolumeMultiplier",
@@ -670,6 +751,76 @@ namespace BattlecryVoiceTuner
             RestorePreservedVoiceTuningSetting(
                 "CustomPrimaryAttributeWeight",
                 _customPrimaryAttributeWeight,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "DynamicDemonicVoiceEnabled",
+                _dynamicDemonicVoiceEnabled,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "DemonicVoicePreset",
+                _demonicVoicePreset,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicStrength",
+                _maximumDemonicStrength,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "DemonicProgressionCurveExponent",
+                _demonicProgressionCurveExponent,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumProgressionPitchSemitones",
+                _maximumProgressionPitchSemitones,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "IncludeNativeVocalEvents",
+                _includeNativeDemonicVoice,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "IncludeBattlecries",
+                _includeBattlecryDemonicVoice,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicDistortion",
+                _maximumDemonicDistortion,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MinimumDemonicLowpassCutoffHz",
+                _minimumDemonicLowpassCutoffHz,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "DemonicEchoDelayMs",
+                _demonicEchoDelayMs,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicEchoFeedbackPercent",
+                _maximumDemonicEchoFeedbackPercent,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicEchoWetLevelDb",
+                _maximumDemonicEchoWetLevelDb,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicShadowPitchSemitones",
+                _maximumDemonicShadowPitchSemitones,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedVoiceTuningSetting(
+                "MaximumDemonicShadowMixDb",
+                _maximumDemonicShadowMixDb,
                 ref restoredCount,
                 ref clampedCount);
             RestorePreservedVoiceTuningSetting(
@@ -889,6 +1040,170 @@ namespace BattlecryVoiceTuner
                     3,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
+            _dynamicDemonicVoiceEnabled = Config.Bind(
+                "Demonic Voice",
+                "DynamicDemonicVoiceEnabled",
+                true,
+                UiDescription(
+                    "Let optional Soul and Service Necromantic Power and Blood Magic Expansion Blood Power add a progression-scaled demonic treatment to supported native vocalizations and custom battlecries. Spoken commands are always excluded.",
+                    "Demonic Progression",
+                    "Dynamic Demonic Voice",
+                    3,
+                    0));
+
+            _demonicVoicePreset = Config.Bind(
+                "Demonic Voice",
+                "DemonicVoicePreset",
+                DemonicVoicePreset.Demonic,
+                UiDescription(
+                    "Choose one of three authored demonic profiles. Minimal preserves the original subtle treatment, Demonic is the balanced supernatural default, Abyssal is deliberately monstrous, and Custom uses the advanced values below.",
+                    "Demonic Progression",
+                    "Demonic Voice Profile",
+                    3,
+                    1));
+
+            _maximumDemonicStrength = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicStrength",
+                1.0f,
+                UiDescription(
+                    "Scales every progression-driven demonic modifier. Zero disables the audible treatment; one uses the configured maximum profile.",
+                    "Demonic Progression",
+                    "Maximum Effect Strength",
+                    3,
+                    2,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
+
+            _includeNativeDemonicVoice = Config.Bind(
+                "Demonic Voice",
+                "IncludeNativeVocalEvents",
+                true,
+                UiDescription(
+                    "Apply the progression-driven demonic treatment to supported native grunts and breathing. Non-vocal player hit feedback remains excluded.",
+                    "Demonic Progression",
+                    "Include Native Vocal Events",
+                    3,
+                    3));
+
+            _includeBattlecryDemonicVoice = Config.Bind(
+                "Demonic Voice",
+                "IncludeBattlecries",
+                true,
+                UiDescription(
+                    "Apply the progression-driven demonic treatment to custom battlecries. Spoken commands remain clean and are never affected.",
+                    "Demonic Progression",
+                    "Include Battlecries",
+                    3,
+                    4));
+
+            _demonicProgressionCurveExponent = Config.Bind(
+                "Demonic Voice",
+                "DemonicProgressionCurveExponent",
+                0.80f,
+                UiDescription(
+                    "Custom profile only. Values below one make the audible transformation emerge earlier; one is linear progression.",
+                    "Demonic Progression - Advanced",
+                    "Custom Progression Curve",
+                    4,
+                    0,
+                    new AcceptableValueRange<float>(0.5f, 1.5f)));
+
+            _maximumProgressionPitchSemitones = Config.Bind(
+                "Demonic Voice",
+                "MaximumProgressionPitchSemitones",
+                -3.25f,
+                UiDescription(
+                    "Custom profile only. Additional direct-voice pitch depth at full progression; this remains additive with normal voice growth and manual pitch.",
+                    "Demonic Progression - Advanced",
+                    "Custom Direct Pitch (Semitones)",
+                    4,
+                    1,
+                    new AcceptableValueRange<float>(-6.0f, 0.0f)));
+
+            _maximumDemonicDistortion = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicDistortion",
+                0.18f,
+                UiDescription(
+                    "Custom profile only. Maximum Blood-driven distortion; Soul progression slightly reinforces it.",
+                    "Demonic Progression - Advanced",
+                    "Custom Blood Distortion",
+                    4,
+                    2,
+                    new AcceptableValueRange<float>(0.0f, 0.5f)));
+
+            _minimumDemonicLowpassCutoffHz = Config.Bind(
+                "Demonic Voice",
+                "MinimumDemonicLowpassCutoffHz",
+                4200.0f,
+                UiDescription(
+                    "Custom profile only. Darkest low-pass cutoff reached at full progression.",
+                    "Demonic Progression - Advanced",
+                    "Custom Low-Pass Cutoff (Hz)",
+                    4,
+                    3,
+                    new AcceptableValueRange<float>(1000.0f, 20000.0f)));
+
+            _demonicEchoDelayMs = Config.Bind(
+                "Demonic Voice",
+                "DemonicEchoDelayMs",
+                80.0f,
+                UiDescription(
+                    "Custom profile only. Delay of the supernatural echo driven by Soul progression.",
+                    "Demonic Progression - Advanced",
+                    "Custom Soul Echo Delay (Milliseconds)",
+                    4,
+                    4,
+                    new AcceptableValueRange<float>(10.0f, 250.0f)));
+
+            _maximumDemonicEchoFeedbackPercent = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicEchoFeedbackPercent",
+                16.0f,
+                UiDescription(
+                    "Custom profile only. Maximum Soul-driven supernatural echo feedback; Blood progression slightly reinforces it.",
+                    "Demonic Progression - Advanced",
+                    "Custom Soul Echo Feedback",
+                    4,
+                    5,
+                    new AcceptableValueRange<float>(0.0f, 50.0f)));
+
+            _maximumDemonicEchoWetLevelDb = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicEchoWetLevelDb",
+                -25.0f,
+                UiDescription(
+                    "Custom profile only. Wet level reached by the supernatural echo at maximum Soul progression. More negative values are subtler.",
+                    "Demonic Progression - Advanced",
+                    "Custom Soul Echo Wet Level (dB)",
+                    4,
+                    6,
+                    new AcceptableValueRange<float>(-80.0f, -6.0f)));
+
+            _maximumDemonicShadowPitchSemitones = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicShadowPitchSemitones",
+                -7.0f,
+                UiDescription(
+                    "Custom profile only. Pitch of the quiet Soul-driven shadow voice layered beneath the intelligible direct voice.",
+                    "Demonic Progression - Advanced",
+                    "Custom Shadow Pitch (Semitones)",
+                    4,
+                    7,
+                    new AcceptableValueRange<float>(-12.0f, 0.0f)));
+
+            _maximumDemonicShadowMixDb = Config.Bind(
+                "Demonic Voice",
+                "MaximumDemonicShadowMixDb",
+                -21.0f,
+                UiDescription(
+                    "Custom profile only. Loudest shadow-voice mix at maximum Soul progression. Set -80 dB to disable it; less negative values make it more present.",
+                    "Demonic Progression - Advanced",
+                    "Custom Shadow Mix (dB)",
+                    4,
+                    8,
+                    new AcceptableValueRange<float>(-80.0f, -6.0f)));
+
             _nativeVoiceTuningEnabled = Config.Bind(
                 "Native Voice Events",
                 "NativeVoiceTuningEnabled",
@@ -897,7 +1212,7 @@ namespace BattlecryVoiceTuner
                     "Master toggle for tuning the game's supported native player voice events. Custom battlecries and command voices remain independently controlled.",
                     "Native Voice Events",
                     "Native Voice Tuning",
-                    3,
+                    5,
                     0));
 
             _includeAttackGrunts = Config.Bind(
@@ -908,7 +1223,7 @@ namespace BattlecryVoiceTuner
                     "Tune player attack/exertion grunts.",
                     "Native Voice Events",
                     "Attack and Exertion Grunts",
-                    3,
+                    5,
                     1));
 
             _includeHurtGrunts = Config.Bind(
@@ -919,7 +1234,7 @@ namespace BattlecryVoiceTuner
                     "Tune player hurt grunts.",
                     "Native Voice Events",
                     "Hurt Grunts",
-                    3,
+                    5,
                     2));
 
             _includeDeathGrunts = Config.Bind(
@@ -930,7 +1245,7 @@ namespace BattlecryVoiceTuner
                     "Tune player death grunts.",
                     "Native Voice Events",
                     "Death Grunts",
-                    3,
+                    5,
                     3));
 
             _includeStatusPainGrunts = Config.Bind(
@@ -941,7 +1256,7 @@ namespace BattlecryVoiceTuner
                     "Tune player burn, bleed, poison, and drown grunts.",
                     "Native Voice Events",
                     "Status Pain Grunts",
-                    3,
+                    5,
                     4));
 
             _includePlayerHitFeedback = Config.Bind(
@@ -952,7 +1267,7 @@ namespace BattlecryVoiceTuner
                     "Tune SFX_Player_Hit, the player hit-feedback sound used when the player lands a hit.",
                     "Native Voice Events",
                     "Player Hit Feedback",
-                    3,
+                    5,
                     5));
 
             _includeStaminaDepletedBreathing = Config.Bind(
@@ -963,7 +1278,7 @@ namespace BattlecryVoiceTuner
                     "Tune stamina-depleted breathing loops. Off by default because these are longer/looping sounds.",
                     "Native Voice Events",
                     "Stamina-Depleted Breathing",
-                    3,
+                    5,
                     6));
 
             _battlecryEnabled = Config.Bind(
@@ -974,7 +1289,7 @@ namespace BattlecryVoiceTuner
                     "Enable custom battlecry audio and its enemy challenge effect.",
                     "Battlecry",
                     "Enabled",
-                    4,
+                    6,
                     0));
 
             _battlecryVolumeMultiplier = Config.Bind(
@@ -985,7 +1300,7 @@ namespace BattlecryVoiceTuner
                     "Additional volume multiplier applied only to custom battlecries after Overall Voice Volume. Battlecries also follow the game's SFX volume category.",
                     "Battlecry Audio",
                     "Additional Battlecry Volume",
-                    5,
+                    7,
                     0,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -997,7 +1312,7 @@ namespace BattlecryVoiceTuner
                     "Apply environment-aware reverb only to custom battlecries. Full interiors and the game's roof volumes use the indoor amount; other open-world areas use the outdoor amount.",
                     "Battlecry Audio",
                     "Environment Reverb",
-                    5,
+                    7,
                     1));
 
             _outdoorBattlecryReverbAmount = Config.Bind(
@@ -1008,7 +1323,7 @@ namespace BattlecryVoiceTuner
                     "Light reverb amount for battlecries in unroofed open-world areas. Zero is dry; one is the strongest supported effect.",
                     "Battlecry Audio",
                     "Outdoor Reverb Amount",
-                    5,
+                    7,
                     2,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1020,7 +1335,7 @@ namespace BattlecryVoiceTuner
                     "Strength multiplier for room-scaled reverb and qualifying long reflections in interiors, caves, and the game's roof volumes. Zero is dry; one is the strongest supported effect.",
                     "Battlecry Audio",
                     "Indoor Reverb Amount",
-                    5,
+                    7,
                     3,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1032,7 +1347,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to male battlecries after the overall PitchSemitones setting.",
                     "Battlecry Audio",
                     "Male Pitch Offset (Semitones)",
-                    5,
+                    7,
                     4,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1044,7 +1359,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to female battlecries after the overall PitchSemitones setting.",
                     "Battlecry Audio",
                     "Female Pitch Offset (Semitones)",
-                    5,
+                    7,
                     5,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1056,7 +1371,7 @@ namespace BattlecryVoiceTuner
                     "How many recently played battlecries to avoid for each gender when alternatives remain.",
                     "Battlecry Audio",
                     "Recent Sound Memory",
-                    5,
+                    7,
                     6,
                     new AcceptableValueRange<int>(0, 20)));
 
@@ -1068,7 +1383,7 @@ namespace BattlecryVoiceTuner
                     "Play a gender-matched spoken command when a supported mod successfully issues an explicit order.",
                     "Command Voice",
                     "Enabled",
-                    6,
+                    8,
                     0));
 
             _commandVoiceVolumeMultiplier = Config.Bind(
@@ -1079,7 +1394,7 @@ namespace BattlecryVoiceTuner
                     "Additional command-only volume multiplier after Overall Voice Volume. Commands follow the game's SFX volume category.",
                     "Command Voice",
                     "Additional Command Volume",
-                    6,
+                    8,
                     1,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
 
@@ -1091,7 +1406,7 @@ namespace BattlecryVoiceTuner
                     "Apply a lighter environment-aware acoustic response to command voices using separate reusable FMOD paths.",
                     "Command Voice",
                     "Environment Reverb",
-                    6,
+                    8,
                     2));
 
             _outdoorCommandVoiceReverbAmount = Config.Bind(
@@ -1102,7 +1417,7 @@ namespace BattlecryVoiceTuner
                     "Light geometry-shaped command reverb in unroofed open-world areas.",
                     "Command Voice",
                     "Outdoor Reverb Amount",
-                    6,
+                    8,
                     3,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1114,7 +1429,7 @@ namespace BattlecryVoiceTuner
                     "Room-scaled command reverb in interiors, caves, and roofed spaces.",
                     "Command Voice",
                     "Indoor Reverb Amount",
-                    6,
+                    8,
                     4,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
 
@@ -1126,7 +1441,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to male command voices after Overall Pitch.",
                     "Command Voice",
                     "Male Pitch Offset (Semitones)",
-                    6,
+                    8,
                     5,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1138,7 +1453,7 @@ namespace BattlecryVoiceTuner
                     "Additional pitch shift applied only to female command voices after Overall Pitch.",
                     "Command Voice",
                     "Female Pitch Offset (Semitones)",
-                    6,
+                    8,
                     6,
                     new AcceptableValueRange<float>(-12.0f, 12.0f)));
 
@@ -1150,7 +1465,7 @@ namespace BattlecryVoiceTuner
                     "How many recently played command voices to avoid within each gender and command-type pool when alternatives remain.",
                     "Command Voice",
                     "Recent Sound Memory",
-                    6,
+                    8,
                     7,
                     new AcceptableValueRange<int>(0, 20)));
 
@@ -1162,7 +1477,7 @@ namespace BattlecryVoiceTuner
                     "Minimum active gameplay seconds between spoken commands, preventing rapid orders from stacking voices.",
                     "Command Voice",
                     "Cooldown (Seconds)",
-                    6,
+                    8,
                     8,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -1174,7 +1489,7 @@ namespace BattlecryVoiceTuner
                     "Hold the game's Take All Items action to battlecry. Uses the game's current remapped keyboard or controller binding and does not interfere with taking items from an open container.",
                     "Battlecry",
                     "Hold Take All Items",
-                    4,
+                    6,
                     1));
 
             _battlecryHoldSeconds = Config.Bind(
@@ -1185,7 +1500,7 @@ namespace BattlecryVoiceTuner
                     "Seconds the Take All Items action must be held before attempting a battlecry.",
                     "Battlecry",
                     "Hold Time (Seconds)",
-                    4,
+                    6,
                     2,
                     new AcceptableValueRange<float>(0.2f, 2.0f)));
 
@@ -1197,7 +1512,7 @@ namespace BattlecryVoiceTuner
                     "Optional separate keyboard or joystick-button shortcut. None disables the separate shortcut.",
                     "Battlecry",
                     "Separate Hotkey",
-                    4,
+                    6,
                     3));
 
             _battlecryCooldownSeconds = Config.Bind(
@@ -1208,7 +1523,7 @@ namespace BattlecryVoiceTuner
                     "Minimum active gameplay seconds between battlecries.",
                     "Battlecry",
                     "Cooldown (Seconds)",
-                    4,
+                    6,
                     4,
                     new AcceptableValueRange<float>(0.0f, 30.0f)));
 
@@ -1220,7 +1535,7 @@ namespace BattlecryVoiceTuner
                     "Multiplier applied to each hostile NPC's normal maximum hearing range for battlecries in unroofed open-world areas.",
                     "Battlecry",
                     "Outdoor Hearing Range Multiplier",
-                    4,
+                    6,
                     5,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -1232,7 +1547,7 @@ namespace BattlecryVoiceTuner
                     "Multiplier applied to each hostile NPC's normal maximum hearing range in interiors, caves, and the game's roof volumes.",
                     "Battlecry",
                     "Indoor Hearing Range Multiplier",
-                    4,
+                    6,
                     6,
                     new AcceptableValueRange<float>(0.0f, 5.0f)));
 
@@ -1244,7 +1559,7 @@ namespace BattlecryVoiceTuner
                     "Active gameplay seconds during which newly reached hostile NPCs can hear the challenge.",
                     "Battlecry",
                     "Challenge Duration (Seconds)",
-                    4,
+                    6,
                     7,
                     new AcceptableValueRange<float>(0.1f, 10.0f)));
 
@@ -1256,7 +1571,7 @@ namespace BattlecryVoiceTuner
                     "Wyrd Threat requested from Eyes in the Dark for each successful battlecry. Has no effect when Eyes is absent or its Wyrdnight activity rules reject the request.",
                     "Optional Integrations",
                     "Eyes in the Dark Threat",
-                    7,
+                    9,
                     0,
                     new AcceptableValueRange<float>(0.0f, 100.0f)));
 
@@ -1437,7 +1752,14 @@ namespace BattlecryVoiceTuner
                 return;
             }
 
-            float semitones = GetShiftedSemitones();
+            DemonicVoiceProfile demonicProfile =
+                ShouldApplyDemonicVoiceToNativeEvent(supportedEvent)
+                    ? BuildDemonicVoiceProfile()
+                    : DemonicVoiceProfile.None;
+            float semitones = GetShiftedSemitones(
+                0.0f,
+                Hero.Current,
+                demonicProfile);
             float pitchMultiplier = SemitonesToPitchMultiplier(semitones);
             RESULT pitchResult = eventInstance.setPitch(pitchMultiplier);
             if (pitchResult == RESULT.OK)
@@ -1445,6 +1767,7 @@ namespace BattlecryVoiceTuner
                 QueueEventPitchDsp(
                     eventInstance,
                     BuildPitchProcessing(pitchMultiplier),
+                    demonicProfile,
                     supportedEvent.Label);
             }
 
@@ -1460,17 +1783,22 @@ namespace BattlecryVoiceTuner
                 " (" + supportedEvent.Path + ") semitones=" + semitones.ToString("0.00") +
                 " pitch=" + pitchMultiplier.ToString("0.000") +
                 " pitchResult=" + pitchResult +
+                " demonic=" + demonicProfile.Intensity.ToString("0.000") +
                 " volume=" + volume.ToString("0.00") +
                 " volumeResult=" + volumeResult + ".");
         }
 
         private float GetShiftedSemitones(
             float baselineSemitones = 0.0f,
-            Hero hero = null)
+            Hero hero = null,
+            DemonicVoiceProfile demonicProfile = null)
         {
             float semitones = baselineSemitones
                 + _pitchSemitones.Value
-                + GetVoiceGrowthSemitones(hero ?? Hero.Current);
+                + GetVoiceGrowthSemitones(hero ?? Hero.Current)
+                + (demonicProfile == null
+                    ? 0f
+                    : demonicProfile.PitchSemitones);
             float randomRange = Math.Max(0.0f, _randomPitchSemitones.Value);
             if (randomRange > 0.0f)
             {
@@ -1478,6 +1806,276 @@ namespace BattlecryVoiceTuner
             }
 
             return Math.Max(-24.0f, Math.Min(24.0f, semitones));
+        }
+
+        private bool ShouldApplyDemonicVoiceToNativeEvent(
+            SupportedVoiceEvent supportedEvent)
+        {
+            return _dynamicDemonicVoiceEnabled != null
+                && _dynamicDemonicVoiceEnabled.Value
+                && _includeNativeDemonicVoice != null
+                && _includeNativeDemonicVoice.Value
+                && supportedEvent != null
+                && !String.Equals(
+                    supportedEvent.Category,
+                    CategoryHitFeedback,
+                    StringComparison.Ordinal);
+        }
+
+        private DemonicVoiceProfile BuildDemonicVoiceProfile()
+        {
+            if (_dynamicDemonicVoiceEnabled == null
+                || !_dynamicDemonicVoiceEnabled.Value)
+            {
+                return DemonicVoiceProfile.None;
+            }
+
+            float strength = _maximumDemonicStrength == null
+                ? 1f
+                : Mathf.Clamp01(_maximumDemonicStrength.Value);
+            if (strength <= DemonicDspMinimumIntensity)
+            {
+                return DemonicVoiceProfile.None;
+            }
+
+            DemonicPresetSettings settings = ResolveDemonicPresetSettings();
+            float rawSoul = Mathf.Clamp01(
+                GetOptionalProgressionPower(
+                    SoulAndServicePluginGuid,
+                    SoulAndServiceApiTypeName,
+                    "GetNecromanticPower",
+                    2,
+                    ref _soulAndServiceGetNecromanticPowerMethod,
+                    ref _soulAndServiceProgressionApiUnavailable)
+                / 200f);
+            float rawBlood = Mathf.Clamp01(
+                GetOptionalProgressionPower(
+                    BloodMagicPluginGuid,
+                    BloodMagicApiTypeName,
+                    "GetBloodPower",
+                    5,
+                    ref _bloodMagicGetBloodPowerMethod,
+                    ref _bloodMagicProgressionApiUnavailable)
+                / 200f);
+            float curveExponent = Mathf.Clamp(
+                settings.ProgressionCurveExponent,
+                0.5f,
+                1.5f);
+            float soul = (float)Math.Pow(rawSoul, curveExponent);
+            float blood = (float)Math.Pow(rawBlood, curveExponent);
+            float dominant = Math.Max(soul, blood);
+            float convergence = Math.Min(soul, blood);
+            float intensity = Mathf.Clamp01(
+                ((0.75f * dominant) + (0.25f * convergence))
+                * strength);
+            if (intensity <= DemonicDspMinimumIntensity)
+            {
+                return DemonicVoiceProfile.None;
+            }
+
+            float bloodBody = Mathf.Clamp01(
+                blood * (0.75f + (0.25f * soul)) * strength);
+            float soulHaunt = Mathf.Clamp01(
+                soul * (0.75f + (0.25f * blood)) * strength);
+            float maximumPitch = Math.Max(
+                -6f,
+                Math.Min(0f, settings.MaximumPitchSemitones));
+            float minimumCutoff = Mathf.Clamp(
+                settings.MinimumLowpassCutoffHz,
+                1000f,
+                DemonicOpenLowpassCutoffHz);
+            float lowpassCutoff = (float)Math.Exp(
+                Mathf.Lerp(
+                    (float)Math.Log(DemonicOpenLowpassCutoffHz),
+                    (float)Math.Log(minimumCutoff),
+                    intensity));
+            float maximumEchoWetDb = Mathf.Clamp(
+                settings.MaximumEchoWetLevelDb,
+                -80f,
+                -6f);
+            float maximumEchoWetAmplitude = (float)Math.Pow(
+                10.0,
+                maximumEchoWetDb / 20.0);
+            float echoWetAmplitude = maximumEchoWetAmplitude * soulHaunt;
+            float echoWetDb = echoWetAmplitude <= 0.0001f
+                ? -80f
+                : Mathf.Clamp(
+                    20f * (float)Math.Log10(echoWetAmplitude),
+                    -80f,
+                    maximumEchoWetDb);
+            float maximumShadowMixDb = Mathf.Clamp(
+                settings.MaximumShadowMixDb,
+                -80f,
+                -6f);
+            float maximumShadowAmplitude = (float)Math.Pow(
+                10.0,
+                maximumShadowMixDb / 20.0);
+            float shadowMix = maximumShadowAmplitude * soulHaunt;
+            bool hasShadow = shadowMix > 0.0001f
+                && settings.MaximumShadowPitchSemitones
+                    < -PitchDspMinimumSemitones;
+
+            DemonicVoiceProfile profile = new DemonicVoiceProfile(
+                intensity,
+                soul,
+                blood,
+                maximumPitch * intensity,
+                Math.Max(0f, settings.MaximumDistortion) * bloodBody,
+                lowpassCutoff,
+                Mathf.Clamp(settings.EchoDelayMs, 10f, 250f),
+                Math.Max(0f, settings.MaximumEchoFeedbackPercent) * soulHaunt,
+                echoWetDb,
+                soulHaunt > DemonicDspMinimumIntensity,
+                settings.MaximumShadowPitchSemitones,
+                shadowMix,
+                hasShadow);
+            LogDiagnostic(
+                "Demonic voice snapshot: preset="
+                + (_demonicVoicePreset == null
+                    ? DemonicVoicePreset.Demonic
+                    : _demonicVoicePreset.Value).ToString()
+                + "; soul="
+                + soul.ToString("0.000", CultureInfo.InvariantCulture)
+                + "; blood="
+                + blood.ToString("0.000", CultureInfo.InvariantCulture)
+                + "; intensity="
+                + intensity.ToString("0.000", CultureInfo.InvariantCulture)
+                + "; pitch="
+                + profile.PitchSemitones.ToString("0.00", CultureInfo.InvariantCulture)
+                + "st; distortion="
+                + profile.Distortion.ToString("0.000", CultureInfo.InvariantCulture)
+                + "; lowpass="
+                + profile.LowpassCutoffHz.ToString("0", CultureInfo.InvariantCulture)
+                + "Hz; echoWet="
+                + profile.EchoWetLevelDb.ToString("0.0", CultureInfo.InvariantCulture)
+                + "dB; shadowMix="
+                + (profile.ShadowMix <= 0.0001f
+                    ? -80f
+                    : 20f * (float)Math.Log10(profile.ShadowMix)).ToString(
+                        "0.0",
+                        CultureInfo.InvariantCulture)
+                + "dB.");
+            return profile;
+        }
+
+        private DemonicPresetSettings ResolveDemonicPresetSettings()
+        {
+            DemonicVoicePreset preset = _demonicVoicePreset == null
+                ? DemonicVoicePreset.Demonic
+                : _demonicVoicePreset.Value;
+            switch (preset)
+            {
+                case DemonicVoicePreset.Minimal:
+                    return DemonicPresetSettings.Minimal;
+                case DemonicVoicePreset.Abyssal:
+                    return DemonicPresetSettings.Abyssal;
+                case DemonicVoicePreset.Custom:
+                    return new DemonicPresetSettings(
+                        _demonicProgressionCurveExponent == null
+                            ? 0.80f
+                            : _demonicProgressionCurveExponent.Value,
+                        _maximumProgressionPitchSemitones == null
+                            ? -3.25f
+                            : _maximumProgressionPitchSemitones.Value,
+                        _maximumDemonicDistortion == null
+                            ? 0.18f
+                            : _maximumDemonicDistortion.Value,
+                        _minimumDemonicLowpassCutoffHz == null
+                            ? 4200f
+                            : _minimumDemonicLowpassCutoffHz.Value,
+                        _demonicEchoDelayMs == null
+                            ? 80f
+                            : _demonicEchoDelayMs.Value,
+                        _maximumDemonicEchoFeedbackPercent == null
+                            ? 16f
+                            : _maximumDemonicEchoFeedbackPercent.Value,
+                        _maximumDemonicEchoWetLevelDb == null
+                            ? -25f
+                            : _maximumDemonicEchoWetLevelDb.Value,
+                        _maximumDemonicShadowPitchSemitones == null
+                            ? -7f
+                            : _maximumDemonicShadowPitchSemitones.Value,
+                        _maximumDemonicShadowMixDb == null
+                            ? -21f
+                            : _maximumDemonicShadowMixDb.Value);
+                case DemonicVoicePreset.Demonic:
+                default:
+                    return DemonicPresetSettings.Demonic;
+            }
+        }
+
+        private float GetOptionalProgressionPower(
+            string pluginGuid,
+            string apiTypeName,
+            string methodName,
+            int minimumApiVersion,
+            ref MethodInfo method,
+            ref bool unavailable)
+        {
+            if (unavailable)
+            {
+                return 0f;
+            }
+
+            if (method == null)
+            {
+                PluginInfo info;
+                if (!Chainloader.PluginInfos.TryGetValue(pluginGuid, out info)
+                    || info == null
+                    || info.Instance == null)
+                {
+                    return 0f;
+                }
+
+                Type api = info.Instance.GetType().Assembly.GetType(
+                    apiTypeName,
+                    false);
+                FieldInfo version = api == null
+                    ? null
+                    : api.GetField(
+                        "ApiVersion",
+                        BindingFlags.Public | BindingFlags.Static);
+                int apiVersion = version == null
+                    ? 0
+                    : Convert.ToInt32(
+                        version.GetRawConstantValue(),
+                        CultureInfo.InvariantCulture);
+                method = apiVersion < minimumApiVersion
+                    ? null
+                    : AccessTools.Method(api, methodName, new Type[0]);
+                if (method == null)
+                {
+                    unavailable = true;
+                    _log.LogWarning(
+                        "Demonic voice progression could not use "
+                        + pluginGuid
+                        + " because its "
+                        + apiTypeName
+                        + "."
+                        + methodName
+                        + " API is unavailable.");
+                    return 0f;
+                }
+            }
+
+            try
+            {
+                object result = method.Invoke(null, null);
+                return Math.Max(
+                    0f,
+                    Convert.ToSingle(result, CultureInfo.InvariantCulture));
+            }
+            catch (Exception exception)
+            {
+                method = null;
+                unavailable = true;
+                _log.LogWarning(
+                    "Demonic voice progression failed to read "
+                    + pluginGuid
+                    + ": "
+                    + exception.GetBaseException().Message);
+                return 0f;
+            }
         }
 
         private float GetVoiceGrowthSemitones(Hero hero)
@@ -1755,9 +2353,12 @@ namespace BattlecryVoiceTuner
         private void QueueEventPitchDsp(
             EventInstance eventInstance,
             VoicePitchProcessing processing,
+            DemonicVoiceProfile demonicProfile,
             string label)
         {
-            if (!processing.UsesDsp || !eventInstance.isValid())
+            if ((!processing.UsesDsp
+                    && (demonicProfile == null || !demonicProfile.HasDsps))
+                || !eventInstance.isValid())
             {
                 return;
             }
@@ -1767,7 +2368,7 @@ namespace BattlecryVoiceTuner
             {
                 LogDiagnostic(
                     label
-                    + " native event could not pause for pitch DSP attachment; using the full natural playback-rate shift. Result="
+                    + " native event could not pause for voice DSP attachment; using the natural pitch without demonic DSPs. Result="
                     + pauseResult
                     + ".");
                 return;
@@ -1777,6 +2378,7 @@ namespace BattlecryVoiceTuner
                 new PendingEventPitchDsp(
                     eventInstance,
                     processing,
+                    demonicProfile ?? DemonicVoiceProfile.None,
                     label,
                     Time.realtimeSinceStartup));
         }
@@ -1801,58 +2403,68 @@ namespace BattlecryVoiceTuner
                 if (groupResult == RESULT.OK
                     && channelGroup.hasHandle())
                 {
-                    FMOD.DSP pitchDsp;
-                    if (TryAttachPitchDsp(
+                    List<FMOD.DSP> attachedDsps = new List<FMOD.DSP>();
+                    FMOD.DSP pitchDsp = default(FMOD.DSP);
+                    bool pitchDspAttached = pending.Processing.UsesDsp
+                        && TryAttachPitchDsp(
                             channelGroup,
                             pending.Processing.DspMultiplier,
-                            out pitchDsp))
+                            out pitchDsp);
+                    if (pitchDspAttached)
                     {
-                        RESULT pitchResult = pending.EventInstance.setPitch(
-                            pending.Processing.RateMultiplier);
-                        RESULT unpauseResult = pitchResult == RESULT.OK
-                            ? pending.EventInstance.setPaused(false)
-                            : pitchResult;
-                        if (pitchResult == RESULT.OK
-                            && unpauseResult == RESULT.OK)
+                        attachedDsps.Add(pitchDsp);
+                    }
+
+                    List<FMOD.DSP> demonicDsps = new List<FMOD.DSP>();
+                    bool demonicDspsAttached = pending.DemonicProfile.HasDsps
+                        && TryAttachDemonicDsps(
+                            channelGroup,
+                            pending.DemonicProfile,
+                            out demonicDsps);
+                    if (demonicDspsAttached)
+                    {
+                        attachedDsps.AddRange(demonicDsps);
+                    }
+
+                    RESULT pitchResult = pending.EventInstance.setPitch(
+                        pitchDspAttached
+                            ? pending.Processing.RateMultiplier
+                            : pending.Processing.FinalMultiplier);
+                    RESULT unpauseResult = pitchResult == RESULT.OK
+                        ? pending.EventInstance.setPaused(false)
+                        : pitchResult;
+                    if (pitchResult == RESULT.OK
+                        && unpauseResult == RESULT.OK)
+                    {
+                        if (attachedDsps.Count > 0)
                         {
                             _activeEventPitchDsps.Add(
                                 new ActiveEventPitchDsp(
                                     pending.EventInstance,
                                     channelGroup,
-                                    pitchDsp));
-                            LogDiagnostic(
-                                pending.Label
-                                + " native event pitch processing: final="
-                                + pending.Processing.FinalSemitones.ToString(
-                                    "0.00",
-                                    CultureInfo.InvariantCulture)
-                                + "st; rate="
-                                + pending.Processing.RateSemitones.ToString(
-                                    "0.00",
-                                    CultureInfo.InvariantCulture)
-                                + "st; dsp="
-                                + pending.Processing.DspSemitones.ToString(
-                                    "0.00",
-                                    CultureInfo.InvariantCulture)
-                                + "st.");
+                                    attachedDsps));
                         }
-                        else
-                        {
-                            channelGroup.removeDSP(pitchDsp);
-                            pitchDsp.release();
-                            ResumePendingEventNaturally(
-                                pending,
-                                "hybrid pitch activation failed. PitchResult="
-                                + pitchResult
-                                + "; UnpauseResult="
-                                + unpauseResult);
-                        }
+                        LogDiagnostic(
+                            pending.Label
+                            + " native event voice processing: final="
+                            + pending.Processing.FinalSemitones.ToString(
+                                "0.00",
+                                CultureInfo.InvariantCulture)
+                            + "st; pitchDsp="
+                            + pitchDspAttached
+                            + "; demonicDsp="
+                            + demonicDspsAttached
+                            + ".");
                     }
                     else
                     {
+                        ReleaseDsps(channelGroup, attachedDsps);
                         ResumePendingEventNaturally(
                             pending,
-                            "pitch DSP attachment was unavailable");
+                            "voice DSP activation failed. PitchResult="
+                            + pitchResult
+                            + "; UnpauseResult="
+                            + unpauseResult);
                     }
                     _pendingEventPitchDsps.RemoveAt(index);
                     continue;
@@ -1886,6 +2498,25 @@ namespace BattlecryVoiceTuner
 
                 ReleaseChannelPitchDsp(active);
                 _activeChannelPitchDsps.RemoveAt(index);
+            }
+
+            for (int index = _activeChannelDemonicDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ActiveChannelDemonicDsps active =
+                    _activeChannelDemonicDsps[index];
+                bool playing = false;
+                RESULT result = active.Channel.hasHandle()
+                    ? active.Channel.isPlaying(out playing)
+                    : RESULT.ERR_INVALID_HANDLE;
+                if (result == RESULT.OK && playing)
+                {
+                    continue;
+                }
+
+                ReleaseDsps(active.Channel, active.Dsps);
+                _activeChannelDemonicDsps.RemoveAt(index);
             }
 
             for (int index = _activeEventPitchDsps.Count - 1;
@@ -2011,8 +2642,306 @@ namespace BattlecryVoiceTuner
             return false;
         }
 
+        private bool TryAttachDemonicDsps(
+            FMOD.Channel channel,
+            DemonicVoiceProfile profile,
+            out List<FMOD.DSP> dsps)
+        {
+            if (!TryCreateDemonicDsps(profile, out dsps))
+            {
+                return false;
+            }
+
+            int attachedCount = 0;
+            for (int index = 0; index < dsps.Count; index++)
+            {
+                RESULT result = channel.addDSP(
+                    CHANNELCONTROL_DSP_INDEX.TAIL,
+                    dsps[index]);
+                if (result == RESULT.OK)
+                {
+                    attachedCount++;
+                    continue;
+                }
+
+                for (int attachedIndex = 0;
+                    attachedIndex < attachedCount;
+                    attachedIndex++)
+                {
+                    channel.removeDSP(dsps[attachedIndex]);
+                }
+                ReleaseDsps(dsps);
+                dsps = new List<FMOD.DSP>();
+                LogDiagnostic(
+                    "Could not attach a demonic voice DSP to the battlecry channel. Result="
+                    + result
+                    + ".");
+                return false;
+            }
+            return dsps.Count > 0;
+        }
+
+        private bool TryAttachDemonicDsps(
+            FMOD.ChannelGroup channelGroup,
+            DemonicVoiceProfile profile,
+            out List<FMOD.DSP> dsps)
+        {
+            if (!TryCreateDemonicDsps(profile, out dsps))
+            {
+                return false;
+            }
+
+            int attachedCount = 0;
+            for (int index = 0; index < dsps.Count; index++)
+            {
+                RESULT result = channelGroup.addDSP(
+                    CHANNELCONTROL_DSP_INDEX.TAIL,
+                    dsps[index]);
+                if (result == RESULT.OK)
+                {
+                    attachedCount++;
+                    continue;
+                }
+
+                for (int attachedIndex = 0;
+                    attachedIndex < attachedCount;
+                    attachedIndex++)
+                {
+                    channelGroup.removeDSP(dsps[attachedIndex]);
+                }
+                ReleaseDsps(dsps);
+                dsps = new List<FMOD.DSP>();
+                LogDiagnostic(
+                    "Could not attach a demonic voice DSP to a native event. Result="
+                    + result
+                    + ".");
+                return false;
+            }
+            return dsps.Count > 0;
+        }
+
+        private static bool TryCreateDemonicDsps(
+            DemonicVoiceProfile profile,
+            out List<FMOD.DSP> dsps)
+        {
+            dsps = new List<FMOD.DSP>();
+            if (profile == null || !profile.HasDsps)
+            {
+                return false;
+            }
+
+            RESULT result = RESULT.OK;
+            if (profile.Distortion > DemonicDspMinimumIntensity)
+            {
+                FMOD.DSP distortion;
+                result = RuntimeManager.CoreSystem.createDSPByType(
+                    DSP_TYPE.DISTORTION,
+                    out distortion);
+                if (result == RESULT.OK)
+                {
+                    result = distortion.setParameterFloat(
+                        (int)DSP_DISTORTION.LEVEL,
+                        Mathf.Clamp(profile.Distortion, 0f, 1f));
+                }
+                if (result != RESULT.OK)
+                {
+                    if (distortion.hasHandle())
+                    {
+                        distortion.release();
+                    }
+                    ReleaseDsps(dsps);
+                    dsps = new List<FMOD.DSP>();
+                    return false;
+                }
+                dsps.Add(distortion);
+            }
+
+            if (profile.LowpassCutoffHz
+                < DemonicOpenLowpassCutoffHz - 1f)
+            {
+                FMOD.DSP lowpass;
+                result = RuntimeManager.CoreSystem.createDSPByType(
+                    DSP_TYPE.LOWPASS,
+                    out lowpass);
+                if (result == RESULT.OK)
+                {
+                    result = lowpass.setParameterFloat(
+                        (int)DSP_LOWPASS.CUTOFF,
+                        Mathf.Clamp(
+                            profile.LowpassCutoffHz,
+                            1000f,
+                            DemonicOpenLowpassCutoffHz));
+                }
+                if (result == RESULT.OK)
+                {
+                    result = lowpass.setParameterFloat(
+                        (int)DSP_LOWPASS.RESONANCE,
+                        1f);
+                }
+                if (result != RESULT.OK)
+                {
+                    if (lowpass.hasHandle())
+                    {
+                        lowpass.release();
+                    }
+                    ReleaseDsps(dsps);
+                    dsps = new List<FMOD.DSP>();
+                    return false;
+                }
+                dsps.Add(lowpass);
+            }
+
+            if (profile.HasShadow)
+            {
+                FMOD.DSP shadow;
+                result = RuntimeManager.CoreSystem.createDSPByType(
+                    DSP_TYPE.PITCHSHIFT,
+                    out shadow);
+                if (result == RESULT.OK)
+                {
+                    result = shadow.setParameterFloat(
+                        (int)DSP_PITCHSHIFT.PITCH,
+                        SemitonesToPitchMultiplier(
+                            profile.ShadowPitchSemitones));
+                }
+                if (result == RESULT.OK)
+                {
+                    result = shadow.setParameterFloat(
+                        (int)DSP_PITCHSHIFT.FFTSIZE,
+                        PitchDspFftSize);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = shadow.setWetDryMix(
+                        0f,
+                        Mathf.Clamp01(profile.ShadowMix),
+                        1f);
+                }
+                if (result != RESULT.OK)
+                {
+                    if (shadow.hasHandle())
+                    {
+                        shadow.release();
+                    }
+                    ReleaseDsps(dsps);
+                    dsps = new List<FMOD.DSP>();
+                    return false;
+                }
+                dsps.Add(shadow);
+            }
+
+            if (profile.HasEcho)
+            {
+                FMOD.DSP echo;
+                result = RuntimeManager.CoreSystem.createDSPByType(
+                    DSP_TYPE.ECHO,
+                    out echo);
+                if (result == RESULT.OK)
+                {
+                    result = echo.setParameterFloat(
+                        (int)DSP_ECHO.DELAY,
+                        profile.EchoDelayMs);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = echo.setParameterFloat(
+                        (int)DSP_ECHO.FEEDBACK,
+                        profile.EchoFeedbackPercent);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = echo.setParameterFloat(
+                        (int)DSP_ECHO.DRYLEVEL,
+                        0f);
+                }
+                if (result == RESULT.OK)
+                {
+                    result = echo.setParameterFloat(
+                        (int)DSP_ECHO.WETLEVEL,
+                        profile.EchoWetLevelDb);
+                }
+                if (result != RESULT.OK)
+                {
+                    if (echo.hasHandle())
+                    {
+                        echo.release();
+                    }
+                    ReleaseDsps(dsps);
+                    dsps = new List<FMOD.DSP>();
+                    return false;
+                }
+                dsps.Add(echo);
+            }
+            return dsps.Count > 0;
+        }
+
+        private static void ReleaseDsps(List<FMOD.DSP> dsps)
+        {
+            if (dsps == null)
+            {
+                return;
+            }
+            for (int index = dsps.Count - 1; index >= 0; index--)
+            {
+                if (dsps[index].hasHandle())
+                {
+                    dsps[index].release();
+                }
+            }
+        }
+
+        private static void ReleaseDsps(
+            FMOD.Channel channel,
+            List<FMOD.DSP> dsps)
+        {
+            if (dsps == null)
+            {
+                return;
+            }
+            for (int index = dsps.Count - 1; index >= 0; index--)
+            {
+                if (channel.hasHandle() && dsps[index].hasHandle())
+                {
+                    channel.removeDSP(dsps[index]);
+                }
+                if (dsps[index].hasHandle())
+                {
+                    dsps[index].release();
+                }
+            }
+        }
+
+        private static void ReleaseDsps(
+            FMOD.ChannelGroup channelGroup,
+            List<FMOD.DSP> dsps)
+        {
+            if (dsps == null)
+            {
+                return;
+            }
+            for (int index = dsps.Count - 1; index >= 0; index--)
+            {
+                if (channelGroup.hasHandle() && dsps[index].hasHandle())
+                {
+                    channelGroup.removeDSP(dsps[index]);
+                }
+                if (dsps[index].hasHandle())
+                {
+                    dsps[index].release();
+                }
+            }
+        }
+
         private void ReleaseAllPitchShiftDsps()
         {
+            for (int index = _pendingEventPitchDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ResumePendingEventNaturally(
+                    _pendingEventPitchDsps[index],
+                    "the plugin is shutting down");
+            }
             _pendingEventPitchDsps.Clear();
             for (int index = _activeChannelPitchDsps.Count - 1;
                 index >= 0;
@@ -2021,6 +2950,16 @@ namespace BattlecryVoiceTuner
                 ReleaseChannelPitchDsp(_activeChannelPitchDsps[index]);
             }
             _activeChannelPitchDsps.Clear();
+
+            for (int index = _activeChannelDemonicDsps.Count - 1;
+                index >= 0;
+                index--)
+            {
+                ActiveChannelDemonicDsps active =
+                    _activeChannelDemonicDsps[index];
+                ReleaseDsps(active.Channel, active.Dsps);
+            }
+            _activeChannelDemonicDsps.Clear();
 
             for (int index = _activeEventPitchDsps.Count - 1;
                 index >= 0;
@@ -2047,14 +2986,7 @@ namespace BattlecryVoiceTuner
         private static void ReleaseEventPitchDsp(
             ActiveEventPitchDsp active)
         {
-            if (active.ChannelGroup.hasHandle() && active.Dsp.hasHandle())
-            {
-                active.ChannelGroup.removeDSP(active.Dsp);
-            }
-            if (active.Dsp.hasHandle())
-            {
-                active.Dsp.release();
-            }
+            ReleaseDsps(active.ChannelGroup, active.Dsps);
         }
 
         private bool IsCategoryEnabled(string category)
@@ -2359,6 +3291,7 @@ namespace BattlecryVoiceTuner
             _maleSummonHoldPaths.Clear();
             _maleSummonFollowPaths.Clear();
             _maleSummonRecallPaths.Clear();
+            _maleSummonRaiseAllPaths.Clear();
             _maleSummonGuardPaths.Clear();
             _maleSummonBulwarkPaths.Clear();
             _maleSummonHuntPaths.Clear();
@@ -2366,6 +3299,7 @@ namespace BattlecryVoiceTuner
             _femaleSummonHoldPaths.Clear();
             _femaleSummonFollowPaths.Clear();
             _femaleSummonRecallPaths.Clear();
+            _femaleSummonRaiseAllPaths.Clear();
             _femaleSummonGuardPaths.Clear();
             _femaleSummonBulwarkPaths.Clear();
             _femaleSummonHuntPaths.Clear();
@@ -2373,6 +3307,7 @@ namespace BattlecryVoiceTuner
             ClearRecentPool(MaleSummonHoldPool);
             ClearRecentPool(MaleSummonFollowPool);
             ClearRecentPool(MaleSummonRecallPool);
+            ClearRecentPool(MaleSummonRaiseAllPool);
             ClearRecentPool(MaleSummonGuardPool);
             ClearRecentPool(MaleSummonBulwarkPool);
             ClearRecentPool(MaleSummonHuntPool);
@@ -2380,6 +3315,7 @@ namespace BattlecryVoiceTuner
             ClearRecentPool(FemaleSummonHoldPool);
             ClearRecentPool(FemaleSummonFollowPool);
             ClearRecentPool(FemaleSummonRecallPool);
+            ClearRecentPool(FemaleSummonRaiseAllPool);
             ClearRecentPool(FemaleSummonGuardPool);
             ClearRecentPool(FemaleSummonBulwarkPool);
             ClearRecentPool(FemaleSummonHuntPool);
@@ -2416,6 +3352,11 @@ namespace BattlecryVoiceTuner
                 _maleSummonRecallPaths);
             DiscoverVoiceFiles(
                 commandDirectory,
+                "summon_male_raiseall_*.wav",
+                MaximumCommandFilesPerPool,
+                _maleSummonRaiseAllPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
                 "summon_female_attack_*.wav",
                 MaximumCommandFilesPerPool,
                 _femaleSummonAttackPaths);
@@ -2434,6 +3375,11 @@ namespace BattlecryVoiceTuner
                 "summon_female_recall_*.wav",
                 MaximumCommandFilesPerPool,
                 _femaleSummonRecallPaths);
+            DiscoverVoiceFiles(
+                commandDirectory,
+                "summon_female_raiseall_*.wav",
+                MaximumCommandFilesPerPool,
+                _femaleSummonRaiseAllPaths);
             DiscoverVoiceFiles(
                 commandDirectory,
                 "summon_male_guard_*.wav",
@@ -2475,6 +3421,8 @@ namespace BattlecryVoiceTuner
                 + _maleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", recall="
                 + _maleSummonRecallPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", raise all="
+                + _maleSummonRaiseAllPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", guard="
                 + _maleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", bulwark="
@@ -2490,6 +3438,8 @@ namespace BattlecryVoiceTuner
                 + _femaleSummonFollowPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", recall="
                 + _femaleSummonRecallPaths.Count.ToString(CultureInfo.InvariantCulture)
+                + ", raise all="
+                + _femaleSummonRaiseAllPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", guard="
                 + _femaleSummonGuardPaths.Count.ToString(CultureInfo.InvariantCulture)
                 + ", bulwark="
@@ -2556,6 +3506,13 @@ namespace BattlecryVoiceTuner
                 paths,
                 pool,
                 GetRecentMemory(_recentBattlecryMemory));
+            DemonicVoiceProfile demonicProfile =
+                _dynamicDemonicVoiceEnabled != null
+                    && _dynamicDemonicVoiceEnabled.Value
+                    && _includeBattlecryDemonicVoice != null
+                    && _includeBattlecryDemonicVoice.Value
+                        ? BuildDemonicVoiceProfile()
+                        : DemonicVoiceProfile.None;
             foreach (string path in playbackOrder)
             {
                 float candidatePitch = SemitonesToPitchMultiplier(
@@ -2563,11 +3520,13 @@ namespace BattlecryVoiceTuner
                         female
                             ? _femaleBattlecryPitchOffsetSemitones.Value
                             : _maleBattlecryPitchOffsetSemitones.Value,
-                        hero));
+                        hero,
+                        demonicProfile));
                 if (!TryPlayBattlecrySound(
                     path,
                     candidatePitch,
-                    hero))
+                    hero,
+                    demonicProfile))
                 {
                     continue;
                 }
@@ -2679,6 +3638,7 @@ namespace BattlecryVoiceTuner
                 || _maleSummonHoldPaths.Count > 0
                 || _maleSummonFollowPaths.Count > 0
                 || _maleSummonRecallPaths.Count > 0
+                || _maleSummonRaiseAllPaths.Count > 0
                 || _maleSummonGuardPaths.Count > 0
                 || _maleSummonBulwarkPaths.Count > 0
                 || _maleSummonHuntPaths.Count > 0
@@ -2686,6 +3646,7 @@ namespace BattlecryVoiceTuner
                 || _femaleSummonHoldPaths.Count > 0
                 || _femaleSummonFollowPaths.Count > 0
                 || _femaleSummonRecallPaths.Count > 0
+                || _femaleSummonRaiseAllPaths.Count > 0
                 || _femaleSummonGuardPaths.Count > 0
                 || _femaleSummonBulwarkPaths.Count > 0
                 || _femaleSummonHuntPaths.Count > 0;
@@ -2728,6 +3689,19 @@ namespace BattlecryVoiceTuner
                     ? _femaleSummonRecallPaths
                     : _maleSummonRecallPaths;
                 pool = female ? FemaleSummonRecallPool : MaleSummonRecallPool;
+                return;
+            }
+            if (String.Equals(
+                commandId,
+                SummonRaiseAllCommandId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                paths = female
+                    ? _femaleSummonRaiseAllPaths
+                    : _maleSummonRaiseAllPaths;
+                pool = female
+                    ? FemaleSummonRaiseAllPool
+                    : MaleSummonRaiseAllPool;
                 return;
             }
             if (String.Equals(
@@ -2788,6 +3762,10 @@ namespace BattlecryVoiceTuner
                 || String.Equals(
                     commandId,
                     SummonRecallCommandId,
+                    StringComparison.OrdinalIgnoreCase)
+                || String.Equals(
+                    commandId,
+                    SummonRaiseAllCommandId,
                     StringComparison.OrdinalIgnoreCase)
                 || String.Equals(
                     commandId,
@@ -2913,7 +3891,8 @@ namespace BattlecryVoiceTuner
         private bool TryPlayBattlecrySound(
             string path,
             float pitch,
-            Hero hero)
+            Hero hero,
+            DemonicVoiceProfile demonicProfile)
         {
             try
             {
@@ -2984,6 +3963,18 @@ namespace BattlecryVoiceTuner
                     channel,
                     pitch,
                     "Battlecry");
+                List<FMOD.DSP> demonicDsps = new List<FMOD.DSP>();
+                bool demonicResult = demonicProfile != null
+                    && demonicProfile.HasDsps
+                    && TryAttachDemonicDsps(
+                        channel,
+                        demonicProfile,
+                        out demonicDsps);
+                if (demonicResult)
+                {
+                    _activeChannelDemonicDsps.Add(
+                        new ActiveChannelDemonicDsps(channel, demonicDsps));
+                }
                 RESULT unpauseResult = channel.setPaused(false);
                 if (unpauseResult == RESULT.OK
                     && acousticProfile != null)
@@ -2994,7 +3985,10 @@ namespace BattlecryVoiceTuner
                         volumeScale,
                         acousticProfile,
                         "Battlecry",
-                        MaximumOutdoorReflectionTaps);
+                        MaximumOutdoorReflectionTaps,
+                        demonicProfile == null
+                            ? DemonicVoiceProfile.None
+                            : demonicProfile.WithoutSoulLayers());
                 }
                 LogDiagnostic(
                     "Battlecry FMOD results: volume="
@@ -3012,6 +4006,8 @@ namespace BattlecryVoiceTuner
                     + ")"
                     + "; pitch="
                     + pitchResult
+                    + "; demonic="
+                    + demonicResult
                     + "; unpause="
                     + unpauseResult
                     + ".");
@@ -3110,7 +4106,8 @@ namespace BattlecryVoiceTuner
                         volumeScale,
                         acousticProfile,
                         "Command voice",
-                        MaximumCommandReflectionTaps);
+                        MaximumCommandReflectionTaps,
+                        DemonicVoiceProfile.None);
                 }
                 LogDiagnostic(
                     "Command voice FMOD results: volume="
@@ -3918,7 +4915,8 @@ namespace BattlecryVoiceTuner
             float directVolumeScale,
             BattlecryAcousticProfile profile,
             string sourceLabel,
-            int maximumTaps)
+            int maximumTaps,
+            DemonicVoiceProfile demonicProfile)
         {
             if (maximumTaps <= 0
                 || profile.Reflections.Count == 0
@@ -4006,6 +5004,22 @@ namespace BattlecryVoiceTuner
                         reflectionChannel,
                         pitch,
                         sourceLabel + " reflection");
+                }
+                if (result == RESULT.OK
+                    && demonicProfile != null
+                    && demonicProfile.HasDsps)
+                {
+                    List<FMOD.DSP> demonicDsps;
+                    if (TryAttachDemonicDsps(
+                        reflectionChannel,
+                        demonicProfile,
+                        out demonicDsps))
+                    {
+                        _activeChannelDemonicDsps.Add(
+                            new ActiveChannelDemonicDsps(
+                                reflectionChannel,
+                                demonicDsps));
+                    }
                 }
                 if (result == RESULT.OK)
                 {
@@ -4585,6 +5599,7 @@ namespace BattlecryVoiceTuner
             _maleSummonHoldPaths.Clear();
             _maleSummonFollowPaths.Clear();
             _maleSummonRecallPaths.Clear();
+            _maleSummonRaiseAllPaths.Clear();
             _maleSummonGuardPaths.Clear();
             _maleSummonBulwarkPaths.Clear();
             _maleSummonHuntPaths.Clear();
@@ -4592,6 +5607,7 @@ namespace BattlecryVoiceTuner
             _femaleSummonHoldPaths.Clear();
             _femaleSummonFollowPaths.Clear();
             _femaleSummonRecallPaths.Clear();
+            _femaleSummonRaiseAllPaths.Clear();
             _femaleSummonGuardPaths.Clear();
             _femaleSummonBulwarkPaths.Clear();
             _femaleSummonHuntPaths.Clear();
@@ -5071,21 +6087,38 @@ namespace BattlecryVoiceTuner
             }
         }
 
+        private sealed class ActiveChannelDemonicDsps
+        {
+            internal readonly FMOD.Channel Channel;
+            internal readonly List<FMOD.DSP> Dsps;
+
+            internal ActiveChannelDemonicDsps(
+                FMOD.Channel channel,
+                List<FMOD.DSP> dsps)
+            {
+                Channel = channel;
+                Dsps = dsps;
+            }
+        }
+
         private sealed class PendingEventPitchDsp
         {
             internal readonly EventInstance EventInstance;
             internal readonly VoicePitchProcessing Processing;
+            internal readonly DemonicVoiceProfile DemonicProfile;
             internal readonly string Label;
             internal readonly float QueuedAt;
 
             internal PendingEventPitchDsp(
                 EventInstance eventInstance,
                 VoicePitchProcessing processing,
+                DemonicVoiceProfile demonicProfile,
                 string label,
                 float queuedAt)
             {
                 EventInstance = eventInstance;
                 Processing = processing;
+                DemonicProfile = demonicProfile;
                 Label = label;
                 QueuedAt = queuedAt;
             }
@@ -5095,16 +6128,179 @@ namespace BattlecryVoiceTuner
         {
             internal readonly EventInstance EventInstance;
             internal readonly FMOD.ChannelGroup ChannelGroup;
-            internal readonly FMOD.DSP Dsp;
+            internal readonly List<FMOD.DSP> Dsps;
 
             internal ActiveEventPitchDsp(
                 EventInstance eventInstance,
                 FMOD.ChannelGroup channelGroup,
-                FMOD.DSP dsp)
+                List<FMOD.DSP> dsps)
             {
                 EventInstance = eventInstance;
                 ChannelGroup = channelGroup;
-                Dsp = dsp;
+                Dsps = dsps;
+            }
+        }
+
+        private sealed class DemonicPresetSettings
+        {
+            internal static readonly DemonicPresetSettings Minimal =
+                new DemonicPresetSettings(
+                    1.0f,
+                    -2.5f,
+                    0.10f,
+                    5500f,
+                    100f,
+                    10f,
+                    -36f,
+                    -7f,
+                    -80f);
+            internal static readonly DemonicPresetSettings Demonic =
+                new DemonicPresetSettings(
+                    0.80f,
+                    -3.25f,
+                    0.18f,
+                    4200f,
+                    80f,
+                    16f,
+                    -25f,
+                    -7f,
+                    -21f);
+            internal static readonly DemonicPresetSettings Abyssal =
+                new DemonicPresetSettings(
+                    0.65f,
+                    -4.0f,
+                    0.27f,
+                    3200f,
+                    60f,
+                    22f,
+                    -17f,
+                    -12f,
+                    -14f);
+
+            internal readonly float ProgressionCurveExponent;
+            internal readonly float MaximumPitchSemitones;
+            internal readonly float MaximumDistortion;
+            internal readonly float MinimumLowpassCutoffHz;
+            internal readonly float EchoDelayMs;
+            internal readonly float MaximumEchoFeedbackPercent;
+            internal readonly float MaximumEchoWetLevelDb;
+            internal readonly float MaximumShadowPitchSemitones;
+            internal readonly float MaximumShadowMixDb;
+
+            internal DemonicPresetSettings(
+                float progressionCurveExponent,
+                float maximumPitchSemitones,
+                float maximumDistortion,
+                float minimumLowpassCutoffHz,
+                float echoDelayMs,
+                float maximumEchoFeedbackPercent,
+                float maximumEchoWetLevelDb,
+                float maximumShadowPitchSemitones,
+                float maximumShadowMixDb)
+            {
+                ProgressionCurveExponent = progressionCurveExponent;
+                MaximumPitchSemitones = maximumPitchSemitones;
+                MaximumDistortion = maximumDistortion;
+                MinimumLowpassCutoffHz = minimumLowpassCutoffHz;
+                EchoDelayMs = echoDelayMs;
+                MaximumEchoFeedbackPercent = maximumEchoFeedbackPercent;
+                MaximumEchoWetLevelDb = maximumEchoWetLevelDb;
+                MaximumShadowPitchSemitones = maximumShadowPitchSemitones;
+                MaximumShadowMixDb = maximumShadowMixDb;
+            }
+        }
+
+        private sealed class DemonicVoiceProfile
+        {
+            internal static readonly DemonicVoiceProfile None =
+                new DemonicVoiceProfile(
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    DemonicOpenLowpassCutoffHz,
+                    100f,
+                    0f,
+                    -80f,
+                    false,
+                    0f,
+                    0f,
+                    false);
+
+            internal readonly float Intensity;
+            internal readonly float SoulProgress;
+            internal readonly float BloodProgress;
+            internal readonly float PitchSemitones;
+            internal readonly float Distortion;
+            internal readonly float LowpassCutoffHz;
+            internal readonly float EchoDelayMs;
+            internal readonly float EchoFeedbackPercent;
+            internal readonly float EchoWetLevelDb;
+            internal readonly bool HasEcho;
+            internal readonly float ShadowPitchSemitones;
+            internal readonly float ShadowMix;
+            internal readonly bool HasShadow;
+
+            internal bool HasDsps
+            {
+                get
+                {
+                    return Intensity > DemonicDspMinimumIntensity;
+                }
+            }
+
+            internal DemonicVoiceProfile(
+                float intensity,
+                float soulProgress,
+                float bloodProgress,
+                float pitchSemitones,
+                float distortion,
+                float lowpassCutoffHz,
+                float echoDelayMs,
+                float echoFeedbackPercent,
+                float echoWetLevelDb,
+                bool hasEcho,
+                float shadowPitchSemitones,
+                float shadowMix,
+                bool hasShadow)
+            {
+                Intensity = intensity;
+                SoulProgress = soulProgress;
+                BloodProgress = bloodProgress;
+                PitchSemitones = pitchSemitones;
+                Distortion = distortion;
+                LowpassCutoffHz = lowpassCutoffHz;
+                EchoDelayMs = echoDelayMs;
+                EchoFeedbackPercent = echoFeedbackPercent;
+                EchoWetLevelDb = echoWetLevelDb;
+                HasEcho = hasEcho;
+                ShadowPitchSemitones = shadowPitchSemitones;
+                ShadowMix = shadowMix;
+                HasShadow = hasShadow;
+            }
+
+            internal DemonicVoiceProfile WithoutSoulLayers()
+            {
+                if (!HasEcho && !HasShadow)
+                {
+                    return this;
+                }
+
+                return new DemonicVoiceProfile(
+                    Intensity,
+                    SoulProgress,
+                    BloodProgress,
+                    PitchSemitones,
+                    Distortion,
+                    LowpassCutoffHz,
+                    EchoDelayMs,
+                    0f,
+                    -80f,
+                    false,
+                    0f,
+                    0f,
+                    false);
             }
         }
 

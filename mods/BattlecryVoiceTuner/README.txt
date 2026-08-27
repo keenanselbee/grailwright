@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.3.1
+Battlecry Voice Tuner 1.4.2
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -35,6 +35,39 @@ TempoPreserving keeps roughly the original duration. DSP failure safely falls
 back to the full natural shift. Supported native events wait briefly only when
 their selected processing needs the DSP path, preventing an unprocessed onset.
 
+Soul and blood demonic progression
+-----------------------------------
+
+When Soul and Service or Blood Magic Expansion is installed, the next supported
+native vocalization or custom battlecry samples the Hero's current Necromantic
+Power and Blood Power. Each progression reaches half of its audio influence at
+1,000 Soul Vigor or Blood Essence and its full influence at 5,000. Either path
+can strongly transform the voice, while mastering both produces the complete
+effect: 75% of the blend follows the stronger progression and 25% follows their
+shared convergence.
+
+Three ready-made profiles control the transformation. Minimal preserves the
+original subtle King's Elegy-inspired treatment: linear progression, -2.5
+semitones, 0.10 distortion, a 5,500 Hz low-pass, and a 100 ms, 10% feedback,
+-36 dB wet echo. Demonic is the fresh default, emerges earlier, and reaches
+-3.25 semitones, 0.18 distortion, a 4,200 Hz low-pass, and a stronger 80 ms
+echo. Abyssal emerges earliest and reaches -4 semitones, 0.27 distortion, a
+3,200 Hz low-pass, and an aggressive 60 ms echo.
+
+Soul Vigor also raises a lower spectral shadow beneath the intelligible direct
+voice on Demonic and Abyssal. Blood Essence supplies the visceral distortion,
+while mastering both completes the pitch, darkness, echo, and shadow blend.
+Custom uses the individual values under Demonic Progression - Advanced.
+Maximum Effect Strength and the native/battlecry scope controls apply to every
+profile. Battlecry reflections inherit pitch, distortion, and darkness without
+duplicating either supernatural Soul layer on every synthetic reflection.
+
+Progression is sampled once when a sound begins. Spending or gaining either
+resource changes the next voice without morphing a cry already in progress and
+without continuous polling. Native SFX_Player_Hit feedback is not a vocal event
+and remains outside this treatment. Spoken summon commands are always excluded,
+preserving their clarity even when the Hero has mastered both progressions.
+
 Battlecry
 ---------
 
@@ -69,19 +102,19 @@ Command voices
 --------------
 
 Soul and Service can request one spoken command after an explicit Attack, Hold,
-Follow, Recall, Guard, Bulwark, or Hunt order succeeds. Each command type and gender has its own matching pool
+Follow, Recall, Raise All, Guard, Bulwark, or Hunt order succeeds. Each command type and gender has its own matching pool
 and recent-history memory. Automatic targeting, retaliation, and failed commands
 remain silent. The package includes five recordings in each male Attack, Hold,
 and Follow pool and four in each matching female pool. Male commands default to
 +5 semitones, female commands to +1,
-and both retain the overall voice pitch and random variation. Recall, Guard,
-Bulwark, and Hunt include two recordings per gender. Commands do not
+and both retain the overall voice pitch and random variation. Recall, Raise All,
+Guard, Bulwark, and Hunt include two recordings per gender. Commands do not
 challenge enemies or request Wyrd Threat.
 
 Command voices use lighter geometry-aware acoustics than battlecries: 0.10
 outdoors, 0.45 indoors, and no more than one measured reflection. Separate
 reusable FMOD paths prevent a command from changing an active battlecry's reverb.
-While Soul and Service owns Take All Items for a summon formation command,
+While Soul and Service owns Sprint + Take All Items for a summon command,
 Battlecry Voice Tuner yields that hold action. Its separate battlecry hotkey
 remains available.
 
@@ -114,6 +147,7 @@ Use these flat filename pools:
   summon_male_hold_0.wav through summon_male_hold_4.wav
   summon_male_follow_0.wav through summon_male_follow_4.wav
   summon_male_recall_0.wav through summon_male_recall_1.wav
+  summon_male_raiseall_0.wav through summon_male_raiseall_1.wav
   summon_male_guard_0.wav through summon_male_guard_1.wav
   summon_male_bulwark_0.wav through summon_male_bulwark_1.wav
   summon_male_hunt_0.wav through summon_male_hunt_1.wav
@@ -121,11 +155,12 @@ Use these flat filename pools:
   summon_female_hold_0.wav through summon_female_hold_3.wav
   summon_female_follow_0.wav through summon_female_follow_3.wav
   summon_female_recall_0.wav through summon_female_recall_1.wav
+  summon_female_raiseall_0.wav through summon_female_raiseall_1.wav
   summon_female_guard_0.wav through summon_female_guard_1.wav
   summon_female_bulwark_0.wav through summon_female_bulwark_1.wav
   summon_female_hunt_0.wav through summon_female_hunt_1.wav
 
-The 43 packaged command files are loudness-matched around -15 LUFS with a
+The 47 packaged command files are loudness-matched around -15 LUFS with a
 -2 dBTP true-peak ceiling. Their pitch, timing, and dry presentation remain
 unchanged. Custom replacements retain their own authored loudness. Each matching
 command and gender pool avoids its last two successfully played clips by default.
@@ -150,6 +185,20 @@ UseTemporaryAttributeModifiers = false
 CustomPrimaryAttribute = Strength
 CustomSecondaryAttribute = Endurance
 CustomPrimaryAttributeWeight = 0.75
+DynamicDemonicVoiceEnabled = true
+DemonicVoicePreset = Demonic
+MaximumDemonicStrength = 1.0
+IncludeNativeVocalEvents = true
+IncludeBattlecries = true
+DemonicProgressionCurveExponent = 0.80
+MaximumProgressionPitchSemitones = -3.25
+MaximumDemonicDistortion = 0.18
+MinimumDemonicLowpassCutoffHz = 4200
+DemonicEchoDelayMs = 80
+MaximumDemonicEchoFeedbackPercent = 16
+MaximumDemonicEchoWetLevelDb = -25
+MaximumDemonicShadowPitchSemitones = -7
+MaximumDemonicShadowMixDb = -21
 IncludeAttackGrunts = true
 IncludeHurtGrunts = true
 IncludeDeathGrunts = true
@@ -184,11 +233,13 @@ EyesInTheDarkThreat = 10.0
 Diagnostics = false
 
 FoA Mod Manager organizes the settings into General, Voice Tuning,
-Voice Growth - Advanced, Native Voice Events, Battlecry, Battlecry Audio,
-Command Voice, Optional Integrations, Diagnostics, and the final Import
-Previous Settings section. Native Voice Tuning is the master for supported
-game voice events; battlecries and command voices keep their own independent
-enable controls.
+Voice Growth - Advanced, Demonic Progression, Demonic Progression - Advanced,
+Native Voice Events, Battlecry, Battlecry Audio, Command Voice, Optional
+Integrations, Diagnostics, and the final Import Previous Settings section.
+The main demonic tab contains only its enable, profile, strength, and scope;
+individual audio targets stay in the Custom-only advanced tab. Native Voice
+Tuning is the master for supported game voice events; battlecries and command
+voices keep their own independent enable controls.
 
 Compatibility
 -------------
@@ -200,11 +251,19 @@ diminishing threat returns inside Eyes. Eyes remains authoritative about when
 threat and notifications are allowed.
 
 Soul and Service is optional. Its successful Attack, Hold, Follow, Guard,
-Bulwark, and Hunt orders can
-request a gender-matched command voice through the public API. While summons are
-active, Soul and Service owns the Take All Items hold for formation commands;
+Bulwark, Hunt, Recall Host, and Raise All orders can
+request a gender-matched command voice through the public API. While a valid
+formation, Recall, or Raise All chord is active, Soul and Service owns Sprint +
+Take All Items;
 the separate battlecry hotkey remains available. Either mod continues
 working normally when the other is absent or its relevant feature is disabled.
+Its read-only Necromantic Power API also drives the optional Soul Vigor side of
+the demonic vocal treatment; command voices remain excluded from that treatment.
+
+Blood Magic Expansion is optional. Its read-only Blood Power API drives the
+Blood Essence side of the demonic vocal treatment. Battlecry Voice Tuner keeps
+working normally and treats that contribution as zero when Blood Magic Expansion
+is absent.
 
 Grail Floating Text is optional. It provides Eyes in the Dark's Wyrdnight
 responses and can show a visible load error if this mod fails during startup.

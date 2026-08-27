@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.5.9.0")]
-[assembly: AssemblyFileVersion("3.5.9.0")]
+[assembly: AssemblyVersion("3.6.4.0")]
+[assembly: AssemblyFileVersion("3.6.4.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -122,6 +122,7 @@ namespace DishonoredDynamicCrosshair
         Hold,
         Follow,
         Behavior,
+        RaiseAll,
         Rest,
         Mount,
         Campfire
@@ -130,6 +131,7 @@ namespace DishonoredDynamicCrosshair
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.steel-and-bone", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("ks.tgfoa.killing-blow-mastery", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.soul-and-service", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("ks.tgfoa.ambush-integrity", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(VersatileWeaponsPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
@@ -137,7 +139,7 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.5.9";
+        public const string PluginVersion = "3.6.4";
         private const int ConfigSchemaVersion = 19;
         private const float ReferenceScreenHeight = 1440f;
 
@@ -168,6 +170,10 @@ namespace DishonoredDynamicCrosshair
         private const string SteelAndBonePluginGuid = "ks.tgfoa.steel-and-bone";
         private const string SteelAndBoneHitFeedbackApiTypeName =
             "SteelAndBone.SteelAndBoneHitFeedbackApi";
+        private const string KillingBlowMasteryPluginGuid =
+            "ks.tgfoa.killing-blow-mastery";
+        private const string KillingBlowMasteryExecutionVisualApiTypeName =
+            "KillingBlowMastery.ExecutionVisualApi";
         private const string AmbushIntegrityPluginGuid =
             "ks.tgfoa.ambush-integrity";
         private const string AmbushIntegrityApiTypeName =
@@ -178,8 +184,14 @@ namespace DishonoredDynamicCrosshair
             "VersatileWeapons.VersatileWeaponsApi";
         private const float HitMarkerFadeFraction = 0.25f;
         private const float HitMarkerInitialScale = 1.12f;
+        private const int ExecutionPhaseReady = 1;
+        private const int ExecutionPhaseActive = 2;
+        private const int ExecutionPhaseCompleted = 3;
+        private const float ExecutionTintCompleteProgress = 0.90f;
+        private const float ExecutionHandoffProgress = 0.90f;
         private const float BackstabUnderlyingOpacityMultiplier = 0.5f;
         private const float DefaultSummonCommandPulseSeconds = 0.675f;
+        private const float SummonCommandPreviewHandoffMaximumSeconds = 0.25f;
         private const int StealthEyeFrameCount = 11;
 
         internal static DishonoredDynamicCrosshairPlugin Instance { get; private set; }
@@ -273,6 +285,7 @@ namespace DishonoredDynamicCrosshair
                     { InteractionIconKind.Hold, new ReticleAsset() },
                     { InteractionIconKind.Follow, new ReticleAsset() },
                     { InteractionIconKind.Behavior, new ReticleAsset() },
+                    { InteractionIconKind.RaiseAll, new ReticleAsset() },
                     { InteractionIconKind.Rest, new ReticleAsset() },
                     { InteractionIconKind.Mount, new ReticleAsset() },
                     { InteractionIconKind.Campfire, new ReticleAsset() }
@@ -346,8 +359,10 @@ namespace DishonoredDynamicCrosshair
         private Type _interactionKeyIconType;
         private EventInfo _steelAndBoneHitResolvedEvent;
         private Delegate _steelAndBoneHitResolvedHandler;
-        private EventInfo _steelAndBoneKillingBlowResolvedEvent;
-        private Delegate _steelAndBoneKillingBlowResolvedHandler;
+        private EventInfo _steelAndBoneTargetedKillingBlowResolvedEvent;
+        private Delegate _steelAndBoneTargetedKillingBlowResolvedHandler;
+        private MethodInfo _steelAndBoneTryGetKillingBlowQualityMethod;
+        private MethodInfo _killingBlowMasteryTryGetExecutionVisualStateMethod;
         private MethodInfo _ambushIntegrityGetBackstabStateMethod;
         private Func<bool> _versatileWeaponsIsMainHandSuppressed;
         private Func<bool> _versatileWeaponsIsOffHandSuppressed;
@@ -378,6 +393,8 @@ namespace DishonoredDynamicCrosshair
         private Image _weakSpotHitMarkerImage;
         private Image _criticalHitMarkerImage;
         private Image _killingBlowHitMarkerImage;
+        private RectTransform _executionPreviewRect;
+        private Image _executionPreviewImage;
         private Image _backstabReadyOverlayImage;
         private CanvasGroup _crouchCanvasGroup;
         private RectTransform _crouchRect;
@@ -399,6 +416,7 @@ namespace DishonoredDynamicCrosshair
         private float _nextSoulAndServiceCommandCheckTime;
         private float _nextSoulAndServiceApiResolveTime;
         private float _nextSteelAndBoneApiResolveTime;
+        private float _nextKillingBlowMasteryApiResolveTime;
         private float _lastCanvasScaleFactor = -1f;
         private int _lastScreenWidth = -1;
         private int _lastScreenHeight = -1;
@@ -436,8 +454,13 @@ namespace DishonoredDynamicCrosshair
         private InteractionIconKind _summonCommandPulseKind;
         private float _summonCommandPulseStartedAt;
         private float _summonCommandPulseEndsAt;
+        private bool _currentInteractionIsSummonCommandPreview;
+        private InteractionIconKind _summonCommandPreviewHandoffKind;
+        private float _summonCommandPreviewHandoffUntil;
         private bool _steelAndBoneApiUnavailableForSession;
         private bool _steelAndBoneApiFailureLogged;
+        private bool _killingBlowMasteryApiUnavailableForSession;
+        private bool _killingBlowMasteryApiFailureLogged;
         private bool _ambushIntegrityApiUnavailableForSession;
         private bool _ambushIntegrityApiFailureLogged;
         private bool _ambushIntegrityApiUnavailableLogged;
@@ -468,6 +491,16 @@ namespace DishonoredDynamicCrosshair
         private Color _activeHitMarkerColor = Color.white;
         private float _activeHitMarkerStartedAt;
         private float _activeHitMarkerEndsAt;
+        private bool _executionPreviewActive;
+        private int _executionPreviewSequence;
+        private int _executionPreviewPhase;
+        private object _executionPreviewTarget;
+        private int _executionPreviewTier;
+        private float _executionPreviewProgress01;
+        private bool _executionPreviewDeathConfirmed;
+        private bool _executionHandoffStarted;
+        private int _lastCompletedExecutionSequence;
+        private PendingKillingBlowFeedback _pendingExecutionKillingBlow;
         private bool _lastHeroMounted;
         private bool _hasLastHeroMounted;
         private readonly HashSet<string> _invalidColorsLogged =
@@ -1922,9 +1955,15 @@ namespace DishonoredDynamicCrosshair
                 object targetVisible = ReadReflectedProperty(target, "Visible");
                 if (targetVisible is bool && !(bool)targetVisible)
                 {
+                    if (_currentInteractionIsSummonCommandPreview)
+                    {
+                        BeginSummonCommandPreviewHandoff(
+                            _currentInteractionIconKind);
+                    }
                     _currentInteractionView = interactionView as Component;
                     _currentInteractionIconKind = InteractionIconKind.None;
                     _currentInteractionIsIllegal = false;
+                    _currentInteractionIsSummonCommandPreview = false;
                     ApplyReticleState();
                     return;
                 }
@@ -1957,13 +1996,21 @@ namespace DishonoredDynamicCrosshair
                 _currentInteractionView = interactionView as Component;
                 _currentInteractionIconKind = iconKind;
                 _currentInteractionIsIllegal = illegal;
+                _currentInteractionIsSummonCommandPreview =
+                    IsSummonCommandAction(action);
                 ApplyReticleState();
             }
             catch (Exception exception)
             {
+                if (_currentInteractionIsSummonCommandPreview)
+                {
+                    BeginSummonCommandPreviewHandoff(
+                        _currentInteractionIconKind);
+                }
                 _currentInteractionView = null;
                 _currentInteractionIconKind = InteractionIconKind.None;
                 _currentInteractionIsIllegal = false;
+                _currentInteractionIsSummonCommandPreview = false;
                 ApplyReticleState();
 
                 if (!_interactionReadFailureLogged)
@@ -2202,9 +2249,20 @@ namespace DishonoredDynamicCrosshair
                     || String.Equals(
                         actionName as string,
                         "Swarm",
+                        StringComparison.OrdinalIgnoreCase)
+                    || String.Equals(
+                        actionName as string,
+                        "Hunt",
                         StringComparison.OrdinalIgnoreCase))
                 {
                     return InteractionIconKind.Attack;
+                }
+                if (String.Equals(
+                    actionName as string,
+                    "Raise All",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return InteractionIconKind.RaiseAll;
                 }
                 if (String.Equals(
                         actionName as string,
@@ -2252,6 +2310,12 @@ namespace DishonoredDynamicCrosshair
             }
 
             return InteractionIconKind.Hand;
+        }
+
+        private static bool IsSummonCommandAction(object action)
+        {
+            return action != null
+                && IsTypeOrBaseNamed(action, "SummonCommandAction");
         }
 
         private static bool IsTypeOrBaseNamed(object instance, string typeName)
@@ -2557,6 +2621,16 @@ namespace DishonoredDynamicCrosshair
                 _reticleObject.transform,
                 "DishonoredBackstabReadyOverlay");
             _backstabReadyOverlayImage.transform.SetAsLastSibling();
+            _executionPreviewImage = CreateHitMarkerOverlayImage(
+                _reticleObject.transform,
+                "DishonoredExecutionPreview");
+            _executionPreviewRect = _executionPreviewImage.rectTransform;
+            _executionPreviewRect.anchorMin = new Vector2(0.5f, 0.5f);
+            _executionPreviewRect.anchorMax = new Vector2(0.5f, 0.5f);
+            _executionPreviewRect.pivot = new Vector2(0.5f, 0.5f);
+            _executionPreviewRect.anchoredPosition = Vector2.zero;
+            _executionPreviewRect.sizeDelta = Vector2.zero;
+            _executionPreviewImage.transform.SetAsLastSibling();
 
             ApplyReticleState();
         }
@@ -2773,8 +2847,13 @@ namespace DishonoredDynamicCrosshair
                 _currentBackstabReady = false;
                 _backstabPresentationActive = false;
                 _interactionPresentationActive = false;
+                _executionPreviewActive = false;
+                _pendingExecutionKillingBlow = null;
                 _summonCommandPulseActive = false;
                 _summonCommandPulseKind = InteractionIconKind.None;
+                _currentInteractionIsSummonCommandPreview = false;
+                _summonCommandPreviewHandoffKind = InteractionIconKind.None;
+                _summonCommandPreviewHandoffUntil = 0.0f;
                 _lastBloodMagicCorpseActive = false;
                 _lastBloodMagicCorpseState = 0;
                 _lastBloodMagicCorpseQualityTier = 0;
@@ -2797,6 +2876,7 @@ namespace DishonoredDynamicCrosshair
                 SetHitMarkerVisualsEnabled(false);
                 SetHitMarkerOverlaysEnabled(false, false, false, false);
                 SetBackstabReadyOverlayEnabled(false);
+                SetImageEnabled(_executionPreviewImage, false);
 
                 return;
             }
@@ -2913,6 +2993,7 @@ namespace DishonoredDynamicCrosshair
                 SetHitMarkerOverlaysEnabled(false, false, false, false);
             }
             ApplyBackstabReadyOverlay(backstabReady, visible, heroMounted);
+            ApplyExecutionPreviewVisual();
         }
 
         private void ApplyCenterVisuals(
@@ -3134,10 +3215,12 @@ namespace DishonoredDynamicCrosshair
                 && _interactionIconsEnabled.Value
                 && (_quickLootContainer != null
                     || _currentInteractionView != null
-                    || _summonCommandPulseActive)
+                    || _summonCommandPulseActive
+                    || IsSummonCommandPreviewHandoffActive())
                 && iconKind != InteractionIconKind.None
                 && ResolveInteractionIconSprite(iconKind) != null
                 && !_backstabPresentationActive
+                && !_executionPreviewActive
                 && !hitMarkerActive;
         }
 
@@ -3153,6 +3236,11 @@ namespace DishonoredDynamicCrosshair
             if (_summonCommandPulseActive)
             {
                 return _summonCommandPulseKind;
+            }
+
+            if (IsSummonCommandPreviewHandoffActive())
+            {
+                return _summonCommandPreviewHandoffKind;
             }
 
             return _currentInteractionIconKind;
@@ -3235,6 +3323,11 @@ namespace DishonoredDynamicCrosshair
 
         private float UnderlyingCrosshairOpacityMultiplier()
         {
+            if (_executionPreviewActive)
+            {
+                return Mathf.Clamp01(_interactionCrosshairOpacity.Value);
+            }
+
             if (_backstabPresentationActive)
             {
                 return BackstabUnderlyingOpacityMultiplier;
@@ -3505,9 +3598,10 @@ namespace DishonoredDynamicCrosshair
             return !_soulAndServiceApiUnavailableForSession;
         }
 
-        private void UpdateSoulAndServiceCommandPresentation()
+        private void UpdateSoulAndServiceCommandPresentation(bool force = false)
         {
-            if (Time.unscaledTime < _nextSoulAndServiceCommandCheckTime)
+            if (!force
+                && Time.unscaledTime < _nextSoulAndServiceCommandCheckTime)
             {
                 return;
             }
@@ -3561,6 +3655,8 @@ namespace DishonoredDynamicCrosshair
                     + (pulseSeconds > 0.0f
                         ? pulseSeconds
                         : DefaultSummonCommandPulseSeconds);
+                _summonCommandPreviewHandoffKind = InteractionIconKind.None;
+                _summonCommandPreviewHandoffUntil = 0.0f;
                 ApplyReticleState();
             }
             catch (Exception exception)
@@ -3592,6 +3688,8 @@ namespace DishonoredDynamicCrosshair
                     return InteractionIconKind.Follow;
                 case 4:
                     return InteractionIconKind.Behavior;
+                case 5:
+                    return InteractionIconKind.RaiseAll;
                 default:
                     return InteractionIconKind.None;
             }
@@ -3611,6 +3709,41 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
             ApplyInteractionIcon(IsHitMarkerActive());
+        }
+
+        private void BeginSummonCommandPreviewHandoff(
+            InteractionIconKind kind)
+        {
+            if (_summonCommandPulseActive
+                || kind == InteractionIconKind.None)
+            {
+                return;
+            }
+            _summonCommandPreviewHandoffKind = kind;
+            _summonCommandPreviewHandoffUntil = Math.Max(
+                _summonCommandPreviewHandoffUntil,
+                Time.unscaledTime
+                    + SummonCommandPreviewHandoffMaximumSeconds);
+            UpdateSoulAndServiceCommandPresentation(true);
+        }
+
+        private bool IsSummonCommandPreviewHandoffActive()
+        {
+            return _summonCommandPreviewHandoffKind
+                    != InteractionIconKind.None
+                && Time.unscaledTime < _summonCommandPreviewHandoffUntil;
+        }
+
+        private void UpdateSummonCommandPreviewHandoff()
+        {
+            if (_summonCommandPreviewHandoffUntil <= 0.0f
+                || IsSummonCommandPreviewHandoffActive())
+            {
+                return;
+            }
+            _summonCommandPreviewHandoffKind = InteractionIconKind.None;
+            _summonCommandPreviewHandoffUntil = 0.0f;
+            ApplyReticleState();
         }
 
         private bool ReadBloodMagicCorpseActive()
@@ -4078,8 +4211,9 @@ namespace DishonoredDynamicCrosshair
         {
             if (_steelAndBoneHitResolvedEvent != null
                 && _steelAndBoneHitResolvedHandler != null
-                && _steelAndBoneKillingBlowResolvedEvent != null
-                && _steelAndBoneKillingBlowResolvedHandler != null)
+                && _steelAndBoneTargetedKillingBlowResolvedEvent != null
+                && _steelAndBoneTargetedKillingBlowResolvedHandler != null
+                && _steelAndBoneTryGetKillingBlowQualityMethod != null)
             {
                 return true;
             }
@@ -4123,11 +4257,11 @@ namespace DishonoredDynamicCrosshair
                     "ApiVersion",
                     BindingFlags.Public | BindingFlags.Static);
             if (apiVersionField == null
-                || !object.Equals(apiVersionField.GetRawConstantValue(), 6))
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 7))
             {
                 _steelAndBoneApiUnavailableForSession = true;
                 LogSteelAndBoneApiFailure(
-                    "Steel and Bone is loaded, but hit-feedback API v6 is unavailable.");
+                    "Steel and Bone is loaded, but hit-feedback API v7 is unavailable.");
                 return false;
             }
 
@@ -4145,10 +4279,14 @@ namespace DishonoredDynamicCrosshair
             }
 
             EventInfo killingBlowResolvedEvent = apiType.GetEvent(
-                "KillingBlowResolved",
+                "TargetedKillingBlowResolved",
+                BindingFlags.Public | BindingFlags.Static);
+            MethodInfo tryGetKillingBlowQualityMethod = apiType.GetMethod(
+                "TryGetKillingBlowQuality",
                 BindingFlags.Public | BindingFlags.Static);
             if (killingBlowResolvedEvent == null
-                || killingBlowResolvedEvent.EventHandlerType == null)
+                || killingBlowResolvedEvent.EventHandlerType == null
+                || tryGetKillingBlowQualityMethod == null)
             {
                 _steelAndBoneApiUnavailableForSession = true;
                 LogSteelAndBoneApiFailure(
@@ -4166,7 +4304,7 @@ namespace DishonoredDynamicCrosshair
                     this,
                     handlerMethod);
                 MethodInfo killingBlowHandlerMethod = GetType().GetMethod(
-                    nameof(OnSteelAndBoneKillingBlowResolved),
+                    nameof(OnSteelAndBoneTargetedKillingBlowResolved),
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 Delegate killingBlowHandler = Delegate.CreateDelegate(
                     killingBlowResolvedEvent.EventHandlerType,
@@ -4178,8 +4316,12 @@ namespace DishonoredDynamicCrosshair
                 killingBlowResolvedEvent.AddEventHandler(
                     null,
                     killingBlowHandler);
-                _steelAndBoneKillingBlowResolvedEvent = killingBlowResolvedEvent;
-                _steelAndBoneKillingBlowResolvedHandler = killingBlowHandler;
+                _steelAndBoneTargetedKillingBlowResolvedEvent =
+                    killingBlowResolvedEvent;
+                _steelAndBoneTargetedKillingBlowResolvedHandler =
+                    killingBlowHandler;
+                _steelAndBoneTryGetKillingBlowQualityMethod =
+                    tryGetKillingBlowQualityMethod;
                 Logger.LogInfo(
                     "Steel and Bone hit-marker and killing-blow integration is active.");
                 return true;
@@ -4193,6 +4335,336 @@ namespace DishonoredDynamicCrosshair
                     + exception.Message);
                 return false;
             }
+        }
+
+        private bool ResolveKillingBlowMasteryExecutionVisualApi()
+        {
+            if (_killingBlowMasteryTryGetExecutionVisualStateMethod != null)
+            {
+                return true;
+            }
+
+            if (_killingBlowMasteryApiUnavailableForSession)
+            {
+                return false;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _nextKillingBlowMasteryApiResolveTime)
+            {
+                return false;
+            }
+
+            _nextKillingBlowMasteryApiResolveTime = now + 0.5f;
+            BepInEx.PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    KillingBlowMasteryPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null)
+            {
+                _killingBlowMasteryApiUnavailableForSession = true;
+                return false;
+            }
+
+            BaseUnityPlugin plugin = pluginInfo.Instance as BaseUnityPlugin;
+            if (plugin == null)
+            {
+                return false;
+            }
+
+            Type apiType = plugin.GetType().Assembly.GetType(
+                KillingBlowMasteryExecutionVisualApiTypeName,
+                false);
+            FieldInfo apiVersionField = apiType == null
+                ? null
+                : apiType.GetField(
+                    "ApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+            MethodInfo tryGetStateMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "TryGetState",
+                    BindingFlags.Public | BindingFlags.Static);
+            if (apiVersionField == null
+                || !object.Equals(apiVersionField.GetRawConstantValue(), 1)
+                || tryGetStateMethod == null)
+            {
+                _killingBlowMasteryApiUnavailableForSession = true;
+                LogKillingBlowMasteryApiFailure(
+                    "Killing Blow Mastery is loaded, but execution-visual API v1 is unavailable.");
+                return false;
+            }
+
+            _killingBlowMasteryTryGetExecutionVisualStateMethod =
+                tryGetStateMethod;
+            Logger.LogInfo(
+                "Killing Blow Mastery execution-preview integration is active.");
+            return true;
+        }
+
+        private bool TryReadExecutionVisualState(
+            out int sequence,
+            out int phase,
+            out object target,
+            out float progress01,
+            out bool targetDeathConfirmed)
+        {
+            sequence = 0;
+            phase = 0;
+            target = null;
+            progress01 = 0.0f;
+            targetDeathConfirmed = false;
+            if (!ResolveKillingBlowMasteryExecutionVisualApi())
+            {
+                return false;
+            }
+
+            object[] arguments = { 0, 0, null, 0.0f, false };
+            try
+            {
+                object result =
+                    _killingBlowMasteryTryGetExecutionVisualStateMethod.Invoke(
+                        null,
+                        arguments);
+                if (!(result is bool) || !(bool)result)
+                {
+                    return false;
+                }
+
+                sequence = Convert.ToInt32(
+                    arguments[0],
+                    CultureInfo.InvariantCulture);
+                phase = Convert.ToInt32(
+                    arguments[1],
+                    CultureInfo.InvariantCulture);
+                target = arguments[2];
+                progress01 = Mathf.Clamp01(Convert.ToSingle(
+                    arguments[3],
+                    CultureInfo.InvariantCulture));
+                targetDeathConfirmed = arguments[4] is bool
+                    && (bool)arguments[4];
+                return target != null;
+            }
+            catch (Exception exception)
+            {
+                _killingBlowMasteryApiUnavailableForSession = true;
+                _killingBlowMasteryTryGetExecutionVisualStateMethod = null;
+                LogKillingBlowMasteryApiFailure(
+                    "Could not read Killing Blow Mastery execution state: "
+                    + exception.Message);
+                return false;
+            }
+        }
+
+        private bool TryGetExecutionKillingBlowTier(
+            object target,
+            out int tier)
+        {
+            tier = 0;
+            if (!ResolveSteelAndBoneHitFeedbackApi()
+                || _steelAndBoneTryGetKillingBlowQualityMethod == null)
+            {
+                return false;
+            }
+
+            object[] arguments = { target, 0, 0.0f };
+            try
+            {
+                object result = _steelAndBoneTryGetKillingBlowQualityMethod.Invoke(
+                    null,
+                    arguments);
+                if (!(result is bool) || !(bool)result)
+                {
+                    return false;
+                }
+
+                tier = Mathf.Clamp(Convert.ToInt32(
+                    arguments[1],
+                    CultureInfo.InvariantCulture), 1, 4);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogSteelAndBoneApiFailure(
+                    "Could not resolve execution target corpse quality: "
+                    + exception.Message);
+                return false;
+            }
+        }
+
+        private void UpdateExecutionPresentation()
+        {
+            if (_killingBlowOverlaysEnabled == null
+                || !_killingBlowOverlaysEnabled.Value)
+            {
+                ClearExecutionPreview();
+                return;
+            }
+
+            int sequence;
+            int phase;
+            object target;
+            float progress01;
+            bool targetDeathConfirmed;
+            if (!TryReadExecutionVisualState(
+                    out sequence,
+                    out phase,
+                    out target,
+                    out progress01,
+                    out targetDeathConfirmed))
+            {
+                ClearExecutionPreview();
+                return;
+            }
+
+            if (phase == ExecutionPhaseCompleted
+                && sequence == _lastCompletedExecutionSequence)
+            {
+                return;
+            }
+
+            bool changedExecution = !_executionPreviewActive
+                || !ReferenceEquals(target, _executionPreviewTarget)
+                || (sequence != 0
+                    && sequence != _executionPreviewSequence);
+            if (changedExecution)
+            {
+                int tier;
+                if (!TryGetExecutionKillingBlowTier(target, out tier))
+                {
+                    ClearExecutionPreview();
+                    return;
+                }
+
+                _executionPreviewActive = true;
+                _executionPreviewTarget = target;
+                _executionPreviewTier = tier;
+                _executionPreviewSequence = sequence;
+                _executionHandoffStarted = false;
+                _pendingExecutionKillingBlow = null;
+                if (phase == ExecutionPhaseActive)
+                {
+                    _hitMarkerActive = false;
+                }
+                ApplyReticleState();
+            }
+            else if (_executionPreviewSequence == 0 && sequence != 0)
+            {
+                _executionPreviewSequence = sequence;
+            }
+
+            _executionPreviewPhase = phase;
+            _executionPreviewProgress01 = progress01;
+            _executionPreviewDeathConfirmed = targetDeathConfirmed;
+
+            if (phase == ExecutionPhaseActive
+                && targetDeathConfirmed
+                && progress01 >= ExecutionHandoffProgress
+                && !_executionHandoffStarted
+                && _pendingExecutionKillingBlow != null)
+            {
+                _executionHandoffStarted = true;
+                StartKillingBlowHitMarker(_pendingExecutionKillingBlow);
+            }
+
+            if (phase == ExecutionPhaseCompleted)
+            {
+                if (targetDeathConfirmed
+                    && !_executionHandoffStarted
+                    && _pendingExecutionKillingBlow != null)
+                {
+                    StartKillingBlowHitMarker(_pendingExecutionKillingBlow);
+                }
+                _lastCompletedExecutionSequence = sequence;
+                ClearExecutionPreview();
+                ApplyReticleState();
+                return;
+            }
+
+            ApplyExecutionPreviewVisual();
+        }
+
+        private void ApplyExecutionPreviewVisual()
+        {
+            if (_executionPreviewImage == null
+                || _executionPreviewRect == null
+                || !_executionPreviewActive)
+            {
+                SetImageEnabled(_executionPreviewImage, false);
+                return;
+            }
+
+            ReticleAsset asset;
+            _killingBlowOverlayAssets.TryGetValue(
+                _executionPreviewTier,
+                out asset);
+            Sprite sprite = asset == null ? null : asset.Sprite;
+            if (sprite == null)
+            {
+                SetImageEnabled(_executionPreviewImage, false);
+                return;
+            }
+
+            float tintProgress = _executionPreviewPhase == ExecutionPhaseReady
+                ? 0.0f
+                : Mathf.Clamp01(
+                    _executionPreviewProgress01
+                    / ExecutionTintCompleteProgress);
+            Color color = Color.Lerp(
+                Color.white,
+                new Color32(0x8C, 0x00, 0x03, 0xFF),
+                Mathf.SmoothStep(0.0f, 1.0f, tintProgress));
+            if (_executionHandoffStarted)
+            {
+                color.a *= 1.0f - Mathf.InverseLerp(
+                    ExecutionHandoffProgress,
+                    1.0f,
+                    _executionPreviewProgress01);
+            }
+
+            float unitConversion = GetSizeUnitConversion(
+                GetCanvasScaleFactor());
+            float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
+                * Mathf.Clamp(_killingBlowSizeMultiplier.Value, 0.5f, 3f)
+                * unitConversion;
+            _executionPreviewImage.sprite = sprite;
+            _executionPreviewImage.color = color;
+            _executionPreviewRect.sizeDelta = new Vector2(size, size);
+            _executionPreviewRect.anchoredPosition = Vector2.zero;
+            _executionPreviewRect.localRotation = Quaternion.identity;
+            _executionPreviewRect.localScale = Vector3.one;
+            _executionPreviewImage.enabled = color.a > 0.0f;
+            _executionPreviewImage.transform.SetAsLastSibling();
+        }
+
+        private void ClearExecutionPreview()
+        {
+            bool wasActive = _executionPreviewActive;
+            _executionPreviewActive = false;
+            _executionPreviewSequence = 0;
+            _executionPreviewPhase = 0;
+            _executionPreviewTarget = null;
+            _executionPreviewTier = 0;
+            _executionPreviewProgress01 = 0.0f;
+            _executionPreviewDeathConfirmed = false;
+            _executionHandoffStarted = false;
+            _pendingExecutionKillingBlow = null;
+            SetImageEnabled(_executionPreviewImage, false);
+            if (wasActive && _enabled != null && _enabled.Value)
+            {
+                ApplyReticleState();
+            }
+        }
+
+        private void LogKillingBlowMasteryApiFailure(string message)
+        {
+            if (_killingBlowMasteryApiFailureLogged)
+            {
+                return;
+            }
+
+            _killingBlowMasteryApiFailureLogged = true;
+            Logger.LogWarning(message);
         }
 
         private void OnSteelAndBoneHitResolved(
@@ -4210,6 +4682,10 @@ namespace DishonoredDynamicCrosshair
                 || !_enabled.Value
                 || _steelAndBoneHitMarkersEnabled == null
                 || !_steelAndBoneHitMarkersEnabled.Value
+                || (playerAttack
+                    && _executionPreviewActive
+                    && (_executionPreviewPhase == ExecutionPhaseActive
+                        || _executionPreviewPhase == ExecutionPhaseCompleted))
                 || !ShouldAcceptHitMarker(playerAttack))
             {
                 return;
@@ -4240,7 +4716,8 @@ namespace DishonoredDynamicCrosshair
             ApplyReticleState();
         }
 
-        private void OnSteelAndBoneKillingBlowResolved(
+        private void OnSteelAndBoneTargetedKillingBlowResolved(
+            object target,
             int tier,
             float quality01,
             float visualEffectiveness,
@@ -4261,6 +4738,36 @@ namespace DishonoredDynamicCrosshair
                 return;
             }
 
+            UpdateExecutionPresentation();
+            PendingKillingBlowFeedback feedback =
+                new PendingKillingBlowFeedback
+                {
+                    Target = target,
+                    Tier = tier,
+                    VisualEffectiveness = visualEffectiveness,
+                    Immune = immune,
+                    Critical = critical,
+                    WeakSpot = weakSpot,
+                    DamageOverTime = damageOverTime,
+                    PlayerAttack = playerAttack,
+                    Color = color,
+                    Duration = duration
+                };
+            if (_executionPreviewActive
+                && ReferenceEquals(target, _executionPreviewTarget)
+                && (_executionPreviewPhase == ExecutionPhaseActive
+                    || _executionPreviewPhase == ExecutionPhaseCompleted))
+            {
+                _pendingExecutionKillingBlow = feedback;
+                return;
+            }
+
+            StartKillingBlowHitMarker(feedback);
+        }
+
+        private void StartKillingBlowHitMarker(
+            PendingKillingBlowFeedback feedback)
+        {
             float normalDurationMultiplier = Mathf.Clamp(
                 _hitMarkerDurationMultiplier.Value,
                 0.1f,
@@ -4270,17 +4777,17 @@ namespace DishonoredDynamicCrosshair
                 : Mathf.Clamp(_killingBlowDurationMultiplier.Value, 0.1f, 3f);
 
             _activeHitMarkerFrame = ResolveHitMarkerFrame(
-                visualEffectiveness,
-                immune);
-            _activeHitMarkerCritical = critical;
-            _activeHitMarkerWeakSpot = weakSpot;
-            _activeHitMarkerDamageOverTime = damageOverTime;
-            _activeHitMarkerPlayerAttack = playerAttack;
-            _activeKillingBlowTier = Mathf.Clamp(tier, 0, 4);
-                _activeHitMarkerColor = new Color32(0x8C, 0x00, 0x03, 0xFF);
+                feedback.VisualEffectiveness,
+                feedback.Immune);
+            _activeHitMarkerCritical = feedback.Critical;
+            _activeHitMarkerWeakSpot = feedback.WeakSpot;
+            _activeHitMarkerDamageOverTime = feedback.DamageOverTime;
+            _activeHitMarkerPlayerAttack = feedback.PlayerAttack;
+            _activeKillingBlowTier = Mathf.Clamp(feedback.Tier, 0, 4);
+            _activeHitMarkerColor = new Color32(0x8C, 0x00, 0x03, 0xFF);
             _activeHitMarkerStartedAt = Time.unscaledTime;
             _activeHitMarkerEndsAt = _activeHitMarkerStartedAt
-                + Mathf.Clamp(duration, 0.05f, 10f)
+                + Mathf.Clamp(feedback.Duration, 0.05f, 10f)
                 * normalDurationMultiplier
                 * killingBlowDurationMultiplier
                 * GetKillingBlowTierDurationMultiplier(_activeKillingBlowTier);
@@ -4499,7 +5006,10 @@ namespace DishonoredDynamicCrosshair
                 : 1f - Mathf.InverseLerp(fadeStart, 1f, progress);
             Color color = _activeHitMarkerColor;
             color.a *= alpha;
-            color.a *= UnderlyingCrosshairOpacityMultiplier();
+            if (!_executionHandoffStarted)
+            {
+                color.a *= UnderlyingCrosshairOpacityMultiplier();
+            }
             _hitMarkerImage.color = color;
             if (_directHitMarkerImage != null)
             {
@@ -4573,7 +5083,7 @@ namespace DishonoredDynamicCrosshair
         private void UnsubscribeSteelAndBoneHitFeedback()
         {
             if (_steelAndBoneHitResolvedEvent == null
-                && _steelAndBoneKillingBlowResolvedEvent == null)
+                && _steelAndBoneTargetedKillingBlowResolvedEvent == null)
             {
                 return;
             }
@@ -4587,12 +5097,12 @@ namespace DishonoredDynamicCrosshair
                         null,
                         _steelAndBoneHitResolvedHandler);
                 }
-                if (_steelAndBoneKillingBlowResolvedEvent != null
-                    && _steelAndBoneKillingBlowResolvedHandler != null)
+                if (_steelAndBoneTargetedKillingBlowResolvedEvent != null
+                    && _steelAndBoneTargetedKillingBlowResolvedHandler != null)
                 {
-                    _steelAndBoneKillingBlowResolvedEvent.RemoveEventHandler(
+                    _steelAndBoneTargetedKillingBlowResolvedEvent.RemoveEventHandler(
                         null,
-                        _steelAndBoneKillingBlowResolvedHandler);
+                        _steelAndBoneTargetedKillingBlowResolvedHandler);
                 }
             }
             catch (Exception exception)
@@ -4604,8 +5114,9 @@ namespace DishonoredDynamicCrosshair
 
             _steelAndBoneHitResolvedEvent = null;
             _steelAndBoneHitResolvedHandler = null;
-            _steelAndBoneKillingBlowResolvedEvent = null;
-            _steelAndBoneKillingBlowResolvedHandler = null;
+            _steelAndBoneTargetedKillingBlowResolvedEvent = null;
+            _steelAndBoneTargetedKillingBlowResolvedHandler = null;
+            _steelAndBoneTryGetKillingBlowQualityMethod = null;
         }
 
         private Color ParseColor(string colorText)
@@ -5470,6 +5981,8 @@ namespace DishonoredDynamicCrosshair
                     return "interaction_command_follow.png";
                 case InteractionIconKind.Behavior:
                     return "interaction_command_behavior.png";
+                case InteractionIconKind.RaiseAll:
+                    return "interaction_command_raiseall.png";
                 case InteractionIconKind.Rest:
                     return "interaction_rest.png";
                 case InteractionIconKind.Mount:
@@ -5703,16 +6216,26 @@ namespace DishonoredDynamicCrosshair
             RefreshQuickLootState();
             UpdateSoulAndServiceCommandPresentation();
             UpdateSummonCommandPulse();
+            UpdateSummonCommandPreviewHandoff();
 
             if (_currentInteractionView == null
-                && _currentInteractionIconKind != InteractionIconKind.None)
+                && (_currentInteractionIconKind != InteractionIconKind.None
+                    || _currentInteractionIsSummonCommandPreview))
             {
+                if (_currentInteractionIsSummonCommandPreview)
+                {
+                    BeginSummonCommandPreviewHandoff(
+                        _currentInteractionIconKind);
+                }
+                _currentInteractionView = null;
                 _currentInteractionIconKind = InteractionIconKind.None;
                 _currentInteractionIsIllegal = false;
+                _currentInteractionIsSummonCommandPreview = false;
                 ApplyReticleState();
             }
 
             ResolveSteelAndBoneHitFeedbackApi();
+            UpdateExecutionPresentation();
             bool backstabReady = ReadAmbushIntegrityBackstabReady();
             if (backstabReady != _currentBackstabReady)
             {
@@ -5913,6 +6436,7 @@ namespace DishonoredDynamicCrosshair
                 || !_steelAndBoneHitMarkersEnabled.Value)
             {
                 _hitMarkerActive = false;
+                ClearExecutionPreview();
                 UnsubscribeSteelAndBoneHitFeedback();
             }
             else
@@ -6070,6 +6594,8 @@ namespace DishonoredDynamicCrosshair
             _weakSpotHitMarkerImage = null;
             _criticalHitMarkerImage = null;
             _killingBlowHitMarkerImage = null;
+            _executionPreviewRect = null;
+            _executionPreviewImage = null;
             _backstabReadyOverlayImage = null;
             _crosshairParent = null;
         }
@@ -6264,6 +6790,20 @@ namespace DishonoredDynamicCrosshair
             }
 
             return method;
+        }
+
+        private sealed class PendingKillingBlowFeedback
+        {
+            internal object Target;
+            internal int Tier;
+            internal float VisualEffectiveness;
+            internal bool Immune;
+            internal bool Critical;
+            internal bool WeakSpot;
+            internal bool DamageOverTime;
+            internal bool PlayerAttack;
+            internal string Color;
+            internal float Duration;
         }
 
         private sealed class ContextSettings

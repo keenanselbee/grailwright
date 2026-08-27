@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.5.9
+Version 3.6.4
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.5.9
+  Version: 3.6.4
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -59,6 +59,7 @@ Deployment files:
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_hold.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_follow.png
   BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_behavior.png
+  BepInEx\plugins\DishonoredDynamicCrosshair\interaction_command_raiseall.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_weakspot_overlay.png
   BepInEx\plugins\DishonoredDynamicCrosshair\hitmarker_critical_overlay.png
@@ -70,7 +71,7 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.5.9 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
+Version 3.6.4 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
 diagnostic was replaced by one general Diagnostics switch.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
@@ -219,9 +220,13 @@ by the game's interaction HUD. Mining, lumbering, fishing, digging, reading,
 talking, resting in a bed or bedroll, mounting, and using a campfire or bonfire
 have dedicated PNGs. Soul and Service commands use
 interaction_command_attack.png, interaction_command_hold.png,
-interaction_command_follow.png, or interaction_command_behavior.png. Attack and
-Swarm share the attack icon. Attack, Swarm, and individual Hold/Follow pulse for
-0.675 seconds. Hold All, Follow All, and Behavior
+interaction_command_follow.png, interaction_command_behavior.png, or
+interaction_command_raiseall.png. Attack,
+Swarm, and Soul and Service's terrain-targeted Hunt command share the attack
+icon. Every summon-command preview retains its current icon until the matching
+confirmation pulse arrives, without briefly exposing the ordinary crosshair.
+Attack, Swarm, Hunt, and individual Hold/Follow pulse for
+0.675 seconds. Hold All, Follow All, Recall, Raise All, and Behavior
 pulse for 1.35 seconds. Items, containers, doors, gathering, searching, and
 other ordinary or unknown interactions use interaction_hand.png.
 While a corpse, chest, or other container's quick-loot panel is open, a
@@ -359,7 +364,7 @@ without mipmaps.
 Steel and Bone Hit Markers
 --------------------------
 
-When Steel and Bone 3.9.4 or newer is installed, successful outgoing hero-side
+When Steel and Bone 4.0.1 or newer is installed, successful outgoing hero-side
 damage can temporarily replace the outer context reticle with contextual hit
 feedback. IncludeSummonAttacks defaults to true. Summon feedback remains lower
 priority and cannot replace an active hero marker; hero feedback always replaces
@@ -401,6 +406,14 @@ KillingBlowOverlaysEnabled:
   hitmarker_killingblow_1_overlay.png - Worthy
   hitmarker_killingblow_2_overlay.png - Potent
   hitmarker_killingblow_3_overlay.png - Prime
+
+With Killing Blow Mastery 1.9.4, the exact corpse-quality overlay also becomes
+the Execute indicator. It appears white while Execute is available, keeps the
+same Meager, Worthy, Potent, or Prime shape throughout the finisher, and follows
+the real normalized animation progress toward #8C0003. Target-matched Steel and
+Bone feedback is buffered during the cinematic. At 90% progress it hands off to
+the normal layered killing-blow marker; an execution that exits without its
+target's confirmed death clears the preview without displaying a kill.
 
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
 All marker layers use Steel and Bone's final damage-number color. The latest hit
@@ -515,13 +528,16 @@ Older BloodMagicApi versions are not supported.
 Soul and Service is supported through `SoulAndService.SoulAndServiceApi` v6 for
 automatic green quality reticles over Soul Salvage corpses and active owned
 summons plus dedicated heavy-service heal and empower reticles. Attack, Swarm,
-Hold, and Follow interactions use their matching command icons, and
-successful commands pulse the matching icon for the duration published by Soul
+terrain Hunt, Hold, Follow, and Raise All interactions use their matching command icons, and
+successful commands pulse the matching icon seamlessly for the duration published by Soul
 and Service.
 
-Steel and Bone 3.9.4 or newer is supported for optional contextual hit-marker
+Steel and Bone 4.0.1 or newer is supported for optional contextual hit-marker
 and corpse-tier killing-blow feedback through
-`SteelAndBone.SteelAndBoneHitFeedbackApi` v6. Older API versions are not supported. Damage
+`SteelAndBone.SteelAndBoneHitFeedbackApi` v7. Killing Blow Mastery 1.9.4 is
+supported through `KillingBlowMastery.ExecutionVisualApi` v1 for optional
+corpse-quality execution previews and target-confirmed handoff. Older API
+versions are not supported. Damage
 numbers may be disabled in Steel and Bone without disabling the hit markers.
 
 Versatile Weapons - Dynamic Grip is supported through its optional

@@ -1,3 +1,33 @@
+Version 3.6.4
+Generalized Soul and Service's preview-to-pulse handoff across every summon
+command, retaining the preview's exact Attack, Hold, Follow, Behavior, or Raise
+All icon until its matching pulse arrives instead of briefly showing the ordinary
+crosshair.
+Made the handoff immediately poll Soul and Service's command sequence and retain
+a bounded cancellation timeout when no command is published.
+Kept ConfigSchemaVersion at 19 because this presentation correction changes no setting or default.
+
+Version 3.6.3
+Kept Soul and Service's terrain Hunt Attack icon continuous from preview into its
+confirmation pulse, eliminating the split-second ordinary crosshair between them.
+Kept ConfigSchemaVersion at 19 because this presentation correction changes no setting or default.
+
+Version 3.6.2
+Kept the normal layered killing-blow marker fully visible behind the execution preview during its final handoff instead of applying the preview's underlying-crosshair dimming.
+Kept ConfigSchemaVersion at 19 because this presentation correction changes no setting or default.
+
+Version 3.6.1
+Added a dedicated Raise All command icon and matching 1.35-second Soul and Service confirmation pulse.
+Added Killing Blow Mastery execution previews using the target's authoritative Steel and Bone Meager, Worthy, Potent, or Prime corpse-quality skull.
+Kept one white preview shape through the finisher, tinted it toward killing-blow dark red from real normalized animation progress, and handed target-matched feedback to the normal layered marker at 90% completion.
+Buffered the exact execution target's killing-blow event and cleared cancelled finishers without presenting a false kill.
+Updated Steel and Bone integration to target-aware hit-feedback API v7.
+Kept ConfigSchemaVersion at 19 because this optional integration changes no Dynamic Crosshair setting or default.
+
+Version 3.6.0
+Recognized Soul and Service's terrain-targeted Hunt interaction as an Attack command, so its Hunt text uses the existing attack-point icon while behavior-selection feedback keeps the behavior icon.
+Kept ConfigSchemaVersion at 19 because this integration update changes no Dynamic Crosshair setting or default.
+
 Version 3.5.9
 Refreshed Blood Magic corpse feedback at 20 Hz instead of 6.7 Hz so newly focused and changed ritual targets respond promptly.
 Consumed Blood Magic Expansion's shared per-frame target snapshot so state, quality, and tier remain internally consistent without repeated targeting probes.

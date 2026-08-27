@@ -65,7 +65,14 @@ Assert-Contract ($source.Contains('"AvailableActions"')) "Locked-state inspectio
 Assert-Contract ([regex]::IsMatch($source, 'bool locked = HasLockedAction[\s\S]*?bool illegal = !locked[\s\S]*?iconKind = locked\s*\? InteractionIconKind\.Lockpick[\s\S]*?: illegal\s*\? InteractionIconKind\.Hand')) "Locked and illegal interaction priorities changed."
 Assert-Contract ($source.Contains('IsTypeOrBaseNamed(action, "ToolInteractAction")')) "Tool actions are not classified structurally."
 Assert-Contract ($source.Contains('ReadReflectedProperty(') -and $source.Contains('requiredTool,') -and $source.Contains('"EnumName"')) "Tool actions do not read the rich enum's authoritative identity."
-Assert-Contract ([regex]::IsMatch($source, '(?s)"Attack".*?\|\| String\.Equals\(\s*actionName as string,\s*"Swarm".*?InteractionIconKind\.Attack')) "Swarm is not classified with the Attack command icon."
+Assert-Contract ([regex]::IsMatch($source, '(?s)"Attack".*?\|\| String\.Equals\(\s*actionName as string,\s*"Swarm".*?\|\| String\.Equals\(\s*actionName as string,\s*"Hunt".*?InteractionIconKind\.Attack')) "Swarm and terrain Hunt are not classified with the Attack command icon."
+Assert-Contract ($source.Contains('SummonCommandPreviewHandoffMaximumSeconds = 0.25f')) "The summon-command preview handoff ceiling changed."
+Assert-Contract ([regex]::IsMatch($source, '(?s)IsSummonCommandAction\(object action\).*?IsTypeOrBaseNamed\(action, "SummonCommandAction"\)')) "Summon command actions are not identified for seamless handoff."
+Assert-Contract ([regex]::IsMatch($source, '(?s)OnInteractionViewFilled\(.*?if \(targetVisible is bool && !\(bool\)targetVisible\).*?_currentInteractionIsSummonCommandPreview.*?BeginSummonCommandPreviewHandoff\(\s*_currentInteractionIconKind\).*?_currentInteractionIsSummonCommandPreview\s*=\s*IsSummonCommandAction\(action\)')) "A disappearing summon-command preview does not enter the icon-preserving handoff."
+Assert-Contract ([regex]::IsMatch($source, '(?s)CurrentInteractionIconKind\(\).*?_summonCommandPulseActive.*?return _summonCommandPulseKind;.*?IsSummonCommandPreviewHandoffActive\(\).*?return _summonCommandPreviewHandoffKind;')) "The summon-command preview handoff does not retain its classified icon until the pulse arrives."
+Assert-Contract ([regex]::IsMatch($source, '(?s)ShouldShowInteractionIcon\(bool hitMarkerActive\).*?_currentInteractionView != null.*?_summonCommandPulseActive.*?IsSummonCommandPreviewHandoffActive\(\)')) "The interaction layer is not kept visible throughout summon-command handoffs."
+Assert-Contract ([regex]::IsMatch($source, '(?s)BeginSummonCommandPreviewHandoff\(.*?_summonCommandPreviewHandoffKind = kind;.*?SummonCommandPreviewHandoffMaximumSeconds.*?UpdateSoulAndServiceCommandPresentation\(true\)')) "Summon-command handoff does not immediately check for its command pulse."
+Assert-Contract ([regex]::IsMatch($source, '(?s)_summonCommandPulseEndsAt = Time\.unscaledTime.*?_summonCommandPreviewHandoffKind = InteractionIconKind\.None;.*?_summonCommandPreviewHandoffUntil = 0\.0f;.*?UpdateSoulAndServiceCommandPresentation\(\);\s*UpdateSummonCommandPulse\(\);\s*UpdateSummonCommandPreviewHandoff\(\);')) "An observed summon-command pulse does not atomically replace the preview handoff."
 foreach ($token in @(
     'case "Mining":',
     'case "Lumbering":',
@@ -113,7 +120,8 @@ $assetNames = @(
     "interaction_command_attack.png",
     "interaction_command_hold.png",
     "interaction_command_follow.png",
-    "interaction_command_behavior.png"
+    "interaction_command_behavior.png",
+    "interaction_command_raiseall.png"
 )
 
 Add-Type -AssemblyName System.Drawing

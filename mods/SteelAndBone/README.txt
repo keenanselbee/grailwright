@@ -1,5 +1,5 @@
 Steel and Bone
-Version 4.0.0
+Version 4.0.4
 
 Platforms: Windows and Linux through Proton.
 
@@ -39,11 +39,11 @@ The design is inspired by Requiem's emphasis on coherent rules, preparation, and
 PRESETS
 -------
 
-Tempered increases incoming health damage by 5%, reduces outgoing health damage and experience gains by 5%, adds 10% base damage to confirmed weak-spot hits, keeps resource, armor-weight, recovery, poise, enemy combat movement, combat mana regeneration, and positive parry-window bonuses neutral, gives a third same-class potion a 5-second poisoning window, uses x1.10 arrows, and raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.20. Food remains usable during combat, heals at half rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted.
+Tempered increases incoming health damage by 5%, reduces outgoing health damage and experience gains by 5%, adds 10% base damage to confirmed weak-spot hits, keeps resource, armor-weight, recovery, poise, enemy combat movement, combat mana regeneration, positive critical-damage bonuses, positive parry-window bonuses, and dash cost neutral, gives a third same-class potion a 5-second poisoning window, uses x1.10 arrows, and raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.20. Food remains usable during combat, heals at half rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted.
 
-Hardened is the default. Incoming health damage rises by 10%, while outgoing health damage and experience gains fall by 10%. Confirmed weak spots add 20% base damage. Stamina use, mana use, and native armor-weight penalties rise by 5%; positive combat mana regeneration and accumulated positive parry-window bonuses use x0.75; a third same-class potion has a 10-second poisoning window; food cannot be consumed during combat by default, heals at 37.5% rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted; agile common enemies gain up to 5% combat movement; enemy attack slots gain 1; enemy sight, hero footstep hearing range, and native aggro persistence rise to x1.40; enemy recovery and player poise damage fall by 5%; light armor movement gains 2.5%; medium physical armor is x1.05; heavy and overloaded physical armor are x1.10; and arrows use x1.30.
+Hardened is the default. Incoming health damage rises by 10%, while outgoing health damage and experience gains fall by 10%. Confirmed weak spots add 20% base damage. Stamina use, mana use, and native armor-weight penalties rise by 5%; dash stamina cost uses an additional x1.15; positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses use x0.75; a third same-class potion has a 10-second poisoning window; food cannot be consumed during combat by default, heals at 37.5% rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted; agile common enemies gain up to 5% combat movement; enemy attack slots gain 1; enemy sight, hero footstep hearing range, and native aggro persistence rise to x1.40; enemy recovery and player poise damage fall by 5%; light armor movement gains 2.5%; medium physical armor is x1.05; heavy and overloaded physical armor are x1.10; and arrows use x1.30.
 
-Crucible increases incoming health damage by 15%, reduces outgoing health damage and experience gains by 15%, adds 30% base damage to confirmed weak-spot hits, uses 10% resource, armor-weight, recovery, poise, and enemy combat movement pressure, reduces positive combat mana regeneration and accumulated positive parry-window bonuses to x0.50, gives a third same-class potion a 15-second poisoning window, prevents food consumption during combat by default, makes food heal at 25% rate for four times its native duration with 1 stamina restored each second outside Stamina Depleted, raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.60, adds 2 enemy attack slots, grants 5% light armor movement, makes medium physical armor x1.10 and heavy or overloaded physical armor x1.20, and uses x1.50 arrows.
+Crucible increases incoming health damage by 15%, reduces outgoing health damage and experience gains by 15%, adds 30% base damage to confirmed weak-spot hits, uses 10% resource, armor-weight, recovery, poise, and enemy combat movement pressure, applies an additional x1.30 dash stamina cost, and reduces positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses to x0.50. It gives a third same-class potion a 15-second poisoning window, prevents food consumption during combat by default, makes food heal at 25% rate for four times its native duration with 1 stamina restored each second outside Stamina Depleted, raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.60, adds 2 enemy attack slots, grants 5% light armor movement, makes medium physical armor x1.10 and heavy or overloaded physical armor x1.20, and uses x1.50 arrows.
 
 PlayerArrowGravityMultiplier also remains independent from presets and defaults to 0.75, reducing player-arrow gravity by 25% on every preset without tilting the native launch direction.
 
@@ -60,7 +60,7 @@ Player arrows are scaled at the native bow launch and use 0.75x gravity by defau
 
 Enemy awareness remains native-first. Sight tuning multiplies each active hostile NPC's sight-distance stat, while hearing tuning changes only the range of hero footstep noise and preserves native strength, wall checks, armor noise, and individual NPC hearing. Aggro persistence slows only the native combat decay rate on Hardened and Crucible. Steel and Bone does not force immediate combat, extend chase boundaries, suppress combat exit, or replace target-loss rules. Friendly NPCs, summons, allies, inactive AI, and dead actors remain outside owned NPC tuning.
 
-Positive mana regeneration is scaled only while the hero is in combat: x1.00 on Tempered, x0.75 on Hardened, and x0.50 on Crucible. Mana Shield proportionally relieves only Steel and Bone's added penalty, while the game's own Mana Shield reduction and post-hit regeneration lock remain authoritative. Positive parry-window bonuses from skills, equipment, and other effects use the same x1.00/x0.75/x0.50 sequence. The native 0.05-second base window and non-positive total bonuses are unchanged. Both multipliers are independently toggleable and remain adjustable after a preset change.
+Positive mana regeneration is scaled only while the hero is in combat: x1.00 on Tempered, x0.75 on Hardened, and x0.50 on Crucible. Mana Shield proportionally relieves only Steel and Bone's added penalty, while the game's own Mana Shield reduction and post-hit regeneration lock remain authoritative. Positive critical-damage bonuses above the native 0.45 bonus and positive parry-window bonuses above the native 0.05-second base use the same x1.00/x0.75/x0.50 sequence. The native x1.45 critical hit, native parry base, and non-positive bonuses are unchanged. All three systems are independently toggleable and adjustable after a preset change. Dash stamina cost separately uses x1.00/x1.15/x1.30 and stacks with the resolved native and general stamina-use cost.
 
 Potion healing, auxiliary effects, item tooltips, and Better UI presentation remain native. Steel and Bone tracks overdrinking independently for Health, Mana, Stamina, and Utility potions. Every potion adds 40 buildup to its matching class, so two same-class potions are safe. A third triggers Potion Poisoning when the first-to-third span is within 5 seconds on Tempered, 10 seconds on Hardened, or 15 seconds on Crucible; a lone potion fully clears after 10, 20, or 30 seconds respectively. Mixing classes does not combine their buildup. Direct multi-resource restoratives contribute once to every resource they restore; temporary buffs, cures, locks, regeneration effects, reset potions, and other non-restoratives share Utility. Triggering any class clears every bucket and pauses buildup during the native status. Health, Mana, or Stamina poisoning drains 30% of the matching snapshotted maximum over the status, while Utility drains 15% of maximum HP, MP, and SP. Normal recovery can offset the drain; Health stops at 1 HP, while Mana and Stamina can reach zero.
 
@@ -70,7 +70,7 @@ Stamina Depleted uses Smooth vignette presentation by default. Steel and Bone ke
 
 Enemy movement tuning multiplies the game's native combat movement stat without changing attack animation speed. EnemyMovementSpeedMultiplier defaults to x1.00/x1.05/x1.10 by preset and can be tuned from x1.00 to x2.00 afterward. Exposed, Light-armored, and ordinary agile enemies such as wolves and swarms receive the full bonus. Medium-armored, Elite, Beholder, and Slugholder enemies receive at most half. Heavy-armored enemies, bears, constructs, flora, bosses, minibosses, scripted Critters, and non-pathing actors retain their vanilla speed. It applies only to living, active, hostile combatants and can also affect native movement during lunging attacks.
 
-Vanilla attack slots are Story/Easy 1, Normal/Challenge 2, Hard 3, and Survival 4. Steel and Bone adds 0/1/2 and caps only its own increase at 6 by default.
+Vanilla attack slots are Story/Easy 1, Normal/Challenge 2, Hard 3, and Survival 4. EnemyAttackSlotBonus defaults to 0/1/2 by preset and can be customized afterward. The configured bonus adds directly to the value supplied by the game or another mod.
 
 MAIN DIFFICULTY SETTINGS
 ------------------------
@@ -86,8 +86,12 @@ DifficultyModifiersEnabled = true
 ProgressiveTenacityEnabled = true
 ModifyPlayerDamageDealt = true
 WeakSpotDamageBonus = 0.20
+ModifyCriticalDamageBonus = true
+PositiveCriticalDamageBonusMultiplier = 0.75
 ModifyPlayerDamageTaken = true
 ModifyStaminaUsage = true
+ModifyDashStaminaCost = true
+DashStaminaCostMultiplier = 1.15
 ModifyManaUsage = true
 ModifyCombatManaRegeneration = true
 CombatManaRegenerationMultiplier = 0.75
@@ -106,7 +110,7 @@ PreventFoodUseInCombat = true
 StaminaDepletedVignetteMode = Smooth
 StaminaDepletedVignetteFadeSeconds = 0.30
 ModifyEnemyAttackSlots = true
-EnemyAttackSlotCap = 6
+EnemyAttackSlotBonus = 1
 ModifyEnemyAttackRecovery = true
 ModifyEnemyMovementSpeed = true
 EnemyMovementSpeedMultiplier = 1.05
@@ -157,7 +161,7 @@ Bleed, Poison, Burn, and Breath status-tick numbers begin at 3x the ordinary wor
 
 EffectivenessFeedbackSensitivity expands or compresses resistance and weakness distance from neutral for damage-number color and hit-marker tier selection only. Changing Preset sets it to 1.20 on Tempered, 1.10 on Hardened, or 1.00 on Crucible; customize the single value afterward without changing combat damage, number size, or duration.
 
-WeakSpotDamageBonus changes to 0.10, 0.20, or 0.30 with Tempered, Hardened, or Crucible. It is added beside the game's native precision bonuses before outgoing and matchup multipliers. Native critical damage remains unchanged. Critical and weak-spot number size and red tint follow their combined real bonus up to x1.50 size and 50% red on unresisted hits, then fade with material resistance so heavily resisted hits remain dim; immunity remains grey. Hit-marker frames continue to report material effectiveness rather than being promoted by precision hits.
+WeakSpotDamageBonus changes to 0.10, 0.20, or 0.30 with Tempered, Hardened, or Crucible. It is added beside the game's native precision bonuses before outgoing and matchup multipliers. PositiveCriticalDamageBonusMultiplier scales only critical-damage bonuses above the native 0.45 bonus by x1.00, x0.75, or x0.50; the native x1.45 critical hit is unchanged. Critical and weak-spot number size and red tint follow their combined real bonus up to x1.50 size and 50% red on unresisted hits, then fade with material resistance so heavily resisted hits remain dim; immunity remains grey. Hit-marker frames continue to report material effectiveness rather than being promoted by precision hits.
 
 Dishonored Dynamic Crosshair 3.4.8 or newer can replace its current reticle
 with eight effectiveness frames covering immunity or a direct physical or
@@ -174,8 +178,12 @@ without turning the old roster uniformly Meager or distant enemies uniformly
 Prime. Dishonored draws that tier above the weak-spot and critical layers. This
 calculation shares Blood Magic Expansion's definitions but does not require
 Blood Magic Expansion.
-Hit-feedback API v6 identifies whether each result came directly from the hero,
-allowing Dishonored to exclude hero-owned summon damage when configured.
+Hit-feedback API v7 identifies whether each result came directly from the hero,
+allows optional integrations to query the same complete corpse-quality result
+before death, and publishes the exact defeated target with killing-blow
+feedback. Dishonored Dynamic Crosshair 3.6.2 uses those additions to preview and later hand off KBM
+Executions without confusing them with unrelated deaths. It can still exclude
+hero-owned summon damage when configured.
 Steel and Bone shows RESISTED instead of 1 for ineffective hits. Damage-over-
 time ticks use their separate marker sizing and do not use the 1-damage frame.
 The markers use the same final colors and durations as Steel and Bone's damage

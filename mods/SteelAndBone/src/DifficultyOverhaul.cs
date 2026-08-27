@@ -62,6 +62,7 @@ namespace SteelAndBone
             "VersatileWeapons.VersatileWeaponsApi";
         private const float NeutralTolerance = 0.0001f;
         private const float NativeBaseParryWindowSeconds = 0.05f;
+        private const float NativeCriticalDamageBonus = 0.45f;
         private const float DifficultyRefreshIntervalSeconds = 1.0f;
         private const float DifficultyDiagnosticIntervalSeconds = 1.0f;
         private const float EnemyHearingRangeDiagnosticIntervalSeconds = 2.0f;
@@ -105,9 +106,13 @@ namespace SteelAndBone
         private ConfigEntry<bool> _difficultyModifiersEnabled;
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
         private ConfigEntry<float> _weakSpotDamageBonus;
+        private ConfigEntry<bool> _modifyCriticalDamageBonus;
+        private ConfigEntry<float> _positiveCriticalDamageBonusMultiplier;
         private ConfigEntry<bool> _modifyPlayerDamageTaken;
         private ConfigEntry<bool> _passiveShieldProtectionEnabled;
         private ConfigEntry<bool> _modifyStaminaUsage;
+        private ConfigEntry<bool> _modifyDashStaminaCost;
+        private ConfigEntry<float> _dashStaminaCostMultiplier;
         private ConfigEntry<bool> _modifyManaUsage;
         private ConfigEntry<bool> _modifyCombatManaRegeneration;
         private ConfigEntry<float> _combatManaRegenerationMultiplier;
@@ -127,7 +132,7 @@ namespace SteelAndBone
         private ConfigEntry<StaminaDepletedVignetteMode> _staminaDepletedVignetteMode;
         private ConfigEntry<float> _staminaDepletedVignetteFadeSeconds;
         private ConfigEntry<bool> _modifyEnemyAttackSlots;
-        private ConfigEntry<int> _enemyAttackSlotCap;
+        private ConfigEntry<int> _enemyAttackSlotBonus;
         private ConfigEntry<bool> _modifyEnemyAttackRecovery;
         private ConfigEntry<bool> _modifyEnemyMovementSpeed;
         private ConfigEntry<float> _enemyMovementSpeedMultiplier;
@@ -360,6 +365,22 @@ namespace SteelAndBone
                     60,
                     5,
                     new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _modifyCriticalDamageBonus = Config.Bind(
+                "Difficulty - Player",
+                "ModifyCriticalDamageBonus",
+                true,
+                ConfigUi("Apply Positive Critical Damage Bonus Multiplier only to critical-damage bonuses above the game's native 0.45 bonus when Difficulty Modifiers is enabled. The native x1.45 critical hit and penalties remain unchanged.", "Difficulty - Player", "Positive Critical Damage Bonus", 60, 6));
+            _positiveCriticalDamageBonusMultiplier = Config.Bind(
+                "Difficulty - Player",
+                "PositiveCriticalDamageBonusMultiplier",
+                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                ConfigUi(
+                    "Multiplier for accumulated positive critical-damage bonuses above the native 0.45 bonus. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. The native x1.45 critical hit is not reduced.",
+                    "Difficulty - Player",
+                    "Positive Critical Damage Bonus Multiplier",
+                    60,
+                    7,
+                    new AcceptableValueRange<float>(0.0f, 1.0f)));
             _modifyPlayerDamageTaken = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerDamageTaken",
@@ -375,6 +396,22 @@ namespace SteelAndBone
                 "ModifyStaminaUsage",
                 true,
                 ConfigUi("Increase player stamina usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Stamina Usage", 60, 30));
+            _modifyDashStaminaCost = Config.Bind(
+                "Difficulty - Player",
+                "ModifyDashStaminaCost",
+                true,
+                ConfigUi("Apply Dash Stamina Cost Multiplier to the game's resolved dash cost when Difficulty Modifiers is enabled. This stacks with native and general stamina-use multipliers.", "Difficulty - Player", "Dash Stamina Cost", 60, 31));
+            _dashStaminaCostMultiplier = Config.Bind(
+                "Difficulty - Player",
+                "DashStaminaCostMultiplier",
+                GetPresetDashStaminaCostMultiplier(_preset.Value),
+                ConfigUi(
+                    "Multiplier for dash stamina cost. Changing Preset sets this to 1.00 for Tempered, 1.15 for Hardened, or 1.30 for Crucible; customize it afterward if desired.",
+                    "Difficulty - Player",
+                    "Dash Stamina Cost Multiplier",
+                    60,
+                    32,
+                    new AcceptableValueRange<float>(0.25f, 3.0f)));
             _modifyManaUsage = Config.Bind(
                 "Difficulty - Player",
                 "ModifyManaUsage",
@@ -473,23 +510,23 @@ namespace SteelAndBone
                 "Difficulty - Enemies",
                 "ModifyEnemyAttackSlots",
                 true,
-                ConfigUi("Add 0, 1, or 2 simultaneous enemy attack slots to the current game difficulty according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Slots", 70, 0));
+                ConfigUi("Add Enemy Attack Slot Bonus to the current game difficulty when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Slots", 70, 0));
             _progressiveTenacityEnabled = Config.Bind(
                 "Difficulty - Enemies",
                 "ProgressiveTenacityEnabled",
                 true,
                 ConfigUi("From hero level 20 through 35, progressively reduce direct health, poise, force, stamina, and parry stamina damage against hostile enemies. Material weaknesses halve Tenacity. This independent progression layer does not change the selected preset.", "Difficulty - Enemies", "Progressive Tenacity", 70, 5));
-            _enemyAttackSlotCap = Config.Bind(
+            _enemyAttackSlotBonus = Config.Bind(
                 "Difficulty - Enemies",
-                "EnemyAttackSlotCap",
-                6,
+                "EnemyAttackSlotBonus",
+                GetPresetAttackSlotBonus(_preset.Value),
                 ConfigUi(
-                    "Safety cap for slots added by Steel and Bone when Enemy Attack Slots and Difficulty Modifiers are enabled. This never lowers a higher value supplied by the game or another mod.",
+                    "Additional simultaneous enemy attack slots when Enemy Attack Slots and Difficulty Modifiers are enabled. Changing Preset resets this to 0 for Tempered, 1 for Hardened, or 2 for Crucible; customize it afterward if desired.",
                     "Difficulty - Enemies",
-                    "Maximum Enemy Attack Slots",
+                    "Additional Enemy Attack Slots",
                     70,
                     10,
-                    new AcceptableValueRange<int>(1, 12)));
+                    new AcceptableValueRange<int>(0, 11)));
             _modifyEnemyAttackRecovery = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyAttackRecovery",
@@ -604,10 +641,12 @@ namespace SteelAndBone
             {
                 ApplyPresetEffectivenessFeedbackSensitivity();
                 ApplyPresetWeakSpotDamageBonus();
+                ApplyPresetAttackSlotBonus();
                 ApplyPresetEnemyMovementSpeedMultiplier();
                 ApplyPresetHostileArcherAimScatter();
                 ApplyPresetPreventFoodUseInCombat();
                 ApplyPresetCombatSustainabilityMultipliers();
+                ApplyPresetDashStaminaCostMultiplier();
             }
             if (args != null
                 && (ReferenceEquals(args.ChangedSetting, _enabled)
@@ -645,6 +684,16 @@ namespace SteelAndBone
                 nameof(PositiveParryWindowBonusPatch.Prefix),
                 "HeroParry.Parry",
                 "positive parry-window bonus modifier");
+            Type humanoidMovementBaseType = AccessTools.TypeByName(
+                "Awaken.TG.Main.Heroes.MovementSystems.HumanoidMovementBase");
+            PatchOptionalPostfix(
+                humanoidMovementBaseType == null
+                    ? null
+                    : AccessTools.PropertyGetter(humanoidMovementBaseType, "DashCost"),
+                typeof(DashStaminaCostPatch),
+                nameof(DashStaminaCostPatch.Postfix),
+                "HumanoidMovementBase.DashCost",
+                "dash stamina-cost modifier");
             _resourceStatsPatchAvailable = PatchOptionalPostfix(
                 AccessTools.Method(typeof(CharacterStats.CharacterStatsWrapper), "Initialize"),
                 typeof(CharacterStatsInitializePatch),
@@ -1298,6 +1347,39 @@ namespace SteelAndBone
             {
                 _positiveParryWindowBonusMultiplier.Value = presetValue;
             }
+            if (_positiveCriticalDamageBonusMultiplier != null
+                && Math.Abs(_positiveCriticalDamageBonusMultiplier.Value - presetValue) > NeutralTolerance)
+            {
+                _positiveCriticalDamageBonusMultiplier.Value = presetValue;
+            }
+        }
+
+        private static float GetPresetDashStaminaCostMultiplier(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.Hardened:
+                    return 1.15f;
+                case Preset.Crucible:
+                    return 1.30f;
+                case Preset.Tempered:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private void ApplyPresetDashStaminaCostMultiplier()
+        {
+            if (_dashStaminaCostMultiplier == null || _preset == null)
+            {
+                return;
+            }
+
+            float presetValue = GetPresetDashStaminaCostMultiplier(_preset.Value);
+            if (Math.Abs(_dashStaminaCostMultiplier.Value - presetValue) > NeutralTolerance)
+            {
+                _dashStaminaCostMultiplier.Value = presetValue;
+            }
         }
 
         private float PresetReductionMultiplier()
@@ -1387,6 +1469,40 @@ namespace SteelAndBone
             duration = new TimeDuration(
                 NativeBaseParryWindowSeconds + (positiveBonus * multiplier),
                 timeDuration.UnscaledTime);
+        }
+
+        private void ApplyCriticalDamageBonusMultiplier(
+            DamageModifiersInfo modifiersInfo,
+            ref float damageModifier)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyCriticalDamageBonus)
+                || _positiveCriticalDamageBonusMultiplier == null
+                || !modifiersInfo.IsCritical
+                || modifiersInfo.CriticalMultiplier <= NativeCriticalDamageBonus + NeutralTolerance)
+            {
+                return;
+            }
+
+            float multiplier = Mathf.Clamp01(_positiveCriticalDamageBonusMultiplier.Value);
+            if (ApproximatelyNeutral(multiplier))
+            {
+                return;
+            }
+
+            float positiveBonus = modifiersInfo.CriticalMultiplier - NativeCriticalDamageBonus;
+            damageModifier -= positiveBonus * (1.0f - multiplier);
+        }
+
+        private void ApplyDashStaminaCostMultiplier(ref float staminaCost)
+        {
+            if (!DifficultyModifierIsEnabled(_modifyDashStaminaCost)
+                || _dashStaminaCostMultiplier == null
+                || staminaCost <= 0.0f)
+            {
+                return;
+            }
+
+            staminaCost *= Mathf.Clamp(_dashStaminaCostMultiplier.Value, 0.25f, 3.0f);
         }
 
         private float PresetArrowVelocityMultiplier()
@@ -1725,14 +1841,9 @@ namespace SteelAndBone
             }
         }
 
-        private int PresetAttackSlotBonus()
+        private static int GetPresetAttackSlotBonus(Preset preset)
         {
-            if (_preset == null)
-            {
-                return 0;
-            }
-
-            switch (_preset.Value)
+            switch (preset)
             {
                 case Preset.Hardened:
                     return 1;
@@ -1742,6 +1853,25 @@ namespace SteelAndBone
                 default:
                     return 0;
             }
+        }
+
+        private void ApplyPresetAttackSlotBonus()
+        {
+            if (_enemyAttackSlotBonus == null || _preset == null)
+            {
+                return;
+            }
+
+            int presetValue = GetPresetAttackSlotBonus(_preset.Value);
+            if (_enemyAttackSlotBonus.Value != presetValue)
+            {
+                _enemyAttackSlotBonus.Value = presetValue;
+            }
+        }
+
+        private int ConfiguredAttackSlotBonus()
+        {
+            return _enemyAttackSlotBonus == null ? 0 : Mathf.Clamp(_enemyAttackSlotBonus.Value, 0, 11);
         }
 
         private void ApplyOutgoingHealthDamageModifier(ref float damageModifier)
@@ -3618,17 +3748,15 @@ namespace SteelAndBone
                 return;
             }
 
-            int bonus = PresetAttackSlotBonus();
+            int bonus = ConfiguredAttackSlotBonus();
             if (bonus <= 0)
             {
                 return;
             }
 
             int before = value;
-            int cap = _enemyAttackSlotCap == null ? 6 : Mathf.Clamp(_enemyAttackSlotCap.Value, 1, 12);
-            int maximumAfterSteelAndBone = Math.Max(before, cap);
             long increased = (long)before + bonus;
-            value = (int)Math.Min(increased, maximumAfterSteelAndBone);
+            value = (int)Math.Min(increased, int.MaxValue);
             LogDifficultyDiagnostic("EnemyAttackSlots", before, value, bonus);
         }
 
@@ -5016,7 +5144,7 @@ namespace SteelAndBone
 
         private bool AttackSlotsModifierIsEffective()
         {
-            return DifficultyModifierIsEnabled(_modifyEnemyAttackSlots) && PresetAttackSlotBonus() > 0;
+            return DifficultyModifierIsEnabled(_modifyEnemyAttackSlots) && ConfiguredAttackSlotBonus() > 0;
         }
 
         private static void AddConflictIf(List<string> conflicts, bool condition, string settingName)
@@ -5367,6 +5495,18 @@ namespace SteelAndBone
                 if (plugin != null)
                 {
                     plugin.ApplyPositiveParryWindowBonus(hero, ref duration);
+                }
+            }
+        }
+
+        private static class DashStaminaCostPatch
+        {
+            public static void Postfix(ref float __result)
+            {
+                SteelAndBonePlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyDashStaminaCostMultiplier(ref __result);
                 }
             }
         }

@@ -57,7 +57,10 @@ Assert-Contract ($steel.Contains('string.Equals(tag, "Tier:" + tier, StringCompa
 Assert-Contract ($steel.Contains('CorpseQualityBuckets.CalculateIntrinsicQuality01(')) "Steel and Bone does not use shared intrinsic quality."
 Assert-Contract ($steel.Contains('CorpseQualityBuckets.ApplyThreatClassAdjustment(')) "Steel and Bone does not use shared threat-class weighting."
 Assert-Contract ($steel.Contains('CorpseQualityBuckets.ApplyBoundedRelativeLevelAdjustment(')) "Steel and Bone does not use shared bounded level weighting."
-Assert-Contract ($steel.Contains('public const int ApiVersion = 6;')) "Steel and Bone hit-feedback API changed unexpectedly."
+Assert-Contract ($steel.Contains('public const int ApiVersion = 7;')) "Steel and Bone hit-feedback API is not v7."
+Assert-Contract ($steel.Contains('public static bool TryGetKillingBlowQuality(')) "Steel and Bone does not expose pre-death killing-blow quality."
+Assert-Contract ($steel.Contains('TryGetKillingBlowQualityForInterop(')) "Steel and Bone does not share one killing-blow quality calculation between preview and death feedback."
+Assert-Contract ($steel.Contains('TargetedKillingBlowResolved')) "Steel and Bone does not expose target-aware killing-blow feedback."
 
 Assert-Contract ($blood.Contains('ConfigSchemaVersion = 18')) "Blood Magic Expansion schema is not 18."
 Assert-Contract (-not $blood.Contains('"ReferenceKillXP"')) "Blood Magic Expansion still binds ReferenceKillXP."

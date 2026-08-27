@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 3.9.0.
+Current release: 4.0.4.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -10,8 +10,10 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 |---|---:|---:|---:|---|
 | Player health damage dealt | 0.95 | 0.90 | 0.85 | `ModifyPlayerDamageDealt` |
 | Added weak-spot base damage | +0.10 | +0.20 | +0.30 | `WeakSpotDamageBonus` |
+| Positive critical-damage bonus above native +0.45 | 1.00 | 0.75 | 0.50 | `ModifyCriticalDamageBonus` plus adjustable multiplier |
 | Player health damage taken | 1.05 | 1.10 | 1.15 | `ModifyPlayerDamageTaken` |
 | Stamina and mana usage | 1.00 | 1.05 | 1.10 | Separate resource toggles |
+| Dash stamina cost | 1.00 | 1.15 | 1.30 | `ModifyDashStaminaCost` plus adjustable multiplier; stacks with resolved cost |
 | Positive combat mana regeneration | 1.00 | 0.75 | 0.50 | `ModifyCombatManaRegeneration` plus adjustable multiplier |
 | Accumulated positive parry-window bonus | 1.00 | 0.75 | 0.50 | `ModifyParryWindowBonus` plus adjustable multiplier |
 | Player and hostile arrow velocity | 1.10 | 1.30 | 1.50 | Separate projectile toggles |
@@ -25,7 +27,7 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Medium physical armor | 1.00 | 1.05 | 1.10 | `ModifyArmorPhysicalProtection` |
 | Heavy/Overload physical armor | 1.00 | 1.10 | 1.20 | `ModifyArmorPhysicalProtection` |
 | Passive shield share of effective Block | 8% | 10% | 12% | `PassiveShieldProtectionEnabled` |
-| Enemy attack slots | +0 | +1 | +2 | `ModifyEnemyAttackSlots` |
+| Enemy attack slots | +0 | +1 | +2 | `ModifyEnemyAttackSlots`, `EnemyAttackSlotBonus` |
 | Enemy attack recovery | 1.00 | 0.95 | 0.90 | `ModifyEnemyAttackRecovery` |
 | Common enemy combat movement | 1.00 | Up to 1.05 | Up to 1.10 | `ModifyEnemyMovementSpeed`, `EnemyMovementSpeedMultiplier` |
 | Player poise damage dealt | 1.00 | 0.95 | 0.90 | `ModifyPlayerPoiseDamageDealt` |
@@ -70,8 +72,9 @@ Tenacity reduces player-caused poise, force, and enemy stamina damage at full st
 | Light mobility | Non-saved tweak on `CharacterStats.MovementSpeedMultiplier` | Apply only while native `ArmorWeightType` is Light. |
 | Physical protection | `Hero.TotalArmor(DamageSubType)` postfix | Scale only physical subtype queries. Medium and Heavy use distinct values; Overload inherits Heavy. |
 | Passive shields | Hero-target branch of `HealthElement.ApplyDamageModifiers` | For direct physical hits within native `BlockAngle`, reduce damage by effective Block multiplied by the preset share. Require a readied shield, cap coverage to the forward 180 degrees, and skip active blocks, rear hits, magic, status effects, and damage over time. |
-| Weak-spot reward | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Add the preset's `WeakSpotDamageBonus` beside native critical, weak-spot, sneak, and backstab components, then apply outgoing pressure and material matchups. Do not alter native critical damage, hero stats, item stats, or hitbox definitions. |
+| Critical and weak-spot tuning | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Preserve the native +0.45 critical bonus, scale only accumulated positive critical bonus above it by 1.00/0.75/0.50, and add the preset's `WeakSpotDamageBonus` beside native precision components before outgoing pressure and material matchups. Do not mutate hero stats, item stats, or hitbox definitions. |
 | Resources | Non-saved stat tweaks | Keep exactly one owned tweak per active lever. |
+| Dash stamina cost | `HumanoidMovementBase.DashCost` postfix | Multiply the game's resolved dash cost by 1.00/1.15/1.30 so affordability checks and payment agree. Preserve native and general stamina multipliers. |
 | Combat mana regeneration | `Hero.ManaRegen` and `Hero.PredictedManaRegen` postfixes | Scale positive regeneration only while native hero combat state is active. Apply 1.00/0.75/0.50 by preset, then proportionally relieve only Steel and Bone's added penalty as native `ManaShield` rises. Preserve native Mana Shield reduction, post-hit regeneration locks, and all out-of-combat regeneration. |
 | Positive parry-window bonus | `HeroParry.Parry(Hero, IDuration)` prefix | Scale only the duration above the native 0.05-second base by 1.00/0.75/0.50. Preserve the base, non-positive total bonuses, unscaled-time identity, and every unrelated parry consequence. |
 | Potion overdrinking | Transaction around `ItemSkillsInvoker.PerformImmediate`, suppression at `CharacterStatuses.BuildupStatus`, exact-status activation postfix, and `BuildupStatus.Decay` progress postfix | Classify direct flat, percentage, and timed restoration into independent Health, Mana, and Stamina buckets; send every other consumed potion to Utility. Add 40 to each matching bucket and decay all buckets at 4/2/1.333 points per second, producing 5/10/15-second first-to-third poisoning windows without combining different classes. On completion, clear all buckets and activate the single native buildup status at its exact threshold. Snapshot the relevant maxima and meter a 30% matching-resource drain, or 15% all-resource Utility drain, from actual native progress loss. Preserve healing, auxiliary effects, tooltips, Better UI presentation, icon, and active decay. |

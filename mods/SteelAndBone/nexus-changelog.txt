@@ -1,7 +1,5 @@
-TargetVersion=4.0.0
-BaselineVersion=3.9.6
+TargetVersion=4.0.4
+BaselineVersion=4.0.3
 
-Added EnemyMovementSpeedMultiplier as an x1.00 to x2.00 combat-movement tuning control. Presets retain their x1.00, x1.05, and x1.10 defaults, while players can raise the value afterward to match faster movement setups.
-The existing safety tiers remain in place: ordinary agile enemies receive the full bonus, Medium and Elite enemies receive at most half, and Heavy, massive, boss, scripted, and non-pathing enemies retain native speed.
-Split Blood and Necrotic magic into complementary biological and spiritual matchups across living flesh, undead, skeletons, constructs, spirits, sea creatures, flora, and fungus.
-Blood damage now uses Blood Magic Expansion's exact damage provenance API when available, retaining text classification only as a compatibility fallback.
+Preserved the native x1.45 critical hit while scaling only added critical-damage bonuses above that baseline by x1.00/x0.75/x0.50 across Tempered, Hardened, and Crucible.
+Added a separate dash stamina-cost multiplier of x1.00/x1.15/x1.30 by preset, applied consistently to both affordability checks and payment.

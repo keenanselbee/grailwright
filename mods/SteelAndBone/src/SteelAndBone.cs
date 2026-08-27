@@ -32,21 +32,43 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("4.0.0.0")]
-[assembly: AssemblyFileVersion("4.0.0.0")]
-[assembly: AssemblyInformationalVersion("4.0.0")]
+[assembly: AssemblyVersion("4.0.4.0")]
+[assembly: AssemblyFileVersion("4.0.4.0")]
+[assembly: AssemblyInformationalVersion("4.0.4")]
 
 namespace SteelAndBone
 {
     public static class SteelAndBoneHitFeedbackApi
     {
-        public const int ApiVersion = 6;
+        public const int ApiVersion = 7;
 
         public static event Action<float, float, bool, bool, bool, bool, bool, string, float>
             HitResolved;
 
         public static event Action<int, float, float, bool, bool, bool, bool, bool, string, float>
             KillingBlowResolved;
+
+        public static event Action<object, int, float, float, bool, bool, bool, bool, bool, string, float>
+            TargetedKillingBlowResolved;
+
+        public static bool TryGetKillingBlowQuality(
+            object target,
+            out int qualityTier,
+            out float quality01)
+        {
+            SteelAndBonePlugin plugin = SteelAndBonePlugin.Instance;
+            if (plugin == null)
+            {
+                qualityTier = 0;
+                quality01 = 0.0f;
+                return false;
+            }
+
+            return plugin.TryGetKillingBlowQualityForInterop(
+                target,
+                out qualityTier,
+                out quality01);
+        }
 
         internal static void Publish(
             float effectivenessMultiplier,
@@ -90,6 +112,7 @@ namespace SteelAndBone
         }
 
         internal static void PublishKillingBlow(
+            object target,
             int qualityTier,
             float quality01,
             float visualEffectivenessMultiplier,
@@ -103,17 +126,46 @@ namespace SteelAndBone
         {
             Action<int, float, float, bool, bool, bool, bool, bool, string, float> handlers =
                 KillingBlowResolved;
-            if (handlers == null)
+            if (handlers != null)
+            {
+                Delegate[] subscribers = handlers.GetInvocationList();
+                for (int i = 0; i < subscribers.Length; i++)
+                {
+                    try
+                    {
+                        ((Action<int, float, float, bool, bool, bool, bool, bool, string, float>)subscribers[i])(
+                            qualityTier,
+                            quality01,
+                            visualEffectivenessMultiplier,
+                            immune,
+                            critical,
+                            weakSpot,
+                            damageOverTime,
+                            playerAttack,
+                            color,
+                            durationSeconds);
+                    }
+                    catch
+                    {
+                        // Optional presentation integrations must not affect combat.
+                    }
+                }
+            }
+
+            Action<object, int, float, float, bool, bool, bool, bool, bool, string, float>
+                targetedHandlers = TargetedKillingBlowResolved;
+            if (targetedHandlers == null)
             {
                 return;
             }
 
-            Delegate[] subscribers = handlers.GetInvocationList();
-            for (int i = 0; i < subscribers.Length; i++)
+            Delegate[] targetedSubscribers = targetedHandlers.GetInvocationList();
+            for (int i = 0; i < targetedSubscribers.Length; i++)
             {
                 try
                 {
-                    ((Action<int, float, float, bool, bool, bool, bool, bool, string, float>)subscribers[i])(
+                    ((Action<object, int, float, float, bool, bool, bool, bool, bool, string, float>)targetedSubscribers[i])(
+                        target,
                         qualityTier,
                         quality01,
                         visualEffectivenessMultiplier,
@@ -167,7 +219,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "4.0.0";
+        public const string PluginVersion = "4.0.4";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -179,7 +231,7 @@ namespace SteelAndBone
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
-        private const int ConfigSchemaVersion = 26;
+        private const int ConfigSchemaVersion = 27;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -877,8 +929,12 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _difficultyModifiersEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerDamageDealt, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _weakSpotDamageBonus, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyCriticalDamageBonus, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _positiveCriticalDamageBonusMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerDamageTaken, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyStaminaUsage, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _modifyDashStaminaCost, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _dashStaminaCostMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyManaUsage, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyCombatManaRegeneration, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _combatManaRegenerationMultiplier, ref restoredCount, ref clampedCount);
@@ -898,7 +954,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _staminaDepletedVignetteMode, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _staminaDepletedVignetteFadeSeconds, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackSlots, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _enemyAttackSlotCap, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _enemyAttackSlotBonus, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyAttackRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyEnemyMovementSpeed, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _enemyMovementSpeedMultiplier, ref restoredCount, ref clampedCount);
@@ -1054,6 +1110,7 @@ namespace SteelAndBone
                 return;
             }
 
+            ApplyCriticalDamageBonusMultiplier(modifiersInfo, ref damageModifier);
             ApplyWeakSpotDamageBonus(modifiersInfo, ref damageModifier);
             ApplyOutgoingHealthDamageModifier(ref damageModifier);
 
@@ -4860,34 +4917,16 @@ namespace SteelAndBone
                 && resolvedTarget is NpcElement)
             {
                 NpcElement defeatedNpc = (NpcElement)resolvedTarget;
-                float killXp = TryReadKillXp(defeatedNpc);
-                float maxHealth = TryReadMaxHealth(defeatedNpc);
-                int nativeTier;
-                bool hasNativeTier = TryReadNativeTier(defeatedNpc, out nativeTier);
-                bool hasQualityEvidence;
-                float quality01 = Grailwright.Shared.CorpseQualityBuckets.CalculateIntrinsicQuality01(
-                    hasNativeTier ? nativeTier : -1,
-                    killXp,
-                    Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceKillXp,
-                    maxHealth,
-                    Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceMaxHealth,
-                    out hasQualityEvidence,
-                    out _);
-                quality01 = Grailwright.Shared.CorpseQualityBuckets.ApplyThreatClassAdjustment(
-                    quality01,
-                    ResolveCorpseQualityThreatClass(defeatedNpc));
-                quality01 = ApplyCorpseQualityLevelAdjustment(
-                    quality01,
+                int qualityTier;
+                float quality01;
+                if (TryGetKillingBlowQualityForInterop(
                     defeatedNpc,
-                    out _);
-                Grailwright.Shared.CorpseQualityTier qualityTier =
-                    Grailwright.Shared.CorpseQualityBuckets.GetTier(
-                        quality01,
-                        hasQualityEvidence);
-                if (qualityTier != Grailwright.Shared.CorpseQualityTier.None)
+                    out qualityTier,
+                    out quality01))
                 {
                     SteelAndBoneHitFeedbackApi.PublishKillingBlow(
-                        (int)qualityTier,
+                        defeatedNpc,
+                        qualityTier,
                         quality01,
                         visualEffectivenessMultiplier,
                         hitMarkerImmune,
@@ -5022,6 +5061,47 @@ namespace SteelAndBone
             object template = GetOptionalPropertyValue(target, "Template");
             float value = TryReadKillXpDirect(template);
             return value > 0.0f ? value : TryReadKillXpDirect(target);
+        }
+
+        internal bool TryGetKillingBlowQualityForInterop(
+            object target,
+            out int qualityTier,
+            out float quality01)
+        {
+            qualityTier = 0;
+            quality01 = 0.0f;
+            NpcElement npc = target as NpcElement;
+            if (npc == null || npc.HasBeenDiscarded)
+            {
+                return false;
+            }
+
+            float killXp = TryReadKillXp(npc);
+            float maxHealth = TryReadMaxHealth(npc);
+            int nativeTier;
+            bool hasNativeTier = TryReadNativeTier(npc, out nativeTier);
+            bool hasQualityEvidence;
+            quality01 = Grailwright.Shared.CorpseQualityBuckets.CalculateIntrinsicQuality01(
+                hasNativeTier ? nativeTier : -1,
+                killXp,
+                Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceKillXp,
+                maxHealth,
+                Grailwright.Shared.CorpseQualityBuckets.DefaultReferenceMaxHealth,
+                out hasQualityEvidence,
+                out _);
+            quality01 = Grailwright.Shared.CorpseQualityBuckets.ApplyThreatClassAdjustment(
+                quality01,
+                ResolveCorpseQualityThreatClass(npc));
+            quality01 = ApplyCorpseQualityLevelAdjustment(
+                quality01,
+                npc,
+                out _);
+            Grailwright.Shared.CorpseQualityTier resolvedTier =
+                Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                    quality01,
+                    hasQualityEvidence);
+            qualityTier = (int)resolvedTier;
+            return resolvedTier != Grailwright.Shared.CorpseQualityTier.None;
         }
 
         private bool TryReadNativeTier(NpcElement npc, out int nativeTier)

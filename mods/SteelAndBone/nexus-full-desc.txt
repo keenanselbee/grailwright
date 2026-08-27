@@ -106,14 +106,14 @@ Focused techniques provide fallback options without replacing material counters:
 
 Built-in damage numbers make matchups easy to read: resisted hits appear smaller and greyer, weaknesses larger and warmer, immunities use distinct styling, and critical or weak-spot hits gain a red tint. Damage-over-time ticks appear higher and smaller to reduce clutter. Optional notice-only modes can replace numbers with RESISTED and IMMUNE text on every qualifying direct hit or only once per enemy.
 
-[b]Effectiveness Feedback Sensitivity[/b] controls visual emphasis without changing damage. Confirmed weak spots add 10-30% base damage depending on the preset, while native critical damage remains unchanged. Size, color, font, timing, drift, damage-over-time display, and active-number limits are configurable.
+[b]Effectiveness Feedback Sensitivity[/b] controls visual emphasis without changing damage. Confirmed weak spots add 10-30% base damage depending on the preset. The native x1.45 critical hit remains intact, while only added critical-damage bonuses above that baseline are scaled by preset. Size, color, font, timing, drift, damage-over-time display, and active-number limits are configurable.
 
 
 [b]Optional crosshair hit markers[/b]
 
-[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.4.8 or newer can present the same final result at the center of the screen through eight states ranging from immunity and resistance through neutral damage to weakness.
+[url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.6.2 or newer can present the same final result at the center of the screen through eight states ranging from immunity and resistance through neutral damage to weakness.
 
-Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Dishonored can also distinguish the hero's direct attacks from damage dealt by hero-owned summons and optionally exclude the latter. Hit markers work without floating damage numbers and update immediately with each hit.
+Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Hit-feedback API v7 also exposes the same complete Meager-through-Prime result before death and attaches exact target identity to confirmed killing blows. Dishonored uses that state with Killing Blow Mastery to preview one white corpse-quality skull during Execute, tint it toward dark red through the finisher, and hand off to the exact target's normal marker near completion. Dishonored can also distinguish the hero's direct attacks from damage dealt by hero-owned summons and optionally exclude the latter. Hit markers work without floating damage numbers and update immediately with each hit.
 
 [line]
 
@@ -165,7 +165,7 @@ Active blocking remains fully native and never receives the passive reduction tw
 
 Across the presets, incoming damage rises while outgoing damage falls. Higher presets also increase stamina and mana costs and reduce repeated stagger pressure, making defense and resource management more important.
 
-Positive mana regeneration during combat and accumulated positive parry-window bonuses use x1.00 / x0.75 / x0.50 across Tempered, Hardened, and Crucible. Mana Shield proportionally relieves only Steel and Bone's added regeneration penalty, while the game's native Mana Shield reduction and post-hit lock remain active. Parry scaling preserves the native 0.05-second base window and every non-positive total bonus. Both systems have separate toggles and adjustable multipliers.
+Positive mana regeneration during combat, added critical-damage bonuses above the native +0.45 baseline, and accumulated positive parry-window bonuses use x1.00 / x0.75 / x0.50 across Tempered, Hardened, and Crucible. Mana Shield proportionally relieves only Steel and Bone's added regeneration penalty, while the game's native Mana Shield reduction and post-hit lock remain active. Critical and parry scaling preserve the native x1.45 critical hit, the native 0.05-second parry base, and every non-positive bonus. Each system has a separate toggle and adjustable multiplier. Dash stamina cost separately uses x1.00 / x1.15 / x1.30 and stacks with the game's resolved dash and general stamina costs.
 
 Stamina Depleted presentation defaults to one smooth eased fade instead of the native repeating flash and abrupt disappearance. Native and Off modes remain available, and the choice changes presentation only; exhaustion audio, penalties, restrictions, and timing remain intact.
 
@@ -222,6 +222,7 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 | Incoming player damage          | x1.05    | x1.10       | x1.15       |
 | Kill, quest, and proficiency XP | x0.95    | x0.90       | x0.85       |
 | Added weak-spot base damage     | +10%     | +20%        | +30%        |
+| Positive added crit damage      | x1.00    | x0.75       | x0.50       |
 | Player and hostile arrow speed  | x1.10    | x1.30       | x1.50       |
 | Player arrow gravity            | x0.75    | x0.75       | x0.75       |
 | Hostile archer aim scatter      | 1.50 m   | 1.25 m      | 1.00 m      |
@@ -230,6 +231,7 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 | Native combat aggro persistence | x1.20    | x1.40       | x1.60       |
 | Light/agile enemy movement      | x1.00    | Up to x1.05 | Up to x1.10 |
 | Stamina and mana usage          | x1.00    | x1.05       | x1.10       |
+| Dash stamina cost               | x1.00    | x1.15       | x1.30       |
 | Positive combat mana regen      | x1.00    | x0.75       | x0.50       |
 | Positive parry-window bonus     | x1.00    | x0.75       | x0.50       |
 | Safe same-class potions         | 2        | 2           | 2           |
@@ -250,6 +252,8 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 Progression follows the same curve: kill, quest, objective, and proficiency experience are reduced by preset, creating a slower and more deliberate journey. Coin rewards remain unchanged.
 
 Each preset supplies coherent defaults rather than locking the player into them. Incoming and outgoing damage, weak-spot power, archer accuracy, arrow flight, resource pressure, armor, enemy aggression, recovery, and progression remain independently adjustable. The complete supporting difficulty layer can also be disabled without turning off material combat or damage feedback.
+
+EnemyAttackSlotBonus can be customized after selecting a preset and adds directly to the value supplied by the game or another mod.
 
 [line]
 

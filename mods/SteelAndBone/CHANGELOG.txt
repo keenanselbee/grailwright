@@ -1,3 +1,21 @@
+Version 4.0.4
+Added preset-scaled critical-damage control that preserves the native x1.45 critical hit while multiplying only accumulated positive critical-damage bonuses above the native +0.45 baseline by x1.00 on Tempered, x0.75 on Hardened, or x0.50 on Crucible.
+Added a dash-specific stamina-cost multiplier of x1.00/x1.15/x1.30 by preset. It multiplies the game's resolved dash cost, so native difficulty, general stamina use, affordability checks, and actual payment remain consistent.
+Made both systems independently toggleable and adjustable after preset changes. Kept ConfigSchemaVersion at 27 because the new settings are additive and safe for existing configs.
+
+Version 4.0.3
+Removed EnemyAttackSlotCap so EnemyAttackSlotBonus now adds directly to the value supplied by the game or another mod.
+Advanced ConfigSchemaVersion from 26 to 27 because the obsolete EnemyAttackSlotCap setting was removed; compatible durable settings remain recoverable.
+
+Version 4.0.2
+Added EnemyAttackSlotBonus as a 0 to 11 tuning control. Presets set it to 0, 1, or 2, and players can customize it afterward while retaining the existing non-lowering safety cap.
+Kept ConfigSchemaVersion at 26 because the new setting is additive and existing configs can adopt the current preset default safely.
+
+Version 4.0.1
+Added hit-feedback API v7 with an authoritative pre-death corpse-quality query and exact target identity for killing-blow events.
+Reused one native-tier, XP/health fallback, threat-class, and relative-level calculation for both execution previews and confirmed kills.
+Kept ConfigSchemaVersion at 26 because this optional presentation API changes no combat setting or default.
+
 Version 4.0.0
 Added EnemyMovementSpeedMultiplier as an x1.00 to x2.00 combat-movement tuning control. Presets set it to x1.00, x1.05, or x1.10, and players can customize it afterward.
 Kept the existing mobility safeguards: ordinary agile enemies receive the full configured bonus, Medium and Elite tiers receive at most half, and Heavy, massive, boss, scripted, and non-pathing enemies remain at native speed.

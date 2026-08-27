@@ -7,6 +7,7 @@ using Awaken.TG.Main.AI;
 using Awaken.TG.Main.AI.Combat.Attachments;
 using Awaken.TG.Main.AI.Combat.Utils;
 using Awaken.TG.Main.AI.Fights.Projectiles;
+using Awaken.TG.Main.AI.SummonsAndAllies;
 using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Events;
@@ -31,6 +32,7 @@ using Awaken.TG.Main.Heroes.Statuses.BuildUp;
 using Awaken.TG.Main.Heroes.Statuses.Duration;
 using Awaken.TG.Main.Rendering;
 using Awaken.TG.Main.Heroes.Stats.Tweaks;
+using Awaken.TG.Main.Locations.Attachments.Elements;
 using Awaken.TG.Main.Settings.Gameplay;
 using Awaken.TG.Main.Skills;
 using Awaken.TG.Main.Skills.Passives;
@@ -40,6 +42,7 @@ using Awaken.TG.Main.Templates;
 using Awaken.TG.Main.UI.HUD.Notifications;
 using Awaken.TG.Main.Utility.RichEnums;
 using Awaken.TG.Main.VisualGraphUtils;
+using Awaken.TG.MVC.Utils;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -83,8 +86,16 @@ namespace SteelAndBone
         private const float FoodCombatNotificationCooldownSeconds = 0.75f;
         private const float MaterialImpactResistanceInheritance = 0.60f;
         private const float StrongResistanceFlinchThreshold = 0.35f;
-        private const float ProgressiveTenacityStartLevel = 20.0f;
-        private const float ProgressiveTenacityFullLevel = 35.0f;
+        private const float TenacityStartLevel = 1.0f;
+        private const float TenacityFullLevel = 35.0f;
+        private const float TenacityStartingStrength = 0.40f;
+        private const float TenacityMaximum = 0.80f;
+        private const float TenacityStatusMaximum = 0.60f;
+        private const float HostResolveSnapshotIntervalSeconds = 1.0f;
+        private const float HostResolveRange = 50.0f;
+        private const int HostResolveSummonCountCap = 8;
+        private const float MiniBossHostResolveMaximum = 1.50f;
+        private const float BossHostResolveMaximum = 1.75f;
         private const string BetterUiPluginGuid = "Better_UI";
         private const string LegacyFoodStaminaStatusSourceId = "ks.tgfoa.steel-and-bone:food-stamina";
         private const string FoodStaminaRateVariable = "SteelAndBoneFoodStaminaRate";
@@ -102,6 +113,8 @@ namespace SteelAndBone
         private static MethodInfo _betterUiLastEffectCountSetter;
         [ThreadStatic]
         private static bool _suppressRoutineResistedFlinch;
+        [ThreadStatic]
+        private static ICharacter _activePersistentAoEBuildupDealer;
 
         private ConfigEntry<bool> _difficultyModifiersEnabled;
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
@@ -119,7 +132,12 @@ namespace SteelAndBone
         private ConfigEntry<bool> _modifyParryWindowBonus;
         private ConfigEntry<float> _positiveParryWindowBonusMultiplier;
         private ConfigEntry<bool> _modifyPlayerPoiseDamageDealt;
-        private ConfigEntry<bool> _progressiveTenacityEnabled;
+        private ConfigEntry<bool> _tenacityEnabled;
+        private NpcHeroSummon[] _hostResolveSummonSnapshot = new NpcHeroSummon[0];
+        private readonly List<NpcHeroSummon> _hostResolveSummonBuildBuffer =
+            new List<NpcHeroSummon>();
+        private Hero _hostResolveSnapshotHero;
+        private float _hostResolveSnapshotExpiresAt;
         private ConfigEntry<bool> _modifyPlayerArrowVelocity;
         private ConfigEntry<bool> _modifyPlayerArrowDrop;
         private ConfigEntry<float> _playerArrowGravityMultiplier;
@@ -277,14 +295,14 @@ namespace SteelAndBone
             internal StatTweak Tweak;
         }
 
-        private sealed class ProgressiveTenacityParryTweak : StatTweak
+        private sealed class TenacityParryTweak : StatTweak
         {
             public override bool IsNotSaved
             {
                 get { return true; }
             }
 
-            internal ProgressiveTenacityParryTweak(Stat stat, float multiplier, Hero hero)
+            internal TenacityParryTweak(Stat stat, float multiplier, Hero hero)
                 : base(stat, multiplier, TweakPriority.Multiply, OperationType.Multi, hero)
             {
                 MarkedNotSaved = true;
@@ -511,11 +529,11 @@ namespace SteelAndBone
                 "ModifyEnemyAttackSlots",
                 true,
                 ConfigUi("Add Enemy Attack Slot Bonus to the current game difficulty when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Slots", 70, 0));
-            _progressiveTenacityEnabled = Config.Bind(
+            _tenacityEnabled = Config.Bind(
                 "Difficulty - Enemies",
-                "ProgressiveTenacityEnabled",
+                "TenacityEnabled",
                 true,
-                ConfigUi("From hero level 20 through 35, progressively reduce direct health, poise, force, stamina, and parry stamina damage against hostile enemies. Material weaknesses halve Tenacity. This independent progression layer does not change the selected preset.", "Difficulty - Enemies", "Progressive Tenacity", 70, 5));
+                ConfigUi("From hero level 1 through 35, Tenacity reduces direct health, poise, force, stamina, parry stamina damage, and harmful status buildup against hostile enemies. Tempered uses 75% strength, Hardened 100%, and Crucible 125%. Nearby hero-owned summons strengthen MiniBoss and Boss Tenacity after the first summon. Confirmed material weaknesses and weak spots halve direct-hit Tenacity. This layer remains independently toggleable.", "Difficulty - Enemies", "Tenacity", 70, 5));
             _enemyAttackSlotBonus = Config.Bind(
                 "Difficulty - Enemies",
                 "EnemyAttackSlotBonus",
@@ -782,7 +800,7 @@ namespace SteelAndBone
             PatchStaminaDepletedVignette();
             PatchHostileArrowBallistics();
             PatchPoiseDamage();
-            PatchProgressiveTenacity();
+            PatchTenacity();
         }
 
         private void PatchConsumableRecovery()
@@ -892,30 +910,6 @@ namespace SteelAndBone
                 nameof(FoodOverexertionDurationPatch.Prefix),
                 "PreventStaminaRegenDuration.PreventWithStatus",
                 "food-supported overexertion duration");
-
-            MethodInfo buildupStatus = AccessTools.Method(
-                typeof(CharacterStatuses),
-                nameof(CharacterStatuses.BuildupStatus),
-                new[] { typeof(float), typeof(StatusTemplate), typeof(StatusSourceInfo) });
-            MethodInfo buildupPrefix = AccessTools.Method(
-                typeof(PotionPoisoningBuildupPatch),
-                nameof(PotionPoisoningBuildupPatch.Prefix));
-            if (buildupStatus == null || buildupPrefix == null)
-            {
-                Warn("Could not patch CharacterStatuses.BuildupStatus; Potion Poisoning buildup tuning is disabled.");
-            }
-            else
-            {
-                try
-                {
-                    _harmony.Patch(buildupStatus, prefix: new HarmonyMethod(buildupPrefix));
-                    LogDiagnostic("Patched CharacterStatuses.BuildupStatus for native Potion Poisoning buildup tuning.");
-                }
-                catch (Exception ex)
-                {
-                    Warn("Could not patch CharacterStatuses.BuildupStatus; Potion Poisoning buildup tuning is disabled. " + ex.GetBaseException().Message);
-                }
-            }
 
             MethodInfo activateBuildupStatus = AccessTools.Method(
                 typeof(BuildupStatus),
@@ -1222,42 +1216,99 @@ namespace SteelAndBone
             }
         }
 
-        private void PatchProgressiveTenacity()
+        private void PatchTenacity()
         {
+            MethodInfo buildupStatus = AccessTools.Method(
+                typeof(CharacterStatuses),
+                nameof(CharacterStatuses.BuildupStatus),
+                new[] { typeof(float), typeof(StatusTemplate), typeof(StatusSourceInfo) });
+            MethodInfo buildupPrefix = AccessTools.Method(
+                typeof(PotionPoisoningBuildupPatch),
+                nameof(PotionPoisoningBuildupPatch.Prefix));
+            if (buildupStatus == null || buildupPrefix == null)
+            {
+                Warn("Could not patch CharacterStatuses.BuildupStatus; Potion Poisoning and Tenacity buildup tuning are disabled.");
+            }
+            else
+            {
+                try
+                {
+                    _harmony.Patch(buildupStatus, prefix: new HarmonyMethod(buildupPrefix));
+                    LogDiagnostic("Patched CharacterStatuses.BuildupStatus for Potion Poisoning and Tenacity buildup tuning.");
+                }
+                catch (Exception ex)
+                {
+                    Warn("Could not patch CharacterStatuses.BuildupStatus; Potion Poisoning and Tenacity buildup tuning are disabled. " + ex.GetBaseException().Message);
+                }
+            }
+
+            MethodInfo applyPersistentBuildupStatus = AccessTools.DeclaredMethod(
+                typeof(PersistentAoE),
+                "ApplyBuildupStatus",
+                new[] { typeof(IAlive) });
+            MethodInfo persistentBuildupPrefix = AccessTools.Method(
+                typeof(PersistentAoEBuildupSourcePatch),
+                nameof(PersistentAoEBuildupSourcePatch.Prefix));
+            MethodInfo persistentBuildupFinalizer = AccessTools.Method(
+                typeof(PersistentAoEBuildupSourcePatch),
+                nameof(PersistentAoEBuildupSourcePatch.Finalizer));
+            if (applyPersistentBuildupStatus == null
+                || persistentBuildupPrefix == null
+                || persistentBuildupFinalizer == null)
+            {
+                Warn("Could not patch PersistentAoE.ApplyBuildupStatus; ownerless persistent buildup remains outside Tenacity.");
+            }
+            else
+            {
+                try
+                {
+                    _harmony.Patch(
+                        applyPersistentBuildupStatus,
+                        prefix: new HarmonyMethod(persistentBuildupPrefix),
+                        finalizer: new HarmonyMethod(persistentBuildupFinalizer));
+                    LogDiagnostic("Patched PersistentAoE.ApplyBuildupStatus for Tenacity source attribution.");
+                }
+                catch (Exception ex)
+                {
+                    Warn("Could not patch PersistentAoE.ApplyBuildupStatus; ownerless persistent buildup remains outside Tenacity. "
+                        + ex.GetBaseException().Message);
+                }
+            }
+
             MethodInfo staminaOriginal = AccessTools.Method(
                 typeof(HealthElement),
                 "BeforeHealthDecreaseEvents",
                 new[] { typeof(Damage) });
             MethodInfo staminaPostfix = AccessTools.Method(
-                typeof(ProgressiveTenacityStaminaDamagePatch),
-                nameof(ProgressiveTenacityStaminaDamagePatch.Postfix));
+                typeof(TenacityStaminaDamagePatch),
+                nameof(TenacityStaminaDamagePatch.Postfix));
             if (staminaOriginal == null || staminaPostfix == null)
             {
-                Warn("Could not patch HealthElement.BeforeHealthDecreaseEvents; Progressive Tenacity will not reduce direct stamina damage.");
+                Warn("Could not patch HealthElement.BeforeHealthDecreaseEvents; Tenacity will not reduce direct stamina damage.");
             }
             else
             {
                 try
                 {
                     _harmony.Patch(staminaOriginal, null, new HarmonyMethod(staminaPostfix));
-                    LogDiagnostic("Patched HealthElement.BeforeHealthDecreaseEvents for Progressive Tenacity stamina damage.");
+                    LogDiagnostic("Patched HealthElement.BeforeHealthDecreaseEvents for Tenacity stamina damage.");
                 }
                 catch (Exception ex)
                 {
-                    Warn("Could not patch HealthElement.BeforeHealthDecreaseEvents; Progressive Tenacity will not reduce direct stamina damage. " + ex.GetBaseException().Message);
+                    Warn("Could not patch HealthElement.BeforeHealthDecreaseEvents; Tenacity will not reduce direct stamina damage. " + ex.GetBaseException().Message);
                 }
             }
 
             MethodInfo parryOriginal = AccessTools.Method(typeof(HeroParry), "OnTakingDamage");
             MethodInfo parryPrefix = AccessTools.Method(
-                typeof(ProgressiveTenacityParryPatch),
-                nameof(ProgressiveTenacityParryPatch.Prefix));
+                typeof(TenacityParryPatch),
+                nameof(TenacityParryPatch.Prefix));
             MethodInfo parryFinalizer = AccessTools.Method(
-                typeof(ProgressiveTenacityParryPatch),
-                nameof(ProgressiveTenacityParryPatch.Finalizer));
+                typeof(TenacityParryPatch),
+                nameof(TenacityParryPatch.Finalizer));
             if (parryOriginal == null || parryPrefix == null || parryFinalizer == null)
             {
-                Warn("Could not patch HeroParry.OnTakingDamage; Progressive Tenacity will not reduce parry stamina damage.");
+                Warn("Could not patch HeroParry.OnTakingDamage; Tenacity will not reduce parry stamina damage.");
                 return;
             }
 
@@ -1270,11 +1321,11 @@ namespace SteelAndBone
                     null,
                     new HarmonyMethod(parryFinalizer),
                     null);
-                LogDiagnostic("Patched HeroParry.OnTakingDamage for Progressive Tenacity parry stamina damage.");
+                LogDiagnostic("Patched HeroParry.OnTakingDamage for Tenacity parry stamina damage.");
             }
             catch (Exception ex)
             {
-                Warn("Could not patch HeroParry.OnTakingDamage; Progressive Tenacity will not reduce parry stamina damage. " + ex.GetBaseException().Message);
+                Warn("Could not patch HeroParry.OnTakingDamage; Tenacity will not reduce parry stamina damage. " + ex.GetBaseException().Message);
             }
         }
 
@@ -3436,6 +3487,50 @@ namespace SteelAndBone
             return false;
         }
 
+        private void ApplyTenacityStatusBuildup(
+            CharacterStatuses statuses,
+            StatusTemplate statusTemplate,
+            StatusSourceInfo sourceInfo,
+            ref float buildupStrength)
+        {
+            Hero hero = Hero.Current;
+            NpcElement target = statuses == null ? null : statuses.ParentModel as NpcElement;
+            ICharacter source = sourceInfo.GetSourceCharacter ?? _activePersistentAoEBuildupDealer;
+            if (buildupStrength <= 0.0f
+                || statusTemplate == null
+                || statusTemplate.IsPositive
+                || hero == null
+                || (!ReferenceEquals(source, hero) && !IsHeroSummonSource(source)))
+            {
+                return;
+            }
+
+            float tenacity;
+            if (!TryGetTenacity(null, target, false, out tenacity))
+            {
+                return;
+            }
+
+            float statusTenacity = Mathf.Min(tenacity, TenacityStatusMaximum);
+            float multiplier = 1.0f - (statusTenacity * 0.50f);
+            float before = buildupStrength;
+            buildupStrength = Mathf.Max(0.0f, before * multiplier);
+            LogDifficultyDiagnostic("TenacityStatusBuildup", before, buildupStrength, multiplier);
+        }
+
+        private static void BeginPersistentAoEBuildupSource(
+            WeakModelRef<ICharacter> damageDealer,
+            ref ICharacter previousDealer)
+        {
+            previousDealer = _activePersistentAoEBuildupDealer;
+            _activePersistentAoEBuildupDealer = damageDealer.Get();
+        }
+
+        private static void RestorePersistentAoEBuildupSource(ICharacter previousDealer)
+        {
+            _activePersistentAoEBuildupDealer = previousDealer;
+        }
+
         private void ApplyPotionPoisoningPenalty(BuildupStatus status)
         {
             Hero hero = Hero.Current;
@@ -3855,7 +3950,7 @@ namespace SteelAndBone
             }
 
             float tenacity;
-            if (TryGetProgressiveTenacity(damage, target, true, out tenacity))
+            if (TryGetTenacity(damage, target, true, out tenacity))
             {
                 multiplier *= 1.0f - tenacity;
             }
@@ -3977,7 +4072,7 @@ namespace SteelAndBone
             }
 
             float tenacity;
-            if (TryGetProgressiveTenacity(damage, target, true, out tenacity))
+            if (TryGetTenacity(damage, target, true, out tenacity))
             {
                 multiplier *= 1.0f - tenacity;
             }
@@ -4011,7 +4106,7 @@ namespace SteelAndBone
             state.Damage.Parameters = parameters;
         }
 
-        private void ApplyProgressiveTenacityHealthDamage(
+        private void ApplyTenacityHealthDamage(
             object healthElement,
             Damage damage,
             ref float damageModifier)
@@ -4028,7 +4123,7 @@ namespace SteelAndBone
 
             NpcElement target = ResolveDamageTargetOwner(healthElement, damage) as NpcElement;
             float tenacity;
-            if (!TryGetProgressiveTenacity(damage, target, true, out tenacity))
+            if (!TryGetTenacity(damage, target, true, out tenacity))
             {
                 return;
             }
@@ -4041,10 +4136,10 @@ namespace SteelAndBone
 
             float before = damageModifier;
             damageModifier *= multiplier;
-            LogDifficultyDiagnostic("ProgressiveTenacityHealthDamage", before, damageModifier, multiplier);
+            LogDifficultyDiagnostic("TenacityHealthDamage", before, damageModifier, multiplier);
         }
 
-        private void ApplyProgressiveTenacityStaminaDamage(HealthElement healthElement, Damage damage)
+        private void ApplyTenacityStaminaDamage(HealthElement healthElement, Damage damage)
         {
             if (damage == null
                 || damage.IsDamageOverTime
@@ -4057,7 +4152,7 @@ namespace SteelAndBone
 
             NpcElement target = healthElement == null ? null : healthElement.ParentModel as NpcElement;
             float tenacity;
-            if (!TryGetProgressiveTenacity(damage, target, true, out tenacity))
+            if (!TryGetTenacity(damage, target, true, out tenacity))
             {
                 return;
             }
@@ -4065,10 +4160,10 @@ namespace SteelAndBone
             float before = damage.StaminaDamageAmount;
             float multiplier = 1.0f - tenacity;
             damage.StaminaDamageAmount = Mathf.Max(0.0f, before * multiplier);
-            LogDifficultyDiagnostic("ProgressiveTenacityStaminaDamage", before, damage.StaminaDamageAmount, multiplier);
+            LogDifficultyDiagnostic("TenacityStaminaDamage", before, damage.StaminaDamageAmount, multiplier);
         }
 
-        private bool TryGetProgressiveTenacity(
+        private bool TryGetTenacity(
             Damage damage,
             NpcElement target,
             bool requireHeroDamageSource,
@@ -4076,7 +4171,7 @@ namespace SteelAndBone
         {
             tenacity = 0.0f;
             Hero hero = Hero.Current;
-            if (!ProgressiveTenacityEnabled()
+            if (!TenacityEnabled()
                 || hero == null
                 || target == null
                 || (damage != null && damage.IsDamageOverTime)
@@ -4090,16 +4185,20 @@ namespace SteelAndBone
                 return false;
             }
 
-            float cap = ProgressiveTenacityCap(target.Template.NpcType);
-            if (cap <= 0.0f)
+            float classMaximum = TenacityClassMaximum(target.Template.NpcType);
+            if (classMaximum <= 0.0f)
             {
                 return false;
             }
 
-            float progress = Mathf.Clamp01(
-                (hero.Level.ModifiedValue - ProgressiveTenacityStartLevel)
-                / (ProgressiveTenacityFullLevel - ProgressiveTenacityStartLevel));
-            tenacity = cap * progress;
+            float campaignProgress = Mathf.Clamp01(
+                (hero.Level.ModifiedValue - TenacityStartLevel)
+                / (TenacityFullLevel - TenacityStartLevel));
+            float campaignFactor = Mathf.Lerp(TenacityStartingStrength, 1.0f, campaignProgress);
+            float baseTenacity = classMaximum
+                * campaignFactor
+                * PresetTenacityFactor();
+            tenacity = ApplyHostResolve(baseTenacity, target, hero);
             if (tenacity <= NeutralTolerance)
             {
                 return false;
@@ -4115,6 +4214,11 @@ namespace SteelAndBone
 
         private bool HasConfirmedTenacityWeakness(Damage damage)
         {
+            if (damage != null && damage.WeakSpotHit)
+            {
+                return true;
+            }
+
             float effectivenessMultiplier;
             if (TryGetDamageEffectivenessMultiplier(damage, out effectivenessMultiplier)
                 && effectivenessMultiplier > 1.0001f)
@@ -4180,28 +4284,28 @@ namespace SteelAndBone
             return true;
         }
 
-        private bool ProgressiveTenacityEnabled()
+        private bool TenacityEnabled()
         {
             return _enabled != null
                 && _enabled.Value
-                && _progressiveTenacityEnabled != null
-                && _progressiveTenacityEnabled.Value;
+                && _tenacityEnabled != null
+                && _tenacityEnabled.Value;
         }
 
-        private static float ProgressiveTenacityCap(NpcType npcType)
+        private static float TenacityClassMaximum(NpcType npcType)
         {
             switch (npcType)
             {
                 case NpcType.Trash:
-                    return 0.10f;
+                    return 0.12f;
                 case NpcType.Normal:
-                    return 0.15f;
+                    return 0.18f;
                 case NpcType.Elite:
-                    return 0.25f;
-                case NpcType.MiniBoss:
                     return 0.30f;
+                case NpcType.MiniBoss:
+                    return 0.38f;
                 case NpcType.Boss:
-                    return 0.40f;
+                    return 0.50f;
                 case NpcType.Critter:
                 case NpcType.HeroSummon:
                 default:
@@ -4209,7 +4313,132 @@ namespace SteelAndBone
             }
         }
 
-        private void ApplyProgressiveTenacityParry(
+        private float PresetTenacityFactor()
+        {
+            if (_preset == null)
+            {
+                return 1.0f;
+            }
+
+            switch (_preset.Value)
+            {
+                case Preset.Tempered:
+                    return 0.75f;
+                case Preset.Crucible:
+                    return 1.25f;
+                case Preset.Hardened:
+                default:
+                    return 1.0f;
+            }
+        }
+
+        private float HostResolveFactor(NpcElement target, Hero hero)
+        {
+            if (target == null || hero == null || target.Template == null)
+            {
+                return 1.0f;
+            }
+
+            NpcType npcType = target.Template.NpcType;
+            if (npcType != NpcType.MiniBoss && npcType != NpcType.Boss)
+            {
+                return 1.0f;
+            }
+
+            RefreshHostResolveSummonSnapshot(hero);
+            float rangeSqr = HostResolveRange * HostResolveRange;
+            int nearbySummons = 0;
+            for (int i = 0; i < _hostResolveSummonSnapshot.Length; i++)
+            {
+                NpcHeroSummon summon = _hostResolveSummonSnapshot[i];
+                if (!IsHostResolveSummonEligible(summon, hero)
+                    || summon.ParentModel.CurrentDomain != target.CurrentDomain
+                    || (summon.ParentModel.Coords - target.Coords).sqrMagnitude > rangeSqr)
+                {
+                    continue;
+                }
+
+                nearbySummons++;
+                if (nearbySummons >= HostResolveSummonCountCap)
+                {
+                    break;
+                }
+            }
+
+            int additionalSummons = Mathf.Max(0, nearbySummons - 1);
+            float progress = Mathf.Clamp01(
+                additionalSummons / (float)(HostResolveSummonCountCap - 1));
+            float maximumFactor = npcType == NpcType.MiniBoss
+                ? MiniBossHostResolveMaximum
+                : BossHostResolveMaximum;
+            return Mathf.Lerp(1.0f, maximumFactor, progress);
+        }
+
+        private float ApplyHostResolve(float baseTenacity, NpcElement target, Hero hero)
+        {
+            float cappedBaseTenacity = Mathf.Min(baseTenacity, TenacityMaximum);
+            if (target == null || target.Template == null)
+            {
+                return cappedBaseTenacity;
+            }
+
+            float maximumFactor;
+            switch (target.Template.NpcType)
+            {
+                case NpcType.MiniBoss:
+                    maximumFactor = MiniBossHostResolveMaximum;
+                    break;
+                case NpcType.Boss:
+                    maximumFactor = BossHostResolveMaximum;
+                    break;
+                default:
+                    return cappedBaseTenacity;
+            }
+
+            float factor = HostResolveFactor(target, hero);
+            float progress = Mathf.Clamp01(
+                (factor - 1.0f) / (maximumFactor - 1.0f));
+            float cappedMaximumTenacity = Mathf.Min(
+                baseTenacity * maximumFactor,
+                TenacityMaximum);
+            return Mathf.Lerp(
+                cappedBaseTenacity,
+                cappedMaximumTenacity,
+                progress);
+        }
+
+        private void RefreshHostResolveSummonSnapshot(Hero hero)
+        {
+            if (ReferenceEquals(_hostResolveSnapshotHero, hero)
+                && Time.unscaledTime < _hostResolveSnapshotExpiresAt)
+            {
+                return;
+            }
+
+            _hostResolveSnapshotHero = hero;
+            _hostResolveSnapshotExpiresAt = Time.unscaledTime + HostResolveSnapshotIntervalSeconds;
+            _hostResolveSummonBuildBuffer.Clear();
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
+            {
+                if (IsHostResolveSummonEligible(summon, hero))
+                {
+                    _hostResolveSummonBuildBuffer.Add(summon);
+                }
+            }
+            _hostResolveSummonSnapshot = _hostResolveSummonBuildBuffer.ToArray();
+        }
+
+        private static bool IsHostResolveSummonEligible(NpcHeroSummon summon, Hero hero)
+        {
+            return summon != null
+                && !summon.HasBeenDiscarded
+                && summon.ParentModel != null
+                && !summon.ParentModel.HasBeenDiscarded
+                && summon.ParentModel.IsAlive
+                && ReferenceEquals(summon.Ally, hero);
+        }
+
+        private void ApplyTenacityParry(
             HeroParry parry,
             HookResult<HealthElement, Damage> hook,
             ref ParryStaminaPatchState state)
@@ -4219,7 +4448,7 @@ namespace SteelAndBone
             NpcElement target = damage == null ? null : damage.DamageDealerPure as NpcElement;
             float tenacity;
             if (parry == null
-                || !TryGetProgressiveTenacity(null, target, false, out tenacity)
+                || !TryGetTenacity(null, target, false, out tenacity)
                 || Hero.Current == null
                 || Hero.Current.HeroStats == null
                 || Hero.Current.HeroStats.ParryStaminaDamageMultiplier == null)
@@ -4229,15 +4458,15 @@ namespace SteelAndBone
 
             state = new ParryStaminaPatchState
             {
-                Tweak = new ProgressiveTenacityParryTweak(
+                Tweak = new TenacityParryTweak(
                     Hero.Current.HeroStats.ParryStaminaDamageMultiplier,
                     1.0f - tenacity,
                     Hero.Current)
             };
-            LogDifficultyDiagnostic("ProgressiveTenacityParryStaminaDamage", 1.0f, 1.0f - tenacity, 1.0f - tenacity);
+            LogDifficultyDiagnostic("TenacityParryStaminaDamage", 1.0f, 1.0f - tenacity, 1.0f - tenacity);
         }
 
-        private static void RestoreProgressiveTenacityParry(ParryStaminaPatchState state)
+        private static void RestoreTenacityParry(ParryStaminaPatchState state)
         {
             if (state != null && state.Tweak != null)
             {
@@ -4777,8 +5006,8 @@ namespace SteelAndBone
                 "ModifyPlayerDamageDealt");
             AddConflictIf(
                 conflicts,
-                ProgressiveTenacityEnabled() && outgoingOverlap,
-                "ProgressiveTenacityEnabled");
+                TenacityEnabled() && outgoingOverlap,
+                "TenacityEnabled");
             AddConflictIf(
                 conflicts,
                 PlayerPressureModifierIsEffective(_modifyPlayerDamageTaken)
@@ -4893,7 +5122,7 @@ namespace SteelAndBone
 
             List<string> conflicts = new List<string>();
             AddConflictIf(conflicts, OutgoingDamageModifierIsEffective() && outgoingOverlap, "ModifyPlayerDamageDealt");
-            AddConflictIf(conflicts, ProgressiveTenacityEnabled() && outgoingOverlap, "ProgressiveTenacityEnabled");
+            AddConflictIf(conflicts, TenacityEnabled() && outgoingOverlap, "TenacityEnabled");
             AddConflictIf(conflicts, PlayerPressureModifierIsEffective(_modifyPlayerDamageTaken) && incomingOverlap, "ModifyPlayerDamageTaken");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyStaminaUsage) && staminaOverlap, "ModifyStaminaUsage");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyManaUsage) && manaOverlap, "ModifyManaUsage");
@@ -4975,7 +5204,7 @@ namespace SteelAndBone
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyEnemyAttackRecovery) && recoveryOverlap, "ModifyEnemyAttackRecovery");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyPlayerPoiseDamageDealt) && poiseOverlap, "ModifyPlayerPoiseDamageDealt");
             AddConflictIf(conflicts, MaterialImpactRulesEnabled() && poiseOverlap, "MaterialImpactRulesEnabled");
-            AddConflictIf(conflicts, ProgressiveTenacityEnabled() && poiseOverlap, "ProgressiveTenacityEnabled");
+            AddConflictIf(conflicts, TenacityEnabled() && poiseOverlap, "TenacityEnabled");
             AddConflictIf(conflicts, PresetModifierIsEffective(_modifyArmorWeightPenalties) && armorOverlap, "ModifyArmorWeightPenalties");
             AddConflictIf(
                 conflicts,
@@ -5873,16 +6102,38 @@ namespace SteelAndBone
 
                 try
                 {
-                    return plugin.ShouldApplyNativePotionPoisoningBuildup(
+                    bool shouldApply = plugin.ShouldApplyNativePotionPoisoningBuildup(
                         __instance,
                         __1,
                         __2);
+                    if (shouldApply)
+                    {
+                        plugin.ApplyTenacityStatusBuildup(__instance, __1, __2, ref __0);
+                    }
+
+                    return shouldApply;
                 }
                 catch (Exception ex)
                 {
-                    plugin.Warn("Could not adjust native Potion Poisoning buildup: " + ex.GetBaseException().Message);
+                    plugin.Warn("Could not adjust Potion Poisoning or Tenacity buildup: " + ex.GetBaseException().Message);
                     return true;
                 }
+            }
+        }
+
+        private static class PersistentAoEBuildupSourcePatch
+        {
+            public static void Prefix(
+                WeakModelRef<ICharacter> ____damageDealer,
+                ref ICharacter __state)
+            {
+                BeginPersistentAoEBuildupSource(____damageDealer, ref __state);
+            }
+
+            public static Exception Finalizer(Exception __exception, ICharacter __state)
+            {
+                RestorePersistentAoEBuildupSource(__state);
+                return __exception;
             }
         }
 
@@ -6206,7 +6457,7 @@ namespace SteelAndBone
             }
         }
 
-        private static class ProgressiveTenacityStaminaDamagePatch
+        private static class TenacityStaminaDamagePatch
         {
             public static void Postfix(HealthElement __instance, Damage damage)
             {
@@ -6218,16 +6469,16 @@ namespace SteelAndBone
 
                 try
                 {
-                    plugin.ApplyProgressiveTenacityStaminaDamage(__instance, damage);
+                    plugin.ApplyTenacityStaminaDamage(__instance, damage);
                 }
                 catch (Exception ex)
                 {
-                    plugin.Warn("Could not apply Progressive Tenacity stamina damage: " + ex.GetBaseException().Message);
+                    plugin.Warn("Could not apply Tenacity stamina damage: " + ex.GetBaseException().Message);
                 }
             }
         }
 
-        private static class ProgressiveTenacityParryPatch
+        private static class TenacityParryPatch
         {
             public static void Prefix(
                 HeroParry __instance,
@@ -6243,16 +6494,16 @@ namespace SteelAndBone
 
                 try
                 {
-                    plugin.ApplyProgressiveTenacityParry(__instance, hook, ref __state);
+                    plugin.ApplyTenacityParry(__instance, hook, ref __state);
                 }
                 catch (Exception ex)
                 {
                     if (__state != null)
                     {
-                        SteelAndBonePlugin.RestoreProgressiveTenacityParry(__state);
+                        SteelAndBonePlugin.RestoreTenacityParry(__state);
                     }
                     __state = null;
-                    plugin.Warn("Could not apply Progressive Tenacity parry stamina damage: " + ex.GetBaseException().Message);
+                    plugin.Warn("Could not apply Tenacity parry stamina damage: " + ex.GetBaseException().Message);
                 }
             }
 
@@ -6260,7 +6511,7 @@ namespace SteelAndBone
             {
                 try
                 {
-                    SteelAndBonePlugin.RestoreProgressiveTenacityParry(__state);
+                    SteelAndBonePlugin.RestoreTenacityParry(__state);
                 }
                 catch (Exception ex)
                 {

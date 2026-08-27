@@ -8,21 +8,20 @@
 
 At its core, the material system gives bone, flesh, stone, spirit, armor, and other identities distinct reactions to physical, elemental, and status damage. Tainted Grail's native weaknesses, resistances, and immunities remain authoritative; Steel and Bone adds focused rules only where they sharpen the matchup.
 
-Around that foundation, optional systems improve combat feedback, enemy pressure, projectiles, armor and shields, stamina, food and potions, and late-game challenge. Together they reward preparation and strong builds without replacing enemy AI, rewriting encounters, or inflating health bars.
+Around that foundation, optional systems improve combat feedback, enemy pressure, projectiles, armor and shields, stamina, food and potions, and campaign-wide challenge. Together they reward preparation and strong builds without replacing enemy AI, rewriting encounters, or inflating health bars.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Major Features[/size][/color][/heading]
 
 [list]
-[*][b]Knowledge decides the matchup.[/b] Enemy family, armor, and material determine which physical, elemental, and status attacks work best, while Tainted Grail's native reactions remain authoritative.[/*]
-[*][b]Every combat tool has a purpose.[/b] Arrows punish exposed flesh, blunt weapons break rigid targets and heavy armor, elemental magic exploits material, shields provide directional protection, and focused techniques offer fallback answers.[/*]
-[*][b]Resistance changes impact as well as damage.[/b] Poor matchups reduce poise and force, while strongly resisted or immune hits suppress routine flinching without blocking genuine staggers or ragdolls.[/*]
-[*][b]The rules stay readable.[/b] Built-in damage numbers reveal weaknesses, resistances, immunities, critical hits, weak spots, and damage-over-time effects without requiring another mod; optional hit markers can mirror the same result.[/*]
-[*][b]Late-game enemies endure without becoming health sponges.[/b] Progressive Tenacity helps stronger enemies withstand burst damage and repeated control after level 20, while exploiting a material weakness cuts through part of that protection.[/*]
-[*][b]Combat pressure extends beyond damage.[/b] Enemies detect sooner, stay engaged longer, coordinate more attackers, and recover faster, while quicker projectiles and clearer armor roles make positioning and equipment matter.[/*]
-[*][b]Preparation outlasts panic.[/b] Food provides sustained, non-stacking health and stamina recovery, while repeated use of the same potion class risks resource-specific Potion Poisoning.[/*]
-[*][b]Difficulty remains modular.[/b] Tempered, Hardened, and Crucible scale the complete ruleset, while individual systems remain configurable or can be disabled independently.[/*]
+[*][b]Combat Philosophy.[/b] Every tool has a purpose, resistance changes impact as well as damage, and focused techniques provide fallback answers without replacing the best material counter.[/*]
+[*][b]Know Your Enemy.[/b] Enemy family, armor, and body material determine the best physical, elemental, and magical answers while Tainted Grail's native reactions remain authoritative.[/*]
+[*][b]Readable Combat Feedback.[/b] Built-in feedback reveals weaknesses, resistances, immunities, critical hits, weak spots, and damage-over-time effects without requiring another mod.[/*]
+[*][b]Expanded Combat Systems.[/b] Stronger perception, group aggression, projectiles, armor roles, shields, and resource pressure make positioning and equipment matter.[/*]
+[*][b]Tenacity.[/b] The campaign-wide difficulty anchor absorbs part of growing burst, control, and harmful buildup, including the considerable power ramps from Blood Magic Expansion and Soul and Service.[/*]
+[*][b]Preparation and Recovery.[/b] Food rewards sustained preparation, while repeated use of the same potion class risks resource-specific Potion Poisoning.[/*]
+[*][b]Presets.[/b] Tempered, Hardened, and Crucible scale one coherent ruleset, while major systems remain configurable or can be disabled.[/*]
 [/list]
 
 [line]
@@ -65,7 +64,7 @@ Exact strength depends on the preset and each enemy's native data. Existing reac
 
 When [b]Soul and Service[/b] is installed, its complete rework of the original Soul Salvage spell is renamed [b]Soul Rend[/b]. Soul Rend's light cast deals exact Necrotic damage to living enemies. On Hardened, its matchups run from strongest resistance to strongest weakness: constructs x0.25, confirmed skeletons x0.40, flesh undead x0.60, drowned x0.675, infected bodies x0.85, Wyrd creatures x0.875, ordinary and sea flesh x1.10, flora or fungus x1.175, and spirits x1.225. The game's normal magical defenses still apply, while Soul Claim remains outside the Necrotic school.
 
-When [b]Blood Magic Expansion[/b] is installed, its exact Blood Magic packets use a complementary Hardened matrix: skeletons and constructs x0.25, spirits x0.30, drowned and flora or fungus x0.65, flesh undead x0.75, Wyrd and infected bodies x0.85, sea flesh x1.10, and living flesh x1.15. This keeps Blood strongest into living bodies while Necrotic excels against spirits and unnatural growth. If the optional API is absent, Steel and Bone retains its conservative text fallback for other blood effects.
+When [b]Blood Magic Expansion[/b] is installed, its exact Blood Magic packets use a complementary Hardened matrix: skeletons and constructs x0.25, spirits x0.30, drowned and flora or fungus x0.65, flesh undead x0.75, Wyrd and infected bodies x0.85, sea flesh x1.10, and living flesh x1.15. This keeps Blood strongest into living bodies while Necrotic excels against spirits and unnatural growth. Blood Magic Expansion's Bleed buildup bonus composes multiplicatively with Tenacity, while its completed-proc detection and duration extensions remain authoritative. If the optional API is absent, Steel and Bone retains its conservative text fallback for other blood effects.
 
 Body material and creature identity are resolved separately, so unusual enemies keep their intended physical reactions without inheriting an entire creature family's traits. Authored and exact profiles take priority, and Wyrd creatures receive no blanket resistance. These profiles cover important exceptions such as frost enemies resisting Cold but yielding to Fire, fire-aligned bodies yielding to Wet, drowned skeletons reacting to Electric, and soft-bodied creatures absorbing Blunt impact. Bone Undead and Constructs also resist Cold when otherwise neutral, though this does not make them immune to separate effects such as Chill.
 
@@ -119,13 +118,7 @@ Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quali
 
 [heading][color=#C94A4A][size=5]Expanded Combat Systems[/size][/color][/heading]
 
-Steel and Bone raises combat pressure without replacing Tainted Grail's native AI or encounter design. Late-game enemies hold their ground longer, groups become more aggressive, projectiles pose a greater threat, and armor choices gain clearer roles. Each system remains independently configurable.
-
-
-[b]Progressive Tenacity - Smoother late-game difficulty curve[/b]
-
-Progressive Tenacity begins after level 20, giving regular enemies a small benefit while helping Elites, MiniBosses, and Bosses withstand burst damage, repeated staggers, and stamina pressure. Strong builds remain effective, and confirmed material weaknesses reduce Tenacity for that hit. It works with every preset, leaves the early game unchanged, and adds no inflated health bars or ability immunities.
-
+Steel and Bone raises combat pressure without replacing Tainted Grail's native AI or encounter design. Groups become more aggressive, projectiles pose a greater threat, armor choices gain clearer roles, and resource pressure makes positioning and defense matter. Each system remains independently configurable.
 
 [b]Enemy awareness and pressure[/b]
 
@@ -168,6 +161,51 @@ Across the presets, incoming damage rises while outgoing damage falls. Higher pr
 Positive mana regeneration during combat, added critical-damage bonuses above the native +0.45 baseline, and accumulated positive parry-window bonuses use x1.00 / x0.75 / x0.50 across Tempered, Hardened, and Crucible. Mana Shield proportionally relieves only Steel and Bone's added regeneration penalty, while the game's native Mana Shield reduction and post-hit lock remain active. Critical and parry scaling preserve the native x1.45 critical hit, the native 0.05-second parry base, and every non-positive bonus. Each system has a separate toggle and adjustable multiplier. Dash stamina cost separately uses x1.00 / x1.15 / x1.30 and stacks with the game's resolved dash and general stamina costs.
 
 Stamina Depleted presentation defaults to one smooth eased fade instead of the native repeating flash and abrupt disappearance. Native and Off modes remain available, and the choice changes presentation only; exhaustion audio, penalties, restrictions, and timing remain intact.
+
+
+[line]
+
+[heading][color=#C94A4A][size=5]Tenacity - Progressive Difficulty Tuning[/size][/color][/heading]
+
+Tenacity helps enemies keep pace with increasingly powerful characters, specialized builds, and large summon groups. It gradually reduces some incoming pressure without inflating enemy health, increasing enemy damage, weakening player statistics, or taking away progression and rewards.
+
+[b]Progressive campaign scaling[/b]
+
+Tenacity begins at 40% strength at hero level 1 and reaches full strength at level 35. Tougher enemy classes can resist more:
+
+[list]
+[*][b]Trash:[/b] up to 12%.[/*]
+[*][b]Normal:[/b] up to 18%.[/*]
+[*][b]Elite:[/b] up to 30%.[/*]
+[*][b]MiniBoss:[/b] up to 38%.[/*]
+[*][b]Boss:[/b] up to 50%.[/*]
+[/list]
+
+Tempered, Hardened, and Crucible scale these values by x0.75, x1.00, and x1.25. The final general value cannot exceed 80%. Critters and player-owned summons do not receive Tenacity.
+
+[b]Summons in major fights[/b]
+
+MiniBosses and Bosses adapt to nearby player-owned summons. Your first summon adds no extra Tenacity. Summons two through eight smoothly and evenly strengthen the enemy's existing Tenacity.
+
+Vanilla summons and Soul and Service servants both count when they are alive, active, in the same scene, and within 50 meters. At eight qualifying summons, this scaling reaches x1.50 against a MiniBoss or x1.75 against a Boss. Trash, Normal, and Elite enemies do not gain this summon-based scaling.
+
+[b]What Tenacity resists[/b]
+
+[list]
+[*][b]Control pressure:[/b] poise, force, enemy stamina, and parry stamina damage use full Tenacity.[/*]
+[*][b]Direct health damage:[/b] uses half Tenacity.[/*]
+[*][b]Harmful status buildup:[/b] uses half Tenacity and always retains at least 70% of its normal strength.[/*]
+[/list]
+
+Player-owned summon attacks follow the same rules. Damage over time, environmental damage, active status effects, status duration, decay, and tick damage remain unchanged.
+
+[b]Counterplay remains important[/b]
+
+Confirmed weaknesses and weak spots halve direct-hit Tenacity. Status vulnerabilities remain fully relevant, while critical hits and backstabs retain their normal value.
+
+Soul and Service servants participate naturally through their attacks, status buildup, and presence near major enemies. Soul Claim remains outside Tenacity. Blood Magic Expansion's direct Blood damage and Bleed buildup follow the appropriate damage and buildup rules without changing Blood Power progression.
+
+[b]TenacityEnabled[/b] disables the complete system.
 
 
 [line]
@@ -263,12 +301,12 @@ Steel and Bone creates difficulty through small adjustments to systems Tainted G
 
 [list]
 [*]No enemy health inflation.[/*]
-[*]No early-game Tenacity; its preset-independent curve begins after level 20.[/*]
+[*]No abrupt late-game Tenacity switch; its preset-scaled curve is active gently from level 1.[/*]
 [*]No behavior-tree or encounter rewrites.[/*]
 [*]No permanent NPC stat changes stored in saves.[/*]
 [*]Changes apply only while an actor or setting qualifies and clean themselves up automatically.[/*]
 [*]Awareness and movement checks stay limited to relevant loaded enemies.[/*]
-[*]Every supporting modifier can be disabled independently.[/*]
+[*]Every supporting system has a direct control.[/*]
 [/list]
 
 The result is broader and more consequential than a resistance-only mod while remaining predictable, modular, and close to vanilla architecture.
@@ -292,7 +330,7 @@ FoA Mod Manager organizes the settings into clear groups for presets, material c
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] supports eight-state hit markers, weak-spot and critical overlays, damage-over-time feedback, killing-blow corpse quality, direct-hero filtering, and the sensitivity controls described under Readable Combat Feedback.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled.[/*]
-[*][b]Soul and Service[/b] lets owned summons inherit 80% of Steel and Bone's added enemy awareness without reaching full enemy range. Its reworked Soul Salvage spell, renamed Soul Rend, also gains the Necrotic matchups described above; Soul Claim remains outside that school.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] lets owned summons inherit 80% of Steel and Bone's added enemy awareness without reaching full enemy range. Its living, active hero-owned servants count toward summon-based Tenacity scaling near a MiniBoss or Boss, and their direct attacks and harmful buildup face the same Tenacity they provoke. Soul Rend gains the Necrotic matchups described above; Soul Claim remains outside that school.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons[/url] suspends passive shield protection while that shield is hidden by a two-handed grip and restores it when the hand becomes active.[/*]
 [/list]
 
@@ -304,8 +342,8 @@ FoA Mod Manager organizes the settings into clear groups for presets, material c
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/111]Better UI[/url] is softly supported. Its consumable overlays use Steel and Bone's adjusted food health values and append the matching stamina total over the shared duration. Overlay changes follow Better UI's normal inventory or slot refresh timing.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/57]Custom Difficulty[/url] is incompatible because it changes many of the same difficulty systems. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/105]Flat Arrows[/url] is conditionally compatible. Its bow pull, release, and instant-fire options do not directly overlap, but its arrow modifications stack with Steel and Bone's player velocity and gravity changes. Disable Flat Arrows' [b]EnableArrowModifications[/b] or disable both [b]ModifyPlayerArrowVelocity[/b] and [b]ModifyPlayerArrowDrop[/b] in Steel and Bone.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/164]HarderLife[/url] is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and consumable-effectiveness modifiers can stack with Steel and Bone's matching food or difficulty systems, including Progressive Tenacity's direct-health reduction. Steel and Bone's Potion Poisoning buildup tuning is distinct from HarderLife's potion effectiveness. Set matching multipliers to 1.0, or disable the corresponding Steel and Bone setting when an overlap warning appears. Its parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, parry-window, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Progressive Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/164]HarderLife[/url] is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and consumable-effectiveness modifiers can stack with Steel and Bone's matching food or difficulty systems, including Tenacity's direct-health reduction. Steel and Bone's Potion Poisoning buildup tuning is distinct from HarderLife's potion effectiveness. Set matching multipliers to 1.0, or disable the corresponding Steel and Bone setting when an overlap warning appears. Its parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/206]Tainted Combat[/url] is conditionally compatible. Disable matching Steel and Bone stamina, parry-window, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/219]Tainted Instincts[/url] is incompatible because it can modify enemy sight, damage, attack cadence, pursuit, and combat-slot behavior. Both plugins can load, but overlapping Steel and Bone modifiers must be disabled.[/*]
 [/list]
 

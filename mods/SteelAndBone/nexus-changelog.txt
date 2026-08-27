@@ -1,5 +1,4 @@
-TargetVersion=4.0.4
-BaselineVersion=4.0.3
+TargetVersion=4.2.3
+BaselineVersion=4.2.2
 
-Preserved the native x1.45 critical hit while scaling only added critical-damage bonuses above that baseline by x1.00/x0.75/x0.50 across Tempered, Hardened, and Crucible.
-Added a separate dash stamina-cost multiplier of x1.00/x1.15/x1.30 by preset, applied consistently to both affordability checks and payment.
+Smoothed Host Resolve into seven equal steps from summons two through eight, leaving the first qualifying summon free while preserving the x1.50 MiniBoss and x1.75 Boss endpoints. This reduces the front-loaded response against ordinary summon groups while keeping every additional summon predictable and preserving the existing 80% Tenacity cap behavior.

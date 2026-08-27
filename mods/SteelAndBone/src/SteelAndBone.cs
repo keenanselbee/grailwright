@@ -32,9 +32,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("4.0.4.0")]
-[assembly: AssemblyFileVersion("4.0.4.0")]
-[assembly: AssemblyInformationalVersion("4.0.4")]
+[assembly: AssemblyVersion("4.2.3.0")]
+[assembly: AssemblyFileVersion("4.2.3.0")]
+[assembly: AssemblyInformationalVersion("4.2.3")]
 
 namespace SteelAndBone
 {
@@ -219,7 +219,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "4.0.4";
+        public const string PluginVersion = "4.2.3";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -231,7 +231,7 @@ namespace SteelAndBone
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
-        private const int ConfigSchemaVersion = 27;
+        private const int ConfigSchemaVersion = 29;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -941,7 +941,7 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _modifyParryWindowBonus, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _positiveParryWindowBonusMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerPoiseDamageDealt, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _progressiveTenacityEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _tenacityEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowVelocity, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerArrowDrop, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _playerArrowGravityMultiplier, ref restoredCount, ref clampedCount);
@@ -6974,7 +6974,7 @@ namespace SteelAndBone
                         damage,
                         __result,
                         ref dmgModifier);
-                    plugin.ApplyProgressiveTenacityHealthDamage(
+                    plugin.ApplyTenacityHealthDamage(
                         __instance,
                         damage as Damage,
                         ref dmgModifier);

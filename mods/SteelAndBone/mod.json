@@ -2,7 +2,7 @@
   "id": "SteelAndBone",
   "displayName": "Steel and Bone - Expanded Combat and Difficulty",
   "packageName": "SteelAndBone",
-  "version": "4.0.4",
+  "version": "4.2.3",
   "pluginGuid": "ks.tgfoa.steel-and-bone",
   "dll": "SteelAndBone.dll",
   "sourceFiles": [
@@ -19,6 +19,7 @@
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
     "%GAME%/Fall of Avalon_Data/Managed/DOTween.dll",
     "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.PackageUtilities.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.PhysicsModule.dll",

@@ -1,3 +1,31 @@
+Version 4.2.3
+Smoothed Host Resolve into seven equal steps from summons two through eight, leaving the first qualifying summon free while preserving the x1.50 MiniBoss and x1.75 Boss endpoints.
+Reduced the front-loaded response against ordinary summon groups while keeping every additional summon predictable and preserving the existing 80% Tenacity cap behavior.
+Kept ConfigSchemaVersion at 29 because no setting, default, type, or meaning changed.
+
+Version 4.2.2
+Distributed capped Host Resolve headroom across the complete eight-summon curve, so every qualifying summon through the eighth contributes whenever the 80% Tenacity cap would previously have ended scaling early. Uncapped values and final one- and eight-summon endpoints remain unchanged.
+Moved harmful-status and persistent-area Tenacity patch registration into the dedicated Tenacity startup path, preventing an unrelated food-tooltip lookup failure from disabling status resistance.
+Updated the Tenacity config guidance and player-facing descriptions to include harmful buildup, weak-spot counterplay, bounded addon-power absorption, and the complete capped Host Resolve curve.
+Kept ConfigSchemaVersion at 29 because no setting, default, type, or meaning changed.
+
+Version 4.2.1
+Expanded Host Resolve from four to eight qualifying summons. Summons two through four retain the existing 10% MiniBoss and 15% Boss relative increments, while summons five through eight add 5% and 7.5%, reaching maximum factors of x1.50 and x1.75.
+Added half-strength Tenacity against harmful status buildup caused by the hero or native hero-owned summons, with status Tenacity capped at 60% so every contribution retains at least 70% strength.
+Recovered the omitted owner of native persistent-area buildup transactionally, allowing player- and summon-owned pools to receive Tenacity while environmental buildup remains excluded.
+Made confirmed weak spots halve direct-hit Tenacity through the same non-stacking counterplay used by confirmed native and Steel and Bone material weaknesses.
+Kept critical damage free of any additional Tenacity penalty and left positive statuses, direct status application, forced buildup completion, active status behavior, damage over time, enemy health, and enemy damage unchanged.
+Preserved direct Soul and Service servant compatibility and multiplicative Blood Magic Expansion Bleed buildup compatibility without adding hard dependencies.
+Advanced ConfigSchemaVersion from 28 to 29 because TenacityEnabled now controls harmful status buildup in addition to direct health and control resistance. Compatible durable settings remain recoverable.
+
+Version 4.1.0
+Renamed Progressive Tenacity to Tenacity and replaced its level-20 activation with a campaign curve that begins at 40% strength at level 1 and reaches full strength at level 35.
+Raised the full-strength Trash, Normal, Elite, MiniBoss, and Boss class maxima to 12%, 18%, 30%, 38%, and 50%, then scaled them by x0.75/x1.00/x1.25 across Tempered, Hardened, and Crucible.
+Added Host Resolve: nearby living, active, hero-owned native summons after the first add 10% relative MiniBoss Tenacity or 15% relative Boss Tenacity each, capped at four summons. Soul and Service servants qualify directly through native summon identity without a hard dependency.
+Capped effective Tenacity at 80% before confirmed native or Steel and Bone material weaknesses halve it. Retained full control and stamina resistance, half-strength direct non-DOT health resistance, and all existing source and target exclusions.
+Kept Host Resolve silent with no separate toggle or combat notification, and cached one shared summon-host snapshot for at most one refresh per second.
+Advanced ConfigSchemaVersion from 27 to 28 because `ProgressiveTenacityEnabled` was renamed to `TenacityEnabled` and the setting now controls a materially different campaign-wide, preset-scaled system. Compatible durable settings remain recoverable.
+
 Version 4.0.4
 Added preset-scaled critical-damage control that preserves the native x1.45 critical hit while multiplying only accumulated positive critical-damage bonuses above the native +0.45 baseline by x1.00 on Tempered, x0.75 on Hardened, or x0.50 on Crucible.
 Added a dash-specific stamina-cost multiplier of x1.00/x1.15/x1.30 by preset. It multiplies the game's resolved dash cost, so native difficulty, general stamina use, affordability checks, and actual payment remain consistent.

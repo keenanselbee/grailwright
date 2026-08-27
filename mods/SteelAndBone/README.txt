@@ -1,5 +1,5 @@
 Steel and Bone
-Version 4.0.4
+Version 4.2.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -7,7 +7,7 @@ Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.
 
 Steel and Bone is a lightweight, knowledge-driven BepInEx 5 Mono difficulty mod for Tainted Grail: The Fall of Avalon. Material weaknesses and resistances define the experience: learn what an enemy is made from, choose the right physical or magical answer, and read the result through reactive damage numbers.
 
-Its supporting difficulty systems make that preparation matter through sharper enemy sight and hearing, tiered combat movement, faster and flatter arrows, clearer armor roles, slower food recovery, stronger overdrinking pressure, steadier group aggression, progressive late-game Tenacity, poise tuning, and slower progression. It does not replace enemy AI, rewrite encounters, inflate enemy health, or modify coin rewards.
+Its supporting difficulty systems make that preparation matter through sharper enemy sight and hearing, tiered combat movement, faster and flatter arrows, clearer armor roles, slower food recovery, stronger overdrinking pressure, steadier group aggression, campaign-wide Tenacity, poise tuning, and slower progression. It does not replace enemy AI, rewrite encounters, inflate enemy health, or modify coin rewards.
 
 MATERIAL COMBAT
 ---------------
@@ -20,7 +20,7 @@ Bone bodies favor blunt damage and resist slash and pierce, while true Bone Unde
 
 When Soul and Service API v5 or newer is installed, Steel and Bone recognizes only the exact Soul Rend packet as Necrotic while retaining its native Generic Magical carrier. On Hardened, ordinary and sea flesh take x1.10, spirits x1.225, flora or fungus x1.175, Wyrd bodies x0.875, infected flesh x0.85, drowned x0.675, flesh undead x0.60, confirmed skeletons x0.40, and constructs x0.25. Presets and elite clamps scale those values normally. Native Generic Magical armor and resistance apply first; Soul Claim remains a protected execution outside ordinary Necrotic rules.
 
-When Blood Magic Expansion API v10 or newer is installed, its exact Blood Magic packets use a separate Hardened matrix instead of inheriting generic blood-name matching: flesh x1.15, sea flesh x1.10, Wyrd and infected bodies x0.85, flesh undead x0.75, drowned and flora or fungus x0.65, spirits x0.30, and skeletons or constructs x0.25. If the optional API is absent, the established conservative text fallback remains available for other blood effects. Blood and Necrotic therefore complement each other: living flesh favors Blood, spirits and growth favor Necrotic, and bloodless bodies resist Blood most strongly.
+When Blood Magic Expansion API v10 or newer is installed, its exact Blood Magic packets use a separate Hardened matrix instead of inheriting generic blood-name matching: flesh x1.15, sea flesh x1.10, Wyrd and infected bodies x0.85, flesh undead x0.75, drowned and flora or fungus x0.65, spirits x0.30, and skeletons or constructs x0.25. Its Bleed buildup bonus composes multiplicatively with Tenacity without changing completed-proc detection or duration extensions. If the optional API is absent, the established conservative text fallback remains available for other blood effects. Blood and Necrotic therefore complement each other: living flesh favors Blood, spirits and growth favor Necrotic, and bloodless bodies resist Blood most strongly.
 
 Direct player arrows now have their own material identity instead of acting as generic Pierce. Against ordinary humanoids, equipped armor creates a clear curve: exposed flesh is most vulnerable, Light armor remains slightly favorable, Medium is neutral, and Heavy strongly resists arrows while also resisting ordinary Pierce. Other material families retain their own arrow reactions. Fire, Electric, and other payloads keep their own matchup rather than inheriting the physical arrow penalty.
 
@@ -28,7 +28,13 @@ Direct player spells receive a small tiered advantage against armor, while Fire,
 
 Material impact keeps reactions proportional to effectiveness. Every resisted direct player hit carries 60% of its resistance into reduced poise and force, without letting weaknesses amplify control. Immune or very strongly resisted hits also lose the routine small flinch. Real poise breaks, force stumbles, ragdolls, damage processing, effects, and aggro remain intact. MaterialImpactRulesEnabled disables this complete layer.
 
-Progressive Tenacity is independent from presets. It remains inactive through hero level 20, then scales linearly to full strength at level 35. At full strength, Trash, Normal, Elite, MiniBoss, and Boss enemies resist 10%, 15%, 25%, 30%, or 40% of player-caused poise, force, and stamina damage; direct health damage uses half that amount. A confirmed native or Steel and Bone material weakness halves Tenacity for that hit. Hero-owned summon attacks count as player-caused, while Critter and Hero Summon targets receive none. Damage over time, environmental damage, unrelated NPC combat, enemy health pools, and preset values remain unchanged. Set ProgressiveTenacityEnabled to false to disable the complete curve.
+Tenacity is active from hero level 1 and grows smoothly from 40% campaign strength to 100% at level 35. Its full-strength class maxima are 12% for Trash, 18% for Normal, 30% for Elite, 38% for MiniBoss, and 50% for Boss enemies; Critters and Hero Summon targets receive none. Tempered, Hardened, and Crucible multiply the result by x0.75, x1.00, or x1.25.
+
+Host Resolve makes large summon groups draw a proportionate response from major enemies without inflating their base health or damage. The first qualifying summon is free. Summons two through eight smoothly and evenly increase the enemy's Tenacity, reaching x1.50 for MiniBosses or x1.75 for Bosses at eight qualifying summons. When the 80% cap limits that endpoint, the available headroom is distributed across the complete curve so every qualifying summon through the eighth contributes. A qualifying summon must be living, active, hero-owned, use the game's native Hero Summon identity, share the target's scene, and be within 50 meters. Steel and Bone checks the shared host once per second. Soul and Service servants qualify without a hard dependency.
+
+Tenacity reduces player-caused poise, force, enemy stamina, and parry stamina damage at full strength. Direct non-damage-over-time health damage uses half strength. Harmful status buildup from the hero or a hero-owned summon also uses half strength, with status Tenacity capped at 60%; native Weak, Normal, Resistant, and immune thresholds remain authoritative. Player-owned persistent areas count, while positive statuses, direct status application, forced buildup completion, active status strength, duration, decay, and tick damage remain unchanged.
+
+Hero-owned summon attacks count as player-caused, so servants participate in the same rule they provoke. Effective Tenacity is capped at 80% before direct-hit counterplay; a confirmed native or Steel and Bone material weakness or a confirmed weak spot then halves it once for that hit. Criticals, backstabs, and generic bonuses do not count as weaknesses, and criticals receive no additional Tenacity penalty. Damage over time, environmental damage, unrelated NPC combat, enemy health pools, saved NPC state, preset values, and stagger immunity remain unchanged. Set TenacityEnabled to false to disable the complete system.
 
 The compact technique layer gives focused builds a fallback without replacing the best material counter. Pommel strikes borrow the Blunt matchup against bone, stone, and ordinary armor; heavy melee attacks partially breach custom rigid resistance; and direct area hits pressure otherwise-neutral swarms. Native reactions still take priority, and TechniqueMatchupRulesEnabled disables the complete layer.
 
@@ -83,7 +89,7 @@ ArmoredSpellWeaknessEnabled = true
 TechniqueMatchupRulesEnabled = true
 PassiveShieldProtectionEnabled = true
 DifficultyModifiersEnabled = true
-ProgressiveTenacityEnabled = true
+TenacityEnabled = true
 ModifyPlayerDamageDealt = true
 WeakSpotDamageBonus = 0.20
 ModifyCriticalDamageBonus = true
@@ -130,7 +136,7 @@ Avalon AI Overhaul is conditionally compatible. Disable ModifyEnemySightRange, M
 
 Custom Difficulty is flagged as incompatible because it changes many of the same difficulty systems. Both can load, but overlapping Steel and Bone settings must be disabled.
 
-Tainted Combat is conditionally compatible. Disable matching stamina, parry-window, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Progressive Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.
+Tainted Combat is conditionally compatible. Disable matching stamina, parry-window, attack-slot, recovery, poise, or armor-penalty settings when both mods alter that system. Tenacity is included in warnings when its poise reduction overlaps. Its AffectFoodAndDishes option also overlaps Steel and Bone's food recovery and combat-use restriction; leave that option disabled when Steel and Bone owns food behavior.
 
 Better Movement is compatible. Its movement multipliers stack with Steel and Bone's optional Light armor bonus; disable either modifier if the combined speed is not desired.
 
@@ -140,7 +146,7 @@ protection returns when the shield hand becomes active.
 
 Flat Arrows is conditionally compatible. Its bow pull, release, and instant-fire options do not directly overlap, but its arrow modifications stack with Steel and Bone's player velocity and gravity changes. Disable Flat Arrows' EnableArrowModifications or disable both ModifyPlayerArrowVelocity and ModifyPlayerArrowDrop in Steel and Bone.
 
-HarderLife is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and consumable-effectiveness modifiers can stack with Steel and Bone's matching food or difficulty systems, including Progressive Tenacity's direct-health reduction. Steel and Bone's Potion Poisoning buildup tuning is distinct from HarderLife's potion effectiveness. Set matching multipliers to 1 or disable the corresponding Steel and Bone settings when an overlap warning appears. HarderLife's parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.
+HarderLife is conditionally compatible. Its incoming and outgoing damage, general and action stamina, mana, enemy vision, hearing, aggro persistence, and consumable-effectiveness modifiers can stack with Steel and Bone's matching food or difficulty systems, including Tenacity's direct-health reduction. Steel and Bone's Potion Poisoning buildup tuning is distinct from HarderLife's potion effectiveness. Set matching multipliers to 1 or disable the corresponding Steel and Bone settings when an overlap warning appears. HarderLife's parry health cost, backstab bonus, extended chase boundary, and debuff duration remain distinct.
 
 Tainted Instincts is flagged as incompatible because it can modify enemy sight, damage, attack cadence, pursuit, and combat-slot behavior. Both can load, but overlapping Steel and Bone settings must be disabled.
 

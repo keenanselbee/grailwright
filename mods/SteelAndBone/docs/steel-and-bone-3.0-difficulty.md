@@ -1,6 +1,6 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 4.0.4.
+Current release: 4.2.3.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
@@ -40,23 +40,39 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 
 `DifficultyModifiersEnabled` disables this entire table without disabling material rules or feedback. Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset.
 
-## Progressive Tenacity
+## Tenacity
 
-Progressive Tenacity is preset-independent and controlled only by `ProgressiveTenacityEnabled`. It remains inactive through hero level 20 and scales linearly to full strength at level 35:
+Tenacity is controlled by `TenacityEnabled`, active from the beginning, and scales linearly from 40% campaign strength at hero level 1 to 100% at level 35:
 
-`progress = clamp((hero level - 20) / 15, 0, 1)`
+`campaignFactor = 0.40 + (0.60 * clamp((hero level - 1) / 34, 0, 1))`
 
-| Native NPC type | Maximum Tenacity | Maximum direct-health reduction |
+`baseTenacity = classMaximum * campaignFactor * presetFactor`
+
+For MiniBosses and Bosses, normalize the current Host Resolve factor between 1.00 and its 1.50 or 1.75 maximum, then interpolate from capped base Tenacity to the capped eight-summon endpoint:
+
+`hostProgress = clamp((hostResolveFactor - 1) / (hostResolveMaximum - 1), 0, 1)`
+
+`tenacity = lerp(min(baseTenacity, 0.80), min(baseTenacity * hostResolveMaximum, 0.80), hostProgress)`
+
+If a direct hit exploits a confirmed native or Steel and Bone material weakness or lands on a confirmed weak spot, halve the capped result once. These answers do not stack into quarter-strength Tenacity.
+
+| Native NPC type | Class maximum | Full-strength Hardened direct-health reduction |
 |---|---:|---:|
 | Critter | 0% | 0% |
-| Trash | 10% | 5% |
-| Normal | 15% | 7.5% |
-| Elite | 25% | 12.5% |
-| MiniBoss | 30% | 15% |
-| Boss | 40% | 20% |
+| Trash | 12% | 6% |
+| Normal | 18% | 9% |
+| Elite | 30% | 15% |
+| MiniBoss | 38% | 19% |
+| Boss | 50% | 25% |
 | HeroSummon | 0% | 0% |
 
-Tenacity reduces player-caused poise, force, and enemy stamina damage at full strength. Direct non-damage-over-time health damage uses half strength. Native hero-owned summon attacks count as player-caused, while Hero Summon targets remain exempt. A confirmed native or Steel and Bone material weakness halves Tenacity for that hit; criticals, weak spots, backstabs, and generic damage bonuses do not count as weaknesses. Tenacity does not change enemy maximum health, apply stagger immunity, track performance, alter presets, or affect damage over time, environmental damage, or unrelated NPC damage.
+Preset factors are 0.75 for Tempered, 1.00 for Hardened, and 1.25 for Crucible.
+
+Host Resolve applies only to MiniBoss and Boss targets. Count living, active, hero-owned native `NpcHeroSummon` actors in the same scene and within 50 meters, cap the count at eight, and give the first summon no bonus. Summons two through eight evenly interpolate from x1.00 to maximum factors of x1.50 for MiniBosses and x1.75 for Bosses. When the 80% cap limits the raw curve, interpolate the available headroom across the same normalized progression so each qualifying summon through the eighth contributes without changing the one- or eight-summon endpoint. Refresh one shared host snapshot at most once per second. Soul and Service servants qualify through native identity without a hard dependency. Host Resolve has no separate toggle or notification.
+
+Tenacity reduces player-caused poise, force, and enemy stamina damage at full strength. Direct non-damage-over-time health damage uses half strength. Harmful status buildup from the hero or a native hero-owned summon also uses half strength with `statusTenacity = min(tenacity, 0.60)`, so every buildup contribution retains at least 70%. Native status thresholds remain authoritative. Player-owned persistent areas count through a scoped owner fallback; positive buildup, direct status application, forced completion, and active status duration, strength, decay, and tick damage do not change.
+
+Native hero-owned summon attacks count as player-caused, while Hero Summon targets remain exempt. Criticals, backstabs, and generic damage bonuses do not count as weaknesses, and critical damage receives no separate Tenacity penalty. Tenacity does not change enemy maximum health or damage, apply stagger immunity, track performance, store NPC state, or affect damage over time, environmental damage, or unrelated NPC combat.
 
 ## Native-System Contract
 
@@ -72,6 +88,7 @@ Tenacity reduces player-caused poise, force, and enemy stamina damage at full st
 | Light mobility | Non-saved tweak on `CharacterStats.MovementSpeedMultiplier` | Apply only while native `ArmorWeightType` is Light. |
 | Physical protection | `Hero.TotalArmor(DamageSubType)` postfix | Scale only physical subtype queries. Medium and Heavy use distinct values; Overload inherits Heavy. |
 | Passive shields | Hero-target branch of `HealthElement.ApplyDamageModifiers` | For direct physical hits within native `BlockAngle`, reduce damage by effective Block multiplied by the preset share. Require a readied shield, cap coverage to the forward 180 degrees, and skip active blocks, rear hits, magic, status effects, and damage over time. |
+| Tenacity buildup | `CharacterStatuses.BuildupStatus` prefix plus scoped `PersistentAoE.ApplyBuildupStatus` owner recovery | Scale only positive harmful buildup contributions against eligible hostile NPCs when the source is the hero or a native hero-owned summon. Compose multiplicatively with other buildup modifiers and preserve direct statuses, forced completion, native thresholds, and active-status behavior. |
 | Critical and weak-spot tuning | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Preserve the native +0.45 critical bonus, scale only accumulated positive critical bonus above it by 1.00/0.75/0.50, and add the preset's `WeakSpotDamageBonus` beside native precision components before outgoing pressure and material matchups. Do not mutate hero stats, item stats, or hitbox definitions. |
 | Resources | Non-saved stat tweaks | Keep exactly one owned tweak per active lever. |
 | Dash stamina cost | `HumanoidMovementBase.DashCost` postfix | Multiply the game's resolved dash cost by 1.00/1.15/1.30 so affordability checks and payment agree. Preserve native and general stamina multipliers. |
@@ -166,9 +183,9 @@ Normal operation is silent. With Grail Floating Text installed, a confirmed over
 | HarderLife overlap active | Warning lists only the matching active Steel and Bone toggles, including hearing, persistence, or consumable recovery when applicable. |
 | Tainted Instincts sight tuning disabled | No sight-range overlap warning. |
 | Tainted Instincts sight tuning active | Warning names `ModifyEnemySightRange`; other active exact overlaps are listed. |
-| Progressive Tenacity external overlap | Matching Custom Difficulty or HarderLife outgoing-health changes and Tainted Combat poise changes name `ProgressiveTenacityEnabled` in the warning. |
+| Tenacity external overlap | Matching Custom Difficulty or HarderLife outgoing-health changes and Tainted Combat poise changes name `TenacityEnabled` in the warning. |
 | External overlap inactive | No in-game notification. |
 | Schema reset from a supported backup | Restore compatible customized values automatically, retain the current Preset default through its schema-16 meaning-change rule, skip removed settings, and clamp restored values to current ranges. |
 | Package | One top-level `SteelAndBone` folder with DLL and installed-user docs only. |
 
-Config schema is 25. Version 3.6.5 expanded `MaterialImpactRulesEnabled` from its earlier arrow-specific behavior to every resisted direct hit, requiring regenerated defaults so the setting's changed meaning could not be inherited silently. Compatible durable settings remain recoverable, and the fixed recovery baseline remains 14. Progressive Tenacity adds one new setting without changing the schema.
+Config schema is 29. Version 4.1.0 renamed `ProgressiveTenacityEnabled` to `TenacityEnabled` and changed the system from a preset-independent late-game curve to campaign-wide preset and host scaling. Version 4.2.1 expands that same setting to harmful status buildup, so schema-28 configs are backed up and regenerated rather than silently inheriting the broader meaning. Compatible durable settings remain recoverable, and the fixed recovery baseline remains 14.

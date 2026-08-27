@@ -44,7 +44,9 @@ Assert-Contract (-not $difficultySource.Contains('buffer.PushNotification(Plugin
 Assert-Contract ($manifest.references -contains '%GAME%/Fall of Avalon_Data/Managed/DOTween.dll') "mod.json does not reference the native vignette tween assembly."
 Assert-Contract ($mainSource.Contains('IsTrueMember(modifiersInfo, "IsCritical")')) "Hit feedback does not use the specific critical modifier."
 Assert-Contract (-not $mainSource.Contains('IsTrueMember(modifiersInfo, "AnyCritical")')) "Hit feedback still treats weak spots, sneak attacks, or backstabs as true critical hits."
-Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 27')) "Config schema is not 27."
+Assert-Contract ($mainSource.Contains('PluginVersion = "4.2.3"')) "Plugin version is not 4.2.3."
+Assert-Contract ($mainSource.Contains('AssemblyVersion("4.2.3.0")') -and $mainSource.Contains('AssemblyFileVersion("4.2.3.0")') -and $mainSource.Contains('AssemblyInformationalVersion("4.2.3")')) "Assembly version attributes are not 4.2.3."
+Assert-Contract ($mainSource.Contains('ConfigSchemaVersion = 29')) "Config schema is not 29."
 Assert-Contract ($mainSource.Contains('23,') -and $mainSource.Contains('"ConstructTerms",') -and $mainSource.Contains('The broad Crystal term was replaced with exact crystal-bodied enemy terms')) "Schema 23 does not keep the safe ConstructTerms default."
 Assert-Contract ($mainSource.Contains('24,') -and $mainSource.Contains('"FloraTerms",') -and $mainSource.Contains('"FleshUndeadTerms",')) "Schema 24 does not keep the corrected Wailcap and Wight defaults."
 Assert-Contract (-not $mainSource.Contains('Statue;Crystal;Lost Knight')) "ConstructTerms still contains the unsafe broad Crystal token."
@@ -261,21 +263,62 @@ Assert-Contract ($difficultySource.Contains('MaterialImpactResistanceInheritance
 Assert-Contract ($difficultySource.Contains('TryGetDamageEffectivenessMultiplier(damage, out effectivenessMultiplier)')) "Material impact does not use the shared effective resistance result."
 Assert-Contract ($difficultySource.Contains('parameters.PoiseDamage = Mathf.Max(0.0f, state.OriginalPoiseDamage * multiplier)')) "Resisted direct hits do not scale player poise damage."
 Assert-Contract ($difficultySource.Contains('parameters.ForceDamage = Mathf.Max(0.0f, original * multiplier)')) "Resisted direct hits do not scale player force damage."
-Assert-Contract ($difficultySource.Contains('"ProgressiveTenacityEnabled"')) "Progressive Tenacity is not independently toggleable."
-Assert-Contract ($difficultySource.Contains('ProgressiveTenacityStartLevel = 20.0f') -and $difficultySource.Contains('ProgressiveTenacityFullLevel = 35.0f')) "Progressive Tenacity does not use the level 20 through 35 progression curve."
-Assert-Contract ([regex]::IsMatch($difficultySource, 'ProgressiveTenacityCap\(NpcType npcType\)[\s\S]*?case NpcType\.Trash:\s*return 0\.10f;[\s\S]*?case NpcType\.Normal:\s*return 0\.15f;[\s\S]*?case NpcType\.Elite:\s*return 0\.25f;[\s\S]*?case NpcType\.MiniBoss:\s*return 0\.30f;[\s\S]*?case NpcType\.Boss:\s*return 0\.40f;')) "Progressive Tenacity native NPC caps are incomplete."
-Assert-Contract ($difficultySource.Contains('case NpcType.Critter:') -and $difficultySource.Contains('case NpcType.HeroSummon:')) "Progressive Tenacity does not exclude Critters and Hero Summons."
-Assert-Contract ($difficultySource.Contains('tenacity *= 0.50f;') -and $difficultySource.Contains('effectivenessMultiplier > 1.0001f')) "Confirmed material weaknesses do not halve Progressive Tenacity."
-Assert-Contract ($difficultySource.Contains('float multiplier = 1.0f - (tenacity * 0.50f);')) "Progressive Tenacity health resistance is not half-strength."
-Assert-Contract ($difficultySource.Contains('parameters.PoiseDamage = Mathf.Max(0.0f, state.OriginalPoiseDamage * multiplier)') -and $difficultySource.Contains('multiplier *= 1.0f - tenacity;')) "Progressive Tenacity does not reduce player poise damage."
-Assert-Contract ($difficultySource.Contains('|| (damage != null && damage.IsDamageOverTime)')) "Progressive Tenacity does not exclude damage-over-time control damage."
-Assert-Contract ($difficultySource.Contains('damage.StaminaDamageAmount = Mathf.Max(0.0f, before * multiplier)')) "Progressive Tenacity does not reduce direct stamina damage."
-Assert-Contract ($difficultySource.Contains('typeof(HeroParry), "OnTakingDamage"') -and $difficultySource.Contains('ProgressiveTenacityParryTweak')) "Progressive Tenacity does not apply before parry stamina damage."
-Assert-Contract ($difficultySource.Contains('typeof(HealthElement),') -and $difficultySource.Contains('"BeforeHealthDecreaseEvents"')) "Progressive Tenacity does not intercept direct stamina damage before its native deduction."
-Assert-Contract ($mainSource.Contains('ApplyProgressiveTenacityHealthDamage(')) "Progressive Tenacity health resistance is not applied after material effectiveness resolves."
-Assert-Contract ($mainSource.Contains('IsHeroSummonSource(damageDealer)') -and $mainSource.Contains('return npc != null && npc.IsHeroSummon;')) "Progressive Tenacity does not recognize hero-owned summon damage."
-Assert-Contract (([regex]::Matches($difficultySource, 'ProgressiveTenacityEnabled\(\) && outgoingOverlap')).Count -ge 2) "Progressive Tenacity outgoing-health overlaps are not reported for Custom Difficulty and HarderLife."
-Assert-Contract ($difficultySource.Contains('ProgressiveTenacityEnabled() && poiseOverlap')) "Progressive Tenacity poise overlap is not reported for Tainted Combat."
+Assert-Contract ($difficultySource.Contains('"TenacityEnabled"')) "Tenacity is not independently toggleable."
+Assert-Contract (-not $difficultySource.Contains('ProgressiveTenacity') -and -not $mainSource.Contains('ProgressiveTenacity')) "Stale Progressive Tenacity references remain."
+Assert-Contract ($difficultySource.Contains('TenacityStartLevel = 1.0f') -and $difficultySource.Contains('TenacityFullLevel = 35.0f') -and $difficultySource.Contains('TenacityStartingStrength = 0.40f')) "Tenacity does not scale from 40 percent at level 1 through full strength at level 35."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'TenacityClassMaximum\(NpcType npcType\)[\s\S]*?case NpcType\.Trash:\s*return 0\.12f;[\s\S]*?case NpcType\.Normal:\s*return 0\.18f;[\s\S]*?case NpcType\.Elite:\s*return 0\.30f;[\s\S]*?case NpcType\.MiniBoss:\s*return 0\.38f;[\s\S]*?case NpcType\.Boss:\s*return 0\.50f;')) "Tenacity native NPC maxima are incomplete."
+Assert-Contract ($difficultySource.Contains('case NpcType.Critter:') -and $difficultySource.Contains('case NpcType.HeroSummon:')) "Tenacity does not exclude Critters and Hero Summons."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'PresetTenacityFactor\(\)[\s\S]*?case Preset\.Tempered:\s*return 0\.75f;[\s\S]*?case Preset\.Crucible:\s*return 1\.25f;[\s\S]*?case Preset\.Hardened:[\s\S]*?return 1\.0f;')) "Tenacity preset factors are not 0.75/1.00/1.25."
+Assert-Contract ($difficultySource.Contains('TenacityMaximum = 0.80f') -and $difficultySource.Contains('tenacity = ApplyHostResolve(baseTenacity, target, hero);')) "Tenacity does not apply its bounded Host Resolve curve before weakness handling."
+Assert-Contract ($difficultySource.IndexOf('tenacity = ApplyHostResolve(baseTenacity, target, hero);', [StringComparison]::Ordinal) -lt $difficultySource.IndexOf('if (damage != null && HasConfirmedTenacityWeakness(damage))', [StringComparison]::Ordinal)) "Tenacity weakness reduction occurs before the bounded Host Resolve result."
+Assert-Contract ($difficultySource.Contains('tenacity *= 0.50f;') -and $difficultySource.Contains('effectivenessMultiplier > 1.0001f')) "Confirmed material weaknesses do not halve Tenacity."
+Assert-Contract ($difficultySource.Contains('damage != null && damage.WeakSpotHit')) "Confirmed weak spots do not halve direct-hit Tenacity."
+Assert-Contract ($difficultySource.Contains('float multiplier = 1.0f - (tenacity * 0.50f);')) "Tenacity health resistance is not half-strength."
+Assert-Contract ($difficultySource.Contains('parameters.PoiseDamage = Mathf.Max(0.0f, state.OriginalPoiseDamage * multiplier)') -and $difficultySource.Contains('multiplier *= 1.0f - tenacity;')) "Tenacity does not reduce player poise damage."
+Assert-Contract ($difficultySource.Contains('|| (damage != null && damage.IsDamageOverTime)')) "Tenacity does not exclude damage-over-time control damage."
+Assert-Contract ($difficultySource.Contains('damage.StaminaDamageAmount = Mathf.Max(0.0f, before * multiplier)')) "Tenacity does not reduce direct stamina damage."
+Assert-Contract ($difficultySource.Contains('typeof(HeroParry), "OnTakingDamage"') -and $difficultySource.Contains('TenacityParryTweak')) "Tenacity does not apply before parry stamina damage."
+Assert-Contract ($difficultySource.Contains('typeof(HealthElement),') -and $difficultySource.Contains('"BeforeHealthDecreaseEvents"')) "Tenacity does not intercept direct stamina damage before its native deduction."
+Assert-Contract ($mainSource.Contains('ApplyTenacityHealthDamage(')) "Tenacity health resistance is not applied after material effectiveness resolves."
+Assert-Contract ($mainSource.Contains('IsHeroSummonSource(damageDealer)') -and $mainSource.Contains('return npc != null && npc.IsHeroSummon;')) "Tenacity does not recognize hero-owned summon damage."
+Assert-Contract (([regex]::Matches($difficultySource, 'TenacityEnabled\(\) && outgoingOverlap')).Count -ge 2) "Tenacity outgoing-health overlaps are not reported for Custom Difficulty and HarderLife."
+Assert-Contract ($difficultySource.Contains('TenacityEnabled() && poiseOverlap')) "Tenacity poise overlap is not reported for Tainted Combat."
+Assert-Contract ($difficultySource.Contains('HostResolveRange = 50.0f') -and $difficultySource.Contains('HostResolveSummonCountCap = 8')) "Host Resolve does not use the 50 meter, eight-summon limits."
+Assert-Contract ($difficultySource.Contains('MiniBossHostResolveMaximum = 1.50f') -and $difficultySource.Contains('BossHostResolveMaximum = 1.75f')) "Host Resolve maximum factors are incomplete."
+Assert-Contract ($difficultySource.Contains('nearbySummons - 1') -and $difficultySource.Contains('npcType != NpcType.MiniBoss && npcType != NpcType.Boss')) "Host Resolve does not leave the first summon free or restrict scaling to MiniBosses and Bosses."
+Assert-Contract ($difficultySource.Contains('additionalSummons / (float)(HostResolveSummonCountCap - 1)') -and $difficultySource.Contains('return Mathf.Lerp(1.0f, maximumFactor, progress);')) "Host Resolve does not scale evenly from the second through eighth summon."
+Assert-Contract ($difficultySource.Contains('summon.ParentModel.CurrentDomain != target.CurrentDomain') -and $difficultySource.Contains('(summon.ParentModel.Coords - target.Coords).sqrMagnitude > rangeSqr')) "Host Resolve does not require same-scene nearby summons."
+Assert-Contract ($difficultySource.Contains('ReferenceEquals(summon.Ally, hero)') -and $difficultySource.Contains('summon.ParentModel.IsAlive')) "Host Resolve does not require living hero-owned native summons."
+Assert-Contract ($difficultySource.Contains('HostResolveSnapshotIntervalSeconds = 1.0f') -and $difficultySource.Contains('Time.unscaledTime < _hostResolveSnapshotExpiresAt')) "Host Resolve snapshot caching is missing."
+Assert-Contract (([regex]::Matches($difficultySource, 'World\.All<NpcHeroSummon>\(\)')).Count -eq 1) "Host Resolve enumerates native summons outside its shared cached snapshot."
+Assert-Contract (-not $difficultySource.Contains('"Host Resolve"') -and -not $difficultySource.Contains('Host Resolve strengthens') -and -not $difficultySource.Contains('Host Resolve weakens')) "Host Resolve emits unnecessary player messages."
+$tenacityLevelOne = 0.40 + ((1.0 - 0.40) * ((1.0 - 1.0) / (35.0 - 1.0)))
+$tenacityLevelThirtyFive = 0.40 + ((1.0 - 0.40) * ((35.0 - 1.0) / (35.0 - 1.0)))
+$bossHostResolve = 1.75
+$crucibleBossBaseTenacity = 0.50 * $tenacityLevelThirtyFive * 1.25
+$crucibleBossMaximumTenacity = [Math]::Min($crucibleBossBaseTenacity * $bossHostResolve, 0.80)
+$bossThreeSummonProgress = 2.0 / 7.0
+$bossThreeSummonFactor = 1.0 + (($bossHostResolve - 1.0) * $bossThreeSummonProgress)
+$bossThreeSummonProgress = ($bossThreeSummonFactor - 1.0) / ($bossHostResolve - 1.0)
+$crucibleBossThreeSummonTenacity = $crucibleBossBaseTenacity + (($crucibleBossMaximumTenacity - $crucibleBossBaseTenacity) * $bossThreeSummonProgress)
+Assert-Contract ([Math]::Abs($tenacityLevelOne - 0.40) -lt 0.000001) "Tenacity level-one arithmetic is wrong."
+Assert-Contract ([Math]::Abs($tenacityLevelThirtyFive - 1.00) -lt 0.000001) "Tenacity level-35 arithmetic is wrong."
+Assert-Contract ([Math]::Abs($bossHostResolve - 1.75) -lt 0.000001) "Boss Host Resolve arithmetic is wrong."
+Assert-Contract ([Math]::Abs($bossThreeSummonFactor - 1.21428571428571) -lt 0.000001) "Boss Host Resolve does not scale linearly at three summons."
+Assert-Contract ([Math]::Abs($crucibleBossThreeSummonTenacity - 0.675) -lt 0.000001) "Capped Crucible boss Tenacity does not preserve linear three-summon progress."
+Assert-Contract ([Math]::Abs($crucibleBossMaximumTenacity - 0.80) -lt 0.000001) "Crucible boss eight-summon Tenacity endpoint is wrong."
+Assert-Contract ([regex]::IsMatch($difficultySource, 'ApplyHostResolve\(float baseTenacity,[\s\S]*?float progress = Mathf\.Clamp01\([\s\S]*?return Mathf\.Lerp\([\s\S]*?cappedBaseTenacity,[\s\S]*?cappedMaximumTenacity,[\s\S]*?progress\);')) "Host Resolve does not interpolate capped headroom across its normalized summon curve."
+Assert-Contract ($difficultySource.Contains('TenacityStatusMaximum = 0.60f') -and $difficultySource.Contains('float multiplier = 1.0f - (statusTenacity * 0.50f);')) "Harmful status buildup does not use half-strength Tenacity with a 60 percent cap."
+Assert-Contract ($difficultySource.Contains('statusTemplate.IsPositive') -and $difficultySource.Contains('buildupStrength <= 0.0f')) "Tenacity status buildup does not exclude positive or non-positive buildup contributions."
+Assert-Contract ($difficultySource.Contains('sourceInfo.GetSourceCharacter ?? _activePersistentAoEBuildupDealer') -and $difficultySource.Contains('!IsHeroSummonSource(source)')) "Tenacity status buildup does not restrict ownership to the hero and native hero summons."
+Assert-Contract ($difficultySource.Contains('plugin.ApplyTenacityStatusBuildup(__instance, __1, __2, ref __0);')) "The shared CharacterStatuses prefix does not apply Tenacity buildup scaling."
+Assert-Contract ($difficultySource.Contains('typeof(PersistentAoE)') -and $difficultySource.Contains('"ApplyBuildupStatus"') -and $difficultySource.Contains('WeakModelRef<ICharacter> ____damageDealer')) "Persistent-area buildup does not recover its native damage dealer for Tenacity."
+Assert-Contract ($difficultySource.Contains('RestorePersistentAoEBuildupSource(__state);')) "Persistent-area buildup source scope is not restored transactionally."
+$patchTenacityStart = $difficultySource.IndexOf('private void PatchTenacity()', [StringComparison]::Ordinal)
+$patchTenacityEnd = $difficultySource.IndexOf('private bool DifficultyModifiersAreEnabled()', $patchTenacityStart, [StringComparison]::Ordinal)
+Assert-Contract ($patchTenacityStart -ge 0 -and $patchTenacityEnd -gt $patchTenacityStart) "PatchTenacity source boundary is unavailable."
+$patchTenacitySource = $difficultySource.Substring($patchTenacityStart, $patchTenacityEnd - $patchTenacityStart)
+Assert-Contract ($patchTenacitySource.Contains('typeof(CharacterStatuses)') -and $patchTenacitySource.Contains('typeof(PersistentAoE)')) "Tenacity status patches are not registered from the dedicated Tenacity startup path."
 Assert-Contract ($mainSource.Contains('IsFullyNativeImmune(damage)') -and $mainSource.Contains('weightedMultiplier / totalWeight <= 0.0001f')) "Full native immunity does not bypass invalid normalized damage shares."
 Assert-Contract ($difficultySource.Contains('typeof(NpcElement), nameof(NpcElement.DealPoiseDamage)')) "Routine-flinch interception does not occur before enemy virtual poise dispatch."
 Assert-Contract ($difficultySource.Contains('StrongResistanceFlinchThreshold = 0.35f') -and $difficultySource.Contains('effectivenessMultiplier <= StrongResistanceFlinchThreshold')) "Strongly resisted direct hits are not classified for routine-flinch suppression."
@@ -368,7 +411,7 @@ $requiredSettings = @(
     "ModifyParryWindowBonus",
     "PositiveParryWindowBonusMultiplier",
     "ModifyPlayerPoiseDamageDealt",
-    "ProgressiveTenacityEnabled",
+    "TenacityEnabled",
     "ModifyPlayerArrowVelocity",
     "ModifyPlayerArrowDrop",
     "PlayerArrowGravityMultiplier",
@@ -647,7 +690,7 @@ Assert-Contract ($readme.Contains("Material weaknesses and resistances define th
 Assert-Contract ($nexusFull.Contains("Bone, flesh, stone, and spirit. Know your enemy. Strike with purpose.")) "Nexus description lacks the defining subtext."
 Assert-Contract ($nexusFull.Contains("material system gives bone, flesh, stone, spirit, armor, and other identities distinct reactions")) "Nexus description does not lead with material combat."
 Assert-Contract ($nexusFull.Contains("a lightweight, native-first difficulty overhaul built around one idea")) "Nexus introduction does not establish its lightweight, native-first identity."
-Assert-Contract ($nexusFull.Contains("Major Features") -and $nexusFull.Contains("Knowledge decides the matchup.") -and $nexusFull.Contains("Every combat tool has a purpose.") -and $nexusFull.Contains("The rules stay readable.") -and $nexusFull.Contains("Combat pressure extends beyond damage.") -and $nexusFull.Contains("Preparation outlasts panic.") -and $nexusFull.Contains("Difficulty remains modular.")) "Nexus description lacks the thesis-style major-features overview."
+Assert-Contract ($nexusFull.Contains("Major Features") -and $nexusFull.Contains("Combat Philosophy.") -and $nexusFull.Contains("Know Your Enemy.") -and $nexusFull.Contains("Readable Combat Feedback.") -and $nexusFull.Contains("Expanded Combat Systems.") -and $nexusFull.Contains("Tenacity.") -and $nexusFull.Contains("Preparation and Recovery.") -and $nexusFull.Contains("Presets.")) "Nexus description lacks the current major-features overview."
 Assert-Contract ($nexusFull.Contains("eight states ranging from immunity and resistance through neutral damage to weakness") -and -not $nexusFull.Contains("frame 0 for true immunity")) "Nexus combat-feedback section is missing its condensed hit-marker explanation."
 Assert-Contract ($nexusFull.Contains("Broad in Scope, Lightweight in Implementation")) "Nexus lightweight-implementation section heading is missing."
 Assert-Contract ($nexusFull.Contains("travel at x1.10 / x1.30 / x1.50 speed across Tempered, Hardened, and Crucible")) "Nexus projectile section does not present its preset sequence clearly."
@@ -694,4 +737,4 @@ Assert-Contract ($nexusShort.Length -le 350) "Nexus short description exceeds 35
 Assert-Contract ($nexusFile.Length -lt $nexusShort.Length) "Nexus file description is not shorter than the short description."
 Assert-Contract ($nexusFile -ne $nexusShort) "Nexus file description duplicates the short description."
 
-Write-Output "Steel and Bone 4.0.4 difficulty contracts passed."
+Write-Output "Steel and Bone 4.2.3 difficulty contracts passed."

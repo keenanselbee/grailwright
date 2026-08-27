@@ -63,59 +63,22 @@ Start the game once to generate:
 BepInEx/config/ks.tgfoa.first-person-arms-adjuster.cfg
 [/code]
 
-FoA Mod Manager organizes the live controls into [b]General[/b], [b]Position[/b], [b]Equipment Depth[/b], [b]Head Bob[/b], [b]Advanced - Animation Guards[/b], [b]Advanced - Effects[/b], and [b]Diagnostics[/b]. Friendly labels show metres and signed directions.
+FoA Mod Manager organizes every live control into clear sections, with friendly labels for metres and signed directions. This table summarizes the main groups and defaults:
 
 [code]
-| Setting                          | Default  | Purpose                                        |
-|----------------------------------|----------|------------------------------------------------|
-| Enabled                          | true     | Master switch                                  |
-| UseCategoryForwardOffsets        | true     | Use separate melee, bow, and magic values      |
-| AdjustAttachedEffects            | true     | Align equipped presentation effects            |
-| ForwardOffset                    | 0.30     | General and unrecognized-equipment depth       |
-| HorizontalOffset                 | 0.0      | Right or left camera-space adjustment          |
-| VerticalOffset                   | 0.0      | Up or down camera-space adjustment             |
-| ShoulderRetraction              | 0.05     | Targeted upper-body retraction toward camera   |
-| SpineRetractionPercent          | 0        | Lower-spine share of master retraction         |
-| Spine1RetractionPercent         | 0        | Middle-chest share of master retraction        |
-| Spine2RetractionPercent         | 100      | Upper-chest share of master retraction         |
-| LeftShoulderRetractionPercent   | 100      | Left-shoulder share of master retraction       |
-| RightShoulderRetractionPercent  | 100      | Right-shoulder share of master retraction      |
-| UpperArmRetractionPercent       | 30       | Upper-arm share of master retraction           |
-| ForearmRetractionPercent        | 20       | Forearm share; hands remain fixed              |
-| LowerTorsoRetractionPercent     | 0        | Additional lower-torso correction              |
-| ChestHelperRetractionPercent    | 0        | Additional chest-region correction             |
-| ShoulderFixRetractionPercent    | 0        | Additional shoulder-helper correction          |
-| NativeClothRetractionPercent    | 0        | Additional native-cloth correction             |
-| TorsoRendererRetractionPercent | 50       | Complete torso-renderer share of master distance |
-| TestRetractionBoneName          | empty    | Exact native bone to test                      |
-| TestBoneRetractionPercent       | 0        | Additive 0-400% test-bone movement             |
-| MeleeForwardOffset               | 0.30     | Melee weapon depth                             |
-| BowForwardOffset                 | 0.30     | Bow depth                                      |
-| MagicForwardOffset               | 0.30     | Equipped-magic depth                           |
-| EnableHeadBob                    | true     | Enable camera-only first-person head bob       |
-| HeadBobPreset                    | Balanced | Subtle, Balanced, or Strong movement           |
-| HeadBobSmoothness                | 0.7      | Ease cadence and strength transitions           |
-| SprintEmphasis                   | 0.75     | Increase movement and cadence while sprinting  |
-| HeadBobSpeedPercent              | 75       | Scale gait cadence without changing amplitude  |
-| StabilizeViewmodelDuringHeadBob  | true     | Fully stabilize held visuals against FPAA bob  |
-| ViewmodelHeadBobFollowPercent    | 100      | Share camera bob with first-person held visuals |
-| SuppressMotionBlurDuringHeadBob  | false    | Exclude visible bob from camera motion blur    |
-| TemporalSafeHeadBobTiming        | true     | Prevent temporal blur from head-bob timing     |
-| EnableAnimationGuards            | true     | Master attack, dodge, and sheathing guards     |
-| MitigateHeldMeleeBodyIntrusion   | true     | Guard held-heavy and sprint attack poses       |
-| EnableDodgeGuard                 | true     | Enable animation-timed dodge correction        |
-| EnableSheathingGuard             | true     | Enable all-equipment sheathing correction      |
-| EnableBowDrawGuard               | true     | Limit FPAA depth during bow draw                |
-| BowDrawMaximumOffsetPercent      | 33       | Maximum draw depth as share of Bow Depth Offset |
-| UseSharedGuardTarget             | true     | Make enabled guards share one exact target     |
-| SharedMoveTowardVanillaPercent   | 50       | Shared 0-100% movement toward vanilla          |
-| HeldMeleeOffsetScale             | 1.0      | Fraction of the normal offset kept while held  |
-| HeldMeleeExtraForwardOffset      | -0.05    | Held-only depth correction after scaling       |
-| HeldMeleeExtraVerticalOffset     | -0.05    | Held-only vertical correction after scaling    |
-| Diagnostics                      | false    | Log render paths, offsets, and melee states    |
+| Section                       | Key defaults            | Controls             |
+|-------------------------------|-------------------------|----------------------|
+| General                       | Enabled: true           | Master switch        |
+| Position                      | 0.30 m / 0 / 0          | Placement/retraction |
+| Equipment Depth               | Melee/Bow/Magic: 0.30 m | Per-category depth   |
+| Head Bob                      | Enabled, Balanced       | Motion/stabilization |
+| Advanced - Retraction Profile | Region-specific values  | Armor clipping fixes |
+| Advanced - Animation Guards   | Enabled                 | Attack/dodge/bow     |
+| Advanced - Effects            | Attached effects: true  | Effect alignment     |
+| Diagnostics                   | false                   | Detailed logging     |
 [/code]
 
-All position values accept a range from -0.50 to 0.50 meters.
+The Position row lists Forward, Horizontal, and Vertical defaults in order. All position values accept a range from -0.50 to 0.50 meters. Advanced controls include descriptions and safe defaults in FoA Mod Manager.
 
 [line]
 

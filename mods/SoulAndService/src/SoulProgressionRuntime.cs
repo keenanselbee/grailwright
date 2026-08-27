@@ -43,6 +43,7 @@ namespace SoulAndService
         internal const float SwarmCommandPower = 90.0f;
         internal const float EmpowermentPower = 100.0f;
         internal const float MaximumSummonCapacityPower = 150.0f;
+        internal const float RaiseAllPower = 200.0f;
         internal const float GuardDamageMultiplier = 1.05f;
         internal const float GuardDamageTakenMultiplier = 0.95f;
         internal const float BulwarkDamageTakenMultiplier = 0.85f;
@@ -944,6 +945,22 @@ namespace SoulAndService
                 ShowSoulVigorThresholdMessage(
                     "soul-summon-capacity",
                     "Necromantic Power wanes: Summon Capacity bonus falls to +2.",
+                    false);
+            }
+            if (beforePower < RaiseAllPower
+                && afterPower >= RaiseAllPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-raise-all",
+                    "Necromantic Power rises: Raise All is available.",
+                    true);
+            }
+            if (beforePower >= RaiseAllPower
+                && afterPower < RaiseAllPower)
+            {
+                ShowSoulVigorThresholdMessage(
+                    "soul-command-raise-all",
+                    "Necromantic Power wanes: Raise All is unavailable.",
                     false);
             }
         }

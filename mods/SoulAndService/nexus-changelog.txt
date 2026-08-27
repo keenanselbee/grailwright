@@ -1,9 +1,4 @@
-TargetVersion=2.5.2
-BaselineVersion=2.4.7
-Made Guard and Hunt tolerate more local hero movement before reforming, including during combat, while retaining deliberate travel response.
-Made Bulwark Advance acquire its forward slots immediately, converge quickly while meaningfully displaced, settle within a wider hysteretic arrival zone, and probe deterministic nearby reachable positions when terrain blocks an exact slot, including while the hero keeps moving.
-Removed avoidable Soul Rend hand-light work when the feature or spell is inactive and replaced per-frame state-name conversions with typed checks.
-Consolidated reanimation runes and optional dark-green smoke into one pooled body effect per servant and removed the weaker fire-wisp option.
-Added an enabled-by-default dynamic particle budget that preserves full density for small hosts and progressively reduces per-servant rune and smoke particles as the reanimated host grows.
-Limited allocation-free summon collider discovery to initialization and the game's collider-toggle events, removing speculative recurring hierarchy scans.
-Tightened heavy Soul Rend's ground-aim corpse assist from 1 meter to 0.4 meters while preserving direct-target priority.
+TargetVersion=2.8.9
+BaselineVersion=2.8.8
+Made Empower cost twice each servant's stable base Soul Vigor value through the current Power curve, with exact Empower/Requires previews, payment only on success, and proportional recovery of that investment when the servant is later unbound.
+Made each Empowered raised servant's persistent Reanimation VFX brightness reflect its exact 1.2x-1.5x combat roll, capped at 20.0 without changing opacity, scale, or particle density.

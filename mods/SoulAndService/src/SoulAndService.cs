@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("2.5.2.0")]
-[assembly: AssemblyFileVersion("2.5.2.0")]
-[assembly: AssemblyInformationalVersion("2.5.2")]
+[assembly: AssemblyVersion("2.8.9.0")]
+[assembly: AssemblyFileVersion("2.8.9.0")]
+[assembly: AssemblyInformationalVersion("2.8.9")]
 
 namespace SoulAndService
 {
@@ -58,7 +58,8 @@ namespace SoulAndService
         Attack = 1,
         Hold = 2,
         Follow = 3,
-        Behavior = 4
+        Behavior = 4,
+        RaiseAll = 5
     }
 
     public enum TargetCommandModifierMode
@@ -93,13 +94,20 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "2.5.2";
+        public const string PluginVersion = "2.8.9";
 
-        private const int ConfigSchemaVersion = 11;
+        private const int ConfigSchemaVersion = 22;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
-                new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[0];
+                new[]
+                {
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        20,
+                        "Reanimation VFX",
+                        "AuraIntensity",
+                        "Aura Intensity now controls brightness only; electricity and smoke opacity are independent settings.")
+                };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
             {
@@ -126,6 +134,20 @@ namespace SoulAndService
         internal ConfigEntry<bool> ShareHeroTarget;
         internal ConfigEntry<bool> AttackCommandPrompt;
         internal ConfigEntry<bool> FormationCommands;
+        internal ConfigEntry<bool> HoldIndividualFormationCommands;
+        internal ConfigEntry<bool> DirectedHuntEnabled;
+        internal ConfigEntry<bool> ShowDirectedHuntPreview;
+        internal ConfigEntry<bool> BulwarkAdvanceEnabled;
+        internal ConfigEntry<float> BulwarkAdvanceReleaseSeconds;
+        internal ConfigEntry<float> BulwarkAdvanceSpeedMultiplier;
+        internal ConfigEntry<float> GuardFormationDistance;
+        internal ConfigEntry<float> GuardEngagementRange;
+        internal ConfigEntry<float> HuntFormationDistance;
+        internal ConfigEntry<float> BulwarkCloseGuardDistance;
+        internal ConfigEntry<float> BulwarkAdvanceDistance;
+        internal ConfigEntry<float> BulwarkLocalEngagementRange;
+        internal ConfigEntry<float> BulwarkTargetRetentionRange;
+        internal ConfigEntry<float> BulwarkPlayerLeash;
         internal ConfigEntry<TargetCommandModifierMode> TargetCommandModifier;
         internal ConfigEntry<float> ShareTargetMaxDistance;
         internal ConfigEntry<bool> SummonPassThrough;
@@ -161,12 +183,14 @@ namespace SoulAndService
         internal ConfigEntry<float> SoulRendInnerLightMaximumPowerRange;
         internal ConfigEntry<float> SoulRendInnerLightFadeSeconds;
         internal ConfigEntry<bool> ReanimationVfxEnabled;
-        internal ConfigEntry<bool> ReanimationRunesEnabled;
-        internal ConfigEntry<float> ReanimationRuneIntensity;
-        internal ConfigEntry<int> ReanimationRuneParticleAmount;
-        internal ConfigEntry<bool> ReanimationSmokeEnabled;
-        internal ConfigEntry<float> ReanimationSmokeIntensity;
-        internal ConfigEntry<int> ReanimationSmokeParticleAmount;
+        internal ConfigEntry<string> ReanimationAuraArcColor;
+        internal ConfigEntry<string> ReanimationAuraGlowColor;
+        internal ConfigEntry<string> ReanimationAuraHazeColor;
+        internal ConfigEntry<int> ReanimationAuraParticleAmount;
+        internal ConfigEntry<float> ReanimationAuraIntensity;
+        internal ConfigEntry<float> ReanimationElectricityOpacity;
+        internal ConfigEntry<float> ReanimationSmokeOpacity;
+        internal ConfigEntry<float> ReanimationAuraScale;
         internal ConfigEntry<bool> ReanimationDynamicParticleBudget;
         internal ConfigEntry<bool> Diagnostics;
         internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
@@ -244,7 +268,9 @@ namespace SoulAndService
             }
         }
 
-        internal void ShowSoulSalvageHeavyCastDiagnostic(string message)
+        internal void ShowSoulSalvageHeavyCastDiagnostic(
+            string diagnosticGroup,
+            string message)
         {
             if (Diagnostics == null
                 || !Diagnostics.Value
@@ -254,12 +280,34 @@ namespace SoulAndService
                 return;
             }
 
+            string diagnosticId = "soul-rend-"
+                + diagnosticGroup + "-diagnostic";
             Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
                 .TryShowDiagnosticNotification(
                     PluginGuid,
-                    "soul-and-service-soul-salvage",
+                    diagnosticId,
                     message,
-                    "soul-and-service-diagnostics");
+                    diagnosticId);
+        }
+
+        internal void ShowSoulSalvageHeavyCastFeedback(
+            string eventId,
+            string message,
+            bool warning = false)
+        {
+            Grailwright.Shared.GrailFloatingTextLoadErrorNotifier
+                .TryShowEventNotification(
+                    PluginGuid,
+                    eventId,
+                    message,
+                    warning ? "Warning" : "Necrotic",
+                    "Status",
+                    "Normal",
+                    eventId,
+                    "necro",
+                    "Short",
+                    0.25f,
+                    0.95f);
         }
 
         internal void LogWarning(string message)
@@ -331,6 +379,8 @@ namespace SoulAndService
                     return 17;
                 case "Following":
                     return 20;
+                case "Summon Behaviors":
+                    return 25;
                 case "Targeting":
                     return 30;
                 case "Collision":
@@ -419,7 +469,7 @@ namespace SoulAndService
             TeleportDistance = BindOrdered(
                 "Following",
                 "TeleportDistance",
-                35.0f,
+                60.0f,
                 new ConfigDescription(
                     "Distance in meters at which a summon uses the native safe teleport-to-ally route.",
                     new AcceptableValueRange<float>(10.0f, 100.0f)));
@@ -448,12 +498,116 @@ namespace SoulAndService
                 "Targeting",
                 "AttackCommandPrompt",
                 true,
-                "At 10 Necromantic Power (about 65 Soul Vigor), hold the configured command modifier while aiming at a nearby hostile NPC and press Interact to order every owned summon to attack it.");
+                "At 10 Necromantic Power (65 Soul Vigor), hold the configured command modifier while aiming at a nearby hostile NPC and press Interact to order every owned summon to attack it.");
             FormationCommands = BindOrdered(
                 "Targeting",
                 "FormationCommands",
                 true,
-                    "At 20 Necromantic Power (about 133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (about 206 Soul Vigor), hold Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (about 567 Soul Vigor), release before 1.5 seconds for the formation command or keep holding to Recall Host. At 50 Power (about 369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard and Hunt. Guard grants +5% damage and 5% damage reduction; Hunt grants +10% damage and +10% pursuit speed. Bulwark joins at Power 60 (about 463 Soul Vigor) with 15% damage reduction. In Bulwark, hold the remappable Sprint action to drive the host into an advancing forward wall; release it for a 3.5-meter close guard that clears the forward firing lane.");
+                "At 20 Necromantic Power (133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (206 Soul Vigor), hold Sprint and Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (567 Soul Vigor), keep Sprint held and continue holding Take All Items for 1.5 seconds to Recall Host. At 50 Power (369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard and Hunt. Guard grants +5% damage and 5% damage reduction; Hunt grants +10% damage and +10% pursuit speed. Bulwark joins at Power 60 (463 Soul Vigor) with 15% damage reduction. At Power 200 (5,000 Soul Vigor), hold Sprint and Take All Items for 1.5 seconds with no living servants to Raise All viable corpses within 30 meters. Directed Hunt and Bulwark Advance have their own controls in Summon Behaviors.");
+            HoldIndividualFormationCommands = BindOrdered(
+                "Targeting",
+                "HoldIndividualFormationCommands",
+                false,
+                "Require holding Interact for 0.45 seconds to issue an individual Hold or Follow command. Releasing early cancels the command. Attack, Directed Hunt, behavior cycling, Hold All, Follow All, and Recall keep their normal inputs.",
+                "Hold Individual Formation Commands");
+            DirectedHuntEnabled = BindOrdered(
+                "Summon Behaviors",
+                "EnableDirectedHunt",
+                true,
+                "While Hunt is selected, hold the remappable Sprint action and tap Interact while aiming at reachable terrain at least 5 meters away. Idle, uncommitted hunters attack-move to the point, then attack any faction-hostile enemy within their normal Hunt awareness, line of sight, native leash, and reachable navigation area. Autonomous combatants may retarget under the same rules, while explicit Attack, Hold, and Recall remain protected. Every valid tap confirms with the Attack pulse and voice. Hold Interact for 0.45 seconds instead to cycle behavior.",
+                "Enable Directed Hunt");
+            ShowDirectedHuntPreview = BindOrdered(
+                "Summon Behaviors",
+                "ShowDirectedHuntPreview",
+                false,
+                "Show the Hunt interaction icon while Sprint is held over valid terrain. Disabled by default; Sprint and Interact still issue Directed Hunt without the preview.",
+                "Show Directed Hunt Preview");
+            BulwarkAdvanceEnabled = BindOrdered(
+                "Summon Behaviors",
+                "EnableBulwarkAdvance",
+                true,
+                "Let the remappable Sprint action switch Bulwark from Close Guard into its forward Advance wall. Disable this to keep Bulwark in Close Guard.",
+                "Enable Bulwark Advance");
+            BulwarkAdvanceReleaseSeconds = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkAdvanceReleaseSeconds",
+                0.0f,
+                new ConfigDescription(
+                    "Seconds Bulwark remains in Advance after Sprint is released before returning to Close Guard. The wall retains its last facing while continuing to follow the hero. Zero switches immediately.",
+                    new AcceptableValueRange<float>(0.0f, 10.0f)),
+                "Bulwark Advance Release Duration");
+            BulwarkAdvanceSpeedMultiplier = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkAdvanceSpeedMultiplier",
+                2.0f,
+                new ConfigDescription(
+                    "Direct movement-speed multiplier while Bulwark Advance is active. Empower, Swarm, and displaced-slot catch-up share a safe 3x total movement ceiling.",
+                    new AcceptableValueRange<float>(1.0f, 3.0f)),
+                "Bulwark Advance Speed Multiplier");
+            GuardFormationDistance = BindOrdered(
+                "Summon Behaviors",
+                "GuardFormationDistance",
+                4.5f,
+                new ConfigDescription(
+                    "Base distance in meters from the hero to the Guard formation. Larger servants can expand the formation farther when physical spacing requires it.",
+                    new AcceptableValueRange<float>(2.0f, 10.0f)),
+                "Guard Formation Distance");
+            GuardEngagementRange = BindOrdered(
+                "Summon Behaviors",
+                "GuardEngagementRange",
+                15.0f,
+                new ConfigDescription(
+                    "Hero-centered distance in meters at which Guard servants proactively engage visible faction-hostile enemies. Guard retains those targets for 5 additional meters before returning to formation. Zero restores purely reactive Guard targeting.",
+                    new AcceptableValueRange<float>(0.0f, 30.0f)),
+                "Guard Engagement Range");
+            HuntFormationDistance = BindOrdered(
+                "Summon Behaviors",
+                "HuntFormationDistance",
+                5.5f,
+                new ConfigDescription(
+                    "Base distance in meters from the hero to the roaming Hunt formation. Directed Hunt destinations are configured separately by their command behavior.",
+                    new AcceptableValueRange<float>(2.0f, 10.0f)),
+                "Hunt Formation Distance");
+            BulwarkCloseGuardDistance = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkCloseGuardDistance",
+                3.5f,
+                new ConfigDescription(
+                    "Base distance in meters from the hero to the defensive Close Guard wall.",
+                    new AcceptableValueRange<float>(2.0f, 10.0f)),
+                "Bulwark Close Guard Distance");
+            BulwarkAdvanceDistance = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkAdvanceDistance",
+                4.5f,
+                new ConfigDescription(
+                    "Base distance in meters ahead of the hero for the advancing Bulwark wall.",
+                    new AcceptableValueRange<float>(2.0f, 10.0f)),
+                "Bulwark Advance Distance");
+            BulwarkLocalEngagementRange = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkLocalEngagementRange",
+                4.0f,
+                new ConfigDescription(
+                    "Distance in meters at which an uncommitted Bulwark servant will engage a nearby hostile.",
+                    new AcceptableValueRange<float>(1.0f, 12.0f)),
+                "Bulwark Local Engagement Range");
+            BulwarkTargetRetentionRange = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkTargetRetentionRange",
+                6.0f,
+                new ConfigDescription(
+                    "Distance in meters at which a Bulwark servant keeps fighting its current nearby hostile.",
+                    new AcceptableValueRange<float>(1.0f, 16.0f)),
+                "Bulwark Target Retention Range");
+            BulwarkPlayerLeash = BindOrdered(
+                "Summon Behaviors",
+                "BulwarkPlayerLeash",
+                8.0f,
+                new ConfigDescription(
+                    "Maximum servant-to-player distance in meters for autonomous Bulwark combat. Explicit Attack orders remain authoritative.",
+                    new AcceptableValueRange<float>(3.0f, 20.0f)),
+                "Bulwark Player Leash");
             TargetCommandModifier = BindOrdered(
                 "Targeting",
                 "TargetCommandModifier",
@@ -466,7 +620,7 @@ namespace SoulAndService
                 "ShareTargetMaxDistance",
                 45.0f,
                 new ConfigDescription(
-                    "Maximum hero-to-target distance for passive crosshair sharing and explicit Attack, Hold, and Follow commands, capped at the game's native 45 m summon-command tether.",
+                    "Maximum hero-to-target distance for passive crosshair sharing and explicit Attack, Hold, and Follow commands, capped at the game's native 45 m summon-command tether. Attack acquires targets within a 44 m safety boundary and retains an existing order through 44.75 m with brief release grace.",
                     new AcceptableValueRange<float>(5.0f, 45.0f)),
                 "Targeting Range");
 
@@ -701,57 +855,71 @@ namespace SoulAndService
                 "Reanimation VFX",
                 "Enabled",
                 true,
-                "Master switch for the persistent body-bound VFX on reanimated servants.");
+                "Show the persistent body-bound electricity and smoke on reanimated servants.");
+            ReanimationAuraArcColor = BindOrdered(
+                "Reanimation VFX",
+                "AuraArcColor",
+                "#28FF5E",
+                "Color of the reanimation electricity's arc layer. Use a hex color such as #28FF5E.",
+                "Arc Color");
+            ReanimationAuraGlowColor = BindOrdered(
+                "Reanimation VFX",
+                "AuraGlowColor",
+                "#C8FFD5",
+                "Color of the reanimation electricity's pale core. Use a hex color such as #C8FFD5.",
+                "Core Color");
+            ReanimationAuraHazeColor = BindOrdered(
+                "Reanimation VFX",
+                "AuraHazeColor",
+                "#237A55",
+                "Color of the reanimation effect's integrated smoke. Use a hex color such as #237A55.",
+                "Smoke Color");
+            ReanimationAuraParticleAmount = BindOrdered(
+                "Reanimation VFX",
+                "AuraParticleAmount",
+                75,
+                new ConfigDescription(
+                    "Reanimation electricity and smoke particle amount as a percentage of the native effect. Zero disables the body effect.",
+                    new AcceptableValueRange<int>(0, 200)),
+                "Particle Amount");
+            ReanimationAuraIntensity = BindOrdered(
+                "Reanimation VFX",
+                "AuraIntensity",
+                10.0f,
+                new ConfigDescription(
+                    "Brightness multiplier for the reanimation electricity and smoke. Opacity is controlled separately.",
+                    new AcceptableValueRange<float>(0.0f, 20.0f)),
+                "Brightness");
+            ReanimationElectricityOpacity = BindOrdered(
+                "Reanimation VFX",
+                "ElectricityOpacity",
+                1.0f,
+                new ConfigDescription(
+                    "Opacity of the reanimation electricity. Zero hides only the electrical layer.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f)),
+                "Electricity Opacity");
+            ReanimationSmokeOpacity = BindOrdered(
+                "Reanimation VFX",
+                "SmokeOpacity",
+                0.5f,
+                new ConfigDescription(
+                    "Opacity of the integrated reanimation smoke. Zero hides only the smoke layer.",
+                    new AcceptableValueRange<float>(0.0f, 1.0f)),
+                "Smoke Opacity");
+            ReanimationAuraScale = BindOrdered(
+                "Reanimation VFX",
+                "AuraScale",
+                1.0f,
+                new ConfigDescription(
+                    "Size multiplier for the reanimation electricity and integrated smoke.",
+                    new AcceptableValueRange<float>(0.25f, 2.0f)),
+                "Scale");
             ReanimationDynamicParticleBudget = BindOrdered(
                 "Reanimation VFX",
                 "DynamicParticleBudget",
                 true,
-                "Automatically reduce per-servant rune and smoke particle density as the active reanimated host grows. The configured particle amounts remain the maximum, the full presentation is retained for small hosts, and this setting adds no per-frame work.",
+                "Automatically reduce per-servant reanimation electricity and smoke density as the active reanimated host grows. The full presentation is retained for small hosts.",
                 "Dynamic Particle Budget");
-            ReanimationRunesEnabled = BindOrdered(
-                "Reanimation VFX",
-                "RunesEnabled",
-                true,
-                "Show the subtle glowing rune tattoos on reanimated servants.",
-                "Runes Enabled");
-            ReanimationRuneIntensity = BindOrdered(
-                "Reanimation VFX",
-                "RuneIntensity",
-                1.0f,
-                new ConfigDescription(
-                    "Brightness of the rune layer. Zero disables the layer.",
-                    new AcceptableValueRange<float>(0.0f, 3.0f)),
-                "Rune Intensity");
-            ReanimationRuneParticleAmount = BindOrdered(
-                "Reanimation VFX",
-                "RuneParticleAmount",
-                100,
-                new ConfigDescription(
-                    "Rune particle amount as a percentage of the default. Lower values improve performance; zero disables the layer.",
-                    new AcceptableValueRange<int>(0, 200)),
-                "Rune Particle Amount");
-            ReanimationSmokeEnabled = BindOrdered(
-                "Reanimation VFX",
-                "SmokeEnabled",
-                false,
-                "Add restrained body-bound dark-green smoke within the same pooled effect as the runes. Disabled by default.",
-                "Smoke Enabled");
-            ReanimationSmokeIntensity = BindOrdered(
-                "Reanimation VFX",
-                "SmokeIntensity",
-                0.35f,
-                new ConfigDescription(
-                    "Opacity of the optional smoke layer. Zero disables the layer.",
-                    new AcceptableValueRange<float>(0.0f, 3.0f)),
-                "Smoke Intensity");
-            ReanimationSmokeParticleAmount = BindOrdered(
-                "Reanimation VFX",
-                "SmokeParticleAmount",
-                50,
-                new ConfigDescription(
-                    "Smoke particle amount as a percentage of its restrained baseline. Lower values improve performance; zero disables the layer.",
-                    new AcceptableValueRange<int>(0, 200)),
-                "Smoke Particle Amount");
             Diagnostics = BindOrdered(
                 "Diagnostics",
                 "Diagnostics",
@@ -761,7 +929,7 @@ namespace SoulAndService
                 "Diagnostics",
                 "ShowGrailFloatingTextDiagnostics",
                 true,
-                "When Diagnostics and Grail Floating Text are enabled, show concise Soul Rend heavy-cast outcomes in-game.");
+                "When Diagnostics and Grail Floating Text are enabled, show Pale System diagnostics for Soul Rend targeting, binding details, and servant lifecycle. Ordinary player feedback remains visible when this is disabled.");
             OverrideSoulVigor = BindOrdered(
                 "Diagnostics",
                 "OverrideSoulVigor",
@@ -770,10 +938,10 @@ namespace SoulAndService
             SoulVigorOverrideValue = BindOrdered(
                 "Diagnostics",
                 "SoulVigorOverrideValue",
-                1000.0f,
+                5000.0f,
                 new ConfigDescription(
-                    "Temporary effective Soul Vigor used only while OverrideSoulVigor is enabled. Command checkpoints are about 65, 133, 206, 826, and 1000 Soul Vigor for 10, 20, 30, 90, and 100 Necromantic Power; maximum Power 200 is reached at 5000.",
-                    new AcceptableValueRange<float>(0.0f, 5000.0f)));
+                    "Temporary effective Soul Vigor used only while OverrideSoulVigor is enabled. Command checkpoints are 65, 133, 206, 826, and 1,000 Soul Vigor for 10, 20, 30, 90, and 100 Necromantic Power; maximum Power 200 is reached at 5,000 and remains capped above it.",
+                    new AcceptableValueRange<float>(0.0f, 10000.0f)));
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -896,6 +1064,20 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Targeting", "ShareHeroTarget");
             CapturePreservedValue<bool>(profile, "Targeting", "AttackCommandPrompt");
             CapturePreservedValue<bool>(profile, "Targeting", "FormationCommands");
+            CapturePreservedValue<bool>(profile, "Targeting", "HoldIndividualFormationCommands");
+            CapturePreservedValue<bool>(profile, "Summon Behaviors", "EnableDirectedHunt");
+            CapturePreservedValue<bool>(profile, "Summon Behaviors", "ShowDirectedHuntPreview");
+            CapturePreservedValue<bool>(profile, "Summon Behaviors", "EnableBulwarkAdvance");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkAdvanceReleaseSeconds");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkAdvanceSpeedMultiplier");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "GuardFormationDistance");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "GuardEngagementRange");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "HuntFormationDistance");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkCloseGuardDistance");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkAdvanceDistance");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkLocalEngagementRange");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkTargetRetentionRange");
+            CapturePreservedValue<float>(profile, "Summon Behaviors", "BulwarkPlayerLeash");
             CapturePreservedValue<TargetCommandModifierMode>(profile, "Targeting", "TargetCommandModifier");
             CapturePreservedValue<float>(profile, "Targeting", "ShareTargetMaxDistance");
             CapturePreservedValue<bool>(profile, "Collision", "Summon Pass-Through");
@@ -931,13 +1113,15 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "MaximumPowerRange");
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "FadeSeconds");
             CapturePreservedValue<bool>(profile, "Reanimation VFX", "Enabled");
+            CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraArcColor");
+            CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraGlowColor");
+            CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraHazeColor");
+            CapturePreservedValue<int>(profile, "Reanimation VFX", "AuraParticleAmount");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "AuraIntensity");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "ElectricityOpacity");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "SmokeOpacity");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "AuraScale");
             CapturePreservedValue<bool>(profile, "Reanimation VFX", "DynamicParticleBudget");
-            CapturePreservedValue<bool>(profile, "Reanimation VFX", "RunesEnabled");
-            CapturePreservedValue<float>(profile, "Reanimation VFX", "RuneIntensity");
-            CapturePreservedValue<int>(profile, "Reanimation VFX", "RuneParticleAmount");
-            CapturePreservedValue<bool>(profile, "Reanimation VFX", "SmokeEnabled");
-            CapturePreservedValue<float>(profile, "Reanimation VFX", "SmokeIntensity");
-            CapturePreservedValue<int>(profile, "Reanimation VFX", "SmokeParticleAmount");
             CapturePreservedValue<bool>(profile, "Diagnostics", "Diagnostics");
             CapturePreservedValue<bool>(profile, "Diagnostics", "ShowGrailFloatingTextDiagnostics");
         }
@@ -975,6 +1159,20 @@ namespace SoulAndService
             RestorePreservedValue(ShareHeroTarget, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(AttackCommandPrompt, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(FormationCommands, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(HoldIndividualFormationCommands, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(DirectedHuntEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ShowDirectedHuntPreview, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkAdvanceEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkAdvanceReleaseSeconds, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkAdvanceSpeedMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(GuardFormationDistance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(GuardEngagementRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(HuntFormationDistance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkCloseGuardDistance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkAdvanceDistance, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkLocalEngagementRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkTargetRetentionRange, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BulwarkPlayerLeash, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(TargetCommandModifier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShareTargetMaxDistance, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SummonPassThrough, ref restored, ref clamped, ref invalid);
@@ -1010,12 +1208,14 @@ namespace SoulAndService
             RestorePreservedValue(SoulRendInnerLightMaximumPowerRange, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightFadeSeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationVfxEnabled, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationRunesEnabled, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationRuneIntensity, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationRuneParticleAmount, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationSmokeEnabled, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationSmokeIntensity, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(ReanimationSmokeParticleAmount, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraArcColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraGlowColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraHazeColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraParticleAmount, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraIntensity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationElectricityOpacity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationSmokeOpacity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationAuraScale, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationDynamicParticleBudget, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(Diagnostics, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ShowGrailFloatingTextDiagnostics, ref restored, ref clamped, ref invalid);
@@ -1061,7 +1261,7 @@ namespace SoulAndService
 
     public static class SoulAndServiceApi
     {
-        public const int ApiVersion = 8;
+        public const int ApiVersion = 10;
 
         public static bool IsLoaded
         {
@@ -1132,6 +1332,20 @@ namespace SoulAndService
                 candidate,
                 out sourceCorpse,
                 out servantNpc);
+        }
+
+        public static bool TryResolveOwnedBloodServantIdentity(
+            object candidate,
+            out object sourceLocation,
+            out object sourceCorpse,
+            out object servantNpc)
+        {
+            return SoulSalvageRuntime
+                .TryResolveOwnedBloodServantIdentityForInterop(
+                    candidate,
+                    out sourceLocation,
+                    out sourceCorpse,
+                    out servantNpc);
         }
 
         public static bool TryExsanguinateOwnedReanimatedServant(

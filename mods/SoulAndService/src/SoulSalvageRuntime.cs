@@ -43,9 +43,8 @@ namespace SoulAndService
         private const string SoulSalvageTemplateGuid =
             "7bdd3a1b62fb53d46b8a28142c18a110";
         private const string SoulRendDisplayName = "Soul Rend";
-        private const float GroundTargetRadius = 0.4f;
-        private const float GroundTargetMinimumNormalY = 0.50f;
-        private const int GroundTargetColliderBufferSize = 64;
+        private const float SoulRendAssistRadius = 0.4f;
+        private const int SoulRendAssistColliderBufferSize = 64;
         private const int SoulTargetRaycastBufferSize = 64;
         private const float FrayedSoulCleanupIntervalSeconds = 0.25f;
         private const string GenericRaisedServantPortraitKey =
@@ -130,6 +129,12 @@ namespace SoulAndService
         {
             internal int Stacks;
             internal float ExpiresAt;
+        }
+
+        private sealed class RaiseAllCandidate
+        {
+            internal Location Source;
+            internal float DistanceSqr;
         }
 
         private sealed class RaycastHitDistanceComparer : IComparer<RaycastHit>
@@ -222,8 +227,8 @@ namespace SoulAndService
         private static readonly Dictionary<MagicItemTemplateInfo, int>
             OrdinarySummonCastTiers =
                 new Dictionary<MagicItemTemplateInfo, int>();
-        private static readonly Collider[] GroundTargetColliderBuffer =
-            new Collider[GroundTargetColliderBufferSize];
+        private static readonly Collider[] SoulRendAssistColliderBuffer =
+            new Collider[SoulRendAssistColliderBufferSize];
         private static readonly RaycastHit[] SoulTargetRaycastBuffer =
             new RaycastHit[SoulTargetRaycastBufferSize];
         private static readonly RaycastHitDistanceComparer SoulTargetHitComparer =
@@ -247,6 +252,10 @@ namespace SoulAndService
         private static float _itemRefreshDelay;
         private static float _nextFrayedSoulCleanupAt;
         private static float _nextReanimationPositionRefreshTime;
+        private static int _raiseAllEligibilityFrame = -1;
+        private static Hero _raiseAllEligibilityHero;
+        private static float _raiseAllEligibilityRadius;
+        private static bool _raiseAllEligibilityResult;
         private static bool _creatingRaisedServant;
         private static MethodInfo _bloodMagicGetExsanguinationSeverityMethod;
         private static bool _bloodMagicApiUnavailable;
@@ -570,7 +579,7 @@ namespace SoulAndService
                 + (plugin.LivingTargetSoulSalvage.Value
                     ? "\nWounded enemies: Attempt Soul Claim below 40% Health."
                     : string.Empty)
-                + "\nServants: Restore Health; at 95%, Empower at 1,000 Soul Vigor.";
+                + "\nServants: Restore Health; at 95%, Empower at 1,000 Soul Vigor for twice base soul value.";
             return false;
         }
 
@@ -635,6 +644,53 @@ namespace SoulAndService
             return GetPowerScaledSoulVigorCost(
                 Math.Max(1, summonTier) * OrdinarySummonVigorCostPerTier,
                 power);
+        }
+
+        private static int GetEmpowermentSoulVigorCost(
+            NpcHeroSummon summon,
+            float power)
+        {
+            int baseSoulVigor = Math.Max(
+                    1,
+                    GetOrdinarySummonTier(summon == null ? null : summon.Item))
+                * OrdinarySummonVigorCostPerTier;
+            if (summon != null)
+            {
+                ReanimationRecord record;
+                if (Reanimations.TryGetValue(
+                        ((Model)summon).ID,
+                        out record)
+                    && record != null
+                    && record.NativeSoulVigor > 0)
+                {
+                    baseSoulVigor = record.NativeSoulVigor;
+                }
+            }
+            return GetPowerScaledSoulVigorCost(baseSoulVigor * 2, power);
+        }
+
+        private static void AddEmpowermentSoulVigorInvestment(
+            NpcHeroSummon summon,
+            int committedVigor)
+        {
+            if (summon == null || committedVigor <= 0)
+            {
+                return;
+            }
+            string summonId = ((Model)summon).ID;
+            ReanimationRecord record;
+            if (Reanimations.TryGetValue(summonId, out record)
+                && record != null)
+            {
+                record.InvestedSoulVigor += committedVigor;
+                return;
+            }
+            int investedVigor;
+            OrdinarySummonInvestments.TryGetValue(
+                summonId,
+                out investedVigor);
+            OrdinarySummonInvestments[summonId] =
+                investedVigor + committedVigor;
         }
 
         private static void UpdateSoulSalvageItems()
@@ -1208,15 +1264,57 @@ namespace SoulAndService
             bool alreadyEmpowered = SummonRuntime.IsEmpoweredSummon(summon);
             bool empowered = false;
             float multiplier = 1.0f;
+            int empowermentCost = 0;
+            int committedVigor = 0;
             if (empowerEligibleHealth
                 && power >= SoulProgressionRuntime.EmpowermentPower
                 && !alreadyEmpowered)
             {
+                empowermentCost = GetEmpowermentSoulVigorCost(summon, power);
+                if (!SoulProgressionRuntime.TrySpendSoulVigor(
+                        empowermentCost,
+                        out int beforeVigor,
+                        out int afterVigor))
+                {
+                    plugin.LogDiagnostic(
+                        "Heavy Soul Rend could not Empower servant "
+                        + ((Model)summon).ID
+                        + " because it requires "
+                        + empowermentCost.ToString(CultureInfo.InvariantCulture)
+                        + " Soul Vigor.");
+                    if (appliedHealing > 0.001f)
+                    {
+                        SpawnNecromanticSummonVfx(summon.ParentModel);
+                    }
+                    SoulProgressionRuntime.ShowInsufficientSoulVigor(
+                        empowermentCost);
+                    return;
+                }
+                committedVigor = afterVigor < beforeVigor
+                    ? empowermentCost
+                    : 0;
                 float roll = UnityEngine.Random.value;
                 multiplier = 1.20f + (0.30f * roll * roll);
                 empowered = SummonRuntime.TryEmpowerSummon(
                     summon,
                     multiplier);
+                if (!empowered)
+                {
+                    if (committedVigor > 0)
+                    {
+                        SoulProgressionRuntime.RestoreSoulVigor(committedVigor);
+                        committedVigor = 0;
+                    }
+                }
+                else
+                {
+                    AddEmpowermentSoulVigorInvestment(
+                        summon,
+                        committedVigor);
+                    SoulProgressionRuntime.ShowSoulVigorWanesAfterSpend(
+                        beforeVigor,
+                        afterVigor);
+                }
             }
 
             plugin.LogDiagnostic(
@@ -1229,6 +1327,8 @@ namespace SoulAndService
                 + "; requestedHealing=" + requestedHealing.ToString("0.##", CultureInfo.InvariantCulture)
                 + "; appliedHealing=" + appliedHealing.ToString("0.##", CultureInfo.InvariantCulture)
                 + "; alreadyEmpowered=" + alreadyEmpowered
+                + "; empowermentCost=" + empowermentCost
+                + "; committedVigor=" + committedVigor
                 + "; empowered=" + empowered + ".");
 
             if (appliedHealing <= 0.001f && !empowered)
@@ -1252,19 +1352,23 @@ namespace SoulAndService
 
             SpawnNecromanticSummonVfx(summon.ParentModel);
             float appliedPercent = 100.0f * appliedHealing / maximumHealth;
+            string costSuffix = committedVigor > 0
+                ? " | -" + committedVigor.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor"
+                : string.Empty;
             if (empowered && appliedHealing > 0.001f)
             {
                 SoulProgressionRuntime.ShowSummonCommand(
                     "Servant Restored and Empowered: "
                     + multiplier.ToString("0.00", CultureInfo.InvariantCulture)
-                    + "x");
+                    + "x" + costSuffix);
             }
             else if (empowered)
             {
                 SoulProgressionRuntime.ShowSummonCommand(
                     "Servant Empowered: "
                     + multiplier.ToString("0.00", CultureInfo.InvariantCulture)
-                    + "x");
+                    + "x" + costSuffix);
             }
             else
             {
@@ -1625,6 +1729,7 @@ namespace SoulAndService
                     "Soul Rend heavy cast found no eligible target: corpse="
                     + corpseRejection + "; living=" + livingRejection + ".");
                 plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "targeting",
                     "Soul Rend: no eligible target - "
                     + livingRejection + ".");
                 return;
@@ -1633,6 +1738,7 @@ namespace SoulAndService
             plugin.LogDiagnostic(
                 "Soul Rend heavy cast raised nothing: " + corpseRejection);
             plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                "targeting",
                 "Soul Rend: no eligible corpse - " + corpseRejection + ".");
         }
 
@@ -1660,12 +1766,14 @@ namespace SoulAndService
                     out int summonCount,
                     out int summonLimit))
             {
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                plugin.ShowSoulSalvageHeavyCastFeedback(
+                    "soul-rend-servant-limit",
                     "Soul Rend: servant limit full ("
                     + summonCount.ToString(CultureInfo.InvariantCulture)
                     + "/"
                     + summonLimit.ToString(CultureInfo.InvariantCulture)
-                    + ").");
+                    + ").",
+                    warning: true);
                 return;
             }
 
@@ -1926,7 +2034,7 @@ namespace SoulAndService
             return overflowHits;
         }
 
-        private static void TryRaiseCorpse(
+        private static bool TryRaiseCorpse(
             Item sourceItem,
             Location source,
             bool bindingAlreadyWon,
@@ -1939,7 +2047,7 @@ namespace SoulAndService
             Hero hero = Hero.Current;
             if (plugin == null || hero == null || source == null)
             {
-                return;
+                return false;
             }
 
             if (!summonLimitAlreadyChecked
@@ -1952,13 +2060,15 @@ namespace SoulAndService
                 plugin.LogWarning(
                     "Soul Rend could not raise " + source.DebugName
                     + " because the summon limit is full.");
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                plugin.ShowSoulSalvageHeavyCastFeedback(
+                    "soul-rend-servant-limit",
                     "Soul Rend: servant limit full ("
                     + summonCount.ToString(CultureInfo.InvariantCulture)
                     + "/"
                     + summonLimit.ToString(CultureInfo.InvariantCulture)
-                    + ").");
-                return;
+                    + ").",
+                    warning: true);
+                return false;
             }
 
             float quality01 = CalculateQuality01(source, null);
@@ -1982,12 +2092,8 @@ namespace SoulAndService
                     reanimationPower);
             if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
             {
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                    "Soul Rend: requires "
-                    + vigorCost.ToString(CultureInfo.InvariantCulture)
-                    + " Soul Vigor.");
                 SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
-                return;
+                return false;
             }
             float bindingProgress01;
             float bindingResistance;
@@ -2014,7 +2120,7 @@ namespace SoulAndService
                         "0.##",
                         CultureInfo.InvariantCulture)
                     + ".");
-                return;
+                return false;
             }
 
             if (!SoulProgressionRuntime.TrySpendSoulVigor(
@@ -2022,17 +2128,15 @@ namespace SoulAndService
                 out int vigorBefore,
                 out int vigorAfter))
             {
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                    "Soul Rend: requires "
-                    + vigorCost.ToString(CultureInfo.InvariantCulture)
-                    + " Soul Vigor.");
                 SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
-                return;
+                return false;
             }
             int committedVigor = vigorAfter < vigorBefore ? vigorCost : 0;
 
             LocationInteractability previousInteractability = source.Interactability;
-            float bindingManaCost = GetHeavyCastManaCost(sourceItem);
+            float bindingManaCost = sourceItem == null
+                ? 0.0f
+                : GetHeavyCastManaCost(sourceItem);
             Location raised = null;
             try
             {
@@ -2190,7 +2294,9 @@ namespace SoulAndService
                                     ? " (generic portrait used)"
                                     : string.Empty)
                                 + ".";
-                            plugin.ShowSoulSalvageHeavyCastDiagnostic(outcome);
+                            plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                                "binding",
+                                outcome);
                             SoulProgressionRuntime.CommitSuccessfulBinding(
                                 record.CorpseFingerprint);
                             record.ServiceInitialized = true;
@@ -2212,10 +2318,13 @@ namespace SoulAndService
                             plugin.LogWarning(
                                 "Soul Rend could not finish initializing a raised servant: "
                                 + exception.GetBaseException().Message);
-                            plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                                "Soul Rend: reanimation failed - source corpse restored; see BepInEx log.");
+                            plugin.ShowSoulSalvageHeavyCastFeedback(
+                                "soul-rend-reanimation-failed",
+                                "Soul Rend: reanimation failed - source corpse restored; see BepInEx log.",
+                                warning: true);
                         }
                     });
+                return true;
             }
             catch (Exception exception)
             {
@@ -2231,9 +2340,183 @@ namespace SoulAndService
                 plugin.LogWarning(
                     "Soul Rend could not create a raised servant: "
                     + exception.GetBaseException().Message);
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                    "Soul Rend: reanimation failed - see BepInEx log.");
+                plugin.ShowSoulSalvageHeavyCastFeedback(
+                    "soul-rend-reanimation-failed",
+                    "Soul Rend: reanimation failed - see BepInEx log.",
+                    warning: true);
+                return false;
             }
+        }
+
+        internal static bool HasEligibleRaiseAllCorpse(
+            Hero hero,
+            float radius)
+        {
+            int frame = Time.frameCount;
+            if (_raiseAllEligibilityFrame == frame
+                && ReferenceEquals(_raiseAllEligibilityHero, hero)
+                && Math.Abs(_raiseAllEligibilityRadius - radius) < 0.001f)
+            {
+                return _raiseAllEligibilityResult;
+            }
+            _raiseAllEligibilityFrame = frame;
+            _raiseAllEligibilityHero = hero;
+            _raiseAllEligibilityRadius = radius;
+            _raiseAllEligibilityResult = false;
+
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || hero == null
+                || hero.HasBeenDiscarded
+                || !hero.IsAlive
+                || !TryGetSummonCapacity(
+                    hero,
+                    plugin,
+                    out int ignoredSummonCount,
+                    out int ignoredSummonLimit))
+            {
+                return false;
+            }
+
+            float radiusSqr = Math.Max(0.0f, radius) * Math.Max(0.0f, radius);
+            foreach (Location candidate in World.All<Location>())
+            {
+                string rejection;
+                if (candidate != null
+                    && !candidate.HasBeenDiscarded
+                    && (candidate.Coords - hero.Coords).sqrMagnitude <= radiusSqr
+                    && TryValidateEligibleCorpse(hero, candidate, out rejection))
+                {
+                    _raiseAllEligibilityResult = true;
+                    break;
+                }
+            }
+            return _raiseAllEligibilityResult;
+        }
+
+        internal static int RaiseAll(Hero hero, float radius)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || hero == null
+                || hero.HasBeenDiscarded
+                || !hero.IsAlive
+                || SoulProgressionRuntime.GetNecromanticPower()
+                    < SoulProgressionRuntime.RaiseAllPower
+                || World.All<NpcHeroSummon>().Any(summon =>
+                    summon != null
+                    && !summon.HasBeenDiscarded
+                    && summon.ParentModel != null
+                    && !summon.ParentModel.HasBeenDiscarded
+                    && summon.ParentModel.IsAlive
+                    && ReferenceEquals(summon.Ally, hero)))
+            {
+                return 0;
+            }
+
+            if (!TryGetSummonCapacity(
+                    hero,
+                    plugin,
+                    out int summonCount,
+                    out int summonLimit))
+            {
+                plugin.ShowSoulSalvageHeavyCastFeedback(
+                    "raise-all-servant-limit",
+                    "Raise All: servant limit full ("
+                    + summonCount.ToString(CultureInfo.InvariantCulture)
+                    + "/"
+                    + summonLimit.ToString(CultureInfo.InvariantCulture)
+                    + ").",
+                    warning: true);
+                return 0;
+            }
+
+            float safeRadius = Math.Max(0.0f, radius);
+            float radiusSqr = safeRadius * safeRadius;
+            List<RaiseAllCandidate> candidates = new List<RaiseAllCandidate>();
+            foreach (Location candidate in World.All<Location>())
+            {
+                string rejection;
+                if (candidate == null
+                    || candidate.HasBeenDiscarded
+                    || (candidate.Coords - hero.Coords).sqrMagnitude > radiusSqr
+                    || !TryValidateEligibleCorpse(
+                        hero,
+                        candidate,
+                        out rejection))
+                {
+                    continue;
+                }
+                candidates.Add(new RaiseAllCandidate
+                {
+                    Source = candidate,
+                    DistanceSqr = (candidate.Coords - hero.Coords).sqrMagnitude
+                });
+            }
+            candidates.Sort((left, right) =>
+                left.DistanceSqr.CompareTo(right.DistanceSqr));
+
+            int remainingCapacity = Math.Max(0, summonLimit - summonCount);
+            int raisedCount = 0;
+            foreach (RaiseAllCandidate candidate in candidates)
+            {
+                if (remainingCapacity <= 0)
+                {
+                    break;
+                }
+
+                Location source = candidate.Source;
+                string rejection;
+                if (source == null
+                    || source.HasBeenDiscarded
+                    || !TryValidateEligibleCorpse(hero, source, out rejection))
+                {
+                    continue;
+                }
+
+                float quality01 = CalculateQuality01(source, null);
+                Grailwright.Shared.CorpseQualityTier qualityTier =
+                    Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                        quality01,
+                        true);
+                string corpseFingerprint = GetCorpseFingerprint(source);
+                int nativeSoulVigor =
+                    SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
+                        corpseFingerprint,
+                        qualityTier,
+                        quality01);
+                int vigorCost = GetReanimationSoulVigorCost(
+                    nativeSoulVigor,
+                    SoulProgressionRuntime.GetNecromanticPower());
+                if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
+                {
+                    SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
+                    break;
+                }
+
+                if (!TryRaiseCorpse(
+                    null,
+                    source,
+                    bindingAlreadyWon: true,
+                    summonLimitAlreadyChecked: true,
+                    preparedCorpseFingerprint: corpseFingerprint,
+                    preparedNativeSoulVigor: nativeSoulVigor,
+                    preparedVigorCost: vigorCost))
+                {
+                    continue;
+                }
+                raisedCount++;
+                remainingCapacity--;
+            }
+
+            if (raisedCount > 0)
+            {
+                PrefabPool.InstantiateAndReturn(
+                    new ShareableARAssetReference(SkeletonSummonVfxKey),
+                    hero.Coords,
+                    hero.Rotation).Forget();
+            }
+            return raisedCount;
         }
 
         private static int GetReanimationSoulVigorCost(
@@ -2337,6 +2620,24 @@ namespace SoulAndService
             out object sourceCorpse,
             out object servantNpc)
         {
+            object sourceLocation;
+            object sourceCorpseElement;
+            bool resolved = TryResolveOwnedBloodServantIdentityForInterop(
+                candidate,
+                out sourceLocation,
+                out sourceCorpseElement,
+                out servantNpc);
+            sourceCorpse = sourceCorpseElement ?? sourceLocation;
+            return resolved;
+        }
+
+        internal static bool TryResolveOwnedBloodServantIdentityForInterop(
+            object candidate,
+            out object sourceLocation,
+            out object sourceCorpse,
+            out object servantNpc)
+        {
+            sourceLocation = null;
             sourceCorpse = null;
             servantNpc = null;
             ReanimationRecord record;
@@ -2351,7 +2652,8 @@ namespace SoulAndService
                 {
                     return false;
                 }
-                sourceCorpse = GetBloodMagicCorpseIdentity(record.SourceCorpse);
+                sourceLocation = record.SourceCorpse;
+                sourceCorpse = record.SourceCorpse.TryGetElement<Corpse>();
                 servantNpc = record.RaisedNpc;
                 return true;
             }
@@ -2533,6 +2835,25 @@ namespace SoulAndService
             {
                 summon = npc.TryGetElement<NpcHeroSummon>();
             }
+            if (summon == null && component != null)
+            {
+                Hero currentHero = Hero.Current;
+                foreach (NpcHeroSummon candidateSummon
+                    in World.All<NpcHeroSummon>())
+                {
+                    NpcElement candidateNpc = candidateSummon == null
+                        ? null
+                        : candidateSummon.ParentModel;
+                    if (candidateNpc != null
+                        && ReferenceEquals(candidateSummon.Ally, currentHero)
+                        && IsComponentWithinNpcVisual(component, candidateNpc))
+                    {
+                        summon = candidateSummon;
+                        npc = candidateNpc;
+                        break;
+                    }
+                }
+            }
             Hero hero = Hero.Current;
             return hero != null
                 && summon != null
@@ -2641,13 +2962,34 @@ namespace SoulAndService
             foreach (ReanimationRecord candidateRecord in Reanimations.Values)
             {
                 if (ReferenceEquals(candidateRecord.RaisedNpc, npc)
-                    || ReferenceEquals(candidateRecord.RaisedLocation, location))
+                    || ReferenceEquals(candidateRecord.RaisedLocation, location)
+                    || (component != null
+                        && IsComponentWithinNpcVisual(
+                            component,
+                            candidateRecord.RaisedNpc)))
                 {
                     record = candidateRecord;
                     return true;
                 }
             }
             return false;
+        }
+
+        private static bool IsComponentWithinNpcVisual(
+            Component component,
+            NpcElement npc)
+        {
+            if (component == null
+                || npc == null
+                || npc.Controller == null
+                || npc.Controller.AlivePrefab == null)
+            {
+                return false;
+            }
+            Transform root = npc.Controller.AlivePrefab.transform;
+            Transform candidate = component.transform;
+            return candidate != null
+                && (ReferenceEquals(candidate, root) || candidate.IsChildOf(root));
         }
 
         private static bool EnsureRaisedServantPortrait(NpcElement npc)
@@ -2838,7 +3180,7 @@ namespace SoulAndService
                     : hit.collider.GetComponentInParent<LocationParent>()
                         ?.GetComponentInChildren<VLocation>();
                 Location candidate = view == null ? null : view.Target;
-                if (IsGroundSoulRendSurface(hit, candidate)
+                if (IsSoulRendAssistSurface(hit, candidate)
                     && TryFindNearestEligibleCorpse(
                         hero,
                         hit.point,
@@ -2864,12 +3206,11 @@ namespace SoulAndService
             return false;
         }
 
-        private static bool IsGroundSoulRendSurface(
+        private static bool IsSoulRendAssistSurface(
             RaycastHit hit,
             Location candidate)
         {
-            if (hit.collider == null
-                || hit.normal.y < GroundTargetMinimumNormalY)
+            if (hit.collider == null)
             {
                 return false;
             }
@@ -2890,15 +3231,15 @@ namespace SoulAndService
             source = null;
             int count = Physics.OverlapSphereNonAlloc(
                 impactPoint,
-                GroundTargetRadius,
-                GroundTargetColliderBuffer,
+                SoulRendAssistRadius,
+                SoulRendAssistColliderBuffer,
                 ~0,
                 QueryTriggerInteraction.Ignore);
             float nearestDistanceSqr = float.PositiveInfinity;
             for (int i = 0; i < count; i++)
             {
-                Collider collider = GroundTargetColliderBuffer[i];
-                GroundTargetColliderBuffer[i] = null;
+                Collider collider = SoulRendAssistColliderBuffer[i];
+                SoulRendAssistColliderBuffer[i] = null;
                 VLocation view = collider == null
                     ? null
                     : collider.GetComponentInParent<LocationParent>()
@@ -3287,6 +3628,7 @@ namespace SoulAndService
                     if (showDiagnostic)
                     {
                         plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                            "lifecycle",
                             "Soul Rend: " + record.SourceDisplayName
                             + "'s service ended; remains were left behind.");
                     }
@@ -3408,6 +3750,7 @@ namespace SoulAndService
                     if (showDiagnostic)
                     {
                         plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                            "lifecycle",
                             "Soul Rend: " + record.SourceDisplayName
                             + "'s service ended; source corpse restored.");
                     }
@@ -3618,8 +3961,17 @@ namespace SoulAndService
                         >= SoulProgressionRuntime.EmpowermentPower
                     && !SummonRuntime.IsEmpoweredSummon(summon))
                 {
-                    state = (int)HeavySoulRendHoverState.EmpowerServant;
-                    text = "Empower Servant";
+                    int cost = GetEmpowermentSoulVigorCost(
+                        summon,
+                        SoulProgressionRuntime.GetNecromanticPower());
+                    bool affordable = SoulProgressionRuntime.GetSoulVigor()
+                        + 0.001f >= cost;
+                    state = affordable
+                        ? (int)HeavySoulRendHoverState.EmpowerServant
+                        : (int)HeavySoulRendHoverState.RequiresSoulVigor;
+                    text = (affordable ? "Empower: " : "Requires ")
+                        + cost.ToString(CultureInfo.InvariantCulture)
+                        + " Soul Vigor";
                 }
                 else
                 {
@@ -3896,7 +4248,7 @@ namespace SoulAndService
                     : hit.collider.GetComponentInParent<LocationParent>()
                         ?.GetComponentInChildren<VLocation>();
                 Location candidate = view == null ? null : view.Target;
-                if (IsGroundSoulRendSurface(hit, candidate)
+                if (IsSoulRendAssistSurface(hit, candidate)
                     && TryFindNearestEligibleCorpse(
                         hero,
                         hit.point,

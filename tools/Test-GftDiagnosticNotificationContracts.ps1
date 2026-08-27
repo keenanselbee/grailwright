@@ -123,8 +123,9 @@ $contracts = @(
             "Diagnostics.Value",
             "ShowGrailFloatingTextDiagnostics.Value",
             "TryShowDiagnosticNotification(",
-            '"soul-and-service-soul-salvage"',
-            '"soul-and-service-diagnostics"')
+            'string diagnosticId = "soul-rend-"',
+            'diagnosticGroup + "-diagnostic"',
+            "diagnosticId)")
     })
 
 foreach ($contract in $contracts) {

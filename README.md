@@ -34,7 +34,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.3.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
-| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 2.5.2 | Unpublished |
+| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 2.8.9 | Unpublished |
 | [Steel and Bone - Expanded Combat and Difficulty](mods/SteelAndBone) | 4.0.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
 | [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |

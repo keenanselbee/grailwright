@@ -9,7 +9,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $modRoot "mod.json") -Raw
 
 foreach ($required in @(
     'public static class SoulAndServiceApi',
-    'public const int ApiVersion = 8',
+    'public const int ApiVersion = 10',
     'GetLastSummonCommandPulseSeconds',
     'GetSoulVigor',
     'OverrideSoulVigor',
@@ -35,6 +35,7 @@ foreach ($required in @(
     'SwarmCommandPower = 90.0f',
     'EmpowermentPower = 100.0f',
     'MaximumSummonCapacityPower = 150.0f',
+    'RaiseAllPower = 200.0f',
     'GuardDamageMultiplier = 1.05f',
     'GuardDamageTakenMultiplier = 0.95f',
     'BulwarkDamageTakenMultiplier = 0.85f',
@@ -99,7 +100,8 @@ $trySpendBlock = [regex]::Match(
 if ((-not $trySpendBlock.Success) -or
     $trySpendBlock.Value.Contains('ShowSoulVigor') -or
     ($salvage -notmatch '(?s)OrdinarySummonInvestments\[summonId\] =.*?ShowSoulVigorWanesAfterSpend\(before, after\);') -or
-    ($salvage -notmatch '(?s)CommitSuccessfulBinding\(\s*record\.CorpseFingerprint\);\s*record\.ServiceInitialized = true;.*?SoulProgressionRuntime\.ShowSoulVigorWanesAfterSpend\(\s*vigorBefore,\s*vigorAfter\);')) {
+    ($salvage -notmatch '(?s)CommitSuccessfulBinding\(\s*record\.CorpseFingerprint\);\s*record\.ServiceInitialized = true;.*?SoulProgressionRuntime\.ShowSoulVigorWanesAfterSpend\(\s*vigorBefore,\s*vigorAfter\);') -or
+    ($salvage -notmatch '(?s)TryServeHeavyTarget\(.*?TrySpendSoulVigor\(.*?TryEmpowerSummon\(.*?AddEmpowermentSoulVigorInvestment\(.*?ShowSoulVigorWanesAfterSpend\(\s*beforeVigor,\s*afterVigor\);')) {
     throw 'Soul Vigor waning feedback must wait for a durable summon or reanimation investment.'
 }
 foreach ($required in @(
@@ -160,8 +162,8 @@ foreach ($required in @(
     '1.0f - (necromanticPower / 100.0f)',
     'SoulProgressionRuntime.GetNecromanticPower()',
     'SwarmFirstHitMultiplier',
-    'receiverEmpowerment.Multiplier',
-    'dealerEmpowerment.Multiplier')) {
+    'receiverEmpowerment.CombatMultiplier',
+    'dealerEmpowerment.CombatMultiplier')) {
     if (!$summons.Contains($required)) { throw "Missing upkeep, Swarm, or Empower power contract: $required" }
 }
 if ($summons -notmatch 'SoulProgressionRuntime\s*\.GetProgressionSummonLimitBonus\(\)') {
@@ -178,8 +180,8 @@ foreach ($legacyThreshold in @(
         throw "Raw Soul Vigor threshold contract must not remain: $legacyThreshold"
     }
 }
-if (!$plugin.Contains('new AcceptableValueRange<float>(0.0f, 5000.0f)')) {
-    throw 'Soul Vigor override is not capped at 5,000.'
+if ($plugin -notmatch '(?s)SoulVigorOverrideValue = BindOrdered\(.*?5000\.0f,.*?new AcceptableValueRange<float>\(0\.0f, 10000\.0f\)') {
+    throw 'Soul Vigor override does not default to 5,000 or accept values through 10,000.'
 }
 
 function Get-NecromanticPower([double]$soulVigor) {
@@ -221,7 +223,8 @@ if (!$manifest.Contains('../../tools/shared/CorpseQualityBuckets.cs')) {
 }
 
 foreach ($required in @(
-    'public const int ApiVersion = 8',
+    'public const int ApiVersion = 10',
+    'RaiseAll = 5',
     'public static bool IsNecroticDamage(object damage)',
     'return SoulSalvageRuntime.IsNecroticDamageForInterop(damage);')) {
     if (!$plugin.Contains($required)) {

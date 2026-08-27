@@ -7,6 +7,9 @@ using Awaken.TG.Main.Animations.FSM.Heroes.Machines;
 using Awaken.TG.Main.Character;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Items;
+using Awaken.TG.Main.Scenes;
+using Awaken.TG.Main.UI.TitleScreen.Loading;
+using Awaken.Utility;
 using BepInEx.Bootstrap;
 using UnityEngine;
 using UnityEngine.Rendering.HighDefinition;
@@ -72,6 +75,13 @@ namespace SoulAndService
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
+            if (IsWorldTransitioning()
+                || (hero != null && hero.HasBeenDiscarded))
+            {
+                DestroyHand(MainHand);
+                DestroyHand(OffHand);
+                return;
+            }
             if (plugin == null || hero == null)
             {
                 UpdateHand(MainHand, null, null, false);
@@ -131,6 +141,15 @@ namespace SoulAndService
 
         internal static void LateUpdate()
         {
+            Hero hero = Hero.Current;
+            if (IsWorldTransitioning()
+                || hero == null
+                || hero.HasBeenDiscarded)
+            {
+                DestroyHand(MainHand);
+                DestroyHand(OffHand);
+                return;
+            }
             if (!ShouldUpdatePosition(MainHand)
                 && !ShouldUpdatePosition(OffHand))
             {
@@ -143,8 +162,8 @@ namespace SoulAndService
             {
                 visualWorldOffset = Vector3.zero;
             }
-            UpdatePosition(MainHand, Hero.Current, visualWorldOffset);
-            UpdatePosition(OffHand, Hero.Current, visualWorldOffset);
+            UpdatePosition(MainHand, hero, visualWorldOffset);
+            UpdatePosition(OffHand, hero, visualWorldOffset);
         }
 
         internal static void Shutdown()
@@ -350,7 +369,32 @@ namespace SoulAndService
             PropertyInfo property = owner.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            return property == null ? null : property.GetValue(owner, null) as Transform;
+            if (property == null)
+            {
+                return null;
+            }
+            try
+            {
+                return property.GetValue(owner, null) as Transform;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsWorldTransitioning()
+        {
+            try
+            {
+                return LoadingStates.IsLoadingWorld
+                    || LoadingScreenUI.IsLoading
+                    || World.HasAny<LoadingScreenUI>();
+            }
+            catch
+            {
+                return true;
+            }
         }
 
         private static float GetBrightness()

@@ -1,3 +1,446 @@
+Version 2.8.9
+-----
+- Made Empower cost twice each servant's stable base Soul Vigor value through the
+  existing Power-scaled summon curve. Heavy Soul Rend now previews the exact
+  `Empower: X Soul Vigor` or `Requires X Soul Vigor` result, charges only after a
+  successful Empower, and reports the committed Vigor in its completion message.
+- Added successful Empower payments to the servant's invested Soul Vigor so later
+  unbinding recovers them in proportion to remaining Health. Failed, locked,
+  already-Empowered, and override-backed rituals do not create a false payment.
+- Scaled each Empowered raised servant's persistent Reanimation VFX brightness by
+  its exact 1.20x-1.50x combat roll, with the final effective brightness capped at
+  20.0 and no change to opacity, scale, or particle density.
+- Restored the full-kit Soul Vigor override callout after Major Features and renamed
+  Quick Start to Quick Start Guide in the Nexus description.
+- ConfigSchemaVersion remains 22 and SoulAndServiceApi remains version 10 because
+  no stored setting or public API contract changed.
+
+Version 2.8.8
+-----
+- Added a configurable hero-centered Guard Engagement Range, defaulting to 15 meters.
+  Guard now proactively engages visible faction-hostile enemies inside that zone,
+  retains them for 5 additional meters, and then returns to formation. Setting the
+  range to zero restores purely reactive Guard targeting.
+- Preserved Guard's defensive priority for recent attackers, enemies targeting the
+  hero or host, and already-engaged melee threats. Explicit Attack, Hunt's 30-meter
+  aggression, and Bulwark's short defensive zone remain unchanged.
+- Moved no-target and no-corpse Soul Rend results into the standard Pale System
+  diagnostic channel. Targeting, binding-detail, and servant-lifecycle diagnostics
+  now have separate GFT collapse groups and obey GFT's Show Mod Diagnostic Messages
+  filter.
+- Kept capacity, Soul Vigor, and reanimation-failure information user-facing, and
+  presented full servant-limit results as orange warnings rather than Necrotic
+  status messages.
+- ConfigSchemaVersion remains 22 because Guard Engagement Range is a new setting and
+  no existing stored setting changed meaning. SoulAndServiceApi remains version 10.
+
+Version 2.8.7
+-----
+- Kept ordinary Soul Rend targeting, servant-capacity, and reanimation-failure
+  feedback visible through Grail Floating Text when diagnostics are disabled.
+- Removed the duplicate diagnostics message before the normal insufficient-Soul-
+  Vigor warning so it cannot consume Grail Floating Text's per-source throttle and
+  hide the actionable warning.
+- Limited Show Grail Floating Text Diagnostics to detailed binding and servant-
+  lifecycle summaries. ConfigSchemaVersion remains 22 and SoulAndServiceApi remains
+  version 10 because no stored setting contract or public signature changed.
+
+Version 2.8.6
+-----
+- Changed the default Reanimation VFX Brightness from 3.0 to 10.0 and raised its
+  accepted maximum from 6.0 to 20.0.
+- Limited green-dark teleport arrival VFX to Soul and Service's intentional Recall
+  and automatic too-far catch-up requests. Native outdoor/interior scene relocation
+  now remains silent.
+- Made Soul Rend hand lights clear stale anchors during world loading, defer positioning
+  until the rebuilt hero body is ready, and safely retry temporarily unavailable hand
+  properties instead of throwing during scene transitions.
+- Increased ConfigSchemaVersion from 21 to 22 because the Reanimation VFX Brightness
+  default changed. Compatible customized durable settings remain eligible for recovery;
+  untouched older brightness defaults regenerate at 10.0. SoulAndServiceApi remains
+  version 10.
+
+Version 2.8.5
+-----
+- Consolidated Reanimation VFX around one Enabled switch that directly controls the
+  persistent body-bound electricity and integrated smoke. Removed the redundant Body
+  Effect Enabled setting and the separate successful-raise spark effect and settings.
+- Changed the default Reanimation VFX Brightness from 2.0 to 3.0 and raised its maximum
+  from 3.0 to 6.0.
+- Made zero Electricity Opacity or Smoke Opacity suppress that layer's particle count,
+  avoiding invisible particle work while leaving the other layer active.
+- Removed unused pooled-effect snapshot state left behind by the retired raise sparks.
+- Changed the diagnostics Soul Vigor Override Value default from 1,000 to 5,000 and
+  raised its accepted maximum from 5,000 to 10,000. Necromantic Power remains capped at
+  200 above 5,000 Soul Vigor.
+- Increased ConfigSchemaVersion from 20 to 21 because LightningEnabled,
+  ReanimationSparksEnabled, and EnergyColor were removed and the Brightness and Soul
+  Vigor Override Value defaults changed. Compatible customized durable settings remain
+  eligible for recovery; the diagnostics-only override remains permanently excluded.
+  SoulAndServiceApi remains version 10.
+
+Version 2.8.4
+-----
+- Removed the generated rune treatment and separate optional-smoke body effect, their
+  pooled runtime, generated atlas, and all associated settings. The persistent
+  Reanimation VFX now consists only of the native electricity and integrated smoke.
+- Renamed the player-facing aura controls around Reanimation VFX and added independent
+  Electricity Opacity and Smoke Opacity settings. Brightness now changes luminosity
+  without changing opacity.
+- Changed the defaults to 75% Particle Amount, 2.0 Brightness, 1.0 Electricity Opacity,
+  0.5 Smoke Opacity, and 1.0 Scale while retaining #28FF5E arcs, a pale #C8FFD5 core,
+  and dark #237A55 smoke.
+- Increased ConfigSchemaVersion from 19 to 20 because rune and standalone-smoke settings
+  were removed, Particle Amount and Brightness defaults changed, and Aura Intensity now
+  means brightness only. Old customized Aura Intensity values are intentionally not
+  restored; compatible durable colors and other settings remain eligible for recovery.
+  SoulAndServiceApi remains version 10.
+
+Version 2.8.3
+-----
+- Corrected the Shock graph mapping: restored the body-electricity Count branch and
+  disabled the separate orange-spark Spawn Rate branch.
+- Added an independent Aura Haze Color and changed the default aura palette to #28FF5E
+  arcs, a pale #C8FFD5 corpse-green core, and dark #237A55 ectoplasmic haze.
+- Increased ConfigSchemaVersion from 18 to 19 because the Aura Glow Color default
+  changed materially. Compatible customized durable colors remain eligible for recovery;
+  untouched older defaults regenerate with the new palette. SoulAndServiceApi remains
+  version 10.
+
+Version 2.8.2
+-----
+- Removed the Shock aura's separate tiny orange-streak particle branch while retaining
+  its body electricity and integrated smoke.
+- Kept ConfigSchemaVersion at 18 and SoulAndServiceApi at version 10 because this is a
+  visual correction with no setting or public-contract change.
+
+Version 2.8.1
+-----
+- Removed the Weak and Arcane Aegis Lightning aura options and retained the full native
+  Shock status aura, bound to the animated servant body with native audio and lights
+  removed. Separate Arc and Glow colors now replace its forced white/blue presentation,
+  while Particle Amount, Intensity, and Scale directly control the graph's arc, haze,
+  spawn-rate, alpha, and size properties.
+- Raised the default automatic safe-teleport distance from 35 to 60 meters.
+- Increased ConfigSchemaVersion from 17 to 18 because Aura Style was removed and the
+  automatic Teleport Distance default changed. Compatible customized durable settings are
+  preserved; untouched older teleport defaults regenerate at 60 meters. SoulAndServiceApi
+  remains version 10.
+
+Version 2.8.0
+-----
+- Replaced the Corruption aura with selectable native Shock, Weak, and Arcane Aegis
+  Lightning styles. Each option is bound to the animated servant body, recolored through
+  Energy Color, stripped of native audio and lights, pooled, and covered by the existing
+  host-aware aura particle budget. Shock is the default.
+- Extended heavy Soul Rend's 0.4-meter corpse assist from upward-facing ground to harmless
+  surface clutter. Direct corpses, servants, and living targets retain priority, and the
+  surface-plane check still rejects corpses behind walls or beneath floors.
+- Made Directed Hunt participants acquire reachable enemies throughout travel and search
+  using their own Hunt awareness and line of sight without the hero-centered acquisition
+  gate. Committing to a target immediately removes that servant from attack-move so it no
+  longer continues toward the terrain destination.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10. Aura Style is an
+  additive setting, and the targeting and cast-assist changes alter no public contract.
+
+Version 2.7.9
+-----
+- Removed Directed Hunt's corridor and 10-meter destination-area target restrictions.
+  Each participating servant now evaluates any faction-hostile enemy within its own
+  normal Hunt awareness and line of sight, subject only to the native hero leash and a
+  connected navigation area.
+- Removed the shared per-frame path-check rejection from Directed Hunt acquisition, so
+  a reachable enemy cannot be discarded merely because another servant spent the frame's
+  path budget. Fighting hunters use the same servant-centered eligibility rules when a
+  terrain order offers a better target.
+- Made explicit and autonomous servant target commitments register reciprocal hostile
+  threat. Idle enemies can now enter combat with the servant that acquired them instead
+  of waiting to perceive or attack the hero first.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these are
+  runtime targeting corrections with no setting or public-contract changes.
+
+Version 2.7.8
+-----
+- Replaced the spark-only small Shock status layer with the native Corruption status aura,
+  recolored through Energy Color and bound directly to each servant's animated Kandra body.
+  The existing rune layer and separately configurable optional smoke remain available.
+- Extended dynamic host budgeting to the persistent corruption aura while retaining its
+  full density for small hosts.
+- Made each idle Directed Hunt participant sweep up to two distinct nearby nav-valid
+  points after individually reaching the commanded search area. Target acquisition still
+  removes that servant from the sweep immediately, and the shared search remains bounded
+  to four seconds.
+- Kept the existing LightningEnabled config key for compatibility, but display it as
+  Reanimation Aura Enabled. ConfigSchemaVersion remains 17 and SoulAndServiceApi remains
+  version 10 because the control still enables the same persistent identification layer.
+
+Version 2.7.7
+-----
+- Replaced the single targeted lightning beam with the native small Shock status effect,
+  bound to each servant's animated Kandra body and bounds. Its green electrical and
+  integral smoke layers now run as one pooled effect with native audio and light removed,
+  while the existing rune layer and separately configurable optional smoke remain available.
+- Extended dynamic host budgeting to the persistent shock field and its integral smoke.
+- Made Directed Hunt recover otherwise uncommitted servants whose native combat flag
+  remained set without any current, explicit, or autonomous target. Real combat targets,
+  held servants, explicit orders, and Recall remain protected.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these visual
+  and stale-state corrections change no setting meaning or public contract.
+
+Version 2.7.5
+-----
+- Replaced the shared native summon override with an exactly owned target element
+  per servant. Repeated orders now reuse the same element, target changes no longer
+  force a brief combat exit, and disabling the mod cannot leave an explicit order
+  installed.
+- Added native-range hysteresis: new targets acquire within 44 meters, remain active
+  through 44.75 meters, and keep their order for 0.85 seconds through a brief boundary
+  crossing before releasing. Dormant out-of-range markers can no longer reactivate an
+  old enemy.
+- Ranked autonomous candidates deterministically before spending the shared sight-ray
+  budget, always checking a committed target first and preventing crowded Hunt scenes
+  from favoring arbitrary NPC-grid enumeration order.
+- Expanded summon-control diagnostics with override presence, active state, ownership
+  mode, target, distance, and explicit or autonomous release reasons.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these
+  target-handling corrections change no setting or public contract.
+
+Version 2.7.3
+-----
+- Added enabled-by-default green body lightning at randomized intervals and a
+  one-shot green spark burst when a corpse is successfully reanimated. Both
+  layers have independent toggles, share a configurable Energy Color, use pooled
+  native effects, and reduce lightning frequency as large hosts grow when dynamic
+  budgeting is enabled.
+- Reduced Empower's visible growth to a smoothly mapped 1.1x-1.3x range while
+  preserving its existing 1.2x-1.5x combat roll and movement bonus.
+- Added Show Directed Hunt Preview, disabled by default. Sprint + Interact still
+  resolves and issues valid terrain Hunt commands when the preview is hidden,
+  while normal focused interactions retain priority.
+- Constrained explicit and autonomous servant targets to a 44.5-meter safety
+  boundary inside the game's native 45-meter summon override range, preventing
+  Hunt targets from repeatedly alternating between the intended enemy, no target,
+  and competing combat candidates.
+- Kept ConfigSchemaVersion at 17 because all new settings are additive and these
+  behavior and presentation corrections require no reset.
+
+Version 2.7.2
+-----
+- Raised the minimum Directed Hunt terrain distance from 3 to 5 meters.
+- Made every valid Directed Hunt tap publish its Attack confirmation pulse and voice,
+  even when no servant can move or change target.
+- Kept idle, uncommitted servants on the existing attack-move while allowing servants
+  in autonomous combat to redirect toward the reachable hostile nearest the commanded
+  terrain. Explicit Attack targets, held servants, and recalling servants remain protected.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these
+  behavior changes alter no setting or public contract.
+
+Version 2.7.1
+-----
+- Made Directed Hunt arrival checks require a Hunt attack-move formation anchor, so
+  an ordinary settled Hunt slot cannot start the destination search timer before the
+  servant receives and reaches its new terrain order.
+- Kept Recall locomotion recovery active when safe placement reservation is unavailable.
+  The completed native teleport attempt now restores Patrol and Idle at the reserved
+  destination when reached or at the servant's actual position after fallback or failure.
+- Normalized the Nexus full description to ordinary ASCII spaces.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these
+  corrections change no setting or public contract.
+
+Version 2.7.0
+-----
+- Made the Directed Hunt terrain prompt depend only on Hunt being selected, Sprint
+  being held, valid terrain, and at least one owned servant. It remains visible when
+  every servant is fighting, held, explicitly commanded, or settling after Recall.
+- Kept command execution conservative: a short Hunt tap snapshots only idle,
+  uncommitted hunters, while every ineligible servant continues its current action.
+  Diagnostics now explain when a valid tap has no available participant.
+- Made Recall force `NpcAI` through a complete non-victory combat exit before native
+  teleporting, then restore the summon to its normal Patrol state and a clean idle
+  animation at the reserved destination. Pre-teleport watchdog samples are discarded
+  so humanoid servants cannot inherit a combat animation and skate after Recall.
+- Kept ConfigSchemaVersion at 17 and SoulAndServiceApi at version 10 because these
+  corrections change no setting or public contract.
+
+Version 2.6.9
+-----
+- Replaced the hard formation-center snap with an elastic frame for Guard, Hunt, and
+  Bulwark Close Guard. Crossing the 1.5-meter movement boundary now shifts the frame
+  only enough to retain a 0.75-meter trailing buffer, so servants already within their
+  settling area can stay put instead of immediately crossing around the hero.
+- Made Guard and Close Guard preserve their facing until the hero travels 3 meters or
+  maintains one direction for 0.75 seconds, then rotate toward it at no more than 90
+  degrees per second. Stable slot ownership remains unchanged, and responsive Bulwark
+  Advance tracking still bypasses the ordinary movement frame.
+- Changed optional reanimation smoke to #28FF5E and 5.0 intensity by default, raised
+  its configurable intensity maximum from 3.0 to 10.0, and made invalid colors fall
+  back to the new green.
+- Increased ConfigSchemaVersion from 16 to 17 because the Smoke Color and Smoke
+  Intensity defaults changed. Compatible customized durable settings remain eligible
+  for typed recovery, while untouched old defaults receive the new values.
+
+Version 2.6.8
+-----
+- Raised the minimum Directed Hunt terrain distance from 2 to 3 meters so the prompt
+  stays off the hero's immediate interaction space.
+
+Version 2.6.7
+-----
+- Fixed Directed Hunt's interaction ownership so the visible terrain prompt handles
+  the full Interact press and release: a short tap now issues the attack-move, while
+  holding for 0.45 seconds still cycles behavior without requiring the prompt to clear.
+- Added configurable Guard, Hunt, Bulwark Close Guard, and Bulwark Advance formation
+  distances. Advance now defaults to a frontal wall 4.5 meters ahead.
+- Replaced Bulwark Advance Speed Bonus Percent with a direct 1x-3x movement multiplier,
+  defaulting to 2x, and raised the composed Advance movement ceiling to 3x. Advance
+  requests running movement and updates its moving anchors sooner when out of position.
+- Added configurable Bulwark local engagement, target retention, and player leash
+  ranges with 4/6/8-meter defaults. Bulwark servants commit longer to valid nearby
+  enemies and no longer spread away from the same immediate threat.
+- Made formation spacing and settling account for Empowered body size. Large servants
+  can settle when their physical footprint reaches a slot, while sideways orbiting no
+  longer counts as progress and blocked slots recover sooner instead of inducing spins.
+- Kept Empower's 1.2x-1.5x outgoing-damage and incoming-resistance roll unchanged while
+  reducing visible growth to the corresponding 1.1x-1.4x range.
+- Restored Blood Magic targeting across animated servant hitboxes and exposed both the
+  stable source Location and its Corpse element so raised quality, spent, and bloodless
+  ritual reticles remain available after reanimation.
+- Increased ConfigSchemaVersion from 15 to 16 because the percentage-based Bulwark
+  Advance speed setting was renamed and replaced by a direct multiplier with a new 2x
+  default. Compatible customized durable settings remain eligible for typed recovery;
+  the removed percentage setting is intentionally not migrated. Advanced
+  SoulAndServiceApi from version 9 to 10 for the additive dual source-identity bridge.
+
+Version 2.6.6
+-----
+- Raised the optional reanimation smoke intensity default from 0.35 to 3.0 and added
+  a Smoke Color hex setting that recolors the full smoke gradient while retaining the
+  existing dark green as its default and safe fallback.
+- Increased ConfigSchemaVersion from 14 to 15 because the Smoke Intensity default
+  changed. Compatible customized durable settings remain eligible for typed recovery;
+  SoulAndServiceApi remains at version 9.
+
+Version 2.6.5
+-----
+- Prevented Raise All servants from carrying a phantom heavy-cast Mana investment, so unbinding cannot refund Mana that the command never spent.
+- Reused one same-frame Raise All eligibility result when Soul and Service and Battlecry Voice Tuner arbitrate the shared input, avoiding duplicate world scans on command start.
+- Kept ConfigSchemaVersion at 14 and SoulAndServiceApi at version 9 because these corrections change no setting or public contract.
+
+Version 2.6.4
+-----
+- Added Raise All at Power 200. With no living servants, hold Sprint + Take All Items for 1.5 seconds to reanimate viable corpses within 30 meters, nearest first, until Summon Capacity or available Soul Vigor runs out.
+- Reused the normal corpse protections, per-corpse Power-scaled costs, reanimation lifecycle, and corpse VFX, then added one matching summoning effect at the hero for the completed batch.
+- Made Hold All, Follow All, and Recall Host require Sprint + Take All Items so Sprint consistently enters command mode while ordinary Take All remains untouched outside a valid command chord.
+- Added one Raise All completion pulse, dedicated Dishonored Dynamic Crosshair icon state, and one Battlecry Voice Tuner `summon_raiseall` request regardless of the number of corpses raised.
+- Replaced approximate Soul Vigor milestone labels with their nearest whole-number values and renamed the Power 200 milestone to `Raise All; peak scaling`.
+- Kept ConfigSchemaVersion at 14 because no setting changed. Advanced SoulAndServiceApi from version 8 to 9 for the additive Raise All command state.
+
+Version 2.6.3
+-----
+- Kept formation rings dense after servants leave the host while preserving stable
+  ordering for survivors and placing newly joined servants after existing members.
+- Excluded held, attacking, recalling, and otherwise suspended servants from active
+  formation-size calculations so large inactive bodies no longer stretch the remaining
+  Guard, Hunt, or Bulwark formation.
+- Prevented a failed stay-in-place recovery from counting as Directed Hunt arrival and
+  prematurely starting the destination search.
+- Reused active line-of-sight cache records and added small per-frame caps for autonomous
+  sight rays and expensive explicit or Directed Hunt path checks. Deferred work retries
+  naturally on later AI decisions without discarding commands.
+- Removed obsolete formation constants and the unused Hunt-awareness helper. Config
+  schema 14 and API version 8 are unchanged.
+
+Version 2.6.1
+-----
+- Added Hold Individual Formation Commands, an optional disabled-by-default setting
+  that requires holding Interact for 0.45 seconds before an individual Hold or Follow
+  command executes. Releasing early cancels, and the selected servant remains latched
+  through harmless aim drift.
+- Kept Attack, Directed Hunt, behavior cycling, Hold All, Follow All, and Recall on
+  their existing inputs. Config schema 14 and API version 8 are unchanged.
+
+Version 2.6.0
+-----
+- Added one host-level formation coordinator with stable per-servant slot identity,
+  navigation-radius-aware spacing, reserved-destination occupancy, bounded recovery
+  probes, and allocation-free patrol-anchor gating for Guard, Hunt, and Bulwark.
+- Reworked Directed Hunt into a terrain attack-move command. While Hunt is selected,
+  hold Sprint and tap Interact over reachable terrain at least two meters away to send
+  idle hunters toward distinct positions around the point.
+- Made directed hunters acquire reachable enemies along the commanded corridor or in
+  the destination area, search the destination for four seconds, and return to their
+  ordinary Hunt formation when no enemy is found.
+- Preserved the existing Sprint + Interact behavior-cycle hold: a short release issues
+  Hunt, while crossing the 0.45-second hold threshold cancels the point order and
+  cycles behavior.
+- Removed the former held-Sprint directional sweep, live camera steering, release
+  grace, lane and route dictionaries, and all compatibility fallback for that design.
+- Moved Recall placement and Bulwark slot recovery into the coordinator and
+  consolidated Guard and Hunt idle excursion state without changing their distinct
+  timing and personality.
+- Reused frame-local Hunt preview eligibility and host target-query buffers so terrain
+  preview, Directed Hunt, and Bulwark do not repeat same-frame eligibility walks or
+  allocate a fresh candidate array on each shared sensing refresh.
+- Directed successful terrain Hunt orders through the Attack command presentation and
+  Battlecry Voice Tuner's summon_attack pool while retaining summon_hunt for selecting
+  Hunt behavior.
+- Incremented ConfigSchemaVersion from 13 to 14 because Directed Hunt Release Duration
+  was removed with the obsolete held-Sprint sweep. Compatible durable settings remain
+  eligible for typed recovery; API version 8 is unchanged.
+
+Version 2.5.4
+-----
+- Moved Directed Hunt's navmesh destination work off the idle and per-frame held
+  paths. Activation and accepted stable turns still validate a reachable route, while
+  participant pruning, lane lookup, and route fallback now reuse allocation-free state.
+- Made focused Attack, Hold, Follow, and a started behavior-cycle hold own their Sprint
+  input before Directed Hunt. A servant that loses its temporary sweep route now leaves
+  the corridor immediately and resumes ordinary Hunt behavior.
+- Shared Directed Hunt candidate queries briefly across its host, deferred path checks
+  until a candidate can affect selection, removed per-check LOS key strings, cached
+  command UI frames/actions, and added tiny deterministic AI tick offsets to avoid
+  synchronized multi-servant sensing spikes.
+- Added conservative recovery for explicit targets that remain stalled, unreachable,
+  and unseen through three spaced graph checks. Reachable or directly visible targets
+  retain full command authority, while invalid faction relationships now release safely.
+- Added nearby reachable fallback slots for blocked Guard and ordinary Hunt formations,
+  with occupancy checks for tight spaces. Equal-priority autonomous choices now lightly
+  prefer enemies with fewer servants assigned, reducing avoidable combat crowding while
+  explicit Attack and Swarm retain focus-fire control.
+- Kept config schema 13 and API version 8 because these runtime optimizations change no
+  stored setting meaning, default, or public signature.
+
+Version 2.5.3
+-----
+- Added optional Directed Hunt. While Hunt is selected, holding the remappable Sprint
+  action immediately sends a press-time snapshot of idle, uncommitted servants along
+  the crosshair's reachable forward route, even while the hero moves. Valid aim extends
+  60 degrees above or below the horizon and enemy acquisition takes priority.
+- Kept already engaged, explicitly commanded, held, and recalling servants outside
+  the sweep. A participating hunter leaves permanently for that hold when it acquires
+  a target, so Sprint never redirects ongoing combat and newly idle servants wait for
+  the next press.
+- Added terrain-aware fan routes with graph connectivity checks, bounded lateral and
+  shorter replans after 0.75 seconds without progress, per-servant cancellation, and
+  host-wide release when no hunter retains a route or target.
+- Added Enable Directed Hunt and Directed Hunt Release Duration settings. Releasing
+  Sprint ends the sweep immediately by default; the optional configured 0-10 second
+  grace locks its last valid direction regardless of later movement or camera direction.
+- Added matching Enable Bulwark Advance and Bulwark Advance Release Duration
+  settings. Release grace retains the wall's final facing while its anchor continues
+  to follow the moving hero; the zero-second default preserves the previous immediate
+  return to Close Guard.
+- Added a 0-75% Bulwark Advance Speed Bonus setting, defaulting to zero. It composes
+  with Empower, Swarm, and displaced-slot catch-up under the existing 1.75x total
+  movement ceiling.
+- Lowered ordinary Hunt awareness from a fixed 45 meters to 30 meters and let it
+  inherit 80% of Steel and Bone's active sight increase without a cap. Intentional
+  Directed Hunt continues to search at least the native 45-meter tether along its route.
+- Moved the new Hunt controls beside the matching Bulwark controls in a dedicated
+  Summon Behaviors section. Incremented config schema from 11 to 13 because those keys
+  moved sections and Directed Hunt Release Duration now defaults to zero instead of
+  two seconds; API version 8 is unchanged.
+
 Version 2.5.2
 -----
 - Made blocked Bulwark Advance servants measure their own positional progress so a

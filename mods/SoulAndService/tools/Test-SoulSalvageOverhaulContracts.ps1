@@ -20,7 +20,7 @@ $nexus = Get-Content -LiteralPath (
 $matrix = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\TEST-MATRIX.md") -Raw
 foreach ($required in @(
-    'ConfigSchemaVersion = 11',
+    'ConfigSchemaVersion = 22',
     '"ks.tgfoa.versatile-weapons"',
     '"ks.tgfoa.first-person-arms-adjuster"',
     '"EnableLivingTargetSoulSalvage"',
@@ -62,6 +62,11 @@ foreach ($required in @(
     'fsm.IsCasting',
     'Mathf.MoveTowards(',
     'TryGetCurrentVisualWorldOffset',
+    'LoadingStates.IsLoadingWorld',
+    'LoadingScreenUI.IsLoading',
+    'World.HasAny<LoadingScreenUI>()',
+    'DestroyHand(MainHand)',
+    'DestroyHand(OffHand)',
     'state.LightObject.transform.position = anchor.position',
     '+ visualWorldOffset',
     'GetComponent<HDAdditionalLightData>()',
@@ -84,6 +89,10 @@ if (($innerLightSource -notmatch '(?s)internal static void Update\(\).*?featureE
 }
 if ($pluginSource -notmatch '(?s)private void LateUpdate\(\).*?SoulRendInnerLightRuntime\.LateUpdate\(\)') {
     throw "Soul Rend hand-light positioning is not deferred until LateUpdate."
+}
+if (($innerLightSource -notmatch '(?s)internal static void LateUpdate\(\).*?IsWorldTransitioning\(\).*?hero == null.*?hero\.HasBeenDiscarded.*?DestroyHand\(MainHand\).*?DestroyHand\(OffHand\).*?return;.*?UpdatePosition\(MainHand, hero, visualWorldOffset\)') -or
+    ($innerLightSource -notmatch '(?s)GetTransformProperty\(object owner, string propertyName\).*?property\.GetValue\(owner, null\) as Transform;.*?catch.*?return null;')) {
+    throw 'Soul Rend hand lights do not suspend across world loading or safely retry unavailable hand properties.'
 }
 
 foreach ($forbidden in @(
@@ -174,6 +183,9 @@ foreach ($required in @(
     'SummonRuntime.IsEmpoweredSummon(summon)',
     '1.20f + (0.30f * roll * roll)',
     'SummonRuntime.TryEmpowerSummon(',
+    'GetEmpowermentSoulVigorCost(summon, power)',
+    'AddEmpowermentSoulVigorInvestment(',
+    '" | -" + committedVigor.ToString(CultureInfo.InvariantCulture)',
     '"Servant Restored and Empowered: "',
     '"Servant Restored: +"',
     '"% health (Power "',
@@ -223,7 +235,7 @@ foreach ($required in @(
     'Enemies: Deal Necrotic damage. Repeated hits strengthen Soul Claim.',
     'Corpses: Bind and reanimate; cost scales with soul quality.',
     'Wounded enemies: Attempt Soul Claim below 40% Health.',
-    'Servants: Restore Health; at 95%, Empower at 1,000 Soul Vigor.')) {
+    'Servants: Restore Health; at 95%, Empower at 1,000 Soul Vigor for twice base soul value.')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Soul Rend tooltip contract is missing: $required"
     }
@@ -283,6 +295,7 @@ foreach ($required in @(
     'InvestedSoulVigor = committedVigor',
     'NativeSoulVigor = nativeSoulVigor',
     'TryResolveOwnedBloodServantForInterop(',
+    'TryResolveOwnedBloodServantIdentityForInterop(',
     'TryExsanguinateOwnedBloodServantForInterop(',
     'TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop(',
     'GetBloodMagicCorpseIdentity(',
@@ -293,7 +306,7 @@ foreach ($required in @(
     'RestoreExecutedServantCorpse(',
     'UpdateExecutedServantRemains();',
     'text = "Restore Servant";',
-    'text = "Empower Servant";',
+    'text = (affordable ? "Empower: " : "Requires ")',
     'state = (int)HeavySoulRendHoverState.ServantFullyRestored;',
     '&& state != (int)HeavySoulRendHoverState.ServantFullyRestored;')) {
     if (!$runtimeSource.Contains($required)) {
@@ -311,6 +324,14 @@ if ($runtimeSource -notmatch '(?s)GetOrdinarySummonSoulVigorCost\(int summonTier
     $runtimeSource -notmatch '(?s)OnSummonInitialized\(NpcHeroSummon summon\).*?GetOrdinarySummonTier\(summon\.Item\).*?GetOrdinarySummonSoulVigorCost\(.*?TrySpendSoulVigor\(\s*vigorCost') {
     throw "Ordinary summons do not price their authored tier through the shared Power curve before spending."
 }
+if ($runtimeSource -notmatch '(?s)GetEmpowermentSoulVigorCost\(.*?GetOrdinarySummonTier\(summon == null \? null : summon\.Item\).*?OrdinarySummonVigorCostPerTier.*?Reanimations\.TryGetValue\(.*?record\.NativeSoulVigor.*?GetPowerScaledSoulVigorCost\(baseSoulVigor \* 2, power\)' -or
+    $runtimeSource -notmatch '(?s)TryServeHeavyTarget\(.*?GetEmpowermentSoulVigorCost\(summon, power\).*?TrySpendSoulVigor\(.*?SummonRuntime\.TryEmpowerSummon\(.*?RestoreSoulVigor\(committedVigor\).*?AddEmpowermentSoulVigorInvestment\(.*?ShowSoulVigorWanesAfterSpend\(' -or
+    $runtimeSource -notmatch '(?s)AddEmpowermentSoulVigorInvestment\(.*?record\.InvestedSoulVigor \+= committedVigor.*?OrdinarySummonInvestments\[summonId\].*?investedVigor \+ committedVigor') {
+    throw 'Empower does not price twice the stable servant soul value through the current Power curve, commit only on success, and preserve the payment for proportional unbinding recovery.'
+}
+if ($runtimeSource -notmatch '(?s)TryGetHeavySoulRendHover\(.*?GetEmpowermentSoulVigorCost\(.*?affordable.*?HeavySoulRendHoverState\.EmpowerServant.*?HeavySoulRendHoverState\.RequiresSoulVigor.*?"Empower: ".*?"Requires ".*?" Soul Vigor"') {
+    throw 'Heavy Soul Rend hover does not use the canonical Empower/Requires Soul Vigor price grammar.'
+}
 if ([regex]::Matches($runtimeSource, '\{ "[0-9a-f]{32}", [1-6] \}').Count -ne 26 -or
     $runtimeSource -notmatch '\{ "7a26e25196836554b88af907781341f3", 3 \}.*Summon Keeper' -or
     $runtimeSource -notmatch '\{ "7ab9829d6ebdcfd4e935fc658a6201f8", 4 \}.*Ghost of Broc Meala' -or
@@ -324,13 +345,19 @@ if ($runtimeSource -notmatch '(?s)TryGetHeavySoulRendHover\(.*?GetOrRollCorpseSo
     throw "Heavy Soul Rend hover does not preview the stable corpse-specific Power-scaled cost."
 }
 if ($runtimeSource -notmatch '(?s)GetBloodMagicCorpseIdentity\(Location sourceCorpse\).*?sourceCorpse\.TryGetElement<Corpse>\(\)' -or
-    $runtimeSource -notmatch '(?s)sourceCorpse = GetBloodMagicCorpseIdentity\(record\.SourceCorpse\).*?servantNpc = record\.RaisedNpc' -or
+    $runtimeSource -notmatch '(?s)TryResolveOwnedBloodServantIdentityForInterop\(.*?sourceLocation = record\.SourceCorpse;.*?sourceCorpse = record\.SourceCorpse\.TryGetElement<Corpse>\(\);.*?servantNpc = record\.RaisedNpc' -or
+    $runtimeSource -notmatch '(?s)TryResolveOwnedBloodServantForInterop\(.*?sourceCorpse = sourceCorpseElement \?\? sourceLocation' -or
     $runtimeSource -notmatch '(?s)GetBloodExsanguinationSeverity\(object sourceCorpse\).*?sourceCorpse as Location.*?GetBloodMagicCorpseIdentity\(sourceLocation\)') {
-    throw "Blood Magic interop does not normalize raised source locations to their registered Corpse elements."
+    throw "Blood Magic interop does not expose both the stable source Location and its registered Corpse element."
 }
-if ($pluginSource -notmatch 'public const int ApiVersion = 8;' -or
+if ($runtimeSource -notmatch '(?s)TryResolveOwnedLivingSummon\(.*?World\.All<NpcHeroSummon>\(\).*?IsComponentWithinNpcVisual\(component, candidateNpc\)' -or
+    $runtimeSource -notmatch '(?s)TryResolveReanimationRecord\(.*?IsComponentWithinNpcVisual\(\s*component,\s*candidateRecord\.RaisedNpc\).*?IsComponentWithinNpcVisual\(.*?candidate\.IsChildOf\(root\)') {
+    throw 'Animated servant hitbox components are not resolved through the owning summon visual hierarchy.'
+}
+if ($pluginSource -notmatch 'public const int ApiVersion = 10;' -or
+    $pluginSource -notmatch 'public static bool TryResolveOwnedBloodServantIdentity\(' -or
     $pluginSource -notmatch 'public static bool TryMaterializeOwnedBloodServantCorpseForAbhartach\(') {
-    throw "Soul and Service API 8 does not publish the Abhartach servant-corpse bridge."
+    throw "Soul and Service API 10 does not publish the dual corpse-identity and Abhartach bridges."
 }
 if ($runtimeSource -notmatch '(?s)TryMaterializeOwnedBloodServantCorpseForAbhartachForInterop\(.*?TryResolveReanimationRecord.*?SourceCorpse\.TryGetElement<NpcDummy>\(\).*?Reanimations\.Remove\(summonId\).*?MoveAndRotateTo\(coords, rotation, true\).*?SetInteractability\(record\.SourceInteractability\).*?PendingRaisedDiscards\.Add\(record\.RaisedLocation\).*?corpseLocation = record\.SourceCorpse.*?OrdinarySummonInvestments\.Remove.*?npc\.HealthElement\.Kill\(\).*?location\.TryGetElement<NpcDummy>\(\)') {
     throw "Abhartach sacrifice does not safely materialize source-backed and ordinary servants as native corpses."
@@ -383,10 +410,10 @@ foreach ($required in @(
     'TryFindFocusedSoulTargetCached(',
     '_focusedTargetCacheFrame != frame',
     'int frame = Time.frameCount',
-    'GroundTargetRadius = 0.4f',
-    'GroundTargetColliderBufferSize = 64',
+    'SoulRendAssistRadius = 0.4f',
+    'SoulRendAssistColliderBufferSize = 64',
     'Physics.OverlapSphereNonAlloc(',
-    'IsGroundSoulRendSurface(hit, candidate)',
+    'IsSoulRendAssistSurface(hit, candidate)',
     'TryFindNearestEligibleCorpse(',
     'TryValidateEligibleCorpse(hero, candidate, out rejection)',
     'Soul Rend could not finish initializing a raised servant:',
@@ -395,11 +422,12 @@ foreach ($required in @(
         throw "Soul Salvage safety or focused-target contract is missing: $required"
     }
 }
-if (($runtimeSource -notmatch '(?s)IsGroundSoulRendSurface\(.*?GroundTargetMinimumNormalY.*?TryGetElement<Corpse>\(\).*?TryGetElement<NpcElement>\(\)') -or
-    ($runtimeSource -notmatch '(?s)TryFindNearestEligibleCorpse\(.*?Physics\.OverlapSphereNonAlloc\(.*?GroundTargetRadius.*?GroundTargetColliderBuffer.*?TryValidateEligibleCorpse\(.*?collider\.ClosestPoint\(impactPoint\).*?Vector3\.Dot\(offset, surfaceNormal\).*?nearestDistanceSqr.*?source = candidate') -or
-    ($runtimeSource -notmatch '(?s)TryFindEligibleCorpse\(.*?IsGroundSoulRendSurface\(hit, candidate\).*?TryFindNearestEligibleCorpse\(.*?out source') -or
-    ($runtimeSource -notmatch '(?s)TryFindFocusedSoulTarget\(.*?IsGroundSoulRendSurface\(hit, candidate\).*?TryFindNearestEligibleCorpse\(.*?out location')) {
-    throw 'Heavy Soul Rend does not safely select the nearest eligible corpse within its 0.4-meter ground fallback.'
+if (($runtimeSource -notmatch '(?s)IsSoulRendAssistSurface\(.*?hit\.collider == null.*?candidate == null \|\| candidate\.HasBeenDiscarded.*?TryGetElement<Corpse>\(\).*?TryGetElement<NpcElement>\(\)') -or
+    ($runtimeSource -match 'GroundTargetMinimumNormalY') -or
+    ($runtimeSource -notmatch '(?s)TryFindNearestEligibleCorpse\(.*?Physics\.OverlapSphereNonAlloc\(.*?SoulRendAssistRadius.*?SoulRendAssistColliderBuffer.*?TryValidateEligibleCorpse\(.*?collider\.ClosestPoint\(impactPoint\).*?Vector3\.Dot\(offset, surfaceNormal\).*?nearestDistanceSqr.*?source = candidate') -or
+    ($runtimeSource -notmatch '(?s)TryFindEligibleCorpse\(.*?IsSoulRendAssistSurface\(hit, candidate\).*?TryFindNearestEligibleCorpse\(.*?out source') -or
+    ($runtimeSource -notmatch '(?s)TryFindFocusedSoulTarget\(.*?IsSoulRendAssistSurface\(hit, candidate\).*?TryFindNearestEligibleCorpse\(.*?out location')) {
+    throw 'Heavy Soul Rend does not safely assist to the nearest eligible corpse within 0.4 meters of irrelevant surface hits.'
 }
 foreach ($required in @(
     'OptionalPropertyCache',
@@ -520,24 +548,78 @@ if ($runtimeSource -notmatch '(?s)committedVigor > 0.*?ShowSummonCreated\(.*?com
     throw 'Successful summon and reanimation GFT messages do not wait for the durable committed spend.'
 }
 
+$heavyCastFeedbackMethod = [regex]::Match(
+    $pluginSource,
+    '(?s)internal void ShowSoulSalvageHeavyCastFeedback\(\s*string eventId,\s*string message,\s*bool warning = false\).*?(?=\r?\n\s*internal void )')
+if (!$heavyCastFeedbackMethod.Success -or
+    $heavyCastFeedbackMethod.Value -match 'Diagnostics|ShowGrailFloatingTextDiagnostics|TryShowDiagnosticNotification' -or
+    $heavyCastFeedbackMethod.Value -notmatch 'TryShowEventNotification\(') {
+    throw 'Ordinary Soul Rend heavy-cast feedback is not an unconditional normal Grail Floating Text event.'
+}
+$heavyCastDiagnosticMethod = [regex]::Match(
+    $pluginSource,
+    '(?s)internal void ShowSoulSalvageHeavyCastDiagnostic\(\s*string diagnosticGroup,\s*string message\).*?(?=\r?\n\s*internal void )')
+if (!$heavyCastDiagnosticMethod.Success -or
+    $heavyCastDiagnosticMethod.Value -notmatch '(?s)Diagnostics == null.*?!Diagnostics\.Value.*?ShowGrailFloatingTextDiagnostics == null.*?!ShowGrailFloatingTextDiagnostics\.Value' -or
+    $heavyCastDiagnosticMethod.Value -notmatch '(?s)"soul-rend-"\s*\+\s*diagnosticGroup\s*\+\s*"-diagnostic".*?TryShowDiagnosticNotification\(.*?diagnosticId.*?diagnosticId') {
+    throw 'Detailed Soul Rend diagnostics are not gated with their own System collapse metadata.'
+}
+foreach ($ordinaryFeedback in @(
+    'ShowSoulSalvageHeavyCastFeedback\(\s*"[^"]+".{0,700}?"Soul Rend: servant limit full',
+    'ShowSoulSalvageHeavyCastFeedback\(\s*"[^"]+".{0,700}?"Raise All: servant limit full',
+    'ShowSoulSalvageHeavyCastFeedback\(\s*"[^"]+".{0,700}?"Soul Rend: reanimation failed')) {
+    if ($runtimeSource -notmatch "(?s)$ordinaryFeedback") {
+        throw "Ordinary actionable Soul Rend feedback is not routed independently of diagnostics: $ordinaryFeedback"
+    }
+}
+foreach ($targetingDiagnostic in @(
+    'ShowSoulSalvageHeavyCastDiagnostic\(\s*"targeting".{0,700}?"Soul Rend: no eligible target',
+    'ShowSoulSalvageHeavyCastDiagnostic\(\s*"targeting".{0,700}?"Soul Rend: no eligible corpse')) {
+    if ($runtimeSource -notmatch "(?s)$targetingDiagnostic") {
+        throw "Rejected heavy Soul Rend targeting is not a separately collapsed System diagnostic: $targetingDiagnostic"
+    }
+}
+foreach ($gatedSummary in @(
+    'ShowSoulSalvageHeavyCastDiagnostic\(\s*"binding",\s*outcome\)',
+    'ShowSoulSalvageHeavyCastDiagnostic\(\s*"lifecycle".{0,700}?service ended; remains were left behind',
+    'ShowSoulSalvageHeavyCastDiagnostic\(\s*"lifecycle".{0,700}?service ended; source corpse restored')) {
+    if ($runtimeSource -notmatch "(?s)$gatedSummary") {
+        throw "Detailed Soul Rend success or lifecycle summary is not retained behind both diagnostics controls: $gatedSummary"
+    }
+}
+if ($runtimeSource -match '(?s)ShowSoulSalvageHeavyCastDiagnostic\(.{0,500}?ShowSoulSalvageHeavyCastFeedback\(\s*"(?:soul-rend-servant-limit|raise-all-servant-limit|soul-rend-reanimation-failed)') {
+    throw 'A Soul Rend diagnostic can still precede and throttle ordinary capacity or reanimation-failure feedback.'
+}
+$insufficientVigorChecks = [regex]::Matches(
+    $runtimeSource,
+    '(?s)if \(SoulProgressionRuntime\.GetSoulVigor\(\) \+ 0\.001f < vigorCost\)\s*\{(?<body>.*?)\n\s*\}')
+if ($insufficientVigorChecks.Count -lt 2 -or
+    @($insufficientVigorChecks | Where-Object {
+        $_.Groups['body'].Value -notmatch 'ShowInsufficientSoulVigor\(vigorCost\)' -or
+        $_.Groups['body'].Value -match 'ShowSoulSalvageHeavyCast(?:Diagnostic|Feedback)\('
+    }).Count -gt 0) {
+    throw 'An insufficient-Vigor heavy-cast branch can still replace its canonical normal feedback with a same-source diagnostic or duplicate event.'
+}
+$spendFailure = [regex]::Match(
+    $runtimeSource,
+    '(?s)if \(!SoulProgressionRuntime\.TrySpendSoulVigor\(.*?out int vigorAfter\)\)\s*\{(?<body>.*?)\n\s*\}')
+if (!$spendFailure.Success -or
+    $spendFailure.Groups['body'].Value -notmatch 'ShowInsufficientSoulVigor\(vigorCost\)' -or
+    $spendFailure.Groups['body'].Value -match 'ShowSoulSalvageHeavyCast(?:Diagnostic|Feedback)\(') {
+    throw 'The failed Soul Vigor spend can still throttle away its canonical normal insufficient-Vigor feedback.'
+}
+
 foreach ($required in @(
-    '22fdfa954ef8f9c4ea62779e08eedfbf',
-    'VFXBodyMarker.BoundsSize',
+    '0c7757225700cda4db246fd6bc3bc59f',
     'CombinedEffectState',
-    'CombinedEffectSettings',
-    'GetEffectSettings(CountActiveVisualStates())',
+    'ReanimationEffectSettings',
+    'SummonRuntime.GetEmpowermentCombatMultiplier(summonId)',
     'effectState.ConfigSignature != settings.Signature',
-    '"Fire Texture"',
     '"Smoke-Count"',
     '"Coilor-Smoke"',
     '"Spawn Rate"',
-    '"Fire Lifetime", new Vector2(1.5f, 2.5f)',
     '"Size Min/Max"',
-    'new Color(1.08f, 15.75f, 5.2875f)',
-    'new Color(0.025f, 0.15f, 0.055f)',
-    'new GradientColorKey(Color.black, 0.0f)',
-    'new GradientColorKey(Color.black, 1.0f)',
-    '"Initial Velocity_vector", Vector3.zero',
+    'ResolveConfiguredColor(',
     'snapshot?.Restore(effect)',
     'pooled?.Return()')) {
     if (!$glyphSource.Contains($required)) {
@@ -546,49 +628,97 @@ foreach ($required in @(
 }
 foreach ($required in @(
     'internal ConfigEntry<bool> ReanimationVfxEnabled',
-    'internal ConfigEntry<bool> ReanimationRunesEnabled',
-    'internal ConfigEntry<float> ReanimationRuneIntensity',
-    'internal ConfigEntry<int> ReanimationRuneParticleAmount',
-    'internal ConfigEntry<bool> ReanimationSmokeEnabled',
-    'internal ConfigEntry<float> ReanimationSmokeIntensity',
-    'internal ConfigEntry<int> ReanimationSmokeParticleAmount',
+    'internal ConfigEntry<string> ReanimationAuraArcColor',
+    'internal ConfigEntry<string> ReanimationAuraGlowColor',
+    'internal ConfigEntry<string> ReanimationAuraHazeColor',
+    'internal ConfigEntry<int> ReanimationAuraParticleAmount',
+    'internal ConfigEntry<float> ReanimationAuraIntensity',
+    'internal ConfigEntry<float> ReanimationElectricityOpacity',
+    'internal ConfigEntry<float> ReanimationSmokeOpacity',
+    'internal ConfigEntry<float> ReanimationAuraScale',
     'internal ConfigEntry<bool> ReanimationDynamicParticleBudget',
     '"Reanimation VFX"',
     '"DynamicParticleBudget"',
-    '"RunesEnabled"',
-    '"SmokeEnabled"',
-    '"RuneParticleAmount"',
-    '"SmokeParticleAmount"')) {
+    '"AuraArcColor"',
+    '"AuraGlowColor"',
+    '"AuraHazeColor"',
+    '"AuraParticleAmount"',
+    '"AuraIntensity"',
+    '"ElectricityOpacity"',
+    '"SmokeOpacity"',
+    '"AuraScale"')) {
     if (!$pluginSource.Contains($required)) {
         throw "Reanimation VFX configuration is missing: $required"
     }
 }
-if ($pluginSource -notmatch '(?s)ReanimationDynamicParticleBudget = BindOrdered\(.*?true,.*?ReanimationRunesEnabled = BindOrdered\(.*?true,.*?ReanimationSmokeEnabled = BindOrdered\(.*?false,') {
-    throw 'Reanimation VFX defaults no longer preserve dynamic budgeting with the rune-only presentation.'
+if ($pluginSource -notmatch '(?s)ReanimationVfxEnabled = BindOrdered\(.*?true,.*?ReanimationAuraArcColor = BindOrdered\(.*?"#28FF5E",.*?ReanimationAuraGlowColor = BindOrdered\(.*?"#C8FFD5",.*?ReanimationAuraHazeColor = BindOrdered\(.*?"#237A55",.*?ReanimationAuraParticleAmount = BindOrdered\(.*?75,.*?AcceptableValueRange<int>\(0, 200\).*?ReanimationAuraIntensity = BindOrdered\(.*?10\.0f,.*?AcceptableValueRange<float>\(0\.0f, 20\.0f\).*?ReanimationElectricityOpacity = BindOrdered\(.*?1\.0f,.*?AcceptableValueRange<float>\(0\.0f, 1\.0f\).*?ReanimationSmokeOpacity = BindOrdered\(.*?0\.5f,.*?AcceptableValueRange<float>\(0\.0f, 1\.0f\).*?ReanimationAuraScale = BindOrdered\(.*?1\.0f,.*?AcceptableValueRange<float>\(0\.25f, 2\.0f\).*?ReanimationDynamicParticleBudget = BindOrdered\(.*?true' -or
+    $pluginSource -notmatch '(?s)ConfigRecoveryKeepCurrentDefaultRule\(\s*20,\s*"Reanimation VFX",\s*"AuraIntensity"') {
+    throw 'Reanimation VFX defaults or schema-20 brightness recovery rule are incorrect.'
+}
+if ($glyphSource -notmatch '(?s)ShockAuraVfxKey =\s*"0c7757225700cda4db246fd6bc3bc59f"' -or
+    $glyphSource -match 'WeakAuraVfxKey|ArcaneAegisLightningAuraVfxKey|ReanimationAuraStyle' -or
+    $glyphSource -match '5f8c0d5d62877c047a9eb4fb79523235|BodyAuraVfxKey' -or
+    $glyphSource -notmatch '(?s)class GlyphState.*?readonly CombinedEffectState Aura.*?RefreshAura\(.*?CombinedEffectState effectState = state\.Aura.*?effectState\.AssetKey.*?ReleaseEffect\(effectState\).*?LoadAndConfigureAura\(' -or
+    $glyphSource -notmatch '(?s)LoadAndConfigureAura\(.*?VFXBodyMarkerBinder.*?SetBody\(state\.Npc\.VFXBodyMarker\).*?DisableQualityControllers\(.*?true.*?ConfigureAuraEffect' -or
+    $glyphSource -notmatch '(?s)ConfigureAuraEffect\(.*?ElectricityOpacity > 0\.0f.*?GetAuraParticleCount\(150, settings\.AuraParticleAmount\).*?SmokeOpacity > 0\.0f.*?GetAuraParticleCount\(100, settings\.AuraParticleAmount\).*?CreateAuraGradient\(\s*settings\.AuraArcColor,\s*settings\.AuraGlowColor,\s*settings\.AuraIntensity\).*?CreateAuraHazeGradient\(\s*settings\.AuraHazeColor,\s*settings\.AuraIntensity\).*?SetInt\(effect, "Count", electricParticleCount\).*?"Smoke-Count".*?SetFloat\(effect, "Spawn Rate", 0\.0f\).*?"Fire Alpha",\s*0\.10f \* settings\.ElectricityOpacity.*?SetFloat\(effect, "Smoke-Alpha", settings\.SmokeOpacity\).*?"Size Min/Max".*?"Fire Size Min Max".*?"Smoke Size".*?"Color-Fire".*?"Coilor-Smoke"' -or
+    $glyphSource -notmatch '(?s)DisableQualityControllers\(.*?disableAudioAndLights.*?behaviour is Light.*?behaviour is StudioEventEmitter.*?audioEmitter\.Stop\(true\).*?behaviour\.enabled = false') {
+    throw 'The configurable body-bound Reanimation VFX is not configured through the pooled servant VFX lifecycle.'
+}
+if (!$glyphSource.Contains('new Color(0.15686275f, 1.0f, 0.36862746f)') -or
+    !$glyphSource.Contains('new Color(0.78431374f, 1.0f, 0.83529413f)') -or
+    !$glyphSource.Contains('new Color(0.13725491f, 0.47843137f, 0.33333334f)')) {
+    throw 'Invalid aura or smoke colors no longer fall back to their configured defaults.'
 }
 if (!$glyphSource.Contains('GetEffectSettings(') -or
     !$glyphSource.Contains('plugin.ReanimationVfxEnabled.Value') -or
-    !$glyphSource.Contains('plugin.ReanimationRunesEnabled.Value') -or
-    !$glyphSource.Contains('plugin.ReanimationSmokeEnabled.Value') -or
-    $glyphSource -notmatch '(?s)settings\.RunesEnabled = .*?RuneIntensity > 0\.0f.*?RuneParticleAmount > 0.*?settings\.SmokeEnabled = .*?SmokeIntensity > 0\.0f.*?SmokeParticleAmount > 0.*?settings\.Enabled = settings\.RunesEnabled \|\| settings\.SmokeEnabled' -or
-    $glyphSource -notmatch '(?s)RuneParticleBudgetEquivalentServants / activeVisualCount.*?MinimumRuneParticleBudgetScale.*?SmokeParticleBudgetEquivalentServants / activeVisualCount.*?MinimumSmokeParticleBudgetScale' -or
-    $glyphSource -notmatch '(?s)GetRuneParticleCount\(.*?particleAmount.*?particleAmount / 100\.0f.*?GetSmokeParticleCount\(.*?particleAmount.*?particleAmount / 100\.0f') {
-    throw 'Combined reanimation VFX toggles, zero-cost disabling, or dynamic particle budgeting are not wired into the runtime.'
+    $glyphSource -notmatch '(?s)AuraParticleBudgetEquivalentServants / activeVisualCount.*?MinimumAuraParticleBudgetScale' -or
+    $glyphSource -notmatch '(?s)settings\.Enabled = settings\.AuraParticleAmount > 0.*?AuraIntensity > 0\.0f.*?ElectricityOpacity > 0\.0f.*?SmokeOpacity > 0\.0f') {
+    throw 'Reanimation VFX zero-cost disabling or dynamic particle budgeting is not wired into the runtime.'
 }
-if ($glyphSource -notmatch '(?s)ConfigureEffect\(.*?settings\.SmokeEnabled.*?"Smoke-Count".*?"Count".*?"Coilor-Smoke".*?GetOrCreateSmokeGradient\(\).*?"Fire Texture"' -or
-    $glyphSource -notmatch '(?s)int runeParticleCount = settings\.RunesEnabled.*?int smokeParticleCount = settings\.SmokeEnabled' -or
-    $glyphSource -notmatch '(?s)class GlyphState.*?readonly CombinedEffectState Effect.*?RefreshEffect\(.*?CombinedEffectState effectState = state\.Effect') {
-    throw 'Runes and smoke are not consolidated into one independently configured pooled effect per servant.'
+if ($summonRuntimeSource -notmatch '(?s)GetEmpowermentCombatMultiplier\(string summonId\).*?EmpowermentStates\.TryGetValue\(summonId, out state\).*?state\.CombatMultiplier' -or
+    $glyphSource -notmatch '(?s)GetEffectSettings\(\s*int activeVisualCount,\s*float empowermentMultiplier\).*?settings\.AuraIntensity = Mathf\.Min\(\s*MaximumAuraIntensity,\s*configuredIntensity \* Mathf\.Clamp\(\s*empowermentMultiplier,\s*1\.0f,\s*1\.50f\)' -or
+    $glyphSource -notmatch 'MaximumAuraIntensity = 20\.0f') {
+    throw 'Empowered raised-servant VFX brightness does not follow the exact combat multiplier with a final 20.0 cap.'
 }
 foreach ($removed in @(
     'ReanimationFireEnabled',
     'ReanimationFireIntensity',
     'ReanimationFireParticleAmount',
+    'ReanimationRunesEnabled',
+    'ReanimationRuneIntensity',
+    'ReanimationRuneParticleAmount',
+    'ReanimationSmokeEnabled',
+    'ReanimationSmokeColor',
+    'ReanimationSmokeIntensity',
+    'ReanimationSmokeParticleAmount',
+    'ReanimationLightningEnabled',
+    'ReanimationSparksEnabled',
+    'ReanimationEnergyColor',
+    'ReanimationSparksVfxKey',
+    'TimedEffectState',
+    'RefreshSparks',
+    'LoadTimedEffect',
+    'ConfigureTimedEffect',
+    'ReleaseTimedEffect',
+    'CreateEnergyGradient',
+    'GetBodyBoundsSize',
+    'BodySurfaceVfxKey',
+    'GetOrCreateRuneAtlas',
+    'GetOrCreateGlyphGradient',
+    'GetOrCreateSmokeGradient',
+    'GetOrCreateSparkleGradient',
     '"FireEnabled"',
     '"FireIntensity"',
-    '"FireParticleAmount"')) {
+    '"FireParticleAmount"',
+    '"RunesEnabled"',
+    '"RuneIntensity"',
+    '"RuneParticleAmount"',
+    '"SmokeEnabled"',
+    '"SmokeColor"',
+    '"SmokeIntensity"',
+    '"SmokeParticleAmount"')) {
     if ($pluginSource.Contains($removed) -or $glyphSource.Contains($removed)) {
-        throw "Removed reanimation fire configuration remains: $removed"
+        throw "Removed reanimation body-effect surface remains: $removed"
     }
 }
 if ($glyphSource.Contains('22fdfa954ef8f9c4a8fb544e462874b8')) {
@@ -596,9 +726,6 @@ if ($glyphSource.Contains('22fdfa954ef8f9c4a8fb544e462874b8')) {
 }
 if ($glyphSource.Contains('"Lifetime Min/Max"')) {
     throw 'Reanimation glyph runtime still enlarges the secondary dripping-particle lifetime.'
-}
-if ($glyphSource -notmatch '(?s)GetOrCreateSparkleGradient\(\).*?new GradientAlphaKey\(0\.0f, 0\.0f\).*?new GradientAlphaKey\(0\.0f, 1\.0f\)') {
-    throw 'Reanimation glyph runtime does not make the independent sparkle branch transparent.'
 }
 if ($summonRuntimeSource -notmatch '(?s)private static bool IsEffectOnlyRenderer\(Renderer renderer\).*?"ParticleSystemRenderer".*?"TrailRenderer".*?"LineRenderer".*?"VFXRenderer"' -or
     [regex]::Matches($summonRuntimeSource, 'IsEffectOnlyRenderer\(renderer\)').Count -lt 4) {
@@ -619,7 +746,7 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 2.5.2',
+    'Version under test: 2.8.9',
     'exactly 2x',
     'a true hero summon rises',
     'simplified remains',
@@ -628,9 +755,11 @@ foreach ($required in @(
     'SAS-SMOKE-31',
     'SAS-SMOKE-39',
     'SAS-SMOKE-43',
+    'Pale/System diagnostics',
+    'Capacity limits',
     'two-handed grip immediately suppresses targeting',
     'Soul Vigor: X (Y)',
-    '30/34.8/39.6/44.4 m',
+    '15 m',
     '50%/100%/200%',
     '5%/17.5%/30%',
     'never exceed 35%')) {

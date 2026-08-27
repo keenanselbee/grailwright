@@ -1,6 +1,6 @@
-KS Better Movement Addon 0.1.7
+KS Better Movement Addon 0.2.2
 
-Adds terrain-aware sliding sounds to Better Movement 1.3.0. Slide audio begins with the game's slide, follows long downhill slides, changes when the player crosses onto another surface, and fades when sliding ends or is cancelled.
+Adds terrain-aware sliding sounds and optional combat speed normalization to Better Movement 1.3.0. Slide audio begins with the game's slide, follows long downhill slides, changes when the player crosses onto another surface, and fades when sliding ends or is cancelled.
 
 Requirements
 
@@ -18,15 +18,33 @@ default. The old config is backed up, untouched old defaults regenerate at
 FoA Mod Manager keeps a final Import Previous Settings tab for supported
 backups.
 
+Version 0.2.1 advanced ConfigSchemaVersion to 4 because the old binary combat
+speed setting was replaced by the progressive Combat Override Mode. The old
+config is backed up, the new mode defaults to Off, and compatible customized
+audio settings are restored conservatively.
+
 FoA Mod Manager section order:
 
 General
+Combat
 Audio
 Terrain Detection
 Diagnostics
 Import Previous Settings
 
-Default behavior
+Combat Override Mode
+
+Off is the default and preserves Better Movement completely.
+
+HalfSpeedBonuses retains half of each positive Better Movement walk, jog, sprint, and swim bonus during combat. For example, 1.20x becomes 1.10x. Entering, leaving, or switching to this tier takes one full second.
+
+SpeedBonuses smoothly removes Better Movement's positive walk, jog, sprint, and swim multipliers over one second when combat begins, then restores them over one second when combat ends. Native movement speed, speed penalties, and modifiers from other mods remain intact.
+
+MobilityAdvantages includes SpeedBonuses and restores vanilla sprint directions, walking direction penalties, dash permissions, encumbrance restrictions, and dash limits during combat. An air dash that began before combat is allowed to finish.
+
+FullVanilla includes both earlier tiers and suppresses every Better Movement patch during combat. Sprint stamina and sprint FOV are restored separately because Better Movement applies those changes even when its own Enabled setting is off. The mode waits for an active dash, jump, slide, or bow draw to finish before switching, and it never writes to Better Movement's config.
+
+Default audio behavior
 
 The addon is enabled with 40 percent overall volume, speed-responsive volume and pitch, 0.10-second surface crossfades, and terrain checks every 0.15 seconds. Audio is positional and normally routes through the game's SFX mixer.
 

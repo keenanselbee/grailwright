@@ -1,3 +1,3 @@
-TargetVersion=0.1.7
-BaselineVersion=0.1.6
-Cleaned the generated config into unnumbered task-oriented sections with explicit option ordering, keeping Diagnostics penultimate and Import Previous Settings last.
+TargetVersion=0.2.2
+BaselineVersion=0.2.1
+Added a Half Speed Bonuses combat tier that retains exactly half of each positive movement-speed bonus. Every transition into, out of, or between speed tiers still takes one full second.

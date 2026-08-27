@@ -36,6 +36,10 @@
       <HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="BetterMovement">
+      <HintPath>$(GameDir)\BepInEx\plugins\BetterMovement.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="FMODUnity">
       <HintPath>$(GameDir)\Fall of Avalon_Data\Managed\FMODUnity.dll</HintPath>
       <Private>false</Private>
@@ -76,6 +80,7 @@
 
   <ItemGroup>
     <Compile Include="BetterMovementAddon.cs" />
+    <Compile Include="CombatOverrideRuntime.cs" />
     <Compile Include="SlideSurfaceDetector.cs" />
     <Compile Include="SlideAudioRuntime.cs" />
     <Compile Include="..\..\..\..\tools\shared\GrailFloatingTextLoadErrorNotifier.cs">

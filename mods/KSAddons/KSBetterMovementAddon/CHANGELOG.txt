@@ -1,3 +1,18 @@
+Version 0.2.2
+Added a HalfSpeedBonuses combat mode that retains exactly half of each positive Better Movement walk, jog, sprint, and swim bonus; for example, 1.20x becomes 1.10x.
+Kept every transition into, out of, or between speed tiers at one full second instead of allowing the half-strength tier to complete in half a second.
+
+Version 0.2.1
+Replaced the binary combat speed setting with an off-by-default Combat Override Mode: Off, SpeedBonuses, MobilityAdvantages, or FullVanilla.
+Expanded one-second combat speed blending to positive walk, jog, sprint, and swim multipliers while preserving native speed, penalties, and other mods' modifiers.
+Added a MobilityAdvantages tier that restores vanilla sprint directions, walking penalties, dash permissions, encumbrance restrictions, and dash limits during combat.
+Added a FullVanilla tier that transiently suppresses every Better Movement patch without writing to its config, explicitly restores the parent's unguarded sprint stamina and FOV paths, and changes state only after active movement actions finish.
+Advanced ConfigSchemaVersion from 3 to 4 because the old DisableSpeedBonusesInCombat boolean was removed and replaced by the CombatOverrideMode enum; the retired setting is not migrated and the new mode defaults to Off.
+
+Version 0.1.8
+Added an off-by-default Disable Speed Bonuses In Combat setting that removes only Better Movement's positive walk, jog, and sprint multipliers during combat.
+Blended the combat correction in and out over one second while preserving native movement speed, other mods' modifiers, and Better Movement speed penalties.
+
 Version 0.1.7
 Removed numeric prefixes from the generated config sections and added explicit FoA Mod Manager ordering for every visible setting.
 Advanced ConfigSchemaVersion from 2 to 3 because settings moved to the clean General, Audio, Terrain Detection, and Diagnostics sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

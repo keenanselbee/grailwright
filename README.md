@@ -25,7 +25,7 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Grail Floating Text](mods/GrailFloatingText) | 2.6.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
 | [Killing Blow Mastery](mods/KillingBlowMastery) | 1.9.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
-| [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.1.7 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
+| [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.2.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
 | [KS Better Volumetric Fog Addon](mods/KSAddons/KSTGVolumetricFixAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Volumetric Fog](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145) |
 | [KS Persistent Corpses Addon](mods/KSAddons/KSPersistentCorpsesAddon) | 1.1.1 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Persistent Corpses](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/228) |
 | [KS All Lights Cast Shadows Addon](mods/KSAddons/KSTGAllLightsCastShadowsAddon) | 1.3.0 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [All Lights Cast Shadows](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133) |

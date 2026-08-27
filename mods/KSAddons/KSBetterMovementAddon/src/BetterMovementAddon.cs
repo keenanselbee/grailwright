@@ -10,11 +10,11 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("KS Better Movement Addon")]
-[assembly: AssemblyDescription("Terrain-aware slide audio companion for Better Movement")]
+[assembly: AssemblyDescription("Terrain-aware slide audio and combat movement companion for Better Movement")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("KS Better Movement Addon")]
-[assembly: AssemblyVersion("0.1.7.0")]
-[assembly: AssemblyFileVersion("0.1.7.0")]
+[assembly: AssemblyVersion("0.2.2.0")]
+[assembly: AssemblyFileVersion("0.2.2.0")]
 
 namespace Keenan.TGFoA.BetterMovementAddon
 {
@@ -25,10 +25,10 @@ namespace Keenan.TGFoA.BetterMovementAddon
     {
         public const string PluginGuid = "ks.tgfoa.better-movement-addon";
         public const string PluginName = "BetterMovement Addon";
-        public const string PluginVersion = "0.1.7";
+        public const string PluginVersion = "0.2.2";
         public const string ParentPluginGuid = "BetterMovement";
 
-        private const int ConfigSchemaVersion = 3;
+        private const int ConfigSchemaVersion = 4;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -42,6 +42,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
             AccessTools.Property(typeof(HeroMovementSystem), "Controller");
 
         private ConfigEntry<bool> _enabled;
+        private ConfigEntry<CombatOverrideMode> _combatOverrideMode;
         private ConfigEntry<float> _volume;
         private ConfigEntry<float> _minimumSpeedVolumeScale;
         private ConfigEntry<float> _pitchBySpeed;
@@ -53,6 +54,8 @@ namespace Keenan.TGFoA.BetterMovementAddon
 
         private bool _hasPendingEnabled;
         private bool _pendingEnabled;
+        private bool _hasPendingCombatOverrideMode;
+        private CombatOverrideMode _pendingCombatOverrideMode;
         private bool _hasPendingVolume;
         private float _pendingVolume;
         private bool _hasPendingMinimumSpeedVolumeScale;
@@ -77,6 +80,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
         private int _slideGeneration;
         private float _nextSurfaceCheckAt;
         private Vector3 _lastPosition;
+        private CombatOverrideRuntime _combatOverrideRuntime;
 
         internal static BetterMovementAddonPlugin Instance { get; private set; }
 
@@ -144,18 +148,23 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 if (IsSlidingField == null || ControllerProperty == null)
                 {
                     throw new MissingMemberException(
-                        "The current game build does not expose the expected HumanoidMovementBase slide state or HeroMovementSystem controller property.");
+                        "The current game build does not expose the expected HumanoidMovementBase movement state or HeroMovementSystem controller property.");
                 }
 
                 _surfaceDetector = new SlideSurfaceDetector(this, Logger);
                 _audioRuntime = new SlideAudioRuntime(this, Logger, Info.Location);
-                PatchSlideLifecycle();
+                PatchMovementHooks();
+                _combatOverrideRuntime = new CombatOverrideRuntime(
+                    this,
+                    _combatOverrideMode,
+                    Logger);
+                _combatOverrideRuntime.Patch(_harmony);
                 Config.Save();
                 Logger.LogInfo(
                     PluginName
                     + " "
                     + PluginVersion
-                    + " loaded with terrain-aware slide audio. Custom WAVs can be replaced under audio\\slide.");
+                    + " loaded with terrain-aware slide audio and optional combat speed normalization. Custom WAVs can be replaced under audio\\slide.");
             }
             catch (Exception exception)
             {
@@ -170,6 +179,11 @@ namespace Keenan.TGFoA.BetterMovementAddon
 
         private void Update()
         {
+            if (_combatOverrideRuntime != null)
+            {
+                _combatOverrideRuntime.Update();
+            }
+
             if (_audioRuntime == null)
             {
                 return;
@@ -222,6 +236,12 @@ namespace Keenan.TGFoA.BetterMovementAddon
 
         private void OnDestroy()
         {
+            if (_combatOverrideRuntime != null)
+            {
+                _combatOverrideRuntime.Dispose();
+                _combatOverrideRuntime = null;
+            }
+
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -339,7 +359,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
             _audioRuntime.SwitchSurface(surface, _lastPosition);
         }
 
-        private void PatchSlideLifecycle()
+        private void PatchMovementHooks()
         {
             MethodInfo slideBegun = AccessTools.Method(
                 typeof(HumanoidMovementBase),
@@ -352,7 +372,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
             if (slideBegun == null || endSliding == null)
             {
                 throw new MissingMethodException(
-                    "Could not find HumanoidMovementBase.SlideBegun or EndSliding.");
+                    "Could not find the expected HumanoidMovementBase slide or movement-speed methods.");
             }
 
             _harmony = new Harmony(PluginGuid);
@@ -385,6 +405,13 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Master switch for terrain-aware Better Movement slide audio.",
                     "General", "Enabled", 0, 0));
+            _combatOverrideMode = Config.Bind(
+                "Combat",
+                "CombatOverrideMode",
+                CombatOverrideMode.Off,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Off preserves Better Movement. Half Speed Bonuses retains half of positive walk, jog, sprint, and swim bonuses. Speed Bonuses smoothly removes them. Mobility Advantages also restores vanilla sprint directions, dash permissions, encumbrance, and dash limits. Full Vanilla suppresses all Better Movement behavior during combat after the current movement action finishes.",
+                    "Combat", "Combat Override Mode", 5, 0));
             _volume = Config.Bind(
                 "Audio",
                 "Volume",
@@ -552,6 +579,10 @@ namespace Keenan.TGFoA.BetterMovementAddon
 
             _hasPendingEnabled = profile.TryGetCustomizedValue(
                 "General", "Enabled", out _pendingEnabled);
+            _hasPendingCombatOverrideMode = profile.TryGetCustomizedValue(
+                "Combat",
+                "CombatOverrideMode",
+                out _pendingCombatOverrideMode);
             _hasPendingVolume = profile.TryGetCustomizedValue(
                 "Audio", "Volume", out _pendingVolume);
             _hasPendingMinimumSpeedVolumeScale = profile.TryGetCustomizedValue(
@@ -584,6 +615,12 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 _hasPendingEnabled,
                 _enabled,
                 _pendingEnabled,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreserved(
+                _hasPendingCombatOverrideMode,
+                _combatOverrideMode,
+                _pendingCombatOverrideMode,
                 ref restoredCount,
                 ref clampedCount);
             RestorePreserved(
@@ -640,7 +677,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 Logger.LogInfo(
                     "Preserved "
                     + restoredCount.ToString(CultureInfo.InvariantCulture)
-                    + " customized slide-audio setting(s) across the config schema reset; clamped="
+                    + " customized addon setting(s) across the config schema reset; clamped="
                     + clampedCount.ToString(CultureInfo.InvariantCulture)
                     + ".");
             }
@@ -674,7 +711,7 @@ namespace Keenan.TGFoA.BetterMovementAddon
             }
         }
 
-        private void LogDiagnostic(string message)
+        internal void LogDiagnostic(string message)
         {
             if (DiagnosticsEnabled)
             {
@@ -705,5 +742,6 @@ namespace Keenan.TGFoA.BetterMovementAddon
                 }
             }
         }
+
     }
 }

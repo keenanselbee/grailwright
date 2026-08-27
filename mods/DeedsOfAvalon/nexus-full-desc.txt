@@ -152,7 +152,7 @@ Semantic White text receives a small fixed outline-strength adjustment for Level
 [line]
 
 [heading][color=#C94A4A][size=5]Optional Integrations[/size][/color][/heading]
-Deeds supports [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.6.7+, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url], [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url], and [b]Soul and Service[/b] without making them hard requirements.
+Deeds supports [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] 2.6.7+, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url], [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url], and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] without making them hard requirements.
 
 [code]
 | Mod         | Adds                          |

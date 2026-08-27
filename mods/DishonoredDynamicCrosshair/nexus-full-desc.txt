@@ -4,7 +4,7 @@
 
 [line]
 
-[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, current interactions, optional [b]Ambush Integrity[/b] backstab readiness, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback, optional [b]Soul and Service[/b] necromancy feedback, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] hit feedback.
+[b]Dishonored Dynamic Crosshair[/b] replaces the vanilla crosshair with customizable PNG reticles that react to your equipped weapon, targeted NPCs, current interactions, optional [b]Ambush Integrity[/b] backstab readiness, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse feedback, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] necromancy feedback, and optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] hit feedback.
 
 [line]
 
@@ -179,7 +179,7 @@ By default, [b]IncludeSummonAttacks[/b] is enabled so both the hero and hero-own
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is supported for optional usable and unavailable tiered blood-magic corpse reticle feedback.[/*]
 [*][b]Diagnostics[/b] is one default-off switch that writes a throttled final reticle decision with target, interaction, Blood Magic, Soul Rend, hit-marker, backstab, and scale state instead of producing per-frame log spam.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts and critical load errors in-game.[/*]
-[*][b]Soul and Service[/b] API v6 or newer is supported for Necrotic-green Meager through Prime quality reticles, heavy-service heal and empower reticles, and distinct Attack, Hold, Follow, and Behavior icons. Targeted commands pulse for 0.675 seconds; formation-wide and Behavior commands pulse for 1.35 seconds.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] API v6 or newer is supported for Necrotic-green Meager through Prime quality reticles, heavy-service heal and empower reticles, and distinct Attack, Hold, Follow, and Behavior icons. Targeted commands pulse for 0.675 seconds; formation-wide and Behavior commands pulse for 1.35 seconds.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] 4.0.1 or newer is supported through target-aware hit-feedback API v7.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234]Killing Blow Mastery[/url] 1.9.4 or newer is supported through execution-visual API v1.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276]Versatile Weapons - Dynamic Grip[/url] is supported through its optional hand-suppression API so stowed equipment does not keep a Bow or Magic context active.[/*]

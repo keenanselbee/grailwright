@@ -29,6 +29,9 @@ namespace SoulAndService
         private const float MaximumRangeDistance = 30.0f;
         private const float MinimumRangeVolume = 0.10f;
         private const int MaximumPendingEchoes = 24;
+        private const int ImpactSoundSlots = 4;
+        private const int MaximumImpactVoices = 4;
+        private const float ImpactDuplicateCooldownSeconds = 0.10f;
 
         private struct PendingEcho
         {
@@ -47,6 +50,14 @@ namespace SoulAndService
         private static readonly System.Random Random = new System.Random();
         private static readonly List<PendingEcho> PendingEchoes =
             new List<PendingEcho>();
+        private static readonly List<string> LightImpactPaths = new List<string>();
+        private static readonly List<string> HeavyImpactPaths = new List<string>();
+        private static readonly List<FMOD.Channel> ImpactChannels =
+            new List<FMOD.Channel>();
+        private static int _lastLightImpactIndex = -1;
+        private static int _lastHeavyImpactIndex = -1;
+        private static float _lastLightImpactAt = float.NegativeInfinity;
+        private static float _lastHeavyImpactAt = float.NegativeInfinity;
 
         private static bool _pathsResolved;
         private static bool _loggedMissingSounds;
@@ -123,6 +134,69 @@ namespace SoulAndService
                 }
                 PendingEchoes.RemoveAt(index);
                 TryPlay(echo.Path, echo.Volume, echo.Pitch);
+            }
+        }
+
+        internal static void PlayImpact(
+            bool heavy,
+            bool hasSourcePosition,
+            Vector3 sourcePosition)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || plugin.PlaySoulRendImpactAudio == null
+                || !plugin.PlaySoulRendImpactAudio.Value)
+            {
+                return;
+            }
+            float now = Time.unscaledTime;
+            float lastAt = heavy ? _lastHeavyImpactAt : _lastLightImpactAt;
+            if (now - lastAt < ImpactDuplicateCooldownSeconds)
+            {
+                return;
+            }
+            EnsurePathsResolved();
+            List<string> paths = heavy ? HeavyImpactPaths : LightImpactPaths;
+            if (paths.Count == 0)
+            {
+                return;
+            }
+            PruneImpactChannels();
+            if (ImpactChannels.Count >= MaximumImpactVoices)
+            {
+                return;
+            }
+            int previous = heavy ? _lastHeavyImpactIndex : _lastLightImpactIndex;
+            int index = paths.Count <= 1
+                ? 0
+                : Random.Next(paths.Count - 1);
+            if (paths.Count > 1 && index >= previous)
+            {
+                index++;
+            }
+            float baseVolume = plugin.SoulRendImpactAudioVolume == null
+                ? 0.8f
+                : Math.Max(0.0f, plugin.SoulRendImpactAudioVolume.Value);
+            float volume = baseVolume * GetRangeVolumeMultiplier(
+                plugin,
+                hasSourcePosition,
+                sourcePosition);
+            FMOD.Channel channel;
+            if (!TryPlayImpact(paths[index], volume, out channel))
+            {
+                return;
+            }
+            ImpactChannels.Add(channel);
+            if (heavy)
+            {
+                _lastHeavyImpactIndex = index;
+                _lastHeavyImpactAt = now;
+            }
+            else
+            {
+                _lastLightImpactIndex = index;
+                _lastLightImpactAt = now;
             }
         }
 
@@ -205,6 +279,13 @@ namespace SoulAndService
             PathsByTier.Clear();
             RecentPathsByTier.Clear();
             PendingEchoes.Clear();
+            LightImpactPaths.Clear();
+            HeavyImpactPaths.Clear();
+            ImpactChannels.Clear();
+            _lastLightImpactIndex = -1;
+            _lastHeavyImpactIndex = -1;
+            _lastLightImpactAt = float.NegativeInfinity;
+            _lastHeavyImpactAt = float.NegativeInfinity;
             _pathsResolved = false;
             _loggedMissingSounds = false;
         }
@@ -221,6 +302,8 @@ namespace SoulAndService
             AddTierFiles(MediumTier);
             AddTierFiles(HighTier);
             AddTierFiles(MaxTier);
+            AddImpactFiles("impactlight", LightImpactPaths);
+            AddImpactFiles("impactheavy", HeavyImpactPaths);
 
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             if (plugin != null)
@@ -257,6 +340,28 @@ namespace SoulAndService
                     PathsByTier[tier] = paths;
                 }
                 paths.Add(path);
+            }
+        }
+
+        private static void AddImpactFiles(string name, List<string> paths)
+        {
+            string pluginDirectory = Path.GetDirectoryName(
+                Assembly.GetExecutingAssembly().Location);
+            if (string.IsNullOrWhiteSpace(pluginDirectory))
+            {
+                return;
+            }
+            string audioDirectory = Path.Combine(pluginDirectory, "audio");
+            for (int index = 0; index < ImpactSoundSlots; index++)
+            {
+                string path = Path.Combine(
+                    audioDirectory,
+                    "soul_salvage_" + name + "_"
+                        + index.ToString(CultureInfo.InvariantCulture) + ".wav");
+                if (File.Exists(path))
+                {
+                    paths.Add(path);
+                }
             }
         }
 
@@ -506,6 +611,66 @@ namespace SoulAndService
                         + exception.GetBaseException().Message);
                 }
                 return false;
+            }
+        }
+
+        private static bool TryPlayImpact(
+            string path,
+            float volume,
+            out FMOD.Channel channel)
+        {
+            channel = default(FMOD.Channel);
+            try
+            {
+                FMOD.Sound sound;
+                if (!SoundsByPath.TryGetValue(path, out sound))
+                {
+                    if (RuntimeManager.CoreSystem.createSound(
+                            path,
+                            FMOD.MODE.DEFAULT | FMOD.MODE._2D | FMOD.MODE.CREATESAMPLE,
+                            out sound) != FMOD.RESULT.OK)
+                    {
+                        return false;
+                    }
+                    SoundsByPath[path] = sound;
+                }
+                FMOD.ChannelGroup group;
+                RuntimeManager.CoreSystem.getMasterChannelGroup(out group);
+                if (RuntimeManager.CoreSystem.playSound(
+                        sound,
+                        group,
+                        true,
+                        out channel) != FMOD.RESULT.OK)
+                {
+                    return false;
+                }
+                channel.setVolume(volume);
+                channel.setPitch(1.0f);
+                return channel.setPaused(false) == FMOD.RESULT.OK;
+            }
+            catch (Exception exception)
+            {
+                SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+                if (plugin != null)
+                {
+                    plugin.LogWarning(
+                        "Soul Rend impact playback failed: "
+                        + exception.GetBaseException().Message);
+                }
+                return false;
+            }
+        }
+
+        private static void PruneImpactChannels()
+        {
+            for (int index = ImpactChannels.Count - 1; index >= 0; index--)
+            {
+                bool playing;
+                if (ImpactChannels[index].isPlaying(out playing) != FMOD.RESULT.OK
+                    || !playing)
+                {
+                    ImpactChannels.RemoveAt(index);
+                }
             }
         }
 

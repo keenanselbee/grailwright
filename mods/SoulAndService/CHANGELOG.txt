@@ -1,3 +1,83 @@
+Version 2.9.7
+-----
+- Removed Soul Rend-generated raised copies from the game's native save graph and
+  replaced them with one versioned, atomic raised-host snapshot in GameplayMemory.
+  Ordinary summons continue to use the native summon save path unchanged.
+- Reconstruct raised servants only after the main scene is fully initialized and
+  only from a canonical loaded repetitive-NPC template. Health, Soul Vigor
+  investment, Empowerment, and Soulforged rank and damage progress transfer to the
+  reconstructed servant without persisting its generated runtime model tree.
+- Made raised-host loading fail closed per servant: malformed, incomplete, pending,
+  ambiguous, or failed records restore the protected source when available, defer
+  restoration when its scene is unloaded, and refund trustworthy committed Soul
+  Vigor instead of allowing an exception to escape into native save loading.
+- Made snapshot replacement all-or-nothing across hidden sources. Persistence-off,
+  mid-initialization, and otherwise non-reconstructable servants now receive a
+  restoration-only record, while an uncapturable source retains the previous valid
+  payload instead of silently publishing an incomplete host.
+- Isolated source restoration, deferred restoration, and Vigor refunds per record;
+  invalid interactability now falls back to Active and cannot leave an unloaded
+  source hidden or abort recovery of the remaining host.
+- Migrated loadable legacy persistent raised servants to the surrogate format after
+  scene initialization. Existing saves that already fail before mod code can run
+  still require recovery from an earlier working save.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10 because this changes runtime
+  save ownership without changing stored configuration or public signatures.
+
+Version 2.9.3
+-----
+- Allowed ordinary hostile scene enemies to be harvested, claimed, and raised when
+  their native repetitive NPC identity and spawn data can be reused safely.
+- Kept unique, named, quest, merchant, guard, companion, boss, miniboss, scripted-
+  death, and otherwise protected actors excluded, including the Eldritch Reaver in
+  Lancelot's tomb.
+- Prevented scene-authored source corpses from receiving synthetic death or
+  resurrection script events while retaining those lifecycle events for runtime
+  sources.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10 because this changes runtime
+  eligibility without changing stored configuration or public signatures.
+
+Version 2.9.2
+-----
+- Prevented living-target light Soul Rend from reading an NPC's discarded runtime
+  state after a lethal hit, eliminating its cast-completion NullReferenceException.
+- Set the separate Soul Rend impact-volume control to default to 0.8.
+- Made the diagnostic Soulforged override show its selected effective rank instead
+  of the generic OVERRIDE label.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10 because these fixes change
+  runtime behavior without changing stored configuration or public signatures.
+
+Version 2.9.1
+-----
+- Kept persistent ordinary and raised servants independent from the optional Soul
+  Rend spell overhaul, and deferred protected-source reconnection or restoration
+  safely across unloaded scenes instead of abandoning the corpse relationship.
+- Restored Blood Ritual executed-servant sources during shutdown so their original
+  loot lifecycle cannot be orphaned.
+- Limited Soulforged damage progress to enabled gameplay at Power 40 or higher and
+  suppressed its rank presentation while the master setting is disabled.
+- Kept the rest preview's native Wyrd warning hidden unless that warning truly
+  applies, and cleared stale necromantic text when no host remains.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10 because these fixes change
+  runtime behavior without changing stored configuration or public signatures.
+
+Version 2.9.0
+-----
+- Added seventeen permanent Soulforged ranks. Servants bank real damage dealt to
+  hostile enemies, ascend as Necromantic Power unlocks each rank, and gain 1% damage,
+  resistance, visible size, and Reanimation VFX brightness per rank.
+- Added passive servant hover details, rank-up notifications, and a diagnostics-only
+  exact-rank override that never changes earned progress.
+- Made Persistent Servants preserve the host through saves and reloads by default,
+  and separated rest behavior into Sustain or Dismiss. Sustained hosts suffer severe,
+  duration- and Power-scaled Health attrition with a rest preview warning.
+- Added a configurable white Full Potential Color. Soulforged growth and Empowerment
+  smoothly draw each servant's body-bound necromantic effect toward that color.
+- Added separate light and heavy Soul Rend impact pools for valid spell contacts.
+- ConfigSchemaVersion is now 23 because Persistent Servants changed meaning and
+  default; the former value is deliberately not imported. SoulAndServiceApi remains
+  version 10.
+
 Version 2.8.9
 -----
 - Made Empower cost twice each servant's stable base Soul Vigor value through the

@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 2.8.9
+Soul and Service - Summon Overhaul 2.9.7
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -161,9 +161,19 @@ Default behavior
 - In combat, confirmed hero projectiles and magic-gauntlet contacts pass through
   owned summons. Outside combat they return to vanilla interception, while bespoke
   scripted ray spells retain their native behavior.
-- Rest dismisses ordinary and reanimated servants by default. Persistent Servants
-  can keep the active host through rest. Summon Capacity adds +1/+2/+3 to the
-  native summon limit at Power 50/100/150; the configured flat bonus is additional.
+- Persistent Servants is enabled by default and keeps ordinary summons plus each
+  raised servant's source identity and progression through saving, loading, and
+  restarting. Ordinary summons stay
+  on the game's native save path. Raised copies are reconstructed from one
+  versioned save snapshot only after the main scene is ready, while their original
+  corpses remain the sole native source of loot and scene state. Rest Host Behavior
+  defaults to Sustain: rest keeps the host but inflicts severe, lethal Health
+  attrition based on host size, actual hours rested, and Necromantic Power. An
+  eight-hour rest at Power 0 removes 45% Health from one servant, plus 18% per
+  additional servant, capped at 90%; Power 100 removes the penalty. Dismiss
+  instead ends every servant's service safely on rest. Summon Capacity adds
+  +1/+2/+3 to the native limit at Power 50/100/150; the configured flat bonus
+  remains additional.
 - Replacement summons recover missing Invocation of Might scaling only when the
   outgoing summon proves that the native effect is active.
 - Summon idle loops play at 60% volume; combat, hurt, and death sounds are untouched.
@@ -173,6 +183,15 @@ Default behavior
   it lowers Necromantic Power immediately and can relock commands or Empower
   until enough Vigor is harvested again. Existing servants are never destroyed
   merely because a milestone relocks.
+- From Power 40, servants permanently earn Soulforged ranks by dealing real
+  post-mitigation damage to faction-hostile enemies. Seventeen ranks unlock every
+  10 Power through rank XVII at Power 200. Progress is measured against the
+  servant's original maximum Health and banks behind locked ranks: rank I needs
+  two original Health bars of damage, while rank XVII represents 54 total. Each
+  rank adds 1% damage, resistance, and visible size. Aim at an otherwise
+  uncommanded servant to see `Name [V]` and `HP: 59% | Rank: 89%`; the last value
+  is progress toward the next unlocked rank. The diagnostic Soulforged override
+  previews any exact rank without changing saved progress.
 - Command control grows with Necromantic Power: Attack unlocks at Power 10
   (65 Soul Vigor), individual Hold and Follow at 20 (133), Hold All and Follow All
   at 30 (206), Guard/Hunt behavior control at 50 (369), Bulwark at 60 (463),
@@ -273,26 +292,35 @@ Default behavior
   proportion to remaining Health when it is later unbound.
   One lower-biased 1.2x-1.5x roll still controls outgoing damage and
   incoming-damage resistance. Visible growth maps smoothly across a 1.1x-1.3x range.
-  The persistent raised-servant VFX brightness scales by that exact combat roll,
-  capped at 20.0. The completion text reports the roll and Vigor spent; movement and locomotion compensate
+  Reanimation VFX brightness scales by that exact combat roll, then by the
+  servant's Soulforged rank, capped at 20.0. The completion text reports the roll
+  and Vigor spent; movement and locomotion compensate
   for the larger stride, and Empower cannot stack or reroll. Heavy casting never
   sacrifices the targeted servant when Empower is locked or already applied.
   While the heavy cast is held over a relevant servant, actionable interaction
   text is `Restore Servant` or the exact Empower cost. A fully restored servant
   relies on Dishonored Dynamic Crosshair's desaturated heal reticle without text.
 - Raised copies use the game's native hero-summon faction and targeting behavior,
-  including autonomous enemy aggression. Authored scene NPCs, bosses, minibosses,
-  friendly corpses, and unresolved templates are rejected. The original corpse is
+  including autonomous enemy aggression. Ordinary hostile scene enemies are
+  eligible when their reusable summon data resolves safely. Named or unique NPCs,
+  quest actors, scripted deaths, merchants, guards, companions, bosses, minibosses,
+  friendly corpses, and unresolved templates remain protected. The original corpse is
   hidden during service; death or light-cast harvest leaves its loot-bearing native
   simplified remains at the servant's last safe position, with the source position
-  as fallback. Unload, shutdown, and failed initialization restore the source instead.
-  Every raised servant carries a configurable body-bound Reanimation VFX treatment.
+  as fallback. Persistent scene changes retain that protected relationship; if the
+  source scene is temporarily unavailable when service ends, the original corpse
+  safely restores the next time that scene loads. Failed initialization restores
+  the source instead.
+  Every raised servant carries a configurable body-bound Reanimation VFX treatment;
+  ordinary summons gain it when they earn rank I.
   The persistent effect uses only the native electricity and its integrated smoke;
   the former rune, standalone-smoke, and separate raise-spark
   system has been removed. Its default three-tone necromantic palette uses #28FF5E
   electrical arcs, a pale #C8FFD5 corpse-green core, and dark #237A55 smoke, with each
   color independently configurable. Particle Amount defaults to 75%, Brightness to 10.0,
-  Electricity Opacity to 1.0, Smoke Opacity to 0.5, and Scale to 1.0. Brightness changes
+  Electricity Opacity to 1.0, Smoke Opacity to 0.5, Scale to 1.0, and Full
+  Potential Color to white. Rank and Empowerment blend every layer toward that
+  target color while Soulforged and Empower size multipliers combine exactly. Brightness changes
   luminosity without changing either independent opacity and accepts values through 20.0.
   The native orange-spark
   emitter, audio, and point light are suppressed. The default dynamic budget reduces
@@ -346,12 +374,17 @@ Custom audio
 ------------
 
 Soul Rend audio is stored under the installed mod's audio folder. Each quality
-tier supports files numbered 0 through 9:
+tier supports files numbered 0 through 9. Successful light and heavy Soul Rend
+contacts also use their own four-clip impact pools; invalid and unaffordable casts
+remain silent. Impact clips avoid immediate repeats, use the same distance fade,
+default to 0.8 volume, and allow up to four concurrent voices:
 
   soul_salvage_low_0.wav through soul_salvage_low_9.wav
   soul_salvage_medium_0.wav through soul_salvage_medium_9.wav
   soul_salvage_high_0.wav through soul_salvage_high_9.wav
   soul_salvage_max_0.wav through soul_salvage_max_9.wav
+  soul_salvage_impactlight_0.wav through soul_salvage_impactlight_3.wav
+  soul_salvage_impactheavy_0.wav through soul_salvage_impactheavy_3.wav
 
 Missing files are skipped. If an entire tier is absent, the nearest available
 tier is used. Replace files with valid WAV audio while retaining their names.
@@ -366,11 +399,13 @@ Attack prompt, formation commands, optional individual-command hold, Directed Hu
 Bulwark Advance behavior, release duration, direct speed multiplier, local engagement,
 target retention, player leash, pass-through behavior,
 summon-limit bonus, idle volume, Soul Rend mana-return percentage,
-living-target Soul Rend, persistent servants, ritual audio volume, repeat
+living-target Soul Rend, persistent servants, rest behavior, ritual and impact
+audio volume, repeat
 avoidance, pitch variation, echo amount, idle movement amount, and every Soul Rend
 inner-light brightness, Soul Rend intensity, range, interior, and fade control,
-  plus the reanimation arc, core, and smoke colors, particle amount, brightness,
-  independent electricity and smoke opacity, scale, and dynamic VFX budgeting,
+  plus the reanimation arc, core, smoke, and Full Potential colors, particle amount,
+  brightness, independent electricity and smoke opacity, scale, dynamic VFX
+  budgeting, and the diagnostic Soulforged rank override,
 can be configured. FoA Mod Manager groups Directed Hunt and Bulwark Advance
 controls in Summon Behaviors. The final Import
 Previous Settings tab safely imports compatible customized values after a future
@@ -388,7 +423,9 @@ summon and Soul Rend scaling, the public API, and Deeds display without changing
 the character's saved Soul Vigor. Disable it to return immediately to saved
 progression. Useful checkpoints are 0, 250, 1,000, 2,000, 3,000, 4,000, and 5,000.
 The override defaults to 5,000, accepts values through 10,000, and keeps Power capped
-at 200 above 5,000.
+at 200 above 5,000. Override Soulforged Rank can separately force every current and
+future servant to an exact effective rank without changing real rank or damage
+progress.
 
 Compatibility
 -------------
@@ -424,11 +461,16 @@ two-handed grip is not treated as currently equipped: its targeting reticle and
 hover state clear until that hand becomes available again. The spell remains in
 its equipment slot and returns normally when the weapon switches back to one hand.
 
-Raised servants are runtime copies, grant no XP or scripted death reward, and are
-not saved. Heavy cast accepts only runtime-spawned ordinary hostiles, excluding the
-authored scene locations used by persistent NPCs. The feature should still be
-treated as an initial-release feature and tested on expendable generic enemies
-before long play sessions.
+Raised servants are allied copies that grant no XP or scripted death reward. With
+Persistent Servants enabled, the copy's Health, Empowerment, Soulforged progress,
+investment, and protected source relationship survive saving, loading, and
+restarting without adding the generated copy to the game's native save graph.
+Incomplete, invalid, and persistence-disabled recovery restores the source safely
+and refunds committed Soul Vigor. The snapshot is replaced only when every hidden
+source has either a reconstruction record or a restoration-only record. Heavy cast
+still accepts only ordinary hostiles whose summon data can be
+resolved to one canonical reusable template; ordinary repetitive scene enemies are
+eligible while authored unique and persistent NPC identities remain protected.
 
 Troubleshooting
 ---------------

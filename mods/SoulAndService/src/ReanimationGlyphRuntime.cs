@@ -181,9 +181,27 @@ namespace SoulAndService
             Refresh(
                 state,
                 summonId,
-                GetEffectSettings(
-                    CountActiveVisualStates(),
-                    SummonRuntime.GetEmpowermentCombatMultiplier(summonId)));
+                GetEffectSettings(CountActiveVisualStates(), summonId));
+        }
+
+        internal static void RefreshForSoulforged(
+            Awaken.TG.Main.AI.SummonsAndAllies.NpcHeroSummon summon)
+        {
+            if (summon == null || summon.ParentModel == null)
+            {
+                return;
+            }
+            string id = ((Awaken.TG.MVC.Model)summon).ID;
+            if (SoulforgedRuntime.GetEffectiveRank(id) > 0
+                || SoulSalvageRuntime.IsReanimatedSummon(id))
+            {
+                if (!States.ContainsKey(id))
+                {
+                    Attach(id, summon.ParentModel);
+                }
+                return;
+            }
+            Remove(id);
         }
 
         internal static void Update()
@@ -221,10 +239,7 @@ namespace SoulAndService
                     Refresh(
                         state,
                         summonId,
-                        GetEffectSettings(
-                            activeVisualCount,
-                            SummonRuntime.GetEmpowermentCombatMultiplier(
-                                summonId)));
+                        GetEffectSettings(activeVisualCount, summonId));
                 }
             }
         }
@@ -465,11 +480,12 @@ namespace SoulAndService
 
         private static ReanimationEffectSettings GetEffectSettings(
             int activeVisualCount,
-            float empowermentMultiplier)
+            string summonId)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             ReanimationEffectSettings settings = new ReanimationEffectSettings();
             if (plugin == null
+                || !plugin.IsEnabled
                 || plugin.ReanimationVfxEnabled == null
                 || !plugin.ReanimationVfxEnabled.Value)
             {
@@ -502,6 +518,28 @@ namespace SoulAndService
                     ? null
                     : plugin.ReanimationAuraHazeColor.Value,
                 DefaultAuraHazeColor);
+            Color fullPotentialColor = ResolveConfiguredColor(
+                plugin.ReanimationFullPotentialColor == null
+                    ? null
+                    : plugin.ReanimationFullPotentialColor.Value,
+                Color.white);
+            bool empowered = SummonRuntime.GetEmpowermentCombatMultiplier(
+                summonId) > 1.0001f;
+            float potential = SoulforgedRuntime.GetVisualPotential(
+                summonId,
+                empowered);
+            settings.AuraArcColor = BlendLinear(
+                settings.AuraArcColor,
+                fullPotentialColor,
+                potential);
+            settings.AuraGlowColor = BlendLinear(
+                settings.AuraGlowColor,
+                fullPotentialColor,
+                potential);
+            settings.AuraHazeColor = BlendLinear(
+                settings.AuraHazeColor,
+                fullPotentialColor,
+                potential);
             settings.AuraParticleAmount = ScaleParticleAmount(
                 plugin.ReanimationAuraParticleAmount == null
                     ? 75
@@ -512,10 +550,9 @@ namespace SoulAndService
                 : plugin.ReanimationAuraIntensity.Value;
             settings.AuraIntensity = Mathf.Min(
                 MaximumAuraIntensity,
-                configuredIntensity * Mathf.Clamp(
-                    empowermentMultiplier,
-                    1.0f,
-                    1.50f));
+                configuredIntensity
+                    * SoulforgedRuntime.GetMultiplier(summonId)
+                    * SummonRuntime.GetEmpowermentCombatMultiplier(summonId));
             settings.ElectricityOpacity =
                 plugin.ReanimationElectricityOpacity == null
                     ? 1.0f
@@ -559,6 +596,13 @@ namespace SoulAndService
             return particleAmount <= 0
                 ? 0
                 : Mathf.Max(1, Mathf.RoundToInt(particleAmount * scale));
+        }
+
+        private static Color BlendLinear(Color from, Color to, float amount)
+        {
+            Color blended = Color.Lerp(from.linear, to.linear, Mathf.Clamp01(amount));
+            blended.a = 1.0f;
+            return blended.gamma;
         }
 
         private static int GetAuraParticleCount(int baseline, int particleAmount)

@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("2.8.9.0")]
-[assembly: AssemblyFileVersion("2.8.9.0")]
-[assembly: AssemblyInformationalVersion("2.8.9")]
+[assembly: AssemblyVersion("2.9.7.0")]
+[assembly: AssemblyFileVersion("2.9.7.0")]
+[assembly: AssemblyInformationalVersion("2.9.7")]
 
 namespace SoulAndService
 {
@@ -68,6 +68,35 @@ namespace SoulAndService
         None
     }
 
+    public enum RestHostBehavior
+    {
+        Sustain,
+        Dismiss
+    }
+
+    public enum SoulforgedRankOverride
+    {
+        Disabled = -1,
+        Unranked = 0,
+        I = 1,
+        II = 2,
+        III = 3,
+        IV = 4,
+        V = 5,
+        VI = 6,
+        VII = 7,
+        VIII = 8,
+        IX = 9,
+        X = 10,
+        XI = 11,
+        XII = 12,
+        XIII = 13,
+        XIV = 14,
+        XV = 15,
+        XVI = 16,
+        XVII = 17
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
@@ -94,9 +123,9 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "2.8.9";
+        public const string PluginVersion = "2.9.7";
 
-        private const int ConfigSchemaVersion = 22;
+        private const int ConfigSchemaVersion = 23;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -106,13 +135,19 @@ namespace SoulAndService
                         20,
                         "Reanimation VFX",
                         "AuraIntensity",
-                        "Aura Intensity now controls brightness only; electricity and smoke opacity are independent settings.")
+                        "Aura Intensity now controls brightness only; electricity and smoke opacity are independent settings."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        23,
+                        "Persistence",
+                        "PersistentServants",
+                        "Persistent Servants now controls save-and-load continuity and defaults on; rest behavior is configured separately.")
                 };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
             {
                 new ConfigDefinition("Diagnostics", "OverrideSoulVigor"),
-                new ConfigDefinition("Diagnostics", "SoulVigorOverrideValue")
+                new ConfigDefinition("Diagnostics", "SoulVigorOverrideValue"),
+                new ConfigDefinition("Diagnostics", "OverrideSoulforgedRank")
             };
 
         internal static SoulAndServicePlugin Instance { get; private set; }
@@ -153,6 +188,7 @@ namespace SoulAndService
         internal ConfigEntry<bool> SummonPassThrough;
         internal ConfigEntry<PlayerAttackPassThroughMode> PlayerAttackPassThrough;
         internal ConfigEntry<bool> PersistentServants;
+        internal ConfigEntry<RestHostBehavior> RestBehavior;
         internal ConfigEntry<int> SummonLimitBonus;
         internal ConfigEntry<bool> RepairInvocationScaling;
         internal ConfigEntry<float> IdleSoundVolumePercent;
@@ -168,6 +204,8 @@ namespace SoulAndService
         internal ConfigEntry<float> MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones;
         internal ConfigEntry<float> NonHumanoidSoulSalvageAudioPitchSemitones;
         internal ConfigEntry<float> SoulSalvageAudioEchoAmount;
+        internal ConfigEntry<bool> PlaySoulRendImpactAudio;
+        internal ConfigEntry<float> SoulRendImpactAudioVolume;
         internal ConfigEntry<bool> SoulSalvageOverhaul;
         internal ConfigEntry<bool> LivingTargetSoulSalvage;
         internal ConfigEntry<float> SoulSalvageManaReturnPercent;
@@ -186,6 +224,7 @@ namespace SoulAndService
         internal ConfigEntry<string> ReanimationAuraArcColor;
         internal ConfigEntry<string> ReanimationAuraGlowColor;
         internal ConfigEntry<string> ReanimationAuraHazeColor;
+        internal ConfigEntry<string> ReanimationFullPotentialColor;
         internal ConfigEntry<int> ReanimationAuraParticleAmount;
         internal ConfigEntry<float> ReanimationAuraIntensity;
         internal ConfigEntry<float> ReanimationElectricityOpacity;
@@ -196,6 +235,7 @@ namespace SoulAndService
         internal ConfigEntry<bool> ShowGrailFloatingTextDiagnostics;
         internal ConfigEntry<bool> OverrideSoulVigor;
         internal ConfigEntry<float> SoulVigorOverrideValue;
+        internal ConfigEntry<SoulforgedRankOverride> OverrideSoulforgedRank;
 
         private Harmony _harmony;
 
@@ -233,6 +273,7 @@ namespace SoulAndService
         private void Update()
         {
             SoulProgressionRuntime.Update();
+            SoulforgedRuntime.Update();
             SummonRuntime.Update();
             SoulSalvageRuntime.Update();
             SoulRendInnerLightRuntime.Update();
@@ -247,6 +288,7 @@ namespace SoulAndService
         private void OnDestroy()
         {
             SoulSalvageRuntime.Shutdown();
+            SoulforgedRuntime.Shutdown();
             SoulRendInnerLightRuntime.Shutdown();
             SummonRuntime.Shutdown();
             if (_harmony != null)
@@ -638,8 +680,15 @@ namespace SoulAndService
             PersistentServants = BindOrdered(
                 "Persistence",
                 "PersistentServants",
-                false,
-                "Keep ordinary and reanimated servants when the hero rests. Disabled by default, so resting dismisses the active host.");
+                true,
+                "Keep ordinary summons and each raised servant's source identity, Health, Empowerment, investment, and Soulforged progress through saving, loading, and restarting the game.",
+                "Persistent Servants");
+            RestBehavior = BindOrdered(
+                "Persistence",
+                "RestHostBehavior",
+                RestHostBehavior.Sustain,
+                "Sustain keeps servants through rest but applies severe Power-scaled Health attrition for the actual hours rested. Dismiss uses the native safe dismissal and remains lifecycle.",
+                "Rest Host Behavior");
             SummonLimitBonus = BindOrdered(
                 "Persistence",
                 "SummonLimitBonus",
@@ -753,6 +802,20 @@ namespace SoulAndService
                     "Strength of two quiet delayed echoes added to successful light Soul Rend ritual sounds. Zero disables the added echoes.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)),
                 "Soul Rend Audio Echo Amount");
+            PlaySoulRendImpactAudio = BindOrdered(
+                "Audio",
+                "PlaySoulRendImpactAudio",
+                true,
+                "Play a short tactile impact when a valid light or heavy Soul Rend connects. Invalid and unaffordable casts remain silent.",
+                "Soul Rend Impact Audio");
+            SoulRendImpactAudioVolume = BindOrdered(
+                "Audio",
+                "SoulRendImpactAudioVolume",
+                0.8f,
+                new ConfigDescription(
+                    "Volume of successful light and heavy Soul Rend impact sounds.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)),
+                "Soul Rend Impact Volume");
 
             SoulSalvageOverhaul = BindOrdered(
                 "Soul Salvage",
@@ -874,6 +937,12 @@ namespace SoulAndService
                 "#237A55",
                 "Color of the reanimation effect's integrated smoke. Use a hex color such as #237A55.",
                 "Smoke Color");
+            ReanimationFullPotentialColor = BindOrdered(
+                "Reanimation VFX",
+                "FullPotentialColor",
+                "#FFFFFF",
+                "Color approached as a servant gains Soulforged ranks and Empowerment. White marks full potential.",
+                "Full Potential Color");
             ReanimationAuraParticleAmount = BindOrdered(
                 "Reanimation VFX",
                 "AuraParticleAmount",
@@ -942,6 +1011,12 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Temporary effective Soul Vigor used only while OverrideSoulVigor is enabled. Command checkpoints are 65, 133, 206, 826, and 1,000 Soul Vigor for 10, 20, 30, 90, and 100 Necromantic Power; maximum Power 200 is reached at 5,000 and remains capped above it.",
                     new AcceptableValueRange<float>(0.0f, 10000.0f)));
+            OverrideSoulforgedRank = BindOrdered(
+                "Diagnostics",
+                "OverrideSoulforgedRank",
+                SoulforgedRankOverride.Disabled,
+                "Temporarily force every current and future owned summon to the selected effective Soulforged rank without changing saved rank or damage progress.",
+                "Override Soulforged Rank");
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -1083,6 +1158,7 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Collision", "Summon Pass-Through");
             CapturePreservedValue<PlayerAttackPassThroughMode>(profile, "Collision", "Player Attack Pass-Through");
             CapturePreservedValue<bool>(profile, "Persistence", "PersistentServants");
+            CapturePreservedValue<RestHostBehavior>(profile, "Persistence", "RestHostBehavior");
             CapturePreservedValue<int>(profile, "Persistence", "SummonLimitBonus");
             CapturePreservedValue<bool>(profile, "Balance", "RepairInvocationOfMightScaling");
             CapturePreservedValue<float>(profile, "Balance", "IdleSoundVolumePercent");
@@ -1098,6 +1174,8 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Audio", "MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones");
             CapturePreservedValue<float>(profile, "Audio", "NonHumanoidSoulSalvageAudioPitchSemitones");
             CapturePreservedValue<float>(profile, "Audio", "SoulSalvageAudioEchoAmount");
+            CapturePreservedValue<bool>(profile, "Audio", "PlaySoulRendImpactAudio");
+            CapturePreservedValue<float>(profile, "Audio", "SoulRendImpactAudioVolume");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableLivingTargetSoulSalvage");
             CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastManaReturnPercent");
@@ -1116,6 +1194,7 @@ namespace SoulAndService
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraArcColor");
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraGlowColor");
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraHazeColor");
+            CapturePreservedValue<string>(profile, "Reanimation VFX", "FullPotentialColor");
             CapturePreservedValue<int>(profile, "Reanimation VFX", "AuraParticleAmount");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "AuraIntensity");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "ElectricityOpacity");
@@ -1178,6 +1257,7 @@ namespace SoulAndService
             RestorePreservedValue(SummonPassThrough, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(PlayerAttackPassThrough, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(PersistentServants, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(RestBehavior, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SummonLimitBonus, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(RepairInvocationScaling, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(IdleSoundVolumePercent, ref restored, ref clamped, ref invalid);
@@ -1193,6 +1273,8 @@ namespace SoulAndService
             RestorePreservedValue(MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(NonHumanoidSoulSalvageAudioPitchSemitones, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageAudioEchoAmount, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(PlaySoulRendImpactAudio, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(SoulRendImpactAudioVolume, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(LivingTargetSoulSalvage, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageManaReturnPercent, ref restored, ref clamped, ref invalid);
@@ -1211,6 +1293,7 @@ namespace SoulAndService
             RestorePreservedValue(ReanimationAuraArcColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraGlowColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraHazeColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationFullPotentialColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraParticleAmount, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraIntensity, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationElectricityOpacity, ref restored, ref clamped, ref invalid);

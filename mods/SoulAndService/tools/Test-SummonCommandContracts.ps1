@@ -27,7 +27,7 @@ if (!$manifest.Contains('src/SummonFormationCoordinator.cs')) {
 }
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 22',
+    'ConfigSchemaVersion = 23',
     'public enum SummonBehavior',
     'Guard = 0',
     'Bulwark = 1',
@@ -174,7 +174,7 @@ foreach ($required in @(
     'ReleaseAllHeldSummons()',
     'EnforceHeldSummonLeash(summon)',
     'ReferenceEquals(explicitTarget.Target, currentTarget)',
-    'DisplayName => string.Empty',
+    'DisplayName => _displayName ?? string.Empty',
     'SetOwnedTargetOverride(summon, target, 10, true)',
     'BehaviorCommandHoldSeconds = 0.45f',
     'RecallCommandHoldSeconds = 1.5f',
@@ -319,7 +319,7 @@ foreach ($required in @(
     'GetSummonId(dealer)',
     ': empowerment.MovementMultiplier;',
     'BeforeRootMotionUpdateAnimator(',
-    'plugin.PersistentServants.Value')) {
+    'plugin.RestBehavior.Value == RestHostBehavior.Sustain')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Summon upkeep, Swarm, or Empower contract is missing: $required"
     }
@@ -361,7 +361,7 @@ if ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?GetEmpowermentVisua
 }
 if (($runtimeSource -notmatch '(?s)class EmpowermentState.*?CombatMultiplier.*?SizeMultiplier.*?MovementMultiplier') -or
     ($runtimeSource -notmatch '(?s)TryEmpowerSummon\(.*?CombatMultiplier = Mathf\.Clamp\(multiplier, 1\.20f, 1\.50f\).*?SizeMultiplier = Mathf\.Lerp\(\s*1\.10f,\s*1\.30f,\s*Mathf\.InverseLerp\(\s*1\.20f,\s*1\.50f,\s*state\.CombatMultiplier\)\).*?MovementMultiplier = Mathf\.Sqrt\(Mathf\.Clamp\(\s*state\.CombatMultiplier - 0\.10f,\s*1\.10f,\s*1\.40f\)\)') -or
-    ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?Vector3\.Scale\(\s*state\.OriginalLocalScale,\s*Vector3\.one \* state\.SizeMultiplier\)') -or
+    ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?soulforgedMultiplier.*?empowermentSize.*?Vector3\.Scale\(\s*state\.OriginalLocalScale,\s*Vector3\.one \* soulforgedMultiplier \* empowermentSize\)') -or
     ($runtimeSource -notmatch '(?s)AfterApplyDamageModifiers\(.*?receiverEmpowerment\.CombatMultiplier.*?dealerEmpowerment\.CombatMultiplier')) {
     throw 'Empower does not keep its 1.2-1.5 combat and movement scaling while remapping visual size to 1.1-1.3.'
 }
@@ -826,7 +826,7 @@ if ($runtimeSource -notmatch '(?s)RemoveBehaviorSpeedState\(string id\).*?string
 foreach ($required in @(
     '45 m',
     'returns its investment but creates',
-    'Version under test: 2.8.9',
+    'Version under test: 2.9.7',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',
@@ -837,7 +837,7 @@ foreach ($required in @(
     'SAS-SMOKE-44',
     'SAS-SMOKE-46',
     'Guard Engagement Range',
-    '20 m retention',
+    'retains them to 20 m',
     'Override Value to 5,000')) {
     if (!$readme.Contains($required) -and !$matrix.Contains($required)) {
         throw "Summon command documentation is missing: $required"

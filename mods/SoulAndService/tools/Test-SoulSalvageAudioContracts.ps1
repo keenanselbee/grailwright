@@ -27,6 +27,8 @@ foreach ($required in @(
     'internal ConfigEntry<float> MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones',
     'internal ConfigEntry<float> NonHumanoidSoulSalvageAudioPitchSemitones',
     'internal ConfigEntry<float> SoulSalvageAudioEchoAmount',
+    'internal ConfigEntry<bool> PlaySoulRendImpactAudio',
+    'internal ConfigEntry<float> SoulRendImpactAudioVolume',
     '"PlaySoulSalvageAudio",',
     '"SoulSalvageAudioVolume",',
     '0.85f,',
@@ -48,6 +50,11 @@ foreach ($required in @(
     if (!$pluginSource.Contains($required)) {
         throw "Soul Salvage audio configuration is missing: $required"
     }
+}
+
+if ($pluginSource -notmatch '(?s)"SoulRendImpactAudioVolume",\s*0\.8f,' -or
+    $audioSource -notmatch '(?s)plugin\.SoulRendImpactAudioVolume == null\s*\? 0\.8f') {
+    throw "Soul Rend impact audio does not default to 0.8 in configuration and runtime fallback."
 }
 
 foreach ($required in @(
@@ -89,6 +96,22 @@ foreach ($required in @(
     if (!$audioSource.Contains($required)) {
         throw "Soul Rend echo contract is missing: $required"
     }
+}
+foreach ($required in @(
+    'private const int ImpactSoundSlots = 4;',
+    'private const int MaximumImpactVoices = 4;',
+    'ImpactDuplicateCooldownSeconds = 0.10f;',
+    '"soul_salvage_" + name + "_"',
+    'internal static void PlayImpact(',
+    'PruneImpactChannels();',
+    'channel.setPitch(1.0f);')) {
+    if (!$audioSource.Contains($required)) {
+        throw "Soul Rend impact contract is missing: $required"
+    }
+}
+if ($salvageSource -notmatch '(?s)Vector3 targetCoords = target\.Coords;.*?Vector3 impactPosition =.*?target\.HealthElement\.TakeDamage\(damage\);.*?SoulSalvageAudioRuntime\.PlayImpact\(\s*false,\s*true,\s*impactPosition\);' -or
+    $salvageSource -match '(?s)target\.HealthElement\.TakeDamage\(damage\);.*?SoulSalvageAudioRuntime\.PlayImpact\(\s*false,\s*true,\s*target\.Coords\);') {
+    throw "Living-target Soul Rend does not preserve a safe impact position before damage can discard the target."
 }
 
 if ($audioSource -notmatch '(?s)for \(int index = 0; index < TierSoundSlots; index\+\+\).*?"soul_salvage_" \+ tier \+ "_"') {
@@ -132,13 +155,13 @@ if (!$classificationCapturedBeforeRemains) {
 $livingBlock = [regex]::Match(
     $salvageSource,
     '(?s)private static void ApplySoulRend\(.+?(?=\r?\n\s*private static float GetSoulRendPowerMultiplier\()')
-if (!$livingBlock.Success -or $livingBlock.Value.Contains('SoulSalvageAudioRuntime.Play')) {
+if (!$livingBlock.Success -or $livingBlock.Value.Contains('SoulSalvageAudioRuntime.Play(')) {
     throw "Soul Rend must not use the ritual audio bank."
 }
 $claimBlock = [regex]::Match(
     $salvageSource,
     '(?s)private static void TryClaimLivingTarget\(.+?(?=\r?\n\s*private static float GetSoulClaimPowerChance\()')
-if (!$claimBlock.Success -or $claimBlock.Value.Contains('SoulSalvageAudioRuntime.Play')) {
+if (!$claimBlock.Success -or $claimBlock.Value.Contains('SoulSalvageAudioRuntime.Play(')) {
     throw "Soul Claim must not use the ritual audio bank."
 }
 
@@ -148,8 +171,8 @@ if (!$manifest.Contains('"src/SoulSalvageAudioRuntime.cs"')) {
 
 $audioDirectory = Join-Path $modRoot "audio"
 $wavFiles = @(Get-ChildItem -LiteralPath $audioDirectory -Filter "*.wav" -File)
-if ($wavFiles.Count -ne 40) {
-    throw "Expected exactly 40 Soul Salvage WAV files, found $($wavFiles.Count)."
+if ($wavFiles.Count -ne 48) {
+    throw "Expected exactly 48 Soul Rend WAV files, found $($wavFiles.Count)."
 }
 
 foreach ($tier in @('low', 'medium', 'high', 'max')) {
@@ -157,6 +180,14 @@ foreach ($tier in @('low', 'medium', 'high', 'max')) {
         $path = Join-Path $audioDirectory "soul_salvage_${tier}_${index}.wav"
         if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Missing Soul Salvage audio slot: $path"
+        }
+    }
+}
+foreach ($kind in @('impactlight', 'impactheavy')) {
+    foreach ($index in 0..3) {
+        $path = Join-Path $audioDirectory "soul_salvage_${kind}_${index}.wav"
+        if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Missing Soul Rend impact slot: $path"
         }
     }
 }
@@ -202,7 +233,7 @@ foreach ($file in $wavFiles) {
     }
 }
 
-foreach ($document in @($readme, $nexus, $matrix)) {
+foreach ($document in @($readme, $matrix)) {
     foreach ($required in @(
         '0.85',
         '0.20',
@@ -218,6 +249,11 @@ foreach ($document in @($readme, $nexus, $matrix)) {
         if (!$document.Contains($required)) {
             throw "Soul Salvage audio documentation is missing: $required"
         }
+    }
+}
+foreach ($required in @('impact', 'light', 'heavy')) {
+    if (!$nexus.Contains($required)) {
+        throw "Nexus description is missing concise Soul Rend impact audio coverage: $required"
     }
 }
 

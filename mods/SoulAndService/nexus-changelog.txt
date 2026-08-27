@@ -1,4 +1,3 @@
-TargetVersion=2.8.9
-BaselineVersion=2.8.8
-Made Empower cost twice each servant's stable base Soul Vigor value through the current Power curve, with exact Empower/Requires previews, payment only on success, and proportional recovery of that investment when the servant is later unbound.
-Made each Empowered raised servant's persistent Reanimation VFX brightness reflect its exact 1.2x-1.5x combat roll, capped at 20.0 without changing opacity, scale, or particle density.
+TargetVersion=2.9.7
+BaselineVersion=2.9.2
+Expanded Soul Rend to ordinary hostile scene enemies when their native repetitive identity and reusable summon data resolve safely, while unique, named, quest, merchant, guard, companion, boss, miniboss, scripted-death, and otherwise protected actors remain excluded. Hardened persistent raised servants against native save failures by keeping generated copies out of the game's save graph and rebuilding them from one atomic, versioned snapshot after the main scene is ready. Health, Empowerment, Soulforged progress, investment, and protected-source ownership survive reconstruction. Persistence-disabled, incomplete, invalid, or failed records restore or defer the protected source and safely refund trustworthy committed Soul Vigor, while ordinary summons remain on the native save path.

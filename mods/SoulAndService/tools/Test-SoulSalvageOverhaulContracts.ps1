@@ -20,7 +20,7 @@ $nexus = Get-Content -LiteralPath (
 $matrix = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\TEST-MATRIX.md") -Raw
 foreach ($required in @(
-    'ConfigSchemaVersion = 22',
+    'ConfigSchemaVersion = 23',
     '"ks.tgfoa.versatile-weapons"',
     '"ks.tgfoa.first-person-arms-adjuster"',
     '"EnableLivingTargetSoulSalvage"',
@@ -113,7 +113,7 @@ foreach ($forbidden in @(
 }
 foreach ($required in @(
     'can never restore more than 75% of their binding cost',
-    'Keep ordinary and reanimated servants when the hero rests',
+    "Keep ordinary summons and each raised servant's source identity, Health, Empowerment, investment, and Soulforged progress through saving, loading, and restarting the game",
     'section == "Soul Salvage" ? "Soul Rend" : section',
     '"Play Soul Rend Audio"',
     '"Enable Soul Rend"',
@@ -226,7 +226,7 @@ if ($runtimeSource -notmatch '(?s)ShowSoulVigorHarvest\(\s*displayName,\s*qualit
 if ($runtimeSource -notmatch '(?s)TryServeHeavyTarget\(.*?beforeFraction.*?ServantEmpowerHealthThreshold.*?requestedHealing = empowerEligibleHealth\s*\? missingHealth\s*:\s*Math\.Min\(missingHealth, maximumHealth \* healingFraction\).*?npc\.Health\.IncreaseBy\(requestedHealing\).*?if \(empowerEligibleHealth.*?SummonRuntime\.TryEmpowerSummon') {
     throw "Heavy Soul Rend does not keep restoration exclusive below 95% while allowing a top-off and Empower at the mercy threshold."
 }
-if ($summonRuntimeSource -notmatch '(?s)internal static bool IsEmpoweredSummon\(.*?EmpowermentStates\.ContainsKey') {
+if ($summonRuntimeSource -notmatch '(?s)internal static bool IsEmpoweredSummon\(.*?state\.IsEmpowered') {
     throw "Heavy Soul Rend cannot distinguish an already-Empowered servant before selecting its one service."
 }
 foreach ($required in @(
@@ -278,7 +278,7 @@ if ($runtimeSource -notmatch '(?s)target\.HealthElement\.TakeDamage\(claimDamage
 if ($runtimeSource -notmatch '(?s)TryHarvestCorpse\(\s*fingerprint,\s*tier,\s*quality01,\s*out harvestReceipt\).*?if \(!TryCreateRemains\(.*?RollbackCorpseHarvest\(harvestReceipt\)') {
     throw "Ordinary corpse harvest does not roll back Soul Vigor when remains creation fails."
 }
-if ($runtimeSource -notmatch '(?s)bool harvestReady = !record\.Sacrificed\s*\|\| SoulProgressionRuntime\.TryHarvestCorpse\(.*?if \(!simplified && harvestReceipt != null\)\s*\{\s*SoulProgressionRuntime\.RollbackCorpseHarvest\(harvestReceipt\);') {
+if ($runtimeSource -notmatch '(?s)bool harvestReady = !record\.Sacrificed\s*\|\| SoulProgressionRuntime\.TryHarvestCorpse\(.*?bool sourceDeferred =.*?if \(!simplified && harvestReceipt != null && !sourceDeferred\)\s*\{\s*SoulProgressionRuntime\.RollbackCorpseHarvest\(harvestReceipt\);.*?ScheduleDeferredSourceRestoration\(record\);') {
     throw "Raised-corpse harvest does not commit with the remains transaction."
 }
 
@@ -415,12 +415,83 @@ foreach ($required in @(
     'Physics.OverlapSphereNonAlloc(',
     'IsSoulRendAssistSurface(hit, candidate)',
     'TryFindNearestEligibleCorpse(',
-    'TryValidateEligibleCorpse(hero, candidate, out rejection)',
+    'TryResolveEligibleSoulTargetIdentity(',
     'Soul Rend could not finish initializing a raised servant:',
     'reanimation failed - source corpse restored')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Soul Salvage safety or focused-target contract is missing: $required"
     }
+}
+foreach ($required in @(
+    'attachment is RepetitiveNpcAttachment',
+    'case NpcType.Critter:',
+    'case NpcType.Trash:',
+    'case NpcType.Normal:',
+    'case NpcType.Elite:',
+    'CrimeReactionArchetype.Guard',
+    'CrimeReactionArchetype.Defender',
+    'CrimeReactionArchetype.Vigilante',
+    'HasProtectedSoulTargetAttachment(candidate.Spec)',
+    'candidate.Spec?.GetComponent<LocationTemplate>()',
+    'TriggerRuntimeCorpseVisualEvent(source, "OnResurrectStarted")',
+    'source.Initializer is RuntimeLocationInitializer')) {
+    if (!$runtimeSource.Contains($required)) {
+        throw "Scene-safe Soul Rend identity contract is missing: $required"
+    }
+}
+foreach ($required in @(
+    'RaisedPersistenceVersion = 1',
+    'persistent_raised.payload',
+    'GameplayMemory.OnBeforeSerialize',
+    'GameplayMemory.OnAfterDeserialize',
+    'SceneLifetimeEvents.Events.AfterSceneFullyInitialized',
+    'data.IsMainScene',
+    'IsValidRaisedPersistenceSnapshot(snapshot)',
+    'IsEligiblePersistentSpawnTemplate(spawnTemplate)',
+    'IsMatchingPersistentSource(source, spawnTemplate)',
+    'IsPersistedInteractability(snapshot.SourceInteractability)',
+    'RestoreLoadedRaisedSource(',
+    'refundVigor: validSnapshot',
+    'trustedSnapshot: validSnapshot',
+    'sourceAlreadyServing',
+    '((Model)raised).MarkedNotSaved = true;',
+    'templates.Get<LocationTemplate>(snapshot.SpawnTemplateGuid)',
+    'facts.Set(RaisedPersistencePayloadKey, json)')) {
+    if (!$runtimeSource.Contains($required)) {
+        throw "Raised-servant save-safety contract is missing: $required"
+    }
+}
+if ($runtimeSource -notmatch '(?s)EnsureRaisedPersistenceSceneListener\(\).*?try.*?World\.EventSystem\.ListenTo.*?catch \(Exception exception\).*?LogRaisedPersistenceWarning' -or
+    $runtimeSource -notmatch '(?s)TryResolveCanonicalPersistentSpawnTemplate\(.*?templates\.AllLoaded.*?templates\.Get<LocationTemplate>.*?GetAllOfType<LocationTemplate>.*?matches\.Count == 1' -or
+    $runtimeSource -notmatch '(?s)WriteRaisedPersistencePayload\(\).*?RaisedPersistencePayload payload = new RaisedPersistencePayload\(\).*?foreach \(ReanimationRecord record in Reanimations\.Values\).*?CaptureRaisedPersistenceSnapshot\(record, preserveHost\).*?if \(!IsValidRaisedPersistenceSnapshot\(snapshot\)\).*?throw new InvalidOperationException.*?JsonUtility\.ToJson\(payload\).*?facts\.Set\(RaisedPersistencePayloadKey, json\)' -or
+    $runtimeSource -notmatch '(?s)CaptureRaisedPersistenceSnapshot\(.*?bool preserveHost.*?Phase = RaisedPersistencePending.*?if \(!preserveHost.*?return snapshot;.*?snapshot\.Phase = RaisedPersistenceActive' -or
+    $runtimeSource -notmatch '(?s)IsValidRaisedPersistenceSnapshot\(.*?snapshot\.Phase == RaisedPersistencePending.*?return true;.*?SpawnTemplateGuid' -or
+    $runtimeSource -notmatch '(?s)RestoreLoadedRaisedSource\(.*?trustedSnapshot.*?LocationInteractability\.Active.*?try.*?source\.SetInteractability\(interactability\).*?catch \(Exception exception\).*?WriteDeferredSourceString.*?WriteDeferredSourceInt.*?catch \(Exception exception\).*?RestoreSoulVigor.*?catch \(Exception exception\)') {
+    throw 'Raised-servant persistence is not guarded, canonical, and atomically written.'
+}
+if ($runtimeSource -match '(?s)SetSummonSavedState\(.*?MarkedNotSaved = !persistent' -or
+    $runtimeSource -match 'SourceCorpse\)\.MarkedNotSaved = false' -or
+    $runtimeSource -match 'source\)\.MarkedNotSaved = false') {
+    throw 'Raised-servant persistence still mutates native source or ordinary-summon save ownership.'
+}
+foreach ($removed in @(
+    'LocationInitializerField',
+    'HasProtectedRuntimeIdentity',
+    'Unity.VisualScripting.ScriptMachine',
+    'string[] protectedTerms')) {
+    if ($runtimeSource.Contains($removed)) {
+        throw "Soul Rend retains the blanket runtime or string-identity gate: $removed"
+    }
+}
+if ($runtimeSource -notmatch '(?s)TryUseLightCast\(.*?TryFindEligibleCorpse\(\s*hero,\s*needsSpawnTemplate: false' -or
+    $runtimeSource -notmatch '(?s)TryUseHeavyCast\(.*?TryFindEligibleCorpse\(\s*hero,\s*needsSpawnTemplate: true.*?TryRaiseCorpse\(\s*sourceItem,\s*source,\s*spawnTemplate' -or
+    $runtimeSource -notmatch '(?s)TryFindEligibleLivingTarget\(\s*hero,\s*needsSpawnTemplate: true.*?out livingSpawnTemplate.*?TryClaimLivingTarget\(.*?livingSpawnTemplate' -or
+    $runtimeSource -notmatch '(?s)TryRaiseCorpse\(.*?LocationTemplate spawnTemplate.*?raised = spawnTemplate\.SpawnLocation') {
+    throw 'Harvest/Rend and reanimation/Claim do not use separate spawn-template requirements.'
+}
+if ($runtimeSource -notmatch '(?s)TriggerRuntimeCorpseVisualEvent\(\s*Location source,\s*string eventName\).*?source\.Initializer is RuntimeLocationInitializer.*?source\.TriggerVisualScriptingEvent\(eventName\)' -or
+    $runtimeSource -notmatch 'TriggerRuntimeCorpseVisualEvent\(record\.SourceCorpse, "OnDeath"\)') {
+    throw 'Scene-authored source corpses can still receive synthetic resurrection or death Visual Scripting events.'
 }
 if (($runtimeSource -notmatch '(?s)IsSoulRendAssistSurface\(.*?hit\.collider == null.*?candidate == null \|\| candidate\.HasBeenDiscarded.*?TryGetElement<Corpse>\(\).*?TryGetElement<NpcElement>\(\)') -or
     ($runtimeSource -match 'GroundTargetMinimumNormalY') -or
@@ -676,9 +747,9 @@ if (!$glyphSource.Contains('GetEffectSettings(') -or
     throw 'Reanimation VFX zero-cost disabling or dynamic particle budgeting is not wired into the runtime.'
 }
 if ($summonRuntimeSource -notmatch '(?s)GetEmpowermentCombatMultiplier\(string summonId\).*?EmpowermentStates\.TryGetValue\(summonId, out state\).*?state\.CombatMultiplier' -or
-    $glyphSource -notmatch '(?s)GetEffectSettings\(\s*int activeVisualCount,\s*float empowermentMultiplier\).*?settings\.AuraIntensity = Mathf\.Min\(\s*MaximumAuraIntensity,\s*configuredIntensity \* Mathf\.Clamp\(\s*empowermentMultiplier,\s*1\.0f,\s*1\.50f\)' -or
+    $glyphSource -notmatch '(?s)settings\.AuraIntensity = Mathf\.Min\(\s*MaximumAuraIntensity,\s*configuredIntensity\s*\* SoulforgedRuntime\.GetMultiplier\(summonId\)\s*\* SummonRuntime\.GetEmpowermentCombatMultiplier\(summonId\)' -or
     $glyphSource -notmatch 'MaximumAuraIntensity = 20\.0f') {
-    throw 'Empowered raised-servant VFX brightness does not follow the exact combat multiplier with a final 20.0 cap.'
+    throw 'Soulforged and Empowered servant VFX brightness do not compose their exact multipliers with a final 20.0 cap.'
 }
 foreach ($removed in @(
     'ReanimationFireEnabled',
@@ -746,11 +817,11 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 2.8.9',
+    'Version under test: 2.9.7',
     'exactly 2x',
-    'a true hero summon rises',
+    'raises a native hero summon',
     'simplified remains',
-    'green/dark skeleton-summon effect',
+    'green-dark necromancer VFX',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-39',

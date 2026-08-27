@@ -30,6 +30,7 @@ using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Heroes.Interactions;
+using Awaken.TG.Main.Heroes.Resting;
 using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Heroes.Stats.Tweaks;
 using Awaken.TG.Main.Locations;
@@ -511,6 +512,7 @@ namespace SoulAndService
 
         private sealed class EmpowermentState
         {
+            internal bool IsEmpowered;
             internal float CombatMultiplier;
             internal float SizeMultiplier;
             internal float MovementMultiplier;
@@ -668,6 +670,8 @@ namespace SoulAndService
         private static MethodInfo _steelAndBoneSightMultiplierMethod;
         private static MethodInfo _steelAndBoneAggroMultiplierMethod;
         private static bool _steelAndBoneAwarenessUnavailable;
+        private static readonly FieldInfo RestWarningTextField =
+            AccessTools.Field(typeof(VRestPopupUI), "warningText");
         private static float _nextSteelAndBoneAwarenessRefreshAt;
         private static float _cachedSteelAndBoneSightMultiplier = 1.0f;
         private static float _cachedSteelAndBoneAggroMultiplier = 1.0f;
@@ -862,6 +866,16 @@ namespace SoulAndService
                 prefix: new HarmonyMethod(
                     typeof(SummonRuntime),
                     nameof(BeforeGetDestroyOnRest)));
+            harmony.Patch(
+                RequireMethod(typeof(RestPopupUI), "SkipWeatherTime"),
+                postfix: new HarmonyMethod(
+                    typeof(SummonRuntime),
+                    nameof(AfterRestTimeSkipped)));
+            harmony.Patch(
+                RequireMethod(typeof(VRestPopupUI), "Refresh"),
+                postfix: new HarmonyMethod(
+                    typeof(SummonRuntime),
+                    nameof(AfterRestPreviewRefreshed)));
             harmony.Patch(
                 RequireMethod(typeof(NpcHeroSummon), "LimitForCharacter"),
                 postfix: new HarmonyMethod(
@@ -1117,16 +1131,20 @@ namespace SoulAndService
             }
 
             string id = ((Model)summon).ID;
-            if (EmpowermentStates.ContainsKey(id))
+            EmpowermentState state;
+            if (EmpowermentStates.TryGetValue(id, out state)
+                && state.IsEmpowered)
             {
                 return false;
             }
 
             NpcElement npc = summon.ParentModel;
-            EmpowermentState state = new EmpowermentState
+            if (state == null)
             {
-                CombatMultiplier = Mathf.Clamp(multiplier, 1.20f, 1.50f)
-            };
+                state = CreateServantPowerState();
+            }
+            state.IsEmpowered = true;
+            state.CombatMultiplier = Mathf.Clamp(multiplier, 1.20f, 1.50f);
             state.SizeMultiplier = Mathf.Lerp(
                 1.10f,
                 1.30f,
@@ -1149,6 +1167,7 @@ namespace SoulAndService
                 ((Model)state.MovementTweak).MarkedNotSaved = true;
             }
             EmpowermentStates[id] = state;
+            SoulforgedRuntime.SaveEmpowerment(summon, state.CombatMultiplier);
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             if (npc.Controller != null)
             {
@@ -1173,7 +1192,10 @@ namespace SoulAndService
         internal static bool IsEmpoweredSummon(NpcHeroSummon summon)
         {
             return summon != null
-                && EmpowermentStates.ContainsKey(((Model)summon).ID);
+                && TryGetEmpowermentState(
+                    ((Model)summon).ID,
+                    out EmpowermentState state)
+                && state.IsEmpowered;
         }
 
         internal static float GetEmpowermentSizeMultiplier(
@@ -1185,6 +1207,7 @@ namespace SoulAndService
             }
             EmpowermentState state;
             return EmpowermentStates.TryGetValue(((Model)summon).ID, out state)
+                && state.IsEmpowered
                 ? state.SizeMultiplier
                 : 1.0f;
         }
@@ -1197,8 +1220,49 @@ namespace SoulAndService
             }
             EmpowermentState state;
             return EmpowermentStates.TryGetValue(summonId, out state)
+                && state.IsEmpowered
                 ? state.CombatMultiplier
                 : 1.0f;
+        }
+
+        private static bool TryGetEmpowermentState(
+            string id,
+            out EmpowermentState state)
+        {
+            return EmpowermentStates.TryGetValue(id, out state);
+        }
+
+        private static EmpowermentState CreateServantPowerState()
+        {
+            return new EmpowermentState
+            {
+                CombatMultiplier = 1.0f,
+                SizeMultiplier = 1.0f,
+                MovementMultiplier = 1.0f
+            };
+        }
+
+        internal static void RefreshSoulforgedPresentation(
+            NpcHeroSummon summon)
+        {
+            if (summon == null || summon.ParentModel == null)
+            {
+                return;
+            }
+            string id = ((Model)summon).ID;
+            EmpowermentState state;
+            if (!EmpowermentStates.TryGetValue(id, out state))
+            {
+                if (SoulforgedRuntime.GetEffectiveRank(id) <= 0)
+                {
+                    return;
+                }
+                state = CreateServantPowerState();
+                EmpowermentStates[id] = state;
+            }
+            NpcController controller = summon.ParentModel.Controller;
+            EnsureEmpowermentVisualEnforcer(controller);
+            ApplyEmpowermentVisual(controller, state);
         }
 
         private static void UpdateServantUpkeep(SoulAndServicePlugin plugin)
@@ -1272,6 +1336,144 @@ namespace SoulAndService
             float powerFactor = Mathf.Clamp01(
                 1.0f - (necromanticPower / 100.0f));
             return basePercent * powerFactor;
+        }
+
+        internal static float GetRestAttritionPercent(
+            int activeServants,
+            float hours,
+            float necromanticPower)
+        {
+            if (activeServants <= 0 || hours <= 0.0f)
+            {
+                return 0.0f;
+            }
+            float basePercent = Math.Min(
+                90.0f,
+                45.0f + (18.0f * Math.Max(0, activeServants - 1)));
+            float duration = Math.Max(0.0f, hours) / 8.0f;
+            float powerFactor = Mathf.Clamp01(
+                1.0f - (necromanticPower / 100.0f));
+            return Math.Min(90.0f, basePercent * duration * powerFactor);
+        }
+
+        private static void AfterRestTimeSkipped(
+            Hero hero,
+            float hourValue)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || plugin.RestBehavior == null
+                || plugin.RestBehavior.Value != RestHostBehavior.Sustain)
+            {
+                return;
+            }
+            NpcHeroSummon[] summons = GetFormationHost(hero);
+            float percent = GetRestAttritionPercent(
+                summons.Length,
+                hourValue,
+                SoulProgressionRuntime.GetNecromanticPower());
+            if (percent <= 0.0f)
+            {
+                return;
+            }
+            foreach (NpcHeroSummon summon in summons)
+            {
+                NpcElement npc = summon.ParentModel;
+                if (npc == null || npc.Health == null || npc.HealthElement == null)
+                {
+                    continue;
+                }
+                float damage = Math.Max(0.0f, npc.Health.UpperLimit)
+                    * (percent / 100.0f);
+                if (npc.Health.ModifiedValue <= damage + 0.001f)
+                {
+                    npc.HealthElement.Kill();
+                }
+                else
+                {
+                    npc.Health.DecreaseBy(damage);
+                }
+            }
+            plugin.LogDiagnostic(
+                "Rest attrition: servants=" + summons.Length
+                + "; hours=" + hourValue.ToString("0.##")
+                + "; loss=" + percent.ToString("0.##") + "% max Health.");
+        }
+
+        private static void AfterRestPreviewRefreshed(VRestPopupUI __instance)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Hero hero = Hero.Current;
+            if (__instance == null
+                || plugin == null
+                || !plugin.IsEnabled
+                || hero == null
+                || RestWarningTextField == null)
+            {
+                return;
+            }
+            Component warning = RestWarningTextField.GetValue(__instance) as Component;
+            PropertyInfo textProperty = warning == null
+                ? null
+                : warning.GetType().GetProperty("text");
+            if (warning == null || textProperty == null)
+            {
+                return;
+            }
+            string current = textProperty.GetValue(warning, null) as string
+                ?? string.Empty;
+            int prior = current.IndexOf(
+                "\nNecromantic ",
+                StringComparison.Ordinal);
+            if (prior >= 0)
+            {
+                current = current.Substring(0, prior);
+            }
+            bool showNativeWarning = __instance.Target != null
+                && __instance.Target.WillBeSurprisedByWyrdNight;
+            if (!showNativeWarning)
+            {
+                current = string.Empty;
+            }
+            NpcHeroSummon[] summons = GetFormationHost(hero);
+            if (summons.Length <= 0)
+            {
+                textProperty.SetValue(warning, current, null);
+                warning.gameObject.SetActive(
+                    showNativeWarning && !string.IsNullOrWhiteSpace(current));
+                return;
+            }
+            string message;
+            if (plugin.RestBehavior != null
+                && plugin.RestBehavior.Value == RestHostBehavior.Dismiss)
+            {
+                message = "Necromantic host: resting will dismiss every servant.";
+            }
+            else
+            {
+                float percent = GetRestAttritionPercent(
+                    summons.Length,
+                    __instance.Target.HourValueChange,
+                    SoulProgressionRuntime.GetNecromanticPower());
+                int mayPerish = summons.Count(summon =>
+                    summon.ParentModel != null
+                    && summon.ParentModel.Health != null
+                    && summon.ParentModel.Health.ModifiedValue
+                        <= summon.ParentModel.Health.UpperLimit
+                            * (percent / 100.0f) + 0.001f);
+                message = "Necromantic upkeep: -"
+                    + percent.ToString("0.#")
+                    + "% max Health"
+                    + (mayPerish > 0
+                        ? "; " + mayPerish + " servant(s) may perish."
+                        : ".");
+            }
+            string combined = string.IsNullOrWhiteSpace(current)
+                ? message
+                : current + "\n" + message;
+            textProperty.SetValue(warning, combined, null);
+            warning.gameObject.SetActive(true);
         }
 
         private static void BeginSwarm(
@@ -1430,9 +1632,15 @@ namespace SoulAndService
             }
             Transform visualRoot = state.VisualRoot;
 
+            float soulforgedMultiplier = controller.Npc == null
+                ? 1.0f
+                : SoulforgedRuntime.GetMultiplier(GetSummonId(controller.Npc));
+            float empowermentSize = state.IsEmpowered
+                ? state.SizeMultiplier
+                : 1.0f;
             Vector3 expectedScale = Vector3.Scale(
                 state.OriginalLocalScale,
-                Vector3.one * state.SizeMultiplier);
+                Vector3.one * soulforgedMultiplier * empowermentSize);
             Vector3 scaleBeforeCorrection = visualRoot.localScale;
             if ((visualRoot.localScale - expectedScale).sqrMagnitude <= 0.000001f)
             {
@@ -5426,7 +5634,8 @@ namespace SoulAndService
             float commandRange,
             out NpcHeroSummon focusedSummon,
             out GameObject focusedViewObject,
-            out string diagnostic)
+            out string diagnostic,
+            bool requireCommandEligibility = true)
         {
             focusedSummon = null;
             focusedViewObject = null;
@@ -5439,7 +5648,8 @@ namespace SoulAndService
                 hero);
             if (directSummon != null)
             {
-                if (!CanIssueFormationCommand(hero, directSummon))
+                if (requireCommandEligibility
+                    && !CanIssueFormationCommand(hero, directSummon))
                 {
                     diagnostic = "the summon under the crosshair is outside the targeting range";
                 }
@@ -5963,6 +6173,8 @@ namespace SoulAndService
             private readonly string _feedbackText;
             private readonly bool _soulRendHover;
             private readonly bool _huntPointCommand;
+            private readonly bool _passiveInfo;
+            private readonly string _displayName;
             private readonly Vector3 _huntPoint;
 
             internal SummonCommandInteractable(
@@ -5977,6 +6189,29 @@ namespace SoulAndService
                     null,
                     Kind,
                     HasSwarmCommandControl() ? "Swarm" : "Attack");
+                _actions = new IHeroAction[] { _action };
+            }
+
+            internal SummonCommandInteractable(
+                NpcHeroSummon summon,
+                GameObject viewObject,
+                string displayName,
+                string detail)
+            {
+                _summon = summon;
+                _viewObject = viewObject;
+                _passiveInfo = true;
+                _displayName = displayName;
+                Kind = SummonCommandState.None;
+                _action = new SummonCommandAction(
+                    null,
+                    summon,
+                    Kind,
+                    detail,
+                    true,
+                    false,
+                    default(Vector3),
+                    false);
                 _actions = new IHeroAction[] { _action };
             }
 
@@ -6042,13 +6277,21 @@ namespace SoulAndService
 
             internal bool IsHuntPoint => _huntPointCommand;
 
+            internal bool IsPassiveInfo => _passiveInfo;
+
             internal Vector3 HuntPoint => _huntPoint;
 
             internal string FeedbackText => _feedbackText;
 
             internal GameObject ViewObject => _viewObject;
 
-            public bool Interactable => IsFeedback
+            internal string PassiveDetail => _passiveInfo
+                ? _action.DefaultActionName
+                : string.Empty;
+
+            public bool Interactable => _passiveInfo
+                ? true
+                : IsFeedback
                 ? true
                 : IsHuntPoint
                     ? true
@@ -6062,7 +6305,7 @@ namespace SoulAndService
                         && !_summon.ParentModel.HasBeenDiscarded
                         && _summon.ParentModel.IsAlive;
 
-            public string DisplayName => string.Empty;
+            public string DisplayName => _displayName ?? string.Empty;
 
             public GameObject InteractionVSGameObject => _viewObject;
 
@@ -6109,7 +6352,8 @@ namespace SoulAndService
                 string actionName = null,
                 bool feedbackOnly = false,
                 bool huntPointCommand = false,
-                Vector3 huntPoint = default(Vector3))
+                Vector3 huntPoint = default(Vector3),
+                bool showButton = true)
             {
                 _target = target;
                 _summon = summon;
@@ -6118,7 +6362,7 @@ namespace SoulAndService
                 _feedbackOnly = feedbackOnly;
                 _huntPointCommand = huntPointCommand;
                 _huntPoint = huntPoint;
-                _actionFrame = new InfoFrame(DefaultActionName, true);
+                _actionFrame = new InfoFrame(DefaultActionName, showButton);
             }
 
             public bool IsValidAction => _feedbackOnly
@@ -6293,13 +6537,7 @@ namespace SoulAndService
                 ClearCommandOverride();
                 return;
             }
-            if (!plugin.IsEnabled
-                || ((!plugin.AttackCommandPrompt.Value)
-                    && (plugin.FormationCommands == null
-                        || !plugin.FormationCommands.Value)
-                    && (plugin.DirectedHuntEnabled == null
-                        || !plugin.DirectedHuntEnabled.Value))
-                || raycaster == null)
+            if (!plugin.IsEnabled || raycaster == null)
             {
                 ClearRecentAttackCommandTarget();
                 ClearCommandOverride();
@@ -6320,8 +6558,6 @@ namespace SoulAndService
                 && !huntPointAvailable)
             {
                 ClearRecentAttackCommandTarget();
-                ClearCommandOverride();
-                return;
             }
 
             float commandRange = GetTargetingRange(plugin);
@@ -6420,6 +6656,46 @@ namespace SoulAndService
 
             ClearRecentAttackCommandTarget();
             InvalidateHuntPointPreview();
+            if (TryFindFocusedFormationSummon(
+                    hero,
+                    detection,
+                    origin,
+                    direction,
+                    commandRange,
+                    out NpcHeroSummon passiveSummon,
+                    out GameObject passiveView,
+                    out string ignoredDiagnostic,
+                    false)
+                && SoulforgedRuntime.TryGetHoverText(
+                    passiveSummon,
+                    out string passiveTitle,
+                    out string passiveDetail))
+            {
+                if (_commandInteractable != null
+                    && _commandInteractable.IsPassiveInfo
+                    && ReferenceEquals(
+                        _commandInteractable.Summon,
+                        passiveSummon)
+                    && string.Equals(
+                        _commandInteractable.DisplayName,
+                        passiveTitle,
+                        StringComparison.Ordinal)
+                    && string.Equals(
+                        _commandInteractable.PassiveDetail,
+                        passiveDetail,
+                        StringComparison.Ordinal))
+                {
+                    return;
+                }
+                ClearCommandOverride();
+                _commandInteractable = new SummonCommandInteractable(
+                    passiveSummon,
+                    passiveView,
+                    passiveTitle,
+                    passiveDetail);
+                raycaster.SetInteractionOverride(_commandInteractable);
+                return;
+            }
             ClearCommandOverride();
         }
 
@@ -7208,6 +7484,7 @@ namespace SoulAndService
                     ApplyPlayerPassThrough(__instance, true);
                 });
             SoulSalvageRuntime.OnSummonInitialized(__instance);
+            SoulforgedRuntime.OnSummonInitialized(__instance);
 
         }
 
@@ -7434,7 +7711,8 @@ namespace SoulAndService
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             if (plugin != null
                 && plugin.IsEnabled
-                && plugin.PersistentServants.Value)
+                && plugin.RestBehavior != null
+                && plugin.RestBehavior.Value == RestHostBehavior.Sustain)
             {
                 __result = false;
                 return false;
@@ -7912,7 +8190,9 @@ namespace SoulAndService
             }
         }
 
-        private static void AfterSummonDiscard(NpcHeroSummon __instance)
+        private static void AfterSummonDiscard(
+            NpcHeroSummon __instance,
+            bool fromDomainDrop)
         {
             if (__instance == null)
             {
@@ -7956,7 +8236,8 @@ namespace SoulAndService
                 DiscardScalingTweaks(tweaks);
                 InvocationTweaks.Remove(id);
             }
-            SoulSalvageRuntime.OnSummonDiscarded(__instance);
+            SoulSalvageRuntime.OnSummonDiscarded(__instance, fromDomainDrop);
+            SoulforgedRuntime.OnSummonDiscarded(__instance, fromDomainDrop);
             RemoveAwarenessTargetsForSummon(__instance);
         }
 
@@ -7976,6 +8257,8 @@ namespace SoulAndService
             {
                 dmgModifier *= SoulProgressionRuntime
                     .GetSummonDamageTakenMultiplier();
+                dmgModifier /= SoulforgedRuntime.GetMultiplier(
+                    GetSummonId(receiver));
                 EmpowermentState receiverEmpowerment;
                 if (EmpowermentStates.TryGetValue(
                         GetSummonId(receiver),
@@ -8003,6 +8286,8 @@ namespace SoulAndService
             {
                 dmgModifier *= SoulProgressionRuntime
                     .GetSummonDamageMultiplier();
+                dmgModifier *= SoulforgedRuntime.GetMultiplier(
+                    GetSummonId(dealer));
                 EmpowermentState dealerEmpowerment;
                 if (EmpowermentStates.TryGetValue(
                         GetSummonId(dealer),

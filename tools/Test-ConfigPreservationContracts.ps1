@@ -151,7 +151,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedConfigValues('
         Restore = 'RestorePreservedConfigValues();'
         Save = 'Config.Save();'
-        Tokens = @('Summon Pass-Through', 'Player Attack Pass-Through', 'IdleSoundVolumePercent', 'PersistentServants')
+        Tokens = @('Summon Pass-Through', 'Player Attack Pass-Through', 'IdleSoundVolumePercent', 'PersistentServants', 'RestHostBehavior', 'FullPotentialColor')
     },
     [pscustomobject]@{
         Name = 'Versatile Weapons'

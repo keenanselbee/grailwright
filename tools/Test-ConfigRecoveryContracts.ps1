@@ -144,7 +144,8 @@ $expectedPermanentExclusions = @{
     )
     'SoulAndService' = @(
         @{ Section = 'Diagnostics'; Key = 'OverrideSoulVigor' },
-        @{ Section = 'Diagnostics'; Key = 'SoulVigorOverrideValue' }
+        @{ Section = 'Diagnostics'; Key = 'SoulVigorOverrideValue' },
+        @{ Section = 'Diagnostics'; Key = 'OverrideSoulforgedRank' }
     )
     'EyesInTheDark' = @(
         @{ Section = 'Gameplay Preset'; Key = 'ApplyPreset' },

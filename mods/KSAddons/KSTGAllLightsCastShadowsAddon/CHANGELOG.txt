@@ -1,3 +1,26 @@
+Version 2.0.5
+Added an optional ImproveDawnDuskShadows feature, disabled by default, that shortens the existing DayNightSystem directional-shadow blend without adding or enabling another directional light or shadow map.
+Uses a configurable 10 in-game minutes per side when Eyes in the Dark normalization is unavailable or disabled.
+Added Eyes in the Dark soft integration that converts a default 30-real-second target through the live WeatherSecondsPerRealSecond rate, keeping daylight and threat-scaled night transitions visually consistent without changing gameplay time.
+Discovers loaded day/night systems only on activation, setting changes, or loaded-scene changes, then updates only tracked instances when the live Eyes clock rate changes.
+Captures the original blend for each system and restores it only while the addon still owns its applied value, leaving later external changes untouched on disable, scene transition, or unload.
+Kept ConfigSchemaVersion 3 because all directional-shadow settings are compatible additions and existing configs can receive their defaults without a reset.
+
+Version 2.0.4
+Added soft integration with MageLight 1.3.0 and No Player Light through their exact plugin GUIDs and the game's HeroLight indoor/outdoor hierarchy.
+Added RespectExternalPlayerLightOwnership, enabled by default, so the addon never captures, enables, activates, or restores an externally owned HeroLight.
+Active MageLight point-light shadows now reserve six faces from the permanent shadow-map budget; disabled shadows and No Player Light reserve none.
+Added a log and deferred Grail Floating Text compatibility warning when MageLight and No Player Light are installed together because MageLight can reactivate the light that No Player Light disables.
+Added an addon-owned safe selection controller that keeps the original mod's toggle and settings while replacing its broad state capture with one bounded nearby-light discovery pass.
+Added permanent limits of 16 upgraded lights, 25 metres, and 48 estimated shadow-map faces; stricter original-mod or combat limits still win.
+Added cached camera-view priority with eight-metre retention hysteresis, a 0.75-second view-exit delay, two offscreen reserve lights, and at most two lightweight selection swaps per refresh.
+Added default exclusions for Wyrd Sight highlight lights, summon lights, interface preview lights, lockpicking lights, and the exact player-placed portable Bonfire while retaining existing configurable fire-path exclusions.
+Added exact native and HDRP ownership for shadow enablement, surface and volumetric dimmers, and shadow resolution, with conditional writes and complete restoration when a light is released; authored HDRP update modes remain untouched.
+Suppresses added volumetric-fog shadows by default and requests HDRP shadow-map rendering only when a selected light is activated or its native state changes.
+Restores addon-owned light state before parent scene cooldowns, on parent disable, on scene changes, after failures, and when the addon unloads.
+Retained the existing normal and combat atlas caps, combat budget and distance layer, toggle notifications, diagnostics, additional exclusions, and previous-settings recovery.
+Credits pupkidze007 for TGAllLightsCastShadowsSafe, whose updated safe-selector, bounded-ownership, semantic-exclusion, and restoration architecture informed this release.
+
 Version 1.3.0
 Corrected the Nexus and Vortex-facing file identity to KS All Lights Cast Shadows Addon so it matches the rest of the KS Addons suite.
 

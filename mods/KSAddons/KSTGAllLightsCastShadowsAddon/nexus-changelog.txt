@@ -1,3 +1,14 @@
-TargetVersion=1.3.0
-BaselineVersion=1.2.9
-Corrected the file identity to KS All Lights Cast Shadows Addon so it matches the rest of the KS Addons suite in Nexus and Vortex.
+TargetVersion=2.0.5
+BaselineVersion=1.3.0
+
+Rebuilt light selection around permanent performance bounds while keeping the original mod's toggle and settings.
+
+Added default-on MageLight and No Player Light support. Their exact HeroLight hierarchy remains entirely under external ownership, active MageLight shadows reserve six faces from the permanent budget, and installing both produces a compatibility warning because MageLight can reactivate the light disabled by No Player Light.
+
+The addon now selects at most 16 nearby lights and 48 estimated shadow-map faces by default, prioritizes lights affecting the camera view, retains stable choices while moving, and limits simultaneous swaps to reduce flicker and atlas churn.
+
+Wyrd Sight highlights, summon lights, interface previews, lockpicking lights, and the portable Bonfire are excluded by default. Added shadows no longer darken volumetric fog by default, every native and HDRP value touched by the addon is restored exactly when released, and authored HDRP update modes remain untouched.
+
+Added an optional dawn/dusk improvement, disabled by default, that shortens only the existing directional-shadow handoff. With Eyes in the Dark installed, its default 30-real-second target is converted through the live world-clock rate so daylight and threat-scaled nights retain consistent visual pacing without changing gameplay time or creating another shadow map.
+
+Credit to pupkidze007 for TGAllLightsCastShadowsSafe, whose updated safe-selector, bounded-ownership, semantic-exclusion, and restoration architecture informed this release.

@@ -17,12 +17,12 @@ using HarmonyLib;
 using UnityEngine;
 
 [assembly: AssemblyTitle("All Lights Cast Shadows Addon")]
-[assembly: AssemblyDescription("Companion addon for All Lights Cast Shadows state restoration, atlas protection, and excluded bonfire lights")]
+[assembly: AssemblyDescription("Bounded, view-aware shadow selection companion for All Lights Cast Shadows")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
-[assembly: AssemblyInformationalVersion("1.3.0")]
+[assembly: AssemblyVersion("2.0.5.0")]
+[assembly: AssemblyFileVersion("2.0.5.0")]
+[assembly: AssemblyInformationalVersion("2.0.5")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -31,14 +31,21 @@ namespace TGAllLightsCastShadowsAddon
         ParentPluginGuid,
         BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("ks.tgfoa.grail-floating-text", BepInDependency.DependencyFlags.SoftDependency)]
-    public sealed class Plugin : BaseUnityPlugin
+    [BepInDependency(MageLightPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(NoPlayerLightPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(EyesInTheDarkPluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
+    public sealed partial class Plugin : BaseUnityPlugin
     {
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "All Lights Cast Shadows Addon";
-        public const string PluginVersion = "1.3.0";
+        public const string PluginVersion = "2.0.5";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
+        public const string MageLightPluginGuid = "Gotik0.magelight";
+        public const string NoPlayerLightPluginGuid = "ks.tgfoa.no-player-light";
+        public const string EyesInTheDarkPluginGuid =
+            "ks.tgfoa.eyes-in-the-dark";
         private const int ConfigSchemaVersion = 3;
         private const int ConfigRecoveryBaselineSchema = 2;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -142,6 +149,10 @@ namespace TGAllLightsCastShadowsAddon
                 MethodInfo updateMethod = AccessTools.Method(
                     shadowManagerType,
                     "Update");
+                MethodInfo beginSceneCooldownMethod = AccessTools.Method(
+                    shadowManagerType,
+                    "BeginSceneCooldown",
+                    new[] { typeof(string) });
                 Type hdrpSupportType = AccessTools.TypeByName(
                     "TGAllLightsCastShadows.HdrpSupport");
                 MethodInfo hdrpRefreshMethod = hdrpSupportType == null
@@ -159,6 +170,7 @@ namespace TGAllLightsCastShadowsAddon
                 if (applyAllLightsMethod == null
                     || restoreAllLightsMethod == null
                     || updateMethod == null
+                    || beginSceneCooldownMethod == null
                     || hdrpRefreshMethod == null
                     || hdrpDimmerMethod == null)
                 {
@@ -168,6 +180,8 @@ namespace TGAllLightsCastShadowsAddon
 
                 InitializeConfig();
                 InitializeParentReflection(shadowManagerType);
+                InitializeManagedParentReflection(shadowManagerType);
+                InitializeDawnDuskShadowController();
 
                 _harmony = new Harmony(PluginGuid);
                 _harmony.Patch(
@@ -183,6 +197,9 @@ namespace TGAllLightsCastShadowsAddon
                         nameof(Patches.FinalizeApplyAllLights)));
                 _harmony.Patch(
                     restoreAllLightsMethod,
+                    prefix: new HarmonyMethod(
+                        typeof(Patches),
+                        nameof(Patches.BeforeRestoreAllLights)),
                     postfix: new HarmonyMethod(
                         typeof(Patches),
                         nameof(Patches.AfterRestoreAllLights)));
@@ -191,6 +208,11 @@ namespace TGAllLightsCastShadowsAddon
                     postfix: new HarmonyMethod(
                         typeof(Patches),
                         nameof(Patches.AfterShadowManagerUpdate)));
+                _harmony.Patch(
+                    beginSceneCooldownMethod,
+                    prefix: new HarmonyMethod(
+                        typeof(Patches),
+                        nameof(Patches.BeforeParentSceneCooldown)));
                 HarmonyMethod atlasPrefix = new HarmonyMethod(
                     typeof(Patches),
                     nameof(Patches.BeforeHdrpShadowRefresh));
@@ -203,7 +225,7 @@ namespace TGAllLightsCastShadowsAddon
                     PluginName
                     + " "
                     + PluginVersion
-                    + " loaded; global shadow-state restoration, excluded-light protection, and shadow-atlas protection are active.");
+                    + " loaded; safe cached selection, semantic exclusions, exact shadow-state restoration, and atlas protection are active.");
             }
             catch (Exception exception)
             {
@@ -216,24 +238,33 @@ namespace TGAllLightsCastShadowsAddon
 
         private void Update()
         {
-            if (_combatPerformanceEnabled == null
-                || Time.unscaledTime < _nextCombatStateCheck)
+            UpdateDawnDuskShadows();
+            UpdateManagedShadowController();
+            if (_combatPerformanceEnabled == null)
             {
                 return;
             }
 
-            _nextCombatStateCheck = Time.unscaledTime + 0.25f;
-            RefreshCombatPerformanceState();
+            if (Time.unscaledTime >= _nextCombatStateCheck)
+            {
+                _nextCombatStateCheck = Time.unscaledTime + 0.25f;
+                RefreshCombatPerformanceState();
+            }
         }
 
-        internal void BeforeApplyAllLights()
+        internal bool BeforeApplyAllLights(string reason)
         {
+            if (UseManagedShadowController())
+            {
+                return BeforeManagedParentApply(reason);
+            }
+
             BeginAtlasScan();
             ApplyCombatParentConfigOverrides();
             if (_originalShadowQualityCaptured)
             {
                 ProtectExcludedLightsBeforeParentScan();
-                return;
+                return true;
             }
 
             _originalShadowQuality = QualitySettings.shadows;
@@ -242,10 +273,15 @@ namespace TGAllLightsCastShadowsAddon
                 "Captured global shadow quality: "
                 + _originalShadowQuality);
             ProtectExcludedLightsBeforeParentScan();
+            return true;
         }
 
         internal void AfterApplyAllLights()
         {
+            if (UseManagedShadowController())
+            {
+                return;
+            }
             RestoreCombatParentConfig();
             RestoreProtectedLightsAfterParentScan();
             RestoreExcludedLightsTouchedByParent();
@@ -255,11 +291,20 @@ namespace TGAllLightsCastShadowsAddon
 
         internal void FinalizeApplyAllLights()
         {
-            RestoreCombatParentConfig();
+            if (!UseManagedShadowController())
+            {
+                RestoreCombatParentConfig();
+            }
         }
 
         internal void AfterRestoreAllLights()
         {
+            if (UseManagedShadowController())
+            {
+                RestoreAllManagedLights("parent restore");
+                _loggedExcludedLights.Clear();
+                return;
+            }
             RestoreProtectedLightsAfterParentScan();
             RestoreAllShadowResolutions();
             _loggedExcludedLights.Clear();
@@ -284,7 +329,10 @@ namespace TGAllLightsCastShadowsAddon
 
         internal void BeforeHdrpShadowRefresh(Light light)
         {
-            ApplyShadowAtlasProtection(light);
+            if (!UseManagedShadowController())
+            {
+                ApplyShadowAtlasProtection(light);
+            }
         }
 
         private void InitializeConfig()
@@ -319,7 +367,8 @@ namespace TGAllLightsCastShadowsAddon
                 false,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Logs each excluded light path once per scene. Useful for finding exact runtime names.",
-                    "Excluded Lights", "Verbose Exclusion Logging", 0, 20));
+                    "Excluded Lights", "Verbose Exclusion Logging", 0, 80));
+            BindManagedShadowConfig();
             _protectShadowAtlas = Config.Bind(
                 "Shadow Atlas",
                 "ProtectShadowAtlas",
@@ -335,6 +384,7 @@ namespace TGAllLightsCastShadowsAddon
                     "Maximum per-face shadow resolution for parent-promoted point and spot lights. Original lower overrides are never raised.",
                     "Shadow Atlas", "Promoted Shadow Resolution", 10, 10,
                     new AcceptableValueList<int>(128, 256, 512, 1024)));
+            BindDawnDuskShadowConfig();
             _combatPerformanceEnabled = Config.Bind(
                 "Combat Performance",
                 "CombatPerformanceEnabled",
@@ -434,6 +484,8 @@ namespace TGAllLightsCastShadowsAddon
                 OnShadowAtlasSettingChanged;
             _promotedShadowResolution.SettingChanged +=
                 OnShadowAtlasSettingChanged;
+            SubscribeManagedShadowConfigEvents();
+            SubscribeDawnDuskShadowConfigEvents();
             SubscribeCombatConfigEvents();
             _diagnostics.SettingChanged +=
                 OnDiagnosticsSettingChanged;
@@ -562,6 +614,27 @@ namespace TGAllLightsCastShadowsAddon
                 "Excluded Lights",
                 "VerboseExclusionLogging",
                 false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeWyrdSightLights", false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeSummonLights", false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeInterfacePreviewLights", false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeLockpickingLights", false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludePlacedBonfireLights", false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "RespectExternalPlayerLightOwnership", false);
+            CaptureCustomizedValue(profile, "Performance", "UseSafeSelectionController", false);
+            CaptureCustomizedValue(profile, "Performance", "MaximumUpgradedLights", 0);
+            CaptureCustomizedValue(profile, "Performance", "MaximumDistanceMeters", 0f);
+            CaptureCustomizedValue(profile, "Performance", "MaximumShadowMapFaces", 0);
+            CaptureCustomizedValue(profile, "Performance", "SuppressAddedVolumetricShadows", false);
+            CaptureCustomizedValue(profile, "View Priority", "HysteresisMeters", 0f);
+            CaptureCustomizedValue(profile, "View Priority", "PreferViewRelevantLights", false);
+            CaptureCustomizedValue(profile, "View Priority", "SelectionRefreshSeconds", 0f);
+            CaptureCustomizedValue(profile, "View Priority", "ViewExitDelaySeconds", 0f);
+            CaptureCustomizedValue(profile, "View Priority", "OffscreenReserveLights", 0);
+            CaptureCustomizedValue(profile, "View Priority", "MaximumSelectionSwapsPerRefresh", 0);
+            CaptureCustomizedValue(profile, "Directional Shadows", "ImproveDawnDuskShadows", false);
+            CaptureCustomizedValue(profile, "Directional Shadows", "ShadowBlendMinutes", 0);
+            CaptureCustomizedValue(profile, "Directional Shadows", "NormalizeForEyesInTheDark", false);
+            CaptureCustomizedValue(profile, "Directional Shadows", "EyesBlendSecondsPerSide", 0f);
             CaptureCustomizedValue(
                 profile,
                 "Shadow Atlas",
@@ -625,6 +698,27 @@ namespace TGAllLightsCastShadowsAddon
                 _verboseExclusionLogging,
                 ref restored,
                 ref clamped);
+            RestorePreservedEntry(_excludeWyrdSightLights, ref restored, ref clamped);
+            RestorePreservedEntry(_excludeSummonLights, ref restored, ref clamped);
+            RestorePreservedEntry(_excludeInterfacePreviewLights, ref restored, ref clamped);
+            RestorePreservedEntry(_excludeLockpickingLights, ref restored, ref clamped);
+            RestorePreservedEntry(_excludePlacedBonfireLights, ref restored, ref clamped);
+            RestorePreservedEntry(_respectExternalPlayerLightOwnership, ref restored, ref clamped);
+            RestorePreservedEntry(_safeSelectionController, ref restored, ref clamped);
+            RestorePreservedEntry(_maximumUpgradedLights, ref restored, ref clamped);
+            RestorePreservedEntry(_maximumDistanceMeters, ref restored, ref clamped);
+            RestorePreservedEntry(_maximumShadowMapFaces, ref restored, ref clamped);
+            RestorePreservedEntry(_suppressAddedVolumetricShadows, ref restored, ref clamped);
+            RestorePreservedEntry(_selectionHysteresisMeters, ref restored, ref clamped);
+            RestorePreservedEntry(_preferViewRelevantLights, ref restored, ref clamped);
+            RestorePreservedEntry(_selectionRefreshSeconds, ref restored, ref clamped);
+            RestorePreservedEntry(_viewExitDelaySeconds, ref restored, ref clamped);
+            RestorePreservedEntry(_offscreenReserveLights, ref restored, ref clamped);
+            RestorePreservedEntry(_maximumSelectionSwapsPerRefresh, ref restored, ref clamped);
+            RestorePreservedEntry(_improveDawnDuskShadows, ref restored, ref clamped);
+            RestorePreservedEntry(_dawnDuskShadowBlendMinutes, ref restored, ref clamped);
+            RestorePreservedEntry(_normalizeDawnDuskForEyesInTheDark, ref restored, ref clamped);
+            RestorePreservedEntry(_eyesDawnDuskSecondsPerSide, ref restored, ref clamped);
             RestorePreservedEntry(_protectShadowAtlas, ref restored, ref clamped);
             RestorePreservedEntry(
                 _promotedShadowResolution,
@@ -792,6 +886,8 @@ namespace TGAllLightsCastShadowsAddon
             EventArgs args)
         {
             RefreshExcludedFragments();
+            _managedSettingsDirty = true;
+            NudgeParentScan();
         }
 
         private void SubscribeCombatConfigEvents()
@@ -1514,7 +1610,7 @@ namespace TGAllLightsCastShadowsAddon
                 + ", constrained="
                 + _atlasScanConstrainedLights.ToString(CultureInfo.InvariantCulture)
                 + ", tracked="
-                + _shadowResolutionStates.Count.ToString(CultureInfo.InvariantCulture)
+                + TrackedShadowResolutionCount().ToString(CultureInfo.InvariantCulture)
                 + ", restored="
                 + _atlasScanRestoredLights.ToString(CultureInfo.InvariantCulture)
                 + ", cap="
@@ -1547,7 +1643,7 @@ namespace TGAllLightsCastShadowsAddon
                 + "|"
                 + _atlasScanConstrainedLights.ToString(CultureInfo.InvariantCulture)
                 + "|"
-                + _shadowResolutionStates.Count.ToString(CultureInfo.InvariantCulture)
+                + TrackedShadowResolutionCount().ToString(CultureInfo.InvariantCulture)
                 + "|"
                 + cap.ToString(CultureInfo.InvariantCulture)
                 + "|"
@@ -1938,7 +2034,6 @@ namespace TGAllLightsCastShadowsAddon
                 return;
             }
 
-            _hdrpResolved = true;
             BindingFlags flags =
                 BindingFlags.Instance
                 | BindingFlags.Public
@@ -1955,6 +2050,7 @@ namespace TGAllLightsCastShadowsAddon
                 }
 
                 _hdAdditionalLightDataType = type;
+                _hdrpResolved = true;
                 _hdEnableShadowsMethod = type.GetMethod(
                     "EnableShadows",
                     flags,
@@ -2104,6 +2200,8 @@ namespace TGAllLightsCastShadowsAddon
         private void OnDestroy()
         {
             UnsubscribeCombatConfigEvents();
+            UnsubscribeManagedShadowConfigEvents();
+            UnsubscribeDawnDuskShadowConfigEvents();
             if (_additionalExcludedLightPathFragments != null)
             {
                 _additionalExcludedLightPathFragments.SettingChanged -=
@@ -2131,6 +2229,8 @@ namespace TGAllLightsCastShadowsAddon
             RestoreProtectedLightsAfterParentScan();
             RestoreCombatParentConfig();
             RestoreAllShadowResolutions();
+            RestoreAllManagedLights("addon unload");
+            RestoreAllDawnDuskShadowSystems("addon unload");
 
             if (_originalShadowQualityCaptured)
             {
@@ -2212,13 +2312,14 @@ namespace TGAllLightsCastShadowsAddon
 
     internal static class Patches
     {
-        internal static void BeforeApplyAllLights()
+        internal static bool BeforeApplyAllLights(string __0)
         {
             Plugin plugin = Plugin.Instance;
             if (plugin != null)
             {
-                plugin.BeforeApplyAllLights();
+                return plugin.BeforeApplyAllLights(__0);
             }
+            return true;
         }
 
         internal static void AfterApplyAllLights()
@@ -2251,12 +2352,27 @@ namespace TGAllLightsCastShadowsAddon
             }
         }
 
+        internal static bool BeforeRestoreAllLights(string __0)
+        {
+            Plugin plugin = Plugin.Instance;
+            return plugin == null || plugin.BeforeParentRestore(__0);
+        }
+
         internal static void AfterShadowManagerUpdate(object __instance)
         {
             Plugin plugin = Plugin.Instance;
             if (plugin != null)
             {
                 plugin.AfterShadowManagerUpdate(__instance);
+            }
+        }
+
+        internal static void BeforeParentSceneCooldown(string __0)
+        {
+            Plugin plugin = Plugin.Instance;
+            if (plugin != null)
+            {
+                plugin.BeforeParentSceneCooldown(__0);
             }
         }
 

@@ -1,1 +1,1 @@
-Restores shadow state, protects bonfire lighting, and adds reversible atlas and combat performance controls.
+Keeps rich shadowed lighting while a stable, view-aware budget protects interiors, night towns, dungeons, and Wyrd Sight performance.

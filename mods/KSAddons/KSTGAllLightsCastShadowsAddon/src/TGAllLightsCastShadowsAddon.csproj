@@ -52,6 +52,9 @@
 
   <ItemGroup>
     <Compile Include="TGAllLightsCastShadowsAddon.cs" />
+    <Compile Include="ManagedShadowController.cs" />
+    <Compile Include="DawnDuskShadowController.cs" />
+    <Compile Include="SafeShadowSelectionRules.cs" />
   </ItemGroup>
 
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

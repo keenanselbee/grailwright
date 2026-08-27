@@ -111,7 +111,7 @@ $sourceContracts = @(
         Capture = 'CapturePreservedSettings('
         Restore = 'RestorePreservedSettings();'
         Save = 'Config.Save();'
-        Tokens = @('ProtectBonfireLights', 'BuiltInExcludedLightPathFragments', 'AdditionalExcludedLightPathFragments', 'VerboseExclusionLogging', 'ProtectShadowAtlas', 'PromotedShadowResolution', 'CombatPerformanceEnabled', 'OutdoorCombatOnly', 'CombatReduceAtlasResolution', 'CombatShadowResolution', 'CombatLimitLightBudget', 'CombatMaximumUpgradedLights', 'CombatLimitDistance', 'CombatMaximumDistanceMeters', 'Diagnostics')
+        Tokens = @('ProtectBonfireLights', 'BuiltInExcludedLightPathFragments', 'AdditionalExcludedLightPathFragments', 'VerboseExclusionLogging', 'RespectExternalPlayerLightOwnership', 'ExcludeWyrdSightLights', 'ExcludeSummonLights', 'ExcludeInterfacePreviewLights', 'ExcludeLockpickingLights', 'ExcludePlacedBonfireLights', 'UseSafeSelectionController', 'MaximumUpgradedLights', 'MaximumDistanceMeters', 'MaximumShadowMapFaces', 'SuppressAddedVolumetricShadows', 'HysteresisMeters', 'PreferViewRelevantLights', 'SelectionRefreshSeconds', 'ViewExitDelaySeconds', 'OffscreenReserveLights', 'MaximumSelectionSwapsPerRefresh', 'ImproveDawnDuskShadows', 'ShadowBlendMinutes', 'NormalizeForEyesInTheDark', 'EyesBlendSecondsPerSide', 'ProtectShadowAtlas', 'PromotedShadowResolution', 'CombatPerformanceEnabled', 'OutdoorCombatOnly', 'CombatReduceAtlasResolution', 'CombatShadowResolution', 'CombatLimitLightBudget', 'CombatMaximumUpgradedLights', 'CombatLimitDistance', 'CombatMaximumDistanceMeters', 'Diagnostics')
     },
     [pscustomobject]@{
         Name = 'KS Contact Shadows Addon'

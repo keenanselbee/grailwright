@@ -120,7 +120,7 @@ $modContracts = @(
     @{ Mod = 'KingsElegyMainMenuMusic'; Source = 'src\MainMenuMusic.cs'; Schema = 16; AutoPreserves = $false },
     @{ Mod = 'KSAddons\KSBetterMovementAddon'; Source = 'src\BetterMovementAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSPersistentCorpsesAddon'; Source = 'src\PersistentCorpsesAddon.cs'; Schema = 1; AutoPreserves = $true },
-    @{ Mod = 'KSAddons\KSTGAllLightsCastShadowsAddon'; Source = 'src\TGAllLightsCastShadowsAddon.cs'; Schema = 2; AutoPreserves = $true },
+    @{ Mod = 'KSAddons\KSTGAllLightsCastShadowsAddon'; Source = 'src\TGAllLightsCastShadowsAddon.cs'; Schema = 3; Baseline = 2; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSTGContactShadowsAddon'; Source = 'src\TGContactShadowsAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSTGGlobalIlluminationAddon'; Source = 'src\TGGlobalIlluminationAddon.cs'; Schema = 1; AutoPreserves = $true },
     @{ Mod = 'KSAddons\KSTGVolumetricFixAddon'; Source = 'src\TGVolumetricFixAddon.cs'; Schema = 1; AutoPreserves = $true },

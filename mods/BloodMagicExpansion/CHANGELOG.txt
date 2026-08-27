@@ -1,3 +1,27 @@
+Version 3.1.7
+Changed the diagnostic BloodEssenceOverrideValue default to 5,000 and raised its
+maximum accepted value to 10,000 for testing uncapped Essence presentation beyond
+the maximum Blood Power milestone.
+Advanced ConfigSchemaVersion from 24 to 25 because the setting default changed; the
+previous config is backed up and compatible durable settings remain eligible for
+conservative recovery.
+
+Version 3.1.6
+Capped the diagnostic BloodEssenceOverrideValue at 5,000, the Blood Essence
+milestone for maximum Blood Power.
+Advanced ConfigSchemaVersion from 23 to 24 because values above 5,000 are no longer
+valid; the previous config is backed up and compatible durable settings remain
+eligible for conservative recovery.
+
+Version 3.1.5
+Restored raised-servant blood-ritual detection by preferring Soul and Service's dual
+source identity, resolving the stable owning Location and nested Corpse element, and
+aliasing both identities with the living servant. This preserves corpse quality,
+spent, and bloodless reticle states across reanimation while retaining compatibility
+with older Soul and Service APIs.
+Kept ConfigSchemaVersion at 23 because this repairs runtime integration without changing
+stored settings.
+
 Version 3.1.4
 Cached each blood-spell hand light's typed HDRP data and moved its invariant setup
 out of the rendered-frame update, preserving live brightness, range, fade, cast

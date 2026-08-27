@@ -70,11 +70,12 @@ function Get-BleedDurationMultiplier {
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\BloodMagicExpansion.cs")
 $requiredContracts = @(
-    'ConfigSchemaVersion = 23',
+    'ConfigSchemaVersion = 25',
     'NormalMaximumBloodPower = 100.0f',
     'AbsoluteMaximumBloodPower = 200.0f',
     'BloodEssenceAtNormalMaximumPower = 1000.0f',
     'BloodEssenceAtAbsoluteMaximumPower = 5000.0f',
+    '"BloodEssenceOverrideValue", 5000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 2000, 3000, 4000, 5000, and 10000.", new AcceptableValueRange<float>(0.0f, 10000.0f))',
     'MaximumOvermasteryBonusFraction = 1.0f',
     '"MinimumPowerBrightnessMultiplier", 0.2f',
     '"MasteryBrightnessMultiplier", 2.0f',

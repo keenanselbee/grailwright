@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v10
-Version: 3.1.4
+Version: 3.1.7
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -72,9 +72,12 @@ constructs, spirits, and other bloodless servants remain invalid. Dishonored
 Dynamic Crosshair shows the normal saturated blood-quality reticle for an
 eligible servant and the same desaturated reticle while combat blocks the
 ritual, after draining, or over a bloodless servant. These states add no
-interaction text. A small obstruction-aware aiming tolerance bridges animated
-gaps between servant colliders, while a 0.18-second focus grace prevents brief
-limb movement from interrupting the reticle or channel.
+  interaction text. Animated limb and outer-body hitboxes resolve through the
+  owning servant, while raised servants retain both their source Location and
+  Corpse identity so quality, spent, and bloodless state survives reanimation.
+  A small obstruction-aware aiming tolerance bridges collider gaps, while a
+  0.18-second focus grace prevents brief limb movement from interrupting the
+  reticle or channel.
 
 Light-casting Abhartach's Calling directly at an eligible owned flesh servant
 sacrifices it through Abhartach's native corpse explosion, including normal
@@ -207,8 +210,8 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 23 because the granular diagnostic
-settings were replaced by one general Diagnostics switch. Blood Essence remains
+The current config uses ConfigSchemaVersion 25 because the diagnostic Blood
+Essence override now defaults to 5,000 and accepts values through 10,000. Blood Essence remains
 the sole spell-growth progression source, with Blood Power retained as its
 derived 0-200 gameplay rating. If the schema marker is missing or outdated, the
 old config is backed up beside the active file and fresh defaults are generated.
@@ -221,8 +224,11 @@ overwriting the saved progression:
 Diagnostics = false
 ShowGrailFloatingTextDiagnostics = true
 OverrideBloodEssence = false
-BloodEssenceOverrideValue = 1000
+BloodEssenceOverrideValue = 5000
 ```
+
+BloodEssenceOverrideValue accepts 0 through 10,000. Blood Power still reaches its
+maximum at 5,000, while higher overrides can test uncapped Essence presentation.
 
 ## Grail Floating Text
 

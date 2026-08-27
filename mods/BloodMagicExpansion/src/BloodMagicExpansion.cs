@@ -14,6 +14,7 @@ using Awaken.TG.Main.Fights;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
+using Awaken.TG.Main.Locations;
 using Awaken.TG.Main.Locations.Attachments.Elements;
 using Awaken.TG.Main.Memories;
 using Awaken.TG.Main.Heroes.Items;
@@ -33,8 +34,8 @@ using UnityEngine.Rendering.HighDefinition;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("3.1.4.0")]
-[assembly: AssemblyFileVersion("3.1.4.0")]
+[assembly: AssemblyVersion("3.1.7.0")]
+[assembly: AssemblyFileVersion("3.1.7.0")]
 
 namespace BloodMagicExpansion
 {
@@ -57,8 +58,8 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "3.1.4";
-        private const int ConfigSchemaVersion = 23;
+        public const string PluginVersion = "3.1.7";
+        private const int ConfigSchemaVersion = 25;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -430,6 +431,7 @@ namespace BloodMagicExpansion
         private readonly Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo> _methodCache =
             new Dictionary<(Type Type, string Name, int ParameterCount), MethodInfo>();
         private readonly Dictionary<string, MethodInfo> _exactMethodCache = new Dictionary<string, MethodInfo>();
+        private MethodInfo _soulAndServiceResolveServantIdentityMethod;
         private MethodInfo _soulAndServiceResolveServantMethod;
         private MethodInfo _soulAndServiceExsanguinateServantMethod;
         private MethodInfo _soulAndServiceSetRitualStateMethod;
@@ -950,7 +952,7 @@ namespace BloodMagicExpansion
             _diagnostics = BindOrdered("Diagnostics", "Diagnostics", false, "Log throttled targeting, ritual, reward, healing, corpse-quality, and blood-light evidence. Startup errors and warnings remain enabled independently.");
             _showGrailFloatingTextDiagnostics = BindOrdered("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, "When Diagnostics and Grail Floating Text are enabled, show concise targeting, ritual, corpse-quality, and blood-light outcomes in-game.");
             _overrideBloodEssence = BindOrdered("Diagnostics", "OverrideBloodEssence", false, "Temporarily use BloodEssenceOverrideValue for Blood Power, APIs, and optional Deeds display without changing the character's saved Blood Essence.");
-            _bloodEssenceOverrideValue = BindOrdered("Diagnostics", "BloodEssenceOverrideValue", 1000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 2000, 3000, 4000, and 5000.", new AcceptableValueRange<float>(0.0f, 1000000.0f)));
+            _bloodEssenceOverrideValue = BindOrdered("Diagnostics", "BloodEssenceOverrideValue", 5000.0f, new ConfigDescription("Temporary effective Blood Essence used only while OverrideBloodEssence is enabled. Useful checkpoints include 0, 250, 1000, 2000, 3000, 4000, 5000, and 10000.", new AcceptableValueRange<float>(0.0f, 10000.0f)));
             _claimGrailFloatingTextCorpseXp = BindOrdered("Integrations", "ClaimGrailFloatingTextCorpseXP", true, "When Grail Floating Text is loaded, show corpse-leech character XP as a red corpse-icon XP event instead of the generic XP event.");
             _claimGrailFloatingTextLiveDrainXp = BindOrdered("Integrations", "ClaimGrailFloatingTextLiveDrainXP", true, "When Grail Floating Text is loaded, show live-drain character XP as a red magic-icon XP event instead of the generic XP event.");
             _suppressGrailFloatingTextLiveDrainHealing = BindOrdered("Integrations", "SuppressGrailFloatingTextLiveDrainHealing", true, "When supported by Grail Floating Text, keep frequent held-channel Blood/Life Transfusion healing ticks out of its generic Healed notifications.");
@@ -9538,10 +9540,29 @@ namespace BloodMagicExpansion
             }
             try
             {
-                object[] args = { candidate, null, null };
-                object result = _soulAndServiceResolveServantMethod.Invoke(null, args);
-                object sourceCorpse = args[1];
-                object servantNpc = args[2];
+                object sourceLocation = null;
+                object sourceCorpse = null;
+                object servantNpc = null;
+                object result;
+                if (_soulAndServiceResolveServantIdentityMethod != null)
+                {
+                    object[] identityArgs = { candidate, null, null, null };
+                    result = _soulAndServiceResolveServantIdentityMethod.Invoke(
+                        null,
+                        identityArgs);
+                    sourceLocation = identityArgs[1];
+                    sourceCorpse = identityArgs[2];
+                    servantNpc = identityArgs[3];
+                }
+                else
+                {
+                    object[] legacyArgs = { candidate, null, null };
+                    result = _soulAndServiceResolveServantMethod.Invoke(
+                        null,
+                        legacyArgs);
+                    sourceCorpse = legacyArgs[1];
+                    servantNpc = legacyArgs[2];
+                }
                 if (!(result is bool) || !(bool)result)
                 {
                     LogServantTargetDiagnostic(
@@ -9556,15 +9577,15 @@ namespace BloodMagicExpansion
                         "owned servant has no resolvable NPC identity");
                     return false;
                 }
-                bool hasSourceCorpse = sourceCorpse != null;
+                bool hasSourceCorpse = sourceLocation != null
+                    || sourceCorpse != null;
                 if (hasSourceCorpse)
                 {
-                    if (!TryResolveCorpseStateFromObject(
+                    if (!TryResolveSoulAndServiceSourceState(
+                            sourceLocation,
                             sourceCorpse,
-                            0,
-                            out state,
-                            includeInactive: true)
-                        || state == null)
+                            servantNpc,
+                            out state))
                     {
                         LogServantTargetDiagnostic(
                             candidate,
@@ -9611,8 +9632,64 @@ namespace BloodMagicExpansion
                     "Soul and Service servant ritual lookup failed: "
                     + exception.GetBaseException().Message);
                 _soulAndServiceResolveServantMethod = null;
+                _soulAndServiceResolveServantIdentityMethod = null;
                 return false;
             }
+        }
+
+        private bool TryResolveSoulAndServiceSourceState(
+            object sourceLocation,
+            object sourceCorpse,
+            object servantNpc,
+            out CorpseState state)
+        {
+            if ((sourceLocation != null
+                    && TryResolveCorpseStateFromObject(
+                        sourceLocation,
+                        0,
+                        out state,
+                        includeInactive: true))
+                || (sourceCorpse != null
+                    && TryResolveCorpseStateFromObject(
+                        sourceCorpse,
+                        0,
+                        out state,
+                        includeInactive: true)))
+            {
+                RegisterCorpseAliases(sourceLocation, state);
+                RegisterCorpseAliases(sourceCorpse, state);
+                return state != null;
+            }
+
+            Location location = sourceLocation as Location;
+            Corpse corpse = sourceCorpse as Corpse;
+            if (corpse == null && location != null)
+            {
+                corpse = location.TryGetElement<Corpse>();
+            }
+            if (corpse != null)
+            {
+                HandleCorpseConstructed(
+                    corpse,
+                    new[] { sourceLocation, servantNpc });
+                if (TryGetCorpseState(corpse, out state))
+                {
+                    RegisterCorpseAliases(sourceLocation, state);
+                    RegisterCorpseAliases(sourceCorpse, state);
+                    return true;
+                }
+            }
+
+            state = CreateCorpseState();
+            UpdateCorpseStateFromSource(state, sourceLocation, null);
+            UpdateCorpseStateFromSource(state, sourceCorpse, null);
+            UpdateCorpseStateFromSource(state, servantNpc, null);
+            state.Disabled = false;
+            state.LastRejectReason = string.Empty;
+            RegisterCorpseAliases(sourceLocation, state);
+            RegisterCorpseAliases(sourceCorpse, state);
+            RegisterCorpseAliases(servantNpc, state);
+            return true;
         }
 
         private void LogServantTargetDiagnostic(
@@ -9728,7 +9805,8 @@ namespace BloodMagicExpansion
 
         private bool ResolveSoulAndServiceBridge()
         {
-            if (_soulAndServiceResolveServantMethod != null
+            if ((_soulAndServiceResolveServantIdentityMethod != null
+                    || _soulAndServiceResolveServantMethod != null)
                 && _soulAndServiceExsanguinateServantMethod != null
                 && _soulAndServiceSetRitualStateMethod != null)
             {
@@ -9755,6 +9833,18 @@ namespace BloodMagicExpansion
                 _soulAndServiceApiUnavailable = true;
                 return false;
             }
+            _soulAndServiceResolveServantIdentityMethod = api.GetMethod(
+                "TryResolveOwnedBloodServantIdentity",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[]
+                {
+                    typeof(object),
+                    typeof(object).MakeByRefType(),
+                    typeof(object).MakeByRefType(),
+                    typeof(object).MakeByRefType()
+                },
+                null);
             _soulAndServiceResolveServantMethod = api.GetMethod(
                 "TryResolveOwnedBloodServant",
                 BindingFlags.Public | BindingFlags.Static,
@@ -9789,7 +9879,8 @@ namespace BloodMagicExpansion
                 null,
                 new[] { typeof(object), typeof(object).MakeByRefType() },
                 null);
-            if (_soulAndServiceResolveServantMethod == null
+            if ((_soulAndServiceResolveServantIdentityMethod == null
+                    && _soulAndServiceResolveServantMethod == null)
                 || _soulAndServiceExsanguinateServantMethod == null
                 || _soulAndServiceSetRitualStateMethod == null)
             {

@@ -62,13 +62,13 @@ Assert-Contract ($steel.Contains('public static bool TryGetKillingBlowQuality(')
 Assert-Contract ($steel.Contains('TryGetKillingBlowQualityForInterop(')) "Steel and Bone does not share one killing-blow quality calculation between preview and death feedback."
 Assert-Contract ($steel.Contains('TargetedKillingBlowResolved')) "Steel and Bone does not expose target-aware killing-blow feedback."
 
-Assert-Contract ($blood.Contains('ConfigSchemaVersion = 18')) "Blood Magic Expansion schema is not 18."
+Assert-Contract ($blood.Contains('ConfigSchemaVersion = 25')) "Blood Magic Expansion schema is not 25."
 Assert-Contract (-not $blood.Contains('"ReferenceKillXP"')) "Blood Magic Expansion still binds ReferenceKillXP."
 Assert-Contract (-not $blood.Contains('"ReferenceMaxHealth"')) "Blood Magic Expansion still binds ReferenceMaxHealth."
 Assert-Contract ($blood.Contains('TryResolveCorpseNativeTier(')) "Blood Magic Expansion does not resolve native tiers."
 Assert-Contract ($blood.Contains('ResolveCorpseExpLevel(')) "Blood Magic Expansion does not resolve enemy XP level."
 Assert-Contract ($blood.Contains('ResolveCorpseEffectiveKillXp(')) "Blood Magic Expansion lost its separate actual-XP path."
-Assert-Contract ($blood.Contains('public const int ApiVersion = 9;')) "Blood Magic API changed unexpectedly."
+Assert-Contract ($blood.Contains('public const int ApiVersion = 10;')) "Blood Magic API changed unexpectedly."
 
 Assert-Contract ((Get-QualityTier (Apply-LevelAdjustment 0.125 3 8)) -eq "Meager") "a level-8 hero's early wolf is not Meager."
 Assert-Contract ((Get-QualityTier (Apply-LevelAdjustment 0.23 10 8)) -eq "Worthy") "a level-8 hero's early Lost Knight is not Worthy."

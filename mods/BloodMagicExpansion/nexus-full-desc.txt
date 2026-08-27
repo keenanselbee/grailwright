@@ -15,7 +15,7 @@ What began as the simple fantasy of siphoning forbidden power from corpses has g
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Corpse rituals:[/b] Drain blood-plausible corpses with Blood Transfusion or Life Transfusion for character XP and immediate healing.[/*]
-[*][b]Corpses remain useful:[/b] A completed blood ritual leaves its spent corpse intact, preserving the later choice to harvest its soul or reanimate it through Soul and Service.[/*]
+[*][b]Corpses remain useful:[/b] A completed blood ritual leaves its spent corpse intact, preserving the later choice to harvest its soul or reanimate it through [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url].[/*]
 [*][b]Sacrifice your own servant:[/b] With Soul and Service installed, Blood/Life Transfusion can drain an owned living flesh servant outside combat. Light Abhartach can instead detonate only the servant under the crosshair through its native corpse explosion. Neither path creates duplicate progression or loot.[/*]
 [*][b]Optional Wyrdnight consequence:[/b] With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] installed, successful exposed-Wyrdnight rituals add 4-to-12 Wyrd Threat according to corpse quality.[/*]
 [*][b]Blood Essence progression:[/b] Every completed ritual grants uncapped, save-specific Blood Essence from its quality tier. The established mastery curve gives a moderate early bonus and reaches Power 100 at 1,000 Essence, then a clear linear overmastery track reaches Power 200 at 5,000 Essence.[/*]
@@ -85,7 +85,7 @@ PreloadBleedSkillGraphs = true
 
 The Bleed preloader loads its dependency and parent graph on consecutive gameplay-loading frames and retains the parent for the active gameplay domain. It uses no Harmony patches and can be disabled independently from all Blood Magic Expansion gameplay features.
 
-Completed rituals leave their drained corpses intact. When Soul and Service is present, a drained corpse can still be reduced to bones with light Soul Rend or reanimated with a 20-30% current-Health penalty. Blood Power gradually improves that penalty toward 20%, with a small random variation, and the exact rolled penalty persists with the body across save and reload. Owned living flesh servants can also be ritualized outside combat; the channel holds the servant in place, consumes its real Health, and executes it at 20% Health or below. Raised servants complete only their source's remaining ritual rewards and remain available for light Soul Rend after execution. Ordinary spell summons provide healing only, with no XP or Blood Essence. Bloodless servants are invalid but retain desaturated crosshair feedback. Lightweight, obstruction-aware aim tolerance prevents animated gaps between servant colliders from flickering the ritual reticle or channel.
+Completed rituals leave their drained corpses intact. When Soul and Service is present, a drained corpse can still be reduced to bones with light Soul Rend or reanimated with a 20-30% current-Health penalty. Blood Power gradually improves that penalty toward 20%, with a small random variation, and the exact rolled penalty persists with the body across save and reload. Owned living flesh servants can also be ritualized outside combat; the channel holds the servant in place, consumes its real Health, and executes it at 20% Health or below. Raised servants retain both the stable source Location and its Corpse identity, complete only their source's remaining ritual rewards, and remain available for light Soul Rend after execution. Ordinary spell summons provide healing only, with no XP or Blood Essence. Bloodless servants are invalid but retain desaturated crosshair feedback. Animated limb and outer-body hitboxes resolve through their owning servant, while lightweight obstruction-aware aim tolerance prevents collider gaps from flickering the ritual reticle or channel.
 
 Light Abhartach can sacrifice the explicitly targeted eligible owned flesh servant even in combat. Soul and Service materializes a real native corpse immediately before Abhartach's normal effect searches, so the spell keeps its own explosion, quality scaling, and cleanup. The sacrifice ends service and grants no XP, Blood Essence, Soul Vigor, Mana refund, or duplicate loot. It never consumes an untargeted nearby servant. Heavy Abhartach remains corpse-only and shows a living servant as unavailable.
 
@@ -105,8 +105,10 @@ HeldHealingMultiplier = 2
 Diagnostics = false
 ShowGrailFloatingTextDiagnostics = true
 OverrideBloodEssence = false
-BloodEssenceOverrideValue = 1000
+BloodEssenceOverrideValue = 5000
 [/code]
+
+[b]BloodEssenceOverrideValue[/b] accepts 0 through 10,000. Blood Power still reaches its maximum at 5,000, while higher overrides can test uncapped Essence presentation.
 
 [line]
 

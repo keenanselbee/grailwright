@@ -27,6 +27,7 @@ foreach ($required in @(
     'GetCorpseExsanguinationSeverityForInterop',
     'GetCorpseExsanguinationSeverity(object corpse)',
     'TryResolveOwnedBloodServant',
+    'TryResolveOwnedBloodServantIdentity',
     'ServantTargetToleranceRadius = 0.15f',
     'ServantTargetGraceSeconds = 0.18f',
     'Physics.SphereCastNonAlloc(',
@@ -155,6 +156,17 @@ $servantResolver = [regex]::Match(
 if (!$servantResolver.Success -or
     $servantResolver.Value.Contains('IsCorpseStateUsable(state)')) {
     throw 'Raised-servant recognition must retain blocked and spent sources for desaturated reticle feedback.'
+}
+if ($servantResolver.Value -notmatch '(?s)_soulAndServiceResolveServantIdentityMethod.*?sourceLocation = identityArgs\[1\].*?sourceCorpse = identityArgs\[2\].*?TryResolveSoulAndServiceSourceState\(') {
+    throw 'Raised-servant recognition does not prefer the dual source-identity bridge.'
+}
+$sourceStateResolver = [regex]::Match(
+    $source,
+    '(?s)private bool TryResolveSoulAndServiceSourceState\(.+?(?=\r?\n\s*private )')
+if (!$sourceStateResolver.Success -or
+    $sourceStateResolver.Value -notmatch '(?s)TryResolveCorpseStateFromObject\(\s*sourceLocation.*?includeInactive: true.*?TryResolveCorpseStateFromObject\(\s*sourceCorpse.*?includeInactive: true' -or
+    $sourceStateResolver.Value -notmatch '(?s)location\.TryGetElement<Corpse>\(\).*?HandleCorpseConstructed\(.*?RegisterCorpseAliases\(sourceLocation, state\).*?RegisterCorpseAliases\(sourceCorpse, state\).*?RegisterCorpseAliases\(servantNpc, state\)') {
+    throw 'Raised-servant source state does not recover and alias its Location, Corpse, and living servant identities.'
 }
 
 foreach ($retiredDiagnostic in @(

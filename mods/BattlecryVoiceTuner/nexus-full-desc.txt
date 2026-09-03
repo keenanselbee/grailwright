@@ -4,355 +4,205 @@
 
 [line]
 
-[b]Battlecry Voice Tuner[/b] combines three complete features for [b]Tainted Grail: The Fall of Avalon[/b]: a configurable tuner for the Hero's native combat voice, a custom battlecry that affects both the soundscape and nearby enemies, and gender-aware spoken commands for supported mods.
+[b]Battlecry Voice Tuner[/b] gives the Hero a voice that grows with them. Tune native combat vocals, unleash gender-aware battlecries that challenge nearby enemies, and hear spoken commands when directing servants through Soul and Service.
 
-Tune pitch, randomized variation, volume, and supported vocal categories, or let permanent attributes, Soul Vigor, and Blood Essence transform the voice as the Hero develops. Then hold the normal Take All Items action to roar from separate male or female battlecry pools, challenge hostile NPCs, and hear the cry respond to the actual shape of the surrounding world.
+Permanent attributes can gradually deepen the Hero's voice, while optional Soul Vigor and Blood Essence progression adds spectral echo, distortion, darkness, and a lower supernatural shadow. Natural, Balanced, and Tempo Preserving processing let you choose how much weight or original timing the transformation retains.
 
-The battlecry does not use a simple indoor/outdoor reverb switch. Its advanced geometry-aware acoustic system measures the environment when each cry plays, then builds a location-specific response from room scale, openness, surface distance, direction, and enclosure. Open fields, forests, nearby walls, roofed structures, corridors, cabins, halls, and caverns can all sound meaningfully different.
-
-Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] integration lets successful cries feed the Wyrd Threat and atmospheric-response systems during eligible Wyrdnights.
+Battlecries use geometry-aware acoustics rather than a universal echo. Open fields remain dry, forests and ruins return restrained reflections, and enclosed rooms, corridors, halls, and caverns develop responses shaped by their surroundings.
 
 [line]
 
-[heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Major Features[/size][/color][/heading]
+
 [list]
-[*][b]A complete battlecry action:[/b] Hold the game's remappable Take All Items action or use a separate hotkey to unleash a custom cry.[/*]
-[*][b]Advanced geometry-aware acoustics:[/b] Measure surrounding terrain or room shape per cry, then generate location-specific reverb and directional reflections instead of applying one universal preset.[/*]
-[*][b]Native voice tuning:[/b] Adjust supported vocal pitch, add subtle randomized variation, scale overall voice volume, and choose which native categories are affected.[/*]
-[*][b]Attribute-shaped voice progression:[/b] Grow from a neutral starting voice toward a deeper late-game presence through Warrior, Rogue, Mage, Warden, Artisan, Adventurer, or Custom archetypes.[/*]
-[*][b]Soul-and-blood demonic progression:[/b] Let optional Soul Vigor add a spectral echo, Blood Essence add restrained distortion, and their combined mastery deepen and darken native vocalizations and custom battlecries.[/*]
-[*][b]Three pitch-processing characters:[/b] Use natural playback-rate weight by default, split the shift with Balanced, or favor the original duration with Tempo Preserving.[/*]
-[*][b]Gender-aware battlecries:[/b] Play from 15 included male cries and 12 included female cries, with independent pitch offsets for each pool.[/*]
-[*][b]Spoken summon commands:[/b] Optional Soul and Service integration voices successful Attack, Hold, Follow, Recall, Raise All, Guard, Bulwark, and Hunt orders from separate male and female pools made for each order.[/*]
-[*][b]Custom voice pools:[/b] Replace or expand either battlecry pool with up to 15 PCM WAV files per gender.[/*]
-[*][b]Better variety:[/b] Battlecry and command pools avoid their previous two successful clips by default.[/*]
-[*][b]Gameplay challenge:[/b] Alert unaware hostiles or provoke already-alert enemies using configurable hearing range and challenge duration.[/*]
-[*][b]Optional Wyrdnight interaction:[/b] Integrate battlecries with Eyes in the Dark's Wyrd Threat and atmospheric reaction systems.[/*]
+[*][b]Native voice tuning:[/b] Adjust pitch, subtle random variation, volume, and the supported combat-vocal categories.[/*]
+[*][b]Attribute-shaped progression:[/b] Let permanent attributes deepen the Hero's voice through Warrior, Rogue, Mage, Warden, Artisan, Adventurer, or Custom growth.[/*]
+[*][b]Soul-and-blood transformation:[/b] Use Minimal, Demonic, Abyssal, or Custom applied presets driven by optional Soul Vigor and Blood Essence progression.[/*]
+[*][b]Three processing styles:[/b] Choose the weight of natural playback-rate pitch, a balanced hybrid, or near-original timing.[/*]
+[*][b]Gender-aware battlecries:[/b] Draw from 15 included male cries and 12 included female cries, with independent pitch and volume control.[/*]
+[*][b]Geometry-aware acoustics:[/b] Generate location-specific reverb and directional reflections from the space around each cry.[/*]
+[*][b]A real combat challenge:[/b] Alert unaware hostiles or provoke enemies already searching for a fight.[/*]
+[*][b]Spoken summon commands:[/b] Optional Soul and Service integration voices eight explicit orders through 47 gender- and command-specific recordings.[/*]
+[*][b]Optional Wyrdnight consequences:[/b] Successful cries can feed Eyes in the Dark's Wyrd Threat and atmospheric-response systems.[/*]
 [/list]
 
 [line]
 
-[heading][color=#C94A4A][size=5]A Voice That Grows With the Hero[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Quick Start Guide[/size][/color][/heading]
 
-Voice progression is enabled by default. Instead of assigning one permanent deep voice at character creation, Battlecry Voice Tuner reads the Hero's chosen archetype attributes whenever a supported sound plays. The voice begins at its recorded pitch, changes subtly through early growth, and gains most of its weight as the build becomes truly specialized.
+[b][color=#ffffff]1. Shape the Hero's voice[/color][/b]
 
-[list]
-[*][b]Warrior - default:[/b] 75% Strength and 25% Endurance.[/*]
-[*][b]Rogue:[/b] 65% Dexterity and 35% Perception.[/*]
-[*][b]Mage:[/b] 75% Spirituality and 25% Perception.[/*]
-[*][b]Warden:[/b] 60% Endurance and 40% Spirituality.[/*]
-[*][b]Artisan:[/b] 70% Practicality and 30% Dexterity.[/*]
-[*][b]Adventurer:[/b] An equal average of all six attributes.[/*]
-[*][b]Custom:[/b] Choose the primary and secondary attributes and their exact weighting.[/*]
-[*][b]Disabled:[/b] Keep only the existing manual Overall Pitch, pool offsets, and random variation.[/*]
-[/list]
+The default setup starts at the recorded pitch, adds subtle variation, and gradually deepens the voice as the Hero's Warrior attributes grow. Choose another archetype, set a manual Overall Pitch, or disable voice growth for fixed tuning.
 
-The curve measures growth above the game's innate attribute values and reaches full depth at attribute value 40. With the default -6 semitone maximum, the broad shape is approximately neutral at the start, -0.4 at one-quarter archetype growth, -1.8 at halfway, -3.7 at three-quarters, and -6 at full specialization. Permanent BaseValue attributes are authoritative by default, so equipment, consumables, and short-lived effects do not make the voice jump around. An optional setting can include temporary modifiers.
+[b][color=#ffffff]2. Unleash a battlecry[/color][/b]
 
-[b]Overall Pitch remains fully useful.[/b] It is the manual baseline. Attribute growth is added to it, followed by the relevant male or female battlecry or command offset and the small randomized variation. Respeccing permanent attributes changes the next supported sound without rewriting the config.
+Hold the game's remappable [b]Take All Items[/b] action for 0.45 seconds outside an open container. You can also assign a separate keyboard or joystick-button hotkey. The default cooldown is 1.5 seconds.
 
-[b]Natural processing is the default.[/b] FMOD's ordinary pitch control changes both pitch and playback rate, preserving the full weight and timing character of the shift; a natural -6 semitone result lasts about 41% longer. Balanced applies -3 semitones through playback rate and -3 through a tempo-preserving pitch DSP, so the same final voice lasts only about 19% longer. TempoPreserving favors the DSP and keeps roughly the original duration. If a DSP cannot be attached, the sound automatically falls back to the full natural shift.
+[b][color=#ffffff]3. Embrace optional progression[/color][/b]
 
-The same final pitch and processing rules apply to supported native grunts, custom battlecries, spoken commands, and their generated acoustic reflections. Native grunts wait briefly when the selected mode needs the DSP path, preventing an unprocessed onset before playback.
+With Soul and Service or Blood Magic Expansion installed, Necromantic Power and Blood Power can transform supported vocals and battlecries. Soul and Service can also request spoken voices for successful summon orders.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Voice Tuning and Growth[/size][/color][/heading]
+
+Battlecry Voice Tuner supports attack and exertion grunts, hurt and death grunts, status-pain reactions, player-hit feedback, and optional stamina-depleted breathing. Overall Pitch provides the manual baseline, while random variation, attribute growth, and relevant battlecry or command offsets layer on top.
+
+Voice growth is enabled by default and reads permanent attributes whenever a supported sound begins. It starts from the game's innate attribute values, stays restrained through early development, and reaches its configured full depth at attribute value 40. Temporary equipment, consumables, and effects are excluded by default, so the voice does not jump around during ordinary play.
+
+[code]
+| Archetype           | Growth source                         |
+|---------------------|---------------------------------------|
+| Warrior - default   | 75% Strength, 25% Endurance           |
+| Rogue               | 65% Dexterity, 35% Perception         |
+| Mage                | 75% Spirituality, 25% Perception      |
+| Warden              | 60% Endurance, 40% Spirituality       |
+| Artisan             | 70% Practicality, 30% Dexterity       |
+| Adventurer          | Equal average of all six attributes   |
+| Custom              | Chosen attributes and weighting       |
+| Disabled            | Manual pitch and variation only       |
+[/code]
+
+The default maximum contribution is -6 semitones at full specialization. Respeccing permanent attributes affects the next supported sound without rewriting the configuration.
+
+[b]Natural[/b] processing is the default and applies the full shift through playback rate for the heaviest result. [b]Balanced[/b] splits the shift between playback rate and tempo-preserving processing. [b]Tempo Preserving[/b] favors the original duration. If advanced processing cannot attach, playback safely falls back to the natural shift.
 
 [line]
 
 [heading][color=#C94A4A][size=5]A Demonic Voice Forged by Soul and Blood[/size][/color][/heading]
 
-When [b]Soul and Service[/b] or [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is installed, every supported native vocalization and custom battlecry takes one progression snapshot when it begins. Soul and Service supplies current Necromantic Power from Soul Vigor; Blood Magic Expansion supplies current Blood Power from Blood Essence. Either progression reaches half audio influence at 1,000 resource and full influence at 5,000.
+When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] or [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is installed, supported native vocalizations and custom battlecries take one progression snapshot when they begin. Soul Vigor supplies Necromantic Power; Blood Essence supplies Blood Power. Each reaches half audio influence at 1,000 resource and full influence at 5,000.
 
-The blend gives 75% weight to the stronger discipline and 25% to their shared convergence. A Hero can therefore sound strongly necromantic or blood-corrupted through one path, but mastering both is required for the complete effect.
+The stronger discipline provides most of the transformation, while mastering both completes it. Soul Vigor drives supernatural echo and the lower spectral shadow. Blood Essence drives visceral distortion. Their convergence completes the pitch and darkness treatment.
 
-[list]
-[*][b]Minimal:[/b] Preserves the original subtle treatment with linear progression, -2.5 semitones, 0.10 Blood distortion, a 5,500 Hz low-pass, and a quiet 100 ms Soul echo.[/*]
-[*][b]Demonic - default:[/b] Emerges earlier and reaches -3.25 semitones, 0.18 distortion, a 4,200 Hz low-pass, a stronger 80 ms echo, and a lower Soul-driven shadow beneath the direct voice.[/*]
-[*][b]Abyssal:[/b] Emerges earliest and reaches -4 semitones, 0.27 distortion, a 3,200 Hz low-pass, an aggressive 60 ms echo, and a much stronger octave-lower shadow.[/*]
-[*][b]Custom:[/b] Uses the individual curve, pitch, distortion, filter, echo, and shadow targets under Demonic Progression - Advanced.[/*]
-[*][b]Stable playback:[/b] Progression is sampled once per sound, so gaining or spending resources changes the next voice without morphing one already playing or continuously polling either mod.[/*]
-[*][b]Clean commands:[/b] Spoken summon commands are structurally excluded from progression pitch, distortion, low-pass, supernatural echo, and shadow voice so orders remain intelligible.[/*]
-[*][b]True vocal scope:[/b] Native SFX_Player_Hit feedback keeps ordinary voice tuning but is excluded from the demonic suite because it is not a Hero vocalization.[/*]
-[/list]
+[code]
+| Preset            | Character                                             |
+|-------------------|-------------------------------------------------------|
+| Minimal           | Subtle, linear corruption with a quiet Soul echo      |
+| Demonic - default | Earlier growth, stronger darkness, echo, and shadow    |
+| Abyssal           | Earliest and most aggressive complete transformation  |
+| Custom            | Preserves the current nine editable targets           |
+[/code]
 
-Maximum Effect Strength and the native/battlecry scope controls apply to every profile. Soul Vigor drives the echo and lower shadow, Blood Essence drives the visceral distortion, and mastering both completes the pitch and darkness transformation. Battlecry reflections inherit pitch, distortion, and darkness, but do not duplicate either supernatural Soul layer on every synthetic reflection.
+Minimal, Demonic, and Abyssal are applied presets. Selecting one writes its nine curve, pitch, distortion, low-pass, echo, and shadow targets into the visible FoA Mod Manager settings. Editing any governed value selects Custom without changing the others; selecting Custom directly changes nothing.
+
+Progression is sampled once per sound, so gaining or spending resources changes the next voice without morphing one already playing. Spoken summon commands remain completely outside the demonic path for clarity. Battlecry reflections inherit the direct cry's pitch and darkness without multiplying its supernatural Soul layers.
 
 [line]
 
-[heading][color=#C94A4A][size=5]Hold Take All Items to Battlecry[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Battlecries, Acoustics, and Challenge[/size][/color][/heading]
 
 [soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-male[/soundcloud]
 [soundcloud]https://soundcloud.com/keenanselbee/battlecry-voice-tuner-female[/soundcloud]
 
-Hold the game's [b]Take All Items[/b] action for 0.45 seconds and the Hero battlecries. The action retains its normal behavior while a container is open.
+Every successful battlecry selects from the Hero's gender-matched pool, applies the current voice tuning, and takes one bounded acoustic snapshot of the surroundings. The result combines diffuse reverb with only the directional reflections appropriate for that location:
 
 [list]
-[*]Uses the game's current remapped keyboard or controller binding.[/*]
-[*]An optional separate keyboard or joystick-button hotkey is also available.[/*]
-[*]Failed or cooldown-blocked holds fall back to the normal weapon toggle when released.[/*]
-[*]The default battlecry cooldown is 1.5 seconds.[/*]
+[*][b]Open fields[/b] remain nearly dry.[/*]
+[*][b]Forests and rough terrain[/b] produce darker, diffuse responses.[/*]
+[*][b]Walls, ruins, and cliffs[/b] can return filtered echoes from their measured direction and distance.[/*]
+[*][b]Small rooms[/b] use dense early reverb instead of replaying the whole cry.[/*]
+[*][b]Corridors[/b] emphasize directional length and enclosure.[/*]
+[*][b]Large halls and caverns[/b] gain longer decay and up to three distance-timed reflections.[/*]
+[*][b]Open-sided shelters[/b] remain lighter than fully enclosed interiors.[/*]
 [/list]
 
-[line]
+Custom cries route through the game's SFX mixer, so Master and SFX volume or mute changes still apply. Overall voice volume and a separate battlecry multiplier provide additional control.
 
-[heading][color=#C94A4A][size=5]Advanced Geometry-Aware Battlecry Acoustics[/size][/color][/heading]
-
-Every successful battlecry takes one bounded acoustic snapshot of the Hero's surroundings. The system converts the measured geometry into diffuse reverb plus only the directional reflections appropriate for that location. It does not continuously scan the world, and it does not give every area the same generic echo.
-
-[b]What that means in play:[/b]
-
-[list]
-[*][b]Open fields[/b] stay nearly dry instead of sounding like a small room.[/*]
-[*][b]Walls, ruins, and cliffs[/b] can return filtered echoes from the measured direction and distance.[/*]
-[*][b]Forests and rough terrain[/b] produce darker, more diffuse responses.[/*]
-[*][b]Small rooms[/b] use dense early reverb without replaying the entire cry as an obvious echo.[/*]
-[*][b]Corridors[/b] emphasize directional length and early/late balance.[/*]
-[*][b]Large halls and caverns[/b] gain longer decay and can return up to three distance-timed 3D reflections.[/*]
-[*][b]Open-sided roofed structures[/b] remain lighter than fully enclosed interiors.[/*]
-[/list]
-
-[b]How the acoustic system works:[/b]
-
-[list]
-[*]Outdoor cries sample 24 directions around the Hero, measuring terrain, vegetation, structures, cliffs, and overhead surfaces.[/*]
-[*]Interior and roofed cries sample 30 horizontal, elevated, lowered, floor, and ceiling directions.[/*]
-[*]Interior measurements classify open roofs, corridors, small or medium rooms, caves, large halls, and large caverns.[/*]
-[*]Measured openness, distance, reflectivity, ceiling height, distance spread, and directional shape drive decay, density, filtering, wet level, and early/late balance.[/*]
-[*]Reflection timing uses measured round-trip distance. Interior surfaces must be far enough away to justify a natural repeated cry; closer surfaces contribute to reverb instead.[/*]
-[*]No more than three filtered 3D reflection taps are scheduled for one cry.[/*]
-[*]The fixed response remains available as a safe fallback when geometry is too sparse or sampling fails.[/*]
-[/list]
-
-Custom cries still route through the game's [b]SFX mixer category[/b], so the Master and SFX volume sliders and mute state apply normally. Overall voice volume and a separate battlecry multiplier provide additional control; the tuned default battlecry scale is 0.5.
+A battlecry also challenges nearby hostile NPCs for three gameplay seconds by default. Unaware enemies receive a strong alert toward the Hero; enemies already alert attempt to enter combat. The default reach is three times each enemy's normal hearing range outdoors and four times indoors or under cover. Walls, hostility, story restrictions, unconscious states, and the game's normal combat safeguards remain authoritative. Allies, civilians, summons, dead NPCs, and inactive AI are ignored.
 
 Yes, it is wildly overengineered for such a random feature, but damn if it doesn't sound accurate.
 
 [line]
 
-[heading][color=#C94A4A][size=5]Necromantic Summon Commands[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Spoken Summon Commands[/size][/color][/heading]
 
-When [b]Soul and Service[/b] successfully issues an explicit [b]Attack[/b], [b]Hold[/b], [b]Follow[/b], [b]Recall[/b], [b]Raise All[/b], [b]Guard[/b], [b]Bulwark[/b], or [b]Hunt[/b] order, Battlecry Voice Tuner can play one gender-matched command word from the pool made for that order. One order produces one voice regardless of summon count. Each gender and order has its own recent-history memory and avoids its recent clips when alternatives remain.
+When Soul and Service successfully issues [b]Attack[/b], [b]Hold[/b], [b]Follow[/b], [b]Recall[/b], [b]Raise All[/b], [b]Guard[/b], [b]Bulwark[/b], or [b]Hunt[/b], Battlecry Voice Tuner can play one gender-matched command word from the pool made for that order. One order produces one voice regardless of summon count.
 
-[list]
-[*]Includes five Attack, five Hold, and five Follow recordings for male heroes, four of each for female heroes, and two Recall, Raise All, Guard, Bulwark, and Hunt recordings per gender.[/*]
-[*]All 47 packaged commands are loudness-matched around -15 LUFS with a -2 dBTP true-peak ceiling while retaining their original pitch and timing.[/*]
-[*]Male commands default to +5 semitones and female commands to +1, in addition to overall pitch and subtle random variation.[/*]
-[*]Commands use a separate 0.50 volume multiplier and a short 0.75-second anti-stacking cooldown.[/*]
-[*]Passive target sharing, retaliation, automatic aggression, and failed interactions remain silent.[/*]
-[*]Command words do not challenge enemies or request Eyes in the Dark threat.[/*]
-[*]Commands never receive Soul Vigor or Blood Essence demonic modifiers.[/*]
-[*]When Soul and Service owns Sprint + Take All Items for a formation, Recall, or Raise All command, Battlecry Voice Tuner yields that hold action. Its separate battlecry hotkey remains available.[/*]
-[/list]
+The package includes 47 loudness-matched command recordings. Each gender and order keeps its own recent-history memory, avoiding the previous two successful clips when alternatives remain. Passive targeting, retaliation, automatic aggression, and failed commands stay silent.
 
-Command acoustics reuse the same bounded environment measurement as battlecries but apply a lighter response: 0.10 outdoors, 0.45 indoors, and no more than one measured reflection. Separate reusable FMOD paths prevent a command from changing an active battlecry's reverb.
+Commands have independent volume, gender pitch offsets, a short anti-stacking cooldown, and a lighter version of the battlecry acoustic response. They do not challenge enemies, generate Wyrd Threat, or receive Soul Vigor and Blood Essence effects. When Soul and Service owns Sprint + Take All Items for a formation, Recall, or Raise All command, the shared hold is yielded cleanly; the separate battlecry hotkey remains available.
 
 [line]
 
-[heading][color=#C94A4A][size=5]Enemy Aggro and Challenge[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Custom Audio[/size][/color][/heading]
 
-A battlecry is more than a sound effect. For three active gameplay seconds by default, it challenges hostile NPCs within three times each NPC's own maximum hearing range outdoors or four times that range in interiors and roofed spaces. Each eligible enemy reacts once per cry:
-
-[list]
-[*][b]Unaware enemies[/b] receive a strong alert directed toward the Hero.[/*]
-[*][b]Already-alert enemies[/b] attempt to enter combat with the Hero.[/*]
-[*]Walls and the game's existing hearing checks still matter.[/*]
-[*]Hostility, story restrictions, unconscious states, and normal combat safeguards remain authoritative.[/*]
-[*]Allies, neutral civilians, summons, dead NPCs, and inactive AI are ignored.[/*]
-[/list]
-
-Hearing range and challenge duration are independently configurable. The result can be a controlled taunt, a reckless declaration of war, or anything between them.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Eyes in the Dark Integration[/size][/color][/heading]
-
-Shout into the night with [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] integration: during an eligible exposed Wyrdnight, each battlecry generates [b]10[/b] [b]Wyrd Threat[/b], and contributes to Eyes in the Dark's throttled pool of atmospheric Wyrdnight reactions.
-
-Repeated cries are subject to Eyes in the Dark's diminishing threat returns. Eyes remains authoritative over Wyrdnight eligibility, exposure rules, threat acceptance, notification preferences, and its longer atmospheric-response cooldown.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Native Voice Tuning[/size][/color][/heading]
-
-The tuner supports the Hero's native:
-
-[list]
-[*]Attack and exertion grunts.[/*]
-[*]Hurt and death grunts.[/*]
-[*]Burn, bleed, poison, and drowning reactions.[/*]
-[*]SFX_Player_Hit feedback.[/*]
-[*]Optional stamina-depleted breathing loops.[/*]
-[/list]
-
-Overall pitch defaults to a neutral 0 semitones with up to 0.15 semitones of random variation. Attribute progression is added to that manual baseline. Native events use the combined tuning, while battlecries and commands additionally apply their gender-specific pitch offsets and pool-specific volume multipliers.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Custom Battlecry Pools[/size][/color][/heading]
-
-Keep PCM WAV files directly in the installed plugin's flat battlecry folder:
+Place PCM WAV battlecries directly in [b]audio/battlecry[/b] using these patterns:
 
 [code]
-audio/battlecry/hero_male_battlecry_00.wav
-audio/battlecry/hero_female_battlecry_00.wav[/code]
+hero_male_battlecry_00.wav through hero_male_battlecry_14.wav
+hero_female_battlecry_00.wav through hero_female_battlecry_14.wav[/code]
 
-Each gender pattern accepts up to 15 WAV files in alphabetical order. A configurable recent history avoids the previous two successfully played cries for each gender by default.
+The package fills all 15 male slots and female slots 00 through 11. Placeholder files reserve female slots 12 through 14 and are not played; replace one with a real WAV to fill it. Versions before 1.2.9 used retired gender subfolders, which are no longer scanned.
 
-The package includes male slots 00 through 14 and female slots 00 through 11. [b].wav.placeholder[/b] files reserve female slots 12 through 14; placeholders are not played. Replace a placeholder with a real WAV to fill that slot.
-
-Versions before 1.2.9 used separate male and female subfolders with battlecry_01.wav through battlecry_15.wav. Move and rename custom files into the flat layout above; legacy gender subfolders are no longer scanned.
-
-Summon command recordings stay directly in the flat command folder:
+Summon command replacements stay directly in [b]audio/command[/b] and follow:
 
 [code]
-audio/command/summon_male_attack_0.wav
-audio/command/summon_male_hold_0.wav
-audio/command/summon_male_follow_0.wav
-audio/command/summon_male_recall_0.wav
-audio/command/summon_male_raiseall_0.wav
-audio/command/summon_male_guard_0.wav
-audio/command/summon_male_bulwark_0.wav
-audio/command/summon_male_hunt_0.wav
-audio/command/summon_female_attack_0.wav
-audio/command/summon_female_hold_0.wav
-audio/command/summon_female_follow_0.wav
-audio/command/summon_female_recall_0.wav
-audio/command/summon_female_raiseall_0.wav
-audio/command/summon_female_guard_0.wav
-audio/command/summon_female_bulwark_0.wav
-audio/command/summon_female_hunt_0.wav[/code]
+summon_{gender}_{command}_{index}.wav[/code]
 
-Attack, Hold, and Follow use male slots 0 through 4 and female slots 0 through 3. Recall, Raise All, Guard, Bulwark, and Hunt use slots 0 through 1 for both genders. Each gender and command type has its own recent-command history.
+Supported command names are [b]attack[/b], [b]hold[/b], [b]follow[/b], [b]recall[/b], [b]raiseall[/b], [b]guard[/b], [b]bulwark[/b], and [b]hunt[/b]. The included pools demonstrate every valid name and slot.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Configuration[/size][/color][/heading]
 
-[code]
-BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/code]
+Use [b]FoA Mod Manager[/b] for the intended configuration experience. Most players only need the primary enable controls, Overall Pitch, Voice Growth Preset, Demonic Voice Preset, and Battlecry settings.
 
-[code]
-| Setting                                   | Default | Purpose                                      |
-|-------------------------------------------|---------|----------------------------------------------|
-| NativeVoiceTuningEnabled                  | true    | Master for supported native voice events     |
-| PitchSemitones                            | 0.0     | Overall fixed pitch shift                    |
-| RandomPitchSemitones                      | 0.15    | Per-sound pitch variation                    |
-| VolumeMultiplier                          | 1.0     | Voice and battlecry volume scale             |
-| PitchProcessingMode                       | Natural | Full playback-rate pitch character           |
-| VoiceGrowthEnabled                        | true    | Enable attribute-shaped voice progression    |
-| VoiceGrowthPreset                         | Warrior | Select the progression archetype             |
-| VoiceGrowthMaximumSemitones               | -6.0    | Full-depth archetype pitch contribution      |
-| UseTemporaryAttributeModifiers            | false   | Keep temporary attribute effects excluded    |
-| CustomPrimaryAttribute                    | Strength| Custom archetype primary attribute           |
-| CustomSecondaryAttribute                  | Endurance| Custom archetype secondary attribute        |
-| CustomPrimaryAttributeWeight              | 0.75    | Custom primary share; secondary is remainder |
-| DynamicDemonicVoiceEnabled                | true    | Enable optional Soul/Blood voice progression |
-| DemonicVoicePreset                        | Demonic | Select Minimal, Demonic, Abyssal, or Custom  |
-| MaximumDemonicStrength                    | 1.0     | Overall demonic-suite strength               |
-| IncludeNativeVocalEvents                  | true    | Affect supported native vocalizations        |
-| IncludeBattlecries                        | true    | Affect custom battlecries                    |
-| DemonicProgressionCurveExponent           | 0.80    | Custom-only progression response             |
-| MaximumProgressionPitchSemitones          | -3.25   | Custom-only direct pitch contribution        |
-| MaximumDemonicDistortion                  | 0.18    | Custom-only Blood distortion                 |
-| MinimumDemonicLowpassCutoffHz             | 4200    | Custom-only darkest low-pass cutoff          |
-| DemonicEchoDelayMs                        | 80      | Custom-only Soul echo delay                  |
-| MaximumDemonicEchoFeedbackPercent         | 16      | Custom-only Soul echo feedback               |
-| MaximumDemonicEchoWetLevelDb              | -25     | Custom-only Soul echo wet level              |
-| MaximumDemonicShadowPitchSemitones        | -7      | Custom-only lower shadow pitch               |
-| MaximumDemonicShadowMixDb                 | -21     | Custom-only lower shadow mix                 |
-| BattlecryEnabled                          | true    | Enable cries and challenge behavior          |
-| BattlecryVolumeMultiplier                 | 0.5     | Additional battlecry-only volume scale       |
-| BattlecryReverbEnabled                    | true    | Enable geometry-aware acoustic simulation    |
-| OutdoorBattlecryReverbAmount              | 0.15    | Geometry-sampled outdoor response strength   |
-| IndoorBattlecryReverbAmount               | 0.70    | Room-scaled interior response strength       |
-| MaleBattlecryPitchOffsetSemitones         | 0.0     | Additional male battlecry pitch shift        |
-| FemaleBattlecryPitchOffsetSemitones       | 0.0     | Additional female battlecry pitch shift      |
-| RecentBattlecryMemory                     | 2       | Recent cries avoided per gender              |
-| CommandVoiceEnabled                       | true    | Enable supported spoken command requests     |
-| CommandVoiceVolumeMultiplier              | 0.50    | Additional command-only volume scale         |
-| CommandVoiceReverbEnabled                 | true    | Enable lighter geometry-aware command sound  |
-| OutdoorCommandVoiceReverbAmount           | 0.10    | Outdoor command response strength            |
-| IndoorCommandVoiceReverbAmount            | 0.45    | Interior command response strength           |
-| MaleCommandVoicePitchOffsetSemitones      | 5.0     | Additional male command pitch shift          |
-| FemaleCommandVoicePitchOffsetSemitones    | 1.0     | Additional female command pitch shift        |
-| RecentCommandVoiceMemory                  | 2       | Recent commands avoided per gender and order |
-| CommandVoiceCooldownSeconds               | 0.75    | Minimum spacing between spoken commands      |
-| HoldTakeAllItemsForBattlecry              | true    | Hold Take All Items to battlecry              |
-| BattlecryHoldSeconds                      | 0.45    | Hold threshold                               |
-| BattlecryHotkey                           | None    | Optional separate shortcut                   |
-| BattlecryCooldownSeconds                  | 1.5     | Minimum spacing between cries                |
-| BattlecryAggroRangeMultiplier             | 3.0     | Outdoor multiplier on NPC hearing range      |
-| IndoorBattlecryAggroRangeMultiplier       | 4.0     | Interior multiplier on NPC hearing range     |
-| BattlecryAggroDurationSeconds             | 3.0     | Active challenge duration                    |
-| EyesInTheDarkThreat                       | 10.0    | Optional Wyrd Threat requested per cry       |
-| Diagnostics                               | false   | Detailed audio, input, AI, and API logs      |[/code]
+Advanced sections expose processing, growth weights, supernatural targets, native vocal categories, acoustics, challenge behavior, command voices, optional integrations, and diagnostics. Every setting includes an in-manager description.
 
-FoA Mod Manager organizes these settings into General, Voice Tuning, Voice Growth - Advanced, Demonic Progression, Demonic Progression - Advanced, Native Voice Events, Battlecry, Battlecry Audio, Command Voice, Optional Integrations, and Diagnostics groups. The main demonic tab contains only its enable, profile, strength, and scope; individual audio targets remain in the Custom-only advanced tab. Native Voice Tuning controls supported game voice events, while battlecries and command voices retain independent enable controls.
+For manual editing, start the game once to generate:
+
+[b]BepInEx/config/ks.tgfoa.battlecry-voice-tuner.cfg[/b]
 
 [line]
 
-[heading][color=#C94A4A][size=5]Requirements[/size][/color][/heading]
-
-[list]
-[*]Requires BepInEx 5 Mono.[/*]
-[*]Requires Tainted Grail: The Fall of Avalon.[/*]
-[*]Supports Windows and Linux.[/*]
-[/list]
-
-[line]
-
-[heading][color=#C94A4A][size=5]Install[/size][/color][/heading]
-
-Install with Vortex as a BepInEx plugin, or place the package folder under [b]BepInEx/plugins[/b].
-
-[line]
-
-[heading][color=#C94A4A][size=5]Updating[/size][/color][/heading]
-
-Battlecry Voice Tuner replaces the former Player Voice Tuner identity. Its plugin GUID and config path intentionally keep it separate from that older mod.
-
-Incompatible config updates create a backup and generate current defaults while preserving compatible customized values. FoA Mod Manager's final [b]Import Previous Settings[/b] tab can restore compatible custom values from supported backups. Restart the game after importing.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Compatibility[/size][/color][/heading]
+[heading][color=#C94A4A][size=5]Optional Integrations and Compatibility[/size][/color][/heading]
 
 [b]Grailwright mods[/b]
 
 [list]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] is optional; no hard dependency is introduced.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also displays the optional atmospheric Wyrdnight responses used with Eyes in the Dark.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] is optional; successful Attack, Hold, Follow, Recall, Raise All, Guard, Bulwark, and Hunt orders can request a spoken command through Battlecry Voice Tuner's public API. Its read-only Necromantic Power API also supplies the Soul Vigor side of demonic vocal progression, while commands remain excluded. Soul and Service owns Sprint + Take All Items while a formation, Recall, or eligible Raise All command is active; the separate battlecry hotkey remains available.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] is optional; its read-only Blood Power API supplies the Blood Essence side of demonic vocal progression.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] accepts 10 Wyrd Threat from each successful battlecry during an eligible exposed Wyrdnight and can add atmospheric reactions. Repeated cries receive its normal diminishing returns.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] supplies spoken command requests and the Necromantic Power used by Soul Vigor voice progression.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] supplies the Blood Power used by Blood Essence voice progression.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show critical load errors, compatibility conflicts, diagnostic feedback, and Eyes in the Dark's atmospheric Wyrdnight responses.[/*]
 [/list]
 
-Battlecry Voice Tuner continues working normally when any optional mod is absent.
+Every integration is optional. Battlecry Voice Tuner continues working normally when any companion mod is absent or its relevant feature is disabled.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Install, Update, and Requirements[/size][/color][/heading]
+
+[b]Requirements[/b]
+
+[list]
+[*]Tainted Grail: The Fall of Avalon on the Mono branch.[/*]
+[*]BepInEx 5 for the Mono build.[/*]
+[*]Supports Windows and Linux.[/*]
+[/list]
+
+[b]Install[/b]
+
+Install with a mod manager, or place the included folder under [b]BepInEx/plugins[/b].
+
+[b]Updating[/b]
+
+Battlecry Voice Tuner replaces the former Player Voice Tuner identity and intentionally uses a separate plugin GUID and config path.
+
+Incompatible config updates create a backup and generate current defaults while preserving compatible customized values. FoA Mod Manager's final [b]Import Previous Settings[/b] tab can restore supported custom values. Restart the game after importing.
+
+[line]
+
+[heading][color=#C94A4A][size=5]Performance and Troubleshooting[/size][/color][/heading]
+
+Voice progression and optional Soul/Blood progression are calculated only when a supported sound begins. Audio resources and acoustic paths are cached and reused. Environment measurement runs once per successful battlecry or spoken command; there is no continuous world or progression scan. Enemy checks run only during the short challenge window.
+
+If holding Take All Items outside a container does not battlecry, confirm that a real WAV exists for the Hero's current gender and that the cooldown has elapsed. If a summon order remains silent, confirm that its matching gender and command pool exists.
+
+Enable [b]Diagnostics[/b] and inspect [b]BepInEx/LogOutput.log[/b] for audio selection, FMOD, input, acoustic measurement, enemy challenge, and integration details.
 
 [line]
 
 [heading][color=#C94A4A][size=5]Credits[/size][/color][/heading]
 
 [b]Battlecry sound effects:[/b] [url=https://www.gamemasteraudio.com/product/human-vocalizations/]Human Vocalizations[/url] by Gamemaster Audio.
-
-[line]
-
-[heading][color=#C94A4A][size=5]Performance[/size][/color][/heading]
-
-[list]
-[*]Battlecry audio resources and reverb paths are reused rather than recreated every frame.[/*]
-[*]Command sounds and their lighter outdoor and indoor reverb paths are also loaded lazily and reused.[/*]
-[*]Attribute progression performs only a small bounded calculation when a supported sound is created; there is no continuous stat polling.[/*]
-[*]Soul/Blood progression is also sampled only when a supported sound begins; there is no continuous progression polling.[/*]
-[*]Per-voice pitch and demonic DSPs are released after their channel or native event stops, and natural-rate fallback remains available if creation or attachment fails.[/*]
-[*]The acoustic probe runs only when a successful battlecry plays: 24 rays outdoors or 30 rays in interiors and roofed spaces.[/*]
-[*]A spoken command performs the same bounded one-shot probe and schedules no more than one reflection.[/*]
-[*]There is no continuous acoustic polling, and one cry schedules no more than three additional reflection channels.[/*]
-[*]The game's existing interior and roof-volume state remains authoritative for environment classification.[/*]
-[*]Enemy challenge checks run only during the short active challenge window.[/*]
-[/list]
-
-[line]
-
-[heading][color=#C94A4A][size=5]Troubleshooting[/size][/color][/heading]
-
-If holding Take All Items outside a container does not battlecry, confirm that a real WAV exists for the Hero's current gender and that the cooldown has elapsed.
-
-Enable [b]Diagnostics[/b] and inspect [b]BepInEx/LogOutput.log[/b] for the selected WAV, SFX routing, FMOD results, outdoor openness, measured distances, interior room classification, ceiling height, reflection timing, input path, challenged NPCs, and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] response.

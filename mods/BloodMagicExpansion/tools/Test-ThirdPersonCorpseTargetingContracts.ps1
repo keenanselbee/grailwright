@@ -16,10 +16,51 @@ foreach ($required in @(
     '_heroRaycaster.GetViewRay(out position, out forward);',
     'Camera camera = Camera.main;',
     'Physics.Raycast(rayPosition, rayForward',
-    'Physics.RaycastAll(rayPosition, rayForward')) {
+    'Physics.RaycastAll(rayPosition, rayForward',
+    'CorpseTargetAssistRadius = 0.4f',
+    'CorpseTargetAssistColliderCapacity = 24',
+    'Physics.OverlapSphereNonAlloc(',
+    'TryResolveNearMissCorpseTarget(',
+    'IsHarmlessCorpseAssistSurface(')) {
     if (!$source.Contains($required)) {
         throw "Missing third-person corpse-targeting contract: $required"
     }
+}
+
+$nearMissBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryResolveNearMissCorpseTarget\(.+?(?=\r?\n\s*private )')
+if (!$nearMissBlock.Success -or
+    !$nearMissBlock.Value.Contains('QueryTriggerInteraction.Ignore') -or
+    !$nearMissBlock.Value.Contains('_corpseTargetAssistColliders[i] = null;') -or
+    !$nearMissBlock.Value.Contains('allowNearestStateFallback: false') -or
+    !$nearMissBlock.Value.Contains('candidate.LiveServantTarget != null') -or
+    !$nearMissBlock.Value.Contains('Vector3.Dot(offset, surfaceNormal) < -0.10f')) {
+    throw 'Corpse near-miss targeting must use a cleared NonAlloc buffer, exclude servants and broad fallback matching, and reject candidates behind the hit surface.'
+}
+
+$focusedTargetingBlock = [regex]::Match(
+    $source,
+    '(?s)private bool TryGetLookedAtCorpseState\(\s*out CorpseState state,\s*out bool unregisteredCorpseCandidate,.+?(?=\r?\n\s*private )')
+if (!$focusedTargetingBlock.Success -or
+    $focusedTargetingBlock.Value.IndexOf('TryResolveSoulAndServiceServant(', [StringComparison]::Ordinal) -gt
+        $focusedTargetingBlock.Value.IndexOf('TryResolveCorpseStateFromCollider(', [StringComparison]::Ordinal) -or
+    $focusedTargetingBlock.Value.IndexOf('ColliderLooksAlive(', [StringComparison]::Ordinal) -gt
+        $focusedTargetingBlock.Value.IndexOf('TryResolveCorpseStateFromCollider(', [StringComparison]::Ordinal) -or
+    $focusedTargetingBlock.Value.IndexOf('TryResolveCorpseStateFromCollider(', [StringComparison]::Ordinal) -gt
+        $focusedTargetingBlock.Value.IndexOf('TryResolveNearMissCorpseTarget(', [StringComparison]::Ordinal)) {
+    throw 'Direct servant, living-target rejection, and direct corpse resolution must precede corpse near-miss targeting.'
+}
+
+$blockedSurfaceTargetingBlock = [regex]::Match(
+    $focusedTargetingBlock.Value,
+    '(?s)if \(!IsCorpseFallbackCandidateCollider\(hit\.collider\)\).+?LogUnresolvedRaycastHit\(hit\.collider\);')
+if (!$blockedSurfaceTargetingBlock.Success -or
+    $blockedSurfaceTargetingBlock.Value.IndexOf('TryResolveTolerantServantTarget(', [StringComparison]::Ordinal) -gt
+        $blockedSurfaceTargetingBlock.Value.IndexOf('TryResolveNearMissCorpseTarget(', [StringComparison]::Ordinal) -or
+    $blockedSurfaceTargetingBlock.Value.IndexOf('TryRetainRecentServantTarget(', [StringComparison]::Ordinal) -gt
+        $blockedSurfaceTargetingBlock.Value.IndexOf('TryResolveNearMissCorpseTarget(', [StringComparison]::Ordinal)) {
+    throw 'Existing tolerant and retained servant targeting must take precedence over ordinary corpse near-miss assistance.'
 }
 
 $lookRayBlock = [regex]::Match(

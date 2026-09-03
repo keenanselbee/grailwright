@@ -1,3 +1,79 @@
+Version 3.2.6
+Rebalanced those profiles around the same 4% live-drain XP per second: Blood
+Rite remains 30% corpse XP with a 20% live cap, Desecration remains 40% corpse
+XP but moves to 6% ticks and a 30% cap, and Exsanguination moves to 45% corpse
+XP with 8% ticks and a 40% cap. A fully exploited Exsanguination target now
+provides at most 85% bonus XP instead of 100%.
+Advanced ConfigSchemaVersion from 29 to 30 because Desecration's live-drain XP
+tick and cap defaults changed. The previous config is backed up; compatible
+customized values remain eligible for conservative recovery.
+
+Version 3.2.5
+Narrowed Blood Rite, Desecration, and Exsanguination to five ritual-economy
+values: corpse XP, ritual time, live-drain tick time, live-drain XP per tick, and
+the per-target cap. Presets no longer change Blood/Life or Abhartach strength.
+Made Blood Essence and its derived Blood Power the sole spell-strength
+progression. The former Desecration multipliers are now fixed authored parts of
+that progression, preserving the established balanced outputs at every Blood
+Power level regardless of ritual preset.
+Advanced ConfigSchemaVersion from 28 to 29 because the 12 preset-owned spell
+multiplier settings were removed and Preset now has a narrower meaning. The
+previous config is backed up; compatible ritual-economy and expert growth-curve
+customizations remain eligible for conservative recovery.
+
+Version 3.2.4
+Reworked Blood Rite, Desecration, and Exsanguination into applied presets that
+write all 17 governed corpse, live-drain, Blood/Life, and Abhartach values into
+visible FoA Mod Manager settings. Editing any governed value now selects Custom,
+while selecting Custom preserves the current values.
+Grouped those settings beside the preset and added a deferred FoA Mod Manager
+refresh so programmatic changes appear immediately without false unsaved-state
+markers.
+Advanced ConfigSchemaVersion from 27 to 28 because the former Custom-only
+settings now remain active for every preset and their defaults now match the
+balanced Desecration profile. The previous config is backed up and compatible
+durable settings remain eligible for conservative recovery.
+
+Version 3.2.2
+Added throttled diagnostics for applied Blood/Life tap damage, Blood magic Bleed
+buildup, and completed-proc duration multipliers so the effective Blood Power
+tuning can be verified without per-tick log spam.
+Kept ConfigSchemaVersion at 27 because this adds diagnostics without changing a
+stored setting.
+
+Version 3.2.1
+Replaced Blood/Life's ineffective damage-radius progression with real tap
+projectile damage growth, using the retired +34% mastery curve and the existing
+preset balance while leaving held-channel damage pacing intentionally modest.
+Tracked Blood/Life projectile impact ownership independently of
+StatusSourceInfo.GetSourceItemSafe so projectile Bleed buildup and completed-proc
+duration scaling remain attributable when the game omits the source item.
+Kept Abhartach's genuine explosion damage, radius, Bleed, healing, and corpse
+search progression unchanged.
+Advanced ConfigSchemaVersion from 26 to 27 because
+AreaRadiusBloodPowerBonusCurve was removed and replaced by
+TapDamageBloodPowerBonusCurve; the previous config is backed up and compatible
+durable settings remain eligible for conservative recovery.
+
+Version 3.2.0
+Renamed the slow, highest-reward blood-magic preset to Exsanguination so its
+identity remains distinct from Soul and Service, without changing its ritual
+timing, rewards, live-drain pacing, or spell tuning.
+Advanced ConfigSchemaVersion from 25 to 26 because the stored Preset enum value
+changed; the previous config is backed up and compatible durable settings remain
+eligible for conservative recovery.
+
+Version 3.1.9
+Routed all custom corpse leech WAV playback through the game's FMOD SFX bus so the game Master and SFX volume or mute controls apply.
+Kept ConfigSchemaVersion at 25 because this changes no stored setting.
+
+Version 3.1.8
+Added conservative corpse targeting assistance for Blood/Life Transfusion and
+Abhartach: near misses against harmless world geometry can resolve an eligible
+corpse within 0.4 meters while direct hits remain authoritative and surface-plane
+checks prevent selection through floors or walls.
+Kept ConfigSchemaVersion at 25 because this changes no stored setting.
+
 Version 3.1.7
 Changed the diagnostic BloodEssenceOverrideValue default to 5,000 and raised its
 maximum accepted value to 10,000 for testing uncapped Essence presentation beyond
@@ -104,7 +180,7 @@ Advanced ConfigSchemaVersion from 19 to 20 because RangeBleedTapBloodPowerBonusC
 Version 2.8.3
 Preserved the established Blood Power curve through normal mastery at 100 from 1,000 Essence, then added a clear linear overmastery track that reaches the new hard cap of 200 at 5,000 Essence.
 Made Power 100-200 continue every fully unlocked gameplay bonus up to twice its Power 100 bonus portion at Power 200.
-Raised the default Blood/Life homing and held target-search safety caps to x2.1 and x2.0, and the Abhartach corpse-search cap to x2.0, so Soul Feast can receive its complete Power 200 continuation.
+Raised the default Blood/Life homing and held target-search safety caps to x2.1 and x2.0, and the Abhartach corpse-search cap to x2.0, so Exsanguination can receive its complete Power 200 continuation.
 Redesigned the blood spell inner light around explicit Power 0, 100, and 200 milestones: brightness now grows from x0.2 to x2.0 to x3.0, while range grows from 1.5 to 4.5 to 5.5 meters.
 Advanced ConfigSchemaVersion from 18 to 19 because Range and MaximumPowerRangeMultiplier were replaced by explicit milestone ranges and MaximumPowerBrightnessMultiplier now describes Power 200 instead of Power 100. Compatible durable settings remain recoverable, while the removed and redefined light calibration values stay at the new defaults.
 
@@ -191,7 +267,7 @@ Version 2.6.1
 Made Power 100-120 continue gameplay bonuses by another 20% of their fully unlocked bonus portion, so the increase matches Power 80-100 while still requiring the severely diminished 1,000-2,000 Essence progression.
 Changed the inner spell light to start at baseline brightness, reach 2x brightness at Power 100, and reach 2.4x brightness at Power 120.
 Changed the default inner spell light range to grow smoothly from 3 meters at Power 0 to 4.5 meters at Power 100 and 5 meters at Power 120.
-Raised the default held-target and corpse-search safety caps from 1.5x to 1.6x so Soul Feast can receive its complete Power 120 continuation.
+Raised the default held-target and corpse-search safety caps from 1.5x to 1.6x so Exsanguination can receive its complete Power 120 continuation.
 Incremented ConfigSchemaVersion from 13 to 14 because the inner-light Range, MaximumPowerRangeMultiplier, and MaximumPowerBrightnessMultiplier defaults and progression meanings changed.
 
 Version 2.6.0
@@ -458,11 +534,11 @@ Removed legacy corpse-leech API wrapper namespaces; current integrations use Blo
 Kept corpse quality as effect/scale data only; it no longer has to imply whether a corpse is focused.
 
 Version 1.9.8
-Retuned live-drain XP ticks to 4% every 1s for Blood Rite, 8% every 1.5s for Desecration, and 12% every 2s for Soul Feast.
+Retuned live-drain XP ticks to 4% every 1s for Blood Rite, 8% every 1.5s for Desecration, and 12% every 2s for Exsanguination.
 Kept live-drain caps, corpse ritual timing, healing, corpse quality, and spell tuning values unchanged.
 
 Version 1.9.7
-Reversed preset ritual timing so Blood Rite is the fast 1s drain, Desecration stays 1.5s, and Soul Feast becomes the slower 2s high-payout drain.
+Reversed preset ritual timing so Blood Rite is the fast 1s drain, Desecration stays 1.5s, and Exsanguination becomes the slower 2s high-payout drain.
 Matched live-drain tick intervals to the same timing ladder while leaving payout, healing, corpse quality, and spell tuning values unchanged.
 
 Version 1.9.6

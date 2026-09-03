@@ -28,7 +28,7 @@ GUID: ks.tgfoa.blood-magic-expansion
 Config: BepInEx\config\ks.tgfoa.blood-magic-expansion.cfg
 Plugin folder: BepInEx\plugins\BloodMagicExpansion
 API: BloodMagicExpansion.BloodMagicApi v10
-Version: 3.1.7
+Version: 3.2.6
 Platforms: Windows and Linux through Proton.
 ```
 
@@ -54,6 +54,11 @@ See a quality-matched blood burst erupt from a successfully drained corpse
 Corpse XP comes from the enemy's vanilla effective kill XP, including the
 lower-level enemy XP falloff. Corpse quality can scale healing and Abhartach
 effects, but character XP is not multiplied again.
+
+Corpse targeting keeps direct body hits authoritative, but a near miss against
+harmless world geometry can resolve an eligible corpse within 0.4 meters of the
+impact. The assist respects the hit surface and does not select through floors
+or broaden the normal corpse search range.
 
 Completed blood rituals leave their corpses intact. A drained corpse cannot
 produce Blood Essence twice, but it remains available for Soul and Service:
@@ -89,16 +94,23 @@ and cannot heal from that servant.
 
 ## Presets
 
-Preset is the main user-facing control. It affects corpse ritual timing,
-corpse XP and healing baseline, live-drain XP rhythm, Blood/Life spell tuning,
-and Abhartach tuning.
+Preset is the main user-facing ritual-economy control. It affects corpse ritual
+timing, corpse XP and its derived healing baseline, and live-drain XP rhythm.
+Blood Essence and Blood Power govern Blood/Life and Abhartach strength
+independently, so changing Preset never changes spell power.
+
+Selecting Blood Rite, Desecration, or Exsanguination writes that profile into
+the visible settings directly below the preset in FoA Mod Manager. Those live
+values refresh immediately and can be used as a starting point: changing any
+one of them switches Preset to Custom without altering the other values.
+Selecting Custom by itself changes nothing.
 
 ```text
-Preset       | Role              | Corpse ritual | Corpse XP | Base heal
-Blood Rite   | quick restraint   | 1.0s          | 30%       | 15%
-Desecration  | balanced default  | 1.5s          | 40%       | 20%
-Soul Feast   | slow high payout  | 2.0s          | 50%       | 25%
-Custom       | user tuned        | config        | config    | config
+Preset         | Role              | Corpse ritual | Corpse XP | Base heal
+Blood Rite     | quick restraint   | 1.0s          | 30%       | 15%
+Desecration    | balanced default  | 1.5s          | 40%       | 20%
+Exsanguination | slow high payout  | 2.0s          | 45%       | 22.5%
+Custom         | current values    | config        | config    | config
 ```
 
 Single-held casting pays half of the effective corpse XP and healing by
@@ -107,24 +119,30 @@ default. Dual-held Blood Transfusion or Life Transfusion pays the full amount.
 Live drain timing is reward pacing, not attack speed:
 
 ```text
-Preset       | Live XP tick  | Target cap | Tap/projectile | Held channel
-Blood Rite   | 4% / 1.0s     | 20%        | 1.03x          | 1.00x
-Desecration  | 8% / 1.5s     | 35%        | 1.06x          | 1.01x
-Soul Feast   | 12% / 2.0s    | 50%        | 1.12x          | 1.02x
+Preset         | Live XP tick | Target cap
+Blood Rite     | 4% / 1.0s    | 20%
+Desecration    | 6% / 1.5s    | 30%
+Exsanguination | 8% / 2.0s    | 40%
 ```
 
-Blood Power supplies permanent spell growth. At Blood Power 0, preset spell
-tuning contributes no bonus; at Blood Power 100, it reaches the intended full
-preset and curve balance. Power 100-200 linearly continues each fully unlocked
-bonus portion until Power 200 doubles its Power 100 contribution.
+All three presets average 4% live-drain XP per second. Deeper rites permit
+longer feeding and greater total rewards instead of increasing XP efficiency.
+
+Blood Power supplies all permanent spell growth. At Blood Power 0, BME adds no
+spell-strength bonus; at Blood Power 100, it reaches the intended full mastery
+balance. Power 100-200 linearly continues each fully unlocked bonus portion
+until Power 200 doubles its Power 100 contribution.
 Held channel speed remains intentionally modest so held drains do not multiply
 damage too aggressively.
 
-Projectile travel, damage radius, Bleed buildup, and tap casting speed use
+Projectile travel, tap projectile damage, Bleed buildup, and tap casting speed use
 independent growth curves. Their default curve bonuses at full normal mastery
-are +56%, +34%, +56%, and +21%, respectively, before the selected preset base
-and the normal Power unlock are combined. Homing search, held range, held
-channel speed, and all Abhartach Power curves retain their established values.
+are +56%, +34%, +56%, and +21%, respectively, before their authored progression
+bases and the normal Power unlock are combined. Homing search, held range, held
+channel speed, and all Abhartach Power curves retain their established balanced
+values regardless of the selected ritual preset.
+The tap projectile's direct hit is the damage-growth surface; Blood/Life does
+not gain an impact area. Abhartach retains its real explosion-radius growth.
 
 Successful player-sourced Bleed procs from Blood Transfusion, Life Transfusion,
 and Abhartach's Calling keep their active effects longer as Blood Power grows.
@@ -210,12 +228,16 @@ preloader is isolated from BME's spell tuning and uses no Harmony patches.
 Version 2.0.0 and newer use a clean GUID and config path. There is no old config
 migration. The old `ks.tgfoa.blood-mage.cfg` file is ignored.
 
-The current config uses ConfigSchemaVersion 25 because the diagnostic Blood
-Essence override now defaults to 5,000 and accepts values through 10,000. Blood Essence remains
-the sole spell-growth progression source, with Blood Power retained as its
-derived 0-200 gameplay rating. If the schema marker is missing or outdated, the
-old config is backed up beside the active file and fresh defaults are generated.
-Compatible customized settings remain eligible for conservative recovery.
+The current config uses ConfigSchemaVersion 30 because the obsolete
+preset-owned spell multipliers were removed, Preset now governs only five
+ritual-economy values, and the balanced live-drain defaults were narrowed. The
+former Desecration spell balance is preserved as the authored Blood Power
+progression for every preset.
+Blood Essence remains the sole spell-growth progression source, with Blood
+Power retained as its derived 0-200 gameplay rating. If the schema marker is
+missing or outdated, the old config is backed up beside the active file and
+fresh defaults are generated. Compatible customized settings remain eligible
+for conservative recovery.
 
 Diagnostics can temporarily use a specific effective Essence value without
 overwriting the saved progression:
@@ -338,6 +360,8 @@ are limited and can be disabled after confirming readiness and visibility.
 ## Corpse Leech Audio
 
 Successful corpse rituals can play a short quality-matched WAV through FMOD.
+They are routed through the game's SFX bus, so both the game Master and SFX
+volume or mute controls apply.
 The default package checks five files for each quality tier under the plugin
 audio folder:
 
@@ -426,19 +450,12 @@ They use the default-size base-color corpse icon and remain non-drainable.
 
 ## Abhartach's Calling
 
-Abhartach's Calling gets separate corpse effect tuning:
-
-```text
-Preset       | Damage | Radius | Bleed | Held heal | Search
-Blood Rite   | 1.00x  | 1.05x  | 1.05x | 1.10x     | 1.00x
-Desecration  | 1.05x  | 1.10x  | 1.12x | 1.20x     | 1.05x
-Soul Feast   | 1.12x  | 1.20x  | 1.20x | 1.35x     | 1.10x
-```
-
-Blood Power can unlock the configured +40% explosion damage, +35% explosion
+Abhartach's Calling turns the corpse itself into the weapon. Blood Power can
+unlock the authored +40% explosion damage, +35% explosion
 radius, +40% bleed buildup, +40% held corpse healing, and +35% corpse search
 growth at Power 100. Power 200 doubles each fully unlocked bonus portion.
-Corpse search is capped at 2x by default.
+Corpse quality then shapes the result, while corpse search is capped at 2x by
+default. Ritual presets do not change these effects.
 
 ## Bloodless Filter
 

@@ -45,6 +45,7 @@ foreach ($trackName in $trackedDescriptions) {
 
 foreach ($required in @(
     'Enemies: Fire a damaging projectile that applies Bleed.',
+    'Current tap damage bonus:',
     'Living enemies: Drain Health to heal yourself; held damage grants limited XP.',
     'Corpse quality: Improves corpse healing.',
     'Corpses: Detonate a nearby corpse to damage and Bleed enemies in the area.',
@@ -76,8 +77,13 @@ $bloodLightBlock = [regex]::Match(
     $source,
     '(?s)private string BuildBloodTransfusionLightDescription\(.+?(?=\r?\n\s*private string BuildBloodTransfusionHeavyDescription\()')
 if (!$bloodLightBlock.Success -or
-    $bloodLightBlock.Value.IndexOf('_bloodSpellScaleProjectileTravel', [StringComparison]::Ordinal) -lt 0) {
+    $bloodLightBlock.Value.IndexOf('_bloodSpellScaleProjectileTravel', [StringComparison]::Ordinal) -lt 0 -or
+    $bloodLightBlock.Value.IndexOf('GetBloodSpellTapDamageMultiplier()', [StringComparison]::Ordinal) -lt 0 -or
+    $bloodLightBlock.Value.IndexOf('FormatMultiplierBonus', [StringComparison]::Ordinal) -lt 0) {
     throw "Blood/Life light tooltip does not account for projectile travel scaling."
+}
+if ($bloodLightBlock.Value.IndexOf('damage radius', [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+    throw "Blood/Life light tooltip still promises a nonexistent damage radius."
 }
 if ($bloodLightBlock.Value.IndexOf('_bloodSpellScaleHomingTargetSearch', [StringComparison]::Ordinal) -ge 0) {
     throw "Blood/Life light tooltip must omit homing target-search tuning."

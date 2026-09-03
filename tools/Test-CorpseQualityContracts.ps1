@@ -62,7 +62,7 @@ Assert-Contract ($steel.Contains('public static bool TryGetKillingBlowQuality(')
 Assert-Contract ($steel.Contains('TryGetKillingBlowQualityForInterop(')) "Steel and Bone does not share one killing-blow quality calculation between preview and death feedback."
 Assert-Contract ($steel.Contains('TargetedKillingBlowResolved')) "Steel and Bone does not expose target-aware killing-blow feedback."
 
-Assert-Contract ($blood.Contains('ConfigSchemaVersion = 25')) "Blood Magic Expansion schema is not 25."
+Assert-Contract ($blood.Contains('ConfigSchemaVersion = 30')) "Blood Magic Expansion schema is not 30."
 Assert-Contract (-not $blood.Contains('"ReferenceKillXP"')) "Blood Magic Expansion still binds ReferenceKillXP."
 Assert-Contract (-not $blood.Contains('"ReferenceMaxHealth"')) "Blood Magic Expansion still binds ReferenceMaxHealth."
 Assert-Contract ($blood.Contains('TryResolveCorpseNativeTier(')) "Blood Magic Expansion does not resolve native tiers."

@@ -11,7 +11,9 @@ using Awaken.TG.Assets;
 using Awaken.TG.MVC;
 using Awaken.TG.MVC.Domains;
 using Awaken.TG.Main.Fights;
+using Awaken.TG.Main.Fights.DamageInfo;
 using Awaken.TG.Main.Fights.NPCs;
+using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
 using Awaken.TG.Main.Locations;
@@ -34,8 +36,8 @@ using UnityEngine.Rendering.HighDefinition;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("3.1.7.0")]
-[assembly: AssemblyFileVersion("3.1.7.0")]
+[assembly: AssemblyVersion("3.2.6.0")]
+[assembly: AssemblyFileVersion("3.2.6.0")]
 
 namespace BloodMagicExpansion
 {
@@ -58,8 +60,8 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "3.1.7";
-        private const int ConfigSchemaVersion = 25;
+        public const string PluginVersion = "3.2.6";
+        private const int ConfigSchemaVersion = 30;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -122,6 +124,18 @@ namespace BloodMagicExpansion
         private const float BloodEssenceAtNormalMaximumPower = 1000.0f;
         private const float BloodEssenceAtAbsoluteMaximumPower = 5000.0f;
         private const float MaximumOvermasteryBonusFraction = 1.0f;
+        private const float BloodSpellProjectileTravelProgressionBase = 1.06f;
+        private const float BloodSpellTapDamageProgressionBase = 1.06f;
+        private const float BloodSpellHomingSearchProgressionBase = 1.05f;
+        private const float BloodSpellHeldRangeProgressionBase = 1.03f;
+        private const float BloodSpellBleedProgressionBase = 1.06f;
+        private const float BloodSpellTapSpeedProgressionBase = 1.06f;
+        private const float BloodSpellHeldSpeedProgressionBase = 1.01f;
+        private const float AbhartachExplosionDamageProgressionBase = 1.05f;
+        private const float AbhartachExplosionRadiusProgressionBase = 1.10f;
+        private const float AbhartachExplosionBleedProgressionBase = 1.12f;
+        private const float AbhartachHeldHealingProgressionBase = 1.20f;
+        private const float AbhartachCorpseSearchProgressionBase = 1.05f;
         private const float MeagerBloodEssenceAward = 1.0f;
         private const float WorthyBloodEssenceAward = 3.0f;
         private const float PotentBloodEssenceAward = 5.0f;
@@ -160,6 +174,7 @@ namespace BloodMagicExpansion
         private const string BloodSpellInnerLightOffHandObjectName = "BloodMagicExpansionOffHandLight";
         private const float BloodSpellInnerLightAnchorRetryIntervalSeconds = 0.5f;
         private const float BloodSpellInnerLightDiagnosticIntervalSeconds = 2.0f;
+        private const float BloodSpellTuningDiagnosticIntervalSeconds = 1.0f;
         private const float BloodSpellInnerLightMinimumIntensity = 0.001f;
         private const float BloodSpellInnerLightHdrpIntensityMultiplier = 50000.0f;
         private const float BloodSpellInnerLightCastBoostMultiplier = 3.0f;
@@ -182,6 +197,8 @@ namespace BloodMagicExpansion
         private const float ServantTargetToleranceRadius = 0.15f;
         private const float ServantTargetGraceSeconds = 0.18f;
         private const int ServantTargetHitCapacity = 24;
+        private const float CorpseTargetAssistRadius = 0.4f;
+        private const int CorpseTargetAssistColliderCapacity = 24;
         private const string CorpseQualityMeagerLabel = "Meager";
         private const string CorpseQualityWorthyLabel = "Worthy";
         private const string CorpseQualityPotentLabel = "Potent";
@@ -208,6 +225,7 @@ namespace BloodMagicExpansion
         private const string DamageUtilsTypeName = "Awaken.TG.Main.Fights.DamageInfo.DamageUtils";
         private const string HealingUtilsTypeName = "Awaken.TG.Main.Fights.Utils.HealingUtils";
         private const string DamageDealingProjectileTypeName = "Awaken.TG.Main.AI.Fights.Projectiles.DamageDealingProjectile";
+        private const string MagicProjectileTypeName = "Awaken.TG.Main.AI.Fights.Projectiles.MagicProjectile";
         private const string FindAlivesTypeName = "Awaken.TG.Main.Skills.Units.Effects.FindAlives";
         private const string FindDeadBodiesTypeName = "Awaken.TG.Main.Skills.Units.Effects.FindDeadBodies";
         private const string HealFromDeadBodiesTypeName = "Awaken.TG.Main.Skills.Units.Effects.HealFromDeadBodies";
@@ -220,6 +238,8 @@ namespace BloodMagicExpansion
         private BleedSkillGraphPreloader _bleedSkillGraphPreloader;
         private VCHeroRaycaster _heroRaycaster;
         private bool _heroViewRayFailureLogged;
+        private bool _applyingPreset;
+        private bool _foaModManagerRefreshPending;
         private ConfigFile _resolvedConfig;
         private MethodInfo _grailFloatingTextTryClaimXpGainMethod;
         private MethodInfo _grailFloatingTextTryClaimConsolidatedXpGainMethod;
@@ -311,18 +331,12 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _bloodSpellScaleProjectileTravel;
         private ConfigEntry<bool> _bloodSpellScaleHomingTargetSearch;
         private ConfigEntry<bool> _bloodSpellScaleHeldTargetRange;
-        private ConfigEntry<float> _customBloodSpellRangeDistanceMultiplier;
-        private ConfigEntry<float> _customBloodSpellHomingTargetSearchMultiplier;
-        private ConfigEntry<float> _customBloodSpellHeldTargetRangeMultiplier;
         private ConfigEntry<float> _bloodSpellHomingTargetSearchMaximumMultiplier;
         private ConfigEntry<float> _bloodSpellHeldTargetRangeMaximumMultiplier;
-        private ConfigEntry<float> _customBloodSpellBleedBuildupMultiplier;
-        private ConfigEntry<float> _customBloodSpellTapCastSpeedMultiplier;
-        private ConfigEntry<float> _customBloodSpellHeldChannelSpeedMultiplier;
         private ConfigEntry<bool> _bloodSpellScaleBleedDuration;
         private ConfigEntry<float> _bloodSpellMaximumBleedDurationMultiplier;
         private ConfigEntry<string> _bloodSpellProjectileTravelBloodPowerBonusCurve;
-        private ConfigEntry<string> _bloodSpellAreaRadiusBloodPowerBonusCurve;
+        private ConfigEntry<string> _bloodSpellTapDamageBloodPowerBonusCurve;
         private ConfigEntry<string> _bloodSpellBleedBuildupBloodPowerBonusCurve;
         private ConfigEntry<string> _bloodSpellTapCastSpeedBloodPowerBonusCurve;
         private ConfigEntry<string> _bloodSpellTargetSearchBloodPowerBonusCurve;
@@ -337,11 +351,6 @@ namespace BloodMagicExpansion
         private ConfigEntry<bool> _abhartachScaleExplosionBleed;
         private ConfigEntry<bool> _abhartachScaleHeldCorpseHealing;
         private ConfigEntry<bool> _abhartachScaleCorpseSearchRange;
-        private ConfigEntry<float> _customAbhartachExplosionDamageMultiplier;
-        private ConfigEntry<float> _customAbhartachExplosionRadiusMultiplier;
-        private ConfigEntry<float> _customAbhartachExplosionBleedBuildupMultiplier;
-        private ConfigEntry<float> _customAbhartachHeldCorpseHealingMultiplier;
-        private ConfigEntry<float> _customAbhartachCorpseSearchRangeMultiplier;
         private ConfigEntry<float> _abhartachCorpseSearchMaximumMultiplier;
         private ConfigEntry<string> _abhartachExplosionDamageBloodPowerBonusCurve;
         private ConfigEntry<string> _abhartachExplosionRadiusBloodPowerBonusCurve;
@@ -405,17 +414,22 @@ namespace BloodMagicExpansion
             new HashSet<MagicItemTemplateInfo>();
         private readonly Dictionary<string, FMOD.Sound> _corpseLeechFmodSoundsByPath =
             new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
+        private FMOD.Studio.Bus _corpseLeechSfxBus;
+        private FMOD.ChannelGroup _corpseLeechSfxChannelGroup;
+        private bool _corpseLeechSfxBusLocked;
         private readonly Dictionary<string, List<string>> _corpseLeechSoundPathsByTier =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, List<string>> _recentCorpseLeechSoundPathsByTier =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly System.Random _random = new System.Random();
-        private readonly ConditionalWeakTable<object, ProjectileTuningState> _tunedProjectiles =
-            new ConditionalWeakTable<object, ProjectileTuningState>();
+        private readonly ConditionalWeakTable<object, BloodMagicProjectileState> _bloodMagicProjectiles =
+            new ConditionalWeakTable<object, BloodMagicProjectileState>();
         private readonly ConditionalWeakTable<object, BloodMagicBleedDurationState> _bloodMagicBleedDurationStates =
             new ConditionalWeakTable<object, BloodMagicBleedDurationState>();
         [ThreadStatic]
         private static BloodMagicAreaBuildupContext _currentBloodMagicAreaBuildupContext;
+        [ThreadStatic]
+        private static BloodMagicProjectileImpactContext _currentBloodMagicProjectileImpactContext;
         [ThreadStatic]
         private static BloodMagicBuildupApplicationContext _currentBloodMagicBuildupApplicationContext;
         private readonly HashSet<object> _loggedUnresolvedRaycastHits =
@@ -424,6 +438,8 @@ namespace BloodMagicExpansion
             new HashSet<object>(ReferenceEqualityComparer.Instance);
         private readonly RaycastHit[] _servantTargetHits =
             new RaycastHit[ServantTargetHitCapacity];
+        private readonly Collider[] _corpseTargetAssistColliders =
+            new Collider[CorpseTargetAssistColliderCapacity];
         private readonly Dictionary<(Type Type, string Name), MethodInfo> _getterCache =
             new Dictionary<(Type Type, string Name), MethodInfo>();
         private readonly Dictionary<(Type Type, string Name), MethodInfo> _setterCache =
@@ -446,7 +462,7 @@ namespace BloodMagicExpansion
         private string _cachedWhitelistTermsRaw;
         private string _cachedBleedStatusTermsRaw;
         private string _cachedProjectileTravelBloodPowerCurveRaw;
-        private string _cachedAreaRadiusBloodPowerCurveRaw;
+        private string _cachedTapDamageBloodPowerCurveRaw;
         private string _cachedBleedBuildupBloodPowerCurveRaw;
         private string _cachedTapCastSpeedBloodPowerCurveRaw;
         private string _cachedTargetSearchBloodPowerCurveRaw;
@@ -464,7 +480,7 @@ namespace BloodMagicExpansion
         private string[] _cachedWhitelistTerms = new string[0];
         private string[] _cachedBleedStatusTerms = new string[0];
         private CurvePoint[] _cachedProjectileTravelBloodPowerCurve = new CurvePoint[0];
-        private CurvePoint[] _cachedAreaRadiusBloodPowerCurve = new CurvePoint[0];
+        private CurvePoint[] _cachedTapDamageBloodPowerCurve = new CurvePoint[0];
         private CurvePoint[] _cachedBleedBuildupBloodPowerCurve = new CurvePoint[0];
         private CurvePoint[] _cachedTapCastSpeedBloodPowerCurve = new CurvePoint[0];
         private CurvePoint[] _cachedTargetSearchBloodPowerCurve = new CurvePoint[0];
@@ -521,6 +537,7 @@ namespace BloodMagicExpansion
                 BloodSpellInnerLightHand.OffHand,
                 BloodSpellInnerLightOffHandObjectName);
         private float _nextBloodSpellInnerLightDiagnosticTime;
+        private float _nextBloodSpellTuningDiagnosticTime;
         private int _bloodSpellInnerLightActivationLogsRemaining = 32;
         private bool _corpseLeechSoundPathsResolved;
         private bool _loggedMissingCorpseLeechSounds;
@@ -606,6 +623,12 @@ namespace BloodMagicExpansion
 
         private void OnDestroy()
         {
+            ConfigFile config = _resolvedConfig;
+            if (config != null)
+            {
+                config.SettingChanged -= OnConfigSettingChanged;
+            }
+
             ReleaseGrailFloatingTextDefaultHealingClaim();
             ReleaseGrailFloatingTextBloodHealingPresentationClaim();
 
@@ -642,6 +665,8 @@ namespace BloodMagicExpansion
 
         private void Update()
         {
+            RefreshFoaModManagerIfPending();
+
             if (_enabled == null)
             {
                 return;
@@ -679,20 +704,26 @@ namespace BloodMagicExpansion
             string section,
             string key,
             T defaultValue,
-            string description)
+            string description,
+            string displayName = null,
+            int? displayOrder = null)
         {
             return BindOrdered(
                 section,
                 key,
                 defaultValue,
-                new ConfigDescription(description));
+                new ConfigDescription(description),
+                displayName,
+                displayOrder);
         }
 
         private ConfigEntry<T> BindOrdered<T>(
             string section,
             string key,
             T defaultValue,
-            ConfigDescription description)
+            ConfigDescription description,
+            string displayName = null,
+            int? displayOrder = null)
         {
             section = GetCleanConfigSection(section);
             ConfigFile config = ResolveConfigFile();
@@ -704,12 +735,13 @@ namespace BloodMagicExpansion
                 return config.Bind(section, key, defaultValue, description);
             }
 
+            string displaySection = GetConfigDisplaySection(section, key);
             int order;
-            if (!_configSettingOrders.TryGetValue(section, out order))
+            if (!_configSettingOrders.TryGetValue(displaySection, out order))
             {
                 order = 0;
             }
-            _configSettingOrders[section] = order + 10;
+            _configSettingOrders[displaySection] = order + 10;
 
             return config.Bind(
                 section,
@@ -717,11 +749,30 @@ namespace BloodMagicExpansion
                 defaultValue,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     description.Description,
-                    section,
-                    HumanizeConfigKey(key),
-                    GetConfigSectionOrder(section),
-                    order,
+                    displaySection,
+                    displayName ?? HumanizeConfigKey(key),
+                    GetConfigSectionOrder(displaySection),
+                    displayOrder ?? order,
                     description.AcceptableValues));
+        }
+
+        private static string GetConfigDisplaySection(string section, string key)
+        {
+            if (String.Equals(section, "General", StringComparison.Ordinal)
+                && String.Equals(key, "Preset", StringComparison.Ordinal))
+            {
+                return "Blood Magic Preset";
+            }
+
+            if (!String.Equals(
+                    section,
+                    "Advanced - Custom Preset",
+                    StringComparison.Ordinal))
+            {
+                return section;
+            }
+
+            return "Blood Magic Preset";
         }
 
         private static int GetConfigSectionOrder(string section)
@@ -730,34 +781,34 @@ namespace BloodMagicExpansion
             {
                 case "General":
                     return 0;
-                case "Main Loop":
+                case "Blood Magic Preset":
                     return 10;
-                case "Blood Power":
-                    return 20;
-                case "Corpse Quality":
-                    return 30;
-                case "Bloodless Filter":
+                case "Main Loop":
                     return 40;
-                case "Blood Spell Inner Light":
+                case "Blood Power":
                     return 50;
-                case "Audio":
+                case "Corpse Quality":
                     return 60;
-                case "Integrations":
+                case "Bloodless Filter":
                     return 70;
-                case "Advanced - Corpse Rewards":
+                case "Blood Spell Inner Light":
+                    return 80;
+                case "Audio":
+                    return 90;
+                case "Integrations":
                     return 100;
-                case "Advanced - Custom Preset":
-                    return 110;
-                case "Advanced - Live Drain":
-                    return 120;
-                case "Advanced - Blood Spell Growth":
+                case "Advanced - Corpse Rewards":
                     return 130;
-                case "Advanced - Abhartach Calling":
+                case "Advanced - Live Drain":
                     return 140;
-                case "Advanced - Matching":
+                case "Advanced - Blood Spell Growth":
                     return 150;
-                case "Performance":
+                case "Advanced - Abhartach Calling":
                     return 160;
+                case "Advanced - Matching":
+                    return 170;
+                case "Performance":
+                    return 180;
                 case "Diagnostics":
                     return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
                 default:
@@ -819,7 +870,7 @@ namespace BloodMagicExpansion
                     "Configuration layout version for this clean Blood Magic Expansion config.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = BindOrdered("General", "Preset", Preset.Desecration, "Main profile. BloodRite is quick and restrained, Desecration is the balanced default, SoulFeast is slower and more rewarding, and Custom uses the advanced custom values.");
+            _preset = BindOrdered("General", "Preset", Preset.Desecration, "Apply a complete ritual-economy profile to the visible values below. BloodRite is quick and restrained, Desecration is the balanced default, Exsanguination is slower and more rewarding, and Custom preserves the current values. Blood Essence progression governs spell strength independently.", "Blood Magic Preset");
             _preloadBleedSkillGraphs = BindOrdered(
                 "General",
                 "PreloadBleedSkillGraphs",
@@ -831,8 +882,8 @@ namespace BloodMagicExpansion
             _awardCharacterXp = BindOrdered("Main Loop", "AwardCorpseXP", true, "Award character XP when a valid corpse ritual completes.");
             _healCharacter = BindOrdered("Main Loop", "HealFromCorpses", true, "Heal the player when a valid corpse ritual completes.");
             _liveDrainEnabled = BindOrdered("Main Loop", "LiveDrainXP", true, "Award small capped XP ticks while held Blood/Life Transfusion damages living enemies.");
-            _bloodSpellTuningEnabled = BindOrdered("Main Loop", "BloodSpellTuning", true, "Tune Blood Transfusion and Life Transfusion with the selected preset plus Blood Power.");
-            _abhartachTuningEnabled = BindOrdered("Main Loop", "AbhartachTuning", true, "Tune Abhartach's Calling corpse effects with the selected preset plus Blood Power.");
+            _bloodSpellTuningEnabled = BindOrdered("Main Loop", "BloodSpellTuning", true, "Develop Blood Transfusion and Life Transfusion through Blood Essence and Blood Power.");
+            _abhartachTuningEnabled = BindOrdered("Main Loop", "AbhartachTuning", true, "Develop Abhartach's Calling corpse effects through Blood Essence and Blood Power.");
 
             _bloodSpellInnerLightEnabled = BindOrdered("Blood Spell Inner Light", "Enabled", true, "Show a red no-shadow light from each raised hand that has Blood Transfusion, Life Transfusion, or Abhartach's Calling equipped.");
             _bloodSpellInnerLightIntensity = BindOrdered("Blood Spell Inner Light", "Intensity", 0.5f, new ConfigDescription("Shared base brightness of each red hand light while its blood spell is readied, before the per-spell and interior multipliers. Actual casting temporarily triples that hand's final value 0.3 seconds after cast start, then drops back quickly when casting performs, ends, or cancels. This is a user-friendly brightness value that BME scales for the game's HDRP renderer. Zero disables visible light without removing the feature.", new AcceptableValueRange<float>(0.0f, 8.0f)));
@@ -876,23 +927,11 @@ namespace BloodMagicExpansion
             _healMinimumPowerScale = BindOrdered("Advanced - Corpse Rewards", "HealMinimumPowerScale", 0.5f, new ConfigDescription("Lowest multiplier applied to baseline healing when enemy max HP is low.", new AcceptableValueRange<float>(0.0f, 10.0f)));
             _healMaximumPowerScale = BindOrdered("Advanced - Corpse Rewards", "HealMaximumPowerScale", 2.0f, new ConfigDescription("Highest multiplier applied to baseline healing when enemy max HP is high.", new AcceptableValueRange<float>(0.0f, 10.0f)));
 
-            _customPayoutPercentOfKillXp = BindOrdered("Advanced - Custom Preset", "CustomCorpseXPPercent", 50.0f, "Corpse payout as a percent of the enemy's vanilla effective kill XP when Preset is Custom.");
-            _secondsRequired = BindOrdered("Advanced - Custom Preset", "CustomRitualSeconds", 3.0f, "Seconds of continuous corpse focus required when Preset is Custom.");
-            _customLiveDrainXpTickIntervalSeconds = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks when Preset is Custom.");
-            _customLiveDrainXpPercentPerTick = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 7.0f, "Percent of target kill XP paid per live-drain XP tick when Preset is Custom.");
-            _customLiveDrainMaximumXpPercentPerTarget = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentCapPerTarget", 35.0f, "Maximum percent of target kill XP paid by live-drain ticks when Preset is Custom.");
-            _customBloodSpellRangeDistanceMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellRangeMultiplier", 1.06f, "Custom preset maximum-power projectile travel and spell damage-radius multiplier.");
-            _customBloodSpellHomingTargetSearchMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHomingSearchMultiplier", 1.05f, "Custom preset maximum-power homing target-search multiplier.");
-            _customBloodSpellHeldTargetRangeMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHeldRangeMultiplier", 1.03f, "Custom preset maximum-power held target-search range multiplier.");
-            _customBloodSpellBleedBuildupMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellBleedMultiplier", 1.06f, "Custom preset maximum-power bleed buildup multiplier.");
-            _customBloodSpellTapCastSpeedMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellTapSpeedMultiplier", 1.06f, "Custom preset maximum-power tap/projectile cast-speed multiplier.");
-            _customBloodSpellHeldChannelSpeedMultiplier = BindOrdered("Advanced - Custom Preset", "CustomBloodSpellHeldChannelSpeedMultiplier", 1.01f, "Custom preset maximum-power held/channel delta-time multiplier.");
-            _customAbhartachExplosionDamageMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionDamageMultiplier", 1.05f, "Custom preset maximum-power explosion damage multiplier.");
-            _customAbhartachExplosionRadiusMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionRadiusMultiplier", 1.10f, "Custom preset maximum-power explosion radius multiplier.");
-            _customAbhartachExplosionBleedBuildupMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachExplosionBleedMultiplier", 1.12f, "Custom preset maximum-power explosion bleed buildup multiplier.");
-            _customAbhartachHeldCorpseHealingMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachHeldCorpseHealingMultiplier", 1.20f, "Custom preset maximum-power held corpse healing multiplier.");
-            _customAbhartachCorpseSearchRangeMultiplier = BindOrdered("Advanced - Custom Preset", "CustomAbhartachCorpseSearchMultiplier", 1.05f, "Custom preset maximum-power corpse-search range multiplier.");
-
+            _customPayoutPercentOfKillXp = BindOrdered("Advanced - Custom Preset", "CustomCorpseXPPercent", 40.0f, "Corpse payout as a percent of the enemy's vanilla effective kill XP. Changing this value manually selects Custom.", "Corpse XP Percent");
+            _secondsRequired = BindOrdered("Advanced - Custom Preset", "CustomRitualSeconds", 1.5f, "Seconds of continuous corpse focus required. Changing this value manually selects Custom.", "Ritual Seconds");
+            _customLiveDrainXpTickIntervalSeconds = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainTickSeconds", 1.5f, "Seconds between live-drain XP ticks. Changing this value manually selects Custom.", "Live Drain Tick Seconds");
+            _customLiveDrainXpPercentPerTick = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentPerTick", 6.0f, "Percent of target kill XP paid per live-drain XP tick. Changing this value manually selects Custom.", "Live Drain XP Percent Per Tick");
+            _customLiveDrainMaximumXpPercentPerTarget = BindOrdered("Advanced - Custom Preset", "CustomLiveDrainXPPercentCapPerTarget", 30.0f, "Maximum percent of target kill XP paid by live-drain ticks. Changing this value manually selects Custom.", "Live Drain XP Percent Cap Per Target");
             _liveDrainAwardCharacterXp = BindOrdered("Advanced - Live Drain", "AwardCharacterXP", true, "Award small character XP ticks while held Blood/Life Transfusion damages living enemies.");
             _liveDrainRawCharacterXpMultiplier = BindOrdered("Advanced - Live Drain", "RawCharacterXPPerComputedXP", 1.0f, "Raw character XP awarded per computed live-drain XP.");
             _liveDrainHealingMultiplier = BindOrdered("Advanced - Live Drain", "HeldHealingMultiplier", 2.0f, new ConfigDescription("Multiplier applied to Blood/Life Transfusion healing that follows confirmed held-channel damage. Tap projectile healing is not changed.", new AcceptableValueRange<float>(0.0f, 10.0f)));
@@ -905,7 +944,7 @@ namespace BloodMagicExpansion
             _bloodSpellScaleBleedDuration = BindOrdered("Advanced - Blood Spell Growth", "ScaleBleedDuration", true, "Extend active Bleed duration from Blood/Life Transfusion and Abhartach's Calling with Blood Power. Incomplete buildup decay and Bleed tick strength are unchanged.");
             _bloodSpellMaximumBleedDurationMultiplier = BindOrdered("Advanced - Blood Spell Growth", "MaximumBleedDurationMultiplier", 2.0f, new ConfigDescription("Active Bleed duration multiplier at Blood Power 200. Power 0 always preserves native duration and successful new Bleed procs refresh the scaled duration.", new AcceptableValueRange<float>(1.0f, 10.0f)));
             _bloodSpellProjectileTravelBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "ProjectileTravelBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:11;25:16;30:22;35:29;40:37;45:47;50:56", "Blood-Power-to-bonus-percent curve for projectile travel distance.");
-            _bloodSpellAreaRadiusBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "AreaRadiusBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:6;25:9;30:13;35:18;40:23;45:28;50:34", "Blood-Power-to-bonus-percent curve for spell damage radius.");
+            _bloodSpellTapDamageBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "TapDamageBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:6;25:9;30:13;35:18;40:23;45:28;50:34", "Blood-Power-to-bonus-percent curve for Blood/Life tap projectile damage.");
             _bloodSpellBleedBuildupBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "BleedBuildupBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:11;25:16;30:22;35:29;40:37;45:47;50:56", "Blood-Power-to-bonus-percent curve for Bleed buildup.");
             _bloodSpellTapCastSpeedBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "TapCastSpeedBloodPowerBonusCurve", "0:0;5:0;10:1;15:2;20:4;25:6;30:8;35:11;40:14;45:18;50:21", "Blood-Power-to-bonus-percent curve for tap/projectile cast speed.");
             _bloodSpellTargetSearchBloodPowerBonusCurve = BindOrdered("Advanced - Blood Spell Growth", "TargetSearchBloodPowerBonusCurve", "0:0;5:0;10:2;15:4;20:6;25:9;30:12;35:16;40:22;45:28;50:35", "Gentler Blood-Power-to-bonus-percent curve for held and homing target-search range.");
@@ -1000,7 +1039,145 @@ namespace BloodMagicExpansion
                 ConfigRecoveryBaselineSchema,
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
+            ApplySelectedPreset();
+            config.SettingChanged += OnConfigSettingChanged;
             config.Save();
+        }
+
+        private void OnConfigSettingChanged(
+            object sender,
+            SettingChangedEventArgs eventArgs)
+        {
+            if (_applyingPreset || eventArgs == null)
+            {
+                return;
+            }
+
+            ConfigEntryBase changedSetting = eventArgs.ChangedSetting;
+            if (ReferenceEquals(changedSetting, _preset))
+            {
+                ApplySelectedPreset();
+                _foaModManagerRefreshPending = true;
+                return;
+            }
+
+            if (!IsPresetValueSetting(changedSetting)
+                || _preset == null
+                || _preset.Value == Preset.Custom)
+            {
+                return;
+            }
+
+            _applyingPreset = true;
+            try
+            {
+                _preset.Value = Preset.Custom;
+            }
+            finally
+            {
+                _applyingPreset = false;
+            }
+            _foaModManagerRefreshPending = true;
+        }
+
+        private bool IsPresetValueSetting(ConfigEntryBase setting)
+        {
+            return ReferenceEquals(setting, _customPayoutPercentOfKillXp)
+                || ReferenceEquals(setting, _secondsRequired)
+                || ReferenceEquals(
+                    setting,
+                    _customLiveDrainXpTickIntervalSeconds)
+                || ReferenceEquals(setting, _customLiveDrainXpPercentPerTick)
+                || ReferenceEquals(
+                    setting,
+                    _customLiveDrainMaximumXpPercentPerTarget);
+        }
+
+        private void ApplySelectedPreset()
+        {
+            if (_preset == null || _preset.Value == Preset.Custom)
+            {
+                return;
+            }
+
+            _applyingPreset = true;
+            try
+            {
+                switch (_preset.Value)
+                {
+                    case Preset.BloodRite:
+                        ApplyBloodRitePreset();
+                        break;
+                    case Preset.Exsanguination:
+                        ApplyExsanguinationPreset();
+                        break;
+                    default:
+                        ApplyDesecrationPreset();
+                        break;
+                }
+            }
+            finally
+            {
+                _applyingPreset = false;
+            }
+        }
+
+        private void ApplyBloodRitePreset()
+        {
+            _customPayoutPercentOfKillXp.Value = 30.0f;
+            _secondsRequired.Value = 1.0f;
+            _customLiveDrainXpTickIntervalSeconds.Value = 1.0f;
+            _customLiveDrainXpPercentPerTick.Value = 4.0f;
+            _customLiveDrainMaximumXpPercentPerTarget.Value = 20.0f;
+        }
+
+        private void ApplyDesecrationPreset()
+        {
+            _customPayoutPercentOfKillXp.Value = 40.0f;
+            _secondsRequired.Value = 1.5f;
+            _customLiveDrainXpTickIntervalSeconds.Value = 1.5f;
+            _customLiveDrainXpPercentPerTick.Value = 6.0f;
+            _customLiveDrainMaximumXpPercentPerTarget.Value = 30.0f;
+        }
+
+        private void ApplyExsanguinationPreset()
+        {
+            _customPayoutPercentOfKillXp.Value = 45.0f;
+            _secondsRequired.Value = 2.0f;
+            _customLiveDrainXpTickIntervalSeconds.Value = 2.0f;
+            _customLiveDrainXpPercentPerTick.Value = 8.0f;
+            _customLiveDrainMaximumXpPercentPerTarget.Value = 40.0f;
+        }
+
+        private void RefreshFoaModManagerIfPending()
+        {
+            if (!_foaModManagerRefreshPending)
+            {
+                return;
+            }
+
+            _foaModManagerRefreshPending = false;
+            try
+            {
+                Type apiType = AccessTools.TypeByName(
+                    "FoAModManager.FoAModManagerApi");
+                MethodInfo refreshMethod = apiType == null
+                    ? null
+                    : AccessTools.Method(apiType, "Refresh");
+                if (refreshMethod != null)
+                {
+                    refreshMethod.Invoke(null, null);
+                }
+            }
+            catch (Exception exception)
+            {
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogWarning(
+                        "FoA Mod Manager refresh failed: "
+                        + exception.GetBaseException().Message);
+                }
+            }
         }
 
         private void UpdateBloodSpellInnerLight()
@@ -2977,7 +3154,7 @@ namespace BloodMagicExpansion
         {
             _harmony = new Harmony(PluginGuid);
 
-            PatchStep("HealthElement corpse aliases", delegate
+            PatchStep("HealthElement damage and corpse aliases", delegate
             {
                 Type healthElementType = AccessTools.TypeByName(HealthElementTypeName);
                 if (healthElementType == null)
@@ -2986,6 +3163,12 @@ namespace BloodMagicExpansion
                 }
                 else
                 {
+                    PatchMethod(
+                        healthElementType,
+                        "OnDamage",
+                        typeof(HealthElementOnDamagePatch),
+                        nameof(HealthElementOnDamagePatch.Prefix),
+                        false);
                     PatchMethod(
                         healthElementType,
                         "OnDeathEvents",
@@ -3289,6 +3472,23 @@ namespace BloodMagicExpansion
                         typeof(DamageDealingProjectilePatch),
                         nameof(DamageDealingProjectilePatch.Postfix),
                         false);
+                }
+
+                Type magicProjectileType = AccessTools.TypeByName(MagicProjectileTypeName);
+                if (magicProjectileType == null)
+                {
+                    Warn("Could not find " + MagicProjectileTypeName + ". Blood/Life projectile Bleed attribution is unavailable.");
+                }
+                else
+                {
+                    PatchMethodsByName(
+                        magicProjectileType,
+                        "OnContact",
+                        typeof(MagicProjectileImpactPatch),
+                        nameof(MagicProjectileImpactPatch.Prefix),
+                        nameof(MagicProjectileImpactPatch.Postfix),
+                        false,
+                        nameof(MagicProjectileImpactPatch.Finalizer));
                 }
             });
 
@@ -5742,10 +5942,9 @@ namespace BloodMagicExpansion
                 }
 
                 FMOD.ChannelGroup channelGroup;
-                FMOD.RESULT groupResult = RuntimeManager.CoreSystem.getMasterChannelGroup(out channelGroup);
-                if (groupResult != FMOD.RESULT.OK)
+                if (!TryGetCorpseLeechSfxChannelGroup(out channelGroup))
                 {
-                    channelGroup = default(FMOD.ChannelGroup);
+                    return false;
                 }
 
                 FMOD.Channel channel;
@@ -5784,6 +5983,60 @@ namespace BloodMagicExpansion
             }
         }
 
+        private bool TryGetCorpseLeechSfxChannelGroup(
+            out FMOD.ChannelGroup channelGroup)
+        {
+            if (_corpseLeechSfxBusLocked
+                && _corpseLeechSfxChannelGroup.hasHandle())
+            {
+                channelGroup = _corpseLeechSfxChannelGroup;
+                return true;
+            }
+
+            ReleaseCorpseLeechSfxBus();
+
+            FMOD.Studio.Bus sfxBus;
+            if (!BusGroup.SFX.TryGetBus(out sfxBus))
+            {
+                Log.LogWarning(
+                    "FMOD could not resolve the game's SFX bus for corpse leech playback.");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.RESULT lockResult = sfxBus.lockChannelGroup();
+            if (lockResult != FMOD.RESULT.OK)
+            {
+                Log.LogWarning(
+                    "FMOD could not lock the game's SFX bus channel group for corpse leech playback: "
+                    + lockResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.RESULT groupResult = sfxBus.getChannelGroup(
+                out channelGroup);
+            if (groupResult != FMOD.RESULT.OK
+                || !channelGroup.hasHandle())
+            {
+                sfxBus.unlockChannelGroup();
+                Log.LogWarning(
+                    "FMOD could not access the game's SFX bus channel group for corpse leech playback: "
+                    + groupResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            _corpseLeechSfxBus = sfxBus;
+            _corpseLeechSfxChannelGroup = channelGroup;
+            _corpseLeechSfxBusLocked = true;
+            LogAudioDiagnostic(
+                "Corpse leech playback connected to the game's SFX bus.");
+            return true;
+        }
+
         private void ReleaseCorpseLeechFmodSounds()
         {
             foreach (KeyValuePair<string, FMOD.Sound> pair in _corpseLeechFmodSoundsByPath)
@@ -5798,6 +6051,25 @@ namespace BloodMagicExpansion
             }
 
             _corpseLeechFmodSoundsByPath.Clear();
+            ReleaseCorpseLeechSfxBus();
+        }
+
+        private void ReleaseCorpseLeechSfxBus()
+        {
+            _corpseLeechSfxChannelGroup = default(FMOD.ChannelGroup);
+            if (_corpseLeechSfxBusLocked
+                && _corpseLeechSfxBus.isValid())
+            {
+                FMOD.RESULT unlockResult =
+                    _corpseLeechSfxBus.unlockChannelGroup();
+                LogAudioDiagnostic(
+                    "Corpse leech SFX bus unlock result="
+                    + unlockResult
+                    + ".");
+            }
+
+            _corpseLeechSfxBus = default(FMOD.Studio.Bus);
+            _corpseLeechSfxBusLocked = false;
         }
 
         private void LogAudioDiagnostic(string message)
@@ -5806,6 +6078,24 @@ namespace BloodMagicExpansion
             {
                 Log.LogInfo(message);
             }
+        }
+
+        private void LogBloodSpellTuningDiagnosticThrottled(string message)
+        {
+            if (!DiagnosticsEnabled())
+            {
+                return;
+            }
+
+            float now = Now;
+            if (now < _nextBloodSpellTuningDiagnosticTime)
+            {
+                return;
+            }
+
+            _nextBloodSpellTuningDiagnosticTime =
+                now + BloodSpellTuningDiagnosticIntervalSeconds;
+            Log.LogInfo(message);
         }
 
         private bool ApplyCorpseLeechHealing(CorpseState state, float percentOfMaxHealth)
@@ -5832,6 +6122,49 @@ namespace BloodMagicExpansion
         private void HandleAppliedDamage(object healthElement, object damage)
         {
             TryApplyLiveBloodMagicDrain(healthElement, damage);
+        }
+
+        internal void ApplyBloodMagicTapDamageTuning(object healthElement, Damage damage)
+        {
+            if (!ShouldTuneBloodSpells() || healthElement == null || damage == null)
+            {
+                return;
+            }
+
+            object projectile = damage.Projectile;
+            string sourceSummary;
+            if (projectile == null || !IsBloodMagicProjectileSource(projectile, out sourceSummary))
+            {
+                return;
+            }
+
+            object hero = GetHero();
+            if (hero == null || !IsHeroDamageDealer(damage, hero))
+            {
+                return;
+            }
+
+            object heroHealthElement = GetPropertyValue(hero, "HealthElement");
+            if (ReferenceEquals(healthElement, heroHealthElement))
+            {
+                return;
+            }
+
+            float multiplier = GetBloodSpellTapDamageMultiplier();
+            if (multiplier <= 0f || Math.Abs(multiplier - 1f) <= 0.0001f)
+            {
+                return;
+            }
+
+            damage.RawData.MultiplyMultModifier(multiplier);
+            LogBloodSpellTuningDiagnosticThrottled(
+                "Blood/Life tap damage tuned: source="
+                + sourceSummary
+                + " power="
+                + GetBloodPower().ToString("0.##", CultureInfo.InvariantCulture)
+                + " multiplier="
+                + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                + ".");
         }
 
         private void TryApplyLiveBloodMagicDrain(object healthElement, object damage)
@@ -6604,7 +6937,9 @@ namespace BloodMagicExpansion
 
             object sourceItem = GetPropertyValue(sourceInfo, "GetSourceItemSafe");
             string ignored;
-            bool isBloodMagicSpell = ShouldTuneBloodSpells() && IsBloodTransfusionItem(sourceItem, out ignored);
+            bool isBloodMagicSpell = ShouldTuneBloodSpells() &&
+                (IsBloodTransfusionItem(sourceItem, out ignored) ||
+                    _currentBloodMagicProjectileImpactContext.QualifyingPlayerBloodSpell);
             bool isAbhartach = ShouldTuneAbhartach() &&
                 _abhartachScaleExplosionBleed.Value &&
                 IsAbhartachItem(sourceItem, out ignored);
@@ -6625,6 +6960,14 @@ namespace BloodMagicExpansion
             if (multiplier > 0f && Math.Abs(multiplier - 1f) > 0.0001f)
             {
                 buildupStrength *= multiplier;
+                LogBloodSpellTuningDiagnosticThrottled(
+                    "Blood magic Bleed buildup tuned: source="
+                    + (isAbhartach ? "Abhartach" : "Blood/Life")
+                    + " power="
+                    + GetBloodPower().ToString("0.##", CultureInfo.InvariantCulture)
+                    + " multiplier="
+                    + multiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                    + ".");
             }
         }
 
@@ -6662,9 +7005,7 @@ namespace BloodMagicExpansion
                 : args[1];
             object item = GetMemberValue(sphereDamageParameters, "item");
             string ignored;
-            return (ShouldTuneBloodSpells() && IsBloodTransfusionItem(item, out ignored)) ||
-                (ShouldTuneAbhartach() &&
-                    IsAbhartachItem(item, out ignored));
+            return ShouldTuneAbhartach() && IsAbhartachItem(item, out ignored);
         }
 
         private BloodMagicBuildupApplicationScopeState BeginBloodMagicBuildupApplicationScope(
@@ -6684,7 +7025,9 @@ namespace BloodMagicExpansion
                 {
                     object sourceItem = GetPropertyValue(sourceInfo, "GetSourceItemSafe");
                     string ignored;
-                    qualifying = (ShouldTuneBloodSpells() && IsBloodTransfusionItem(sourceItem, out ignored)) ||
+                    qualifying = (ShouldTuneBloodSpells() &&
+                            (IsBloodTransfusionItem(sourceItem, out ignored) ||
+                                _currentBloodMagicProjectileImpactContext.QualifyingPlayerBloodSpell)) ||
                         (ShouldTuneAbhartach() &&
                             IsAbhartachItem(sourceItem, out ignored)) ||
                         _currentBloodMagicAreaBuildupContext.QualifyingPlayerBloodSpell;
@@ -6738,6 +7081,12 @@ namespace BloodMagicExpansion
                 {
                     Multiplier = durationMultiplier
                 });
+            LogBloodSpellTuningDiagnosticThrottled(
+                "Blood magic Bleed duration tagged: power="
+                + GetBloodPower().ToString("0.##", CultureInfo.InvariantCulture)
+                + " multiplier="
+                + durationMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
+                + ".");
         }
 
         internal void ApplyBloodMagicBleedDurationTuning(object buildupStatus, ref float deltaTime)
@@ -6762,8 +7111,8 @@ namespace BloodMagicExpansion
 
         internal void ApplyBloodMagicProjectileDistanceTuning(object projectile, object weapon, object sourceProjectile)
         {
-            ProjectileTuningState existing;
-            if (!ShouldTuneBloodSpells() || projectile == null || _tunedProjectiles.TryGetValue(projectile, out existing))
+            BloodMagicProjectileState existing;
+            if (!ShouldTuneBloodSpells() || projectile == null || _bloodMagicProjectiles.TryGetValue(projectile, out existing))
             {
                 return;
             }
@@ -6780,7 +7129,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            bool changed = false;
+            _bloodMagicProjectiles.Add(projectile, new BloodMagicProjectileState());
             if (_bloodSpellScaleProjectileTravel.Value)
             {
                 float multiplier = GetBloodSpellProjectileTravelMultiplier();
@@ -6788,10 +7137,9 @@ namespace BloodMagicExpansion
                 if (multiplier > 0f &&
                     Math.Abs(multiplier - 1f) > 0.0001f &&
                     TryGetFloatMember(projectile, "LifeTime", out lifeTime) &&
-                    lifeTime > 0f &&
-                    TrySetFloatMember(projectile, "LifeTime", lifeTime * multiplier))
+                    lifeTime > 0f)
                 {
-                    changed = true;
+                    TrySetFloatMember(projectile, "LifeTime", lifeTime * multiplier);
                 }
             }
 
@@ -6802,17 +7150,36 @@ namespace BloodMagicExpansion
                 if (multiplier > 0f &&
                     Math.Abs(multiplier - 1f) > 0.0001f &&
                     TryGetFloatMember(projectile, "targetFindDistance", out targetFindDistance) &&
-                    targetFindDistance > 0f &&
-                    TrySetFloatMember(projectile, "targetFindDistance", targetFindDistance * multiplier))
+                    targetFindDistance > 0f)
                 {
-                    changed = true;
+                    TrySetFloatMember(projectile, "targetFindDistance", targetFindDistance * multiplier);
                 }
             }
+        }
 
-            if (changed)
-            {
-                _tunedProjectiles.Add(projectile, new ProjectileTuningState());
-            }
+        private BloodMagicProjectileImpactScopeState BeginBloodMagicProjectileImpactScope(
+            object projectile)
+        {
+            BloodMagicProjectileImpactScopeState state =
+                new BloodMagicProjectileImpactScopeState
+                {
+                    Previous = _currentBloodMagicProjectileImpactContext
+                };
+            BloodMagicProjectileState projectileState;
+            _currentBloodMagicProjectileImpactContext =
+                new BloodMagicProjectileImpactContext
+                {
+                    Scoped = true,
+                    QualifyingPlayerBloodSpell = projectile != null &&
+                        _bloodMagicProjectiles.TryGetValue(projectile, out projectileState)
+                };
+            return state;
+        }
+
+        private void EndBloodMagicProjectileImpactScope(
+            BloodMagicProjectileImpactScopeState state)
+        {
+            _currentBloodMagicProjectileImpactContext = state.Previous;
         }
 
         internal void ApplyBloodMagicSphereAreaTuning(object[] args)
@@ -6875,9 +7242,8 @@ namespace BloodMagicExpansion
 
             object item = GetMemberValue(sphereDamageParameters, "item");
             string ignored;
-            bool isBloodMagicSpell = ShouldTuneBloodSpells() && IsBloodTransfusionItem(item, out ignored);
             bool isAbhartach = ShouldTuneAbhartach() && IsAbhartachItem(item, out ignored);
-            if (!isBloodMagicSpell && !isAbhartach)
+            if (!isAbhartach)
             {
                 return false;
             }
@@ -6963,7 +7329,6 @@ namespace BloodMagicExpansion
 
             object item = GetMemberValue(sphereDamageParameters, "item");
             string ignored;
-            bool isBloodMagicSpell = ShouldTuneBloodSpells() && IsBloodTransfusionItem(item, out ignored);
             bool isAbhartach = ShouldTuneAbhartach() && IsAbhartachItem(item, out ignored);
             if (isAbhartach)
             {
@@ -6973,10 +7338,6 @@ namespace BloodMagicExpansion
                 }
 
                 multiplier = GetAbhartachExplosionRadiusMultiplier() * GetAbhartachRadiusCorpseQualityMultiplier();
-            }
-            else if (isBloodMagicSpell)
-            {
-                multiplier = GetBloodSpellAreaRadiusMultiplier();
             }
             else
             {
@@ -7338,22 +7699,22 @@ namespace BloodMagicExpansion
                 _bloodSpellScaleProjectileTravel != null && _bloodSpellScaleProjectileTravel.Value;
             bool scalesBleedDuration =
                 _bloodSpellScaleBleedDuration != null && _bloodSpellScaleBleedDuration.Value;
-            if (scalesProjectileRange && scalesBleedDuration)
+            List<string> features = new List<string>
             {
-                lines.Add("Blood Essence: Improves projectile range, damage radius, Bleed buildup and duration, and cast speed.");
-            }
-            else
+                "tap damage"
+            };
+            if (scalesProjectileRange)
             {
-                List<string> features = new List<string>();
-                if (scalesProjectileRange)
-                {
-                    features.Add("projectile range");
-                }
-                features.Add("damage radius");
-                features.Add(scalesBleedDuration ? "Bleed buildup and duration" : "Bleed buildup");
-                features.Add("cast speed");
-                lines.Add("Blood Essence: Improves " + JoinTooltipFeatures(features) + ".");
+                features.Add("projectile range");
             }
+            features.Add(scalesBleedDuration ? "Bleed buildup and duration" : "Bleed buildup");
+            features.Add("cast speed");
+            lines.Add(
+                "Blood Essence: Improves "
+                + JoinTooltipFeatures(features)
+                + ". Current tap damage bonus: "
+                + FormatMultiplierBonus(GetBloodSpellTapDamageMultiplier())
+                + ".");
 
             return string.Join("\n", lines.ToArray());
         }
@@ -7550,6 +7911,14 @@ namespace BloodMagicExpansion
             }
 
             return string.Join("\n", lines.ToArray());
+        }
+
+        private static string FormatMultiplierBonus(float multiplier)
+        {
+            float percent = (multiplier - 1f) * 100f;
+            return (percent >= 0f ? "+" : "")
+                + percent.ToString("0.#", CultureInfo.InvariantCulture)
+                + "%";
         }
 
         private static string JoinTooltipFeatures(List<string> features)
@@ -8194,32 +8563,12 @@ namespace BloodMagicExpansion
 
         private float GetPayoutPercentOfKillXp()
         {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 30.0f;
-                case Preset.Desecration:
-                    return 40.0f;
-                case Preset.SoulFeast:
-                    return 50.0f;
-                default:
-                    return Math.Max(0f, _customPayoutPercentOfKillXp.Value);
-            }
+            return Math.Max(0f, _customPayoutPercentOfKillXp.Value);
         }
 
         private float GetSecondsRequired()
         {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.5f;
-                case Preset.SoulFeast:
-                    return 2.0f;
-                default:
-                    return Math.Max(0.1f, _secondsRequired.Value);
-            }
+            return Math.Max(0.1f, _secondsRequired.Value);
         }
 
         private float GetHandPayoutMultiplier(int activeHandCount)
@@ -8234,63 +8583,41 @@ namespace BloodMagicExpansion
 
         private float GetLiveDrainXpTickIntervalSeconds()
         {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.5f;
-                case Preset.SoulFeast:
-                    return 2.0f;
-                default:
-                    return Math.Max(0.1f, _customLiveDrainXpTickIntervalSeconds.Value);
-            }
+            return Math.Max(
+                0.1f,
+                _customLiveDrainXpTickIntervalSeconds.Value);
         }
 
         private float GetLiveDrainXpPercentPerTick()
         {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 4.0f;
-                case Preset.Desecration:
-                    return 8.0f;
-                case Preset.SoulFeast:
-                    return 12.0f;
-                default:
-                    return Math.Max(0f, _customLiveDrainXpPercentPerTick.Value);
-            }
+            return Math.Max(0f, _customLiveDrainXpPercentPerTick.Value);
         }
 
         private float GetLiveDrainMaximumXpPercentPerTarget()
         {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 20.0f;
-                case Preset.Desecration:
-                    return 35.0f;
-                case Preset.SoulFeast:
-                    return 50.0f;
-                default:
-                    return Math.Max(0f, _customLiveDrainMaximumXpPercentPerTarget.Value);
-            }
+            return Math.Max(
+                0f,
+                _customLiveDrainMaximumXpPercentPerTarget.Value);
         }
 
         private float GetBloodSpellProjectileTravelMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellRangeBleedTapBaseMultiplier(), GetBloodSpellProjectileTravelGrowthMultiplier());
+            return GetBloodSpellTunedMultiplier(
+                BloodSpellProjectileTravelProgressionBase,
+                GetBloodSpellProjectileTravelGrowthMultiplier());
         }
 
-        private float GetBloodSpellAreaRadiusMultiplier()
+        private float GetBloodSpellTapDamageMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellRangeBleedTapBaseMultiplier(), GetBloodSpellAreaRadiusGrowthMultiplier());
+            return GetBloodSpellTunedMultiplier(
+                BloodSpellTapDamageProgressionBase,
+                GetBloodSpellTapDamageGrowthMultiplier());
         }
 
         private float GetBloodSpellHomingTargetSearchMultiplier()
         {
             return GetBloodSpellTunedMultiplier(
-                GetBloodSpellHomingTargetSearchBaseMultiplier(),
+                BloodSpellHomingSearchProgressionBase,
                 GetBloodSpellTargetSearchGrowthMultiplier(),
                 _bloodSpellHomingTargetSearchMaximumMultiplier.Value);
         }
@@ -8298,217 +8625,66 @@ namespace BloodMagicExpansion
         private float GetBloodSpellHeldTargetRangeMultiplier()
         {
             return GetBloodSpellTunedMultiplier(
-                GetBloodSpellHeldTargetRangeBaseMultiplier(),
+                BloodSpellHeldRangeProgressionBase,
                 GetBloodSpellTargetSearchGrowthMultiplier(),
                 _bloodSpellHeldTargetRangeMaximumMultiplier.Value);
         }
 
         private float GetBloodSpellBleedBuildupMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellBleedBuildupBaseMultiplier(), GetBloodSpellBleedBuildupGrowthMultiplier());
+            return GetBloodSpellTunedMultiplier(
+                BloodSpellBleedProgressionBase,
+                GetBloodSpellBleedBuildupGrowthMultiplier());
         }
 
         private float GetBloodSpellTapCastSpeedMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellTapCastSpeedBaseMultiplier(), GetBloodSpellTapCastSpeedGrowthMultiplier());
+            return GetBloodSpellTunedMultiplier(
+                BloodSpellTapSpeedProgressionBase,
+                GetBloodSpellTapCastSpeedGrowthMultiplier());
         }
 
         private float GetBloodSpellHeldChannelSpeedMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetBloodSpellHeldChannelBaseMultiplier(), GetBloodSpellHeldGrowthMultiplier());
+            return GetBloodSpellTunedMultiplier(
+                BloodSpellHeldSpeedProgressionBase,
+                GetBloodSpellHeldGrowthMultiplier());
         }
 
         private float GetAbhartachExplosionDamageMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionDamageBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionDamageCurve()));
+            return GetBloodSpellTunedMultiplier(
+                AbhartachExplosionDamageProgressionBase,
+                GetBloodMagicGrowthMultiplier(GetAbhartachExplosionDamageCurve()));
         }
 
         private float GetAbhartachExplosionRadiusMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionRadiusBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionRadiusCurve()));
+            return GetBloodSpellTunedMultiplier(
+                AbhartachExplosionRadiusProgressionBase,
+                GetBloodMagicGrowthMultiplier(GetAbhartachExplosionRadiusCurve()));
         }
 
         private float GetAbhartachExplosionBleedBuildupMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachExplosionBleedBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachExplosionBleedCurve()));
+            return GetBloodSpellTunedMultiplier(
+                AbhartachExplosionBleedProgressionBase,
+                GetBloodMagicGrowthMultiplier(GetAbhartachExplosionBleedCurve()));
         }
 
         private float GetAbhartachHeldCorpseHealingMultiplier()
         {
-            return GetBloodSpellTunedMultiplier(GetAbhartachHeldHealingBaseMultiplier(), GetBloodMagicGrowthMultiplier(GetAbhartachHeldHealingCurve()));
+            return GetBloodSpellTunedMultiplier(
+                AbhartachHeldHealingProgressionBase,
+                GetBloodMagicGrowthMultiplier(GetAbhartachHeldHealingCurve()));
         }
 
         private float GetAbhartachCorpseSearchRangeMultiplier()
         {
             return GetBloodSpellTunedMultiplier(
-                GetAbhartachCorpseSearchBaseMultiplier(),
+                AbhartachCorpseSearchProgressionBase,
                 GetBloodMagicGrowthMultiplier(GetAbhartachCorpseSearchCurve()),
                 _abhartachCorpseSearchMaximumMultiplier.Value);
-        }
-
-        private float GetBloodSpellRangeBleedTapBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.03f;
-                case Preset.Desecration:
-                    return 1.06f;
-                case Preset.SoulFeast:
-                    return 1.12f;
-                default:
-                    return Math.Max(0f, _customBloodSpellRangeDistanceMultiplier.Value);
-            }
-        }
-
-        private float GetBloodSpellHomingTargetSearchBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.05f;
-                case Preset.SoulFeast:
-                    return 1.12f;
-                default:
-                    return Math.Max(0f, _customBloodSpellHomingTargetSearchMultiplier.Value);
-            }
-        }
-
-        private float GetBloodSpellHeldTargetRangeBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.03f;
-                case Preset.SoulFeast:
-                    return 1.08f;
-                default:
-                    return Math.Max(0f, _customBloodSpellHeldTargetRangeMultiplier.Value);
-            }
-        }
-
-        private float GetBloodSpellBleedBuildupBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.03f;
-                case Preset.Desecration:
-                    return 1.06f;
-                case Preset.SoulFeast:
-                    return 1.12f;
-                default:
-                    return Math.Max(0f, _customBloodSpellBleedBuildupMultiplier.Value);
-            }
-        }
-
-        private float GetBloodSpellTapCastSpeedBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.03f;
-                case Preset.Desecration:
-                    return 1.06f;
-                case Preset.SoulFeast:
-                    return 1.12f;
-                default:
-                    return Math.Max(0f, _customBloodSpellTapCastSpeedMultiplier.Value);
-            }
-        }
-
-        private float GetBloodSpellHeldChannelBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.01f;
-                case Preset.SoulFeast:
-                    return 1.02f;
-                default:
-                    return Math.Max(0f, _customBloodSpellHeldChannelSpeedMultiplier.Value);
-            }
-        }
-
-        private float GetAbhartachExplosionDamageBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.05f;
-                case Preset.SoulFeast:
-                    return 1.12f;
-                default:
-                    return Math.Max(0f, _customAbhartachExplosionDamageMultiplier.Value);
-            }
-        }
-
-        private float GetAbhartachExplosionRadiusBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.05f;
-                case Preset.Desecration:
-                    return 1.10f;
-                case Preset.SoulFeast:
-                    return 1.20f;
-                default:
-                    return Math.Max(0f, _customAbhartachExplosionRadiusMultiplier.Value);
-            }
-        }
-
-        private float GetAbhartachExplosionBleedBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.05f;
-                case Preset.Desecration:
-                    return 1.12f;
-                case Preset.SoulFeast:
-                    return 1.20f;
-                default:
-                    return Math.Max(0f, _customAbhartachExplosionBleedBuildupMultiplier.Value);
-            }
-        }
-
-        private float GetAbhartachHeldHealingBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.10f;
-                case Preset.Desecration:
-                    return 1.20f;
-                case Preset.SoulFeast:
-                    return 1.35f;
-                default:
-                    return Math.Max(0f, _customAbhartachHeldCorpseHealingMultiplier.Value);
-            }
-        }
-
-        private float GetAbhartachCorpseSearchBaseMultiplier()
-        {
-            switch (_preset.Value)
-            {
-                case Preset.BloodRite:
-                    return 1.0f;
-                case Preset.Desecration:
-                    return 1.05f;
-                case Preset.SoulFeast:
-                    return 1.10f;
-                default:
-                    return Math.Max(0f, _customAbhartachCorpseSearchRangeMultiplier.Value);
-            }
         }
 
         private float GetBloodSpellProjectileTravelGrowthMultiplier()
@@ -8516,9 +8692,9 @@ namespace BloodMagicExpansion
             return GetBloodMagicGrowthMultiplier(GetProjectileTravelBloodPowerCurve());
         }
 
-        private float GetBloodSpellAreaRadiusGrowthMultiplier()
+        private float GetBloodSpellTapDamageGrowthMultiplier()
         {
-            return GetBloodMagicGrowthMultiplier(GetAreaRadiusBloodPowerCurve());
+            return GetBloodMagicGrowthMultiplier(GetTapDamageBloodPowerCurve());
         }
 
         private float GetBloodSpellBleedBuildupGrowthMultiplier()
@@ -8554,14 +8730,14 @@ namespace BloodMagicExpansion
             return 1f + (Math.Max(0f, bonusPercent) / 100f);
         }
 
-        private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier)
+        private float GetBloodSpellTunedMultiplier(float progressionBase, float growthMultiplier)
         {
-            return GetBloodSpellTunedMultiplier(presetBase, growthMultiplier, 10f);
+            return GetBloodSpellTunedMultiplier(progressionBase, growthMultiplier, 10f);
         }
 
-        private float GetBloodSpellTunedMultiplier(float presetBase, float growthMultiplier, float maximum)
+        private float GetBloodSpellTunedMultiplier(float progressionBase, float growthMultiplier, float maximum)
         {
-            float value = Math.Max(0f, presetBase) * Math.Max(0f, growthMultiplier);
+            float value = Math.Max(0f, progressionBase) * Math.Max(0f, growthMultiplier);
             float power = GetBloodPower();
             float unlock = Mathf.Clamp01(power / NormalMaximumBloodPower);
             value = 1.0f + ((value - 1.0f) * unlock);
@@ -8584,18 +8760,18 @@ namespace BloodMagicExpansion
             return _cachedProjectileTravelBloodPowerCurve;
         }
 
-        private CurvePoint[] GetAreaRadiusBloodPowerCurve()
+        private CurvePoint[] GetTapDamageBloodPowerCurve()
         {
-            string raw = _bloodSpellAreaRadiusBloodPowerBonusCurve == null
+            string raw = _bloodSpellTapDamageBloodPowerBonusCurve == null
                 ? ""
-                : (_bloodSpellAreaRadiusBloodPowerBonusCurve.Value ?? "");
-            if (raw != _cachedAreaRadiusBloodPowerCurveRaw)
+                : (_bloodSpellTapDamageBloodPowerBonusCurve.Value ?? "");
+            if (raw != _cachedTapDamageBloodPowerCurveRaw)
             {
-                _cachedAreaRadiusBloodPowerCurveRaw = raw;
-                _cachedAreaRadiusBloodPowerCurve = ParseCurve(raw, GetDefaultAreaRadiusBloodPowerCurve());
+                _cachedTapDamageBloodPowerCurveRaw = raw;
+                _cachedTapDamageBloodPowerCurve = ParseCurve(raw, GetDefaultTapDamageBloodPowerCurve());
             }
 
-            return _cachedAreaRadiusBloodPowerCurve;
+            return _cachedTapDamageBloodPowerCurve;
         }
 
         private CurvePoint[] GetBleedBuildupBloodPowerCurve()
@@ -8817,7 +8993,7 @@ namespace BloodMagicExpansion
             };
         }
 
-        private CurvePoint[] GetDefaultAreaRadiusBloodPowerCurve()
+        private CurvePoint[] GetDefaultTapDamageBloodPowerCurve()
         {
             return new[]
             {
@@ -9993,6 +10169,18 @@ namespace BloodMagicExpansion
                 {
                     return true;
                 }
+                if (IsHarmlessCorpseAssistSurface(hit.collider)
+                    && TryResolveNearMissCorpseTarget(
+                        hit.point,
+                        hit.normal,
+                        layerMask,
+                        out state,
+                        includeInactive))
+                {
+                    ClearRecentServantTarget();
+                    state.LiveServantTarget = null;
+                    return true;
+                }
                 LogUnresolvedRaycastHit(hit.collider);
                 return false;
             }
@@ -10087,6 +10275,69 @@ namespace BloodMagicExpansion
             state = nearestServant;
             RememberServantTarget(state);
             return true;
+        }
+
+        private bool IsHarmlessCorpseAssistSurface(Collider collider)
+        {
+            return collider != null
+                && !IsCorpseFallbackCandidateCollider(collider)
+                && !IsKnownCorpseCollider(collider, includeInactive: true);
+        }
+
+        private bool TryResolveNearMissCorpseTarget(
+            Vector3 impactPoint,
+            Vector3 surfaceNormal,
+            int layerMask,
+            out CorpseState state,
+            bool includeInactive = false)
+        {
+            state = null;
+            int hitCount = Physics.OverlapSphereNonAlloc(
+                impactPoint,
+                CorpseTargetAssistRadius,
+                _corpseTargetAssistColliders,
+                layerMask,
+                QueryTriggerInteraction.Ignore);
+            int count = Math.Min(hitCount, _corpseTargetAssistColliders.Length);
+            float nearestDistanceSqr = float.PositiveInfinity;
+            for (int i = 0; i < _corpseTargetAssistColliders.Length; i++)
+            {
+                Collider collider = _corpseTargetAssistColliders[i];
+                _corpseTargetAssistColliders[i] = null;
+                if (i >= count || collider == null || ColliderLooksAlive(collider))
+                {
+                    continue;
+                }
+
+                CorpseState candidate;
+                if (!TryResolveCorpseStateFromCollider(
+                        collider,
+                        out candidate,
+                        includeInactive,
+                        allowNearestStateFallback: false)
+                    || candidate.LiveServantTarget != null)
+                {
+                    continue;
+                }
+
+                Vector3 closestPoint = collider.ClosestPoint(impactPoint);
+                Vector3 offset = closestPoint - impactPoint;
+                if (Vector3.Dot(offset, surfaceNormal) < -0.10f)
+                {
+                    continue;
+                }
+
+                float distanceSqr = offset.sqrMagnitude;
+                if (distanceSqr >= nearestDistanceSqr)
+                {
+                    continue;
+                }
+
+                nearestDistanceSqr = distanceSqr;
+                state = candidate;
+            }
+
+            return state != null;
         }
 
         private bool TryRetainRecentServantTarget(
@@ -10191,7 +10442,11 @@ namespace BloodMagicExpansion
             return forward.sqrMagnitude > 0.0001f;
         }
 
-        private bool TryResolveCorpseStateFromCollider(Collider collider, out CorpseState state, bool includeInactive = false)
+        private bool TryResolveCorpseStateFromCollider(
+            Collider collider,
+            out CorpseState state,
+            bool includeInactive = false,
+            bool allowNearestStateFallback = true)
         {
             state = null;
             if (collider == null)
@@ -10237,7 +10492,12 @@ namespace BloodMagicExpansion
                 depth++;
             }
 
-            if (IsCorpseFallbackCandidateCollider(collider) && TryResolveNearestCorpseState(collider.transform.position, out state, includeInactive))
+            if (allowNearestStateFallback
+                && IsCorpseFallbackCandidateCollider(collider)
+                && TryResolveNearestCorpseState(
+                    collider.transform.position,
+                    out state,
+                    includeInactive))
             {
                 CacheResolvedCollider(collider, state);
                 return true;
@@ -13396,10 +13656,10 @@ namespace BloodMagicExpansion
 
         private enum Preset
         {
-            Custom,
             BloodRite,
             Desecration,
-            SoulFeast,
+            Exsanguination,
+            Custom
         }
 
         private enum HandRequirement
@@ -13627,7 +13887,7 @@ namespace BloodMagicExpansion
             public string SummarySuffix;
         }
 
-        private sealed class ProjectileTuningState
+        private sealed class BloodMagicProjectileState
         {
         }
 
@@ -13637,6 +13897,12 @@ namespace BloodMagicExpansion
         }
 
         private struct BloodMagicAreaBuildupContext
+        {
+            public bool Scoped;
+            public bool QualifyingPlayerBloodSpell;
+        }
+
+        private struct BloodMagicProjectileImpactContext
         {
             public bool Scoped;
             public bool QualifyingPlayerBloodSpell;
@@ -13652,6 +13918,11 @@ namespace BloodMagicExpansion
         private struct BloodMagicAreaBuildupScopeState
         {
             public BloodMagicAreaBuildupContext Previous;
+        }
+
+        private struct BloodMagicProjectileImpactScopeState
+        {
+            public BloodMagicProjectileImpactContext Previous;
         }
 
         private struct BloodMagicBuildupApplicationScopeState
@@ -13803,6 +14074,18 @@ namespace BloodMagicExpansion
                 if (plugin != null)
                 {
                     plugin.HandleCorpseConstructed(__instance, __args);
+                }
+            }
+        }
+
+        private static class HealthElementOnDamagePatch
+        {
+            public static void Prefix(object __instance, Damage damage)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.ApplyBloodMagicTapDamageTuning(__instance, damage);
                 }
             }
         }
@@ -14098,6 +14381,38 @@ namespace BloodMagicExpansion
                 {
                     plugin.ApplyBloodMagicProjectileDistanceTuning(__instance, weapon, projectile);
                 }
+            }
+        }
+
+        private static class MagicProjectileImpactPatch
+        {
+            public static void Prefix(
+                object __instance,
+                out BloodMagicProjectileImpactScopeState __state)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                __state = default(BloodMagicProjectileImpactScopeState);
+                if (plugin != null)
+                {
+                    __state = plugin.BeginBloodMagicProjectileImpactScope(__instance);
+                }
+            }
+
+            public static void Postfix()
+            {
+            }
+
+            public static Exception Finalizer(
+                Exception __exception,
+                BloodMagicProjectileImpactScopeState __state)
+            {
+                BloodMagicExpansionPlugin plugin = Instance;
+                if (plugin != null)
+                {
+                    plugin.EndBloodMagicProjectileImpactScope(__state);
+                }
+
+                return __exception;
             }
         }
 

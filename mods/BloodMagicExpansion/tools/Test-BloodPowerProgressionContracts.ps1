@@ -67,10 +67,25 @@ function Get-BleedDurationMultiplier {
     return 1.0 + $progress
 }
 
+function Get-TunedMultiplier {
+    param(
+        [double]$ProgressionBase,
+        [double]$GrowthMultiplier,
+        [double]$Power
+    )
+
+    $value = $ProgressionBase * $GrowthMultiplier
+    $unlock = [Math]::Max(0.0, [Math]::Min(1.0, $Power / 100.0))
+    $value = 1.0 + (($value - 1.0) * $unlock)
+    $overmastery = [Math]::Max(0.0, [Math]::Min(1.0, ($Power - 100.0) / 100.0))
+    return 1.0 + (($value - 1.0) * (1.0 + $overmastery))
+}
+
 $modRoot = Split-Path -Parent $PSScriptRoot
 $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\BloodMagicExpansion.cs")
 $requiredContracts = @(
-    'ConfigSchemaVersion = 25',
+    'ConfigSchemaVersion = 30',
+    'case Preset.Exsanguination:',
     'NormalMaximumBloodPower = 100.0f',
     'AbsoluteMaximumBloodPower = 200.0f',
     'BloodEssenceAtNormalMaximumPower = 1000.0f',
@@ -85,7 +100,7 @@ $requiredContracts = @(
     '"MaximumPowerRange", 4.5f',
     '"MaximumBleedDurationMultiplier", 2.0f',
     '"ProjectileTravelBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:11;25:16;30:22;35:29;40:37;45:47;50:56"',
-    '"AreaRadiusBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:6;25:9;30:13;35:18;40:23;45:28;50:34"',
+    '"TapDamageBloodPowerBonusCurve", "0:0;5:1;10:2;15:4;20:6;25:9;30:13;35:18;40:23;45:28;50:34"',
     '"BleedBuildupBloodPowerBonusCurve", "0:0;5:1;10:3;15:6;20:11;25:16;30:22;35:29;40:37;45:47;50:56"',
     '"TapCastSpeedBloodPowerBonusCurve", "0:0;5:0;10:1;15:2;20:4;25:6;30:8;35:11;40:14;45:18;50:21"',
     '"AbhartachRadiusMinimumMultiplier", 0.85f',
@@ -95,11 +110,13 @@ $requiredContracts = @(
     'BuildupStatusTypeName = "Awaken.TG.Main.Heroes.Statuses.BuildUp.BuildupStatus"',
     'if (patchMethodName == "Prefix")',
     'ConditionalWeakTable<object, BloodMagicBleedDurationState>',
+    'ConditionalWeakTable<object, BloodMagicProjectileState>',
     '[ThreadStatic]',
     'nameof(CharacterStatusesBuildupStatusPatch.Finalizer)',
     'nameof(BuildupStatusBuildupPatch.Postfix)',
     'nameof(SphereDamageRangePatch.Finalizer)',
     'nameof(ConeDamageRangePatch.Finalizer)',
+    'nameof(MagicProjectileImpactPatch.Finalizer)',
     'sourceCharacter != null && IsSameModelOrOwner(sourceCharacter, GetHero())',
     'QualifyingPlayerBloodSpell = qualifying',
     'state.IsBleed = isBleed;',
@@ -108,8 +125,11 @@ $requiredContracts = @(
     '_bloodMagicBleedDurationStates.Remove(buildupStatus);',
     '_bloodMagicBleedDurationStates.TryGetValue(buildupStatus, out state)',
     'deltaTime /= state.Multiplier;',
+    'ApplyBloodMagicTapDamageTuning(__instance, damage)',
+    'damage.RawData.MultiplyMultModifier(multiplier);',
+    '_currentBloodMagicProjectileImpactContext.QualifyingPlayerBloodSpell',
     'GetBloodSpellProjectileTravelMultiplier()',
-    'GetBloodSpellAreaRadiusMultiplier()',
+    'GetBloodSpellTapDamageMultiplier()',
     'GetAbhartachRadiusCorpseQualityMultiplier()',
     'GetAbhartachHealingCorpseQualityMultiplier()',
     '"HomingTargetSearchMaximumMultiplier", 2.1f',
@@ -121,6 +141,20 @@ foreach ($contract in $requiredContracts) {
     if ($source.IndexOf($contract, [StringComparison]::Ordinal) -lt 0) {
         throw "Missing Blood Power progression contract: $contract"
     }
+}
+
+foreach ($retiredBloodSpellRadiusContract in @(
+    'AreaRadiusBloodPowerBonusCurve',
+    'GetBloodSpellAreaRadiusMultiplier',
+    'GetBloodSpellAreaRadiusGrowthMultiplier')) {
+    if ($source.IndexOf($retiredBloodSpellRadiusContract, [StringComparison]::Ordinal) -ge 0) {
+        throw "Blood/Life source still contains retired radius progression: $retiredBloodSpellRadiusContract"
+    }
+}
+
+$retiredPresetName = 'Soul' + 'Feast'
+if ($source.IndexOf($retiredPresetName, [StringComparison]::Ordinal) -ge 0) {
+    throw 'Blood Power progression source still contains the retired preset name.'
 }
 
 foreach ($removedLegacyGrowthContract in @(
@@ -151,7 +185,7 @@ if (!$growthMultiplierBlock.Success -or
 
 $tunedMultiplierBlock = [regex]::Match(
     $source,
-    '(?s)private float GetBloodSpellTunedMultiplier\(float presetBase, float growthMultiplier, float maximum\).+?(?=\r?\n\s*private )')
+    '(?s)private float GetBloodSpellTunedMultiplier\(float progressionBase, float growthMultiplier, float maximum\).+?(?=\r?\n\s*private )')
 if (!$tunedMultiplierBlock.Success -or
     $tunedMultiplierBlock.Value -notmatch 'float power\s*=\s*GetBloodPower\(\);' -or
     $tunedMultiplierBlock.Value -notmatch 'GetBloodPowerOvermasteryBonusFraction\(power\)') {
@@ -317,6 +351,21 @@ $durationMilestones = @(
 )
 foreach ($milestone in $durationMilestones) {
     Assert-Near (Get-BleedDurationMultiplier $milestone[0]) $milestone[1] "Bleed duration at Power $($milestone[0])"
+}
+
+$canonicalTapDamageMilestones = @(
+    @(0.0, 1.0),
+    @(100.0, 1.4204),
+    @(200.0, 1.8408)
+)
+foreach ($milestone in $canonicalTapDamageMilestones) {
+    Assert-Near (
+        Get-TunedMultiplier `
+            -ProgressionBase 1.06 `
+            -GrowthMultiplier 1.34 `
+            -Power $milestone[0]) `
+        $milestone[1] `
+        "Canonical tap damage at Power $($milestone[0])"
 }
 
 Write-Output "Blood Power progression contracts passed."

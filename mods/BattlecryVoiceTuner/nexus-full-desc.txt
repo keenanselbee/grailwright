@@ -76,12 +76,12 @@ When [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul an
 The stronger discipline provides most of the transformation, while mastering both completes it. Soul Vigor drives supernatural echo and the lower spectral shadow. Blood Essence drives visceral distortion. Their convergence completes the pitch and darkness treatment.
 
 [code]
-| Preset            | Character                                             |
-|-------------------|-------------------------------------------------------|
-| Minimal           | Subtle, linear corruption with a quiet Soul echo      |
-| Demonic - default | Earlier growth, stronger darkness, echo, and shadow    |
-| Abyssal           | Earliest and most aggressive complete transformation  |
-| Custom            | Preserves the current nine editable targets           |
+| Preset             | Character                                             |
+|--------------------|-------------------------------------------------------|
+| Minimal            | Subtle, linear corruption with a quiet Soul echo      |
+| Demonic - default  | Earlier growth, stronger darkness, echo, and shadow    |
+| Abyssal            | Earliest and most aggressive complete transformation  |
+| Custom             | Preserves the current nine editable targets           |
 [/code]
 
 Minimal, Demonic, and Abyssal are applied presets. Selecting one writes its nine curve, pitch, distortion, low-pass, echo, and shadow targets into the visible FoA Mod Manager settings. Editing any governed value selects Custom without changing the others; selecting Custom directly changes nothing.

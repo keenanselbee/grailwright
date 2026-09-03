@@ -10,6 +10,8 @@ At its core, the material system gives bone, flesh, stone, spirit, armor, and ot
 
 Around that foundation, optional systems improve combat feedback, enemy pressure, projectiles, armor and shields, stamina, food and potions, and campaign-wide challenge. Together they reward preparation and strong builds without replacing enemy AI, rewriting encounters, or inflating health bars.
 
+[b]For the full experience, [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] is highly recommended.[/b] It carries Steel and Bone's combat feedback to the center of the screen with eight-state hit markers, weak-spot and critical overlays, damage-over-time feedback, and killing-blow corpse quality, even when floating damage numbers are disabled.
+
 [line]
 
 [heading][color=#C94A4A][size=5]Major Features[/size][/color][/heading]
@@ -112,7 +114,7 @@ Built-in damage numbers make matchups easy to read: resisted hits appear smaller
 
 [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.6.2 or newer can present the same final result at the center of the screen through eight states ranging from immunity and resistance through neutral damage to weakness.
 
-Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Hit-feedback API v7 also exposes the same complete Meager-through-Prime result before death and attaches exact target identity to confirmed killing blows. Dishonored uses that state with Killing Blow Mastery to preview one white corpse-quality skull during Execute, tint it toward dark red through the finisher, and hand off to the exact target's normal marker near completion. Dishonored can also distinguish the hero's direct attacks from damage dealt by hero-owned summons and optionally exclude the latter. Hit markers work without floating damage numbers and update immediately with each hit.
+Independent weak-spot, critical, damage-over-time, and killing-blow corpse-quality overlays remain supported. Hit-feedback API v7 also exposes the same complete Meager-through-Prime result before death and attaches exact target identity to confirmed killing blows. Dishonored uses that state with Killing Blow Mastery to preview a white marker and corpse-quality skull during Execute, tint both toward dark red through the finisher, and hand off to the exact target's normal marker immediately when it dies. Dishonored can also distinguish the hero's direct attacks from damage dealt by hero-owned summons and optionally exclude the latter. Hit markers work without floating damage numbers and update immediately with each hit.
 
 [line]
 

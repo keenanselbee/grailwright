@@ -1,10 +1,4 @@
-TargetVersion=3.6.4
-BaselineVersion=3.5.9
+TargetVersion=3.6.6
+BaselineVersion=3.6.5
 
-Made every Soul and Service summon-command preview retain its exact icon until the matching confirmation pulse arrives, eliminating ordinary-crosshair flashes from Attack, Swarm, Hunt, Hold, Follow, Behavior, and Raise All handoffs.
-Made command handoffs immediately poll Soul and Service's sequence while retaining a bounded cancellation timeout when no command is published.
-Made Soul and Service's terrain Hunt icon hand seamlessly from preview into its Attack confirmation pulse without flashing the ordinary crosshair.
-Added corpse-quality Killing Blow Mastery execution previews that begin white, follow real finisher progress toward dark red, and hand exact target-matched Steel and Bone feedback to the normal killing-blow marker near completion.
-Added a dedicated Raise All command icon and matching Soul and Service confirmation pulse.
-Kept the normal layered marker fully visible beneath the fading execution preview during their final handoff.
-Recognized Soul and Service's terrain-targeted Hunt interaction as an Attack command so it uses the existing attack-point icon without changing Hunt behavior-selection feedback.
+Changed IncludeSummonAttacks to default off so Steel and Bone hit markers show the hero's own attacks by default; enable it to include lower-priority hero-owned summon feedback.

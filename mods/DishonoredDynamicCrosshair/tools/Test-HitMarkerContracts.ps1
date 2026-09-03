@@ -19,7 +19,7 @@ $steelSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\SteelAnd
 $bloodMagicSource = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "mods\BloodMagicExpansion\src\BloodMagicExpansion.cs")
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 19')) "Config schema is not 19."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 20')) "Config schema is not 20."
 Assert-Contract ($source.Contains('ConfigRecoveryBaselineSchema = 3')) "Config recovery baseline moved from 3."
 Assert-Contract ($source.Contains('"custom_reticle.png"')) "The shared General and neutral reticle asset is missing."
 Assert-Contract ([regex]::IsMatch($source, 'ReticleContext\.Bow,\s*"Bow",\s*"custom_reticle\.png",\s*0\.9f\);')) "Bow does not default to the shared reticle at 0.9x."
@@ -37,7 +37,7 @@ Assert-Contract ([regex]::IsMatch($source, '"KillingBlowSizeMultiplier",\s*1\.3f
 Assert-Contract ($source.Contains('"DurationMultiplier",') -and $source.Contains('1f,')) "The 1x default hit-marker duration is missing."
 Assert-Contract ($source.Contains('ResolveSteelAndBoneHitFeedbackApi')) "The optional API resolver is missing."
 Assert-Contract ($source.Contains('"IncludeSummonAttacks",') -and $source.Contains('"Include Summon Attacks"')) "The summon-attack toggle is missing."
-Assert-Contract ([regex]::IsMatch($source, '"IncludeSummonAttacks",\s*true,')) "IncludeSummonAttacks does not default to enabled."
+Assert-Contract ([regex]::IsMatch($source, '"IncludeSummonAttacks",\s*false,')) "IncludeSummonAttacks does not default to disabled."
 Assert-Contract (-not $source.Contains('PlayerAttacksOnly')) "The retired inverse summon-attack toggle remains."
 Assert-Contract ($source.Contains('GetRawConstantValue(), 7')) "Dishonored does not require Steel and Bone hit-feedback API v7."
 Assert-Contract ($source.Contains('OnSteelAndBoneHitResolved')) "The hit-feedback receiver is missing."
@@ -214,6 +214,6 @@ Assert-Contract ($readme.Contains("stealth_eye_0.png") -and $readme.Contains("st
 Assert-Contract ($readme.Contains("frames 0 and 1 remain dotless") -and $readme.Contains("even when ShowCenterDot is false")) "README lacks the frame-2 contextual pupil behavior."
 Assert-Contract ($readme.Contains("hitmarker.png")) "README lacks the direct-hit diamond."
 Assert-Contract ($readme.Contains("hitmarker_critical_overlay.png")) "README lacks the critical overlay."
-Assert-Contract ($readme.Contains("IncludeSummonAttacks defaults to true") -and $readme.Contains("cannot replace an active hero marker")) "README lacks summon hit-marker priority behavior."
+Assert-Contract ($readme.Contains("IncludeSummonAttacks defaults to false") -and $readme.Contains("cannot replace an active hero marker")) "README lacks summon hit-marker priority behavior."
 
 Write-Output "Dishonored Dynamic Crosshair hit-marker contracts passed."

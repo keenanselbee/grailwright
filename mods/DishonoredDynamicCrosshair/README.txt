@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.6.4
+Version 3.6.6
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.6.4
+  Version: 3.6.6
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -71,8 +71,9 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.6.4 uses ConfigSchemaVersion 19 because the Blood-Magic-only scale
-diagnostic was replaced by one general Diagnostics switch.
+Version 3.6.6 uses ConfigSchemaVersion 20 because IncludeSummonAttacks now
+defaults to disabled, keeping Steel and Bone hit feedback focused on the hero
+unless summon feedback is explicitly enabled.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -178,9 +179,9 @@ Contexts
 Context priority is BloodMagic corpse override, Bow, Magic, then General.
 Steel and Bone hit markers temporarily replace the outer context reticle but
 render in a dedicated layer above the center dot or crouch-awareness eye.
-IncludeSummonAttacks defaults to true. Summon markers cannot replace an active
-hero marker, while hero markers always replace summon markers. Disable it to
-show feedback only for the hero's own attacks.
+IncludeSummonAttacks defaults to false. Summon markers cannot replace an active
+hero marker, while hero markers always replace summon markers. Enable it to
+include lower-priority feedback from hero-owned summons.
 Routine interaction icons render above the reticle and awareness eye but below
 hit markers. Hit feedback temporarily suppresses a routine interaction icon.
 Ambush Integrity's backstab-ready state adds its own topmost overlay above the
@@ -237,6 +238,20 @@ Any currently locked door, container, or other location uses
 interaction_lockpick.png even when the lock is key-only, broken, or cannot be
 picked. Illegal actions and pickpocketing use the hand icon in the same dark red
 as killing-blow feedback. Lock state takes priority over the illegal color.
+
+Held illegal world interactions use the game's authoritative crosshair hold
+state. A vanilla action displayed exactly as Steal becomes Hold to Steal, while
+labels already decorated by Hold to Steal remain unchanged. The dark-red hand
+pulses once from 1.0x to 1.15x and back across the real hold duration; releasing
+early returns it to normal immediately. Illegal tap interactions keep a steady
+red hand and their existing text. This presentation does not change theft input,
+timing, authorization, or crime behavior.
+
+Container, Take All, readable-popup, and other menu prompts remain owned by the
+game and any mod that changes them. Dishonored does not restyle or patch those
+controls. Its existing quick-loot hand remains a separate center-screen status:
+a non-empty illegal container uses the red hand and an empty container uses no
+routine interaction icon.
 
 Only one routine interaction icon is shown. It uses a fixed square based on
 ReticleSizePixels instead of Bow, Magic, Blood Magic, or corpse-quality scales.
@@ -366,10 +381,11 @@ Steel and Bone Hit Markers
 
 When Steel and Bone 4.0.1 or newer is installed, successful outgoing hero-side
 damage can temporarily replace the outer context reticle with contextual hit
-feedback. IncludeSummonAttacks defaults to true. Summon feedback remains lower
-priority and cannot replace an active hero marker; hero feedback always replaces
-a summon marker. Disable it to show only the hero's own attacks. The dedicated
-layer stays above the center dot or stealth eye.
+feedback. IncludeSummonAttacks defaults to false, so the hero's own attacks are
+shown by default. Enable it to include lower-priority hero-owned summon feedback;
+summon feedback cannot replace an active hero marker, while hero feedback always
+replaces a summon marker. The dedicated layer stays above the center dot or
+stealth eye.
 Dishonored Dynamic Crosshair keeps its existing target colors and reticle
 behavior unchanged when Steel and Bone is absent.
 

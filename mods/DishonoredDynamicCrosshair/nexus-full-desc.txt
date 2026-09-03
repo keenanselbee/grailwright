@@ -107,6 +107,10 @@ Dishonored reads the exact action selected by the game's interaction HUD instead
 
 Any locked location uses the lock icon even when its lock is key-only, broken, or otherwise cannot be picked. Theft, pickpocketing, and other illegal actions use the hand in killing-blow dark red. Lock state takes priority over the illegal color.
 
+Held illegal world interactions use the game's authoritative crosshair hold state. A vanilla action displayed exactly as Steal becomes Hold to Steal, while labels already decorated by [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/175]Hold to Steal[/url] remain unchanged. The dark-red hand pulses once from 1.0x to 1.15x and back across the real hold duration; releasing early returns it to normal immediately. Illegal tap interactions keep a steady red hand and their existing text. Dishonored changes no theft timing, authorization, or crime behavior.
+
+Container, Take All, readable-popup, and other menu prompts remain fully owned by the game and any mod that changes them. Dishonored does not patch or restyle those controls. Its existing quick-loot hand remains a separate center-screen status for non-empty containers.
+
 Routine interaction icons render above the normal reticle, center dot, and awareness eye. [b]IconScale[/b] is independent of weapon and corpse-quality scaling and defaults to 1.1x, [b]IconOpacity[/b] defaults to 0.8, and [b]CrosshairOpacityWhileActive[/b] hides the underlying crosshair by default. Hit feedback temporarily suppresses the routine icon and stays clear. Backstab readiness overrides the routine icon and remains topmost.
 
 [b]HideVanillaInteractionKeyPrompts[/b] defaults to enabled. It collapses the vanilla E, F, or controller-button container so its background fits the remaining action text without empty space. Locked and blocked explanations remain visible; hold-progress graphics inside the hidden button container are hidden with it. [b]VanillaTextVerticalOffset[/b] defaults to -120 UI units, placing the prompt above its vanilla just-below-center position while following the game's HUD resolution and accessibility scaling. Disabling suppression or the plugin restores the vanilla container. All interaction PNGs hot reload.
@@ -166,7 +170,7 @@ Every direct nonlethal hit adds a central diamond over its effectiveness frame, 
 
 With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234]Killing Blow Mastery[/url] 1.9.4 and Steel and Bone 4.0.1, the exact corpse-quality overlay also becomes the Execute indicator. It appears white while Execute is available, keeps that Meager, Worthy, Potent, or Prime shape throughout the finisher, and follows real normalized animation progress toward #8C0003. The exact target's killing-blow payload waits behind the cinematic. At 90% progress, the white-to-red preview hands off to the normal effectiveness, weak-spot, critical, and corpse-quality composition. Exiting without confirmed target death clears the preview without presenting a kill.
 
-By default, [b]IncludeSummonAttacks[/b] is enabled so both the hero and hero-owned summons produce hit markers. Hero markers replace summon markers immediately, while summon markers cannot interrupt an active hero marker. The latest hit still wins within the same source priority. Disable the setting for hero-only feedback. Direct-hit markers display at 1.15x the General reticle size, damage-over-time tick markers display at 1.1x, and complete killing-blow compositions display at 1.3x. All use 1x Steel and Bone's final feedback duration. Bow, Magic, Blood Magic, and corpse-quality size scales do not affect them. After the quick settle and fade, the current General, Bow, Magic, or Blood Magic reticle returns. Without Steel and Bone, Dishonored keeps its normal crosshair behavior.
+By default, [b]IncludeSummonAttacks[/b] is disabled so only the hero's attacks produce hit markers. Enable it to include lower-priority feedback from hero-owned summons. Hero markers replace summon markers immediately, while summon markers cannot interrupt an active hero marker. The latest hit still wins within the same source priority. Direct-hit markers display at 1.15x the General reticle size, damage-over-time tick markers display at 1.1x, and complete killing-blow compositions display at 1.3x. All use 1x Steel and Bone's final feedback duration. Bow, Magic, Blood Magic, and corpse-quality size scales do not affect them. After the quick settle and fade, the current General, Bow, Magic, or Blood Magic reticle returns. Without Steel and Bone, Dishonored keeps its normal crosshair behavior.
 
 [line]
 
@@ -189,6 +193,7 @@ By default, [b]IncludeSummonAttacks[/b] is enabled so both the hero and hero-own
 
 [list]
 [*]For [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/192]Control and Menu Tweaks[/url], [b]ModifyColors.dll[/b] can remain installed, but [b]ModifyCrosshair.dll[/b] is redundant and should be removed.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/175]Hold to Steal[/url] is compatible. Dishonored follows its world-crosshair hold state and preserves its decorated theft labels without changing container, Take All, or readable-popup controls.[/*]
 [/list]
 
 Other mods that replace or force vanilla crosshair parts may conflict.

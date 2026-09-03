@@ -17,7 +17,7 @@ $source = Get-Content -Raw -LiteralPath (Join-Path $modRoot "src\Plugin.cs")
 $readme = Get-Content -Raw -LiteralPath (Join-Path $modRoot "README.txt")
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $modRoot "mod.json")
 
-Assert-Contract ($source.Contains('ConfigSchemaVersion = 19')) "Config schema is not 19."
+Assert-Contract ($source.Contains('ConfigSchemaVersion = 20')) "Config schema is not 20."
 Assert-Contract ([regex]::IsMatch($source, '"Diagnostics",\s*"Diagnostics",\s*false,')) "The general Diagnostics switch is missing or enabled by default."
 Assert-Contract (-not $source.Contains('LogBloodMagicScaleDiagnostics')) "The retired Blood-Magic-only diagnostic setting remains."
 foreach ($token in @(
@@ -98,6 +98,20 @@ Assert-Contract ([regex]::IsMatch($source, '_quickLootContainer != null[\s\S]*?_
 Assert-Contract ($source.Contains('QuickLootOpenedPostfix')) "Quick-loot opening is not patched."
 Assert-Contract ($source.Contains('QuickLootDiscardingPrefix')) "Quick-loot closing is not patched."
 Assert-Contract ($source.Contains('new Color32(0x8C, 0x00, 0x03, 0xFF)')) "Illegal interactions do not use killing-blow dark red."
+Assert-Contract ([regex]::IsMatch($source, '(?s)_currentInteractionTarget = target;.*?_currentInteractionIsIllegal = illegal;.*?IsTypeOrBaseNamed\(\s*target,\s*"HeroInteractionHoldUI"\)')) "The selected crosshair interaction does not retain structural hold state."
+Assert-Contract ([regex]::IsMatch($source, '(?s)ApplyHoldToStealPromptText\(object interactionView\).*?_currentInteractionIsIllegal.*?_currentInteractionIsHold.*?currentText.*?\.Trim\(\).*?"Steal".*?StringComparison\.OrdinalIgnoreCase.*?"Hold to Steal"')) "Vanilla held theft does not receive the display-only Hold to Steal label."
+Assert-Contract ([regex]::IsMatch($source, '(?s)TryGetIllegalInteractionHoldProgress\(.*?_quickLootContainer != null.*?!_currentInteractionIsIllegal.*?!_currentInteractionIsHold.*?_currentInteractionTarget == null.*?"HeldButton".*?"HoldPercent"')) "The theft pulse is not limited to an active held crosshair interaction outside quick loot."
+Assert-Contract ([regex]::IsMatch($source, '0\.15f \* Mathf\.Sin\(holdProgress \* Mathf\.PI\)')) "Held theft does not use the approved single 1.0x-to-1.15x-to-1.0x pulse."
+Assert-Contract ($source.Contains('UpdateInteractionHoldPulse();')) "Held theft presentation is not refreshed every frame."
+Assert-Contract (-not $source.Contains('kane.tgfoa.hold-to-steal')) "Dishonored acquired a hard Hold to Steal plugin dependency."
+foreach ($containerPatchToken in @(
+    'Prompt.Tap',
+    'Prompt.Hold',
+    'TakeItemFromContainer',
+    'TakeAllItems',
+    'VReadablePopupUI')) {
+    Assert-Contract (-not $source.Contains($containerPatchToken)) "Dishonored acquired Hold to Steal gameplay or container patch surface: $containerPatchToken"
+}
 Assert-Contract ($source.Contains('SetReflectedGraphicEnabled(keyIcon, "icon", enabled);')) "The vanilla key-icon image is not selectively suppressed."
 Assert-Contract ($source.Contains('SetReflectedGraphicEnabled(keyIcon, "text", enabled);')) "The vanilla keyboard-letter text is not selectively suppressed."
 Assert-Contract ($source.Contains('buttonParent.SetActive(false);')) "Prompt suppression does not collapse the unused button container."

@@ -1,3 +1,23 @@
+Version 3.6.6
+Changed IncludeSummonAttacks to default off so Steel and Bone hit markers show
+the hero's own attacks by default; enable it to include lower-priority
+hero-owned summon feedback.
+Advanced ConfigSchemaVersion from 19 to 20 because IncludeSummonAttacks now
+defaults to disabled; untouched old defaults receive the new value while
+compatible customized settings remain recoverable.
+
+Version 3.6.5
+Made held illegal world interactions pulse the dark-red hand once from 1.0x to
+1.15x and back using the game's authoritative hold progress, covering vanilla
+crosshair theft and Hold to Steal compatibility without taking ownership
+of theft timing or authorization.
+Changed an exact vanilla Steal display label to Hold to Steal while preserving
+already decorated labels and leaving illegal tap interactions steady and unchanged.
+Kept container, Take All, readable-popup, and other menu prompts outside
+Dishonored's patch surface; the existing quick-loot center-hand status is unchanged.
+Kept ConfigSchemaVersion at 19 because this presentation correction changes no
+setting, default, or gameplay rule.
+
 Version 3.6.4
 Generalized Soul and Service's preview-to-pulse handoff across every summon
 command, retaining the preview's exact Attack, Hold, Follow, Behavior, or Raise

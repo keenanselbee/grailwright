@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.6.4.0")]
-[assembly: AssemblyFileVersion("3.6.4.0")]
+[assembly: AssemblyVersion("3.6.6.0")]
+[assembly: AssemblyFileVersion("3.6.6.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -139,8 +139,8 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.6.4";
-        private const int ConfigSchemaVersion = 19;
+        public const string PluginVersion = "3.6.6";
+        private const int ConfigSchemaVersion = 20;
         private const float ReferenceScreenHeight = 1440f;
 
         private const int CoreSectionOrder = 0;
@@ -470,11 +470,14 @@ namespace DishonoredDynamicCrosshair
         private bool _currentBackstabReady;
         private bool _backstabPresentationActive;
         private Component _currentInteractionView;
+        private object _currentInteractionTarget;
         private RectTransform _interactionPromptRect;
         private Vector2 _originalInteractionPromptAnchoredPosition;
         private bool _hasOriginalInteractionPromptAnchoredPosition;
         private InteractionIconKind _currentInteractionIconKind;
         private bool _currentInteractionIsIllegal;
+        private bool _currentInteractionIsHold;
+        private bool _interactionHoldPulseWasActive;
         private object _quickLootContainer;
         private bool _quickLootHasItems;
         private bool _quickLootIsIllegal;
@@ -668,7 +671,7 @@ namespace DishonoredDynamicCrosshair
             _includeSummonAttacks = Config.Bind(
                 "Steel and Bone Hit Markers",
                 "IncludeSummonAttacks",
-                true,
+                false,
                 ConfigUi(
                     "Show hit markers for hero-owned summon attacks at lower priority than the hero's own attacks.",
                     "Steel and Bone Hit Markers", "Include Summon Attacks", HitMarkersSectionOrder, 10));
@@ -1961,8 +1964,10 @@ namespace DishonoredDynamicCrosshair
                             _currentInteractionIconKind);
                     }
                     _currentInteractionView = interactionView as Component;
+                    _currentInteractionTarget = null;
                     _currentInteractionIconKind = InteractionIconKind.None;
                     _currentInteractionIsIllegal = false;
+                    _currentInteractionIsHold = false;
                     _currentInteractionIsSummonCommandPreview = false;
                     ApplyReticleState();
                     return;
@@ -1994,10 +1999,15 @@ namespace DishonoredDynamicCrosshair
                         : ClassifyInteractionAction(action);
 
                 _currentInteractionView = interactionView as Component;
+                _currentInteractionTarget = target;
                 _currentInteractionIconKind = iconKind;
                 _currentInteractionIsIllegal = illegal;
+                _currentInteractionIsHold = IsTypeOrBaseNamed(
+                    target,
+                    "HeroInteractionHoldUI");
                 _currentInteractionIsSummonCommandPreview =
                     IsSummonCommandAction(action);
+                ApplyHoldToStealPromptText(interactionView);
                 ApplyReticleState();
             }
             catch (Exception exception)
@@ -2008,8 +2018,10 @@ namespace DishonoredDynamicCrosshair
                         _currentInteractionIconKind);
                 }
                 _currentInteractionView = null;
+                _currentInteractionTarget = null;
                 _currentInteractionIconKind = InteractionIconKind.None;
                 _currentInteractionIsIllegal = false;
+                _currentInteractionIsHold = false;
                 _currentInteractionIsSummonCommandPreview = false;
                 ApplyReticleState();
 
@@ -2331,6 +2343,40 @@ namespace DishonoredDynamicCrosshair
             }
 
             return false;
+        }
+
+        private void ApplyHoldToStealPromptText(object interactionView)
+        {
+            if (!_currentInteractionIsIllegal || !_currentInteractionIsHold)
+            {
+                return;
+            }
+
+            FieldInfo actionFrameField = AccessTools.Field(
+                interactionView.GetType(),
+                "actionFrame");
+            object actionFrame = actionFrameField == null
+                ? null
+                : actionFrameField.GetValue(interactionView);
+            FieldInfo frameTextField = actionFrame == null
+                ? null
+                : AccessTools.Field(actionFrame.GetType(), "frameText");
+            object frameText = frameTextField == null
+                ? null
+                : frameTextField.GetValue(actionFrame);
+            PropertyInfo textProperty = frameText == null
+                ? null
+                : AccessTools.Property(frameText.GetType(), "text");
+            string currentText = textProperty == null
+                ? null
+                : textProperty.GetValue(frameText, null) as string;
+            if (string.Equals(
+                currentText == null ? null : currentText.Trim(),
+                "Steal",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                textProperty.SetValue(frameText, "Hold to Steal", null);
+            }
         }
 
         private void SuppressInteractionKeyPrompts(object interactionView)
@@ -3184,6 +3230,12 @@ namespace DishonoredDynamicCrosshair
                 * Mathf.Clamp(_interactionIconScale.Value, 0.1f, 3f)
                 * unitConversion;
             float pulseScale = 1.0f;
+            float holdProgress;
+            if (TryGetIllegalInteractionHoldProgress(out holdProgress))
+            {
+                pulseScale *= 1.0f
+                    + (0.15f * Mathf.Sin(holdProgress * Mathf.PI));
+            }
             if (_summonCommandPulseActive
                 && iconKind == _summonCommandPulseKind)
             {
@@ -3255,6 +3307,59 @@ namespace DishonoredDynamicCrosshair
             return _quickLootContainer != null
                 ? _quickLootIsIllegal
                 : _currentInteractionIsIllegal;
+        }
+
+        private bool TryGetIllegalInteractionHoldProgress(
+            out float holdProgress)
+        {
+            holdProgress = 0f;
+            if (_quickLootContainer != null
+                || !_currentInteractionIsIllegal
+                || !_currentInteractionIsHold
+                || _currentInteractionTarget == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object heldButton = ReadReflectedProperty(
+                    _currentInteractionTarget,
+                    "HeldButton");
+                if (!(heldButton is bool) || !(bool)heldButton)
+                {
+                    return false;
+                }
+
+                object progress = ReadReflectedProperty(
+                    _currentInteractionTarget,
+                    "HoldPercent");
+                if (!(progress is float))
+                {
+                    return false;
+                }
+
+                holdProgress = Mathf.Clamp01((float)progress);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void UpdateInteractionHoldPulse()
+        {
+            float holdProgress;
+            bool active = TryGetIllegalInteractionHoldProgress(
+                out holdProgress);
+            if (!active && !_interactionHoldPulseWasActive)
+            {
+                return;
+            }
+
+            _interactionHoldPulseWasActive = active;
+            ApplyInteractionIcon(IsHitMarkerActive());
         }
 
         private Sprite ResolveInteractionIconSprite(
@@ -6228,8 +6333,10 @@ namespace DishonoredDynamicCrosshair
                         _currentInteractionIconKind);
                 }
                 _currentInteractionView = null;
+                _currentInteractionTarget = null;
                 _currentInteractionIconKind = InteractionIconKind.None;
                 _currentInteractionIsIllegal = false;
+                _currentInteractionIsHold = false;
                 _currentInteractionIsSummonCommandPreview = false;
                 ApplyReticleState();
             }
@@ -6346,6 +6453,8 @@ namespace DishonoredDynamicCrosshair
                     }
                 }
             }
+
+            UpdateInteractionHoldPulse();
         }
 
         private void UpdateStealthEyeAnimation()
@@ -6650,7 +6759,11 @@ namespace DishonoredDynamicCrosshair
                 ClearAsset(asset);
             }
             _currentInteractionView = null;
+            _currentInteractionTarget = null;
             _currentInteractionIconKind = InteractionIconKind.None;
+            _currentInteractionIsIllegal = false;
+            _currentInteractionIsHold = false;
+            _interactionHoldPulseWasActive = false;
             _quickLootContainer = null;
             _quickLootHasItems = false;
             _quickLootIsIllegal = false;

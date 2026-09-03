@@ -1,7 +1,7 @@
 Eyes in the Dark - Wyrdnight Overhaul
 =====================================
 
-Version: 1.3.9
+Version: 1.4.0
 Platforms: Windows and Linux through Proton.
 
 Eyes in the Dark is a timescale-aware overhaul of outdoor Wyrdnights in
@@ -80,9 +80,10 @@ Current Features
 - Optional Battlecry Voice Tuner integration adds exposed-Wyrdnight threat.
   Repeated cries grant full, half, quarter, and then diminishing threat down to
   a 10 percent floor; 30 active seconds without a cry restores the full gain.
-- Optional Blood Magic Expansion integration adds threat only after a corpse
-  ritual completes successfully while exposed outdoors during a Wyrdnight.
-  Its default 8 threat at average quality scales linearly from 4 to 12.
+- Optional Blood Magic Expansion and Soul and Service integrations add threat
+  only after a supported corpse ritual completes successfully while exposed
+  outdoors during a Wyrdnight. The default 8 threat at average quality scales
+  linearly from 4 to 12.
 - A separate ambient-stalker lane between official hunts. One reviewed native
   creature can appear outside the camera, watch from a distance, follow when
   the Hero moves away, and use native Flee movement when deliberately pursued.
@@ -130,9 +131,10 @@ Current Features
 - The exact primary actor owns the official hunt. Killing it resolves the hunt
   and releases surviving sidecars as ordinary enemies; unrelated creatures are
   never matched by template alone.
-- One-shot Uneasy Night, Watchful Night, and Cursed Night gameplay templates.
-  Applying one writes only threat and encounter tuning, then returns the
-  selector to Custom without touching HUD, GFT, boundary, or diagnostics.
+- Applied Uneasy Night, Watchful Night, and Cursed Night gameplay presets.
+  Choosing one writes the complete visible gameplay-tuning groups. Editing any
+  governed value selects Custom without touching HUD, GFT, boundary, or
+  diagnostics.
   Uneasy and Watchful disable elite enemies; Cursed enables reviewed elites,
   which still require Wyrd Threat greater than 75 percent.
 - Protected areas, native pacifist safe zones, unrelated combat, swimming,
@@ -206,14 +208,14 @@ Defaults:
 - Quiet zero-threat night length: approximately 6 real minutes
 - Maximum-threat night length: approximately 12 real minutes
 - Live Wyrdnight length: interpolates from 6 to 12 minutes with current threat
-- Apply gameplay preset: Custom; current defaults are Watchful Night tuning
+- Gameplay preset: Watchful Night
 - Passive threat per complete exposed night: 20
 - Sustained sprint or fast-swim threat per minute: 4
 - Maximum combat threat per short window: 2
 - Combat response delay: 1.5 active real-time seconds
 - Eligible Wyrd kill threat: 5
 - Unique acquisition threat per item: 0.75
-- Successful Blood Magic corpse ritual threat: 8 at average quality, scaling
+- Successful compatible corpse ritual threat: 8 at average quality, scaling
   linearly from 4 at zero quality to 12 at maximum quality
 - Protected decay per active real-time minute: 4
 - Interior decay per active real-time minute: 1
@@ -376,8 +378,12 @@ Compatibility
   Glorious requests its below-resource-bars layout and can independently
   provide a noon-at-top rest clock with matching time formatting.
 - Blood Magic Expansion is optional. Successfully completed exposed-Wyrdnight
-  corpse rituals add quality-scaled threat; incomplete or rejected rituals do
+  corpse drains add quality-scaled threat; incomplete or rejected rituals do
   not report completion.
+- Soul and Service 3.2.7 or newer is optional. Successful ordinary corpse
+  harvests add the same quality-scaled threat. Failed or repeated harvests,
+  greater-soul portions, living-servant unbinding, and Blood Magic-executed
+  servant remains do not report completion.
 - Wyrd Hunt is flagged as incompatible with Eyes in the Dark. Do not run both
   night directors together.
 - Custom Timescale (Nexus mod 76) is flagged as incompatible because it and

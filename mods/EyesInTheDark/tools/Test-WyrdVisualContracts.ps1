@@ -30,7 +30,7 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'private const int ConfigSchemaVersion = 22;',
+    'private const int ConfigSchemaVersion = 23;',
     'DefaultMinimumWorldThreatBrightnessScale = 0.8f;',
     'DefaultMaximumWorldThreatBrightnessScale = 1.2f;',
     'DefaultWyrdnightBrightness = 1.0f;',

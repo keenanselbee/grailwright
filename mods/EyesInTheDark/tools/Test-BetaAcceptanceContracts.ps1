@@ -68,7 +68,7 @@ $repoReadme = Get-Content -LiteralPath (
 Assert-Contract ($modJson.displayName -eq "Eyes in the Dark - Wyrdnight Overhaul") "mod.json display name is stale."
 Assert-Contract ($pluginSource.Contains('public const string PluginName = "Eyes in the Dark";')) "config/plugin title is not Eyes in the Dark."
 Assert-Contract ($pluginSource.Contains('[assembly: AssemblyTitle("Eyes in the Dark - Wyrdnight Overhaul")]')) "assembly title is stale."
-Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 22;')) "config schema is not 22."
+Assert-Contract ($pluginSource.Contains('private const int ConfigSchemaVersion = 23;')) "config schema is not 23."
 Assert-Contract ($pluginSource -match '(?s)"AllowUnprotectedWyrdnightRest",\s*true,\s*UiDescription') "unprotected Wyrdnight rest does not default to enabled for Watchful tuning."
 Assert-Contract ($pluginSource -match '(?s)"ShowWyrdnightRestAvailability",\s*true,\s*UiDescription') "Wyrdnight rest availability does not default to enabled."
 Assert-Contract ($pluginSource.Contains('"The new visual baseline deliberately replaces prior customized pulse amounts with the tested 0.8 default."')) "schema-7 pulse recovery rule is missing."
@@ -253,21 +253,23 @@ Assert-Contract (!$pluginSource.Contains('"BoundaryHdrIntensity"')) "retired raw
 Assert-Contract ($pluginSource -match '(?s)HdrIntensity\s*=\s*ValueOrDefault\(\s*_boundaryBrightness,\s*DefaultBoundaryBrightness\)\s*\*\s*BoundaryVanillaHdrBaseline') "normalized boundary brightness is not converted through the vanilla HDR baseline."
 
 foreach ($required in @(
-    '"Apply Gameplay Preset Once"',
+    '"Gameplay Preset"',
     '"Quiet Wyrdnight Length (Minutes)"',
     '"Maximum-Threat Wyrdnight Length (Minutes)"',
+    '"Preset - Rest and Threat"',
+    '"Preset - Hunt Pressure"',
+    '"Preset - Stalkers and Recovery"',
     '"Advanced - Threat Tuning"',
-    '"Advanced - Hunt Pacing"',
     '"Advanced - Stalker Tuning"',
     '"Advanced - Boundary Tuning"',
     '"Advanced - Visual Layers"',
     '"Diagnostics"')) {
     Assert-Contract ($pluginSource.Contains($required)) "config UX contract is missing $required."
 }
-Assert-Contract ($pluginSource -match '(?s)"Enable Ambient Stalkers",\s*0,\s*30') "ambient-stalker toggle is not in the primary General flow."
-Assert-Contract ($pluginSource -match '(?s)"Allow Elite Enemies",\s*0,\s*40') "elite toggle is not in the primary General flow."
+Assert-Contract ($pluginSource -match '(?s)"Enable Ambient Stalkers",\s*14,\s*10') "ambient-stalker toggle is not in the preset flow."
+Assert-Contract ($pluginSource -match '(?s)"Allow Elite Enemies",\s*13,\s*120') "elite toggle is not in the preset flow."
 Assert-Contract ($pluginSource -match '(?s)"Show Wyrdnight Rest Availability",\s*0,\s*45') "Wyrdnight rest availability is not ordered in the primary General flow."
-Assert-Contract ($pluginSource -match '(?s)"Allow Unprotected Wyrdnight Rest",\s*0,\s*50') "rest toggle is not ordered in the primary General flow."
+Assert-Contract ($pluginSource -match '(?s)"Allow Unprotected Wyrdnight Rest",\s*12,\s*10') "rest toggle is not ordered in the preset flow."
 
 foreach ($required in @(
     'GftNotificationPreset.Minimal',
@@ -374,7 +376,7 @@ foreach ($required in @(
     '_gameplayPreset.Value = GameplayTuningPreset.Custom;',
     '"Gameplay Preset"',
     '"ApplyPreset"')) {
-    Assert-Contract ($pluginSource.Contains($required)) "one-shot gameplay presets are missing $required."
+    Assert-Contract ($pluginSource.Contains($required)) "applied gameplay presets are missing $required."
 }
 
 Assert-Contract ($gloriousSource.Contains('"EyesInTheDark.EyesInTheDarkHudApi"')) "Glorious does not use the Eyes HUD contract."

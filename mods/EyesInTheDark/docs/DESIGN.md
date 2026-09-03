@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the living design document for `EyesInTheDark`. Version `1.3.9` is the
+This is the living design document for `EyesInTheDark`. Version `1.4.0` is the
 current implementation and acceptance target.
 
 ## Product identity
@@ -216,8 +216,9 @@ most additional pressure. Candidate sources for the first implementation are:
 - killing Wyrd creatures;
 - looting corpses or containers while exposed;
 - direct world pickup or stealing while exposed;
-- completing a Blood Magic Expansion corpse ritual while exposed, scaled by
-  the consumed corpse's normalized quality;
+- completing a supported Blood Magic Expansion corpse drain or Soul and Service
+  ordinary corpse harvest while exposed, scaled by the consumed corpse's
+  normalized quality;
 - powerful or noisy magic through the confirmed successful-cast event.
 
 Every repeatable source requires a cooldown, aggregation window, or diminishing
@@ -600,9 +601,9 @@ smaller than the official-hunt catalog but deliberately varied by map.
 
 ## Gameplay presets
 
-The config selector contains `Custom` plus three one-shot templates. Applying a
-preset writes its gameplay tuning and returns the selector to `Custom`, allowing
-later individual edits.
+The config selector contains three named applied presets followed by `Custom`.
+Choosing a named preset writes its complete gameplay tuning. Editing any
+governed value selects `Custom`; choosing `Custom` directly changes nothing.
 
 - **Uneasy Night:** restrained growth, long recovery, low danger budget, mostly
   solo encounters, and rare packs.
@@ -614,7 +615,7 @@ later individual edits.
 Presets modify only gameplay tuning. They never overwrite HUD, GFT, boundary,
 diagnostic, or accessibility preferences.
 
-The 0.6.0 one-shot values are:
+The preset values are:
 
 | Setting | Uneasy Night | Watchful Night | Cursed Night |
 | --- | ---: | ---: | ---: |
@@ -622,7 +623,7 @@ The 0.6.0 one-shot values are:
 | Sprint threat/minute | 3 | 4 | 5.5 |
 | Combat threat/window | 1.5 | 2 | 3 |
 | Wyrd kill threat | 3 | 5 | 7 |
-| Corpse-drain threat at average quality | 6 | 8 | 11 |
+| Corpse-ritual threat at average quality | 6 | 8 | 11 |
 | Base danger budget | 22 | 30 | 42 |
 | Long-night scale/cap | 0.25 / 0.5 | 0.35 / 0.75 | 0.45 / 1.0 |
 | Base/threat/progress hazard | 0.005 / 0.28 / 0.05 | 0.01 / 0.42 / 0.08 | 0.02 / 0.58 / 0.12 |
@@ -855,7 +856,7 @@ immediate-repeat prevention. The response lane has its own configurable
 cooldown. Minimal remains silent. The integration stays optional and must not
 create a hard dependency in either direction.
 
-### Optional corpse-drain integration
+### Optional corpse-ritual integration
 
 Blood Magic Expansion may call Eyes' versioned soft API after a corpse ritual
 completes successfully. It reports only normalized corpse quality; Eyes remains
@@ -863,6 +864,13 @@ authoritative for activity eligibility and threat tuning. The default Watchful
 Night value is 8 threat at average quality, with a linear 0.5x-to-1.5x quality
 multiplier producing 4 to 12 threat. Uneasy uses 6 at average quality and
 Cursed uses 11.
+
+Soul and Service 3.2.7 or newer may use the same API after an ordinary corpse
+harvest commits its Soul Vigor and final corpse state. Failed or repeated
+harvests, repeatable greater-soul portions, living-servant unbinding, and
+remains already executed through Blood Magic Expansion do not report this
+activity. Retained protected bodies and safe-conversion failures do report once
+because their souls are successfully and durably spent.
 
 Daytime, indoor, protected, paused, loading-grace, interrupted, and failed
 rituals add no threat. The one-shot consumed-corpse boundary prevents repeated
@@ -1004,11 +1012,13 @@ schema change explicitly replaces an unsafe or unreadable setting.
 
 Primary sections appear first:
 
-1. General: master switch, one-shot gameplay preset, ambient and elite toggles,
-   Wyrdnight REST-button presentation, and rest rule.
+1. General: master switch, Wyrdnight REST-button presentation, and independent
+   controls.
 2. World Clock: dynamic ownership plus day, quiet-night, and maximum-threat
    durations in real minutes.
 3. HUD, Boundary Appearance, Wyrdnight Appearance, and Notifications.
+4. Gameplay Preset followed by Preset - Rest and Threat, Preset - Hunt
+   Pressure, and Preset - Stalkers and Recovery.
 
 Detailed controls follow in clearly labeled Advanced sections for threat
 tuning, hunt pacing/composition/outcomes, stalker tuning, boundary tuning,
@@ -1016,14 +1026,17 @@ visual layers, and diagnostics. Import Previous Settings remains last. Labels
 state seconds, minutes, and metres directly and avoid internal terms such as
 hazard, sidecar, and raw HDR intensity.
 
-The one-shot gameplay selector explicitly returns to Custom after applying a
-template and identifies Watchful Night as recommended. Normalized
+The gameplay selector defaults to the recommended Watchful Night preset. A
+named selection writes all governed fields, any manual governed edit selects
+Custom, and a deferred FoA Mod Manager refresh keeps displayed values current. Normalized
 `BoundaryBrightness = 1.0` maps to the preserved vanilla-equivalent HDR
 baseline; the retired raw `BoundaryHdrIntensity` value is not migrated.
 
 Follow the repository config schema and previous-settings recovery contract as
-soon as the first config entry is bound. Keep preset triggers and derived
-status entries permanently excluded from recovery.
+soon as the first config entry is bound. The applied preset is durable; keep
+only inherently one-shot actions and derived status entries permanently
+excluded from recovery. During the schema-22 transition, any customized
+governed gameplay value forces Custom before startup application.
 
 ## Implementation roadmap
 

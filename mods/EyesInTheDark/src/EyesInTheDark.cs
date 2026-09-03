@@ -39,9 +39,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("A timescale-aware Wyrdnight threat and encounter overhaul")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Eyes in the Dark - Wyrdnight Overhaul")]
-[assembly: AssemblyVersion("1.3.9.0")]
-[assembly: AssemblyFileVersion("1.3.9.0")]
-[assembly: AssemblyInformationalVersion("1.3.9")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyInformationalVersion("1.4.0")]
 
 namespace EyesInTheDark
 {
@@ -115,7 +115,7 @@ namespace EyesInTheDark
     {
         public const string PluginGuid = "ks.tgfoa.eyes-in-the-dark";
         public const string PluginName = "Eyes in the Dark";
-        public const string PluginVersion = "1.3.9";
+        public const string PluginVersion = "1.4.0";
         private static readonly FieldInfo FireplaceRestControlField =
             AccessTools.Field(typeof(VFireplaceUI), "goToSleep");
         private static readonly PropertyInfo FireplaceRestButtonProperty =
@@ -127,7 +127,7 @@ namespace EyesInTheDark
         private const string GloriousUiPluginGuid =
             "ks.tgfoa.glorious-ui";
 
-        private const int ConfigSchemaVersion = 22;
+        private const int ConfigSchemaVersion = 23;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -168,9 +168,6 @@ namespace EyesInTheDark
             ConfigRecoveryPermanentExclusions =
                 new[]
                 {
-                    new ConfigDefinition(
-                        "Gameplay Preset",
-                        "ApplyPreset"),
                     new ConfigDefinition(
                         "Diagnostics",
                         "EnableThreatOverride"),
@@ -481,6 +478,7 @@ namespace EyesInTheDark
         private bool _environmentImpactSeenThisAttack;
         private bool _placeMeterBelowResourceBars;
         private bool _wasFeatureEnabled;
+        private bool _foaModManagerRefreshPending;
         private bool _hasKnownProtectionState;
         private bool _lastKnownProtected;
         private string _lastSamplingFailure;
@@ -582,6 +580,8 @@ namespace EyesInTheDark
 
         private void Update()
         {
+            RefreshFoaModManagerIfPending();
+
             float unscaledDelta = Time.unscaledDeltaTime;
             bool paused = Time.timeScale <= 0f;
 
@@ -709,11 +709,7 @@ namespace EyesInTheDark
         private void OnDestroy()
         {
             _activeFireplaceView = null;
-            if (_gameplayPreset != null)
-            {
-                _gameplayPreset.SettingChanged -=
-                    OnGameplayPresetChanged;
-            }
+            Config.SettingChanged -= OnConfigSettingChanged;
             UnbindGftBuiltInEventClaims();
             DisposeGameListeners();
             if (_worldTimescale != null)
@@ -5000,14 +4996,112 @@ namespace EyesInTheDark
                 : model.ID.ToString();
         }
 
-        private void OnGameplayPresetChanged(
+        private void OnConfigSettingChanged(
             object sender,
-            EventArgs eventArgs)
+            SettingChangedEventArgs eventArgs)
         {
-            if (_applyingGameplayPreset
+            if (_applyingGameplayPreset || eventArgs == null)
+            {
+                return;
+            }
+
+            ConfigEntryBase changedSetting = eventArgs.ChangedSetting;
+            if (ReferenceEquals(changedSetting, _gameplayPreset))
+            {
+                ApplySelectedGameplayPreset();
+                _foaModManagerRefreshPending = true;
+                return;
+            }
+
+            if (!IsGameplayPresetValueSetting(changedSetting)
                 || _gameplayPreset == null
-                || _gameplayPreset.Value
-                    == GameplayTuningPreset.Custom)
+                || _gameplayPreset.Value == GameplayTuningPreset.Custom)
+            {
+                return;
+            }
+
+            _applyingGameplayPreset = true;
+            try
+            {
+                _gameplayPreset.Value = GameplayTuningPreset.Custom;
+            }
+            finally
+            {
+                _applyingGameplayPreset = false;
+            }
+            _foaModManagerRefreshPending = true;
+        }
+
+        private bool IsGameplayPresetValueSetting(ConfigEntryBase setting)
+        {
+            ConfigEntryBase[] governedSettings =
+                GetGameplayPresetValueSettings();
+            for (int i = 0; i < governedSettings.Length; i++)
+            {
+                if (ReferenceEquals(setting, governedSettings[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool HasPendingPreservedGameplayPresetValue()
+        {
+            ConfigEntryBase[] governedSettings =
+                GetGameplayPresetValueSettings();
+            for (int i = 0; i < governedSettings.Length; i++)
+            {
+                ConfigEntryBase setting = governedSettings[i];
+                if (setting != null
+                    && _pendingPreservedConfigValues.ContainsKey(
+                        setting.Definition))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private ConfigEntryBase[] GetGameplayPresetValueSettings()
+        {
+            return new ConfigEntryBase[]
+            {
+                _allowUnprotectedWyrdnightRest,
+                _restInterruptionChanceAtZeroThreat,
+                _restInterruptionChanceAtMaximumThreat,
+                _passiveThreatPerNight,
+                _sprintThreatPerMinute,
+                _combatThreatPerWindow,
+                _wyrdKillThreat,
+                _corpseDrainThreatAtAverageQuality,
+                _baseDangerBudget,
+                _longNightBonusScale,
+                _maximumLongNightBonus,
+                _baseHazardPerMinute,
+                _threatHazardPerMinute,
+                _nightProgressHazardPerMinute,
+                _minimumHazardTarget,
+                _maximumHazardTarget,
+                _warningSeconds,
+                _maximumPackSize,
+                _sidecarChance,
+                _allowEliteEnemies,
+                _enableAmbientStalkers,
+                _stalkerMinimumCooldown,
+                _stalkerMaximumCooldown,
+                _stalkerMaximumCooldownAtFiftyThreat,
+                _stalkerProvocationThreat,
+                _killRecoverySeconds,
+                _escapeRecoverySeconds,
+                _failedPlacementRecoverySeconds
+            };
+        }
+
+        private void ApplySelectedGameplayPreset()
+        {
+            if (_gameplayPreset == null
+                || _gameplayPreset.Value == GameplayTuningPreset.Custom)
             {
                 return;
             }
@@ -5133,12 +5227,11 @@ namespace EyesInTheDark
                         break;
                 }
 
-                _gameplayPreset.Value = GameplayTuningPreset.Custom;
                 Config.Save();
                 Logger.LogInfo(
                     "Applied the "
                     + FormatGameplayPreset(preset)
-                    + " one-shot gameplay preset and returned ApplyPreset to Custom. Presentation and diagnostic settings were unchanged.");
+                    + " gameplay preset. Presentation, world-clock, guard-assistance, and diagnostic settings were unchanged.");
                 ShowDiagnosticSystem(
                     "EITD - Preset applied: "
                     + FormatGameplayPreset(preset)
@@ -5165,6 +5258,37 @@ namespace EyesInTheDark
             finally
             {
                 _applyingGameplayPreset = false;
+            }
+        }
+
+        private void RefreshFoaModManagerIfPending()
+        {
+            if (!_foaModManagerRefreshPending)
+            {
+                return;
+            }
+
+            _foaModManagerRefreshPending = false;
+            try
+            {
+                Type apiType = AccessTools.TypeByName(
+                    "FoAModManager.FoAModManagerApi");
+                MethodInfo refreshMethod = apiType == null
+                    ? null
+                    : AccessTools.Method(apiType, "Refresh");
+                if (refreshMethod != null)
+                {
+                    refreshMethod.Invoke(null, null);
+                }
+            }
+            catch (Exception exception)
+            {
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogWarning(
+                        "FoA Mod Manager refresh failed: "
+                        + exception.GetBaseException().Message);
+                }
             }
         }
 
@@ -5228,20 +5352,20 @@ namespace EyesInTheDark
                 true,
                 UiDescription(
                     "Allow starting rest during an active outdoor Wyrdnight while outside a fueled protective boundary. Presets control this gameplay rule. A rest interruption still locks further exposed rest until dawn; protected and daylight rest remain available under the game's normal rules.",
-                    "General",
+                    "Preset - Rest and Threat",
                     "Allow Unprotected Wyrdnight Rest",
-                    0,
-                    50));
+                    12,
+                    10));
             _restInterruptionChanceAtZeroThreat = Config.Bind(
                 "Rest",
                 "RestInterruptionChanceAtZeroThreat",
                 DefaultRestInterruptionChanceAtZeroThreat,
                 UiDescription(
                     "Eyes' added chance that a full Wyrdnight of unprotected sleep is interrupted at zero threat. Native interruptions remain authoritative. Exposure accumulates across repeated rests instead of rerolling each attempt.",
-                    "Advanced - Resting",
+                    "Preset - Rest and Threat",
                     "Interruption Chance at 0 Threat (%)",
-                    230,
-                    10,
+                    12,
+                    20,
                     new AcceptableValueRange<float>(0f, 100f)));
             _restInterruptionChanceAtMaximumThreat = Config.Bind(
                 "Rest",
@@ -5249,10 +5373,10 @@ namespace EyesInTheDark
                 DefaultRestInterruptionChanceAtMaximumThreat,
                 UiDescription(
                     "Eyes' added chance that a full Wyrdnight of unprotected sleep is interrupted at 100 threat. Current risk interpolates with threat, and a successful Eyes interruption commits one official hunt after waking.",
-                    "Advanced - Resting",
+                    "Preset - Rest and Threat",
                     "Interruption Chance at 100 Threat (%)",
-                    230,
-                    20,
+                    12,
+                    30,
                     new AcceptableValueRange<float>(0f, 100f)));
 
             _enableDynamicTimescale = Config.Bind(
@@ -5308,14 +5432,14 @@ namespace EyesInTheDark
             _gameplayPreset = Config.Bind(
                 "Gameplay Preset",
                 "ApplyPreset",
-                GameplayTuningPreset.Custom,
+                GameplayTuningPreset.WatchfulNight,
                 UiDescription(
-                    "Apply a gameplay template once. Uneasy Night, recommended Watchful Night, or Cursed Night writes threat and encounter tuning immediately, then returns this selector to Custom. HUD, notifications, boundary, and diagnostic preferences are preserved.",
-                    "General",
-                    "Apply Gameplay Preset Once",
+                    "Apply all visible preset values in the three sections below. Uneasy Night is restrained, Watchful Night is the recommended balanced experience, Cursed Night is severe, and Custom preserves the current values. World clock, presentation, notification, guard-assistance, and diagnostic preferences remain independent.",
+                    "Gameplay Preset",
+                    "Gameplay Preset",
+                    11,
                     0,
-                    20,
-                    choiceLabels: "Custom=Custom;UneasyNight=Uneasy Night;WatchfulNight=Watchful Night;CursedNight=Cursed Night"));
+                    choiceLabels: "UneasyNight=Uneasy Night;WatchfulNight=Watchful Night;CursedNight=Cursed Night;Custom=Custom"));
 
             _passiveThreatPerNight = BindThreatValue(
                 "PassiveThreatPerNight",
@@ -5323,30 +5447,30 @@ namespace EyesInTheDark
                 0f,
                 100f,
                 "Threat gained across one complete exposed outdoor Wyrdnight. Progress-based calculation keeps this baseline independent of world timescale.",
-                "Advanced - Threat Tuning",
+                "Preset - Rest and Threat",
                 "Passive Threat per Night",
-                200,
-                10);
+                12,
+                40);
             _sprintThreatPerMinute = BindThreatValue(
                 "SprintThreatPerMinute",
                 DefaultSprintThreatPerMinute,
                 0f,
                 30f,
                 "Threat gained per minute of sustained exposed sprinting or fast swimming, committed in non-spammable intervals.",
-                "Advanced - Threat Tuning",
+                "Preset - Rest and Threat",
                 "Sprint Threat per Minute",
-                200,
-                20);
+                12,
+                50);
             _combatThreatPerWindow = BindThreatValue(
                 "CombatThreatPerWindow",
                 DefaultCombatThreatPerWindow,
                 0f,
                 10f,
                 "Maximum threat from meaningful damage events in each short aggregation window.",
-                "Advanced - Threat Tuning",
+                "Preset - Rest and Threat",
                 "Combat Threat per Window",
-                200,
-                30);
+                12,
+                60);
             _combatResponseSeconds = BindThreatValue(
                 "CombatResponseSeconds",
                 DefaultCombatResponseSeconds,
@@ -5363,10 +5487,10 @@ namespace EyesInTheDark
                 0f,
                 20f,
                 "Threat gained when the Hero kills a Wyrd-converted or Wyrdness-bound NPC.",
-                "Advanced - Threat Tuning",
+                "Preset - Rest and Threat",
                 "Wyrd Kill Threat",
-                200,
-                50);
+                12,
+                70);
             _acquisitionThreatPerItem = BindThreatValue(
                 "AcquisitionThreatPerItem",
                 DefaultAcquisitionThreatPerItem,
@@ -5383,10 +5507,10 @@ namespace EyesInTheDark
                 0f,
                 40f,
                 "Threat from a successful Blood Magic Expansion corpse ritual at 0.5 quality. Actual threat scales linearly from 0.5x at zero quality to 1.5x at maximum quality and follows normal exposed-activity rules.",
-                "Advanced - Threat Tuning",
+                "Preset - Rest and Threat",
                 "Corpse Drain Threat at Average Quality",
-                200,
-                65);
+                12,
+                80);
             _protectedDecayPerMinute = BindThreatValue(
                 "ProtectedDecayPerMinute",
                 DefaultProtectedDecayPerMinute,
@@ -5434,7 +5558,7 @@ namespace EyesInTheDark
                 DefaultBaseDangerBudget,
                 UiDescription(
                     "Base danger budget calculated once per Wyrdnight and spent only after complete curated encounter placement is confirmed.",
-                    "Advanced - Hunt Pacing", "Nightly Encounter Budget", 210, 10,
+                    "Preset - Hunt Pressure", "Nightly Encounter Budget", 13, 10,
                     new AcceptableValueRange<float>(0f, 200f)));
             _longNightBonusScale = Config.Bind(
                 "Encounters",
@@ -5442,7 +5566,7 @@ namespace EyesInTheDark
                 DefaultLongNightBonusScale,
                 UiDescription(
                     "Scales the sublinear square-root budget bonus when the configured maximum-threat night is longer than the game's default night.",
-                    "Advanced - Hunt Pacing", "Long-Night Budget Bonus Scale", 210, 20,
+                    "Preset - Hunt Pressure", "Long-Night Budget Bonus Scale", 13, 20,
                     new AcceptableValueRange<float>(0f, 2f)));
             _maximumLongNightBonus = Config.Bind(
                 "Encounters",
@@ -5450,7 +5574,7 @@ namespace EyesInTheDark
                 DefaultMaximumLongNightBonus,
                 UiDescription(
                     "Maximum extra fraction of the base nightly budget available for an extended maximum-threat night. 0.75 caps the total at 175% of base.",
-                    "Advanced - Hunt Pacing", "Maximum Long-Night Budget Bonus", 210, 30,
+                    "Preset - Hunt Pressure", "Maximum Long-Night Budget Bonus", 13, 30,
                     new AcceptableValueRange<float>(0f, 3f)));
             _baseHazardPerMinute = Config.Bind(
                 "Encounters",
@@ -5458,7 +5582,7 @@ namespace EyesInTheDark
                 DefaultBaseHazardPerMinute,
                 UiDescription(
                     "Quiet baseline added to accumulated hunt pressure per active exposed minute. This is not an independent random roll.",
-                    "Advanced - Hunt Pacing", "Base Hunt Pressure per Minute", 210, 40,
+                    "Preset - Hunt Pressure", "Base Hunt Pressure per Minute", 13, 40,
                     new AcceptableValueRange<float>(0f, 5f)));
             _threatHazardPerMinute = Config.Bind(
                 "Encounters",
@@ -5466,7 +5590,7 @@ namespace EyesInTheDark
                 DefaultThreatHazardPerMinute,
                 UiDescription(
                     "Maximum additional accumulated hunt pressure per exposed minute from Wyrd Threat. Threat uses a rising nonlinear curve.",
-                    "Advanced - Hunt Pacing", "Threat-Based Hunt Pressure", 210, 50,
+                    "Preset - Hunt Pressure", "Threat-Based Hunt Pressure", 13, 50,
                     new AcceptableValueRange<float>(0f, 5f)));
             _nightProgressHazardPerMinute = Config.Bind(
                 "Encounters",
@@ -5474,7 +5598,7 @@ namespace EyesInTheDark
                 DefaultNightProgressHazardPerMinute,
                 UiDescription(
                     "Maximum additional accumulated hunt pressure per exposed minute as the Wyrdnight advances.",
-                    "Advanced - Hunt Pacing", "Night-Progress Hunt Pressure", 210, 60,
+                    "Preset - Hunt Pressure", "Night-Progress Hunt Pressure", 13, 60,
                     new AcceptableValueRange<float>(0f, 5f)));
             _minimumHazardTarget = Config.Bind(
                 "Encounters",
@@ -5482,7 +5606,7 @@ namespace EyesInTheDark
                 DefaultMinimumHazardTarget,
                 UiDescription(
                     "Lower bound for the randomized accumulated-pressure threshold selected for each hunt opportunity.",
-                    "Advanced - Hunt Pacing", "Minimum Hunt Pressure Threshold", 210, 70,
+                    "Preset - Hunt Pressure", "Minimum Hunt Pressure Threshold", 13, 70,
                     new AcceptableValueRange<float>(0.1f, 10f)));
             _maximumHazardTarget = Config.Bind(
                 "Encounters",
@@ -5490,7 +5614,7 @@ namespace EyesInTheDark
                 DefaultMaximumHazardTarget,
                 UiDescription(
                     "Upper bound for the randomized accumulated-pressure threshold selected for each hunt opportunity.",
-                    "Advanced - Hunt Pacing", "Maximum Hunt Pressure Threshold", 210, 80,
+                    "Preset - Hunt Pressure", "Maximum Hunt Pressure Threshold", 13, 80,
                     new AcceptableValueRange<float>(0.1f, 10f)));
             _warningSeconds = Config.Bind(
                 "Encounters",
@@ -5498,7 +5622,7 @@ namespace EyesInTheDark
                 DefaultWarningSeconds,
                 UiDescription(
                     "Active-real-time warning delay between hunt commitment and placement. Eligibility is checked again before spawning.",
-                    "Advanced - Hunt Pacing", "Warning Duration (Seconds)", 210, 90,
+                    "Preset - Hunt Pressure", "Warning Duration (Seconds)", 13, 90,
                     new AcceptableValueRange<float>(1f, 30f)));
             _dangerCostMultiplier = Config.Bind(
                 "Encounters",
@@ -5514,7 +5638,7 @@ namespace EyesInTheDark
                 DefaultMaximumPackSize,
                 UiDescription(
                     "Maximum official encounter size. Player level, profile safety, composition rules, and remaining danger budget can reduce it.",
-                    "Advanced - Hunt Composition", "Maximum Encounter Size", 220, 20,
+                    "Preset - Hunt Pressure", "Maximum Encounter Size", 13, 100,
                     new AcceptableValueRange<int>(1, 3)));
             _sidecarChance = Config.Bind(
                 "Encounters",
@@ -5522,7 +5646,7 @@ namespace EyesInTheDark
                 DefaultSidecarChance,
                 UiDescription(
                     "Maximum chance to add each weaker curated sidecar. Actual chance rises smoothly with Wyrd Threat and is capped by level, preset, profile safety, and budget.",
-                    "Advanced - Hunt Composition", "Additional Hunter Chance", 220, 30,
+                    "Preset - Hunt Pressure", "Additional Hunter Chance", 13, 110,
                     new AcceptableValueRange<float>(0f, 1f)));
             _allowEliteEnemies = Config.Bind(
                 "Encounters",
@@ -5530,7 +5654,7 @@ namespace EyesInTheDark
                 false,
                 UiDescription(
                     "Allow reviewed high-pressure ambient stalkers from 50% to below 75% threat and reviewed elite official hunters only above 75%. Bosses, minibosses, story actors, summons, and challenge or trial variants remain excluded.",
-                    "General", "Allow Elite Enemies", 0, 40));
+                    "Preset - Hunt Pressure", "Allow Elite Enemies", 13, 120));
             _enableGuardAssistance = Config.Bind(
                 "Encounters",
                 "EnableGuardAssistance",
@@ -5600,7 +5724,7 @@ namespace EyesInTheDark
                 DefaultKillRecoverySeconds,
                 UiDescription(
                     "Active real-time recovery after killing the official hunter.",
-                    "Advanced - Hunt Outcomes", "Kill Recovery (Seconds)", 230, 50,
+                    "Preset - Stalkers and Recovery", "Kill Recovery (Seconds)", 14, 60,
                     new AcceptableValueRange<float>(10f, 600f)));
             _escapeRecoverySeconds = Config.Bind(
                 "Encounters",
@@ -5608,7 +5732,7 @@ namespace EyesInTheDark
                 DefaultEscapeRecoverySeconds,
                 UiDescription(
                     "Longer active real-time Recently Pursued recovery after escaping the official hunter.",
-                    "Advanced - Hunt Outcomes", "Escape Recovery (Seconds)", 230, 60,
+                    "Preset - Stalkers and Recovery", "Escape Recovery (Seconds)", 14, 70,
                     new AcceptableValueRange<float>(10f, 900f)));
             _failedPlacementRecoverySeconds = Config.Bind(
                 "Encounters",
@@ -5616,7 +5740,7 @@ namespace EyesInTheDark
                 DefaultFailedPlacementRecoverySeconds,
                 UiDescription(
                     "Short active real-time retry protection after an invalid or failed placement. No danger budget is spent.",
-                    "Advanced - Hunt Outcomes", "Failed Placement Recovery (Seconds)", 230, 70,
+                    "Preset - Stalkers and Recovery", "Failed Placement Recovery (Seconds)", 14, 80,
                     new AcceptableValueRange<float>(5f, 180f)));
 
             _enableAmbientStalkers = Config.Bind(
@@ -5625,19 +5749,19 @@ namespace EyesInTheDark
                 true,
                 UiDescription(
                     "Allow one volatile map-native creature to watch, follow, and flee from the Hero between official hunts. No stalker is spawned at or above 75% threat.",
-                    "General",
+                    "Preset - Stalkers and Recovery",
                     "Enable Ambient Stalkers",
-                    0,
-                    30));
+                    14,
+                    10));
             _stalkerMinimumCooldown = Config.Bind(
                 "Ambient Stalkers",
                 "MinimumCooldownSeconds",
                 DefaultStalkerMinimumCooldownSeconds,
                 UiDescription(
                     "Lower bound for each randomized active-real-time delay between ambient stalkers.",
-                    "Advanced - Stalker Tuning",
+                    "Preset - Stalkers and Recovery",
                     "Minimum Cooldown (Seconds)",
-                    240,
+                    14,
                     20,
                     new AcceptableValueRange<float>(15f, 600f)));
             _stalkerMaximumCooldown = Config.Bind(
@@ -5646,9 +5770,9 @@ namespace EyesInTheDark
                 DefaultStalkerMaximumCooldownSeconds,
                 UiDescription(
                     "Upper cooldown bound at zero Wyrd Threat. The live upper bound shrinks smoothly as threat approaches 50%.",
-                    "Advanced - Stalker Tuning",
+                    "Preset - Stalkers and Recovery",
                     "Maximum Cooldown at Zero Threat (Seconds)",
-                    240,
+                    14,
                     30,
                     new AcceptableValueRange<float>(15f, 900f)));
             _stalkerMaximumCooldownAtFiftyThreat = Config.Bind(
@@ -5657,9 +5781,9 @@ namespace EyesInTheDark
                 DefaultStalkerMaximumCooldownAtFiftyThreatSeconds,
                 UiDescription(
                     "Upper cooldown bound as Wyrd Threat reaches 50%. Values below the minimum cooldown are safely clamped at runtime.",
-                    "Advanced - Stalker Tuning",
+                    "Preset - Stalkers and Recovery",
                     "Maximum Cooldown near 50% Threat (Seconds)",
-                    240,
+                    14,
                     40,
                     new AcceptableValueRange<float>(15f, 600f)));
             _stalkerProvocationThreat = Config.Bind(
@@ -5668,10 +5792,10 @@ namespace EyesInTheDark
                 DefaultStalkerProvocationThreat,
                 UiDescription(
                     "One-time Wyrd Threat added when the Hero attacks the exact passive stalker. The hit makes that stalker immediately hostile.",
-                    "Advanced - Stalker Tuning",
+                    "Preset - Stalkers and Recovery",
                     "Threat from Provoking a Stalker",
-                    240,
-                    40,
+                    14,
+                    50,
                     new AcceptableValueRange<float>(0f, 25f)));
             _stalkerMinimumSpawnDistance = Config.Bind(
                 "Ambient Stalkers",
@@ -6351,10 +6475,13 @@ namespace EyesInTheDark
                         WorldTimescalePolicy.MinimumOverrideMultiplier,
                         WorldTimescalePolicy.MaximumOverrideMultiplier)));
 
-            _gameplayPreset.SettingChanged += OnGameplayPresetChanged;
-
+            bool preserveCustomGameplayPreset =
+                HasPendingPreservedGameplayPresetValue();
             RestorePreservedConfigValues();
-            OnGameplayPresetChanged(null, EventArgs.Empty);
+            if (preserveCustomGameplayPreset)
+            {
+                _gameplayPreset.Value = GameplayTuningPreset.Custom;
+            }
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
                 Logger,
@@ -6363,6 +6490,8 @@ namespace EyesInTheDark
                 ConfigRecoveryBaselineSchema,
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
+            ApplySelectedGameplayPreset();
+            Config.SettingChanged += OnConfigSettingChanged;
             Config.Save();
         }
 
@@ -6402,6 +6531,14 @@ namespace EyesInTheDark
             string choiceLabels = "",
             bool hidden = false)
         {
+            if (displaySection.StartsWith(
+                    "Preset -",
+                    StringComparison.Ordinal))
+            {
+                description +=
+                    " Changing this value manually selects Custom.";
+            }
+
             return new ConfigDescription(
                 description,
                 acceptableValues,
@@ -6539,6 +6676,10 @@ namespace EyesInTheDark
 
             CapturePreservedValue<bool>(profile, "1. Core", "Enabled");
             CapturePreservedValue<bool>(profile, "1. Core", "ShowWyrdnightRestAvailability");
+            CapturePreservedValue<GameplayTuningPreset>(
+                profile,
+                "2. Gameplay Preset",
+                "ApplyPreset");
             CapturePreservedValue<bool>(profile, "1. Core", "AllowUnprotectedWyrdnightRest");
             CapturePreservedValue<float>(profile, "6. Rest", "RestInterruptionChanceAtZeroThreat");
             CapturePreservedValue<float>(profile, "6. Rest", "RestInterruptionChanceAtMaximumThreat");
@@ -6719,6 +6860,7 @@ namespace EyesInTheDark
             int invalid = 0;
             RestorePreservedValue(_featureEnabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_showWyrdnightRestAvailability, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(_gameplayPreset, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_allowUnprotectedWyrdnightRest, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_restInterruptionChanceAtZeroThreat, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(_restInterruptionChanceAtMaximumThreat, ref restored, ref clamped, ref invalid);

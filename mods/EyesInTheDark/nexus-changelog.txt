@@ -1,3 +1,3 @@
-TargetVersion=1.3.9
-BaselineVersion=1.3.5
-Nearby ordinary guards can now join active official hunts against every exact Eyes-spawned hunter, including sidecars, and keep responding if the Hero enters Wyrd protection during the same exterior hunt. Both the guard's distance from the Hero and its distance from the hunter must remain within the configurable response radius. Assistance is optional and capped, excludes unique and special actors, and never changes factions permanently or targets ambient stalkers.
+TargetVersion=1.4.0
+BaselineVersion=1.3.9
+Gameplay presets are now durable and transparent in FoA Mod Manager. Uneasy Night, Watchful Night, and Cursed Night write every governed value shown in three adjacent preset sections; editing any of those values switches the selector to Custom, and choosing Custom directly changes nothing. The manager refreshes after a preset change so the displayed values stay current. Existing customized gameplay tuning is retained conservatively as Custom through the schema update.

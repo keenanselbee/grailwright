@@ -13,7 +13,7 @@ The project is inspired by [url=https://www.nexusmods.com/taintedgrailthefallofa
 [heading][color=#C94A4A][size=5]Features[/size][/color][/heading]
 [list]
 [*][b]Dynamic world timescale and threat-reactive Wyrdnights:[/b] the default night interpolates from six real minutes at zero threat to 12 minutes at maximum threat. Daylight remains approximately 60 minutes.[/*]
-[*][b]Your behavior matters:[/b] exposure, fast movement, combat, projectiles, spells, Wyrd kills, looting, optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] corpse rituals, and battlecries can raise Wyrd Threat.[/*]
+[*][b]Your behavior matters:[/b] exposure, fast movement, combat, projectiles, spells, Wyrd kills, looting, optional corpse rituals from [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url], and battlecries can raise Wyrd Threat.[/*]
 [*][b]Suspense before combat:[/b] map-native ambient stalkers can appear outside the camera, watch from a distance, follow, flee from pursuit, or turn hostile.[/*]
 [*][b]Curated regional hunts:[/b] level, exact map, threat, safety, composition, and encounter budget determine what can hunt you.[/*]
 [*][b]Reactive presentation:[/b] the moon, moonlight, protection bubbles, boundary, threat meter, and optional text respond as the night becomes more dangerous.[/*]
@@ -100,7 +100,7 @@ Player level, exact map, template safety, and three-failure session rejection re
 [line]
 
 [heading][color=#C94A4A][size=5]Gameplay Presets[/size][/color][/heading]
-Select a one-shot template in FoA Mod Manager. It writes gameplay tuning and immediately returns to Custom, leaving later manual edits active.
+Select Uneasy Night, Watchful Night, or Cursed Night in FoA Mod Manager to apply its complete gameplay tuning. The governed values sit directly below the selector in three adjacent preset sections. Editing any of them switches the selector to Custom; choosing Custom directly changes nothing. The manager refreshes after applying a named preset so its displayed values remain current.
 
 [code]
 | Preset         | Effect                                      |
@@ -150,7 +150,7 @@ Minimal keeps stalkers fully visual. Atmospheric adds only the restrained disapp
 
 With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] installed, an accepted cry while exposed outdoors during a Wyrdnight adds configurable threat. Rapid repetition yields full, half, quarter, and then diminishing gains down to a 10 percent floor; 30 active seconds without another accepted cry restores the full amount. After two or three cries, Atmospheric and Detailed may show one of seven restrained Wyrdnight responses. Those messages use their own 15-active-second default cooldown, independent of the battlecry action cooldown.
 
-With Blood Magic Expansion installed, each successfully completed corpse ritual reports its 0-to-1 corpse quality to Eyes. During an exposed outdoor Wyrdnight, the default tuning adds 8 threat at average quality and scales linearly from 4 at zero quality to 12 at maximum quality. Daytime, indoor, protected, paused, loading-grace, interrupted, and failed rituals add no threat.
+With Blood Magic Expansion installed, each successfully completed corpse drain reports its 0-to-1 corpse quality to Eyes. Soul and Service 3.2.7+ reports the same quality after each successful ordinary corpse harvest, excluding failed or repeated harvests, greater-soul portions, living-servant unbinding, and Blood Magic-executed servant remains. During an exposed outdoor Wyrdnight, the default tuning adds 8 threat at average quality and scales linearly from 4 at zero quality to 12 at maximum quality. Daytime, indoor, protected, paused, loading-grace, interrupted, and failed rituals add no threat.
 
 When Diagnostics is enabled, separate concise low-priority System notifications report useful behind-the-scenes state, threat, hunt pressure, official and ambient filters, final weights, hidden aggression, movement, composition, cost, budget, placement, and outcomes. They use immediate delivery and one collapse lane; Grail Floating Text absence or failure cannot affect gameplay.
 
@@ -184,7 +184,7 @@ FoA Mod Manager shows the config title as [b]Eyes in the Dark[/b]. Common choice
 | Day / quiet / max night    | 60 / 6 / 12 minutes |
 | Gameplay tuning            | Watchful Night      |
 | Passive threat / night     | 20                  |
-| Corpse drain at avg quality| 8 (4-12 by quality) |
+| Corpse ritual at avg quality | 8 (4-12 by quality) |
 | Protected / interior decay | 4 / 1 per minute    |
 | Encounter budget           | 30 + capped bonus   |
 | Maximum official group     | 2                   |
@@ -235,7 +235,7 @@ Incompatible config updates create a backup and generate current defaults. Some 
 
 FoA Mod Manager's final [b]Import Previous Settings[/b] tab shows the current and available backup schemas. Toggle the import action to restore compatible customized settings. Restart the game after importing.
 
-Automatically preserved: Enabled; ShowWyrdnightRestAvailability; AllowUnprotectedWyrdnightRest; rest-interruption chances; dynamic world-clock duration settings; all Wyrd Threat, official encounter, and ambient-stalker tuning; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. The one-shot ApplyPreset action plus diagnostic threat and timescale override controls are permanently excluded from recovery/import.
+Automatically preserved: Enabled; the durable gameplay preset and its governed values; ShowWyrdnightRestAvailability; dynamic world-clock duration settings; threat-meter display and offsets; Wyrd visual palette and layer settings; boundary appearance; Grail Floating Text notification preferences and cooldowns; and Diagnostics. Diagnostic threat and timescale override controls are permanently excluded from recovery/import. When upgrading from schema 22, customized gameplay values are retained conservatively as Custom so the new Watchful Night default cannot overwrite them.
 
 When a visual-default reset is required, compatible durable customizations are restored conservatively. The tested pulse amount and Diagnostics-off state deliberately adopt their new defaults instead of restoring those two older customized values.
 
@@ -257,6 +257,7 @@ When a visual-default reset is required, compatible durable customizations are r
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] can add diminishing exposed-Wyrdnight threat and unlock restrained battlecry-response atmosphere. It remains fully optional.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] can add 4-to-12 quality-scaled threat after successfully completed exposed-Wyrdnight corpse rituals. It remains fully optional.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290]Soul and Service[/url] 3.2.7+ can add the same quality-scaled threat after successful ordinary corpse harvests made during an exposed Wyrdnight. It remains fully optional.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248]Glorious UI[/url] provides optional below-resource-bars placement for the Eyes-owned Wyrd Threat meter plus an independently toggleable rest clock and time display. It is not required for threat calculation, rest safety, or encounter behavior.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] can show compatibility conflicts, critical load errors, and useful debug info in-game when diagnostics are enabled. It also provides optional atmospheric messages without affecting threat calculation or encounter behavior.[/*]
 [/list]

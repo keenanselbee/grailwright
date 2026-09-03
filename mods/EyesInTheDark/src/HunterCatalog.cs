@@ -15,10 +15,10 @@ namespace EyesInTheDark
 
     internal enum GameplayTuningPreset
     {
-        Custom,
         UneasyNight,
         WatchfulNight,
-        CursedNight
+        CursedNight,
+        Custom
     }
 
     internal enum HunterFamily

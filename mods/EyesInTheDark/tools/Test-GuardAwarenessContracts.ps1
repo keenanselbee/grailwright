@@ -27,7 +27,7 @@ Assert-GuardContract ($manifest.sourceFiles -contains `
     "src/GuardAwarenessCoordinator.cs") `
     "mod.json omits the guard-awareness source."
 Assert-GuardContract ($plugin.Contains(
-    'private const int ConfigSchemaVersion = 22;')) `
+    'private const int ConfigSchemaVersion = 23;')) `
     "additive guard settings unexpectedly changed the config schema."
 
 foreach ($required in @(

@@ -1,3 +1,8 @@
+Version 1.4.0
+Converted the gameplay preset selector from a one-shot action into a durable applied preset. Uneasy Night, Watchful Night, and Cursed Night now write every governed value shown in three adjacent preset sections; manually editing any governed value selects Custom, and choosing Custom directly changes nothing.
+Deferred FoA Mod Manager refresh until the next frame after preset changes so the manager shows the applied live values instead of stale originals marked as modified.
+Advanced ConfigSchemaVersion to 23 because ApplyPreset changed from an excluded one-shot action defaulting to Custom into a durable selector defaulting to Watchful Night. Existing customized gameplay values are conservatively retained as Custom during schema-22 recovery so the new default cannot overwrite them.
+
 Version 1.3.9
 Clarified the FoA Mod Manager description for Guard Assistance Radius so it explains both the Hero-to-guard and guard-to-hunter response gates. ConfigSchemaVersion remains 22 because this is a description-only change.
 

@@ -148,7 +148,6 @@ $expectedPermanentExclusions = @{
         @{ Section = 'Diagnostics'; Key = 'OverrideSoulforgedRank' }
     )
     'EyesInTheDark' = @(
-        @{ Section = 'Gameplay Preset'; Key = 'ApplyPreset' },
         @{ Section = 'Diagnostics'; Key = 'EnableThreatOverride' },
         @{ Section = 'Diagnostics'; Key = 'ThreatOverrideValue' },
         @{ Section = 'Diagnostics'; Key = 'EnableTimescaleOverride' },

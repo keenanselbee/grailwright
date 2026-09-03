@@ -1,4 +1,4 @@
-TargetVersion=1.9.3
-BaselineVersion=1.9.1
+TargetVersion=1.9.4
+BaselineVersion=1.9.3
 
-Fixed the character-statistics panel lingering from the ESC menu into a loading screen when Show On Loading Screens is disabled. Starting a valid save load now clears the outgoing pause-menu panel immediately, and the runtime visibility check always gives an active loading screen priority over stale menu state.
+Changed cumulative Hours rested to display as a conventionally rounded whole number while retaining the exact save-backed minute total.

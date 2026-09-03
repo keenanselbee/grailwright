@@ -1,5 +1,5 @@
 Deeds of Avalon - Character Statistics
-Version 1.9.3
+Version 1.9.4
 
 Platforms: Windows and Linux through Proton.
 
@@ -43,7 +43,7 @@ Fish caught (Cyan): Number
 Locks picked: Number
 Items pickpocketed: Number
 Crime and bounty: Number
-Hours rested: Number
+Hours rested: whole Number
 Blood Essence: X (Y)
 Soul Vigor: X (Y)
 Blood Magic Simple: Corpses Drained

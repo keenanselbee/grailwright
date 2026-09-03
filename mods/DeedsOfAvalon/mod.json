@@ -2,7 +2,7 @@
   "id": "DeedsOfAvalon",
   "displayName": "Deeds of Avalon - Character Statistics",
   "packageName": "DeedsOfAvalon",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "pluginGuid": "ks.tgfoa.deeds-of-avalon",
   "dll": "DeedsOfAvalon.dll",
   "sourceFiles": [

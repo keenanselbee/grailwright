@@ -45,9 +45,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Save-bounded character statistics and menu presentation for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Deeds of Avalon")]
-[assembly: AssemblyVersion("1.9.3.0")]
-[assembly: AssemblyFileVersion("1.9.3.0")]
-[assembly: AssemblyInformationalVersion("1.9.3")]
+[assembly: AssemblyVersion("1.9.4.0")]
+[assembly: AssemblyFileVersion("1.9.4.0")]
+[assembly: AssemblyInformationalVersion("1.9.4")]
 
 namespace DeedsOfAvalon
 {
@@ -189,7 +189,7 @@ namespace DeedsOfAvalon
     {
         public const string PluginGuid = "ks.tgfoa.deeds-of-avalon";
         public const string PluginName = "Deeds of Avalon";
-        public const string PluginVersion = "1.9.3";
+        public const string PluginVersion = "1.9.4";
         private const string MemoryContext = "DeedsOfAvalon";
         private const string GftPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GloriousUiPluginGuid = "ks.tgfoa.glorious-ui";
@@ -1891,8 +1891,11 @@ namespace DeedsOfAvalon
             int minutes = facts.Get("deeds.minutes_rested", 0);
             if (minutes > 0 || DiagnosticPreviewEnabled())
             {
+                int hours = (int)Math.Round(
+                    Math.Max(0, minutes) / 60.0,
+                    MidpointRounding.AwayFromZero);
                 rows.Add(new PanelRow(
-                    "Hours rested: " + DisplayNumber("Hours rested", minutes / 60.0f),
+                    "Hours rested: " + DisplayInteger("Hours rested", hours).ToString("N0", CultureInfo.InvariantCulture),
                     "rest",
                     "Pale",
                     minutes));
@@ -2123,6 +2126,7 @@ namespace DeedsOfAvalon
                 case "Items pickpocketed": return 12;
                 case "Active bounty": return 240;
                 case "Highest bounty": return 1180;
+                case "Hours rested": return 44;
                 case "One-Handed Sword": return 126;
                 case "One-Handed Axe": return 48;
                 case "One-Handed Blunt": return 37;
@@ -2153,16 +2157,6 @@ namespace DeedsOfAvalon
                 case "Wet": return 14;
                 case "Other": return 12;
                 default: return 24;
-            }
-        }
-
-        private string DisplayNumber(string previewKey, float value)
-        {
-            if (value != 0.0f || !DiagnosticPreviewEnabled()) return value.ToString("0.#", CultureInfo.InvariantCulture);
-            switch (previewKey)
-            {
-                case "Hours rested": return "43.5";
-                default: return "24";
             }
         }
 

@@ -27,12 +27,15 @@ Original mod targets:
 - Wyrd Sight Addon 1.2.6: for Wyrd Sight, which loads in BepInEx as plugin
   version 1.2.0. Its pulse also reveals untaken quest givers with Balanced
   story-lock filtering and an integrated, event-driven golden outline by default.
-- All Lights Cast Shadows Addon 2.0.5: bounded, view-aware selection for the All Lights Cast Shadows Mono file
+- All Lights Cast Shadows Addon 2.1.2: bounded, view-aware selection for the All Lights Cast Shadows Mono file
   1.0.0-mono, which loads in BepInEx as plugin version 1.2.0. It restores
-  shadow state, protects bonfire lighting, limits atlas pressure, and can
-  temporarily lower shadow cost during outdoor combat. An optional directional
-  shadow transition shortens the weak-shadow handoff at dawn and dusk, with
-  live real-time normalization when Eyes in the Dark is installed.
+  shadow state, protects special lighting, limits atlas pressure, ranks exact
+  light-range spheres with stable centre priority, stages initial activation,
+  and hands replacement shadows over smoothly without overlapping their maps.
+  Tightening-only interior and combat profiles can lower cost further. An
+  optional directional shadow transition shortens the weak-shadow handoff at
+  dawn and dusk, with live real-time normalization when Eyes in the Dark is
+  installed.
 - Contact Shadows Addon 0.1.3: for Contact Shadows 1.0.0-mono. It enables the
   effect only in interiors by default, keeps up to four stable nearby point or
   spot lights active, and exactly restores touched light, camera, and volume

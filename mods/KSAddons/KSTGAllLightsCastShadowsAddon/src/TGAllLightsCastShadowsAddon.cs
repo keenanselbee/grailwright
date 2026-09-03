@@ -20,9 +20,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Bounded, view-aware shadow selection companion for All Lights Cast Shadows")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("All Lights Cast Shadows Addon")]
-[assembly: AssemblyVersion("2.0.5.0")]
-[assembly: AssemblyFileVersion("2.0.5.0")]
-[assembly: AssemblyInformationalVersion("2.0.5")]
+[assembly: AssemblyVersion("2.1.2.0")]
+[assembly: AssemblyFileVersion("2.1.2.0")]
+[assembly: AssemblyInformationalVersion("2.1.2")]
 
 namespace TGAllLightsCastShadowsAddon
 {
@@ -39,7 +39,7 @@ namespace TGAllLightsCastShadowsAddon
         public const string PluginGuid =
             "ks.tgfoa.tg-all-lights-cast-shadows-addon";
         public const string PluginName = "All Lights Cast Shadows Addon";
-        public const string PluginVersion = "2.0.5";
+        public const string PluginVersion = "2.1.2";
         public const string ParentPluginGuid =
             "com.wessberg.tgalllightscastshadows";
         public const string MageLightPluginGuid = "Gotik0.magelight";
@@ -614,6 +614,7 @@ namespace TGAllLightsCastShadowsAddon
                 "Excluded Lights",
                 "VerboseExclusionLogging",
                 false);
+            CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeHeroLight", false);
             CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeWyrdSightLights", false);
             CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeSummonLights", false);
             CaptureCustomizedValue(profile, "Excluded Lights", "ExcludeInterfacePreviewLights", false);
@@ -626,11 +627,20 @@ namespace TGAllLightsCastShadowsAddon
             CaptureCustomizedValue(profile, "Performance", "MaximumShadowMapFaces", 0);
             CaptureCustomizedValue(profile, "Performance", "SuppressAddedVolumetricShadows", false);
             CaptureCustomizedValue(profile, "View Priority", "HysteresisMeters", 0f);
+            CaptureCustomizedValue(profile, "View Priority", "SelectionRetentionMeters", 0f);
             CaptureCustomizedValue(profile, "View Priority", "PreferViewRelevantLights", false);
+            CaptureCustomizedValue(profile, "View Priority", "ScreenCenterPriorityMeters", 0f);
             CaptureCustomizedValue(profile, "View Priority", "SelectionRefreshSeconds", 0f);
             CaptureCustomizedValue(profile, "View Priority", "ViewExitDelaySeconds", 0f);
             CaptureCustomizedValue(profile, "View Priority", "OffscreenReserveLights", 0);
             CaptureCustomizedValue(profile, "View Priority", "MaximumSelectionSwapsPerRefresh", 0);
+            CaptureCustomizedValue(profile, "View Priority", "ShadowHandoffSeconds", 0f);
+            CaptureCustomizedValue(profile, "View Priority", "InitialFillBatchSize", 0);
+            CaptureCustomizedValue(profile, "Interior Performance", "InteriorPerformanceEnabled", false);
+            CaptureCustomizedValue(profile, "Interior Performance", "InteriorMaximumUpgradedLights", 0);
+            CaptureCustomizedValue(profile, "Interior Performance", "InteriorMaximumDistanceMeters", 0f);
+            CaptureCustomizedValue(profile, "Interior Performance", "InteriorMaximumShadowMapFaces", 0);
+            CaptureCustomizedValue(profile, "Interior Performance", "InteriorPromotedShadowResolution", 0);
             CaptureCustomizedValue(profile, "Directional Shadows", "ImproveDawnDuskShadows", false);
             CaptureCustomizedValue(profile, "Directional Shadows", "ShadowBlendMinutes", 0);
             CaptureCustomizedValue(profile, "Directional Shadows", "NormalizeForEyesInTheDark", false);
@@ -698,6 +708,7 @@ namespace TGAllLightsCastShadowsAddon
                 _verboseExclusionLogging,
                 ref restored,
                 ref clamped);
+            RestorePreservedEntry(_excludeHeroLight, ref restored, ref clamped);
             RestorePreservedEntry(_excludeWyrdSightLights, ref restored, ref clamped);
             RestorePreservedEntry(_excludeSummonLights, ref restored, ref clamped);
             RestorePreservedEntry(_excludeInterfacePreviewLights, ref restored, ref clamped);
@@ -710,11 +721,20 @@ namespace TGAllLightsCastShadowsAddon
             RestorePreservedEntry(_maximumShadowMapFaces, ref restored, ref clamped);
             RestorePreservedEntry(_suppressAddedVolumetricShadows, ref restored, ref clamped);
             RestorePreservedEntry(_selectionHysteresisMeters, ref restored, ref clamped);
+            RestorePreservedEntry(_selectionRetentionMeters, ref restored, ref clamped);
             RestorePreservedEntry(_preferViewRelevantLights, ref restored, ref clamped);
+            RestorePreservedEntry(_screenCenterPriorityMeters, ref restored, ref clamped);
             RestorePreservedEntry(_selectionRefreshSeconds, ref restored, ref clamped);
             RestorePreservedEntry(_viewExitDelaySeconds, ref restored, ref clamped);
             RestorePreservedEntry(_offscreenReserveLights, ref restored, ref clamped);
             RestorePreservedEntry(_maximumSelectionSwapsPerRefresh, ref restored, ref clamped);
+            RestorePreservedEntry(_shadowHandoffSeconds, ref restored, ref clamped);
+            RestorePreservedEntry(_initialFillBatchSize, ref restored, ref clamped);
+            RestorePreservedEntry(_interiorPerformanceEnabled, ref restored, ref clamped);
+            RestorePreservedEntry(_interiorMaximumUpgradedLights, ref restored, ref clamped);
+            RestorePreservedEntry(_interiorMaximumDistanceMeters, ref restored, ref clamped);
+            RestorePreservedEntry(_interiorMaximumShadowMapFaces, ref restored, ref clamped);
+            RestorePreservedEntry(_interiorPromotedShadowResolution, ref restored, ref clamped);
             RestorePreservedEntry(_improveDawnDuskShadows, ref restored, ref clamped);
             RestorePreservedEntry(_dawnDuskShadowBlendMinutes, ref restored, ref clamped);
             RestorePreservedEntry(_normalizeDawnDuskForEyesInTheDark, ref restored, ref clamped);
@@ -1103,25 +1123,34 @@ namespace TGAllLightsCastShadowsAddon
         private bool ShouldProtectShadowAtlas()
         {
             return (_protectShadowAtlas != null && _protectShadowAtlas.Value)
+                || InteriorResolutionCapActive()
                 || (_combatPerformanceActive
                     && _combatReduceAtlasResolution != null
                     && _combatReduceAtlasResolution.Value);
         }
 
+        private bool InteriorResolutionCapActive()
+        {
+            return _managedInteriorActive
+                && _interiorPerformanceEnabled != null
+                && _interiorPerformanceEnabled.Value;
+        }
+
         private int CurrentShadowResolutionCap()
         {
-            if (_combatPerformanceActive
+            bool generalCapActive = _protectShadowAtlas != null
+                && _protectShadowAtlas.Value;
+            bool interiorCapActive = InteriorResolutionCapActive();
+            bool combatCapActive = _combatPerformanceActive
                 && _combatReduceAtlasResolution != null
-                && _combatReduceAtlasResolution.Value)
-            {
-                return _protectShadowAtlas != null && _protectShadowAtlas.Value
-                    ? Math.Min(
-                        _promotedShadowResolution.Value,
-                        _combatShadowResolution.Value)
-                    : _combatShadowResolution.Value;
-            }
-
-            return _promotedShadowResolution.Value;
+                && _combatReduceAtlasResolution.Value;
+            return SafeShadowSelectionRules.ResolveShadowResolutionCap(
+                generalCapActive,
+                _promotedShadowResolution.Value,
+                interiorCapActive,
+                _interiorPromotedShadowResolution.Value,
+                combatCapActive,
+                _combatShadowResolution.Value);
         }
 
         private void OnDiagnosticsSettingChanged(object sender, EventArgs args)

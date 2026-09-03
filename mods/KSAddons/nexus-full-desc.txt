@@ -12,7 +12,7 @@ Each addon has its own folder and README. Install only the addons whose original
 
 [heading][color=#C94A4A][size=5]Included Addons[/size][/color][/heading]
 [list]
-[*][b]All Lights Cast Shadows Addon 2.0.5[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
+[*][b]All Lights Cast Shadows Addon 2.1.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/133]All Lights Cast Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.2.0.[/*]
 [*][b]Better Movement Addon 0.2.2[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102]Better Movement[/url] 1.3.0 or newer.[/*]
 [*][b]Better Volumetric Fog Addon 0.1.3[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145]Better Volumetric Fog[/url] 1.0.2-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
 [*][b]Contact Shadows Addon 0.1.4[/b] - for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/135]Contact Shadows[/url] Mono file 1.0.0-mono, which loads in BepInEx as plugin version 1.0.0.[/*]
@@ -28,15 +28,16 @@ Companion addon for [url=https://www.nexusmods.com/taintedgrailthefallofavalon/m
 
 [list]
 [*][b]Performance-safe limits:[/b] Keeps up to 16 nearby lights within 25 metres and a 48-face estimated shadow budget by default. Stricter limits from the original mod or the combat settings still win.[/*]
-[*][b]Stable lighting while moving:[/b] Prioritizes lights that affect the current view and changes the selected set gradually, reducing flicker, shadow popping, and sudden performance spikes as the camera moves.[/*]
-[*][b]Protected special lighting:[/b] Leaves Wyrd Sight highlights, summons, interface previews, lockpicking, the portable Bonfire, configured firelights, and optional user exclusions under their original lighting systems.[/*]
+[*][b]Stable lighting while moving:[/b] Uses each light's exact range sphere, favours useful sources near the centre of the view, retains good existing choices, and transfers one replacement shadow at a time through a zero-strength handoff. Initial shadows arrive in small batches instead of all at once.[/*]
+[*][b]Protected special lighting:[/b] Leaves the vanilla HeroLight, Wyrd Sight highlights, summons, interface previews, lockpicking, the portable Bonfire, configured firelights, and optional user exclusions under their original lighting systems.[/*]
 [*][b]Player-light compatibility:[/b] Leaves the player light entirely under MageLight or No Player Light when either is installed. If both are present, the addon warns that MageLight can reactivate the light disabled by No Player Light.[/*]
+[*][b]Optional interior tuning:[/b] Provides separate tightening-only interior ceilings for light count, distance, estimated faces, and shadow resolution. Their defaults match the permanent limits and can never raise a stricter parent, permanent, or combat value.[/*]
 [*][b]Optional dawn and dusk improvement:[/b] Can shorten the weak-shadow transition around sunrise and sunset without adding another light or shadow map. It is off by default and can stay consistent with the changing world-clock speed from Eyes in the Dark.[/*]
 [*][b]Reversible performance controls:[/b] Suppresses added volumetric shadows by default, caps promoted shadow resolution without raising lower authored values, and lowers the cap during outdoor combat. Every lighting value changed by the addon is restored when released.[/*]
 [*][b]Clean parent integration and feedback:[/b] Keeps the original mod's toggle and shadow-strength settings, never edits its JSON, and supports toggle notifications, detailed diagnostics, Grail Floating Text summaries, and previous-settings recovery.[/*]
 [/list]
 
-[b]Architecture credit:[/b] The updated safe-selector, bounded-ownership, semantic-exclusion, and restoration design was adapted from TGAllLightsCastShadowsSafe by [url=https://forums.nexusmods.com/profile/194045963-pupkidze007/]pupkidze007[/url].
+[b]Architecture credit:[/b] The safe-selector, bounded-ownership, semantic-exclusion, restoration, exact range-sphere ranking, staged activation, and sequential handoff design was adapted from TGAllLightsCastShadowsSafe by [url=https://forums.nexusmods.com/profile/194045963-pupkidze007/]pupkidze007[/url].
 
 Config file:
 

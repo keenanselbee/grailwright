@@ -10,9 +10,12 @@ using Awaken.TG.Main.Heroes.Items.Attachments;
 using Awaken.TG.Main.Locations.Actions.Lockpicking;
 using Awaken.TG.Main.Locations.Setup;
 using Awaken.TG.Main.Locations.Views;
+using Awaken.TG.Main.Scenes;
 using Awaken.TG.Main.Scenes.SceneConstructors;
 using Awaken.TG.Main.UI.ObjectCloseup;
 using Awaken.TG.Main.UI.RawImageRendering;
+using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -35,13 +38,23 @@ namespace TGAllLightsCastShadowsAddon
         private ConfigEntry<float> _viewExitDelaySeconds;
         private ConfigEntry<int> _offscreenReserveLights;
         private ConfigEntry<int> _maximumSelectionSwapsPerRefresh;
+        private ConfigEntry<float> _selectionRetentionMeters;
+        private ConfigEntry<float> _screenCenterPriorityMeters;
+        private ConfigEntry<float> _shadowHandoffSeconds;
+        private ConfigEntry<int> _initialFillBatchSize;
         private ConfigEntry<bool> _suppressAddedVolumetricShadows;
+        private ConfigEntry<bool> _excludeHeroLight;
         private ConfigEntry<bool> _excludeWyrdSightLights;
         private ConfigEntry<bool> _excludeSummonLights;
         private ConfigEntry<bool> _excludeInterfacePreviewLights;
         private ConfigEntry<bool> _excludeLockpickingLights;
         private ConfigEntry<bool> _excludePlacedBonfireLights;
         private ConfigEntry<bool> _respectExternalPlayerLightOwnership;
+        private ConfigEntry<bool> _interiorPerformanceEnabled;
+        private ConfigEntry<int> _interiorMaximumUpgradedLights;
+        private ConfigEntry<float> _interiorMaximumDistanceMeters;
+        private ConfigEntry<int> _interiorMaximumShadowMapFaces;
+        private ConfigEntry<int> _interiorPromotedShadowResolution;
         private bool _managedControllerEnabledForSession;
         private bool _mageLightInstalled;
         private bool _noPlayerLightInstalled;
@@ -74,6 +87,9 @@ namespace TGAllLightsCastShadowsAddon
         private int _managedSceneHandle = -1;
         private float _nextManagedSelectionRefresh;
         private bool _managedSettingsDirty;
+        private bool _managedInitialFillPending = true;
+        private bool _managedInteriorActive;
+        private ManagedShadowHandoff _managedShadowHandoff;
         private Type _wyrdSightGlowEffectType;
         private bool _wyrdSightTypeResolved;
         private MethodInfo _hdShadowsEnabledMethod;
@@ -100,6 +116,7 @@ namespace TGAllLightsCastShadowsAddon
         private int _managedExcludedPlacedBonfireLights;
         private int _managedExcludedConfiguredLights;
         private int _managedExcludedExternalPlayerLights;
+        private int _managedExcludedHeroLights;
         private int _managedExternalPlayerShadowMapFaces;
 
         private void BindManagedShadowConfig()
@@ -150,20 +167,36 @@ namespace TGAllLightsCastShadowsAddon
                     "Extra retention distance for an already selected light, reducing rapid changes while moving.",
                     "View Priority", "Hysteresis", 6, 0,
                     new AcceptableValueRange<float>(0f, 100f)));
+            _selectionRetentionMeters = Config.Bind(
+                "View Priority",
+                "SelectionRetentionMeters",
+                2f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Makes an already selected light rank as if it were this many metres closer. This stabilizes nearby choices without extending the acquisition distance or view-exit grace.",
+                    "View Priority", "Selection Retention", 6, 10,
+                    new AcceptableValueRange<float>(0f, 10f)));
             _preferViewRelevantLights = Config.Bind(
                 "View Priority",
                 "PreferViewRelevantLights",
                 true,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Prioritizes lights whose illumination volume intersects the camera view while retaining a small offscreen reserve.",
-                    "View Priority", "Prefer View Relevant Lights", 6, 10));
+                    "View Priority", "Prefer View Relevant Lights", 6, 20));
+            _screenCenterPriorityMeters = Config.Bind(
+                "View Priority",
+                "ScreenCenterPriorityMeters",
+                4f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Gives a visible light near the centre of the screen a moderate ranking advantage. Set zero to keep view relevance without centre preference.",
+                    "View Priority", "Screen Centre Priority", 6, 30,
+                    new AcceptableValueRange<float>(0f, 15f)));
             _selectionRefreshSeconds = Config.Bind(
                 "View Priority",
                 "SelectionRefreshSeconds",
                 0.2f,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Interval for lightweight selection refreshes from the checked nearby cache. This does not run another global light search.",
-                    "View Priority", "Selection Refresh", 6, 20,
+                    "View Priority", "Selection Refresh", 6, 40,
                     new AcceptableValueRange<float>(0.05f, 2f)));
             _viewExitDelaySeconds = Config.Bind(
                 "View Priority",
@@ -171,7 +204,7 @@ namespace TGAllLightsCastShadowsAddon
                 0.75f,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "How long a selected light remains view-relevant after its influence leaves the camera view.",
-                    "View Priority", "View Exit Delay", 6, 30,
+                    "View Priority", "View Exit Delay", 6, 50,
                     new AcceptableValueRange<float>(0f, 5f)));
             _offscreenReserveLights = Config.Bind(
                 "View Priority",
@@ -179,7 +212,7 @@ namespace TGAllLightsCastShadowsAddon
                 2,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum nearby offscreen lights reserved within the selected budget so camera turns do not begin with an empty view.",
-                    "View Priority", "Offscreen Reserve", 6, 40,
+                    "View Priority", "Offscreen Reserve", 6, 60,
                     new AcceptableValueRange<int>(0, 256)));
             _maximumSelectionSwapsPerRefresh = Config.Bind(
                 "View Priority",
@@ -187,8 +220,24 @@ namespace TGAllLightsCastShadowsAddon
                 2,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Maximum selected-light replacements during one lightweight refresh. Lower values reduce simultaneous atlas churn and visible popping.",
-                    "View Priority", "Maximum Selection Swaps", 6, 50,
+                    "View Priority", "Maximum Selection Swaps", 6, 70,
                     new AcceptableValueRange<int>(1, 64)));
+            _shadowHandoffSeconds = Config.Bind(
+                "View Priority",
+                "ShadowHandoffSeconds",
+                0.6f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Fades one outgoing shadow to zero before transferring its budget slot and fading the replacement in. Set zero for immediate swaps.",
+                    "View Priority", "Shadow Handoff", 6, 80,
+                    new AcceptableValueRange<float>(0f, 2f)));
+            _initialFillBatchSize = Config.Bind(
+                "View Priority",
+                "InitialFillBatchSize",
+                4,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Maximum new shadows enabled per selection refresh after loading or re-enabling. Set zero to fill every free slot immediately.",
+                    "View Priority", "Initial Fill Batch Size", 6, 90,
+                    new AcceptableValueRange<int>(0, 64)));
 
             _respectExternalPlayerLightOwnership = Config.Bind(
                 "Excluded Lights",
@@ -197,6 +246,13 @@ namespace TGAllLightsCastShadowsAddon
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Leaves the HeroLight hierarchy entirely under MageLight or No Player Light when either plugin is installed. Active MageLight point-light shadows also reserve six faces from the permanent face budget.",
                     "Excluded Lights", "Respect External Player Light Ownership", 0, 20));
+            _excludeHeroLight = Config.Bind(
+                "Excluded Lights",
+                "ExcludeHeroLight",
+                true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Prevents the vanilla indoor and outdoor HeroLight hierarchy from receiving added shadows, even when no separate player-light mod is installed.",
+                    "Excluded Lights", "Exclude Hero Light", 0, 25));
             _excludeWyrdSightLights = Config.Bind(
                 "Excluded Lights",
                 "ExcludeWyrdSightLights",
@@ -232,6 +288,46 @@ namespace TGAllLightsCastShadowsAddon
                 Grailwright.Shared.ConfigUiDescription.Create(
                     "Prevents the exact portable Bonfire placed by the player from shadowing itself. Stationary world fires are handled separately by ProtectBonfireLights.",
                     "Excluded Lights", "Exclude Placed Bonfire Lights", 0, 70));
+
+            _interiorPerformanceEnabled = Config.Bind(
+                "Interior Performance",
+                "InteriorPerformanceEnabled",
+                true,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Uses the tightening-only interior limits below. Defaults match the permanent limits, so enabling this profile does not change existing behavior until its values are lowered.",
+                    "Interior Performance", "Enabled", 8, 0));
+            _interiorMaximumUpgradedLights = Config.Bind(
+                "Interior Performance",
+                "InteriorMaximumUpgradedLights",
+                16,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Interior-only light-count ceiling. It can tighten but never raise the permanent, parent, or combat limit.",
+                    "Interior Performance", "Maximum Upgraded Lights", 8, 10,
+                    new AcceptableValueRange<int>(0, 256)));
+            _interiorMaximumDistanceMeters = Config.Bind(
+                "Interior Performance",
+                "InteriorMaximumDistanceMeters",
+                25f,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Interior-only acquisition distance. It can tighten but never raise the permanent, parent, or combat distance.",
+                    "Interior Performance", "Maximum Distance", 8, 20,
+                    new AcceptableValueRange<float>(1f, 200f)));
+            _interiorMaximumShadowMapFaces = Config.Bind(
+                "Interior Performance",
+                "InteriorMaximumShadowMapFaces",
+                48,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Interior-only hard shadow-map face ceiling before external player-light reservation. Point lights cost six faces and spot lights one.",
+                    "Interior Performance", "Maximum Shadow Map Faces", 8, 30,
+                    new AcceptableValueRange<int>(0, 1536)));
+            _interiorPromotedShadowResolution = Config.Bind(
+                "Interior Performance",
+                "InteriorPromotedShadowResolution",
+                256,
+                Grailwright.Shared.ConfigUiDescription.Create(
+                    "Interior-only per-face resolution ceiling. It can lower but never raise the normal or combat cap.",
+                    "Interior Performance", "Promoted Shadow Resolution", 8, 40,
+                    new AcceptableValueList<int>(128, 256, 512, 1024)));
 
             _managedControllerEnabledForSession = _safeSelectionController.Value;
         }
@@ -390,21 +486,36 @@ namespace TGAllLightsCastShadowsAddon
                 return;
             }
 
-            if ((_managedLightCache.Count == 0
-                    && _managedExternalPlayerLights.Count == 0)
-                || Time.unscaledTime < _nextManagedSelectionRefresh)
+            AdvanceManagedShadowHandoff();
+
+            if (Time.unscaledTime < _nextManagedSelectionRefresh)
             {
                 return;
             }
 
             _nextManagedSelectionRefresh =
                 Time.unscaledTime + _selectionRefreshSeconds.Value;
-            RefreshManagedSelection(false, false, false);
+            bool interiorChanged = RefreshManagedInteriorState();
+            if (_managedLightCache.Count == 0
+                && _managedExternalPlayerLights.Count == 0)
+            {
+                return;
+            }
+            RefreshManagedSelection(
+                interiorChanged,
+                interiorChanged,
+                false);
         }
 
         private void ApplyManagedShadowSelection(string reason)
         {
             _managedSceneHandle = SceneManager.GetActiveScene().handle;
+            RefreshManagedInteriorState();
+            if (_managedActiveLights.Count == 0
+                && _managedLightCache.Count == 0)
+            {
+                _managedInitialFillPending = true;
+            }
             DiscoverManagedLights();
             bool settingsChanged = _managedSettingsDirty || !string.IsNullOrEmpty(reason);
             _managedSettingsDirty = false;
@@ -523,6 +634,11 @@ namespace TGAllLightsCastShadowsAddon
             {
                 return false;
             }
+            return IsHeroLight(light);
+        }
+
+        private static bool IsHeroLight(Light light)
+        {
             try
             {
                 IndoorGameObjectSwapper swapper =
@@ -637,6 +753,12 @@ namespace TGAllLightsCastShadowsAddon
             Light light,
             LocationTemplate placedBonfireTemplate)
         {
+            if (_excludeHeroLight.Value && IsHeroLight(light))
+            {
+                _managedExcludedHeroLights++;
+                LogExcludedLightOnce(light, "HeroLight");
+                return true;
+            }
             if (_excludeWyrdSightLights.Value && IsWyrdSightLight(light))
             {
                 _managedExcludedWyrdSightLights++;
@@ -797,6 +919,12 @@ namespace TGAllLightsCastShadowsAddon
             bool reapplyActiveSettings,
             bool forceUnknownHdrpWrites)
         {
+            bool interiorChanged = RefreshManagedInteriorState();
+            if (interiorChanged)
+            {
+                forceAllReplacements = true;
+                reapplyActiveSettings = true;
+            }
             RefreshExternalPlayerShadowFaceReservation();
             Camera camera = FindManagedGameCamera();
             bool hasCamera = camera != null;
@@ -879,11 +1007,17 @@ namespace TGAllLightsCastShadowsAddon
                         wasActive,
                         now - cached.LastViewIntersectionTime,
                         _viewExitDelaySeconds.Value);
+                float screenCenterWeight = intersectsView && hasCamera
+                    ? CalculateManagedScreenCenterWeight(light, camera)
+                    : 0f;
                 float score = SafeShadowSelectionRules.CalculateCandidateScore(
                     distance,
                     light.intensity,
                     light.range,
-                    wasActive);
+                    wasActive,
+                    _selectionRetentionMeters.Value,
+                    screenCenterWeight,
+                    _screenCenterPriorityMeters.Value);
                 int faceCost = ShadowMapFaceCost(light);
                 ManagedCandidate candidate = new ManagedCandidate(
                     light,
@@ -936,7 +1070,8 @@ namespace TGAllLightsCastShadowsAddon
                             candidate,
                             state,
                             false,
-                            forceUnknownHdrpWrites);
+                            forceUnknownHdrpWrites,
+                            ManagedStrengthMultiplier(id));
                     }
                 }
             }
@@ -1019,6 +1154,7 @@ namespace TGAllLightsCastShadowsAddon
             _managedScanActivatedLights = 0;
             _managedScanRestoredLights = 0;
             _managedScanSwaps = 0;
+            ValidateManagedShadowHandoff();
 
             _managedIdScratch.Clear();
             foreach (int id in _managedActiveLights)
@@ -1029,6 +1165,7 @@ namespace TGAllLightsCastShadowsAddon
                 }
             }
             RestoreManagedIds(_managedIdScratch);
+            ValidateManagedShadowHandoff();
 
             int desiredCount = _managedDesiredCandidates.Count;
             int maximumFaces = EffectiveMaximumShadowMapFaces();
@@ -1047,9 +1184,16 @@ namespace TGAllLightsCastShadowsAddon
                 }
             }
 
+            int activationLimit =
+                SafeShadowSelectionRules.ResolveInitialFillActivationLimit(
+                    _managedInitialFillPending,
+                    _initialFillBatchSize.Value,
+                    desiredCount - _managedActiveLights.Count);
+            int activatedThisFill = 0;
             for (int i = 0;
                 i < _managedDesiredCandidates.Count
-                    && _managedActiveLights.Count < desiredCount;
+                    && _managedActiveLights.Count < desiredCount
+                    && activatedThisFill < activationLimit;
                 i++)
             {
                 ManagedCandidate candidate = _managedDesiredCandidates[i];
@@ -1060,6 +1204,17 @@ namespace TGAllLightsCastShadowsAddon
                 }
                 ActivateNewManagedLight(candidate);
                 _managedScanActivatedLights++;
+                activatedThisFill++;
+            }
+
+            if (_managedActiveLights.Count >= desiredCount
+                || _initialFillBatchSize.Value <= 0)
+            {
+                _managedInitialFillPending = false;
+            }
+            if (_managedInitialFillPending || _managedShadowHandoff != null)
+            {
+                return;
             }
 
             int replacementLimit = forceAllReplacements
@@ -1081,6 +1236,14 @@ namespace TGAllLightsCastShadowsAddon
                 {
                     break;
                 }
+                if (_shadowHandoffSeconds.Value > 0f)
+                {
+                    if (StartManagedShadowHandoff(current, desired))
+                    {
+                        _managedScanSwaps++;
+                    }
+                    break;
+                }
                 if (RestoreManagedLight(current.Id))
                 {
                     _managedScanRestoredLights++;
@@ -1089,6 +1252,198 @@ namespace TGAllLightsCastShadowsAddon
                 _managedScanActivatedLights++;
                 _managedScanSwaps++;
             }
+        }
+
+        private bool StartManagedShadowHandoff(
+            ManagedCandidate outgoing,
+            ManagedCandidate incoming)
+        {
+            if (_managedShadowHandoff != null
+                || !_managedActiveLights.Contains(outgoing.Id)
+                || _managedActiveLights.Contains(incoming.Id)
+                || !IsLightAliveManaged(incoming.Light))
+            {
+                return false;
+            }
+
+            int resultingFaces = CurrentManagedFaceCount()
+                - outgoing.FaceCost
+                + incoming.FaceCost;
+            if (resultingFaces > EffectiveMaximumShadowMapFaces())
+            {
+                return false;
+            }
+
+            _managedShadowHandoff = new ManagedShadowHandoff(
+                outgoing.Id,
+                incoming,
+                Time.unscaledTime);
+            return true;
+        }
+
+        private void ValidateManagedShadowHandoff()
+        {
+            ManagedShadowHandoff handoff = _managedShadowHandoff;
+            if (handoff == null)
+            {
+                return;
+            }
+
+            int activeId = handoff.IncomingActivated
+                ? handoff.Incoming.Id
+                : handoff.OutgoingId;
+            if (!_managedActiveLights.Contains(activeId)
+                || !_managedDesiredIds.Contains(handoff.Incoming.Id)
+                || !_managedCandidateLookup.ContainsKey(handoff.Incoming.Id)
+                || (!handoff.IncomingActivated
+                    && !_managedCandidateLookup.ContainsKey(
+                        handoff.OutgoingId)))
+            {
+                CancelManagedShadowHandoff("selection changed");
+            }
+        }
+
+        private void AdvanceManagedShadowHandoff()
+        {
+            ManagedShadowHandoff handoff = _managedShadowHandoff;
+            if (handoff == null)
+            {
+                return;
+            }
+
+            ShadowHandoffProgress progress =
+                SafeShadowSelectionRules.ResolveShadowHandoffProgress(
+                    Time.unscaledTime - handoff.StartedAt,
+                    _shadowHandoffSeconds.Value);
+            if (!handoff.IncomingActivated)
+            {
+                ManagedCandidate outgoingCandidate;
+                ManagedLightState outgoingState;
+                if (!_managedActiveLights.Contains(handoff.OutgoingId)
+                    || !_managedCandidateLookup.TryGetValue(
+                        handoff.OutgoingId,
+                        out outgoingCandidate)
+                    || !_managedLightStates.TryGetValue(
+                        handoff.OutgoingId,
+                        out outgoingState)
+                    || !IsLightAliveManaged(outgoingState.Light))
+                {
+                    _managedShadowHandoff = null;
+                    return;
+                }
+                if (!_managedDesiredIds.Contains(handoff.Incoming.Id)
+                    || !_managedCandidateLookup.ContainsKey(handoff.Incoming.Id)
+                    || !IsLightAliveManaged(handoff.Incoming.Light))
+                {
+                    CancelManagedShadowHandoff(
+                        "incoming light became unavailable");
+                    return;
+                }
+                if (progress.Phase == ShadowHandoffPhase.FadeOut)
+                {
+                    handoff.CurrentStrengthMultiplier =
+                        progress.StrengthMultiplier;
+                    ApplyManagedLight(
+                        outgoingCandidate,
+                        outgoingState,
+                        false,
+                        false,
+                        handoff.CurrentStrengthMultiplier);
+                    return;
+                }
+
+                ApplyManagedLight(
+                    outgoingCandidate,
+                    outgoingState,
+                    false,
+                    false,
+                    0f);
+                if (RestoreManagedLight(handoff.OutgoingId))
+                {
+                    _managedScanRestoredLights++;
+                }
+                handoff.IncomingActivated = true;
+                handoff.CurrentStrengthMultiplier = 0f;
+                ActivateNewManagedLight(handoff.Incoming, 0f);
+                _managedScanActivatedLights++;
+                MirrorManagedActiveLightsToParent();
+                UpdateManagedScanTotals();
+            }
+
+            if (progress.Phase == ShadowHandoffPhase.Complete)
+            {
+                handoff.CurrentStrengthMultiplier = 1f;
+                ApplyManagedHandoffIncoming(handoff, 1f);
+                _managedShadowHandoff = null;
+                return;
+            }
+
+            handoff.CurrentStrengthMultiplier = progress.StrengthMultiplier;
+            ApplyManagedHandoffIncoming(
+                handoff,
+                handoff.CurrentStrengthMultiplier);
+        }
+
+        private void ApplyManagedHandoffIncoming(
+            ManagedShadowHandoff handoff,
+            float strengthMultiplier)
+        {
+            ManagedCandidate candidate;
+            ManagedLightState state;
+            if (_managedCandidateLookup.TryGetValue(
+                    handoff.Incoming.Id,
+                    out candidate)
+                && _managedLightStates.TryGetValue(
+                    handoff.Incoming.Id,
+                    out state))
+            {
+                ApplyManagedLight(
+                    candidate,
+                    state,
+                    false,
+                    false,
+                    strengthMultiplier);
+            }
+        }
+
+        private void CancelManagedShadowHandoff(string reason)
+        {
+            ManagedShadowHandoff handoff = _managedShadowHandoff;
+            if (handoff == null)
+            {
+                return;
+            }
+            _managedShadowHandoff = null;
+
+            int activeId = handoff.IncomingActivated
+                ? handoff.Incoming.Id
+                : handoff.OutgoingId;
+            ManagedCandidate candidate;
+            ManagedLightState state;
+            if (_managedCandidateLookup.TryGetValue(activeId, out candidate)
+                && _managedLightStates.TryGetValue(activeId, out state))
+            {
+                ApplyManagedLight(candidate, state, false, false, 1f);
+            }
+            if (_diagnostics != null && _diagnostics.Value)
+            {
+                Logger.LogInfo("Cancelled shadow handoff: " + reason + ".");
+            }
+        }
+
+        private float ManagedStrengthMultiplier(int id)
+        {
+            ManagedShadowHandoff handoff = _managedShadowHandoff;
+            if (handoff == null)
+            {
+                return 1f;
+            }
+            if ((!handoff.IncomingActivated && id == handoff.OutgoingId)
+                || (handoff.IncomingActivated && id == handoff.Incoming.Id))
+            {
+                return handoff.CurrentStrengthMultiplier;
+            }
+            return 1f;
         }
 
         private void RestoreManagedIds(List<int> ids)
@@ -1160,7 +1515,9 @@ namespace TGAllLightsCastShadowsAddon
             return false;
         }
 
-        private void ActivateNewManagedLight(ManagedCandidate candidate)
+        private void ActivateNewManagedLight(
+            ManagedCandidate candidate,
+            float strengthMultiplier = 1f)
         {
             ManagedLightState state;
             if (!_managedLightStates.TryGetValue(candidate.Id, out state))
@@ -1168,7 +1525,12 @@ namespace TGAllLightsCastShadowsAddon
                 state = CaptureManagedLightState(candidate.Light);
                 _managedLightStates.Add(candidate.Id, state);
             }
-            ApplyManagedLight(candidate, state, true, true);
+            ApplyManagedLight(
+                candidate,
+                state,
+                true,
+                true,
+                strengthMultiplier);
             _managedActiveLights.Add(candidate.Id);
         }
 
@@ -1222,7 +1584,8 @@ namespace TGAllLightsCastShadowsAddon
             ManagedCandidate candidate,
             ManagedLightState state,
             bool newlyActivated,
-            bool forceUnknownHdrpWrites)
+            bool forceUnknownHdrpWrites,
+            float strengthMultiplier = 1f)
         {
             Light light = candidate.Light;
             if (!IsLightAliveManaged(light))
@@ -1231,7 +1594,8 @@ namespace TGAllLightsCastShadowsAddon
             }
 
             LightShadows desiredMode = ParentDesiredShadowMode();
-            float desiredStrength = ParentShadowStrength();
+            float desiredStrength = ParentShadowStrength()
+                * Mathf.Clamp01(strengthMultiplier);
             bool nativeChanged = false;
             if (light.shadows != desiredMode)
             {
@@ -1384,6 +1748,9 @@ namespace TGAllLightsCastShadowsAddon
 
         private void ClearManagedSelectionCollections()
         {
+            _managedShadowHandoff = null;
+            _managedInitialFillPending = true;
+            _managedInteriorActive = false;
             _managedLightStates.Clear();
             _managedActiveLights.Clear();
             _managedLightCache.Clear();
@@ -1706,6 +2073,40 @@ namespace TGAllLightsCastShadowsAddon
             }
         }
 
+        private bool RefreshManagedInteriorState()
+        {
+            try
+            {
+                if (World.Services == null)
+                {
+                    return false;
+                }
+                SceneService sceneService = World.Services.TryGet<SceneService>();
+                SceneLifetimeEvents lifetime = SceneLifetimeEvents.Get;
+                if (sceneService == null
+                    || lifetime == null
+                    || !lifetime.EverythingInitialized)
+                {
+                    return false;
+                }
+
+                bool interior = !sceneService.IsOpenWorld || lifetime.InInterior;
+                if (_managedInteriorActive == interior)
+                {
+                    return false;
+                }
+                _managedInteriorActive = interior;
+                _managedSettingsDirty = true;
+                _lastAtlasDiagnosticSignature = string.Empty;
+                NudgeParentScan();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private int EffectiveMaximumLights()
         {
             int maximum = _maximumUpgradedLights.Value;
@@ -1717,6 +2118,12 @@ namespace TGAllLightsCastShadowsAddon
                 maximum = Math.Min(
                     maximum,
                     (int)_parentMaximumUpgradedLightsField.GetValue(parentConfig));
+            }
+            if (_managedInteriorActive && _interiorPerformanceEnabled.Value)
+            {
+                maximum = Math.Min(
+                    maximum,
+                    _interiorMaximumUpgradedLights.Value);
             }
             if (_combatPerformanceActive && _combatLimitLightBudget.Value)
             {
@@ -1739,6 +2146,12 @@ namespace TGAllLightsCastShadowsAddon
                     maximum,
                     (float)_parentMaximumDistanceMetersField.GetValue(parentConfig));
             }
+            if (_managedInteriorActive && _interiorPerformanceEnabled.Value)
+            {
+                maximum = Math.Min(
+                    maximum,
+                    _interiorMaximumDistanceMeters.Value);
+            }
             if (_combatPerformanceActive && _combatLimitDistance.Value)
             {
                 maximum = Math.Min(
@@ -1750,8 +2163,15 @@ namespace TGAllLightsCastShadowsAddon
 
         private int EffectiveMaximumShadowMapFaces()
         {
+            int maximum = _maximumShadowMapFaces.Value;
+            if (_managedInteriorActive && _interiorPerformanceEnabled.Value)
+            {
+                maximum = Math.Min(
+                    maximum,
+                    _interiorMaximumShadowMapFaces.Value);
+            }
             return SafeShadowSelectionRules.AvailableShadowMapFaces(
-                _maximumShadowMapFaces.Value,
+                maximum,
                 _managedExternalPlayerShadowMapFaces);
         }
 
@@ -1870,12 +2290,36 @@ namespace TGAllLightsCastShadowsAddon
                 return true;
             }
             float range = Mathf.Max(0.1f, light.range);
-            Bounds influenceBounds = new Bounds(
-                light.transform.position,
-                Vector3.one * (range * 2f));
-            return GeometryUtility.TestPlanesAABB(
-                frustumPlanes,
-                influenceBounds);
+            Vector3 position = light.transform.position;
+            for (int i = 0; i < frustumPlanes.Length; i++)
+            {
+                if (SafeShadowSelectionRules.IsSphereOutsideFrustumPlane(
+                    frustumPlanes[i].GetDistanceToPoint(position),
+                    range))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static float CalculateManagedScreenCenterWeight(
+            Light light,
+            Camera camera)
+        {
+            try
+            {
+                Vector3 viewport = camera.WorldToViewportPoint(
+                    light.transform.position);
+                return SafeShadowSelectionRules.CalculateScreenCenterWeight(
+                    viewport.x,
+                    viewport.y,
+                    viewport.z);
+            }
+            catch
+            {
+                return 0f;
+            }
         }
 
         private static int ShadowMapFaceCost(Light light)
@@ -1949,6 +2393,7 @@ namespace TGAllLightsCastShadowsAddon
 
         private void ResetManagedExclusionCounts()
         {
+            _managedExcludedHeroLights = 0;
             _managedExcludedWyrdSightLights = 0;
             _managedExcludedSummonLights = 0;
             _managedExcludedInterfaceLights = 0;
@@ -2015,6 +2460,15 @@ namespace TGAllLightsCastShadowsAddon
                 + _managedScanRestoredLights.ToString(CultureInfo.InvariantCulture)
                 + ", swaps="
                 + _managedScanSwaps.ToString(CultureInfo.InvariantCulture)
+                + ", handoffActive="
+                + (_managedShadowHandoff != null)
+                + ", initialFillPending="
+                + _managedInitialFillPending
+                + ", interiorProfile="
+                + (_managedInteriorActive
+                    && _interiorPerformanceEnabled.Value)
+                + ", excludedHero="
+                + _managedExcludedHeroLights.ToString(CultureInfo.InvariantCulture)
                 + ", excludedWyrdSight="
                 + _managedExcludedWyrdSightLights.ToString(CultureInfo.InvariantCulture)
                 + ", excludedSummons="
@@ -2087,6 +2541,27 @@ namespace TGAllLightsCastShadowsAddon
                 OriginalShadows = originalShadows;
                 OriginalShadowStrength = originalShadowStrength;
                 Hdrp = hdrp;
+            }
+        }
+
+        private sealed class ManagedShadowHandoff
+        {
+            internal readonly int OutgoingId;
+            internal readonly ManagedCandidate Incoming;
+            internal readonly float StartedAt;
+            internal bool IncomingActivated;
+            internal float CurrentStrengthMultiplier;
+
+            internal ManagedShadowHandoff(
+                int outgoingId,
+                ManagedCandidate incoming,
+                float startedAt)
+            {
+                OutgoingId = outgoingId;
+                Incoming = incoming;
+                StartedAt = startedAt;
+                IncomingActivated = false;
+                CurrentStrengthMultiplier = 1f;
             }
         }
 

@@ -76,6 +76,61 @@ Assert-Contract ($controller.Contains('CalculateFrustumPlanes') -and
     $controller.Contains('OffscreenReserveLights') -and
     $controller.Contains('MaximumSelectionSwapsPerRefresh')) `
     'view relevance, exit grace, offscreen reserve, or bounded swaps are missing.'
+Assert-Contract (-not $controller.Contains('TestPlanesAABB') -and
+    $controller.Contains('IsSphereOutsideFrustumPlane') -and
+    $controller.Contains('GetDistanceToPoint(position)')) `
+    'view relevance must use the exact light-range sphere rather than its axis-aligned box.'
+Assert-Contract ($controller.Contains('"SelectionRetentionMeters"') -and
+    $controller.Contains('"ScreenCenterPriorityMeters"') -and
+    $controller.Contains('CalculateManagedScreenCenterWeight') -and
+    $rules.Contains('CalculateScreenCenterWeight')) `
+    'selection retention or screen-centre ranking is missing.'
+Assert-Contract ($controller.Contains('"InitialFillBatchSize"') -and
+    $controller.Contains('ResolveInitialFillActivationLimit') -and
+    $controller.Contains('_managedInitialFillPending')) `
+    'bounded centre-first initial filling is missing.'
+Assert-Contract ($controller.Contains('"ShadowHandoffSeconds"') -and
+    $controller.Contains('ManagedShadowHandoff') -and
+    $controller.Contains('AdvanceManagedShadowHandoff') -and
+    $controller.Contains('ApplyManagedLight(') -and
+    $rules.Contains('ResolveShadowHandoffProgress')) `
+    'the sequential shadow-handoff state machine is missing.'
+Assert-Contract ($controller.Contains('ApplyManagedLight(') -and
+    $controller.Contains('0f);') -and
+    $controller.Contains('RestoreManagedLight(handoff.OutgoingId)') -and
+    $controller.Contains('ActivateNewManagedLight(handoff.Incoming, 0f)')) `
+    'handoff must reach zero, restore the outgoing light, then activate the incoming light.'
+Assert-Contract ($controller.Contains('"ExcludeHeroLight"') -and
+    $controller.Contains('private static bool IsHeroLight') -and
+    $controller.Contains('_managedExcludedHeroLights')) `
+    'vanilla HeroLight exclusion must remain available without an external owner.'
+Assert-Contract ($controller.Contains('"InteriorPerformanceEnabled"') -and
+    $controller.Contains('"InteriorMaximumUpgradedLights"') -and
+    $controller.Contains('"InteriorMaximumDistanceMeters"') -and
+    $controller.Contains('"InteriorMaximumShadowMapFaces"') -and
+    $controller.Contains('"InteriorPromotedShadowResolution"') -and
+    $controller.Contains('RefreshManagedInteriorState')) `
+    'the tightening-only interior performance profile is incomplete.'
+Assert-Contract (([regex]::Matches(
+    $controller,
+    'maximum = Math\.Min\('
+)).Count -ge 6 -and
+    $plugin.Contains('|| InteriorResolutionCapActive()') -and
+    $plugin.Contains('SafeShadowSelectionRules.ResolveShadowResolutionCap(') -and
+    $rules.Contains('internal static int ResolveShadowResolutionCap(')) `
+    'interior and combat limits must only tighten existing count, distance, face, and resolution caps.'
+Assert-Contract ([regex]::IsMatch(
+    $controller,
+    '_managedInteriorActive = interior;\s+_managedSettingsDirty = true;\s+_lastAtlasDiagnosticSignature = string\.Empty;\s+NudgeParentScan\(\);'
+)) `
+    'an interior transition must request fresh global light discovery.'
+$updateStart = $controller.IndexOf('private void UpdateManagedShadowController()')
+$updateEnd = $controller.IndexOf('private void ApplyManagedShadowSelection(', $updateStart)
+$updateBody = $controller.Substring($updateStart, $updateEnd - $updateStart)
+Assert-Contract ($updateBody.IndexOf('RefreshManagedInteriorState()') -ge 0 -and
+    $updateBody.IndexOf('RefreshManagedInteriorState()') -lt
+        $updateBody.IndexOf('_managedLightCache.Count == 0')) `
+    'interior state must refresh before the empty-cache early return.'
 Assert-Contract (([regex]::Matches(
     $controller,
     'FindObjectsByType<Light>'
@@ -101,6 +156,21 @@ Assert-Contract ($plugin.Contains('RestoreAllManagedLights("addon unload")') -an
     $controller.Contains('RestoreAllManagedLights("active scene changed")') -and
     $controller.Contains('BeforeParentSceneCooldown')) `
     'unload or scene-transition restoration is incomplete.'
+@(
+    'ExcludeHeroLight',
+    'SelectionRetentionMeters',
+    'ScreenCenterPriorityMeters',
+    'ShadowHandoffSeconds',
+    'InitialFillBatchSize',
+    'InteriorPerformanceEnabled',
+    'InteriorMaximumUpgradedLights',
+    'InteriorMaximumDistanceMeters',
+    'InteriorMaximumShadowMapFaces',
+    'InteriorPromotedShadowResolution'
+) | ForEach-Object {
+    Assert-Contract ($plugin.Contains($_)) `
+        "config recovery wiring is missing for $_."
+}
 Assert-Contract (-not $controller.Contains('GameDayNightSystem') -and
     -not $controller.Contains('shadowIntensityBlendMinutes') -and
     -not $controller.Contains('WeatherSecondsPerRealSecond') -and

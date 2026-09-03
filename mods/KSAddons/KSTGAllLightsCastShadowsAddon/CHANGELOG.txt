@@ -1,3 +1,24 @@
+Version 2.1.2
+Applied the interior shadow-resolution ceiling independently when the general atlas guard is disabled and kept the strictest active general, interior, or combat cap.
+Moved interior-state polling ahead of the empty-cache return so transitions always request prompt fresh discovery, even when an interior scan found no eligible lights.
+Expanded executable and structural contracts to cover independent and combined resolution caps plus empty-cache transition polling.
+
+Version 2.1.1
+Kept the interior promoted-resolution ceiling authoritative when interior combat reduction is active and the general atlas guard is disabled.
+Requested fresh light discovery whenever interior state changes so restored exterior distance limits repopulate immediately.
+Corrected the external HeroLight ownership test instructions to account for the independent default-on HeroLight exclusion.
+
+Version 2.1.0
+Replaced the selector's range-sized axis-aligned view bounds with exact light-range sphere tests, preventing corner-only false positives without dropping lights whose illumination still reaches the frame.
+Added configurable two-metre selection retention and moderate screen-centre priority so useful visible lights remain stable while better central sources can win naturally.
+Added four-light staged initial filling and a configurable 0.6-second sequential shadow handoff that fades the outgoing shadow to zero before restoring it and activating the incoming shadow in the same budget slot.
+Kept the selected plus externally owned shadow work within the hard 48-face ceiling throughout initial filling and handoffs; outgoing and incoming shadow maps never overlap.
+Added a default-on vanilla HeroLight exclusion independent of MageLight or No Player Light while retaining external ownership and active MageLight face reservation when either integration is present.
+Added a default-neutral tightening-only interior profile for light count, distance, shadow-map faces, and promoted resolution; it can never raise stricter permanent, parent, or combat values.
+Expanded diagnostics, automated selection rules, structural contracts, config preservation coverage, and the in-game matrix for sphere relevance, stable ranking, staged filling, handoff cancellation, HeroLight protection, and interior limits.
+Kept ConfigSchemaVersion 3 because every new setting is a compatible addition and existing configs can receive its default without a reset.
+Credits pupkidze007's TGAllLightsCastShadowsSafe for the evolved exact-sphere ranking, staged activation, sequential handoff, and interior-profile design adapted into the KS companion architecture.
+
 Version 2.0.5
 Added an optional ImproveDawnDuskShadows feature, disabled by default, that shortens the existing DayNightSystem directional-shadow blend without adding or enabling another directional light or shadow map.
 Uses a configurable 10 in-game minutes per side when Eyes in the Dark normalization is unavailable or disabled.

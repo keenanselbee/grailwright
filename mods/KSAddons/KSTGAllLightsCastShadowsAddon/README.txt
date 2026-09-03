@@ -1,7 +1,7 @@
 KS All Lights Cast Shadows Addon
 ================================
 
-Version: 2.0.5
+Version: 2.1.2
 Platforms: Windows and Linux through Proton.
 
 Original mod: All Lights Cast Shadows 1.2.0
@@ -17,7 +17,10 @@ spot lights, prioritizes illumination that affects the camera view, and places
 permanent limits on light count, range, and estimated shadow-map faces.
 
 This directly targets the severe interior, town-at-night, dungeon, Wyrd Sight,
-flicker, and atlas-pressure cases reported by players. Existing firelight
+flicker, and atlas-pressure cases reported by players. Exact range-sphere view
+tests, centre-weighted stable ranking, staged initial filling, smooth sequential
+shadow handoffs, and optional tightening-only interior limits reduce visible
+switching without weakening the permanent safety caps. Existing firelight
 protection, reversible atlas caps, outdoor-combat reductions, notifications,
 diagnostics, and previous-settings recovery remain included.
 
@@ -42,14 +45,18 @@ at most 48 estimated shadow-map faces. Point lights cost six faces and spot
 lights cost one. Stricter limits configured in the parent or active combat layer
 still win; this addon never uses those settings to exceed its permanent caps.
 
-Lights whose influence intersects the camera view are preferred. An eight-metre
-retention margin, 0.75-second view-exit grace, two-light offscreen reserve, and
-two-swap refresh limit keep the set stable while moving or turning. These bounds
-reduce abrupt atlas churn and visible shadow popping.
+Lights whose exact range sphere intersects the camera view are preferred. An
+eight-metre distance margin, two-metre selection-retention advantage, moderate
+screen-centre priority, 0.75-second view-exit grace, and two-light offscreen
+reserve keep the set stable while moving or turning. Initial shadows arrive in
+batches of four. Later replacements fade one outgoing shadow to zero, transfer
+the same budget slot, then fade the incoming shadow in, so their maps never
+overlap.
 
-Wyrd Sight highlight lights, summons, character/item/object preview lights,
-lockpicking lights, and the exact player-placed portable Bonfire are excluded by
-default. Existing configurable bonfire/campfire path exclusions are retained.
+The vanilla HeroLight, Wyrd Sight highlight lights, summons,
+character/item/object preview lights, lockpicking lights, and the exact
+player-placed portable Bonfire are excluded by default. Existing configurable
+bonfire/campfire path exclusions are retained.
 
 State ownership
 ---------------
@@ -70,6 +77,11 @@ The existing atlas guard never raises a lower authored resolution. The default
 cap is 256 per face, reduced to 128 during qualifying outdoor combat, then
 restored five seconds after combat. Optional combat limits can further lower the
 active light count or distance.
+
+The optional interior profile is enabled with values matching the permanent
+16-light, 25-metre, 48-face, and 256-resolution ceilings. Lower its values to
+tighten only interiors; it never raises a stricter permanent, parent, or combat
+limit.
 
 Dawn and dusk directional shadows
 ---------------------------------
@@ -116,16 +128,21 @@ Performance defaults:
 View Priority defaults:
 
   HysteresisMeters = 8
+  SelectionRetentionMeters = 2
   PreferViewRelevantLights = true
+  ScreenCenterPriorityMeters = 4
   SelectionRefreshSeconds = 0.2
   ViewExitDelaySeconds = 0.75
   OffscreenReserveLights = 2
   MaximumSelectionSwapsPerRefresh = 2
+  ShadowHandoffSeconds = 0.6
+  InitialFillBatchSize = 4
 
 Excluded Lights defaults:
 
   ProtectBonfireLights = true
   RespectExternalPlayerLightOwnership = true
+  ExcludeHeroLight = true
   ExcludeWyrdSightLights = true
   ExcludeSummonLights = true
   ExcludeInterfacePreviewLights = true
@@ -133,6 +150,14 @@ Excluded Lights defaults:
   ExcludePlacedBonfireLights = true
   AdditionalExcludedLightPathFragments =
   VerboseExclusionLogging = false
+
+Interior Performance defaults:
+
+  InteriorPerformanceEnabled = true
+  InteriorMaximumUpgradedLights = 16
+  InteriorMaximumDistanceMeters = 25
+  InteriorMaximumShadowMapFaces = 48
+  InteriorPromotedShadowResolution = 256
 
 Shadow Atlas defaults:
 
@@ -169,6 +194,7 @@ FoA Mod Manager section order:
   Excluded Lights
   Performance
   View Priority
+  Interior Performance
   Shadow Atlas
   Directional Shadows
   Combat Performance
@@ -190,7 +216,8 @@ Diagnostics and notifications
 When Grail Floating Text is installed, parent toggle changes show one System
 notification while ShowToggleNotifications is enabled. With Diagnostics on,
 the log reports candidates, selected point/spot counts, estimated faces, view
-relevance, swaps, exclusions, atlas caps, restoration, and combat overrides.
+relevance, initial filling, handoffs, interior state, exclusions, atlas caps,
+restoration, and combat overrides.
 When MageLight owns an active shadowed point light, diagnostics report its six
 external faces separately and keep the selected-plus-external total within the
 configured permanent face budget.
@@ -210,6 +237,8 @@ RespectExternalPlayerLightOwnership setting leaves the exact HeroLight
 indoor/outdoor hierarchy entirely under that mod. The addon never captures,
 enables, activates, or restores those lights. MageLight's active shadowed point
 light reserves six faces; No Player Light's disabled object reserves none.
+Without either mod, ExcludeHeroLight still prevents the vanilla proximity light
+from receiving an unnatural player-following shadow.
 
 MageLight and No Player Light express conflicting player-light choices when
 installed together: toggling MageLight on can reactivate the object disabled by

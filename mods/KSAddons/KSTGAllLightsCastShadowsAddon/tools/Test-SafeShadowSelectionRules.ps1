@@ -35,9 +35,65 @@ namespace TGAllLightsCastShadowsAddon
             return SafeShadowSelectionRules.IsEffectivelyViewRelevant(intersects, active, elapsed, delay);
         }
 
-        public static float Score(float distance, float intensity, float range, bool active)
+        public static float Score(
+            float distance,
+            float intensity,
+            float range,
+            bool active,
+            float retention,
+            float centerWeight,
+            float centerPriority)
         {
-            return SafeShadowSelectionRules.CalculateCandidateScore(distance, intensity, range, active);
+            return SafeShadowSelectionRules.CalculateCandidateScore(
+                distance,
+                intensity,
+                range,
+                active,
+                retention,
+                centerWeight,
+                centerPriority);
+        }
+
+        public static bool SphereOutside(float distance, float radius)
+        {
+            return SafeShadowSelectionRules.IsSphereOutsideFrustumPlane(distance, radius);
+        }
+
+        public static float CenterWeight(float x, float y, float depth)
+        {
+            return SafeShadowSelectionRules.CalculateScreenCenterWeight(x, y, depth);
+        }
+
+        public static int HandoffPhase(float elapsed, float duration)
+        {
+            return (int)SafeShadowSelectionRules.ResolveShadowHandoffProgress(elapsed, duration).Phase;
+        }
+
+        public static float HandoffStrength(float elapsed, float duration)
+        {
+            return SafeShadowSelectionRules.ResolveShadowHandoffProgress(elapsed, duration).StrengthMultiplier;
+        }
+
+        public static int InitialFillLimit(bool pending, int batchSize, int missing)
+        {
+            return SafeShadowSelectionRules.ResolveInitialFillActivationLimit(pending, batchSize, missing);
+        }
+
+        public static int ResolutionCap(
+            bool generalActive,
+            int generalCap,
+            bool interiorActive,
+            int interiorCap,
+            bool combatActive,
+            int combatCap)
+        {
+            return SafeShadowSelectionRules.ResolveShadowResolutionCap(
+                generalActive,
+                generalCap,
+                interiorActive,
+                interiorCap,
+                combatActive,
+                combatCap);
         }
 
         public static int FaceCost(bool point)
@@ -83,8 +139,52 @@ Assert-Rule (-not $type::ViewRelevant($false, $true, 0.751, 0.75)) `
     'view priority must expire after the exit delay.'
 Assert-Rule (-not $type::ViewRelevant($false, $false, 0.1, 0.75)) `
     'an unseen unselected light must not inherit view priority.'
-Assert-Rule ($type::Score(10, 2, 5, $true) -gt $type::Score(10, 2, 5, $false)) `
-    'active lights must receive a retention bonus.'
+Assert-Rule ($type::Score(10, 2, 5, $true, 2, 0, 4) -gt
+    $type::Score(10, 2, 5, $false, 2, 0, 4)) `
+    'active lights must receive the configured retention advantage.'
+Assert-Rule ($type::Score(10, 2, 5, $true, 0, 0, 4) -eq
+    $type::Score(10, 2, 5, $false, 0, 0, 4)) `
+    'zero retention must remove the active-light ranking advantage.'
+Assert-Rule ($type::Score(10, 2, 5, $false, 2, 1, 4) -gt
+    $type::Score(10, 2, 5, $false, 2, 0, 4)) `
+    'screen-centre priority must improve ranking without changing eligibility.'
+Assert-Rule (-not $type::SphereOutside(-5, 5)) `
+    'a light influence sphere touching a frustum plane must remain relevant.'
+Assert-Rule ($type::SphereOutside(-5.01, 5)) `
+    'a light influence sphere fully beyond a frustum plane must be rejected.'
+Assert-Rule ($type::CenterWeight(0.5, 0.5, 1) -eq 1) `
+    'a visible source at screen centre must receive full centre priority.'
+Assert-Rule ($type::CenterWeight(0, 0.5, 1) -eq 0) `
+    'a source at the screen edge must receive no centre priority.'
+Assert-Rule ($type::CenterWeight(0.5, 0.5, -1) -eq 0) `
+    'a source behind the camera must receive no centre priority.'
+Assert-Rule ($type::HandoffPhase(0, 0.6) -eq 0 -and
+    $type::HandoffStrength(0, 0.6) -eq 1) `
+    'a handoff must begin with the outgoing shadow at full strength.'
+Assert-Rule ($type::HandoffPhase(0.3, 0.6) -eq 1 -and
+    $type::HandoffStrength(0.3, 0.6) -eq 0) `
+    'the budget slot must transfer at zero shadow strength.'
+Assert-Rule ([Math]::Abs($type::HandoffStrength(0.45, 0.6) - 0.5) -lt 0.001) `
+    'the incoming shadow must fade in through the second half.'
+Assert-Rule ($type::HandoffPhase(0.6, 0.6) -eq 2 -and
+    $type::HandoffStrength(0.6, 0.6) -eq 1) `
+    'a completed handoff must restore full configured strength.'
+Assert-Rule ($type::InitialFillLimit($true, 4, 10) -eq 4) `
+    'initial filling must respect the configured batch size.'
+Assert-Rule ($type::InitialFillLimit($true, 4, 2) -eq 2) `
+    'initial filling must not exceed the remaining desired lights.'
+Assert-Rule ($type::InitialFillLimit($false, 4, 10) -eq 10) `
+    'steady-state filling must not retain the startup batch limit.'
+Assert-Rule ($type::ResolutionCap($true, 256, $false, 128, $false, 512) -eq 256) `
+    'the general resolution cap must apply by itself.'
+Assert-Rule ($type::ResolutionCap($false, 256, $true, 128, $false, 512) -eq 128) `
+    'the interior resolution cap must apply without the general atlas guard.'
+Assert-Rule ($type::ResolutionCap($false, 256, $false, 128, $true, 512) -eq 512) `
+    'combat resolution must remain independently active.'
+Assert-Rule ($type::ResolutionCap($false, 256, $true, 256, $true, 512) -eq 256) `
+    'combat must not raise an active interior resolution cap.'
+Assert-Rule ($type::ResolutionCap($true, 128, $true, 256, $true, 512) -eq 128) `
+    'combined resolution caps must retain the strictest active value.'
 Assert-Rule ($type::FaceCost($true) -eq 6 -and $type::FaceCost($false) -eq 1) `
     'point lights must cost six faces and spot lights one.'
 Assert-Rule ($type::AvailableFaces(48, 6) -eq 42) `

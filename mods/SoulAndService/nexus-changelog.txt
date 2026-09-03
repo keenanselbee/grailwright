@@ -1,4 +1,4 @@
-TargetVersion=3.3.0
-BaselineVersion=3.2.9
+TargetVersion=3.3.3
+BaselineVersion=3.3.0
 
-Empower-severing and Soulforged-rank reductions now use dedicated high-priority, short Necrotic GFT status messages that collapse only against the same servant. Rank zero is presented as Base, resource segments use consistent separators, and zero-value Mana or Soul Vigor is omitted without adding a next-cast unbinding warning.
+Light Soul Rend now preserves the same active servant after severing Empowerment or removing Soulforged ranks across the native summon, NPC, and Health-removal paths. Newly raised ordinary servants begin with a tighter preset curve: Soul Famine uses x0.85 starting Health, Grave Pact x1.00, and Dominion x1.25. Diagnostics now reports starting Health as a percentage and gains a one-shot action that promotes every currently active owned summon below a selected Soulforged rank to that genuine saved rank, making normal rank stripping easy to test.

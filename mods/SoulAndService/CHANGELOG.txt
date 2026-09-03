@@ -1,3 +1,34 @@
+Version 3.3.3
+-----
+- Extended intermediate light Soul Rend preservation across every native
+  servant-removal entry point. After severing Empowerment or stripping ranks,
+  the matching summon, NPC, and Health kill callbacks are now blocked before
+  they can discard the servant and create simplified remains.
+- Kept ConfigSchemaVersion 28 and SoulAndServiceApi 10; no setting or public API
+  contract changed.
+
+Version 3.3.2
+-----
+- Rebalanced newly raised ordinary-servant starting Health across the presets:
+  Soul Famine now uses x0.85, Grave Pact x1.00, and Dominion x1.25.
+- Added a one-shot Promote Active Summons To Real Rank diagnostic action. It
+  advances every currently active owned summon below the selected rank to that
+  genuine saved rank and matching damage floor, then resets itself to None so
+  normal Soul Rend rank stripping can be tested.
+- Incremented ConfigSchemaVersion from 27 to 28 because the default Raised
+  Starting Health Multiplier changed from x1.35 to x1.00. Compatible customized
+  values remain eligible for normal recovery. SoulAndServiceApi remains 10.
+
+Version 3.3.1
+-----
+- Preserved Empowered and Soulforged servants through the delayed native light
+  Soul Rend destruction step after removing one intermediate layer, so severing
+  Empowerment now shrinks the same active servant instead of leaving remains.
+- Clarified raised-servant diagnostics by reporting starting Health as a
+  percentage instead of logging its normalized fraction as retainedHealth.
+- Kept ConfigSchemaVersion 27 and SoulAndServiceApi 10; no setting or public API
+  contract changed.
+
 Version 3.3.0
 -----
 - Gave Empower-severing and Soulforged-rank reductions dedicated high-priority,

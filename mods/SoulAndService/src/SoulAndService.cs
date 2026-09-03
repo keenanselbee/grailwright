@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("3.3.0.0")]
-[assembly: AssemblyFileVersion("3.3.0.0")]
-[assembly: AssemblyInformationalVersion("3.3.0")]
+[assembly: AssemblyVersion("3.3.3.0")]
+[assembly: AssemblyFileVersion("3.3.3.0")]
+[assembly: AssemblyInformationalVersion("3.3.3")]
 
 namespace SoulAndService
 {
@@ -128,6 +128,28 @@ namespace SoulAndService
         XVII = 17
     }
 
+    public enum SoulforgedPromotionTarget
+    {
+        None = 0,
+        I = 1,
+        II = 2,
+        III = 3,
+        IV = 4,
+        V = 5,
+        VI = 6,
+        VII = 7,
+        VIII = 8,
+        IX = 9,
+        X = 10,
+        XI = 11,
+        XII = 12,
+        XIII = 13,
+        XIV = 14,
+        XV = 15,
+        XVI = 16,
+        XVII = 17
+    }
+
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInDependency(
         "ks.tgfoa.grail-floating-text",
@@ -157,9 +179,9 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "3.3.0";
+        public const string PluginVersion = "3.3.3";
 
-        private const int ConfigSchemaVersion = 27;
+        private const int ConfigSchemaVersion = 28;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -186,7 +208,8 @@ namespace SoulAndService
             {
                 new ConfigDefinition("Diagnostics", "OverrideSoulVigor"),
                 new ConfigDefinition("Diagnostics", "SoulVigorOverrideValue"),
-                new ConfigDefinition("Diagnostics", "OverrideSoulforgedRank")
+                new ConfigDefinition("Diagnostics", "OverrideSoulforgedRank"),
+                new ConfigDefinition("Diagnostics", "PromoteActiveSummonsToRealRank")
             };
 
         internal static SoulAndServicePlugin Instance { get; private set; }
@@ -198,6 +221,7 @@ namespace SoulAndService
             new Dictionary<string, int>(StringComparer.Ordinal);
         private bool _applyingBalancePreset;
         private bool _foaModManagerRefreshPending;
+        private bool _resettingSoulforgedPromotionAction;
 
         internal ConfigEntry<bool> FeatureEnabled;
         internal ConfigEntry<BalanceProfile> BalanceProfileSetting;
@@ -285,6 +309,7 @@ namespace SoulAndService
         internal ConfigEntry<bool> OverrideSoulVigor;
         internal ConfigEntry<float> SoulVigorOverrideValue;
         internal ConfigEntry<SoulforgedRankOverride> OverrideSoulforgedRank;
+        internal ConfigEntry<SoulforgedPromotionTarget> PromoteActiveSummonsToRealRank;
 
         private Harmony _harmony;
 
@@ -309,7 +334,7 @@ namespace SoulAndService
                     ? 0.60f
                     : plugin.CustomServantUpkeepMultiplier.Value,
                 plugin.CustomRaisedStartingHealthMultiplier == null
-                    ? 1.35f
+                    ? 1.00f
                     : plugin.CustomRaisedStartingHealthMultiplier.Value,
                 plugin.CustomSoulClaimThresholdAdjustment == null
                     ? 0.00f
@@ -322,12 +347,12 @@ namespace SoulAndService
             switch (profile)
             {
                 case BalanceProfile.GravePact:
-                    return new SoulBalanceTuning(1.50f, 0.75f, 0.60f, 1.35f, 0.00f);
+                    return new SoulBalanceTuning(1.50f, 0.75f, 0.60f, 1.00f, 0.00f);
                 case BalanceProfile.Dominion:
-                    return new SoulBalanceTuning(2.25f, 0.50f, 0.25f, 2.00f, 5.00f);
+                    return new SoulBalanceTuning(2.25f, 0.50f, 0.25f, 1.25f, 5.00f);
                 case BalanceProfile.SoulFamine:
                 default:
-                    return new SoulBalanceTuning(1.00f, 1.00f, 1.00f, 1.00f, -5.00f);
+                    return new SoulBalanceTuning(1.00f, 1.00f, 1.00f, 0.85f, -5.00f);
             }
         }
 
@@ -1227,7 +1252,7 @@ namespace SoulAndService
             CustomRaisedStartingHealthMultiplier = BindOrdered(
                 "Custom Balance",
                 "RaisedStartingHealthMultiplier",
-                1.35f,
+                1.00f,
                 new ConfigDescription(
                     "Current multiplier for the starting Health fraction rolled by newly raised ordinary servants, capped at full Health. Changing it manually sets Balance Preset to Custom. Existing servants and minibosses are unchanged.",
                     new AcceptableValueRange<float>(0.50f, 3.0f)),
@@ -1268,6 +1293,18 @@ namespace SoulAndService
                 SoulforgedRankOverride.Disabled,
                 "Temporarily force every current and future owned summon to the selected effective Soulforged rank without changing saved rank or damage progress.",
                 "Override Soulforged Rank");
+            PromoteActiveSummonsToRealRank = BindOrdered(
+                "Diagnostics",
+                "PromoteActiveSummonsToRealRank",
+                SoulforgedPromotionTarget.None,
+                "One-shot diagnostic action. Selecting I-XVII promotes every active owned summon below that rank to the selected genuine saved Soulforged rank and matching damage floor, then returns to None. It never lowers ranks, and the promotion persists until stripped or service ends. Disable Override Soulforged Rank to see the real result while testing Soul Rend stripping.",
+                "Promote Active Summons To Real Rank");
+            if (PromoteActiveSummonsToRealRank.Value
+                != SoulforgedPromotionTarget.None)
+            {
+                PromoteActiveSummonsToRealRank.Value =
+                    SoulforgedPromotionTarget.None;
+            }
 
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
@@ -1291,6 +1328,8 @@ namespace SoulAndService
             CustomServantUpkeepMultiplier.SettingChanged += OnBalanceValueChanged;
             CustomRaisedStartingHealthMultiplier.SettingChanged += OnBalanceValueChanged;
             CustomSoulClaimThresholdAdjustment.SettingChanged += OnBalanceValueChanged;
+            PromoteActiveSummonsToRealRank.SettingChanged +=
+                OnPromoteActiveSummonsToRealRankChanged;
         }
 
         private void UnbindBalancePresetEvents()
@@ -1319,6 +1358,49 @@ namespace SoulAndService
             {
                 CustomSoulClaimThresholdAdjustment.SettingChanged -= OnBalanceValueChanged;
             }
+            if (PromoteActiveSummonsToRealRank != null)
+            {
+                PromoteActiveSummonsToRealRank.SettingChanged -=
+                    OnPromoteActiveSummonsToRealRankChanged;
+            }
+        }
+
+        private void OnPromoteActiveSummonsToRealRankChanged(
+            object sender,
+            EventArgs eventArgs)
+        {
+            if (_resettingSoulforgedPromotionAction
+                || PromoteActiveSummonsToRealRank == null
+                || PromoteActiveSummonsToRealRank.Value
+                    == SoulforgedPromotionTarget.None)
+            {
+                return;
+            }
+
+            int targetRank = (int)PromoteActiveSummonsToRealRank.Value;
+            int eligible;
+            int promoted = SoulforgedRuntime.PromoteActiveSummonsToRealRank(
+                targetRank,
+                out eligible);
+            Logger.LogInfo(
+                "Diagnostic real-rank promotion: target="
+                + PromoteActiveSummonsToRealRank.Value
+                + "; active=" + eligible.ToString(CultureInfo.InvariantCulture)
+                + "; promoted=" + promoted.ToString(CultureInfo.InvariantCulture)
+                + ".");
+
+            _resettingSoulforgedPromotionAction = true;
+            try
+            {
+                PromoteActiveSummonsToRealRank.Value =
+                    SoulforgedPromotionTarget.None;
+            }
+            finally
+            {
+                _resettingSoulforgedPromotionAction = false;
+            }
+            Config.Save();
+            _foaModManagerRefreshPending = true;
         }
 
         private void OnBalancePresetChanged(object sender, EventArgs eventArgs)

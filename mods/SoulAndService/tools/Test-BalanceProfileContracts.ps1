@@ -27,9 +27,10 @@ function Assert-Contains {
 
 Assert-Contains $plugin 'public enum BalanceProfile\s*\{\s*SoulFamine,\s*GravePact,\s*Dominion,\s*Custom\s*\}' 'BalanceProfile must expose the four authored profiles in order.'
 Assert-Contains $plugin '"BalanceProfile",\s*BalanceProfile\.GravePact' 'Grave Pact must be the default profile.'
-Assert-Contains $plugin 'case BalanceProfile\.GravePact:\s*return new SoulBalanceTuning\(1\.50f, 0\.75f, 0\.60f, 1\.35f, 0\.00f\);' 'Grave Pact tuning changed unexpectedly.'
-Assert-Contains $plugin 'case BalanceProfile\.Dominion:\s*return new SoulBalanceTuning\(2\.25f, 0\.50f, 0\.25f, 2\.00f, 5\.00f\);' 'Dominion tuning changed unexpectedly.'
-Assert-Contains $plugin 'case BalanceProfile\.SoulFamine:\s*default:\s*return new SoulBalanceTuning\(1\.00f, 1\.00f, 1\.00f, 1\.00f, -5\.00f\);' 'Soul Famine tuning changed unexpectedly.'
+Assert-Contains $plugin 'case BalanceProfile\.GravePact:\s*return new SoulBalanceTuning\(1\.50f, 0\.75f, 0\.60f, 1\.00f, 0\.00f\);' 'Grave Pact tuning changed unexpectedly.'
+Assert-Contains $plugin 'case BalanceProfile\.Dominion:\s*return new SoulBalanceTuning\(2\.25f, 0\.50f, 0\.25f, 1\.25f, 5\.00f\);' 'Dominion tuning changed unexpectedly.'
+Assert-Contains $plugin 'case BalanceProfile\.SoulFamine:\s*default:\s*return new SoulBalanceTuning\(1\.00f, 1\.00f, 1\.00f, 0\.85f, -5\.00f\);' 'Soul Famine tuning changed unexpectedly.'
+Assert-Contains $plugin '"RaisedStartingHealthMultiplier",\s*1\.00f,' 'Grave Pact starting Health must be the stored custom default.'
 Assert-Contains $plugin 'case "Core":\s*return string\.Equals\(\s*key,\s*"BalanceProfile",\s*StringComparison\.Ordinal\)\s*\? "Balance Preset"\s*:\s*section;' 'BalanceProfile must appear in the Balance Preset tab.'
 Assert-Contains $plugin 'case "Custom Balance":\s*return "Balance Preset";' 'The five balance values must appear with the preset selector.'
 Assert-Contains $plugin 'case "Balance Preset":\s*return 10;' 'Balance Preset must appear immediately after Core.'

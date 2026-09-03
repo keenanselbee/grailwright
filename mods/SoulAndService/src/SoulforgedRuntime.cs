@@ -337,6 +337,64 @@ namespace SoulAndService
             return true;
         }
 
+        internal static int PromoteActiveSummonsToRealRank(
+            int requestedRank,
+            out int eligibleCount)
+        {
+            eligibleCount = 0;
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null || !plugin.IsEnabled)
+            {
+                return 0;
+            }
+
+            int targetRank = Mathf.Clamp(requestedRank, 1, MaximumRank);
+            int promotedCount = 0;
+            foreach (SoulforgedState state in States.Values)
+            {
+                if (state == null || !IsOwnedSummon(state.Summon))
+                {
+                    continue;
+                }
+                eligibleCount++;
+                if (state.EarnedRank >= targetRank)
+                {
+                    continue;
+                }
+
+                string summonId = ((Model)state.Summon).ID;
+                if (state.OriginalMaximumHealth <= 0.0f
+                    && state.Summon.ParentModel.Health != null)
+                {
+                    state.OriginalMaximumHealth = Math.Max(
+                        0.0f,
+                        state.Summon.ParentModel.Health.UpperLimit);
+                    WriteFloat(
+                        summonId,
+                        "maximum_health",
+                        state.OriginalMaximumHealth);
+                }
+                state.EarnedRank = targetRank;
+                if (state.OriginalMaximumHealth > 0.0f)
+                {
+                    state.DamageDealt = Math.Max(
+                        state.DamageDealt,
+                        state.OriginalMaximumHealth
+                            * DamageEquivalents[targetRank - 1]);
+                }
+                WriteInt(summonId, "rank", state.EarnedRank);
+                WriteFloat(summonId, "damage", state.DamageDealt);
+                RefreshPresentation(state);
+                promotedCount++;
+                plugin.LogDiagnostic(
+                    "Promoted active summon " + summonId
+                    + " to real Soulforged rank "
+                    + targetRank.ToString(CultureInfo.InvariantCulture)
+                    + " for diagnostics.");
+            }
+            return promotedCount;
+        }
+
         internal static string GetRankLabel(int rank)
         {
             int clamped = Mathf.Clamp(rank, 0, MaximumRank);

@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 3.3.0
+Soul and Service - Summon Overhaul 3.3.3
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -494,11 +494,13 @@ Effective value           Famine      Pact       Dominion
 Soul Vigor rewards        x1.00       x1.50      x2.25
 Soul Vigor costs          x1.00       x0.75      x0.50
 Active and rest upkeep    x1.00       x0.60      x0.25
-Raised starting Health    x1.00       x1.35      x2.00
+Raised starting Health    x0.85       x1.00      x1.25
 Soul Claim threshold      -5%         +0%        +5%
 
-Starting Health is capped at full Health. Claim adds the preset value to its
-Power-, hit-, and quality-based threshold before the final 1-40% clamp. Harvest
+Starting Health is capped at full Health. At Power 0, the ordinary 40-60% base
+roll becomes approximately 34-51% on Soul Famine, 40-60% on Grave Pact, and
+50-75% on Dominion. Claim adds the preset value to its Power-, hit-, and
+quality-based threshold before the final 1-40% clamp. Harvest
 rewards round to the nearest whole Vigor; costs round up and remain at least one.
 Greater-soul pools still lose one native portion per drain, and summon or servant
 investment refunds are never multiplied.
@@ -525,7 +527,7 @@ Most players need only choose a balance preset, decide whether servants persist
 through saves and rest, select the command modifier, tune Guard engagement and formation distances, choose
 collision behavior, and balance ritual, impact, and summon-idle audio. Specialist
 controls remain available for Directed Hunt, Bulwark, body-specific ritual pitch,
-hand-light growth, reanimation colors and particles, and diagnostic overrides.
+hand-light growth, reanimation colors and particles, and diagnostic controls.
 Import Previous Settings safely restores compatible customized values after a
 future config reset.
 
@@ -544,7 +546,11 @@ progression. Useful checkpoints are 0, 250, 1,000, 2,000, 3,000, 4,000, and 5,00
 The override defaults to 5,000, accepts values through 10,000, and keeps Power capped
 at 200 above 5,000. Override Soulforged Rank can separately force every current and
 future servant to an exact effective rank without changing real rank or damage
-progress.
+progress. Promote Active Summons To Real Rank is a one-shot diagnostic action beside
+it: selecting I-XVII permanently promotes every currently active owned summon below
+that rank to the genuine saved rank and matching damage floor, then resets to None.
+It never lowers ranks. Disable the effective-rank override to observe Soul Rend
+stripping the promoted real ranks; normal stripping and recovery rules still apply.
 
 Compatibility
 -------------

@@ -77,11 +77,11 @@ Summoning and Empowering spend Soul Vigor and can lower Necromantic Power enough
 Soul Rend changes purpose according to its target and cast type:
 
 [code]
-| Target         | Light cast                         | Heavy cast                       |
-|----------------|------------------------------------|----------------------------------|
-| Corpse         | Harvest for Soul Vigor             | Bind and reanimate               |
+| Target         | Light cast                                  | Heavy cast                       |
+|----------------|---------------------------------------------|----------------------------------|
+| Corpse         | Harvest for Soul Vigor                      | Bind and reanimate               |
 | Owned servant  | Strip Empower, then ranks; unbind at rank 0 | Restore; Empower at 95% Health   |
-| Living hostile | Rend; each survived hit adds 2%    | Claim at its final threshold     |[/code]
+| Living hostile | Rend; each survived hit adds 2%             | Claim at its final threshold     |[/code]
 
 This creates the central choice behind the mod: consume the dead for immediate progression, bind them into your host, or keep a proven servant alive long enough to Empower it. Claim a badly wounded enemy and it falls by your hand, then immediately rises into service without granting duplicate rewards.
 
@@ -94,20 +94,20 @@ This creates the central choice behind the mod: consume the dead for immediate p
 Soul Vigor remains stored with the active character and can continue rising, but gameplay Power stops at 200. It is an integer resource rather than a permanent score: summoning and Empowering spend it, immediately lower Necromantic Power, and can relock commands or future Empower rituals until enough is harvested again. Existing servants and completed Empower rituals are not undone merely because a milestone relocks. Soul Vigor is separate from Blood Magic Expansion's Blood Essence even though both progressions share the same mastery curve.
 
 [code]
-| Soul Vigor | Power | New mastery                                      |
-|------------|-------|--------------------------------------------------|
-| 0          | 0     | Reanimation and improved servant behavior        |
-| 65         | 10    | Attack Command                                   |
-| 133        | 20    | Individual Hold and Follow Commands              |
-| 206        | 30    | Hold All and Follow All Commands                 |
-| 284        | 40    | Soulforged progression unlocks; Rank I           |
-| 369        | 50    | Guard and Hunt Behavior Command                  |
-| 463        | 60    | Bulwark Behavior                                 |
-| 567        | 70    | Recall Host Command                              |
-| 826        | 90    | Swarm Attack Command                             |
+| Soul Vigor | Power | New mastery                                       |
+|------------|-------|---------------------------------------------------|
+| 0          | 0     | Reanimation and improved servant behavior         |
+| 65         | 10    | Attack Command                                    |
+| 133        | 20    | Individual Hold and Follow Commands               |
+| 206        | 30    | Hold All and Follow All Commands                  |
+| 284        | 40    | Soulforged progression unlocks; Rank I            |
+| 369        | 50    | Guard and Hunt Behavior Command                   |
+| 463        | 60    | Bulwark Behavior                                  |
+| 567        | 70    | Recall Host Command                               |
+| 826        | 90    | Swarm Attack Command                              |
 | 1,000      | 100   | Empower; ordinary-servant upkeep ends             |
-| 3,000      | 150   | Maximum Summon Capacity                          |
-| 5,000      | 200   | Raise All; peak scaling                          |[/code]
+| 3,000      | 150   | Maximum Summon Capacity                           |
+| 5,000      | 200   | Raise All; peak scaling                           |[/code]
 
 These are command milestones, not sudden power jumps. Damage, resistance, raised health, binding strength, summon responsiveness, and upkeep improve smoothly between them.
 
@@ -134,10 +134,10 @@ Damage and resistance apply to every hero-owned summon, including ordinary summo
 | Soul Vigor rewards     | x1.00       | x1.50      | x2.25    |
 | Soul Vigor costs       | x1.00       | x0.75      | x0.50    |
 | Active and rest upkeep | x1.00       | x0.60      | x0.25    |
-| Raised starting Health | x1.00       | x1.35      | x2.00    |
+| Raised starting Health | x0.85       | x1.00      | x1.25    |
 | Soul Claim threshold   | -5%         | +0%        | +5%      |[/code]
 
-Starting Health is capped at full Health. Claim adds the preset value to its Power-, hit-, and quality-based threshold before the final 1-40% clamp. Harvest rewards round to whole Vigor; costs round up and remain at least one. Greater-soul pools still lose one native portion per drain, and investment refunds are never multiplied.
+Starting Health is capped at full Health. At Power 0, the ordinary 40-60% base roll becomes approximately 34-51% on Soul Famine, 40-60% on Grave Pact, and 50-75% on Dominion. Claim adds the preset value to its Power-, hit-, and quality-based threshold before the final 1-40% clamp. Harvest rewards round to whole Vigor; costs round up and remain at least one. Greater-soul pools still lose one native portion per drain, and investment refunds are never multiplied.
 
 Presets do not alter Necromantic Power milestones, Summon Capacity, damage scaling, Soulforged ranks, corpse eligibility, persistence, commands, AI, or safety rules. Changing a preset never rerolls or heals an existing servant or retroactively changes a completed payment.
 
@@ -151,7 +151,7 @@ Damage progress is never wasted. A servant that has fought enough but lacks the 
 
 Each rank adds 1% damage, 1% matching resistance, 0.5% visible size, and its share of Reanimation VFX brightness. Visual rank growth multiplies with Empower under a firm 1.30x body-size ceiling, while combat scaling is unchanged. Simply aim at a servant to see its name, rank, Health, and progress toward the next ascent; rank changes announce themselves without adding another command input.
 
-For testing, [b]Diagnostics > Override Soulforged Rank[/b] can temporarily force the exact effective rank of every current and future servant. Disabling it restores each servant's real saved progress.
+For testing, [b]Diagnostics > Override Soulforged Rank[/b] can temporarily force the exact effective rank of every current and future servant. Disabling it restores each servant's real saved progress. The adjacent [b]Promote Active Summons To Real Rank[/b] action instead permanently promotes every currently active owned summon below the selected rank to that genuine saved rank and matching damage floor, then resets itself to None. It never lowers ranks; disable the effective override to observe normal Soul Rend stripping and recovery.
 
 [line]
 
@@ -343,7 +343,7 @@ Every setting is available through FoA Mod Manager. Gameplay, host, command, beh
 [code]
 | Area            | Important defaults                                                 |
 |-----------------|--------------------------------------------------------------------|
-| Balance         | Grave Pact; editing any balance value selects Custom              |
+| Balance         | Grave Pact; editing any balance value selects Custom               |
 | Soul Rend       | Overhaul/living targets enabled; heavy cast costs 30 Mana          |
 | Host behavior   | Guard; passive crosshair sharing disabled                          |
 | Following       | Trot at 4m; run at 8m; teleport at 60m; x1.25 catch-up             |
@@ -353,9 +353,9 @@ Every setting is available through FoA Mod Manager. Gameplay, host, command, beh
 | Collision       | Summon Pass-Through enabled; player attacks CombatOnly             |
 | Persistence     | Enabled; Sustain through rest with severe attrition                |
 | Summon capacity | Additional bonus 0                                                 |
-| Reanimation VFX | 75% particles; brightness 5.0-20.0; emerald full potential        |
-| Soul Rend audio | Ritual at 0.85; impact at 0.8; both enabled                       |
-| Diagnostics     | Disabled; Vigor 5,000 and exact-rank overrides available           |[/code]
+| Reanimation VFX | 75% particles; brightness 5.0-20.0; emerald full potential         |
+| Soul Rend audio | Ritual at 0.85; impact at 0.8; both enabled                        |
+| Diagnostics     | Disabled; Vigor 5,000, rank override, and promotion action          |[/code]
 
 Start the game once to generate:
 

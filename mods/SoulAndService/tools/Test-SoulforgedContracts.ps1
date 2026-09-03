@@ -8,9 +8,11 @@ $salvage = Get-Content -LiteralPath (Join-Path $modRoot 'src\SoulSalvageRuntime.
 $glyph = Get-Content -LiteralPath (Join-Path $modRoot 'src\ReanimationGlyphRuntime.cs') -Raw
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 27',
+    'ConfigSchemaVersion = 28',
     'RestHostBehavior.Sustain',
     'SoulforgedRankOverride.Disabled',
+    'public enum SoulforgedPromotionTarget',
+    'PromoteActiveSummonsToRealRank',
     '"#FFFFFF"',
     'ConfigRecoveryKeepCurrentDefaultRule(',
     '"Persistence",',
@@ -33,6 +35,7 @@ foreach ($required in @(
     '1.0f + (GetEffectiveRank(summonId) * 0.01f)',
     '1.0f + (GetEffectiveRank(summonId) * 0.005f)',
     'internal static bool TryReduceRealRanks(',
+    'internal static int PromoteActiveSummonsToRealRank(',
     'state.DamageDealt = currentRank <= 0',
     '"HP: "',
     '"% | Rank: "',
@@ -42,6 +45,12 @@ foreach ($required in @(
     if (!$rank.Contains($required)) {
         throw "Soulforged progression contract is missing: $required"
     }
+}
+
+if ($plugin -notmatch '(?s)new ConfigDefinition\("Diagnostics", "PromoteActiveSummonsToRealRank"\).*?PromoteActiveSummonsToRealRank = BindOrdered\(.*?SoulforgedPromotionTarget\.None.*?PromoteActiveSummonsToRealRank\.Value =\s*SoulforgedPromotionTarget\.None.*?RestorePreservedConfigValues\(\).*?BindBalancePresetEvents\(\)' -or
+    $plugin -notmatch '(?s)OnPromoteActiveSummonsToRealRankChanged\(.*?SoulforgedRuntime\.PromoteActiveSummonsToRealRank\(.*?PromoteActiveSummonsToRealRank\.Value =\s*SoulforgedPromotionTarget\.None.*?Config\.Save\(\).*?_foaModManagerRefreshPending = true' -or
+    $rank -notmatch '(?s)PromoteActiveSummonsToRealRank\(.*?foreach \(SoulforgedState state in States\.Values\).*?IsOwnedSummon\(state\.Summon\).*?state\.EarnedRank >= targetRank.*?state\.EarnedRank = targetRank.*?state\.DamageDealt = Math\.Max\(.*?DamageEquivalents\[targetRank - 1\].*?WriteInt\(summonId, "rank".*?WriteFloat\(summonId, "damage".*?RefreshPresentation\(state\)') {
+    throw 'The one-shot diagnostic promotion must persist genuine rank progress, never lower ranks, reset itself, and refresh presentation.'
 }
 
 if ($rank.Contains('"OVERRIDE"') -or

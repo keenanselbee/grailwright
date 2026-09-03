@@ -20,7 +20,7 @@ $nexus = Get-Content -LiteralPath (
 $matrix = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\TEST-MATRIX.md") -Raw
 foreach ($required in @(
-    'ConfigSchemaVersion = 27',
+    'ConfigSchemaVersion = 28',
     '"ks.tgfoa.versatile-weapons"',
     '"ks.tgfoa.first-person-arms-adjuster"',
     '"EnableLivingTargetSoulSalvage"',
@@ -379,10 +379,29 @@ foreach ($required in @(
     'SoulforgedRecoveryMinimumHealthFraction,',
     'CalculateFullHealthLightManaReturn(plugin)',
     '_lightPreserveTarget = true;',
-    'Blocked native light Soul Rend destruction after resolving one servant layer.')) {
+    'ArmPendingLightLayerPreservation(summon);',
+    '_pendingLightLayerPreserveSummon = summon;',
+    'ShouldPreserveLightLayerTarget(',
+    'TryConsumePendingLightLayerPreservation(',
+    '_pendingLightLayerPreserveThroughFrame = Time.frameCount + 1;',
+    'ExpirePendingLightLayerPreservation();',
+    'Blocked native light Soul Rend summon destruction after resolving one servant layer.',
+    'Blocked native light Soul Rend NPC destruction after resolving one servant layer.',
+    'Blocked native light Soul Rend Health kill after resolving one servant layer.')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Staged servant Soul Rend contract is missing: $required"
     }
+}
+if ($runtimeSource -notmatch '(?s)CompleteLightSummonHarvest\(.*?IsEmpoweredSummon\(summon\).*?ArmPendingLightLayerPreservation\(summon\);.*?TryRemoveEmpowerment\(summon\).*?return;.*?GetRealRank\(summon\).*?ArmPendingLightLayerPreservation\(summon\);.*?TryReduceRealRanks' -or
+    $runtimeSource -notmatch '(?s)BeforeDestroySummon\(.*?ShouldPreserveLightLayerTarget\(__instance\).*?return false;' -or
+    $runtimeSource -notmatch '(?s)BeforeDestroyHeavyTarget\(NpcElement __instance\).*?_pendingLightLayerPreserveSummon \?\? _lightTarget.*?ReferenceEquals\(lightTarget\.ParentModel, __instance\).*?ShouldPreserveLightLayerTarget\(lightTarget\).*?return false;' -or
+    $runtimeSource -notmatch '(?s)BeforeKillHeavyTarget\(HealthElement __instance\).*?_pendingLightLayerPreserveSummon \?\? _lightTarget.*?ReferenceEquals\(\s*lightTarget\.ParentModel\.HealthElement,\s*__instance\).*?ShouldPreserveLightLayerTarget\(lightTarget\).*?return false;' -or
+    $runtimeSource -notmatch '(?s)TryConsumePendingLightLayerPreservation\(.*?Time\.frameCount > _pendingLightLayerPreserveThroughFrame.*?StringComparison\.Ordinal.*?ClearPendingLightLayerPreservation\(\).*?return true;') {
+    throw 'Intermediate light Soul Rend layers are not protected across summon, NPC, and Health removal by one frame-bounded, summon-specific token.'
+}
+if (!$runtimeSource.Contains('+ "; startingHealth="') -or
+    $runtimeSource.Contains('+ "; retainedHealth="')) {
+    throw 'Raised-servant diagnostics must report starting Health as an explicit percentage rather than an ambiguous normalized retainedHealth value.'
 }
 if ($runtimeSource -notmatch '(?s)CompleteLightSummonHarvest\(.*?IsEmpoweredSummon\(summon\).*?TryRemoveEmpowerment\(summon\).*?EmpowermentSeverRefundFraction.*?return;.*?GetRealRank\(summon\).*?TryReduceRealRanks\(\s*summon,\s*2,.*?ApplySoulforgedRecovery\(.*?return;.*?recovery\.RemainingMana.*?_lightHealthFraction' -or
     $runtimeSource -notmatch '(?s)ApplySoulforgedRecovery\(.*?RecoveredSoulforgedRankMask.*?SoulforgedRecoveryFractionPerRank.*?recovery\.RemainingMana = Math\.Max\(.*?SoulforgedRecoveryMinimumHealthFraction.*?RestoreSoulVigor') {
@@ -1044,7 +1063,7 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 3.3.0',
+    'Version under test: 3.3.3',
     'exactly 2x',
     'raises a native hero summon',
     'simplified remains',

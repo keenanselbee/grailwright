@@ -404,6 +404,9 @@ namespace SoulAndService
         private static bool _heavyCastActive;
         private static bool _lightHarvestCompleted;
         private static bool _lightPreserveTarget;
+        private static NpcHeroSummon _pendingLightLayerPreserveSummon;
+        private static string _pendingLightLayerPreserveSummonId = string.Empty;
+        private static int _pendingLightLayerPreserveThroughFrame = -1;
         private static NpcHeroSummon _lightTarget;
         private static NpcHeroSummon _heavyTarget;
         private static float _lightOriginalMana;
@@ -638,6 +641,7 @@ namespace SoulAndService
 
         internal static void Update()
         {
+            ExpirePendingLightLayerPreservation();
             UpdateSoulSalvageItems();
             UpdateReanimationPositions();
             ReanimationGlyphRuntime.Update();
@@ -812,6 +816,7 @@ namespace SoulAndService
             ExecutedServantRemovalBuffer.Clear();
             _nextSoulClaimPreparationCleanupAt = 0.0f;
             OrdinarySummonInvestments.Clear();
+            ClearPendingLightLayerPreservation();
             ClearLightCastState();
             ReanimationGlyphRuntime.Shutdown();
             SoulSalvageAudioRuntime.Shutdown();
@@ -826,6 +831,13 @@ namespace SoulAndService
                 return;
             }
             string summonId = ((Model)summon).ID;
+            if (string.Equals(
+                _pendingLightLayerPreserveSummonId,
+                summonId,
+                StringComparison.Ordinal))
+            {
+                ClearPendingLightLayerPreservation();
+            }
             if (fromDomainDrop)
             {
                 ReanimationGlyphRuntime.Remove(summonId);
@@ -3638,20 +3650,21 @@ namespace SoulAndService
                     return false;
                 }
             }
-            if (_lightCastActive
-                && plugin != null
-                && hero != null
-                && __instance != null
-                && ReferenceEquals(__instance, _lightTarget))
+            if (plugin != null
+                && plugin.IsEnabled
+                && __instance != null)
             {
-                if (!_lightHarvestCompleted)
+                bool matchingActiveLightTarget = _lightCastActive
+                    && hero != null
+                    && ReferenceEquals(__instance, _lightTarget);
+                if (matchingActiveLightTarget && !_lightHarvestCompleted)
                 {
                     CompleteLightSummonHarvest(__instance);
                 }
-                if (_lightPreserveTarget)
+                if (ShouldPreserveLightLayerTarget(__instance))
                 {
                     plugin.LogDiagnostic(
-                        "Blocked native light Soul Rend destruction after resolving one servant layer.");
+                        "Blocked native light Soul Rend summon destruction after resolving one servant layer.");
                     return false;
                 }
             }
@@ -3671,6 +3684,19 @@ namespace SoulAndService
         private static bool BeforeDestroyHeavyTarget(NpcElement __instance)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            NpcHeroSummon lightTarget =
+                _pendingLightLayerPreserveSummon ?? _lightTarget;
+            if (plugin != null
+                && plugin.IsEnabled
+                && __instance != null
+                && lightTarget != null
+                && ReferenceEquals(lightTarget.ParentModel, __instance)
+                && ShouldPreserveLightLayerTarget(lightTarget))
+            {
+                plugin.LogDiagnostic(
+                    "Blocked native light Soul Rend NPC destruction after resolving one servant layer.");
+                return false;
+            }
             NpcElement target = _heavyTarget == null
                 ? null
                 : _heavyTarget.ParentModel;
@@ -3692,6 +3718,22 @@ namespace SoulAndService
         private static bool BeforeKillHeavyTarget(HealthElement __instance)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            NpcHeroSummon lightTarget =
+                _pendingLightLayerPreserveSummon ?? _lightTarget;
+            if (plugin != null
+                && plugin.IsEnabled
+                && __instance != null
+                && lightTarget != null
+                && lightTarget.ParentModel != null
+                && ReferenceEquals(
+                    lightTarget.ParentModel.HealthElement,
+                    __instance)
+                && ShouldPreserveLightLayerTarget(lightTarget))
+            {
+                plugin.LogDiagnostic(
+                    "Blocked native light Soul Rend Health kill after resolving one servant layer.");
+                return false;
+            }
             NpcElement target = _heavyTarget == null
                 ? null
                 : _heavyTarget.ParentModel;
@@ -3754,6 +3796,7 @@ namespace SoulAndService
             if (SummonRuntime.IsEmpoweredSummon(summon))
             {
                 _lightPreserveTarget = true;
+                ArmPendingLightLayerPreservation(summon);
                 if (!SummonRuntime.TryRemoveEmpowerment(summon))
                 {
                     plugin.LogWarning(
@@ -3818,6 +3861,7 @@ namespace SoulAndService
             if (realRank > 0)
             {
                 _lightPreserveTarget = true;
+                ArmPendingLightLayerPreservation(summon);
                 if (!SoulforgedRuntime.TryReduceRealRanks(
                         summon,
                         2,
@@ -5639,8 +5683,11 @@ namespace SoulAndService
                                 + " (" + record.Quality01.ToString("0.###", CultureInfo.InvariantCulture) + ")"
                                 + "; maximumHealth="
                                 + maximumHealth.ToString("0.##", CultureInfo.InvariantCulture)
-                                + "; retainedHealth="
-                                + retainedHealthFraction.ToString("0.###", CultureInfo.InvariantCulture)
+                                + "; startingHealth="
+                                + (actualStartingHealthFraction * 100.0f).ToString(
+                                    "0.##",
+                                    CultureInfo.InvariantCulture)
+                                + "%"
                                 + "; exsanguination="
                                 + exsanguinationSeverity.ToString("0.###", CultureInfo.InvariantCulture)
                                 + "; power="
@@ -8453,6 +8500,67 @@ namespace SoulAndService
             _lightHealthFraction = 0.0f;
             _lightMaximumManaReturn = float.PositiveInfinity;
             _lightResolvedManaReturn = 0.0f;
+        }
+
+        private static bool ShouldPreserveLightLayerTarget(
+            NpcHeroSummon summon)
+        {
+            bool matchingActiveTarget = _lightCastActive
+                && ReferenceEquals(summon, _lightTarget)
+                && _lightPreserveTarget;
+            return TryConsumePendingLightLayerPreservation(summon)
+                || matchingActiveTarget;
+        }
+
+        private static void ArmPendingLightLayerPreservation(
+            NpcHeroSummon summon)
+        {
+            _pendingLightLayerPreserveSummon = summon;
+            _pendingLightLayerPreserveSummonId = summon == null
+                ? string.Empty
+                : ((Model)summon).ID;
+            _pendingLightLayerPreserveThroughFrame = Time.frameCount + 1;
+        }
+
+        private static bool TryConsumePendingLightLayerPreservation(
+            NpcHeroSummon summon)
+        {
+            if (summon == null
+                || string.IsNullOrEmpty(_pendingLightLayerPreserveSummonId))
+            {
+                return false;
+            }
+            if (Time.frameCount > _pendingLightLayerPreserveThroughFrame)
+            {
+                ClearPendingLightLayerPreservation();
+                return false;
+            }
+            if (!string.Equals(
+                _pendingLightLayerPreserveSummonId,
+                ((Model)summon).ID,
+                StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            ClearPendingLightLayerPreservation();
+            return true;
+        }
+
+        private static void ExpirePendingLightLayerPreservation()
+        {
+            if (!string.IsNullOrEmpty(_pendingLightLayerPreserveSummonId)
+                && Time.frameCount > _pendingLightLayerPreserveThroughFrame)
+            {
+                ClearPendingLightLayerPreservation();
+            }
+        }
+
+        private static void ClearPendingLightLayerPreservation()
+        {
+            _pendingLightLayerPreserveSummon = null;
+            _pendingLightLayerPreserveSummonId = string.Empty;
+            _pendingLightLayerPreserveThroughFrame = -1;
         }
 
         internal static int GetFocusedTargetStateForInterop(

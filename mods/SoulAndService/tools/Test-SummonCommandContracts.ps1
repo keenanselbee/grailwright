@@ -27,7 +27,7 @@ if (!$manifest.Contains('src/SummonFormationCoordinator.cs')) {
 }
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 27',
+    'ConfigSchemaVersion = 28',
     'public enum SummonBehavior',
     'Guard = 0',
     'Bulwark = 1',
@@ -875,7 +875,7 @@ if (($runtimeSource -notmatch '(?s)GetMinibossUpkeepPercentPerMinute\(.*?power <
 foreach ($required in @(
     '45 m',
     'dismantles an owned servant safely in layers',
-    'Version under test: 3.3.0',
+    'Version under test: 3.3.3',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',

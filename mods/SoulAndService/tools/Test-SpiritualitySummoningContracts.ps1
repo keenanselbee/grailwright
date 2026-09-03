@@ -10,9 +10,9 @@ $nexus = Get-Content -LiteralPath (Join-Path $modRoot 'nexus-full-desc.txt') -Ra
 $matrix = Get-Content -LiteralPath (Join-Path $modRoot 'docs\TEST-MATRIX.md') -Raw
 
 foreach ($required in @(
-    'AssemblyInformationalVersion("3.3.0")',
-    'public const string PluginVersion = "3.3.0"',
-    '"version": "3.3.0"')) {
+    'AssemblyInformationalVersion("3.3.3")',
+    'public const string PluginVersion = "3.3.3"',
+    '"version": "3.3.3"')) {
     if (!$plugin.Contains($required) -and !$manifest.Contains($required)) {
         throw "Spirituality integration release metadata is missing: $required"
     }
@@ -76,7 +76,7 @@ foreach ($required in @(
     'replacement servant',
     'administrative cleanup',
     'SAS-SMOKE-53',
-    'Version under test: 3.3.0')) {
+    'Version under test: 3.3.3')) {
     if (!$matrix.Contains($required)) {
         throw "Spirituality integration smoke coverage is missing: $required"
     }

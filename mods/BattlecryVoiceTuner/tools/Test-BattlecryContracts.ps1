@@ -275,7 +275,7 @@ foreach ($displaySection in @(
     'Voice Tuning',
     'Voice Growth - Advanced',
     'Demonic Progression',
-    'Demonic Progression - Advanced',
+    'Demonic Voice Preset',
     'Native Voice Events',
     'Battlecry',
     'Battlecry Audio',
@@ -365,10 +365,10 @@ if ($source -notmatch '(?s)new Grailwright\.Shared\.ConfigRecoveryKeepCurrentDef
     throw "The former all-environment hearing multiplier must not be imported under its new outdoor-only meaning."
 }
 
-if ($source -notmatch 'CurrentConfigSchemaVersion = 10' -or
+if ($source -notmatch 'CurrentConfigSchemaVersion = 11' -or
     $source -notmatch '(?s)"EyesInTheDarkThreat",\s*10\.0f' -or
     $source -notmatch '(?s)_eyesInTheDarkThreat == null\s*\? 10f') {
-    throw "Eyes in the Dark integration must request 10 threat by default under schema 10."
+    throw "Eyes in the Dark integration must request 10 threat by default under schema 11."
 }
 
 foreach ($required in @(

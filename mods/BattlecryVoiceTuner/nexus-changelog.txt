@@ -1,7 +1,6 @@
-TargetVersion=1.4.2
-BaselineVersion=1.3.1
+TargetVersion=1.4.3
+BaselineVersion=1.4.2
 
-Added progression-driven demonic treatment for supported native vocalizations and custom battlecries. Soul Vigor supplies spectral echo and a lower shadow voice, Blood Essence supplies visceral distortion, and combined mastery adds pitch depth and tonal darkness, reaching the full profile when both resources reach 5,000.
-Added Minimal, Demonic, and Abyssal profiles plus a Custom mode. Minimal preserves the original subtle treatment, Demonic is the stronger fresh default, and Abyssal makes the complete transformation deliberately monstrous.
-Sampled optional progression only when each sound begins, preserved clean spoken commands and non-vocal hit feedback, excluded supernatural Soul layers from synthetic reflections, and separated the simple profile controls from Custom-only advanced tuning.
-Refined and loudness-matched all four packaged Raise All recordings for a more triumphant mass-reanimation command with safe true-peak headroom.
+Reworked Minimal, Demonic, and Abyssal into visible applied presets. Selecting one now writes its complete curve, pitch, distortion, low-pass, echo, and shadow targets into nine independently editable FoA Mod Manager settings; changing any governed value selects Custom without altering the resulting mix, while selecting Custom directly preserves every value.
+
+Moved the preset and its live values into one Demonic Voice Preset section and refreshes FoA Mod Manager after programmatic preset changes so the displayed values update immediately. Existing compatible customizations remain eligible for conservative recovery across the schema update.

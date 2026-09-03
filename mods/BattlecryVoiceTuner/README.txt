@@ -1,4 +1,4 @@
-Battlecry Voice Tuner 1.4.2
+Battlecry Voice Tuner 1.4.3
 ===========================
 
 Platforms: Windows and Linux through Proton.
@@ -57,10 +57,13 @@ echo. Abyssal emerges earliest and reaches -4 semitones, 0.27 distortion, a
 Soul Vigor also raises a lower spectral shadow beneath the intelligible direct
 voice on Demonic and Abyssal. Blood Essence supplies the visceral distortion,
 while mastering both completes the pitch, darkness, echo, and shadow blend.
-Custom uses the individual values under Demonic Progression - Advanced.
-Maximum Effect Strength and the native/battlecry scope controls apply to every
-profile. Battlecry reflections inherit pitch, distortion, and darkness without
-duplicating either supernatural Soul layer on every synthetic reflection.
+Selecting Minimal, Demonic, or Abyssal writes its nine targets into the visible
+Demonic Voice Preset settings. Those values update immediately and remain
+editable: changing any one selects Custom without altering the others, while
+selecting Custom directly changes nothing. Maximum Effect Strength and the
+native/battlecry scope controls remain independent. Battlecry reflections
+inherit pitch, distortion, and darkness without duplicating either
+supernatural Soul layer on every synthetic reflection.
 
 Progression is sampled once when a sound begins. Spending or gaining either
 resource changes the next voice without morphing a cry already in progress and
@@ -233,13 +236,13 @@ EyesInTheDarkThreat = 10.0
 Diagnostics = false
 
 FoA Mod Manager organizes the settings into General, Voice Tuning,
-Voice Growth - Advanced, Demonic Progression, Demonic Progression - Advanced,
-Native Voice Events, Battlecry, Battlecry Audio, Command Voice, Optional
-Integrations, Diagnostics, and the final Import Previous Settings section.
-The main demonic tab contains only its enable, profile, strength, and scope;
-individual audio targets stay in the Custom-only advanced tab. Native Voice
-Tuning is the master for supported game voice events; battlecries and command
-voices keep their own independent enable controls.
+Voice Growth - Advanced, Demonic Progression, Demonic Voice Preset, Native
+Voice Events, Battlecry, Battlecry Audio, Command Voice, Optional Integrations,
+Diagnostics, and the final Import Previous Settings section. Demonic
+Progression contains its enable, strength, and independent scope controls;
+Demonic Voice Preset contains the profile followed by its nine live values.
+Native Voice Tuning is the master for supported game voice events; battlecries
+and command voices keep their own independent enable controls.
 
 Compatibility
 -------------

@@ -36,8 +36,8 @@ using UnityEngine;
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Battlecry Voice Tuner")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("1.4.2.0")]
-[assembly: AssemblyFileVersion("1.4.2.0")]
+[assembly: AssemblyVersion("1.4.3.0")]
+[assembly: AssemblyFileVersion("1.4.3.0")]
 
 namespace BattlecryVoiceTuner
 {
@@ -104,9 +104,9 @@ namespace BattlecryVoiceTuner
     {
         public const string PluginGuid = "ks.tgfoa.battlecry-voice-tuner";
         public const string PluginName = "Battlecry Voice Tuner";
-        public const string PluginVersion = "1.4.2";
+        public const string PluginVersion = "1.4.3";
 
-        private const int CurrentConfigSchemaVersion = 10;
+        private const int CurrentConfigSchemaVersion = 11;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -228,6 +228,8 @@ namespace BattlecryVoiceTuner
 
         private ManualLogSource _log;
         private Harmony _harmony;
+        private bool _applyingDemonicPreset;
+        private bool _foaModManagerRefreshPending;
         private ConfigEntry<int> _configSchemaVersion;
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<float> _pitchSemitones;
@@ -399,6 +401,7 @@ namespace BattlecryVoiceTuner
 
         private void Update()
         {
+            RefreshFoaModManagerIfPending();
             RefreshPitchShiftDsps();
 
             if (_enabled == null
@@ -421,6 +424,8 @@ namespace BattlecryVoiceTuner
 
         private void OnDestroy()
         {
+            Config.SettingChanged -= OnConfigSettingChanged;
+
             if (_harmony != null)
             {
                 _harmony.UnpatchSelf();
@@ -1056,11 +1061,11 @@ namespace BattlecryVoiceTuner
                 "DemonicVoicePreset",
                 DemonicVoicePreset.Demonic,
                 UiDescription(
-                    "Choose one of three authored demonic profiles. Minimal preserves the original subtle treatment, Demonic is the balanced supernatural default, Abyssal is deliberately monstrous, and Custom uses the advanced values below.",
-                    "Demonic Progression",
+                    "Apply all nine visible demonic voice values below. Minimal preserves the original subtle treatment, Demonic is the balanced supernatural default, Abyssal is deliberately monstrous, and Custom preserves the current values.",
+                    "Demonic Voice Preset",
                     "Demonic Voice Profile",
-                    3,
-                    1));
+                    4,
+                    0));
 
             _maximumDemonicStrength = Config.Bind(
                 "Demonic Voice",
@@ -1101,11 +1106,11 @@ namespace BattlecryVoiceTuner
                 "DemonicProgressionCurveExponent",
                 0.80f,
                 UiDescription(
-                    "Custom profile only. Values below one make the audible transformation emerge earlier; one is linear progression.",
-                    "Demonic Progression - Advanced",
-                    "Custom Progression Curve",
+                    "Current progression curve exponent. Values below one make the audible transformation emerge earlier; one is linear progression. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Progression Curve",
                     4,
-                    0,
+                    10,
                     new AcceptableValueRange<float>(0.5f, 1.5f)));
 
             _maximumProgressionPitchSemitones = Config.Bind(
@@ -1113,11 +1118,11 @@ namespace BattlecryVoiceTuner
                 "MaximumProgressionPitchSemitones",
                 -3.25f,
                 UiDescription(
-                    "Custom profile only. Additional direct-voice pitch depth at full progression; this remains additive with normal voice growth and manual pitch.",
-                    "Demonic Progression - Advanced",
-                    "Custom Direct Pitch (Semitones)",
+                    "Current additional direct-voice pitch depth at full progression; this remains additive with normal voice growth and manual pitch. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Direct Pitch (Semitones)",
                     4,
-                    1,
+                    20,
                     new AcceptableValueRange<float>(-6.0f, 0.0f)));
 
             _maximumDemonicDistortion = Config.Bind(
@@ -1125,11 +1130,11 @@ namespace BattlecryVoiceTuner
                 "MaximumDemonicDistortion",
                 0.18f,
                 UiDescription(
-                    "Custom profile only. Maximum Blood-driven distortion; Soul progression slightly reinforces it.",
-                    "Demonic Progression - Advanced",
-                    "Custom Blood Distortion",
+                    "Current maximum Blood-driven distortion; Soul progression slightly reinforces it. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Blood Distortion",
                     4,
-                    2,
+                    30,
                     new AcceptableValueRange<float>(0.0f, 0.5f)));
 
             _minimumDemonicLowpassCutoffHz = Config.Bind(
@@ -1137,11 +1142,11 @@ namespace BattlecryVoiceTuner
                 "MinimumDemonicLowpassCutoffHz",
                 4200.0f,
                 UiDescription(
-                    "Custom profile only. Darkest low-pass cutoff reached at full progression.",
-                    "Demonic Progression - Advanced",
-                    "Custom Low-Pass Cutoff (Hz)",
+                    "Current darkest low-pass cutoff reached at full progression. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Low-Pass Cutoff (Hz)",
                     4,
-                    3,
+                    40,
                     new AcceptableValueRange<float>(1000.0f, 20000.0f)));
 
             _demonicEchoDelayMs = Config.Bind(
@@ -1149,11 +1154,11 @@ namespace BattlecryVoiceTuner
                 "DemonicEchoDelayMs",
                 80.0f,
                 UiDescription(
-                    "Custom profile only. Delay of the supernatural echo driven by Soul progression.",
-                    "Demonic Progression - Advanced",
-                    "Custom Soul Echo Delay (Milliseconds)",
+                    "Current delay of the supernatural echo driven by Soul progression. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Soul Echo Delay (Milliseconds)",
                     4,
-                    4,
+                    50,
                     new AcceptableValueRange<float>(10.0f, 250.0f)));
 
             _maximumDemonicEchoFeedbackPercent = Config.Bind(
@@ -1161,11 +1166,11 @@ namespace BattlecryVoiceTuner
                 "MaximumDemonicEchoFeedbackPercent",
                 16.0f,
                 UiDescription(
-                    "Custom profile only. Maximum Soul-driven supernatural echo feedback; Blood progression slightly reinforces it.",
-                    "Demonic Progression - Advanced",
-                    "Custom Soul Echo Feedback",
+                    "Current maximum Soul-driven supernatural echo feedback; Blood progression slightly reinforces it. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Soul Echo Feedback",
                     4,
-                    5,
+                    60,
                     new AcceptableValueRange<float>(0.0f, 50.0f)));
 
             _maximumDemonicEchoWetLevelDb = Config.Bind(
@@ -1173,11 +1178,11 @@ namespace BattlecryVoiceTuner
                 "MaximumDemonicEchoWetLevelDb",
                 -25.0f,
                 UiDescription(
-                    "Custom profile only. Wet level reached by the supernatural echo at maximum Soul progression. More negative values are subtler.",
-                    "Demonic Progression - Advanced",
-                    "Custom Soul Echo Wet Level (dB)",
+                    "Current wet level reached by the supernatural echo at maximum Soul progression. More negative values are subtler. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Soul Echo Wet Level (dB)",
                     4,
-                    6,
+                    70,
                     new AcceptableValueRange<float>(-80.0f, -6.0f)));
 
             _maximumDemonicShadowPitchSemitones = Config.Bind(
@@ -1185,11 +1190,11 @@ namespace BattlecryVoiceTuner
                 "MaximumDemonicShadowPitchSemitones",
                 -7.0f,
                 UiDescription(
-                    "Custom profile only. Pitch of the quiet Soul-driven shadow voice layered beneath the intelligible direct voice.",
-                    "Demonic Progression - Advanced",
-                    "Custom Shadow Pitch (Semitones)",
+                    "Current pitch of the quiet Soul-driven shadow voice layered beneath the intelligible direct voice. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Shadow Pitch (Semitones)",
                     4,
-                    7,
+                    80,
                     new AcceptableValueRange<float>(-12.0f, 0.0f)));
 
             _maximumDemonicShadowMixDb = Config.Bind(
@@ -1197,11 +1202,11 @@ namespace BattlecryVoiceTuner
                 "MaximumDemonicShadowMixDb",
                 -21.0f,
                 UiDescription(
-                    "Custom profile only. Loudest shadow-voice mix at maximum Soul progression. Set -80 dB to disable it; less negative values make it more present.",
-                    "Demonic Progression - Advanced",
-                    "Custom Shadow Mix (dB)",
+                    "Current loudest shadow-voice mix at maximum Soul progression. Set -80 dB to disable it; less negative values make it more present. Changing this value manually selects Custom.",
+                    "Demonic Voice Preset",
+                    "Shadow Mix (dB)",
                     4,
-                    8,
+                    90,
                     new AcceptableValueRange<float>(-80.0f, -6.0f)));
 
             _nativeVoiceTuningEnabled = Config.Bind(
@@ -1595,7 +1600,147 @@ namespace BattlecryVoiceTuner
                 ConfigRecoveryBaselineSchema,
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
+            ApplySelectedDemonicPreset();
+            Config.SettingChanged += OnConfigSettingChanged;
             Config.Save();
+        }
+
+        private void OnConfigSettingChanged(
+            object sender,
+            SettingChangedEventArgs eventArgs)
+        {
+            if (_applyingDemonicPreset || eventArgs == null)
+            {
+                return;
+            }
+
+            ConfigEntryBase changedSetting = eventArgs.ChangedSetting;
+            if (ReferenceEquals(changedSetting, _demonicVoicePreset))
+            {
+                ApplySelectedDemonicPreset();
+                _foaModManagerRefreshPending = true;
+                return;
+            }
+
+            if (!IsDemonicPresetValueSetting(changedSetting)
+                || _demonicVoicePreset == null
+                || _demonicVoicePreset.Value == DemonicVoicePreset.Custom)
+            {
+                return;
+            }
+
+            _applyingDemonicPreset = true;
+            try
+            {
+                _demonicVoicePreset.Value = DemonicVoicePreset.Custom;
+            }
+            finally
+            {
+                _applyingDemonicPreset = false;
+            }
+            _foaModManagerRefreshPending = true;
+        }
+
+        private bool IsDemonicPresetValueSetting(ConfigEntryBase setting)
+        {
+            return ReferenceEquals(
+                    setting,
+                    _demonicProgressionCurveExponent)
+                || ReferenceEquals(
+                    setting,
+                    _maximumProgressionPitchSemitones)
+                || ReferenceEquals(setting, _maximumDemonicDistortion)
+                || ReferenceEquals(
+                    setting,
+                    _minimumDemonicLowpassCutoffHz)
+                || ReferenceEquals(setting, _demonicEchoDelayMs)
+                || ReferenceEquals(
+                    setting,
+                    _maximumDemonicEchoFeedbackPercent)
+                || ReferenceEquals(
+                    setting,
+                    _maximumDemonicEchoWetLevelDb)
+                || ReferenceEquals(
+                    setting,
+                    _maximumDemonicShadowPitchSemitones)
+                || ReferenceEquals(setting, _maximumDemonicShadowMixDb);
+        }
+
+        private void ApplySelectedDemonicPreset()
+        {
+            if (_demonicVoicePreset == null
+                || _demonicVoicePreset.Value == DemonicVoicePreset.Custom)
+            {
+                return;
+            }
+
+            DemonicPresetSettings settings;
+            switch (_demonicVoicePreset.Value)
+            {
+                case DemonicVoicePreset.Minimal:
+                    settings = DemonicPresetSettings.Minimal;
+                    break;
+                case DemonicVoicePreset.Abyssal:
+                    settings = DemonicPresetSettings.Abyssal;
+                    break;
+                default:
+                    settings = DemonicPresetSettings.Demonic;
+                    break;
+            }
+
+            _applyingDemonicPreset = true;
+            try
+            {
+                _demonicProgressionCurveExponent.Value =
+                    settings.ProgressionCurveExponent;
+                _maximumProgressionPitchSemitones.Value =
+                    settings.MaximumPitchSemitones;
+                _maximumDemonicDistortion.Value =
+                    settings.MaximumDistortion;
+                _minimumDemonicLowpassCutoffHz.Value =
+                    settings.MinimumLowpassCutoffHz;
+                _demonicEchoDelayMs.Value = settings.EchoDelayMs;
+                _maximumDemonicEchoFeedbackPercent.Value =
+                    settings.MaximumEchoFeedbackPercent;
+                _maximumDemonicEchoWetLevelDb.Value =
+                    settings.MaximumEchoWetLevelDb;
+                _maximumDemonicShadowPitchSemitones.Value =
+                    settings.MaximumShadowPitchSemitones;
+                _maximumDemonicShadowMixDb.Value =
+                    settings.MaximumShadowMixDb;
+            }
+            finally
+            {
+                _applyingDemonicPreset = false;
+            }
+        }
+
+        private void RefreshFoaModManagerIfPending()
+        {
+            if (!_foaModManagerRefreshPending)
+            {
+                return;
+            }
+
+            _foaModManagerRefreshPending = false;
+            try
+            {
+                Type apiType = AccessTools.TypeByName(
+                    "FoAModManager.FoAModManagerApi");
+                MethodInfo refreshMethod = apiType == null
+                    ? null
+                    : AccessTools.Method(apiType, "Refresh");
+                if (refreshMethod != null)
+                {
+                    refreshMethod.Invoke(null, null);
+                }
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "FoA Mod Manager refresh failed: "
+                    + exception.GetBaseException().Message);
+            }
         }
 
         private static ConfigDescription UiDescription(
@@ -1960,48 +2105,34 @@ namespace BattlecryVoiceTuner
 
         private DemonicPresetSettings ResolveDemonicPresetSettings()
         {
-            DemonicVoicePreset preset = _demonicVoicePreset == null
-                ? DemonicVoicePreset.Demonic
-                : _demonicVoicePreset.Value;
-            switch (preset)
-            {
-                case DemonicVoicePreset.Minimal:
-                    return DemonicPresetSettings.Minimal;
-                case DemonicVoicePreset.Abyssal:
-                    return DemonicPresetSettings.Abyssal;
-                case DemonicVoicePreset.Custom:
-                    return new DemonicPresetSettings(
-                        _demonicProgressionCurveExponent == null
-                            ? 0.80f
-                            : _demonicProgressionCurveExponent.Value,
-                        _maximumProgressionPitchSemitones == null
-                            ? -3.25f
-                            : _maximumProgressionPitchSemitones.Value,
-                        _maximumDemonicDistortion == null
-                            ? 0.18f
-                            : _maximumDemonicDistortion.Value,
-                        _minimumDemonicLowpassCutoffHz == null
-                            ? 4200f
-                            : _minimumDemonicLowpassCutoffHz.Value,
-                        _demonicEchoDelayMs == null
-                            ? 80f
-                            : _demonicEchoDelayMs.Value,
-                        _maximumDemonicEchoFeedbackPercent == null
-                            ? 16f
-                            : _maximumDemonicEchoFeedbackPercent.Value,
-                        _maximumDemonicEchoWetLevelDb == null
-                            ? -25f
-                            : _maximumDemonicEchoWetLevelDb.Value,
-                        _maximumDemonicShadowPitchSemitones == null
-                            ? -7f
-                            : _maximumDemonicShadowPitchSemitones.Value,
-                        _maximumDemonicShadowMixDb == null
-                            ? -21f
-                            : _maximumDemonicShadowMixDb.Value);
-                case DemonicVoicePreset.Demonic:
-                default:
-                    return DemonicPresetSettings.Demonic;
-            }
+            return new DemonicPresetSettings(
+                _demonicProgressionCurveExponent == null
+                    ? 0.80f
+                    : _demonicProgressionCurveExponent.Value,
+                _maximumProgressionPitchSemitones == null
+                    ? -3.25f
+                    : _maximumProgressionPitchSemitones.Value,
+                _maximumDemonicDistortion == null
+                    ? 0.18f
+                    : _maximumDemonicDistortion.Value,
+                _minimumDemonicLowpassCutoffHz == null
+                    ? 4200f
+                    : _minimumDemonicLowpassCutoffHz.Value,
+                _demonicEchoDelayMs == null
+                    ? 80f
+                    : _demonicEchoDelayMs.Value,
+                _maximumDemonicEchoFeedbackPercent == null
+                    ? 16f
+                    : _maximumDemonicEchoFeedbackPercent.Value,
+                _maximumDemonicEchoWetLevelDb == null
+                    ? -25f
+                    : _maximumDemonicEchoWetLevelDb.Value,
+                _maximumDemonicShadowPitchSemitones == null
+                    ? -7f
+                    : _maximumDemonicShadowPitchSemitones.Value,
+                _maximumDemonicShadowMixDb == null
+                    ? -21f
+                    : _maximumDemonicShadowMixDb.Value);
         }
 
         private float GetOptionalProgressionPower(

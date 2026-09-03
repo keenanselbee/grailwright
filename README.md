@@ -18,12 +18,12 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
 | [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.2.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.9.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
-| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.6.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
+| [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.6.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
-| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.8.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
+| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.8.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Grail Floating Text](mods/GrailFloatingText) | 2.6.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.9.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.9.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
 | [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.2.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
 | [KS Better Volumetric Fog Addon](mods/KSAddons/KSTGVolumetricFixAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Volumetric Fog](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145) |

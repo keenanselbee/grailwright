@@ -61,6 +61,32 @@ foreach ($fragment in @(
     }
 }
 
+foreach ($fragment in @(
+    'KillingBlowMastery.ExecutionVisualApi',
+    'UpdateExecutionGuardBlend();',
+    'ExecutionMoveTowardVanillaStrength = 0.50f',
+    'ExecutionShoulderRetractionMeters = 0.12f',
+    'float dodgeShoulderRetraction =',
+    'float executionShoulderRetraction =',
+    'fsm.CurrentStateType == HeroStateType.Finisher',
+    'ExecutionNativeStateGraceSeconds = 0.25f'
+)) {
+    if (-not $source.Contains($fragment)) {
+        throw "Missing Killing Blow Mastery execution-guard behavior: $fragment"
+    }
+}
+
+if ($source -notmatch '_executionGuardBlend\s*\*\s*ExecutionMoveTowardVanillaStrength') {
+    throw "The execution guard does not move the complete presentation halfway toward vanilla."
+}
+if ($source -notmatch '_currentShoulderRetractionMeters\s*=\s*Mathf\.Max\(\s*dodgeShoulderRetraction,\s*executionShoulderRetraction\s*\);') {
+    throw "Execution and dodge shoulder retraction do not compose by strongest correction."
+}
+
+if ($source -match 'HeroStateType\.Finisher[\s\S]*?IsExpandedMeleeAttackState') {
+    throw "Execution guarding must remain independent from ordinary melee-state coverage."
+}
+
 foreach ($key in @(
     'EnableAnimationGuards',
     'EnableDodgeGuard',

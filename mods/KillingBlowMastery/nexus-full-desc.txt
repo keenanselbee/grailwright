@@ -18,7 +18,7 @@ It also adds optional finisher feedback: a shared [url=https://www.nexusmods.com
 [list]
 [*][b]Weapon-mastery Executions:[/b] Unlock Execute at 25 proficiency with a 10% health window, then expand that window smoothly to 25% at proficiency 100.[/*]
 [*][b]Selected-weapon progression:[/b] Use the proficiency of the weapon that actually supplies the execution animation, including main hand, off hand, normal-finisher fallback, and Versatile Weapons grips.[/*]
-[*][b]Optional execution crosshair:[/b] With Steel and Bone and Dishonored Dynamic Crosshair, preview the target's actual corpse-quality skull in white, tint it toward dark red through the real finisher progress, then hand off to the normal confirmed killing-blow marker.[/*]
+[*][b]Optional execution crosshair:[/b] With Steel and Bone and Dishonored Dynamic Crosshair, preview the target's actual corpse-quality skull over a white marker, tint both toward dark red through the real finisher progress, then hand off immediately when the exact target dies.[/*]
 [*][b]Finishing-skill XP:[/b] Reward One-Handed, Two-Handed, Unarmed, Archery, Shield, or Magic when that skill lands the killing blow.[/*]
 [*][b]Controlled progression:[/b] Base the modest bonus on enemy XP with configurable minimum and cap values, including recent supported damage-over-time attribution.[/*]
 [*][b]Clear reward feedback:[/b] Show the exact skill and XP through optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] messages. GFT 2.3.1+ adds specific sword, axe, blunt, dagger, and spear icons for recognized handed weapons; sickles use the One-Handed Axe icon.[/*]
@@ -110,7 +110,9 @@ The game's normal distance, kill-prevention, and external-death safeguards remai
 
 KBM Executions suppress the selected execution asset's slow-motion flag only during their scoped start and restore its exact original value immediately afterward. KBM does not add visual or audio slow motion. Ordinary automatic kill cams remain untouched and retain the game's native slow motion and audio.
 
-With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] 4.0.1 and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.6.2, the Execute prompt can display the target's authoritative Meager, Worthy, Potent, or Prime skull in white. The same shape follows the real normalized finisher progress toward dark red, then hands exact target-matched feedback to the normal layered killing-blow marker near completion. A cancelled finisher never presents a false kill.
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] 4.0.1 and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] 3.6.7, the Execute prompt can display the target's authoritative Meager, Worthy, Potent, or Prime skull over a white marker. Both follow the real normalized finisher progress toward dark red, then hand exact target-matched feedback to the normal layered killing-blow marker as soon as the target dies. A cancelled finisher never presents a false kill.
+
+KBM treats the native Finisher state listeners participating in one animation as one logical Execution. The exact dead target's Execute interaction is cleared immediately, and a bounded death-completion fallback closes the presentation lifecycle if the native animation omits its final OnExit callback.
 
 These settings do not alter the separate hold-interact story execution used for important unconscious NPCs. Disable automatic combat finishers and set combat execution mode to Off to remove combat finisher animations while leaving those story executions intact.
 

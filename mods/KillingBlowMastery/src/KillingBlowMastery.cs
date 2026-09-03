@@ -18,9 +18,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.9.7.0")]
-[assembly: AssemblyFileVersion("1.9.7.0")]
-[assembly: AssemblyInformationalVersion("1.9.7")]
+[assembly: AssemblyVersion("1.9.9.0")]
+[assembly: AssemblyFileVersion("1.9.9.0")]
+[assembly: AssemblyInformationalVersion("1.9.9")]
 
 namespace KillingBlowMastery
 {
@@ -65,7 +65,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.9.7";
+        public const string PluginVersion = "1.9.9";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -84,6 +84,7 @@ namespace KillingBlowMastery
         private const string FinisherStateTypeName = "Awaken.TG.Main.Animations.FSM.Heroes.States.Overrides.FinisherState";
         private const string FinishersListTypeName = "Awaken.TG.Main.Fights.Finishers.FinishersList";
         private const string FinisherDataTypeName = "Awaken.TG.Main.Fights.Finishers.FinisherData";
+        private const string HeroInteractionViewTypeName = "Awaken.TG.Main.Heroes.Interactions.VHeroInteractionUI";
         private const string CustomDeathAnimationTypeName = "Awaken.TG.Main.AI.Combat.CustomDeath.CustomDeathAnimation";
         private const string WithFactionUtilsTypeName = "Awaken.TG.Main.Fights.Factions.WithFactionUtils";
         private const string NotificationUtilsTypeName = "Awaken.TG.Main.UI.HUD.AdvancedNotifications.NotificationUtils";
@@ -154,6 +155,7 @@ namespace KillingBlowMastery
         private const float NativeFinisherStuckWarningSeconds = 6.0f;
         private const float ExecutionReadyStateSeconds = 0.5f;
         private const float ExecutionCompletedStateSeconds = 1.0f;
+        private const float ExecutionDeathCompletionGraceSeconds = 1.0f;
         private const int DefaultRewardSoundSlots = 5;
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
         private const int ConfigSchemaVersion = 19;
@@ -345,6 +347,16 @@ namespace KillingBlowMastery
             ReportActiveExecutionFinisherLifecycle();
             ReportActiveNativeFinisherDiagnostic();
             ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
+            if (state != null
+                && !state.Finished
+                && state.TargetDeathConfirmed
+                && Time.unscaledTime - state.TargetDeathConfirmedUnscaledTime
+                    >= ExecutionDeathCompletionGraceSeconds)
+            {
+                CompleteExecutionFinisherLifecycle(
+                    state,
+                    "target-death fallback");
+            }
             if (state != null
                 && state.Finished
                 && Time.unscaledTime - state.FinishedUnscaledTime
@@ -1274,6 +1286,7 @@ namespace KillingBlowMastery
             }
 
             PatchExecutionFinisherStart(executionActionType);
+            PatchDeadExecutionPromptCleanup();
 
             Type customDeathAnimationType = AccessTools.TypeByName(
                 CustomDeathAnimationTypeName);
@@ -1378,6 +1391,40 @@ namespace KillingBlowMastery
                 {
                     Log.LogWarning("Failed to patch Execution candidate diagnostics: " + ex.GetBaseException().Message);
                 }
+            }
+        }
+
+        private void PatchDeadExecutionPromptCleanup()
+        {
+            Type viewType = AccessTools.TypeByName(
+                HeroInteractionViewTypeName);
+            MethodInfo fillInfoOriginal = viewType == null
+                ? null
+                : AccessTools.Method(viewType, "FillInfo");
+            MethodInfo fillInfoPrefix = AccessTools.Method(
+                typeof(DeadExecutionPromptPatch),
+                nameof(DeadExecutionPromptPatch.Prefix));
+            if (fillInfoOriginal == null || fillInfoPrefix == null)
+            {
+                Log.LogWarning(
+                    "Could not patch dead Execution prompt cleanup; a stale native interaction prompt may remain visible after an Execution target dies.");
+                return;
+            }
+
+            try
+            {
+                _harmony.Patch(
+                    fillInfoOriginal,
+                    prefix: new HarmonyMethod(fillInfoPrefix));
+                LogDiagnostic(
+                    "Patched " + HeroInteractionViewTypeName
+                    + ".FillInfo for dead Execution prompt cleanup.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning(
+                    "Failed to patch dead Execution prompt cleanup: "
+                    + ex.GetBaseException().Message);
             }
         }
 
@@ -1634,6 +1681,8 @@ namespace KillingBlowMastery
             }
 
             ExecutionFinisherStartState state = new ExecutionFinisherStartState(
+                executionAction,
+                finisherHandling,
                 cachedData,
                 slowDownTimeField,
                 originalSlowDownTime,
@@ -1996,6 +2045,27 @@ namespace KillingBlowMastery
                 ? (bool)payloadValue
                 : (bool?)null;
 
+            ExecutionFinisherLifecycleState active =
+                _activeExecutionFinisher;
+            if (active != null
+                && !active.Finished
+                && ReferenceEquals(active.Target, startState.Target)
+                && ReferenceEquals(
+                    active.ExecutionAction,
+                    startState.ExecutionAction))
+            {
+                active.AddFinisherState(finisherState);
+                LogDiagnostic(
+                    "Execution FinisherStarted joined logical sequence="
+                    + active.Sequence.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ", observedStates="
+                    + active.ObservedFinisherStateCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+                return;
+            }
+
             _nextExecutionSequence++;
             if (_nextExecutionSequence <= 0)
             {
@@ -2003,6 +2073,8 @@ namespace KillingBlowMastery
             }
             _activeExecutionFinisher = new ExecutionFinisherLifecycleState(
                 finisherState,
+                startState.ExecutionAction,
+                startState.FinisherHandling,
                 startState.Target,
                 _nextExecutionSequence,
                 payloadSlowDownTime,
@@ -2022,7 +2094,33 @@ namespace KillingBlowMastery
         private void OnExecutionFinisherExited(object finisherState)
         {
             ExecutionFinisherLifecycleState state = _activeExecutionFinisher;
-            if (state == null || !ReferenceEquals(state.FinisherState, finisherState))
+            if (state == null
+                || state.Finished
+                || !state.RemoveFinisherState(finisherState))
+            {
+                return;
+            }
+
+            if (state.ActiveFinisherStateCount > 0)
+            {
+                LogDiagnostic(
+                    "Execution Finisher OnExit observed: sequence="
+                    + state.Sequence.ToString(CultureInfo.InvariantCulture)
+                    + ", remainingStates="
+                    + state.ActiveFinisherStateCount.ToString(
+                        CultureInfo.InvariantCulture)
+                    + ".");
+                return;
+            }
+
+            CompleteExecutionFinisherLifecycle(state, "native OnExit");
+        }
+
+        private void CompleteExecutionFinisherLifecycle(
+            ExecutionFinisherLifecycleState state,
+            string reason)
+        {
+            if (state == null || state.Finished)
             {
                 return;
             }
@@ -2030,7 +2128,9 @@ namespace KillingBlowMastery
             state.Finished = true;
             state.FinishedUnscaledTime = Time.unscaledTime;
             LogDiagnostic(
-                "Execution FinisherEnded/OnExit: elapsedUnscaled="
+                "Execution FinisherEnded: reason="
+                + reason
+                + ", elapsedUnscaled="
                 + FormatFloat(Time.unscaledTime - state.StartedUnscaledTime)
                 + "s, elapsedRealtime="
                 + FormatFloat(Time.realtimeSinceStartup - state.StartedRealtime)
@@ -2257,12 +2357,7 @@ namespace KillingBlowMastery
                 }
                 else
                 {
-                    object rawProgress = GetOptionalPropertyValue(
-                        state.FinisherState,
-                        "TimeElapsedNormalized");
-                    progress01 = rawProgress is float
-                        ? Mathf.Clamp01((float)rawProgress)
-                        : 0.0f;
+                    progress01 = state.GetMaximumProgress(this);
                 }
                 return target != null;
             }
@@ -3473,7 +3568,8 @@ namespace KillingBlowMastery
                 && !executionState.Finished
                 && ReferenceEquals(executionState.Target, npc))
             {
-                executionState.TargetDeathConfirmed = true;
+                executionState.ConfirmTargetDeath(Time.unscaledTime);
+                ClearDeadExecutionInteraction(executionState);
             }
 
             if (!_enabled.Value || npc == null || damageOutcome == null)
@@ -3580,6 +3676,133 @@ namespace KillingBlowMastery
                     proficiencyName + " XP for killing " + enemyName +
                     " with " + sourceName + " from enemy XP " +
                     enemyXp.ToString("0.###", CultureInfo.InvariantCulture) + ".");
+            }
+        }
+
+        private void ClearDeadExecutionInteraction(
+            ExecutionFinisherLifecycleState state)
+        {
+            object executionAction = state == null
+                ? null
+                : state.ExecutionAction;
+            if (executionAction == null
+                || state.ExecutionInteractionCleared)
+            {
+                return;
+            }
+
+            state.ExecutionInteractionCleared = true;
+            try
+            {
+                MethodInfo discard = GetMethodSilent(
+                    executionAction.GetType(),
+                    "Discard",
+                    0);
+                if (discard != null)
+                {
+                    discard.Invoke(executionAction, null);
+                }
+
+                object finisherHandling = state.FinisherHandling;
+                FieldInfo actionField = finisherHandling == null
+                    ? null
+                    : AccessTools.Field(
+                        finisherHandling.GetType(),
+                        "_executionAction");
+                if (actionField != null
+                    && ReferenceEquals(
+                        actionField.GetValue(finisherHandling),
+                        executionAction))
+                {
+                    actionField.SetValue(finisherHandling, null);
+                }
+                FieldInfo targetField = finisherHandling == null
+                    ? null
+                    : AccessTools.Field(
+                        finisherHandling.GetType(),
+                        "_npcPointingTowards");
+                if (targetField != null
+                    && ReferenceEquals(
+                        targetField.GetValue(finisherHandling),
+                        state.Target))
+                {
+                    targetField.SetValue(finisherHandling, null);
+                }
+
+                LogDiagnostic(
+                    "Cleared the dead target's native Execute interaction.");
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning(
+                    "Could not clear the dead target's native Execute interaction: "
+                    + ex.GetBaseException().Message);
+            }
+        }
+
+        private bool HideDeadExecutionPrompt(object view)
+        {
+            ExecutionFinisherLifecycleState state =
+                _activeExecutionFinisher;
+            if (view == null
+                || state == null
+                || !state.TargetDeathConfirmed
+                || state.ExecutionAction == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                object target = GetOptionalPropertyValue(view, "Target");
+                object interactable = GetOptionalPropertyValue(
+                    target,
+                    "Interactable");
+                object executionLocation = GetOptionalPropertyValue(
+                    state.Target,
+                    "ParentModel");
+                if (!ReferenceEquals(interactable, executionLocation))
+                {
+                    return false;
+                }
+
+                object parentModel = GetOptionalPropertyValue(
+                    target,
+                    "ParentModel");
+                MethodInfo defaultAction = interactable == null
+                    ? null
+                    : GetMethodSilent(
+                        interactable.GetType(),
+                        "DefaultAction",
+                        1);
+                object visibleAction = defaultAction == null
+                    ? null
+                    : defaultAction.Invoke(
+                        interactable,
+                        new[] { parentModel });
+                if (visibleAction != null
+                    && !ReferenceEquals(
+                        visibleAction,
+                        state.ExecutionAction))
+                {
+                    return false;
+                }
+
+                GameObject gameObject = GetOptionalPropertyValue(
+                    view,
+                    "gameObject") as GameObject;
+                if (gameObject != null)
+                {
+                    gameObject.SetActive(false);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogDiagnostic(
+                    "Could not inspect a native interaction view during dead Execution cleanup: "
+                    + ex.GetBaseException().Message);
+                return false;
             }
         }
 
@@ -6247,6 +6470,8 @@ namespace KillingBlowMastery
 
         private sealed class ExecutionFinisherStartState
         {
+            public readonly object ExecutionAction;
+            public readonly object FinisherHandling;
             private readonly object _cachedData;
             private readonly FieldInfo _slowDownTimeField;
             private ExecutionFinisherStartState _previousActiveState;
@@ -6258,11 +6483,15 @@ namespace KillingBlowMastery
             public readonly object Target;
 
             public ExecutionFinisherStartState(
+                object executionAction,
+                object finisherHandling,
                 object cachedData,
                 FieldInfo slowDownTimeField,
                 bool? originalSlowDownTime,
                 object target)
             {
+                ExecutionAction = executionAction;
+                FinisherHandling = finisherHandling;
                 _cachedData = cachedData;
                 _slowDownTimeField = slowDownTimeField;
                 OriginalSlowDownTime = originalSlowDownTime;
@@ -6458,7 +6687,12 @@ namespace KillingBlowMastery
 
         private sealed class ExecutionFinisherLifecycleState
         {
-            public readonly object FinisherState;
+            private readonly HashSet<object> _activeFinisherStates =
+                new HashSet<object>(ReferenceEqualityComparer.Instance);
+            private readonly HashSet<object> _observedFinisherStates =
+                new HashSet<object>(ReferenceEqualityComparer.Instance);
+            public readonly object ExecutionAction;
+            public readonly object FinisherHandling;
             public readonly object Target;
             public readonly int Sequence;
             public readonly bool? PayloadSlowDownTime;
@@ -6466,24 +6700,85 @@ namespace KillingBlowMastery
             public readonly float StartedRealtime;
             public float LastLifecycleDiagnosticUnscaledTime;
             public bool TargetDeathConfirmed;
+            public float TargetDeathConfirmedUnscaledTime;
+            public bool ExecutionInteractionCleared;
             public bool Finished;
             public float FinishedUnscaledTime;
 
             public ExecutionFinisherLifecycleState(
                 object finisherState,
+                object executionAction,
+                object finisherHandling,
                 object target,
                 int sequence,
                 bool? payloadSlowDownTime,
                 float startedUnscaledTime,
                 float startedRealtime)
             {
-                FinisherState = finisherState;
+                ExecutionAction = executionAction;
+                FinisherHandling = finisherHandling;
                 Target = target;
                 Sequence = sequence;
                 PayloadSlowDownTime = payloadSlowDownTime;
                 StartedUnscaledTime = startedUnscaledTime;
                 StartedRealtime = startedRealtime;
                 LastLifecycleDiagnosticUnscaledTime = startedUnscaledTime;
+                AddFinisherState(finisherState);
+            }
+
+            public int ActiveFinisherStateCount
+            {
+                get { return _activeFinisherStates.Count; }
+            }
+
+            public int ObservedFinisherStateCount
+            {
+                get { return _observedFinisherStates.Count; }
+            }
+
+            public void AddFinisherState(object finisherState)
+            {
+                if (finisherState == null)
+                {
+                    return;
+                }
+
+                _activeFinisherStates.Add(finisherState);
+                _observedFinisherStates.Add(finisherState);
+            }
+
+            public bool RemoveFinisherState(object finisherState)
+            {
+                return finisherState != null
+                    && _observedFinisherStates.Contains(finisherState)
+                    && _activeFinisherStates.Remove(finisherState);
+            }
+
+            public void ConfirmTargetDeath(float unscaledTime)
+            {
+                if (TargetDeathConfirmed)
+                {
+                    return;
+                }
+
+                TargetDeathConfirmed = true;
+                TargetDeathConfirmedUnscaledTime = unscaledTime;
+            }
+
+            public float GetMaximumProgress(
+                KillingBlowMasteryPlugin plugin)
+            {
+                float maximum = 0.0f;
+                foreach (object finisherState in _observedFinisherStates)
+                {
+                    float? progress = plugin.GetNativeFinisherProgress(
+                        finisherState);
+                    if (progress.HasValue)
+                    {
+                        maximum = Mathf.Max(maximum, progress.Value);
+                    }
+                }
+                return Mathf.Clamp01(maximum);
             }
         }
 
@@ -6763,6 +7058,15 @@ namespace KillingBlowMastery
                 {
                     __result = "Execute";
                 }
+            }
+        }
+
+        private static class DeadExecutionPromptPatch
+        {
+            public static bool Prefix(object __instance)
+            {
+                return Instance == null
+                    || !Instance.HideDeadExecutionPrompt(__instance);
             }
         }
 

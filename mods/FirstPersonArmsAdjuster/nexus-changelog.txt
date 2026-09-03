@@ -1,3 +1,3 @@
-TargetVersion=0.8.6
-BaselineVersion=0.8.4
-Changed the default bow-draw ceiling from 67 to 33 percent, producing about 0.10 metres of positive FPAA depth from the default 0.30 metre bow offset, and regenerated untouched old defaults through schema 20 while preserving compatible customized values.
+TargetVersion=0.8.8
+BaselineVersion=0.8.6
+Added smooth Killing Blow Mastery Execution guarding that retains half the configured presentation offset, raises shoulder/chest retraction to at least 0.12 metres, and restores safely when the finisher ends.

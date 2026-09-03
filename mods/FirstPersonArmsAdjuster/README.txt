@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.8.6
+First Person Arms Adjuster 0.8.8
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -190,6 +190,13 @@ half remains at the strongest point, and at 100 the viewmodel reaches vanilla.
 Overlapping guards use the strongest influence instead of multiplying together.
 Shared mode overrides held-melee retained-scale and extra-correction tuning.
 Dodge guarding instead changes only Shoulder Retraction.
+
+When Killing Blow Mastery is installed, its active Executions smoothly retain
+half of FPAA's configured presentation offset and raise shoulder/chest
+retraction to at least 0.12 metres. The two corrections share one eased guard,
+compose by strongest influence with other guards, and restore when the native
+finisher ends. A target-death state fallback prevents a missing native exit from
+leaving the viewmodel guarded indefinitely.
 
 The bow-draw guard follows normalized pull progress so its correction enters
 gradually while the arrow is nocked and holds through the held pose. Release

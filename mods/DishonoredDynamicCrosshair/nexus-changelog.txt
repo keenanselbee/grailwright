@@ -1,4 +1,4 @@
-TargetVersion=3.6.6
-BaselineVersion=3.6.5
+TargetVersion=3.6.7
+BaselineVersion=3.6.6
 
-Changed IncludeSummonAttacks to default off so Steel and Bone hit markers show the hero's own attacks by default; enable it to include lower-priority hero-owned summon feedback.
+Added a white neutral marker beneath the corpse-quality Execute skull and changed exact-target killing-blow handoff to occur immediately on confirmed death, preventing stalled native progress from hiding the red marker.

@@ -1,3 +1,9 @@
+Version 3.6.7
+Added a white neutral marker frame beneath the corpse-quality skull throughout Execute availability and active execution preview, with both layers sharing the existing white-to-dark-red tint.
+Handed the exact target's buffered killing-blow feedback to the normal red layered marker immediately when death is confirmed instead of waiting for 90% normalized progress.
+Hid the execution preview layers as soon as handoff starts so stalled native progress cannot cover the confirmed killing-blow marker.
+Kept ConfigSchemaVersion at 20 because these presentation corrections change no setting or default.
+
 Version 3.6.6
 Changed IncludeSummonAttacks to default off so Steel and Bone hit markers show
 the hero's own attacks by default; enable it to include lower-priority

@@ -1,4 +1,3 @@
-TargetVersion=1.9.7
-BaselineVersion=1.9.6
-Routed all custom finisher and reward WAV playback through the game's FMOD SFX bus so the game Master and SFX volume or mute controls apply.
-Removed the Unity AudioSource fallback: if the game SFX bus is unavailable, the sound safely skips instead of bypassing the mixer.
+TargetVersion=1.9.9
+BaselineVersion=1.9.7
+Grouped duplicate native finisher-state callbacks into one logical Execution, immediately cleared the exact dead target's Execute interaction, and added a one-second target-death completion fallback when native OnExit is missing.

@@ -1,7 +1,7 @@
 Dishonored Dynamic Crosshair
 ============================
 
-Version 3.6.6
+Version 3.6.7
 Platforms: Windows and Linux through Proton.
 
 Configurable PNG reticles for Tainted Grail: The Fall of Avalon.
@@ -10,7 +10,7 @@ Plugin identity:
   Name: Dishonored Dynamic Crosshair
   DLL: DishonoredDynamicCrosshair.dll
   GUID: ks.tgfoa.dishonored-dynamic-crosshair
-  Version: 3.6.6
+  Version: 3.6.7
 
 Required game version:
   Tainted Grail: The Fall of Avalon v1.25 / Patch 1.25
@@ -71,9 +71,9 @@ Deployment files:
 Configuration is generated after the game starts:
   BepInEx\config\ks.tgfoa.dishonored-dynamic-crosshair.cfg
 
-Version 3.6.6 uses ConfigSchemaVersion 20 because IncludeSummonAttacks now
-defaults to disabled, keeping Steel and Bone hit feedback focused on the hero
-unless summon feedback is explicitly enabled.
+Version 3.6.7 retains ConfigSchemaVersion 20 from the IncludeSummonAttacks
+default change, keeping Steel and Bone hit feedback focused on the hero unless
+summon feedback is explicitly enabled.
 On first launch from an older schema, the previous config is backed up beside
 the active config as a dated .bak file and fresh defaults are generated.
 Reticle PNG paths, sizes, scales, colors, opacities, size mode, Blood Magic
@@ -423,13 +423,13 @@ KillingBlowOverlaysEnabled:
   hitmarker_killingblow_2_overlay.png - Potent
   hitmarker_killingblow_3_overlay.png - Prime
 
-With Killing Blow Mastery 1.9.4, the exact corpse-quality overlay also becomes
-the Execute indicator. It appears white while Execute is available, keeps the
-same Meager, Worthy, Potent, or Prime shape throughout the finisher, and follows
-the real normalized animation progress toward #8C0003. Target-matched Steel and
-Bone feedback is buffered during the cinematic. At 90% progress it hands off to
-the normal layered killing-blow marker; an execution that exits without its
-target's confirmed death clears the preview without displaying a kill.
+With Killing Blow Mastery 1.9.8, the exact corpse-quality overlay also becomes
+the Execute indicator. A neutral marker frame remains visible beneath the skull;
+both appear white while Execute is available and follow real normalized
+animation progress toward #8C0003. Target-matched Steel and Bone feedback is
+buffered during the cinematic and hands off immediately to the normal layered
+killing-blow marker when that exact target dies. An execution that exits without
+confirmed target death clears the preview without displaying a kill.
 
 Frames are selected from Steel and Bone's actual effectiveness multiplier.
 All marker layers use Steel and Bone's final damage-number color. The latest hit

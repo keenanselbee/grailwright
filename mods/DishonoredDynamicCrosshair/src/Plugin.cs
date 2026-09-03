@@ -15,8 +15,8 @@ using UnityEngine.UI;
 [assembly: AssemblyDescription("Context-aware custom reticles for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Dishonored Dynamic Crosshair")]
-[assembly: AssemblyVersion("3.6.6.0")]
-[assembly: AssemblyFileVersion("3.6.6.0")]
+[assembly: AssemblyVersion("3.6.7.0")]
+[assembly: AssemblyFileVersion("3.6.7.0")]
 
 namespace DishonoredDynamicCrosshair
 {
@@ -139,7 +139,7 @@ namespace DishonoredDynamicCrosshair
     {
         public const string PluginGuid = "ks.tgfoa.dishonored-dynamic-crosshair";
         public const string PluginName = "Dishonored Dynamic Crosshair";
-        public const string PluginVersion = "3.6.6";
+        public const string PluginVersion = "3.6.7";
         private const int ConfigSchemaVersion = 20;
         private const float ReferenceScreenHeight = 1440f;
 
@@ -188,7 +188,6 @@ namespace DishonoredDynamicCrosshair
         private const int ExecutionPhaseActive = 2;
         private const int ExecutionPhaseCompleted = 3;
         private const float ExecutionTintCompleteProgress = 0.90f;
-        private const float ExecutionHandoffProgress = 0.90f;
         private const float BackstabUnderlyingOpacityMultiplier = 0.5f;
         private const float DefaultSummonCommandPulseSeconds = 0.675f;
         private const float SummonCommandPreviewHandoffMaximumSeconds = 0.25f;
@@ -394,6 +393,7 @@ namespace DishonoredDynamicCrosshair
         private Image _criticalHitMarkerImage;
         private Image _killingBlowHitMarkerImage;
         private RectTransform _executionPreviewRect;
+        private Image _executionPreviewBaseImage;
         private Image _executionPreviewImage;
         private Image _backstabReadyOverlayImage;
         private CanvasGroup _crouchCanvasGroup;
@@ -2667,16 +2667,19 @@ namespace DishonoredDynamicCrosshair
                 _reticleObject.transform,
                 "DishonoredBackstabReadyOverlay");
             _backstabReadyOverlayImage.transform.SetAsLastSibling();
-            _executionPreviewImage = CreateHitMarkerOverlayImage(
+            _executionPreviewBaseImage = CreateHitMarkerOverlayImage(
                 _reticleObject.transform,
-                "DishonoredExecutionPreview");
-            _executionPreviewRect = _executionPreviewImage.rectTransform;
+                "DishonoredExecutionPreviewBase");
+            _executionPreviewRect = _executionPreviewBaseImage.rectTransform;
             _executionPreviewRect.anchorMin = new Vector2(0.5f, 0.5f);
             _executionPreviewRect.anchorMax = new Vector2(0.5f, 0.5f);
             _executionPreviewRect.pivot = new Vector2(0.5f, 0.5f);
             _executionPreviewRect.anchoredPosition = Vector2.zero;
             _executionPreviewRect.sizeDelta = Vector2.zero;
-            _executionPreviewImage.transform.SetAsLastSibling();
+            _executionPreviewImage = CreateHitMarkerOverlayImage(
+                _executionPreviewRect,
+                "DishonoredExecutionPreviewOverlay");
+            _executionPreviewBaseImage.transform.SetAsLastSibling();
 
             ApplyReticleState();
         }
@@ -2922,6 +2925,7 @@ namespace DishonoredDynamicCrosshair
                 SetHitMarkerVisualsEnabled(false);
                 SetHitMarkerOverlaysEnabled(false, false, false, false);
                 SetBackstabReadyOverlayEnabled(false);
+                SetImageEnabled(_executionPreviewBaseImage, false);
                 SetImageEnabled(_executionPreviewImage, false);
 
                 return;
@@ -4664,7 +4668,6 @@ namespace DishonoredDynamicCrosshair
 
             if (phase == ExecutionPhaseActive
                 && targetDeathConfirmed
-                && progress01 >= ExecutionHandoffProgress
                 && !_executionHandoffStarted
                 && _pendingExecutionKillingBlow != null)
             {
@@ -4693,8 +4696,10 @@ namespace DishonoredDynamicCrosshair
         {
             if (_executionPreviewImage == null
                 || _executionPreviewRect == null
-                || !_executionPreviewActive)
+                || !_executionPreviewActive
+                || _executionHandoffStarted)
             {
+                SetImageEnabled(_executionPreviewBaseImage, false);
                 SetImageEnabled(_executionPreviewImage, false);
                 return;
             }
@@ -4706,6 +4711,7 @@ namespace DishonoredDynamicCrosshair
             Sprite sprite = asset == null ? null : asset.Sprite;
             if (sprite == null)
             {
+                SetImageEnabled(_executionPreviewBaseImage, false);
                 SetImageEnabled(_executionPreviewImage, false);
                 return;
             }
@@ -4719,19 +4725,25 @@ namespace DishonoredDynamicCrosshair
                 Color.white,
                 new Color32(0x8C, 0x00, 0x03, 0xFF),
                 Mathf.SmoothStep(0.0f, 1.0f, tintProgress));
-            if (_executionHandoffStarted)
-            {
-                color.a *= 1.0f - Mathf.InverseLerp(
-                    ExecutionHandoffProgress,
-                    1.0f,
-                    _executionPreviewProgress01);
-            }
-
             float unitConversion = GetSizeUnitConversion(
                 GetCanvasScaleFactor());
             float size = Mathf.Clamp(_baseSizePixels.Value, 4f, 256f)
                 * Mathf.Clamp(_killingBlowSizeMultiplier.Value, 0.5f, 3f)
                 * unitConversion;
+            ReticleAsset baseAsset;
+            _hitMarkerAssets.TryGetValue(
+                HitMarkerFrame.Neutral,
+                out baseAsset);
+            if (_executionPreviewBaseImage != null)
+            {
+                _executionPreviewBaseImage.sprite = baseAsset == null
+                    ? null
+                    : baseAsset.Sprite;
+                _executionPreviewBaseImage.color = color;
+                _executionPreviewBaseImage.enabled =
+                    _executionPreviewBaseImage.sprite != null
+                    && color.a > 0.0f;
+            }
             _executionPreviewImage.sprite = sprite;
             _executionPreviewImage.color = color;
             _executionPreviewRect.sizeDelta = new Vector2(size, size);
@@ -4754,6 +4766,7 @@ namespace DishonoredDynamicCrosshair
             _executionPreviewDeathConfirmed = false;
             _executionHandoffStarted = false;
             _pendingExecutionKillingBlow = null;
+            SetImageEnabled(_executionPreviewBaseImage, false);
             SetImageEnabled(_executionPreviewImage, false);
             if (wasActive && _enabled != null && _enabled.Value)
             {
@@ -4864,6 +4877,12 @@ namespace DishonoredDynamicCrosshair
                     || _executionPreviewPhase == ExecutionPhaseCompleted))
             {
                 _pendingExecutionKillingBlow = feedback;
+                if (_executionPreviewDeathConfirmed
+                    && !_executionHandoffStarted)
+                {
+                    _executionHandoffStarted = true;
+                    StartKillingBlowHitMarker(feedback);
+                }
                 return;
             }
 
@@ -6704,6 +6723,7 @@ namespace DishonoredDynamicCrosshair
             _criticalHitMarkerImage = null;
             _killingBlowHitMarkerImage = null;
             _executionPreviewRect = null;
+            _executionPreviewBaseImage = null;
             _executionPreviewImage = null;
             _backstabReadyOverlayImage = null;
             _crosshairParent = null;

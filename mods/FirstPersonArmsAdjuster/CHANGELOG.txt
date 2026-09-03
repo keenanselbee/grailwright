@@ -1,3 +1,9 @@
+Version 0.8.8
+Added soft Killing Blow Mastery execution-visual API integration under the existing animation-guard master switch.
+Smoothly moves active Executions halfway toward vanilla and raises shoulder/chest retraction to at least 0.12 metres, composing by strongest influence with existing guards.
+Restores over 0.25 seconds when the Execution completes and includes an exact target-death/native-state grace fallback so stale external lifecycle state cannot hold the guarded pose indefinitely.
+Kept ConfigSchemaVersion at 20 because the integration adds no setting or default.
+
 Version 0.8.6
 Changed the default Bow Draw Maximum Offset from 67 to 33 percent, so the default 0.30 metre Bow Depth Offset contributes about 0.10 metres while drawing, matching the validated setting.
 Advanced ConfigSchemaVersion from 19 to 20 because the existing bow-draw ceiling default changed. The stale config is backed up and regenerated; an untouched old 67 percent default adopts 33 percent, while compatible customized values remain eligible for recovery.

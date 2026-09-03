@@ -1,3 +1,10 @@
+Version 1.9.9
+Grouped duplicate native FinisherStarted callbacks for one target and action into one logical Execution lifecycle instead of replacing the tracked state.
+Cleared the exact dead target's native Execute interaction immediately and hid its stale prompt when the interaction view refreshes.
+Completed target-confirmed Executions after a one-second grace period when one or more native Finisher states omit OnExit, while preserving normal all-state OnExit completion.
+Reported the greatest available normalized progress across participating native Finisher states through execution-visual API v1.
+Kept ConfigSchemaVersion at 19 because these lifecycle corrections change no setting or default.
+
 Version 1.9.7
 Routed all custom finisher and reward WAV playback through the game's FMOD SFX bus so the game Master and SFX volume or mute controls apply.
 Removed the Unity AudioSource fallback: if the game SFX bus is unavailable, the sound safely skips instead of bypassing the mixer.

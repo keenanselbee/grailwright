@@ -68,7 +68,7 @@ $contracts = @(
     '"slowDownTime")',
     'state.DisableSlowDownTime();',
     'Execution FinisherStarted:',
-    'Execution FinisherEnded/OnExit:',
+    'Execution FinisherEnded:',
     'Execution Finisher still active:',
     'Combat FinisherStarted:',
     'Combat Finisher OnExit begin:',
@@ -297,12 +297,31 @@ if ($source -notmatch 'GetOptionalFieldValue\(\s*finisherHandling,\s*"_npcPointi
     throw "Execution start does not retain the exact selected NPC target."
 }
 
-if ($source -notmatch 'GetOptionalPropertyValue\(\s*state\.FinisherState,\s*"TimeElapsedNormalized"\s*\)') {
-    throw "Execution visual progress does not use the finisher state's normalized animation time."
+if ($source -notmatch 'progress01\s*=\s*state\.GetMaximumProgress\(this\);' -or
+    $source -notmatch 'foreach\s*\(object\s+finisherState\s+in\s+_observedFinisherStates\)[\s\S]*?GetNativeFinisherProgress\(\s*finisherState\s*\)') {
+    throw "Execution visual progress does not use the greatest available normalized time across participating finisher states."
 }
 
-if ($source -notmatch 'ReferenceEquals\(executionState\.Target, npc\)[\s\S]*?executionState\.TargetDeathConfirmed = true;') {
+if ($source -notmatch 'ReferenceEquals\(executionState\.Target, npc\)[\s\S]*?executionState\.ConfirmTargetDeath\(Time\.unscaledTime\);[\s\S]*?ClearDeadExecutionInteraction\(executionState\);') {
     throw "Execution death confirmation is not correlated to the exact active target."
+}
+
+if ($source -notmatch 'ReferenceEquals\([\s\S]*?active\.ExecutionAction,[\s\S]*?startState\.ExecutionAction\)[\s\S]*?active\.AddFinisherState\(finisherState\);' -or
+    $source -notmatch '_activeFinisherStates\.Count' -or
+    $source -notmatch 'state\.RemoveFinisherState\(finisherState\)') {
+    throw "Duplicate native finisher-state listeners are not grouped into one logical Execution lifecycle."
+}
+
+if ($source -notmatch 'ExecutionDeathCompletionGraceSeconds = 1\.0f' -or
+    $source -notmatch 'state\.TargetDeathConfirmed[\s\S]*?CompleteExecutionFinisherLifecycle\([\s\S]*?"target-death fallback"') {
+    throw "A target-confirmed Execution cannot recover from a missing native OnExit callback."
+}
+
+if ($source -notmatch 'PatchDeadExecutionPromptCleanup\(\);' -or
+    $source -notmatch 'discard\.Invoke\(executionAction, null\);' -or
+    $source -notmatch '"_npcPointingTowards"[\s\S]*?targetField\.SetValue\(finisherHandling, null\);' -or
+    $source -notmatch 'gameObject\.SetActive\(false\);') {
+    throw "Dead Execution interactions and their stale native prompt are not cleared together."
 }
 
 if ($source -notmatch 'state\.Finished = true;' -or $source -notmatch 'PhaseCompleted' -or $source -notmatch 'ExecutionCompletedStateSeconds') {

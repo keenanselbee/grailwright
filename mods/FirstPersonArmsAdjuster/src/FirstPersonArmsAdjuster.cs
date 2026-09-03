@@ -41,8 +41,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.8.6.0")]
-[assembly: AssemblyFileVersion("0.8.6.0")]
+[assembly: AssemblyVersion("0.8.8.0")]
+[assembly: AssemblyFileVersion("0.8.8.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -79,14 +79,21 @@ namespace FirstPersonArmsAdjuster
     [BepInDependency(
         TrueThirdPersonPluginGuid,
         BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        KillingBlowMasteryPluginGuid,
+        BepInDependency.DependencyFlags.SoftDependency)]
     public sealed class FirstPersonArmsAdjusterPlugin : BaseUnityPlugin
     {
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.8.6";
+        public const string PluginVersion = "0.8.8";
         public const string TrueThirdPersonPluginGuid =
             "kane.tgfoa.true-third-person";
+        public const string KillingBlowMasteryPluginGuid =
+            "ks.tgfoa.killing-blow-mastery";
+        private const string KillingBlowMasteryExecutionVisualApiTypeName =
+            "KillingBlowMastery.ExecutionVisualApi";
 
         private const int ConfigSchemaVersion = 20;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -107,6 +114,12 @@ namespace FirstPersonArmsAdjuster
         private const float DodgeRetractionBlendOutSeconds = 0.20f;
         private const float DodgeRetractionHoldSeconds = 0.12f;
         private const float DodgeActivitySignalGraceSeconds = 0.05f;
+        private const float ExecutionGuardBlendInSeconds = 0.15f;
+        private const float ExecutionGuardBlendOutSeconds = 0.25f;
+        private const float ExecutionMoveTowardVanillaStrength = 0.50f;
+        private const float ExecutionShoulderRetractionMeters = 0.12f;
+        private const float ExecutionNativeStateGraceSeconds = 0.25f;
+        private const int ExecutionPhaseActive = 2;
         private const float HeadBobSpeedThreshold = 0.05f;
         private const float HeadBobMaximumDeltaTime = 0.05f;
         private const float HeadBobBlendInSeconds = 0.18f;
@@ -525,6 +538,19 @@ namespace FirstPersonArmsAdjuster
         private float _lastDodgeActivitySignalTime = float.NegativeInfinity;
         private bool _dodgeActive;
         private int _dodgeRetractionUpdateFrame = -1;
+        private MethodInfo _killingBlowMasteryTryGetExecutionVisualStateMethod;
+        private float _nextKillingBlowMasteryApiResolveTime;
+        private bool _killingBlowMasteryApiUnavailableForSession;
+        private bool _killingBlowMasteryApiFailureLogged;
+        private float _executionGuardBlend;
+        private float _executionGuardBlendStart;
+        private float _executionGuardBlendTarget;
+        private float _executionGuardBlendStartedAt;
+        private bool _executionGuardActive;
+        private int _executionGuardSequence;
+        private bool _executionNativeFinisherObserved;
+        private float _executionNativeStateMissingSince = float.NegativeInfinity;
+        private int _executionGuardUpdateFrame = -1;
         private float _sheathingOffsetBlend = 1.0f;
         private int _sheathingBlendUpdateFrame = -1;
         private bool _sheathingActive;
@@ -669,6 +695,7 @@ namespace FirstPersonArmsAdjuster
             UpdateHeldMeleeOffsetBlend();
             UpdateSprintAttackOffsetBlend();
             UpdateDodgeShoulderRetractionBlend();
+            UpdateExecutionGuardBlend();
             UpdateSheathingOffsetBlend();
         }
 
@@ -798,6 +825,15 @@ namespace FirstPersonArmsAdjuster
             _lastDodgeActivitySignalTime = float.NegativeInfinity;
             _dodgeActive = false;
             _dodgeRetractionUpdateFrame = -1;
+            _executionGuardBlend = 0.0f;
+            _executionGuardBlendStart = 0.0f;
+            _executionGuardBlendTarget = 0.0f;
+            _executionGuardBlendStartedAt = 0.0f;
+            _executionGuardActive = false;
+            _executionGuardSequence = 0;
+            _executionNativeFinisherObserved = false;
+            _executionNativeStateMissingSince = float.NegativeInfinity;
+            _executionGuardUpdateFrame = -1;
             _sheathingOffsetBlend = 1.0f;
             _sheathingBlendUpdateFrame = -1;
             _sheathingActive = false;
@@ -1213,6 +1249,233 @@ namespace FirstPersonArmsAdjuster
         {
             return state >= HeroStateType.DashFront
                 && state <= HeroStateType.DashBackRight;
+        }
+
+        private void UpdateExecutionGuardBlend()
+        {
+            if (_executionGuardUpdateFrame == Time.frameCount)
+            {
+                return;
+            }
+
+            _executionGuardUpdateFrame = Time.frameCount;
+            int sequence = 0;
+            bool targetDeathConfirmed = false;
+            bool apiActive = _enableAnimationGuards != null
+                && _enableAnimationGuards.Value
+                && TryReadExecutionVisualState(
+                    out sequence,
+                    out targetDeathConfirmed);
+            if (apiActive && sequence != _executionGuardSequence)
+            {
+                _executionGuardSequence = sequence;
+                _executionNativeFinisherObserved = false;
+                _executionNativeStateMissingSince =
+                    float.NegativeInfinity;
+            }
+
+            bool nativeFinisherActive = apiActive
+                && IsNativeFinisherStateActive(Hero.Current);
+            if (nativeFinisherActive)
+            {
+                _executionNativeFinisherObserved = true;
+                _executionNativeStateMissingSince =
+                    float.NegativeInfinity;
+            }
+            else if (apiActive
+                && targetDeathConfirmed
+                && _executionNativeFinisherObserved
+                && float.IsNegativeInfinity(
+                    _executionNativeStateMissingSince))
+            {
+                _executionNativeStateMissingSince = Time.unscaledTime;
+            }
+
+            bool nativeStateTimedOut = apiActive
+                && targetDeathConfirmed
+                && _executionNativeFinisherObserved
+                && !float.IsNegativeInfinity(
+                    _executionNativeStateMissingSince)
+                && Time.unscaledTime
+                    - _executionNativeStateMissingSince
+                    >= ExecutionNativeStateGraceSeconds;
+            bool active = apiActive && !nativeStateTimedOut;
+            float target = active ? 1.0f : 0.0f;
+            if (!Mathf.Approximately(
+                    target,
+                    _executionGuardBlendTarget))
+            {
+                _executionGuardBlendStart = _executionGuardBlend;
+                _executionGuardBlendTarget = target;
+                _executionGuardBlendStartedAt = Time.unscaledTime;
+            }
+
+            float duration = _executionGuardBlendTarget
+                    > _executionGuardBlendStart
+                ? ExecutionGuardBlendInSeconds
+                : ExecutionGuardBlendOutSeconds;
+            float progress = duration <= 0.0f
+                ? 1.0f
+                : Mathf.Clamp01(
+                    (Time.unscaledTime
+                        - _executionGuardBlendStartedAt)
+                    / duration);
+            float easedProgress = progress
+                * progress
+                * (3.0f - (2.0f * progress));
+            _executionGuardBlend = Mathf.LerpUnclamped(
+                _executionGuardBlendStart,
+                _executionGuardBlendTarget,
+                easedProgress);
+
+            if (active != _executionGuardActive)
+            {
+                _executionGuardActive = active;
+                if (_diagnostics != null && _diagnostics.Value)
+                {
+                    Logger.LogInfo(
+                        active
+                            ? "Blending the execution viewmodel halfway toward vanilla with additional shoulder retraction."
+                            : "Restoring the configured viewmodel after the execution guard.");
+                }
+            }
+        }
+
+        private static bool IsNativeFinisherStateActive(Hero hero)
+        {
+            if (hero == null)
+            {
+                return false;
+            }
+
+            foreach (HeroAnimatorSubstateMachine fsm
+                in hero.Elements<HeroAnimatorSubstateMachine>())
+            {
+                if (fsm != null
+                    && (fsm.CurrentStateType == HeroStateType.Finisher
+                        || fsm.CurrentStateToEnterType
+                            == HeroStateType.Finisher))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool TryReadExecutionVisualState(
+            out int sequence,
+            out bool targetDeathConfirmed)
+        {
+            sequence = 0;
+            targetDeathConfirmed = false;
+            if (!ResolveKillingBlowMasteryExecutionVisualApi())
+            {
+                return false;
+            }
+
+            object[] arguments = { 0, 0, null, 0.0f, false };
+            try
+            {
+                object result =
+                    _killingBlowMasteryTryGetExecutionVisualStateMethod
+                        .Invoke(null, arguments);
+                if (!(result is bool) || !(bool)result)
+                {
+                    return false;
+                }
+
+                sequence = Convert.ToInt32(
+                    arguments[0],
+                    CultureInfo.InvariantCulture);
+                int phase = Convert.ToInt32(
+                    arguments[1],
+                    CultureInfo.InvariantCulture);
+                targetDeathConfirmed = arguments[4] is bool
+                    && (bool)arguments[4];
+                return phase == ExecutionPhaseActive
+                    && arguments[2] != null;
+            }
+            catch (Exception exception)
+            {
+                _killingBlowMasteryTryGetExecutionVisualStateMethod = null;
+                _killingBlowMasteryApiUnavailableForSession = true;
+                LogKillingBlowMasteryApiFailure(
+                    "Could not read Killing Blow Mastery's execution state: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        private bool ResolveKillingBlowMasteryExecutionVisualApi()
+        {
+            if (_killingBlowMasteryTryGetExecutionVisualStateMethod != null)
+            {
+                return true;
+            }
+            if (_killingBlowMasteryApiUnavailableForSession
+                || Time.unscaledTime
+                    < _nextKillingBlowMasteryApiResolveTime)
+            {
+                return false;
+            }
+
+            _nextKillingBlowMasteryApiResolveTime =
+                Time.unscaledTime + 0.5f;
+            BepInEx.PluginInfo pluginInfo;
+            if (!BepInEx.Bootstrap.Chainloader.PluginInfos.TryGetValue(
+                    KillingBlowMasteryPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                _killingBlowMasteryApiUnavailableForSession = true;
+                return false;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                KillingBlowMasteryExecutionVisualApiTypeName,
+                false);
+            FieldInfo apiVersionField = apiType == null
+                ? null
+                : apiType.GetField(
+                    "ApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+            MethodInfo tryGetStateMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "TryGetState",
+                    BindingFlags.Public | BindingFlags.Static);
+            if (apiVersionField == null
+                || !object.Equals(
+                    apiVersionField.GetRawConstantValue(),
+                    1)
+                || tryGetStateMethod == null)
+            {
+                _killingBlowMasteryApiUnavailableForSession = true;
+                LogKillingBlowMasteryApiFailure(
+                    "Killing Blow Mastery is loaded without execution-visual API v1; the execution guard is unavailable.");
+                return false;
+            }
+
+            _killingBlowMasteryTryGetExecutionVisualStateMethod =
+                tryGetStateMethod;
+            if (_diagnostics != null && _diagnostics.Value)
+            {
+                Logger.LogInfo(
+                    "Killing Blow Mastery execution-guard integration is active.");
+            }
+            return true;
+        }
+
+        private void LogKillingBlowMasteryApiFailure(string message)
+        {
+            if (_killingBlowMasteryApiFailureLogged)
+            {
+                return;
+            }
+
+            _killingBlowMasteryApiFailureLogged = true;
+            Logger.LogWarning(message);
         }
 
         private bool IsHeadBobAccessibilityEnabled()
@@ -4354,6 +4617,7 @@ namespace FirstPersonArmsAdjuster
             UpdateHeldMeleeOffsetBlend();
             UpdateSprintAttackOffsetBlend();
             UpdateDodgeShoulderRetractionBlend();
+            UpdateExecutionGuardBlend();
             UpdateSheathingOffsetBlend();
             float configuredForwardOffset =
                 GetEffectiveForwardOffset(hero);
@@ -4395,8 +4659,11 @@ namespace FirstPersonArmsAdjuster
                             * sharedGuardStrength,
                         _sprintAttackOffsetBlend
                             * sharedGuardStrength),
-                    (1.0f - _sheathingOffsetBlend)
-                        * sharedGuardStrength);
+                    Mathf.Max(
+                        (1.0f - _sheathingOffsetBlend)
+                            * sharedGuardStrength,
+                        _executionGuardBlend
+                            * ExecutionMoveTowardVanillaStrength));
                 retainedScale = 1.0f - Mathf.Clamp01(
                     strongestMoveTowardVanilla);
                 heldCorrection = Vector3.zero;
@@ -4421,7 +4688,12 @@ namespace FirstPersonArmsAdjuster
             return (configuredOffset * retainedScale + heldCorrection)
                 * _fireplaceOffsetBlend
                 * sprintAttackRetainedScale
-                * sheathingRetainedScale;
+                * sheathingRetainedScale
+                * (useSharedGuardTarget
+                    ? 1.0f
+                    : 1.0f
+                        - (_executionGuardBlend
+                            * ExecutionMoveTowardVanillaStrength));
         }
 
         internal void CaptureVisualWorldOffsetAfterCameraRotation(
@@ -4535,10 +4807,19 @@ namespace FirstPersonArmsAdjuster
                     - (dodgeRetractionRemaining
                         * dodgeRetractionRemaining
                         * dodgeRetractionRemaining);
-                _currentShoulderRetractionMeters = Mathf.Lerp(
+                float dodgeShoulderRetraction = Mathf.Lerp(
                     configuredShoulderRetraction,
                     DodgeRetractionMaximumMeters,
                     dodgeRetractionProgress);
+                float executionShoulderRetraction = Mathf.Lerp(
+                    configuredShoulderRetraction,
+                    Mathf.Max(
+                        configuredShoulderRetraction,
+                        ExecutionShoulderRetractionMeters),
+                    _executionGuardBlend);
+                _currentShoulderRetractionMeters = Mathf.Max(
+                    dodgeShoulderRetraction,
+                    executionShoulderRetraction);
                 _currentShoulderRetractionWorldOffset =
                     visualBasis.TransformVector(
                         new Vector3(

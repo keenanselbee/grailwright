@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.9.7
+Version 1.9.9
 
 Platforms: Windows and Linux through Proton.
 
@@ -132,9 +132,14 @@ produce normal killing-blow rewards.
 With Steel and Bone 4.0.1 and Dishonored Dynamic Crosshair 3.6.2, an eligible
 Execute prompt previews the target's actual Meager, Worthy, Potent, or Prime
 corpse-quality skull in white. During the finisher, that same skull follows the
-real animation progress toward killing-blow dark red. Confirmed target-matched
-feedback hands off near the end to Dishonored's normal layered killing-blow
-marker; cancelled finishers never create a false kill marker.
+real animation progress toward killing-blow dark red. The exact target's death
+immediately hands confirmed feedback to Dishonored's normal layered
+killing-blow marker; cancelled finishers never create a false kill marker.
+
+Multiple native Finisher state listeners are treated as one logical Execution.
+The exact dead target's Execute interaction is cleared immediately, and a short
+death-completion fallback closes the presentation lifecycle if a native OnExit
+callback is missing.
 
 In Execution mode, KBM first selects from the equipped melee weapon's loaded
 execution animations after its explicit health and safety checks. If that list

@@ -104,9 +104,11 @@ $refreshMethod = [regex]::Match(
     [System.Text.RegularExpressions.RegexOptions]::Multiline
 ).Value
 if ($refreshMethod -notmatch '(?s)configuredShoulderRetraction = Mathf\.Clamp\(.+?_shoulderRetraction\.Value.+?0\.0f,.+?0\.25f' -or
-    $refreshMethod -notmatch '(?s)_currentShoulderRetractionMeters = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?DodgeRetractionMaximumMeters.+?dodgeRetractionProgress' -or
+    $refreshMethod -notmatch '(?s)dodgeShoulderRetraction = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?DodgeRetractionMaximumMeters.+?dodgeRetractionProgress' -or
+    $refreshMethod -notmatch '(?s)executionShoulderRetraction = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?ExecutionShoulderRetractionMeters.+?_executionGuardBlend' -or
+    $refreshMethod -notmatch '(?s)_currentShoulderRetractionMeters = Mathf\.Max\(.+?dodgeShoulderRetraction.+?executionShoulderRetraction' -or
     $refreshMethod -notmatch '(?s)_currentShoulderRetractionWorldOffset =\s*visualBasis\.TransformVector\(.+?-_currentShoulderRetractionMeters') {
-    throw "Shoulder retraction must interpolate independently toward the dodge maximum and transform through the current arms basis."
+    throw "Shoulder retraction guards must compose by strongest correction and transform through the current arms basis."
 }
 if ($refreshMethod -match 'GetEffectiveForwardOffset\(hero\)') {
     throw "Shoulder retraction must be able to pass behind the vanilla position independently of equipment depth."

@@ -1,3 +1,4 @@
-TargetVersion=2.9.7
-BaselineVersion=2.9.2
-Expanded Soul Rend to ordinary hostile scene enemies when their native repetitive identity and reusable summon data resolve safely, while unique, named, quest, merchant, guard, companion, boss, miniboss, scripted-death, and otherwise protected actors remain excluded. Hardened persistent raised servants against native save failures by keeping generated copies out of the game's save graph and rebuilding them from one atomic, versioned snapshot after the main scene is ready. Health, Empowerment, Soulforged progress, investment, and protected-source ownership survive reconstruction. Persistence-disabled, incomplete, invalid, or failed records restore or defer the protected source and safely refund trustworthy committed Soul Vigor, while ordinary summons remain on the native save path.
+TargetVersion=3.3.0
+BaselineVersion=3.2.9
+
+Empower-severing and Soulforged-rank reductions now use dedicated high-priority, short Necrotic GFT status messages that collapse only against the same servant. Rank zero is presented as Base, resource segments use consistent separators, and zero-value Mana or Soul Vigor is omitted without adding a next-cast unbinding warning.

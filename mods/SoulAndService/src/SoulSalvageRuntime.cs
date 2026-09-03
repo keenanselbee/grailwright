@@ -2,11 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Awaken.TG.Assets;
 using Awaken.TG.MVC;
+using Awaken.TG.MVC.Domains;
 using Awaken.TG.MVC.Elements;
 using Awaken.TG.MVC.Events;
 using Awaken.TG.Main.AI.SummonsAndAllies;
@@ -47,6 +50,45 @@ using UnityEngine;
 
 namespace SoulAndService
 {
+    [Serializable]
+    public sealed class RaisedPersistencePayload
+    {
+        public int Version = 1;
+        public RaisedPersistenceSnapshot[] Records =
+            new RaisedPersistenceSnapshot[0];
+    }
+
+    [Serializable]
+    public sealed class RaisedPersistenceSnapshot
+    {
+        public int Phase;
+        public string SourceId;
+        public string SourceInteractability;
+        public string SpawnTemplateGuid;
+        public string SourceDisplayName;
+        public string CorpseFingerprint;
+        public float Quality01;
+        public int QualityTier;
+        public float BindingManaCost;
+        public int InvestedSoulVigor;
+        public int NativeSoulVigor;
+        public float HealthFraction;
+        public float SoulforgedOriginalMaximumHealth;
+        public float SoulforgedDamageDealt;
+        public int SoulforgedRank;
+        public float EmpowermentMultiplier;
+        public bool RecoveryManaInitialized;
+        public float RecoveryOriginalMana;
+        public float RecoveryRemainingMana;
+        public int RecoveryOriginalSoulVigor;
+        public int EmpowermentSoulVigorInvestment;
+        public int RecoveredSoulforgedRankMask;
+        public bool IsMiniboss;
+        public string HighSoulFingerprint;
+        public int HighSoulExtractionValue;
+        public int HighSoulServiceCycle;
+    }
+
     internal static class SoulSalvageRuntime
     {
         private const string SoulSalvageTemplateGuid =
@@ -55,7 +97,7 @@ namespace SoulAndService
         private const float SoulRendAssistRadius = 0.4f;
         private const int SoulRendAssistColliderBufferSize = 64;
         private const int SoulTargetRaycastBufferSize = 64;
-        private const float FrayedSoulCleanupIntervalSeconds = 0.25f;
+        private const float SoulClaimPreparationCleanupIntervalSeconds = 1.0f;
         private const string GenericRaisedServantPortraitKey =
             "759a3e6e96ddae742ab8cde19fae42f0";
         private const string SkeletonSummonVfxKey =
@@ -72,23 +114,32 @@ namespace SoulAndService
         private const float RaisedSalvageMinimumQualityFactor = 0.65f;
         private const float RaisedSalvageMaximumQualityFactor = 1.50f;
         private const float RaisedSalvageMaximumRefundFraction = 0.75f;
+        private const float EmpowermentSeverRefundFraction = 0.75f;
+        private const float SoulforgedRecoveryFractionPerRank = 0.03f;
+        private const float SoulforgedRecoveryMinimumHealthFraction = 0.50f;
         private const float SoulSalvageRange = 50.0f;
         private const float ReanimationPositionRefreshSeconds = 0.10f;
         private const float ComparableLightSpellBaseDamage = 5.0f;
         private const float SoulRendPowerZeroMultiplier = 0.50f;
         private const float SoulRendPowerNormalMultiplier = 1.00f;
         private const float SoulRendPowerMaximumMultiplier = 2.00f;
-        private const float FrayedSoulDurationSeconds = 8.0f;
-        private const int FrayedSoulMaximumStacks = 3;
-        private const float FrayedSoulChanceBonusPerStack = 0.10f;
-        private const float SoulClaimHealthThreshold = 0.40f;
-        private const float SoulClaimPowerZeroChance = 0.05f;
-        private const float SoulClaimPowerNormalChance = 0.175f;
-        private const float SoulClaimPowerMaximumChance = 0.30f;
-        private const float SoulClaimAbsoluteChanceCap = 0.35f;
+        private const int SoulClaimMaximumPreparationHits = 5;
+        private const float SoulClaimThresholdBonusPerHit = 0.02f;
+        private const float SoulClaimMinimumHealthThreshold = 0.01f;
+        private const float SoulClaimMaximumHealthThreshold = 0.40f;
         private const int OrdinarySummonVigorCostPerTier = 3;
+        private const int HighSoulPoolPortions = 6;
+        private const int MinibossReanimationBaseSoulVigor = 120;
+        private const float MinibossBindingResistance = 340.0f;
         private const float ExecutedServantCleanupSeconds = 1.0f;
-        private const int RaisedPersistenceVersion = 1;
+        private const int RaisedPersistenceLegacyVersion = 1;
+        private const int RaisedPersistencePreviousVersion = 2;
+        private const int RaisedPersistenceVersion = 3;
+        private const int RaisedPersistenceMagic = 0x53525032;
+        private const int RaisedPersistenceMaximumRecords = 256;
+        private const int RaisedPersistenceMaximumPayloadCharacters = 2097152;
+        private const int RaisedPersistenceMaximumStringCharacters = 16384;
+        private const string RaisedPersistencePayloadPrefix = "SASRP2:";
         private const int RaisedPersistencePending = 0;
         private const int RaisedPersistenceActive = 1;
         private const string RaisedPersistencePayloadKey =
@@ -101,10 +152,34 @@ namespace SoulAndService
             "Abomination", "Wolf", "Bear", "Boar", "Spider", "Wyrm",
             "Golem", "Grindleow", "Corpse Eater", "CorpseEater"
         };
+        private static readonly string[] UnbindableHighSoulMessages =
+        {
+            "This spirit is too powerful to bind.",
+            "This soul cannot be commanded.",
+            "No mortal binding can contain this spirit.",
+            "This spirit defies your service.",
+            "Your binding cannot hold this soul."
+        };
+        private static readonly HashSet<string> ReanimatableMinibossTemplateGuids =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                // Generic non-scalable enemies. Individual scene instances still
+                // have to pass every typed lifecycle protection below.
+                "65d1cb395b9dfef45861bc23bbcc6ccb", // Foredweller Weaver
+                "1bf99bc722b8c9a41abf0f0fd5aa7fb6", // Foredweller Weaver Mage
+                "8a709501a390f4141baa2bc4dcfef4ab", // Blood Abomination
+                "86fe83f56653eb44497ebc6526f8e93e", // Rootambusher
+                "8ae71a8c2d8cd094489cd0f3bef79b43", // Forlorn Ogre
+                "9f14199b71fc33847babc9df3ac610fd" // Sleepwalker
+            };
         private const string BloodMagicPluginGuid =
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
+        private const string EyesInTheDarkPluginGuid =
+            "ks.tgfoa.eyes-in-the-dark";
+        private const string EyesInTheDarkCorpseDrainApiTypeName =
+            "EyesInTheDark.EyesInTheDarkCorpseDrainApi";
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
         private const string VersatileWeaponsApiTypeName =
@@ -124,6 +199,8 @@ namespace SoulAndService
             internal float BindingManaCost;
             internal int InvestedSoulVigor;
             internal int NativeSoulVigor;
+            internal ServantRecoveryLedger Recovery =
+                new ServantRecoveryLedger();
             internal float SalvageHealthFraction = 1.0f;
             internal float ManaReturnedOnSacrifice;
             internal StatTweak QualityHealthTweak;
@@ -139,47 +216,71 @@ namespace SoulAndService
             internal float NextBloodRitualMovementHoldAt;
             internal int BloodRitualCommandSequence;
             internal string SpawnTemplateGuid;
+            internal bool IsMiniboss;
+            internal string HighSoulFingerprint;
+            internal int HighSoulExtractionValue;
+            internal int HighSoulServiceCycle;
         }
 
-        [Serializable]
-        private sealed class RaisedPersistencePayload
+        private sealed class ServantRecoveryLedger
         {
-            public int Version = RaisedPersistenceVersion;
-            public List<RaisedPersistenceSnapshot> Records =
-                new List<RaisedPersistenceSnapshot>();
+            internal bool ManaInitialized;
+            internal float OriginalMana;
+            internal float RemainingMana;
+            internal int OriginalSoulVigor;
+            internal int EmpowermentSoulVigorInvestment;
+            internal int RecoveredSoulforgedRankMask;
         }
 
-        [Serializable]
-        private sealed class RaisedPersistenceSnapshot
+        private sealed class OrdinarySummonInvestment
         {
-            public int Phase;
-            public string SourceId;
-            public string SourceInteractability;
-            public string SpawnTemplateGuid;
-            public string SourceDisplayName;
-            public string CorpseFingerprint;
-            public float Quality01;
-            public int QualityTier;
-            public float BindingManaCost;
-            public int InvestedSoulVigor;
-            public int NativeSoulVigor;
-            public float HealthFraction;
-            public float SoulforgedOriginalMaximumHealth;
-            public float SoulforgedDamageDealt;
-            public int SoulforgedRank;
-            public float EmpowermentMultiplier;
+            internal int InvestedSoulVigor;
+            internal ServantRecoveryLedger Recovery =
+                new ServantRecoveryLedger();
         }
 
-        private sealed class FrayedSoulState
+        private sealed class SoulClaimPreparationState
         {
-            internal int Stacks;
-            internal float ExpiresAt;
+            internal NpcElement Target;
+            internal int Hits;
+        }
+
+        private sealed class RaisedPersistenceRecoveryDiagnostics
+        {
+            internal int Loaded;
+            internal int Attempted;
+            internal int Scheduled;
+            internal int Restored;
+            internal int Rejected;
+            internal int AlreadyServing;
+            internal int SourcesRestored;
+            internal int Deferred;
+            internal int PendingCallbacks;
+            internal bool ScenePassComplete;
+        }
+
+        private sealed class CurrentSessionCorpseState
+        {
+            internal bool IsSummon;
         }
 
         private sealed class RaiseAllCandidate
         {
             internal Location Source;
             internal float DistanceSqr;
+        }
+
+        private struct HighSoulCorpseInfo
+        {
+            internal Location Corpse;
+            internal NpcTemplate NpcTemplate;
+            internal NpcType NpcType;
+            internal int NativeTier;
+            internal int ExtractionValue;
+            internal string Fingerprint;
+            internal bool CanSafelySimplify;
+            internal bool CanReanimate;
+            internal LocationTemplate SpawnTemplate;
         }
 
         private sealed class RaycastHitDistanceComparer : IComparer<RaycastHit>
@@ -206,8 +307,9 @@ namespace SoulAndService
         private static readonly Dictionary<string, ReanimationRecord>
             ExecutedServantRemains =
                 new Dictionary<string, ReanimationRecord>();
-        private static readonly Dictionary<string, int> OrdinarySummonInvestments =
-            new Dictionary<string, int>();
+        private static readonly Dictionary<string, OrdinarySummonInvestment>
+            OrdinarySummonInvestments =
+                new Dictionary<string, OrdinarySummonInvestment>();
         private static readonly Dictionary<string, int> VanillaSummonTiers =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             {
@@ -238,22 +340,29 @@ namespace SoulAndService
                 { "a4d083ffa4d64f143a7bb019e53b2d0d", 5 }, // Sea Bite
                 { "b477a2b9fc1970244936cd5ccb096628", 6 } // Sir Galahad
             };
-        private static readonly Dictionary<string, FrayedSoulState> FrayedSouls =
-            new Dictionary<string, FrayedSoulState>();
-        private static readonly List<string> FrayedSoulRemovalBuffer =
+        private static readonly Dictionary<string, SoulClaimPreparationState>
+            SoulClaimPreparations =
+                new Dictionary<string, SoulClaimPreparationState>();
+        private static readonly List<string> SoulClaimPreparationRemovalBuffer =
             new List<string>();
         private static readonly ConditionalWeakTable<Damage, NecroticDamageMarker>
             NecroticDamageMarkers =
                 new ConditionalWeakTable<Damage, NecroticDamageMarker>();
+        private static ConditionalWeakTable<Corpse, CurrentSessionCorpseState>
+            CurrentSessionCorpses =
+                new ConditionalWeakTable<Corpse, CurrentSessionCorpseState>();
         private static int _focusedTargetCacheFrame = -1;
         private static bool _focusedTargetCacheFound;
         private static Location _focusedTargetCacheLocation;
         private static NpcHeroSummon _focusedTargetCacheSummon;
+        private static int _focusedHighSoulCacheFrame = -1;
+        private static bool _focusedHighSoulCacheFound;
+        private static HighSoulCorpseInfo _focusedHighSoulCacheInfo;
         private static readonly List<Location> PendingRaisedDiscards =
             new List<Location>();
         private static readonly List<NpcHeroSummon> PendingLegacyRaisedRestores =
             new List<NpcHeroSummon>();
-        private static RaisedPersistencePayload _loadedRaisedPersistence;
+        private static RaisedPersistenceSnapshot[] _loadedRaisedPersistence;
         private static IEventListener _raisedPersistenceSceneListener;
         private static bool _raisedPersistenceListenerWarningLogged;
         private static readonly Dictionary<string, ItemStats> SoulSalvageItems =
@@ -285,6 +394,8 @@ namespace SoulAndService
             new RaycastHitDistanceComparer();
         private static readonly FieldInfo SimplifiedDeadBodyReplacementField =
             AccessTools.Field(typeof(NpcDummy), "_simplifiedDeadBodyReplacementRef");
+        private static readonly FieldInfo LocationInitializerField =
+            AccessTools.Field(typeof(Location), "_initializer");
         private static readonly MethodInfo PreventSummonMovementMethod =
             AccessTools.Method(typeof(NpcHeroSummon), "PreventMovement");
 
@@ -292,13 +403,15 @@ namespace SoulAndService
         private static float _nextExecutedServantCleanupTime;
         private static bool _heavyCastActive;
         private static bool _lightHarvestCompleted;
+        private static bool _lightPreserveTarget;
         private static NpcHeroSummon _lightTarget;
         private static NpcHeroSummon _heavyTarget;
         private static float _lightOriginalMana;
         private static float _lightHealthFraction;
         private static float _lightMaximumManaReturn;
+        private static float _lightResolvedManaReturn;
         private static float _itemRefreshDelay;
-        private static float _nextFrayedSoulCleanupAt;
+        private static float _nextSoulClaimPreparationCleanupAt;
         private static float _nextReanimationPositionRefreshTime;
         private static int _raiseAllEligibilityFrame = -1;
         private static Hero _raiseAllEligibilityHero;
@@ -307,6 +420,9 @@ namespace SoulAndService
         private static bool _creatingRaisedServant;
         private static MethodInfo _bloodMagicGetExsanguinationSeverityMethod;
         private static bool _bloodMagicApiUnavailable;
+        private static MethodInfo _eyesInTheDarkRegisterCorpseDrainMethod;
+        private static bool _eyesInTheDarkBridgeResolved;
+        private static bool _eyesInTheDarkFailureLogged;
         private static Func<bool> _versatileWeaponsIsMainHandSuppressed;
         private static Func<bool> _versatileWeaponsIsOffHandSuppressed;
         private static bool _versatileWeaponsApiUnavailable;
@@ -328,6 +444,20 @@ namespace SoulAndService
                 postfix: new HarmonyMethod(
                     typeof(SoulSalvageRuntime),
                     nameof(AfterLocationInitialized)));
+            ConstructorInfo corpseConstructor = AccessTools.Constructor(
+                typeof(Corpse),
+                new[] { typeof(NpcElement), typeof(ICharacter) });
+            if (corpseConstructor == null)
+            {
+                throw new MissingMethodException(
+                    typeof(Corpse).FullName,
+                    ".ctor(NpcElement, ICharacter)");
+            }
+            harmony.Patch(
+                corpseConstructor,
+                postfix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(AfterCorpseConstructed)));
             harmony.Patch(
                 RequireMethod(
                     typeof(VHeroController),
@@ -392,6 +522,16 @@ namespace SoulAndService
                     typeof(SoulSalvageRuntime),
                     nameof(AfterGetItemDisplayName)));
             harmony.Patch(
+                RequireMethod(typeof(SearchAction), "get_ActionFrame"),
+                postfix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(AfterGetSearchActionFrame)));
+            harmony.Patch(
+                RequireMethod(typeof(NpcDummy), "TryReplaceWithSimplifiedLocation"),
+                prefix: new HarmonyMethod(
+                    typeof(SoulSalvageRuntime),
+                    nameof(BeforeReplaceHighSoulCorpse)));
+            harmony.Patch(
                 RequireMethod(typeof(MagicItemTemplateInfo), "get_MagicDescription"),
                 prefix: new HarmonyMethod(
                     typeof(SoulSalvageRuntime),
@@ -401,13 +541,108 @@ namespace SoulAndService
                     nameof(AfterGetMagicDescription)));
         }
 
+        private static bool BeforeReplaceHighSoulCorpse(
+            NpcDummy __instance,
+            ref bool __result)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Location location = __instance == null
+                ? null
+                : __instance.ParentModel;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value
+                || location == null
+                || location.HasBeenDiscarded)
+            {
+                return true;
+            }
+
+            ReanimationRecord activeRecord = Reanimations.Values.FirstOrDefault(
+                record => record != null
+                    && record.IsMiniboss
+                    && ReferenceEquals(record.SourceCorpse, location));
+            if (activeRecord != null)
+            {
+                __result = false;
+                return false;
+            }
+
+            Hero hero = Hero.Current;
+            Corpse sourceCorpse = location.TryGetElement<Corpse>();
+            if (IsPotentialSavedHighSoulCorpse(location)
+                && (hero == null
+                    || hero.Faction == null
+                    || sourceCorpse == null
+                    || sourceCorpse.Faction == null))
+            {
+                __result = false;
+                return false;
+            }
+            if (hero == null
+                || !TryResolveHighSoulCorpse(
+                    hero,
+                    location,
+                    out HighSoulCorpseInfo highSoul))
+            {
+                return true;
+            }
+            int remaining = SoulProgressionRuntime
+                .GetOrInitializeHighSoulVigorPool(
+                    highSoul.Fingerprint,
+                    highSoul.ExtractionValue);
+            if (remaining <= 0 && highSoul.CanSafelySimplify)
+            {
+                return true;
+            }
+            __result = false;
+            return false;
+        }
+
+        private static void AfterCorpseConstructed(
+            Corpse __instance,
+            NpcElement npc)
+        {
+            if (__instance == null || npc == null)
+            {
+                return;
+            }
+
+            CurrentSessionCorpses.Remove(__instance);
+            CurrentSessionCorpses.Add(
+                __instance,
+                new CurrentSessionCorpseState
+                {
+                    IsSummon = npc.IsSummon
+                        || npc.HasElement<NpcHeroSummon>()
+                });
+        }
+
+        private static bool IsPotentialSavedHighSoulCorpse(Location candidate)
+        {
+            NpcTemplate npcTemplate = candidate == null
+                ? null
+                : NpcTemplate.FromNpcOrDummy(candidate);
+            return candidate != null
+                && !candidate.HasBeenDiscarded
+                && (candidate.Initializer is SceneLocationInitializer
+                    || (candidate.Initializer is RuntimeLocationInitializer
+                        && IsAuthoredSourceDiscarded(((Model)candidate).ID)))
+                && !((Model)candidate).IsNotSaved
+                && candidate.TryGetElement<Corpse>() != null
+                && npcTemplate != null
+                && !npcTemplate.IsSummon
+                && (npcTemplate.NpcType == NpcType.MiniBoss
+                    || npcTemplate.NpcType == NpcType.Boss);
+        }
+
         internal static void Update()
         {
             UpdateSoulSalvageItems();
             UpdateReanimationPositions();
             ReanimationGlyphRuntime.Update();
             UpdateExecutedServantRemains();
-            RemoveExpiredFrayedSouls();
+            RemoveStaleSoulClaimPreparations();
 
             if (PendingRaisedDiscards.Count > 0)
             {
@@ -440,21 +675,12 @@ namespace SoulAndService
                 string sourceId = ((Model)location).ID;
                 if (ReadDeferredSourceInt(sourceId, "restore") != 0)
                 {
-                    string persistedInteractability = ReadDeferredSourceString(
-                        sourceId,
-                        "interactability");
-                    location.SetInteractability(IsPersistedInteractability(
-                            persistedInteractability)
-                        ? ResolvePersistedInteractability(persistedInteractability)
-                        : LocationInteractability.Active);
-                    TriggerRuntimeCorpseVisualEvent(location, "OnDeath");
-                    WriteDeferredSourceInt(sourceId, "restore", 0);
-                    WriteDeferredSourceString(sourceId, "interactability", string.Empty);
-                    SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-                    if (plugin != null)
+                    if (!TryRestoreDeferredSource(location, out string failure))
                     {
-                        plugin.LogDiagnostic(
-                            "Restored deferred Soul Rend source corpse " + sourceId + ".");
+                        SoulAndServicePlugin.Instance?.LogWarning(
+                            "Deferred Soul Rend source recovery remains pending: "
+                            + failure + ".");
+                        EnsureRaisedPersistenceSceneListener();
                     }
                     return;
                 }
@@ -528,6 +754,8 @@ namespace SoulAndService
 
         internal static void Shutdown()
         {
+            CurrentSessionCorpses =
+                new ConditionalWeakTable<Corpse, CurrentSessionCorpseState>();
             RemoveRaisedPersistenceSceneListener();
             _loadedRaisedPersistence = null;
             _raisedPersistenceListenerWarningLogged = false;
@@ -578,11 +806,11 @@ namespace SoulAndService
             LightCastInfos.Clear();
             HeavyCastInfos.Clear();
             OrdinarySummonCastTiers.Clear();
-            FrayedSouls.Clear();
-            FrayedSoulRemovalBuffer.Clear();
+            SoulClaimPreparations.Clear();
+            SoulClaimPreparationRemovalBuffer.Clear();
             SoulSalvageItemRemovalBuffer.Clear();
             ExecutedServantRemovalBuffer.Clear();
-            _nextFrayedSoulCleanupAt = 0.0f;
+            _nextSoulClaimPreparationCleanupAt = 0.0f;
             OrdinarySummonInvestments.Clear();
             ClearLightCastState();
             ReanimationGlyphRuntime.Shutdown();
@@ -612,7 +840,7 @@ namespace SoulAndService
                 ClearPersistedServant(summonId);
                 return;
             }
-            if (record.BloodRitualExecuted)
+            if (record.BloodRitualExecuted && !record.IsMiniboss)
             {
                 ReanimationGlyphRuntime.Remove(summonId);
                 Reanimations.Remove(summonId);
@@ -678,14 +906,62 @@ namespace SoulAndService
             if (persistent
                 && ReadPersistedInt(summonId, "ordinary_active") != 0)
             {
-                OrdinarySummonInvestments[summonId] = Math.Max(
+                int investedVigor = Math.Max(
                     0,
                     ReadPersistedInt(summonId, "ordinary_investment"));
+                OrdinarySummonInvestment investment =
+                    new OrdinarySummonInvestment
+                    {
+                        InvestedSoulVigor = investedVigor
+                    };
+                if (ReadPersistedInt(
+                        summonId,
+                        "ordinary_recovery_version") > 0)
+                {
+                    investment.Recovery.ManaInitialized =
+                        ReadPersistedInt(
+                            summonId,
+                            "ordinary_recovery_mana_initialized") != 0;
+                    investment.Recovery.OriginalMana = Math.Max(
+                        0.0f,
+                        ReadPersistedFloat(
+                            summonId,
+                            "ordinary_recovery_original_mana"));
+                    investment.Recovery.RemainingMana = Mathf.Clamp(
+                        ReadPersistedFloat(
+                            summonId,
+                            "ordinary_recovery_remaining_mana"),
+                        0.0f,
+                        investment.Recovery.OriginalMana);
+                    investment.Recovery.OriginalSoulVigor = Math.Max(
+                        investedVigor,
+                        ReadPersistedInt(
+                            summonId,
+                            "ordinary_recovery_original_vigor"));
+                    investment.Recovery.EmpowermentSoulVigorInvestment =
+                        Mathf.Clamp(
+                            ReadPersistedInt(
+                                summonId,
+                                "ordinary_empowerment_investment"),
+                            0,
+                            investedVigor);
+                    investment.Recovery.RecoveredSoulforgedRankMask =
+                        ReadPersistedInt(
+                            summonId,
+                            "ordinary_recovered_rank_mask")
+                        & ((1 << SoulforgedRuntime.MaximumRank) - 1);
+                }
+                else
+                {
+                    investment.Recovery.OriginalSoulVigor = investedVigor;
+                }
+                OrdinarySummonInvestments[summonId] = investment;
                 return;
             }
             if (!plugin.SoulSalvageOverhaul.Value)
             {
-                OrdinarySummonInvestments[summonId] = 0;
+                OrdinarySummonInvestments[summonId] =
+                    new OrdinarySummonInvestment();
                 if (persistent)
                 {
                     WritePersistedInt(summonId, "ordinary_active", 1);
@@ -708,14 +984,16 @@ namespace SoulAndService
                 out int after))
             {
                 int committedVigor = after < before ? vigorCost : 0;
-                OrdinarySummonInvestments[summonId] = committedVigor;
+                OrdinarySummonInvestment investment =
+                    new OrdinarySummonInvestment
+                    {
+                        InvestedSoulVigor = committedVigor
+                    };
+                investment.Recovery.OriginalSoulVigor = committedVigor;
+                OrdinarySummonInvestments[summonId] = investment;
                 if (persistent)
                 {
-                    WritePersistedInt(summonId, "ordinary_active", 1);
-                    WritePersistedInt(
-                        summonId,
-                        "ordinary_investment",
-                        committedVigor);
+                    SaveOrdinarySummonInvestment(summonId, investment);
                 }
                 SoulProgressionRuntime.ShowSoulVigorWanesAfterSpend(before, after);
                 if (committedVigor > 0)
@@ -829,6 +1107,7 @@ namespace SoulAndService
                     : npc.ParentModel.Rotation,
                 ServiceInitialized = true
             };
+            EnsureRaisedRecoveryLedger(record);
             if (string.IsNullOrEmpty(record.SourceDisplayName))
             {
                 record.SourceDisplayName = GetCorpseDisplayName(source);
@@ -901,13 +1180,14 @@ namespace SoulAndService
             WriteRaisedPersistencePayload();
         }
 
-        private static void BeforeGameplayMemorySerialize()
+        private static void BeforeGameplayMemorySerialize(
+            GameplayMemory __instance)
         {
             try
             {
                 if (_loadedRaisedPersistence == null)
                 {
-                    WriteRaisedPersistencePayload();
+                    WriteRaisedPersistencePayload(__instance);
                 }
             }
             catch (Exception exception)
@@ -919,35 +1199,83 @@ namespace SoulAndService
             }
         }
 
-        private static void AfterGameplayMemoryDeserialize()
+        private static void AfterGameplayMemoryDeserialize(
+            GameplayMemory __instance)
         {
             try
             {
                 _raisedPersistenceListenerWarningLogged = false;
-                ContextualFacts facts = GetPersistenceFacts();
-                string json = facts == null
+                ContextualFacts facts = GetPersistenceFacts(__instance);
+                string storedPayload = facts == null
                     ? string.Empty
                     : facts.Get(RaisedPersistencePayloadKey, string.Empty);
-                if (string.IsNullOrWhiteSpace(json))
+                if (string.IsNullOrWhiteSpace(storedPayload))
                 {
                     _loadedRaisedPersistence = null;
+                    LogRaisedPersistenceDiagnostic(
+                        "load: snapshot=missing; deferredSources="
+                        + HasDeferredSourceRestoration() + ".");
+                    if (HasDeferredSourceRestoration())
+                    {
+                        EnsureRaisedPersistenceSceneListener();
+                    }
                     return;
                 }
-                RaisedPersistencePayload payload =
-                    JsonUtility.FromJson<RaisedPersistencePayload>(json);
-                if (payload == null
-                    || payload.Version != RaisedPersistenceVersion
-                    || payload.Records == null)
+                int loadedVersion;
+                RaisedPersistenceSnapshot[] records;
+                if (storedPayload.StartsWith(
+                    RaisedPersistencePayloadPrefix,
+                    StringComparison.Ordinal))
+                {
+                    records = DeserializeRaisedPersistencePayload(
+                        storedPayload,
+                        out loadedVersion);
+                }
+                else
+                {
+                    RaisedPersistencePayload legacyPayload =
+                        JsonUtility.FromJson<RaisedPersistencePayload>(
+                            storedPayload);
+                    if (legacyPayload == null
+                        || legacyPayload.Version
+                            != RaisedPersistenceLegacyVersion
+                        || legacyPayload.Records == null)
+                    {
+                        throw new InvalidOperationException(
+                            "unsupported raised-servant snapshot version");
+                    }
+                    loadedVersion = legacyPayload.Version;
+                    records = legacyPayload.Records;
+                }
+                if (loadedVersion != RaisedPersistenceLegacyVersion
+                    && loadedVersion != RaisedPersistencePreviousVersion
+                    && loadedVersion != RaisedPersistenceVersion)
                 {
                     throw new InvalidOperationException(
                         "unsupported raised-servant snapshot version");
                 }
-                _loadedRaisedPersistence = payload;
+                _loadedRaisedPersistence = records;
                 EnsureRaisedPersistenceSceneListener();
+                LogRaisedPersistenceDiagnostic(
+                    "load: snapshot=loaded; version="
+                    + loadedVersion
+                    + "; format=" + (loadedVersion
+                        == RaisedPersistenceLegacyVersion
+                            ? "legacy-json"
+                            : "binary-base64")
+                    + "; payloadChars=" + storedPayload.Length
+                    + "; records=" + records.Length
+                    + "; active=" + records.Count(snapshot =>
+                        snapshot != null
+                        && snapshot.Phase == RaisedPersistenceActive)
+                    + "; pending=" + records.Count(snapshot =>
+                        snapshot != null
+                        && snapshot.Phase == RaisedPersistencePending)
+                    + "; recoveryScheduled=true.");
             }
             catch (Exception exception)
             {
-                _loadedRaisedPersistence = new RaisedPersistencePayload();
+                _loadedRaisedPersistence = new RaisedPersistenceSnapshot[0];
                 EnsureRaisedPersistenceSceneListener();
                 LogRaisedPersistenceWarning(
                     "Ignored an invalid raised-servant snapshot safely: ",
@@ -1005,8 +1333,13 @@ namespace SoulAndService
                 return;
             }
             RemoveRaisedPersistenceSceneListener();
-            RaisedPersistencePayload loaded = _loadedRaisedPersistence;
+            RaisedPersistenceSnapshot[] loaded = _loadedRaisedPersistence;
             _loadedRaisedPersistence = null;
+            RaisedPersistenceRecoveryDiagnostics recovery =
+                new RaisedPersistenceRecoveryDiagnostics
+                {
+                    Loaded = loaded == null ? 0 : loaded.Length
+                };
             try
             {
                 MigrateLegacyRaisedServants();
@@ -1014,14 +1347,36 @@ namespace SoulAndService
                 {
                     HashSet<string> handledSources =
                         new HashSet<string>(StringComparer.Ordinal);
-                    foreach (RaisedPersistenceSnapshot snapshot in loaded.Records)
+                    List<Vector3> restoredPlacementReservations =
+                        new List<Vector3>();
+                    int restoredPlacementSlot = 0;
+                    foreach (RaisedPersistenceSnapshot snapshot in loaded)
                     {
-                        if (snapshot == null
-                            || string.IsNullOrEmpty(snapshot.SourceId)
-                            || !handledSources.Add(snapshot.SourceId))
+                        if (snapshot == null)
                         {
+                            recovery.Rejected++;
+                            LogRaisedPersistenceRejection(
+                                string.Empty,
+                                "snapshot entry is null");
                             continue;
                         }
+                        if (string.IsNullOrEmpty(snapshot.SourceId))
+                        {
+                            recovery.Rejected++;
+                            LogRaisedPersistenceRejection(
+                                string.Empty,
+                                "source identity is missing");
+                            continue;
+                        }
+                        if (!handledSources.Add(snapshot.SourceId))
+                        {
+                            recovery.Rejected++;
+                            LogRaisedPersistenceRejection(
+                                snapshot.SourceId,
+                                "duplicate source identity");
+                            continue;
+                        }
+                        recovery.Attempted++;
                         bool validSnapshot = false;
                         try
                         {
@@ -1033,26 +1388,64 @@ namespace SoulAndService
                                         StringComparison.Ordinal));
                             if (sourceAlreadyServing)
                             {
+                                recovery.AlreadyServing++;
                                 continue;
                             }
                             validSnapshot =
                                 IsValidRaisedPersistenceSnapshot(snapshot);
-                            if (!validSnapshot
-                                || snapshot.Phase != RaisedPersistenceActive
-                                || !TryRehydrateRaisedServant(snapshot))
+                            if (!validSnapshot)
                             {
+                                recovery.Rejected++;
+                                LogRaisedPersistenceRejection(
+                                    snapshot.SourceId,
+                                    "snapshot fields are invalid");
                                 RestoreLoadedRaisedSource(
                                     snapshot,
                                     refundVigor: validSnapshot,
-                                    trustedSnapshot: validSnapshot);
+                                    trustedSnapshot: validSnapshot,
+                                    diagnostics: recovery);
+                                continue;
+                            }
+                            if (snapshot.Phase != RaisedPersistenceActive)
+                            {
+                                recovery.Rejected++;
+                                LogRaisedPersistenceRejection(
+                                    snapshot.SourceId,
+                                    "snapshot is pending source restoration");
+                                RestoreLoadedRaisedSource(
+                                    snapshot,
+                                    refundVigor: true,
+                                    trustedSnapshot: true,
+                                    diagnostics: recovery);
+                                continue;
+                            }
+                            int placementSlot = restoredPlacementSlot++;
+                            if (!TryRehydrateRaisedServant(
+                                    snapshot,
+                                    recovery,
+                                    placementSlot,
+                                    restoredPlacementReservations,
+                                    out string rejectionReason))
+                            {
+                                recovery.Rejected++;
+                                LogRaisedPersistenceRejection(
+                                    snapshot.SourceId,
+                                    rejectionReason);
+                                RestoreLoadedRaisedSource(
+                                    snapshot,
+                                    refundVigor: true,
+                                    trustedSnapshot: true,
+                                    diagnostics: recovery);
                             }
                         }
                         catch (Exception exception)
                         {
+                            recovery.Rejected++;
                             RestoreLoadedRaisedSource(
                                 snapshot,
                                 refundVigor: validSnapshot,
-                                trustedSnapshot: validSnapshot);
+                                trustedSnapshot: validSnapshot,
+                                diagnostics: recovery);
                             LogRaisedPersistenceWarning(
                                 "A raised servant failed to rehydrate and its source "
                                 + "was restored safely: ",
@@ -1060,10 +1453,15 @@ namespace SoulAndService
                         }
                     }
                 }
+                RestoreDeferredSourcesAfterSceneInitialized();
                 WriteRaisedPersistencePayload();
+                recovery.ScenePassComplete = true;
+                LogRaisedPersistenceRecoverySummary(recovery, "scene-pass");
             }
             catch (Exception exception)
             {
+                recovery.ScenePassComplete = true;
+                LogRaisedPersistenceRecoverySummary(recovery, "stopped");
                 LogRaisedPersistenceWarning(
                     "Raised-servant recovery stopped safely after scene load: ",
                     exception);
@@ -1130,34 +1528,83 @@ namespace SoulAndService
         }
 
         private static bool TryRehydrateRaisedServant(
-            RaisedPersistenceSnapshot snapshot)
+            RaisedPersistenceSnapshot snapshot,
+            RaisedPersistenceRecoveryDiagnostics diagnostics,
+            int placementSlot,
+            ICollection<Vector3> restoredPlacementReservations,
+            out string rejectionReason)
         {
+            rejectionReason = string.Empty;
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
             TemplatesProvider templates = World.Services == null
                 ? null
                 : World.Services.TryGet<TemplatesProvider>();
-            if (plugin == null
-                || !plugin.IsEnabled
-                || plugin.PersistentServants == null
-                || !plugin.PersistentServants.Value
-                || hero == null
-                || templates == null
-                || !templates.AllLoaded
-                || string.IsNullOrEmpty(snapshot.SpawnTemplateGuid))
+            if (plugin == null || !plugin.IsEnabled)
             {
+                rejectionReason = "plugin is unavailable or disabled";
+                return false;
+            }
+            if (plugin.PersistentServants == null
+                || !plugin.PersistentServants.Value)
+            {
+                rejectionReason = "Persistent Servants is disabled";
+                return false;
+            }
+            if (hero == null)
+            {
+                rejectionReason = "hero is unavailable after scene load";
+                return false;
+            }
+            if (templates == null || !templates.AllLoaded)
+            {
+                rejectionReason = "location templates are not ready";
+                return false;
+            }
+            if (string.IsNullOrEmpty(snapshot.SpawnTemplateGuid))
+            {
+                rejectionReason = "spawn template identity is missing";
                 return false;
             }
             LocationTemplate spawnTemplate =
                 templates.Get<LocationTemplate>(snapshot.SpawnTemplateGuid);
             if (!IsEligiblePersistentSpawnTemplate(spawnTemplate))
             {
+                rejectionReason = "spawn template is not persistence-safe";
+                return false;
+            }
+            RepetitiveNpcAttachment spawnAttachment =
+                spawnTemplate.GetComponent<RepetitiveNpcAttachment>();
+            NpcTemplate spawnNpcTemplate = spawnAttachment == null
+                ? null
+                : spawnAttachment.NpcTemplate;
+            bool templateIsMiniboss = spawnNpcTemplate != null
+                && spawnNpcTemplate.NpcType == NpcType.MiniBoss;
+            if (templateIsMiniboss != snapshot.IsMiniboss)
+            {
+                rejectionReason = "spawn template miniboss identity changed";
                 return false;
             }
             Location source = FindLocationById(snapshot.SourceId);
             if (source != null
                 && !IsMatchingPersistentSource(source, spawnTemplate))
             {
+                rejectionReason = "source corpse no longer matches its spawn template";
+                return false;
+            }
+            if (snapshot.IsMiniboss
+                && !IsMatchingPersistentMinibossSource(
+                    snapshot,
+                    source,
+                    spawnTemplate,
+                    spawnNpcTemplate))
+            {
+                rejectionReason = "miniboss source validation failed";
+                return false;
+            }
+            if (snapshot.IsMiniboss && source.CurrentDomain != Domain.Gameplay)
+            {
+                rejectionReason = "miniboss source is outside the Gameplay domain";
                 return false;
             }
 
@@ -1165,11 +1612,47 @@ namespace SoulAndService
             string summonId = string.Empty;
             try
             {
+                Pathfinding.GraphNode heroNode = AstarPath.active == null
+                    ? null
+                    : AstarPath.active.GetNearest(
+                        hero.Coords,
+                        Pathfinding.NNConstraint.Walkable).node;
                 Vector3 position = hero.Coords
                     + ((hero.Rotation * Vector3.forward) * 2.0f);
+                bool usedReservedPlacement = false;
+                try
+                {
+                    if (SummonFormationCoordinator.TryReserveRestoredPlacement(
+                            hero,
+                            heroNode,
+                            placementSlot,
+                            restoredPlacementReservations,
+                            out Vector3 reservedPosition))
+                    {
+                        position = reservedPosition;
+                        usedReservedPlacement = true;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogRaisedPersistenceWarning(
+                        "Could not reserve an ideal raised-servant arrival; "
+                        + "using the safe recovery fallback: ",
+                        exception);
+                }
+                LogRaisedPersistenceDiagnostic(
+                    "arrival placement: source=" + snapshot.SourceId
+                    + "; slot=" + placementSlot
+                    + "; reserved=" + usedReservedPlacement
+                    + "; distance="
+                    + Vector3.Distance(hero.Coords, position).ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + ".");
                 raised = spawnTemplate.SpawnLocation(position, hero.Rotation);
                 if (raised == null || raised.HasBeenDiscarded)
                 {
+                    rejectionReason = "spawn template did not create a location";
                     return false;
                 }
                 ((Model)raised).MarkedNotSaved = true;
@@ -1211,25 +1694,63 @@ namespace SoulAndService
                     BindingManaCost = Math.Max(0.0f, snapshot.BindingManaCost),
                     InvestedSoulVigor = Math.Max(0, snapshot.InvestedSoulVigor),
                     NativeSoulVigor = Math.Max(0, snapshot.NativeSoulVigor),
+                    Recovery = new ServantRecoveryLedger
+                    {
+                        ManaInitialized = snapshot.RecoveryManaInitialized,
+                        OriginalMana = Math.Max(
+                            0.0f,
+                            snapshot.RecoveryOriginalMana),
+                        RemainingMana = Mathf.Clamp(
+                            snapshot.RecoveryRemainingMana,
+                            0.0f,
+                            Math.Max(0.0f, snapshot.RecoveryOriginalMana)),
+                        OriginalSoulVigor = Math.Max(
+                            0,
+                            snapshot.RecoveryOriginalSoulVigor),
+                        EmpowermentSoulVigorInvestment = Mathf.Clamp(
+                            snapshot.EmpowermentSoulVigorInvestment,
+                            0,
+                            Math.Max(0, snapshot.InvestedSoulVigor)),
+                        RecoveredSoulforgedRankMask =
+                            snapshot.RecoveredSoulforgedRankMask
+                            & ((1 << SoulforgedRuntime.MaximumRank) - 1)
+                    },
                     OriginalCoords = source == null ? position : source.Coords,
                     OriginalRotation = source == null ? hero.Rotation : source.Rotation,
                     LastSafeCoords = position,
                     LastSafeRotation = hero.Rotation,
-                    SpawnTemplateGuid = snapshot.SpawnTemplateGuid
+                    SpawnTemplateGuid = snapshot.SpawnTemplateGuid,
+                    IsMiniboss = snapshot.IsMiniboss,
+                    HighSoulFingerprint = snapshot.HighSoulFingerprint,
+                    HighSoulExtractionValue = snapshot.HighSoulExtractionValue,
+                    HighSoulServiceCycle = snapshot.HighSoulServiceCycle
                 };
+                EnsureRaisedRecoveryLedger(record);
                 Reanimations[summonId] = record;
                 if (source != null)
                 {
                     source.SetInteractability(LocationInteractability.Hidden);
                 }
-                npc.OnCompletelyInitialized(delegate
+                diagnostics.Scheduled++;
+                diagnostics.PendingCallbacks++;
+                try
                 {
-                    CompleteRehydratedRaisedServant(
-                        summon,
-                        summonId,
-                        record,
-                        snapshot);
-                });
+                    npc.OnCompletelyInitialized(delegate
+                    {
+                        CompleteRehydratedRaisedServant(
+                            summon,
+                            summonId,
+                            record,
+                            snapshot,
+                            diagnostics);
+                    });
+                }
+                catch
+                {
+                    diagnostics.Scheduled--;
+                    diagnostics.PendingCallbacks--;
+                    throw;
+                }
                 return true;
             }
             catch
@@ -1257,7 +1778,19 @@ namespace SoulAndService
             }
             if (string.IsNullOrEmpty(snapshot.SourceId)
                 || !IsPersistedInteractability(snapshot.SourceInteractability)
-                || snapshot.InvestedSoulVigor < 0)
+                || snapshot.InvestedSoulVigor < 0
+                || !IsFinite(snapshot.RecoveryOriginalMana)
+                || snapshot.RecoveryOriginalMana < 0.0f
+                || !IsFinite(snapshot.RecoveryRemainingMana)
+                || snapshot.RecoveryRemainingMana < 0.0f
+                || snapshot.RecoveryRemainingMana
+                    > snapshot.RecoveryOriginalMana
+                || snapshot.RecoveryOriginalSoulVigor < 0
+                || snapshot.EmpowermentSoulVigorInvestment < 0
+                || snapshot.EmpowermentSoulVigorInvestment
+                    > snapshot.InvestedSoulVigor
+                || (snapshot.RecoveredSoulforgedRankMask
+                    & ~((1 << SoulforgedRuntime.MaximumRank) - 1)) != 0)
             {
                 return false;
             }
@@ -1287,7 +1820,14 @@ namespace SoulAndService
                 && snapshot.SoulforgedRank <= 17
                 && IsFinite(snapshot.EmpowermentMultiplier)
                 && snapshot.EmpowermentMultiplier >= 0.0f
-                && snapshot.EmpowermentMultiplier <= 1.50f;
+                && snapshot.EmpowermentMultiplier <= 1.50f
+                && (!snapshot.IsMiniboss
+                    || (!string.IsNullOrEmpty(snapshot.HighSoulFingerprint)
+                        && snapshot.HighSoulExtractionValue > 0
+                        && snapshot.HighSoulExtractionValue <= 1000
+                        && snapshot.HighSoulServiceCycle >= 0
+                        && snapshot.HighSoulServiceCycle
+                            < HighSoulPoolPortions));
         }
 
         private static bool IsEligiblePersistentSpawnTemplate(
@@ -1316,7 +1856,10 @@ namespace SoulAndService
             return npcTemplate.NpcType == NpcType.Critter
                 || npcTemplate.NpcType == NpcType.Trash
                 || npcTemplate.NpcType == NpcType.Normal
-                || npcTemplate.NpcType == NpcType.Elite;
+                || npcTemplate.NpcType == NpcType.Elite
+                || (npcTemplate.NpcType == NpcType.MiniBoss
+                    && ReanimatableMinibossTemplateGuids.Contains(
+                        npcTemplate.GUID));
         }
 
         private static bool IsMatchingPersistentSource(
@@ -1339,6 +1882,57 @@ namespace SoulAndService
                     StringComparison.Ordinal);
         }
 
+        private static bool IsMatchingPersistentMinibossSource(
+            RaisedPersistenceSnapshot snapshot,
+            Location source,
+            LocationTemplate spawnTemplate,
+            NpcTemplate npcTemplate)
+        {
+            if (snapshot == null
+                || source == null
+                || npcTemplate == null
+                || !(source.Initializer is RuntimeLocationInitializer)
+                || !IsAuthoredSourceDiscarded(((Model)source).ID)
+                || !CanReanimateMiniboss(
+                    source,
+                    npcTemplate,
+                    spawnTemplate,
+                    CanSafelySimplifyHighSoulCorpse(source, npcTemplate),
+                    out LocationTemplate durableTemplate)
+                || durableTemplate == null
+                || !string.Equals(
+                    durableTemplate.GUID,
+                    spawnTemplate.GUID,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string expectedFingerprint = GetHighSoulCorpseFingerprint(
+                source,
+                npcTemplate);
+            int expectedExtraction = CalculateHighSoulExtractionValue(
+                npcTemplate,
+                source.Template);
+            if (!string.Equals(
+                    expectedFingerprint,
+                    snapshot.HighSoulFingerprint,
+                    StringComparison.Ordinal)
+                || snapshot.HighSoulExtractionValue != expectedExtraction
+                || !SoulProgressionRuntime.TryGetExistingHighSoulVigorPool(
+                    expectedFingerprint,
+                    expectedExtraction,
+                    out int remaining)
+                || remaining <= 0)
+            {
+                return false;
+            }
+            return snapshot.HighSoulServiceCycle
+                == SoulProgressionRuntime.GetHighSoulServiceCycle(
+                    expectedFingerprint,
+                    expectedExtraction);
+        }
+
         private static bool IsPersistedInteractability(string value)
         {
             return string.Equals(value, "Active", StringComparison.Ordinal)
@@ -1355,7 +1949,8 @@ namespace SoulAndService
             NpcHeroSummon summon,
             string summonId,
             ReanimationRecord record,
-            RaisedPersistenceSnapshot snapshot)
+            RaisedPersistenceSnapshot snapshot,
+            RaisedPersistenceRecoveryDiagnostics diagnostics)
         {
             try
             {
@@ -1368,6 +1963,10 @@ namespace SoulAndService
                         summonId,
                         discardRaisedCopy: true,
                         showDiagnostic: false);
+                    diagnostics.Rejected++;
+                    LogRaisedPersistenceRejection(
+                        snapshot == null ? string.Empty : snapshot.SourceId,
+                        "spawned servant was discarded before initialization completed");
                     return;
                 }
                 raised.RemoveElementsOfType<AliveLocationDeathReward>();
@@ -1377,8 +1976,10 @@ namespace SoulAndService
                 npc.RemoveElementsOfType<NpcHealthRegeneration>();
                 if (npc.AliveStats != null && npc.AliveStats.MaxHealth != null)
                 {
-                    float multiplier = SoulProgressionRuntime
-                        .GetQualityHealthMultiplier(record.QualityTier);
+                    float multiplier = record.IsMiniboss
+                        ? 0.50f
+                        : SoulProgressionRuntime.GetQualityHealthMultiplier(
+                            record.QualityTier);
                     if (Math.Abs(multiplier - 1.0f) > 0.0001f)
                     {
                         record.QualityHealthTweak = StatTweak.Multi(
@@ -1401,13 +2002,34 @@ namespace SoulAndService
                     snapshot.SoulforgedOriginalMaximumHealth,
                     snapshot.SoulforgedDamageDealt,
                     snapshot.SoulforgedRank,
-                    snapshot.EmpowermentMultiplier);
+                    record.IsMiniboss
+                        ? 1.0f
+                        : snapshot.EmpowermentMultiplier);
                 record.ServiceInitialized = true;
                 ReanimationGlyphRuntime.Attach(summonId, npc);
                 SavePersistentReanimation(summonId, record);
+                try
+                {
+                    SpawnNecromanticSummonVfx(npc);
+                }
+                catch (Exception exception)
+                {
+                    LogRaisedPersistenceWarning(
+                        "Could not play a restored servant's arrival effect: ",
+                        exception);
+                }
+                diagnostics.Restored++;
+                LogRaisedPersistenceDiagnostic(
+                    "rehydrated: source=" + snapshot.SourceId
+                    + "; summon=" + summonId
+                    + "; health="
+                    + (Mathf.Clamp01(snapshot.HealthFraction) * 100.0f)
+                        .ToString("0.##", CultureInfo.InvariantCulture)
+                    + "%.");
             }
             catch (Exception exception)
             {
+                diagnostics.Rejected++;
                 RestoreSourceCorpse(
                     summonId,
                     discardRaisedCopy: true,
@@ -1417,12 +2039,26 @@ namespace SoulAndService
                     + "was restored safely: ",
                     exception);
             }
+            finally
+            {
+                diagnostics.PendingCallbacks = Math.Max(
+                    0,
+                    diagnostics.PendingCallbacks - 1);
+                if (diagnostics.ScenePassComplete
+                    && diagnostics.PendingCallbacks == 0)
+                {
+                    LogRaisedPersistenceRecoverySummary(
+                        diagnostics,
+                        "complete");
+                }
+            }
         }
 
         private static void RestoreLoadedRaisedSource(
             RaisedPersistenceSnapshot snapshot,
             bool refundVigor,
-            bool trustedSnapshot)
+            bool trustedSnapshot,
+            RaisedPersistenceRecoveryDiagnostics diagnostics = null)
         {
             if (snapshot == null)
             {
@@ -1438,9 +2074,23 @@ namespace SoulAndService
                 Location source = FindLocationById(snapshot.SourceId);
                 if (source != null)
                 {
+                    if (snapshot.IsMiniboss
+                        && !TryReturnMinibossSourceToCurrentScene(
+                            source,
+                            out string returnFailure))
+                    {
+                        throw new InvalidOperationException(returnFailure);
+                    }
                     source.SetInteractability(interactability);
-                    TriggerRuntimeCorpseVisualEvent(source, "OnDeath");
+                    if (!snapshot.IsMiniboss)
+                    {
+                        TriggerRuntimeCorpseVisualEvent(source, "OnDeath");
+                    }
                     restored = true;
+                    if (diagnostics != null)
+                    {
+                        diagnostics.SourcesRestored++;
+                    }
                 }
             }
             catch (Exception exception)
@@ -1457,7 +2107,15 @@ namespace SoulAndService
                         snapshot.SourceId,
                         "interactability",
                         GetPersistedInteractability(interactability));
+                    WriteDeferredSourceInt(
+                        snapshot.SourceId,
+                        "scene_safe_visual",
+                        snapshot.IsMiniboss ? 0 : 1);
                     WriteDeferredSourceInt(snapshot.SourceId, "restore", 1);
+                    if (diagnostics != null)
+                    {
+                        diagnostics.Deferred++;
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -1497,15 +2155,17 @@ namespace SoulAndService
                     StringComparison.Ordinal));
         }
 
-        private static void WriteRaisedPersistencePayload()
+        private static void WriteRaisedPersistencePayload(
+            GameplayMemory memory = null)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-            ContextualFacts facts = GetPersistenceFacts();
+            ContextualFacts facts = GetPersistenceFacts(memory);
             if (facts == null)
             {
                 return;
             }
-            RaisedPersistencePayload payload = new RaisedPersistencePayload();
+            List<RaisedPersistenceSnapshot> records =
+                new List<RaisedPersistenceSnapshot>();
             bool preserveHost = plugin != null
                 && plugin.PersistentServants != null
                 && plugin.PersistentServants.Value;
@@ -1518,10 +2178,323 @@ namespace SoulAndService
                     throw new InvalidOperationException(
                         "a hidden raised-servant source could not be captured safely");
                 }
-                payload.Records.Add(snapshot);
+                records.Add(snapshot);
             }
-            string json = JsonUtility.ToJson(payload);
-            facts.Set(RaisedPersistencePayloadKey, json);
+            RaisedPersistenceSnapshot[] snapshots = records.ToArray();
+            string serializedPayload =
+                SerializeRaisedPersistencePayload(snapshots);
+            RaisedPersistenceSnapshot[] roundTrip =
+                DeserializeRaisedPersistencePayload(
+                    serializedPayload,
+                    out int roundTripVersion);
+            if (roundTripVersion != RaisedPersistenceVersion
+                || roundTrip.Length != snapshots.Length
+                || roundTrip.Any(snapshot =>
+                    !IsValidRaisedPersistenceSnapshot(snapshot))
+                || roundTrip.Where((snapshot, index) =>
+                    !AreEquivalentRaisedPersistenceSnapshots(
+                        snapshots[index],
+                        snapshot)).Any())
+            {
+                throw new InvalidOperationException(
+                    "the raised-servant snapshot failed payload round-trip validation");
+            }
+            facts.Set(RaisedPersistencePayloadKey, serializedPayload);
+            string storedPayload = facts.Get(
+                RaisedPersistencePayloadKey,
+                string.Empty);
+            LogRaisedPersistenceDiagnostic(
+                "snapshot write: version=" + RaisedPersistenceVersion
+                + "; format=binary-base64"
+                + "; preserveHost=" + preserveHost
+                + "; memory="
+                + (memory == null ? "service" : "serialized-instance")
+                + "; payloadChars=" + serializedPayload.Length
+                + "; storedMatches="
+                + string.Equals(
+                    serializedPayload,
+                    storedPayload,
+                    StringComparison.Ordinal)
+                + "; roundTripRecords=" + roundTrip.Length
+                + "; records=" + snapshots.Length
+                + "; active=" + snapshots.Count(snapshot =>
+                    snapshot != null
+                    && snapshot.Phase == RaisedPersistenceActive)
+                + "; pending=" + snapshots.Count(snapshot =>
+                    snapshot != null
+                    && snapshot.Phase == RaisedPersistencePending)
+                + ".");
+        }
+
+        private static string SerializeRaisedPersistencePayload(
+            RaisedPersistenceSnapshot[] snapshots)
+        {
+            if (snapshots == null
+                || snapshots.Length > RaisedPersistenceMaximumRecords)
+            {
+                throw new InvalidOperationException(
+                    "raised-servant snapshot record count is invalid");
+            }
+            using (MemoryStream stream = new MemoryStream())
+            using (BinaryWriter writer = new BinaryWriter(
+                stream,
+                Encoding.UTF8))
+            {
+                writer.Write(RaisedPersistenceMagic);
+                writer.Write(RaisedPersistenceVersion);
+                writer.Write(snapshots.Length);
+                foreach (RaisedPersistenceSnapshot snapshot in snapshots)
+                {
+                    if (!IsValidRaisedPersistenceSnapshot(snapshot))
+                    {
+                        throw new InvalidOperationException(
+                            "raised-servant snapshot record is invalid");
+                    }
+                    writer.Write(snapshot.Phase);
+                    WriteRaisedPersistenceString(writer, snapshot.SourceId);
+                    WriteRaisedPersistenceString(
+                        writer,
+                        snapshot.SourceInteractability);
+                    WriteRaisedPersistenceString(
+                        writer,
+                        snapshot.SpawnTemplateGuid);
+                    WriteRaisedPersistenceString(
+                        writer,
+                        snapshot.SourceDisplayName);
+                    WriteRaisedPersistenceString(
+                        writer,
+                        snapshot.CorpseFingerprint);
+                    writer.Write(snapshot.Quality01);
+                    writer.Write(snapshot.QualityTier);
+                    writer.Write(snapshot.BindingManaCost);
+                    writer.Write(snapshot.InvestedSoulVigor);
+                    writer.Write(snapshot.NativeSoulVigor);
+                    writer.Write(snapshot.HealthFraction);
+                    writer.Write(snapshot.SoulforgedOriginalMaximumHealth);
+                    writer.Write(snapshot.SoulforgedDamageDealt);
+                    writer.Write(snapshot.SoulforgedRank);
+                    writer.Write(snapshot.EmpowermentMultiplier);
+                    writer.Write(snapshot.RecoveryManaInitialized);
+                    writer.Write(snapshot.RecoveryOriginalMana);
+                    writer.Write(snapshot.RecoveryRemainingMana);
+                    writer.Write(snapshot.RecoveryOriginalSoulVigor);
+                    writer.Write(snapshot.EmpowermentSoulVigorInvestment);
+                    writer.Write(snapshot.RecoveredSoulforgedRankMask);
+                    writer.Write(snapshot.IsMiniboss);
+                    WriteRaisedPersistenceString(
+                        writer,
+                        snapshot.HighSoulFingerprint);
+                    writer.Write(snapshot.HighSoulExtractionValue);
+                    writer.Write(snapshot.HighSoulServiceCycle);
+                }
+                writer.Flush();
+                string payload = RaisedPersistencePayloadPrefix
+                    + Convert.ToBase64String(stream.ToArray());
+                if (payload.Length > RaisedPersistenceMaximumPayloadCharacters)
+                {
+                    throw new InvalidOperationException(
+                        "raised-servant snapshot payload is too large");
+                }
+                return payload;
+            }
+        }
+
+        private static RaisedPersistenceSnapshot[]
+            DeserializeRaisedPersistencePayload(
+                string payload,
+                out int version)
+        {
+            version = 0;
+            if (string.IsNullOrEmpty(payload)
+                || payload.Length > RaisedPersistenceMaximumPayloadCharacters
+                || !payload.StartsWith(
+                    RaisedPersistencePayloadPrefix,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "raised-servant snapshot payload header is invalid");
+            }
+            byte[] bytes = Convert.FromBase64String(
+                payload.Substring(RaisedPersistencePayloadPrefix.Length));
+            using (MemoryStream stream = new MemoryStream(bytes, false))
+            using (BinaryReader reader = new BinaryReader(
+                stream,
+                Encoding.UTF8))
+            {
+                if (reader.ReadInt32() != RaisedPersistenceMagic)
+                {
+                    throw new InvalidDataException(
+                        "raised-servant snapshot payload magic is invalid");
+                }
+                version = reader.ReadInt32();
+                if (version != RaisedPersistencePreviousVersion
+                    && version != RaisedPersistenceVersion)
+                {
+                    throw new InvalidDataException(
+                        "raised-servant snapshot payload version is unsupported");
+                }
+                int recordCount = reader.ReadInt32();
+                if (recordCount < 0
+                    || recordCount > RaisedPersistenceMaximumRecords)
+                {
+                    throw new InvalidDataException(
+                        "raised-servant snapshot record count is invalid");
+                }
+                RaisedPersistenceSnapshot[] snapshots =
+                    new RaisedPersistenceSnapshot[recordCount];
+                for (int index = 0; index < recordCount; index++)
+                {
+                    RaisedPersistenceSnapshot snapshot =
+                        new RaisedPersistenceSnapshot
+                    {
+                        Phase = reader.ReadInt32(),
+                        SourceId = ReadRaisedPersistenceString(reader),
+                        SourceInteractability =
+                            ReadRaisedPersistenceString(reader),
+                        SpawnTemplateGuid =
+                            ReadRaisedPersistenceString(reader),
+                        SourceDisplayName =
+                            ReadRaisedPersistenceString(reader),
+                        CorpseFingerprint =
+                            ReadRaisedPersistenceString(reader),
+                        Quality01 = reader.ReadSingle(),
+                        QualityTier = reader.ReadInt32(),
+                        BindingManaCost = reader.ReadSingle(),
+                        InvestedSoulVigor = reader.ReadInt32(),
+                        NativeSoulVigor = reader.ReadInt32(),
+                        HealthFraction = reader.ReadSingle(),
+                        SoulforgedOriginalMaximumHealth = reader.ReadSingle(),
+                        SoulforgedDamageDealt = reader.ReadSingle(),
+                        SoulforgedRank = reader.ReadInt32(),
+                        EmpowermentMultiplier = reader.ReadSingle()
+                    };
+                    if (version >= RaisedPersistenceVersion)
+                    {
+                        snapshot.RecoveryManaInitialized =
+                            reader.ReadBoolean();
+                        snapshot.RecoveryOriginalMana = reader.ReadSingle();
+                        snapshot.RecoveryRemainingMana = reader.ReadSingle();
+                        snapshot.RecoveryOriginalSoulVigor = reader.ReadInt32();
+                        snapshot.EmpowermentSoulVigorInvestment =
+                            reader.ReadInt32();
+                        snapshot.RecoveredSoulforgedRankMask =
+                            reader.ReadInt32();
+                    }
+                    else
+                    {
+                        snapshot.RecoveryOriginalSoulVigor = Math.Max(
+                            0,
+                            snapshot.NativeSoulVigor
+                                + snapshot.InvestedSoulVigor);
+                    }
+                    snapshot.IsMiniboss = reader.ReadBoolean();
+                    snapshot.HighSoulFingerprint =
+                        ReadRaisedPersistenceString(reader);
+                    snapshot.HighSoulExtractionValue = reader.ReadInt32();
+                    snapshot.HighSoulServiceCycle = reader.ReadInt32();
+                    snapshots[index] = snapshot;
+                }
+                if (stream.Position != stream.Length)
+                {
+                    throw new InvalidDataException(
+                        "raised-servant snapshot payload has trailing data");
+                }
+                return snapshots;
+            }
+        }
+
+        private static void WriteRaisedPersistenceString(
+            BinaryWriter writer,
+            string value)
+        {
+            writer.Write(value != null);
+            if (value != null)
+            {
+                if (value.Length > RaisedPersistenceMaximumStringCharacters)
+                {
+                    throw new InvalidDataException(
+                        "raised-servant snapshot string is too long");
+                }
+                writer.Write(value);
+            }
+        }
+
+        private static string ReadRaisedPersistenceString(BinaryReader reader)
+        {
+            if (!reader.ReadBoolean())
+            {
+                return null;
+            }
+            string value = reader.ReadString();
+            if (value.Length > RaisedPersistenceMaximumStringCharacters)
+            {
+                throw new InvalidDataException(
+                    "raised-servant snapshot string is too long");
+            }
+            return value;
+        }
+
+        private static bool AreEquivalentRaisedPersistenceSnapshots(
+            RaisedPersistenceSnapshot expected,
+            RaisedPersistenceSnapshot actual)
+        {
+            return expected != null
+                && actual != null
+                && expected.Phase == actual.Phase
+                && string.Equals(
+                    expected.SourceId,
+                    actual.SourceId,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    expected.SourceInteractability,
+                    actual.SourceInteractability,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    expected.SpawnTemplateGuid,
+                    actual.SpawnTemplateGuid,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    expected.SourceDisplayName,
+                    actual.SourceDisplayName,
+                    StringComparison.Ordinal)
+                && string.Equals(
+                    expected.CorpseFingerprint,
+                    actual.CorpseFingerprint,
+                    StringComparison.Ordinal)
+                && expected.Quality01 == actual.Quality01
+                && expected.QualityTier == actual.QualityTier
+                && expected.BindingManaCost == actual.BindingManaCost
+                && expected.InvestedSoulVigor == actual.InvestedSoulVigor
+                && expected.NativeSoulVigor == actual.NativeSoulVigor
+                && expected.HealthFraction == actual.HealthFraction
+                && expected.SoulforgedOriginalMaximumHealth
+                    == actual.SoulforgedOriginalMaximumHealth
+                && expected.SoulforgedDamageDealt
+                    == actual.SoulforgedDamageDealt
+                && expected.SoulforgedRank == actual.SoulforgedRank
+                && expected.EmpowermentMultiplier
+                    == actual.EmpowermentMultiplier
+                && expected.RecoveryManaInitialized
+                    == actual.RecoveryManaInitialized
+                && expected.RecoveryOriginalMana
+                    == actual.RecoveryOriginalMana
+                && expected.RecoveryRemainingMana
+                    == actual.RecoveryRemainingMana
+                && expected.RecoveryOriginalSoulVigor
+                    == actual.RecoveryOriginalSoulVigor
+                && expected.EmpowermentSoulVigorInvestment
+                    == actual.EmpowermentSoulVigorInvestment
+                && expected.RecoveredSoulforgedRankMask
+                    == actual.RecoveredSoulforgedRankMask
+                && expected.IsMiniboss == actual.IsMiniboss
+                && string.Equals(
+                    expected.HighSoulFingerprint,
+                    actual.HighSoulFingerprint,
+                    StringComparison.Ordinal)
+                && expected.HighSoulExtractionValue
+                    == actual.HighSoulExtractionValue
+                && expected.HighSoulServiceCycle
+                    == actual.HighSoulServiceCycle;
         }
 
         private static RaisedPersistenceSnapshot CaptureRaisedPersistenceSnapshot(
@@ -1532,13 +2505,42 @@ namespace SoulAndService
             {
                 return null;
             }
+            EnsureRaisedRecoveryLedger(record);
             RaisedPersistenceSnapshot snapshot = new RaisedPersistenceSnapshot
             {
                 Phase = RaisedPersistencePending,
                 SourceId = record.SourceId,
                 SourceInteractability = GetPersistedInteractability(
                     record.SourceInteractability),
-                InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor)
+                InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor),
+                RecoveryManaInitialized = record.Recovery != null
+                    && record.Recovery.ManaInitialized,
+                RecoveryOriginalMana = record.Recovery == null
+                    ? 0.0f
+                    : Math.Max(0.0f, record.Recovery.OriginalMana),
+                RecoveryRemainingMana = record.Recovery == null
+                    ? 0.0f
+                    : Mathf.Clamp(
+                        record.Recovery.RemainingMana,
+                        0.0f,
+                        Math.Max(0.0f, record.Recovery.OriginalMana)),
+                RecoveryOriginalSoulVigor = record.Recovery == null
+                    ? 0
+                    : Math.Max(0, record.Recovery.OriginalSoulVigor),
+                EmpowermentSoulVigorInvestment = record.Recovery == null
+                    ? 0
+                    : Mathf.Clamp(
+                        record.Recovery.EmpowermentSoulVigorInvestment,
+                        0,
+                        Math.Max(0, record.InvestedSoulVigor)),
+                RecoveredSoulforgedRankMask = record.Recovery == null
+                    ? 0
+                    : record.Recovery.RecoveredSoulforgedRankMask
+                        & ((1 << SoulforgedRuntime.MaximumRank) - 1),
+                IsMiniboss = record.IsMiniboss,
+                HighSoulFingerprint = record.HighSoulFingerprint,
+                HighSoulExtractionValue = record.HighSoulExtractionValue,
+                HighSoulServiceCycle = record.HighSoulServiceCycle
             };
             if (!preserveHost
                 || !record.ServiceInitialized
@@ -1582,7 +2584,35 @@ namespace SoulAndService
                     SourceId = record.SourceId,
                     SourceInteractability = GetPersistedInteractability(
                         record.SourceInteractability),
-                    InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor)
+                    InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor),
+                    RecoveryManaInitialized = record.Recovery != null
+                        && record.Recovery.ManaInitialized,
+                    RecoveryOriginalMana = record.Recovery == null
+                        ? 0.0f
+                        : Math.Max(0.0f, record.Recovery.OriginalMana),
+                    RecoveryRemainingMana = record.Recovery == null
+                        ? 0.0f
+                        : Mathf.Clamp(
+                            record.Recovery.RemainingMana,
+                            0.0f,
+                            Math.Max(0.0f, record.Recovery.OriginalMana)),
+                    RecoveryOriginalSoulVigor = record.Recovery == null
+                        ? 0
+                        : Math.Max(0, record.Recovery.OriginalSoulVigor),
+                    EmpowermentSoulVigorInvestment = record.Recovery == null
+                        ? 0
+                        : Mathf.Clamp(
+                            record.Recovery.EmpowermentSoulVigorInvestment,
+                            0,
+                            Math.Max(0, record.InvestedSoulVigor)),
+                    RecoveredSoulforgedRankMask = record.Recovery == null
+                        ? 0
+                        : record.Recovery.RecoveredSoulforgedRankMask
+                            & ((1 << SoulforgedRuntime.MaximumRank) - 1),
+                    IsMiniboss = record.IsMiniboss,
+                    HighSoulFingerprint = record.HighSoulFingerprint,
+                    HighSoulExtractionValue = record.HighSoulExtractionValue,
+                    HighSoulServiceCycle = record.HighSoulServiceCycle
                 };
             }
             return snapshot;
@@ -1608,11 +2638,56 @@ namespace SoulAndService
             }
         }
 
-        private static ContextualFacts GetPersistenceFacts()
+        private static void LogRaisedPersistenceRejection(
+            string sourceId,
+            string reason)
         {
-            GameplayMemory memory = World.Services == null
-                ? null
-                : World.Services.TryGet<GameplayMemory>();
+            LogRaisedPersistenceDiagnostic(
+                "rejected: source="
+                + (string.IsNullOrEmpty(sourceId) ? "<missing>" : sourceId)
+                + "; reason=" + reason + ".");
+        }
+
+        private static void LogRaisedPersistenceRecoverySummary(
+            RaisedPersistenceRecoveryDiagnostics diagnostics,
+            string phase)
+        {
+            if (diagnostics == null)
+            {
+                return;
+            }
+            LogRaisedPersistenceDiagnostic(
+                "recovery " + phase
+                + ": loaded=" + diagnostics.Loaded
+                + "; attempted=" + diagnostics.Attempted
+                + "; scheduled=" + diagnostics.Scheduled
+                + "; restored=" + diagnostics.Restored
+                + "; rejected=" + diagnostics.Rejected
+                + "; alreadyServing=" + diagnostics.AlreadyServing
+                + "; sourcesRestored=" + diagnostics.SourcesRestored
+                + "; deferred=" + diagnostics.Deferred
+                + "; pendingCallbacks=" + diagnostics.PendingCallbacks
+                + ".");
+        }
+
+        private static void LogRaisedPersistenceDiagnostic(string message)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin != null)
+            {
+                plugin.LogDiagnostic("Raised persistence " + message);
+            }
+        }
+
+        private static ContextualFacts GetPersistenceFacts(
+            GameplayMemory memory = null)
+        {
+            if (memory == null)
+            {
+                memory = World.Services == null
+                    ? null
+                    : World.Services.TryGet<GameplayMemory>();
+            }
             return memory == null ? null : memory.Context("SoulAndService");
         }
 
@@ -1686,6 +2761,97 @@ namespace SoulAndService
             }
         }
 
+        private static void EnsureRaisedRecoveryLedger(
+            ReanimationRecord record)
+        {
+            if (record == null)
+            {
+                return;
+            }
+            if (record.Recovery == null)
+            {
+                record.Recovery = new ServantRecoveryLedger();
+            }
+            int baseVigor = Math.Max(
+                0,
+                record.NativeSoulVigor
+                    + record.InvestedSoulVigor
+                    - record.Recovery.EmpowermentSoulVigorInvestment);
+            if (record.Recovery.OriginalSoulVigor <= 0 && baseVigor > 0)
+            {
+                record.Recovery.OriginalSoulVigor = baseVigor;
+            }
+        }
+
+        private static void EnsureOrdinaryRecoveryLedger(
+            OrdinarySummonInvestment investment)
+        {
+            if (investment == null)
+            {
+                return;
+            }
+            if (investment.Recovery == null)
+            {
+                investment.Recovery = new ServantRecoveryLedger();
+            }
+            int baseVigor = Math.Max(
+                0,
+                investment.InvestedSoulVigor
+                    - investment.Recovery.EmpowermentSoulVigorInvestment);
+            if (investment.Recovery.OriginalSoulVigor <= 0 && baseVigor > 0)
+            {
+                investment.Recovery.OriginalSoulVigor = baseVigor;
+            }
+        }
+
+        private static void SaveOrdinarySummonInvestment(
+            string summonId,
+            OrdinarySummonInvestment investment)
+        {
+            if (string.IsNullOrEmpty(summonId) || investment == null)
+            {
+                return;
+            }
+            EnsureOrdinaryRecoveryLedger(investment);
+            WritePersistedInt(summonId, "ordinary_active", 1);
+            WritePersistedInt(
+                summonId,
+                "ordinary_investment",
+                Math.Max(0, investment.InvestedSoulVigor));
+            WritePersistedInt(summonId, "ordinary_recovery_version", 1);
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovery_mana_initialized",
+                investment.Recovery.ManaInitialized ? 1 : 0);
+            WritePersistedFloat(
+                summonId,
+                "ordinary_recovery_original_mana",
+                Math.Max(0.0f, investment.Recovery.OriginalMana));
+            WritePersistedFloat(
+                summonId,
+                "ordinary_recovery_remaining_mana",
+                Mathf.Clamp(
+                    investment.Recovery.RemainingMana,
+                    0.0f,
+                    Math.Max(0.0f, investment.Recovery.OriginalMana)));
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovery_original_vigor",
+                Math.Max(0, investment.Recovery.OriginalSoulVigor));
+            WritePersistedInt(
+                summonId,
+                "ordinary_empowerment_investment",
+                Mathf.Clamp(
+                    investment.Recovery.EmpowermentSoulVigorInvestment,
+                    0,
+                    Math.Max(0, investment.InvestedSoulVigor)));
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovered_rank_mask",
+                investment.Recovery.RecoveredSoulforgedRankMask
+                    & ((1 << SoulforgedRuntime.MaximumRank) - 1));
+        }
+
         private static int ReadDeferredSourceInt(string sourceId, string value)
         {
             ContextualFacts facts = GetPersistenceFacts();
@@ -1700,6 +2866,105 @@ namespace SoulAndService
             return facts == null
                 ? string.Empty
                 : facts.Get(DeferredSourceKey(sourceId, value), string.Empty);
+        }
+
+        private static bool HasDeferredSourceRestoration()
+        {
+            ContextualFacts facts = GetPersistenceFacts();
+            if (facts == null)
+            {
+                return false;
+            }
+            foreach (KeyValuePair<string, object> pair in facts.GetAll())
+            {
+                if (pair.Key.StartsWith("persistent_source.", StringComparison.Ordinal)
+                    && pair.Key.EndsWith(".restore", StringComparison.Ordinal)
+                    && facts.Get(pair.Key, 0) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool TryRestoreDeferredSource(
+            Location source,
+            out string failure)
+        {
+            failure = string.Empty;
+            if (source == null || source.HasBeenDiscarded)
+            {
+                failure = "the saved source corpse was unavailable";
+                return false;
+            }
+            string sourceId = ((Model)source).ID;
+            if (string.IsNullOrEmpty(sourceId)
+                || ReadDeferredSourceInt(sourceId, "restore") == 0)
+            {
+                return true;
+            }
+
+            bool sceneSafeVisual = ReadDeferredSourceInt(
+                sourceId,
+                "scene_safe_visual") != 0;
+            string persistedInteractability = ReadDeferredSourceString(
+                sourceId,
+                "interactability");
+            try
+            {
+                if (!sceneSafeVisual
+                    && !TryReturnMinibossSourceToCurrentScene(
+                        source,
+                        out failure))
+                {
+                    return false;
+                }
+                source.SetInteractability(IsPersistedInteractability(
+                        persistedInteractability)
+                    ? ResolvePersistedInteractability(persistedInteractability)
+                    : LocationInteractability.Active);
+                if (sceneSafeVisual)
+                {
+                    TriggerRuntimeCorpseVisualEvent(source, "OnDeath");
+                }
+                WriteDeferredSourceInt(sourceId, "restore", 0);
+                WriteDeferredSourceInt(sourceId, "scene_safe_visual", 0);
+                WriteDeferredSourceString(sourceId, "interactability", string.Empty);
+                SoulAndServicePlugin.Instance?.LogDiagnostic(
+                    "Restored deferred Soul Rend source corpse " + sourceId + ".");
+                return true;
+            }
+            catch (Exception exception)
+            {
+                failure = exception.GetBaseException().Message;
+                return false;
+            }
+        }
+
+        private static void RestoreDeferredSourcesAfterSceneInitialized()
+        {
+            if (!HasDeferredSourceRestoration())
+            {
+                return;
+            }
+            Location[] sources = World.All<Location>()
+                .Where(source => source != null
+                    && !source.HasBeenDiscarded
+                    && ReadDeferredSourceInt(((Model)source).ID, "restore") != 0)
+                .ToArray();
+            foreach (Location source in sources)
+            {
+                if (!TryRestoreDeferredSource(source, out string failure))
+                {
+                    SoulAndServicePlugin.Instance?.LogWarning(
+                        "Deferred Soul Rend source recovery remains pending after scene initialization: "
+                        + failure + ".");
+                }
+            }
+            if (HasDeferredSourceRestoration())
+            {
+                EnsureRaisedPersistenceSceneListener();
+            }
         }
 
         private static void WriteDeferredSourceInt(
@@ -1739,13 +3004,43 @@ namespace SoulAndService
                 record.SourceId,
                 "interactability",
                 GetPersistedInteractability(record.SourceInteractability));
+            WriteDeferredSourceInt(
+                record.SourceId,
+                "scene_safe_visual",
+                record.IsMiniboss ? 0 : 1);
             WriteDeferredSourceInt(record.SourceId, "restore", 1);
+            EnsureRaisedPersistenceSceneListener();
         }
 
         private static void ClearPersistedServant(string summonId)
         {
             WritePersistedInt(summonId, "ordinary_active", 0);
             WritePersistedInt(summonId, "ordinary_investment", 0);
+            WritePersistedInt(summonId, "ordinary_recovery_version", 0);
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovery_mana_initialized",
+                0);
+            WritePersistedFloat(
+                summonId,
+                "ordinary_recovery_original_mana",
+                0.0f);
+            WritePersistedFloat(
+                summonId,
+                "ordinary_recovery_remaining_mana",
+                0.0f);
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovery_original_vigor",
+                0);
+            WritePersistedInt(
+                summonId,
+                "ordinary_empowerment_investment",
+                0);
+            WritePersistedInt(
+                summonId,
+                "ordinary_recovered_rank_mask",
+                0);
             WritePersistedInt(summonId, "raised_active", 0);
             WritePersistedString(summonId, "source_id", string.Empty);
             WriteRaisedPersistencePayload();
@@ -1810,6 +3105,35 @@ namespace SoulAndService
             }
         }
 
+        private static void AfterGetSearchActionFrame(
+            SearchAction __instance,
+            ref InfoFrame __result)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Location location = __instance == null ? null : __instance.ParentModel;
+            if (_heavyCastActive
+                || plugin == null
+                || !plugin.IsEnabled
+                || !plugin.SoulSalvageOverhaul.Value
+                || !IsSoulSalvageEquipped()
+                || !TryResolveHighSoulCorpse(
+                    Hero.Current,
+                    location,
+                    out HighSoulCorpseInfo highSoul))
+            {
+                return;
+            }
+
+            int remaining = SoulProgressionRuntime
+                .GetOrInitializeHighSoulVigorPool(
+                    highSoul.Fingerprint,
+                    highSoul.ExtractionValue);
+            __result = new InfoFrame(
+                remaining.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor",
+                false);
+        }
+
         private static bool BeforeGetMagicDescription(
             MagicItemTemplateInfo __instance,
             ref string __result)
@@ -1825,9 +3149,9 @@ namespace SoulAndService
             if (LightCastInfos.Contains(__instance))
             {
                 __result = "Corpses: Harvest for Soul Vigor.\n"
-                    + "Servants: Unbind to restore Mana and harvest Soul Vigor."
+                    + "Servants: Strip Empowerment, then two Soulforged ranks per cast; unbind at rank 0."
                     + (plugin.LivingTargetSoulSalvage.Value
-                        ? "\nEnemies: Deal Necrotic damage. Repeated hits strengthen Soul Claim."
+                        ? "\nEnemies: Deal Necrotic damage. Each surviving hit raises that enemy's Soul Claim threshold by 2%, up to 10%."
                         : string.Empty);
                 return false;
             }
@@ -1839,7 +3163,7 @@ namespace SoulAndService
 
             __result = "Corpses: Bind and reanimate; cost scales with soul quality."
                 + (plugin.LivingTargetSoulSalvage.Value
-                    ? "\nWounded enemies: Attempt Soul Claim below 40% Health."
+                    ? "\nWounded enemies: Claim at or below their Power- and soul-quality threshold."
                     : string.Empty)
                 + "\nServants: Restore Health; at 95%, Empower at 1,000 Soul Vigor for twice base soul value.";
             return false;
@@ -1944,20 +3268,27 @@ namespace SoulAndService
             if (Reanimations.TryGetValue(summonId, out record)
                 && record != null)
             {
+                EnsureRaisedRecoveryLedger(record);
                 record.InvestedSoulVigor += committedVigor;
+                record.Recovery.EmpowermentSoulVigorInvestment +=
+                    committedVigor;
                 SavePersistentReanimation(summonId, record);
                 return;
             }
-            int investedVigor;
-            OrdinarySummonInvestments.TryGetValue(
-                summonId,
-                out investedVigor);
-            OrdinarySummonInvestments[summonId] =
-                investedVigor + committedVigor;
-            WritePersistedInt(
-                summonId,
-                "ordinary_investment",
-                investedVigor + committedVigor);
+            OrdinarySummonInvestment investment;
+            if (!OrdinarySummonInvestments.TryGetValue(
+                    summonId,
+                    out investment)
+                || investment == null)
+            {
+                investment = new OrdinarySummonInvestment();
+                OrdinarySummonInvestments[summonId] = investment;
+            }
+            EnsureOrdinaryRecoveryLedger(investment);
+            investment.InvestedSoulVigor += committedVigor;
+            investment.Recovery.EmpowermentSoulVigorInvestment +=
+                committedVigor;
+            SaveOrdinarySummonInvestment(summonId, investment);
         }
 
         private static void UpdateSoulSalvageItems()
@@ -2140,11 +3471,13 @@ namespace SoulAndService
             _lightCastActive = lightCast;
             _heavyCastActive = !lightCast;
             _lightHarvestCompleted = false;
+            _lightPreserveTarget = false;
             _lightTarget = null;
             _heavyTarget = null;
             _lightOriginalMana = 0.0f;
             _lightHealthFraction = 0.0f;
             _lightMaximumManaReturn = float.PositiveInfinity;
+            _lightResolvedManaReturn = 0.0f;
             if (!lightCast)
             {
                 TryCaptureFocusedHeavyTarget();
@@ -2247,17 +3580,25 @@ namespace SoulAndService
             ReanimationRecord raisedRecord;
             if (Reanimations.TryGetValue(((Model)__instance).ID, out raisedRecord))
             {
-                float corpseQuality = Mathf.Lerp(
-                    RaisedSalvageMinimumQualityFactor,
-                    RaisedSalvageMaximumQualityFactor,
-                    Mathf.Clamp01(raisedRecord.Quality01));
-                _lightOriginalMana = Math.Max(
-                    0.0f,
-                    raisedRecord.BindingManaCost * corpseQuality);
-                _lightMaximumManaReturn = Math.Max(
-                    0.0f,
-                    raisedRecord.BindingManaCost
-                    * RaisedSalvageMaximumRefundFraction);
+                if (raisedRecord.IsMiniboss)
+                {
+                    _lightOriginalMana = 0.0f;
+                    _lightMaximumManaReturn = 0.0f;
+                }
+                else
+                {
+                    float corpseQuality = Mathf.Lerp(
+                        RaisedSalvageMinimumQualityFactor,
+                        RaisedSalvageMaximumQualityFactor,
+                        Mathf.Clamp01(raisedRecord.Quality01));
+                    _lightOriginalMana = Math.Max(
+                        0.0f,
+                        raisedRecord.BindingManaCost * corpseQuality);
+                    _lightMaximumManaReturn = Math.Max(
+                        0.0f,
+                        raisedRecord.BindingManaCost
+                        * RaisedSalvageMaximumRefundFraction);
+                }
             }
             else
             {
@@ -2269,11 +3610,10 @@ namespace SoulAndService
                     ? Mathf.Clamp01(__instance.ParentModel.Health.Percentage)
                     : 0.0f;
 
-            float wholeManaReturn = CalculateLightManaReturn(plugin);
-            __result = NativeManaRefundMultiplier > 0.0f
-                ? wholeManaReturn / NativeManaRefundMultiplier
-                : 0.0f;
             CompleteLightSummonHarvest(__instance);
+            __result = NativeManaRefundMultiplier > 0.0f
+                ? _lightResolvedManaReturn / NativeManaRefundMultiplier
+                : 0.0f;
             return false;
         }
 
@@ -2298,6 +3638,23 @@ namespace SoulAndService
                     return false;
                 }
             }
+            if (_lightCastActive
+                && plugin != null
+                && hero != null
+                && __instance != null
+                && ReferenceEquals(__instance, _lightTarget))
+            {
+                if (!_lightHarvestCompleted)
+                {
+                    CompleteLightSummonHarvest(__instance);
+                }
+                if (_lightPreserveTarget)
+                {
+                    plugin.LogDiagnostic(
+                        "Blocked native light Soul Rend destruction after resolving one servant layer.");
+                    return false;
+                }
+            }
             if (__instance != null)
             {
                 ReanimationRecord endingRecord;
@@ -2308,17 +3665,6 @@ namespace SoulAndService
                     endingRecord.DismissedAsRemains = true;
                 }
             }
-            if (!_lightCastActive
-                || _lightHarvestCompleted
-                || plugin == null
-                || hero == null
-                || __instance == null
-                || !ReferenceEquals(__instance, _lightTarget))
-            {
-                return true;
-            }
-
-            CompleteLightSummonHarvest(__instance);
             return true;
         }
 
@@ -2378,72 +3724,207 @@ namespace SoulAndService
             }
 
             _lightHarvestCompleted = true;
+            _lightPreserveTarget = false;
+            _lightResolvedManaReturn = 0.0f;
             string summonId = ((Model)summon).ID;
             ReanimationRecord raisedRecord;
-            float soulVigorAward = 0.0f;
-            Grailwright.Shared.CorpseQualityTier qualityTier;
-            Grailwright.Shared.CorpseQualityTier audioTier;
-            bool hasAudioPosition = false;
-            Vector3 audioPosition = Vector3.zero;
-            SoulSalvageAudioTargetClass audioTargetClass;
-            string displayName;
-            bool raisedSacrifice = Reanimations.TryGetValue(
+            bool raisedServant = Reanimations.TryGetValue(
                 summonId,
                 out raisedRecord);
-            if (raisedSacrifice)
+            OrdinarySummonInvestment ordinaryInvestment = null;
+            if (!raisedServant
+                && (!OrdinarySummonInvestments.TryGetValue(
+                        summonId,
+                        out ordinaryInvestment)
+                    || ordinaryInvestment == null))
+            {
+                ordinaryInvestment = new OrdinarySummonInvestment();
+                OrdinarySummonInvestments[summonId] = ordinaryInvestment;
+            }
+
+            ServantRecoveryLedger recovery = EnsureLightRecoveryLedger(
+                summonId,
+                raisedRecord,
+                ordinaryInvestment,
+                plugin);
+            string displayName = raisedServant
+                ? raisedRecord.SourceDisplayName
+                : GetSummonDisplayName(summon);
+
+            if (SummonRuntime.IsEmpoweredSummon(summon))
+            {
+                _lightPreserveTarget = true;
+                if (!SummonRuntime.TryRemoveEmpowerment(summon))
+                {
+                    plugin.LogWarning(
+                        "Soul Rend preserved " + summonId
+                        + " because its Empowerment could not be removed safely.");
+                    return;
+                }
+
+                int empowermentInvestment = recovery == null
+                    ? 0
+                    : Math.Max(
+                        0,
+                        recovery.EmpowermentSoulVigorInvestment);
+                int requestedRefund = Mathf.Clamp(
+                    Mathf.RoundToInt(
+                        empowermentInvestment
+                            * EmpowermentSeverRefundFraction),
+                    0,
+                    empowermentInvestment);
+                if (raisedServant)
+                {
+                    raisedRecord.InvestedSoulVigor = Math.Max(
+                        0,
+                        raisedRecord.InvestedSoulVigor
+                            - empowermentInvestment);
+                    recovery.EmpowermentSoulVigorInvestment = 0;
+                    SavePersistentReanimation(summonId, raisedRecord);
+                }
+                else
+                {
+                    ordinaryInvestment.InvestedSoulVigor = Math.Max(
+                        0,
+                        ordinaryInvestment.InvestedSoulVigor
+                            - empowermentInvestment);
+                    recovery.EmpowermentSoulVigorInvestment = 0;
+                    SaveOrdinarySummonInvestment(
+                        summonId,
+                        ordinaryInvestment);
+                }
+                int actualRefund = SoulProgressionRuntime.RestoreSoulVigor(
+                    requestedRefund);
+                SoulProgressionRuntime.ShowServantSoulRendStage(
+                    "servant-empowerment-severed",
+                    summonId,
+                    displayName + ": Empowerment severed"
+                    + (actualRefund > 0
+                        ? " | +" + actualRefund.ToString(
+                            CultureInfo.InvariantCulture)
+                            + " Soul Vigor"
+                        : string.Empty));
+                SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
+                    actualRefund);
+                PlayServantSoulRendFeedback(summon, raisedRecord);
+                plugin.LogDiagnostic(
+                    "Soul Rend severed Empowerment from " + summonId
+                    + ": investedVigor=" + empowermentInvestment
+                    + "; refund=" + actualRefund + ".");
+                return;
+            }
+
+            int realRank = SoulforgedRuntime.GetRealRank(summon);
+            if (realRank > 0)
+            {
+                _lightPreserveTarget = true;
+                if (!SoulforgedRuntime.TryReduceRealRanks(
+                        summon,
+                        2,
+                        out int previousRank,
+                        out int currentRank))
+                {
+                    plugin.LogWarning(
+                        "Soul Rend preserved " + summonId
+                        + " because its Soulforged rank could not be reduced safely.");
+                    return;
+                }
+
+                int vigorAward = 0;
+                if (!raisedServant || !raisedRecord.IsMiniboss)
+                {
+                    ApplySoulforgedRecovery(
+                        raisedRecord,
+                        ordinaryInvestment,
+                        recovery,
+                        previousRank,
+                        currentRank,
+                        _lightHealthFraction,
+                        out _lightResolvedManaReturn,
+                        out vigorAward);
+                    if (raisedServant)
+                    {
+                        SavePersistentReanimation(summonId, raisedRecord);
+                    }
+                    else
+                    {
+                        SaveOrdinarySummonInvestment(
+                            summonId,
+                            ordinaryInvestment);
+                    }
+                }
+                string recoveryText = string.Empty;
+                if (_lightResolvedManaReturn > 0.0f)
+                {
+                    recoveryText += " | +"
+                        + _lightResolvedManaReturn.ToString(
+                            "0",
+                            CultureInfo.InvariantCulture)
+                        + " Mana";
+                }
+                if (vigorAward > 0)
+                {
+                    recoveryText += " | +"
+                        + vigorAward.ToString(CultureInfo.InvariantCulture)
+                        + " Soul Vigor";
+                }
+                SoulProgressionRuntime.ShowServantSoulRendStage(
+                    "servant-rank-reduced",
+                    summonId,
+                    displayName + ": Soulforged "
+                    + SoulforgedRuntime.GetRankLabel(previousRank)
+                    + " -> "
+                    + SoulforgedRuntime.GetRankLabel(currentRank)
+                    + recoveryText);
+                SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
+                    vigorAward);
+                PlayServantSoulRendFeedback(summon, raisedRecord);
+                plugin.LogDiagnostic(
+                    "Soul Rend reduced " + summonId + " from rank "
+                    + previousRank + " to " + currentRank
+                    + ": healthFraction="
+                    + _lightHealthFraction.ToString("0.###")
+                    + "; mana="
+                    + _lightResolvedManaReturn.ToString("0.##")
+                    + "; vigor=" + vigorAward + ".");
+                return;
+            }
+
+            float manaReturned = recovery == null
+                ? CalculateFullHealthLightManaReturn(plugin)
+                    * _lightHealthFraction
+                : Mathf.Round(
+                    Math.Max(0.0f, recovery.RemainingMana)
+                        * _lightHealthFraction);
+            _lightResolvedManaReturn = manaReturned;
+            if (recovery != null)
+            {
+                recovery.RemainingMana = 0.0f;
+            }
+            int soulVigorAward = 0;
+            Grailwright.Shared.CorpseQualityTier qualityTier;
+            if (raisedServant)
             {
                 raisedRecord.Sacrificed = true;
                 raisedRecord.SalvageHealthFraction = _lightHealthFraction;
-                qualityTier = raisedRecord.QualityTier;
-                audioTier = raisedRecord.QualityTier;
-                displayName = raisedRecord.SourceDisplayName;
-                hasAudioPosition = true;
-                audioPosition = raisedRecord.LastSafeCoords;
-                audioTargetClass = GetSoulSalvageAudioTargetClass(
-                    raisedRecord.SourceCorpse,
-                    raisedRecord.RaisedNpc);
-            }
-            else
-            {
-                int investedVigor;
-                if (OrdinarySummonInvestments.TryGetValue(
-                    summonId,
-                    out investedVigor))
-                {
-                OrdinarySummonInvestments.Remove(summonId);
-                    ClearPersistedServant(summonId);
-                    soulVigorAward = SoulProgressionRuntime.RestoreSoulVigor(
-                        Mathf.Clamp(
-                            Mathf.RoundToInt(investedVigor * _lightHealthFraction),
-                            0,
-                            investedVigor));
-                }
-                qualityTier = Grailwright.Shared.CorpseQualityTier.None;
-                Location summonLocation = summon.ParentModel == null
-                    ? null
-                    : summon.ParentModel.ParentModel;
-                if (summonLocation != null)
-                {
-                    hasAudioPosition = true;
-                    audioPosition = summonLocation.Coords;
-                }
-                audioTier = Grailwright.Shared.CorpseQualityBuckets.GetTier(
-                    CalculateQuality01(summonLocation, summon.ParentModel),
-                    true);
-                audioTargetClass = GetSoulSalvageAudioTargetClass(
-                    summonLocation,
-                    summon.ParentModel);
-                displayName = summonLocation == null
-                    ? "summon"
-                    : GetCorpseDisplayName(summonLocation);
-            }
-            float manaReturned = CalculateLightManaReturn(plugin);
-            if (raisedSacrifice)
-            {
                 raisedRecord.ManaReturnedOnSacrifice = manaReturned;
+                qualityTier = raisedRecord.QualityTier;
+                SavePersistentReanimation(summonId, raisedRecord);
             }
             else
             {
+                int investedVigor = Math.Max(
+                    0,
+                    ordinaryInvestment.InvestedSoulVigor);
+                OrdinarySummonInvestments.Remove(summonId);
+                ClearPersistedServant(summonId);
+                soulVigorAward = SoulProgressionRuntime.RestoreSoulVigor(
+                    Mathf.Clamp(
+                        Mathf.RoundToInt(
+                            investedVigor * _lightHealthFraction),
+                        0,
+                        investedVigor));
+                qualityTier = Grailwright.Shared.CorpseQualityTier.None;
                 SoulProgressionRuntime.ShowSoulVigorHarvest(
                     displayName,
                     qualityTier,
@@ -2452,35 +3933,215 @@ namespace SoulAndService
                 SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
                     soulVigorAward);
             }
-            SoulSalvageAudioRuntime.Play(
-                audioTier,
-                hasAudioPosition,
-                audioPosition,
-                audioTargetClass);
-            SoulSalvageAudioRuntime.PlayImpact(
-                false,
-                hasAudioPosition,
-                audioPosition);
+            PlayServantSoulRendFeedback(summon, raisedRecord);
             plugin.LogDiagnostic(
                 "Soul Rend unbound " + summonId
-                + ": investedMana=" + _lightOriginalMana.ToString("0.##")
+                + ": remainingMana=" + manaReturned.ToString("0.##")
                 + "; healthFraction=" + _lightHealthFraction.ToString("0.###")
-                + "; manaReturned=" + manaReturned.ToString("0.##")
-                + "; soulVigor=" + (raisedSacrifice
+                + "; soulVigor=" + (raisedServant
                     ? "pending remains"
-                    : soulVigorAward.ToString("0.##")) + ".");
+                    : soulVigorAward.ToString(CultureInfo.InvariantCulture))
+                + ".");
         }
 
-        private static float CalculateLightManaReturn(SoulAndServicePlugin plugin)
+        private static ServantRecoveryLedger EnsureLightRecoveryLedger(
+            string summonId,
+            ReanimationRecord raisedRecord,
+            OrdinarySummonInvestment ordinaryInvestment,
+            SoulAndServicePlugin plugin)
+        {
+            ServantRecoveryLedger recovery;
+            if (raisedRecord != null)
+            {
+                EnsureRaisedRecoveryLedger(raisedRecord);
+                recovery = raisedRecord.Recovery;
+            }
+            else
+            {
+                EnsureOrdinaryRecoveryLedger(ordinaryInvestment);
+                recovery = ordinaryInvestment.Recovery;
+            }
+            if (!recovery.ManaInitialized)
+            {
+                recovery.ManaInitialized = true;
+                recovery.OriginalMana = CalculateFullHealthLightManaReturn(
+                    plugin);
+                recovery.RemainingMana = recovery.OriginalMana;
+                if (raisedRecord != null)
+                {
+                    SavePersistentReanimation(summonId, raisedRecord);
+                }
+                else
+                {
+                    SaveOrdinarySummonInvestment(
+                        summonId,
+                        ordinaryInvestment);
+                }
+            }
+            return recovery;
+        }
+
+        private static void ApplySoulforgedRecovery(
+            ReanimationRecord raisedRecord,
+            OrdinarySummonInvestment ordinaryInvestment,
+            ServantRecoveryLedger recovery,
+            int previousRank,
+            int currentRank,
+            float healthFraction,
+            out float manaAward,
+            out int vigorAward)
+        {
+            manaAward = 0.0f;
+            vigorAward = 0;
+            if (recovery == null || previousRank <= currentRank)
+            {
+                return;
+            }
+
+            int previousMask = recovery.RecoveredSoulforgedRankMask;
+            int currentMask = previousMask;
+            for (int rank = previousRank; rank > currentRank; rank--)
+            {
+                if (rank >= 1 && rank <= SoulforgedRuntime.MaximumRank)
+                {
+                    currentMask |= 1 << (rank - 1);
+                }
+            }
+            recovery.RecoveredSoulforgedRankMask = currentMask;
+            int previousRecovered = CountRecoveredSoulforgedRanks(previousMask);
+            int currentRecovered = CountRecoveredSoulforgedRanks(currentMask);
+            if (currentRecovered <= previousRecovered)
+            {
+                return;
+            }
+
+            float targetManaConsumed = Mathf.Round(
+                recovery.OriginalMana
+                    * SoulforgedRecoveryFractionPerRank
+                    * currentRecovered);
+            float previousManaConsumed = Math.Max(
+                0.0f,
+                recovery.OriginalMana - recovery.RemainingMana);
+            float grossMana = Mathf.Clamp(
+                targetManaConsumed - previousManaConsumed,
+                0.0f,
+                recovery.RemainingMana);
+            recovery.RemainingMana = Math.Max(
+                0.0f,
+                recovery.RemainingMana - grossMana);
+
+            int currentBaseVigor = raisedRecord != null
+                ? Math.Max(
+                    0,
+                    raisedRecord.NativeSoulVigor
+                        + raisedRecord.InvestedSoulVigor)
+                : Math.Max(0, ordinaryInvestment.InvestedSoulVigor);
+            int targetVigorConsumed = Mathf.Clamp(
+                Mathf.RoundToInt(
+                    recovery.OriginalSoulVigor
+                        * SoulforgedRecoveryFractionPerRank
+                        * currentRecovered),
+                0,
+                recovery.OriginalSoulVigor);
+            int previousVigorConsumed = Math.Max(
+                0,
+                recovery.OriginalSoulVigor - currentBaseVigor);
+            int grossVigor = Mathf.Clamp(
+                targetVigorConsumed - previousVigorConsumed,
+                0,
+                currentBaseVigor);
+            if (raisedRecord != null)
+            {
+                int investedReduction = Math.Min(
+                    raisedRecord.InvestedSoulVigor,
+                    grossVigor);
+                raisedRecord.InvestedSoulVigor -= investedReduction;
+                raisedRecord.NativeSoulVigor = Math.Max(
+                    0,
+                    raisedRecord.NativeSoulVigor
+                        - (grossVigor - investedReduction));
+            }
+            else
+            {
+                ordinaryInvestment.InvestedSoulVigor = Math.Max(
+                    0,
+                    ordinaryInvestment.InvestedSoulVigor - grossVigor);
+            }
+
+            float recoveryEfficiency = Math.Max(
+                SoulforgedRecoveryMinimumHealthFraction,
+                Mathf.Clamp01(healthFraction));
+            manaAward = Mathf.Round(grossMana * recoveryEfficiency);
+            vigorAward = SoulProgressionRuntime.RestoreSoulVigor(
+                Mathf.Clamp(
+                    Mathf.RoundToInt(grossVigor * recoveryEfficiency),
+                    0,
+                    grossVigor));
+        }
+
+        private static int CountRecoveredSoulforgedRanks(int mask)
+        {
+            int count = 0;
+            int remaining = mask
+                & ((1 << SoulforgedRuntime.MaximumRank) - 1);
+            while (remaining != 0)
+            {
+                count += remaining & 1;
+                remaining >>= 1;
+            }
+            return count;
+        }
+
+        private static float CalculateFullHealthLightManaReturn(
+            SoulAndServicePlugin plugin)
         {
             if (plugin == null || plugin.SoulSalvageManaReturnPercent == null)
             {
                 return 0.0f;
             }
             float rawReturn = _lightOriginalMana
-                * _lightHealthFraction
                 * (plugin.SoulSalvageManaReturnPercent.Value / 100.0f);
             return Mathf.Round(Math.Min(rawReturn, _lightMaximumManaReturn));
+        }
+
+        private static void PlayServantSoulRendFeedback(
+            NpcHeroSummon summon,
+            ReanimationRecord raisedRecord)
+        {
+            Location summonLocation = summon == null
+                || summon.ParentModel == null
+                    ? null
+                    : summon.ParentModel.ParentModel;
+            bool hasAudioPosition = raisedRecord != null
+                || summonLocation != null;
+            Vector3 audioPosition = raisedRecord != null
+                ? raisedRecord.LastSafeCoords
+                : summonLocation == null
+                    ? Vector3.zero
+                    : summonLocation.Coords;
+            Grailwright.Shared.CorpseQualityTier audioTier =
+                raisedRecord != null
+                    ? raisedRecord.QualityTier
+                    : Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                        CalculateQuality01(
+                            summonLocation,
+                            summon == null ? null : summon.ParentModel),
+                        true);
+            SoulSalvageAudioRuntime.Play(
+                audioTier,
+                hasAudioPosition,
+                audioPosition,
+                GetSoulSalvageAudioTargetClass(
+                    raisedRecord == null
+                        ? summonLocation
+                        : raisedRecord.SourceCorpse,
+                    raisedRecord == null
+                        ? summon == null ? null : summon.ParentModel
+                        : raisedRecord.RaisedNpc));
+            SoulSalvageAudioRuntime.PlayImpact(
+                false,
+                hasAudioPosition,
+                audioPosition);
         }
 
         private static void TryServeHeavyTarget(NpcHeroSummon summon)
@@ -2497,6 +4158,7 @@ namespace SoulAndService
             }
 
             float power = SoulProgressionRuntime.GetNecromanticPower();
+            bool isMiniboss = IsReanimatedMiniboss(summon);
             float maximumHealth = npc.AliveStats != null
                     && npc.AliveStats.MaxHealth != null
                 ? Math.Max(
@@ -2520,7 +4182,8 @@ namespace SoulAndService
             float healingFraction = Mathf.Lerp(
                 ServantHealingPowerZeroFraction,
                 ServantHealingPowerMaximumFraction,
-                Mathf.Clamp01(power / 200.0f));
+                Mathf.Clamp01(power / 200.0f))
+                * (isMiniboss ? 0.50f : 1.0f);
             float missingHealth = Math.Max(0.0f, maximumHealth - beforeHealth);
             float requestedHealing = empowerEligibleHealth
                 ? missingHealth
@@ -2539,6 +4202,7 @@ namespace SoulAndService
             int empowermentCost = 0;
             int committedVigor = 0;
             if (empowerEligibleHealth
+                && !isMiniboss
                 && power >= SoulProgressionRuntime.EmpowermentPower
                 && !alreadyEmpowered)
             {
@@ -2618,6 +4282,11 @@ namespace SoulAndService
                 else if (alreadyEmpowered)
                 {
                     plugin.LogDiagnostic("The servant is already Empowered.");
+                }
+                else if (isMiniboss)
+                {
+                    plugin.LogDiagnostic(
+                        "Miniboss servants cannot be Empowered.");
                 }
                 return;
             }
@@ -2715,6 +4384,12 @@ namespace SoulAndService
             {
                 return;
             }
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo highSoul))
+            {
+                TryDrainHighSoulCorpse(highSoul);
+                return;
+            }
             Location corpse;
             LocationTemplate ignoredSpawnTemplate;
             string corpseRejection;
@@ -2751,11 +4426,102 @@ namespace SoulAndService
                 plugin.LogDiagnostic(
                     "Soul Rend light cast found no eligible target: corpse="
                     + corpseRejection + "; living=" + livingRejection + ".");
+                ShowSpentCorpseFeedback(plugin, corpseRejection);
                 return;
             }
 
             plugin.LogDiagnostic(
                 "Soul Rend light cast harvested nothing: " + corpseRejection);
+            ShowSpentCorpseFeedback(plugin, corpseRejection);
+        }
+
+        private static void TryDrainHighSoulCorpse(HighSoulCorpseInfo highSoul)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Location corpse = highSoul.Corpse;
+            if (plugin == null
+                || corpse == null
+                || corpse.HasBeenDiscarded)
+            {
+                return;
+            }
+            string displayName = GetCorpseDisplayName(corpse);
+            Vector3 corpseCoords = corpse.Coords;
+            Quaternion corpseRotation = corpse.Rotation;
+            SoulSalvageAudioTargetClass audioTargetClass =
+                GetSoulSalvageAudioTargetClass(corpse, null);
+
+            int remainingBefore = SoulProgressionRuntime
+                .GetOrInitializeHighSoulVigorPool(
+                    highSoul.Fingerprint,
+                    highSoul.ExtractionValue);
+            if (remainingBefore <= 0)
+            {
+                plugin.LogDiagnostic(
+                    "Soul Rend found no Soul Vigor remaining in "
+                    + displayName + ".");
+                return;
+            }
+
+            if (!SoulProgressionRuntime.TryDrainHighSoulVigorPool(
+                    highSoul.Fingerprint,
+                    highSoul.ExtractionValue,
+                    out SoulProgressionRuntime.HighSoulDrainReceipt receipt))
+            {
+                plugin.LogWarning(
+                    "Soul Rend could not save the high-soul drain for "
+                    + displayName
+                    + "; the corpse was left unchanged.");
+                return;
+            }
+
+            int remainingAfter = Math.Max(
+                0,
+                receipt.BeforeRemaining - receipt.Award);
+            if (remainingAfter == 0
+                && highSoul.CanSafelySimplify
+                && !TryCreateRemains(
+                    corpse,
+                    corpseCoords,
+                    corpseRotation,
+                    out string failure))
+            {
+                SoulProgressionRuntime.RollbackHighSoulDrain(receipt);
+                plugin.LogWarning(
+                    "Soul Rend could not simplify "
+                    + displayName
+                    + ": " + failure);
+                return;
+            }
+
+            Grailwright.Shared.CorpseQualityTier presentationTier =
+                Grailwright.Shared.CorpseQualityTier.Prime;
+            SoulProgressionRuntime.ShowSoulVigorHarvest(
+                displayName,
+                presentationTier,
+                receipt.Award,
+                0.0f);
+            SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
+                receipt.Award);
+            SoulSalvageAudioRuntime.Play(
+                presentationTier,
+                true,
+                corpseCoords,
+                audioTargetClass);
+            SoulSalvageAudioRuntime.PlayImpact(
+                false,
+                true,
+                corpseCoords);
+            plugin.LogDiagnostic(
+                "Soul Rend drained " + displayName
+                + "; type=" + highSoul.NpcType
+                + "; tier=" + highSoul.NativeTier.ToString(
+                    CultureInfo.InvariantCulture)
+                + "; soulVigor=" + receipt.Award.ToString(
+                    CultureInfo.InvariantCulture)
+                + "; remaining=" + remainingAfter.ToString(
+                    CultureInfo.InvariantCulture)
+                + ".");
         }
 
         private static void TryHarvestCorpse(Location corpse)
@@ -2781,6 +4547,9 @@ namespace SoulAndService
             string fingerprint = executedServant
                 ? executedRecord.CorpseFingerprint
                 : GetCorpseFingerprint(corpse);
+            string harvestIdentity = executedServant
+                ? executedRecord.CorpseFingerprint
+                : GetCorpseHarvestIdentity(corpse);
             string displayName = executedServant
                 ? executedRecord.SourceDisplayName
                 : GetCorpseDisplayName(corpse);
@@ -2807,6 +4576,7 @@ namespace SoulAndService
                     out harvestReceipt)
                 : SoulProgressionRuntime.TryHarvestCorpse(
                     fingerprint,
+                    harvestIdentity,
                     tier,
                     quality01,
                     out harvestReceipt);
@@ -2820,16 +4590,35 @@ namespace SoulAndService
             Location remainsSource = executedServant
                 ? executedRecord.SourceCorpse
                 : corpse;
-            if (!TryCreateRemains(
+            bool broadCurrentSessionHarvest = !executedServant
+                && IsCurrentSessionCorpseHarvestEligible(
+                    corpse.TryGetElement<Corpse>());
+            bool canSafelySimplify = executedServant
+                || CanSafelySimplifyOrdinaryCorpse(corpse);
+            string failure = string.Empty;
+            bool simplified = canSafelySimplify
+                && TryCreateRemains(
                     remainsSource,
                     corpse.Coords,
                     corpse.Rotation,
-                    out string failure))
+                    out failure);
+            if (canSafelySimplify
+                && !simplified
+                && !broadCurrentSessionHarvest)
             {
                 SoulProgressionRuntime.RollbackCorpseHarvest(harvestReceipt);
                 plugin.LogWarning(
                     "Soul Rend could not simplify " + displayName + ": " + failure);
                 return;
+            }
+            if (!simplified)
+            {
+                plugin.LogDiagnostic(
+                    "Soul Rend retained the intact body of " + displayName
+                    + (canSafelySimplify
+                        ? " because safe simplification failed: " + failure
+                        : " because its source identity is protected")
+                    + "; its soul remains spent.");
             }
             if (executedServant)
             {
@@ -2839,6 +4628,10 @@ namespace SoulAndService
                 {
                     PendingRaisedDiscards.Add(corpse);
                 }
+            }
+            else
+            {
+                ReportCorpseHarvestThreatToEyes(quality01);
             }
             SoulProgressionRuntime.ShowSoulVigorHarvest(
                 displayName,
@@ -2932,21 +4725,28 @@ namespace SoulAndService
                 true,
                 impactPosition);
 
-            int stacks = 0;
+            int preparationHits = 0;
             if (!targetModel.HasBeenDiscarded && target.IsAlive)
             {
-                FrayedSoulState state;
-                if (!FrayedSouls.TryGetValue(targetId, out state)
-                    || state.ExpiresAt <= Time.unscaledTime)
+                SoulClaimPreparationState state;
+                if (!SoulClaimPreparations.TryGetValue(targetId, out state)
+                    || state == null
+                    || state.Target != target)
                 {
-                    state = new FrayedSoulState();
-                    FrayedSouls[targetId] = state;
+                    state = new SoulClaimPreparationState
+                    {
+                        Target = target
+                    };
+                    SoulClaimPreparations[targetId] = state;
                 }
-                state.Stacks = Math.Min(
-                    FrayedSoulMaximumStacks,
-                    state.Stacks + 1);
-                state.ExpiresAt = Time.unscaledTime + FrayedSoulDurationSeconds;
-                stacks = state.Stacks;
+                state.Hits = Math.Min(
+                    SoulClaimMaximumPreparationHits,
+                    state.Hits + 1);
+                preparationHits = state.Hits;
+            }
+            else
+            {
+                SoulClaimPreparations.Remove(targetId);
             }
 
             plugin.LogDiagnostic(
@@ -2958,8 +4758,8 @@ namespace SoulAndService
                 + powerMultiplier.ToString("0.###", CultureInfo.InvariantCulture)
                 + "; finalDamage="
                 + damage.Amount.ToString("0.##", CultureInfo.InvariantCulture)
-                + "; frayedStacks="
-                + stacks.ToString(CultureInfo.InvariantCulture)
+                + "; claimPreparationHits="
+                + preparationHits.ToString(CultureInfo.InvariantCulture)
                 + ".");
         }
 
@@ -2986,6 +4786,30 @@ namespace SoulAndService
                 || hero.VHeroController == null
                 || hero.VHeroController.Raycaster == null)
             {
+                return;
+            }
+
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo highSoul))
+            {
+                int remaining = SoulProgressionRuntime
+                    .GetOrInitializeHighSoulVigorPool(
+                        highSoul.Fingerprint,
+                        highSoul.ExtractionValue);
+                if (remaining <= 0)
+                {
+                    SoulProgressionRuntime.ShowBindingFailure(
+                        "No soul remains to bind.");
+                }
+                else if (!highSoul.CanReanimate)
+                {
+                    SoulProgressionRuntime.ShowBindingFailure(
+                        GetUnbindableHighSoulMessage(highSoul.Fingerprint));
+                }
+                else
+                {
+                    TryRaiseMiniboss(sourceItem, highSoul);
+                }
                 return;
             }
 
@@ -3036,18 +4860,79 @@ namespace SoulAndService
                 plugin.LogDiagnostic(
                     "Soul Rend heavy cast found no eligible target: corpse="
                     + corpseRejection + "; living=" + livingRejection + ".");
-                plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                    "targeting",
-                    "Soul Rend: no eligible target - "
-                    + livingRejection + ".");
+                if (!ShowCorpseBindingRejectionFeedback(
+                        plugin,
+                        corpseRejection))
+                {
+                    plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                        "targeting",
+                        "Soul Rend: no eligible target - "
+                        + livingRejection + ".");
+                }
                 return;
             }
 
             plugin.LogDiagnostic(
                 "Soul Rend heavy cast raised nothing: " + corpseRejection);
-            plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                "targeting",
-                "Soul Rend: no eligible corpse - " + corpseRejection + ".");
+            if (!ShowCorpseBindingRejectionFeedback(plugin, corpseRejection))
+            {
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "targeting",
+                    "Soul Rend: no eligible corpse - " + corpseRejection + ".");
+            }
+        }
+
+        private static void ShowSpentCorpseFeedback(
+            SoulAndServicePlugin plugin,
+            string rejection)
+        {
+            if (plugin != null
+                && string.Equals(
+                    rejection,
+                    "no Soul Vigor remains in that corpse",
+                    StringComparison.Ordinal))
+            {
+                plugin.ShowSoulSalvageHeavyCastFeedback(
+                    "soul-rend-corpse-spent",
+                    "Soul Rend: no Soul Vigor remains in that corpse.");
+            }
+        }
+
+        private static bool ShowCorpseBindingRejectionFeedback(
+            SoulAndServicePlugin plugin,
+            string rejection)
+        {
+            if (plugin == null
+                || string.IsNullOrEmpty(rejection)
+                || string.Equals(
+                    rejection,
+                    "no corpse was under the crosshair",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    rejection,
+                    "the line of sight was blocked before a corpse",
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    rejection,
+                    "the targeted location is not a corpse",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            bool spent = string.Equals(
+                rejection,
+                "no Soul Vigor remains in that corpse",
+                StringComparison.Ordinal);
+            plugin.ShowSoulSalvageHeavyCastFeedback(
+                spent
+                    ? "soul-rend-corpse-spent-binding"
+                    : "soul-rend-corpse-resistant",
+                spent
+                    ? "Soul Rend: no soul remains to bind."
+                    : "Soul Rend: this soul is too resistant to bind.",
+                warning: true);
+            return true;
         }
 
         private static void TryClaimLivingTarget(
@@ -3088,7 +4973,17 @@ namespace SoulAndService
 
             float healthFraction = Mathf.Clamp01(target.Health.Percentage);
             string displayName = GetCorpseDisplayName(targetLocation);
-            if (healthFraction > SoulClaimHealthThreshold)
+            string targetId = ((Model)target).ID;
+            int preparationHits = GetSoulClaimPreparationHits(targetId, target);
+            float power = SoulProgressionRuntime.GetNecromanticPower();
+            float quality01 = CalculateQuality01(targetLocation, target);
+            Grailwright.Shared.CorpseQualityTier qualityTier =
+                Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
+            float claimThreshold = CalculateSoulClaimThreshold(
+                power,
+                qualityTier,
+                preparationHits);
+            if (healthFraction > claimThreshold)
             {
                 SoulProgressionRuntime.ShowSoulClaimFeedback(
                     "The soul is still too firmly bound to " + displayName + ".",
@@ -3098,22 +4993,19 @@ namespace SoulAndService
                     + (healthFraction * 100.0f).ToString(
                         "0.##",
                         CultureInfo.InvariantCulture)
-                    + "% exceeds the 40% threshold.");
+                    + "% exceeds its "
+                    + (claimThreshold * 100.0f).ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + "% threshold; power="
+                    + power.ToString("0.##", CultureInfo.InvariantCulture)
+                    + "; tier=" + qualityTier
+                    + "; claimPreparationHits="
+                    + preparationHits.ToString(CultureInfo.InvariantCulture)
+                    + ".");
                 return;
             }
 
-            string targetId = ((Model)target).ID;
-            int frayedStacks = ConsumeFrayedSoulStacks(targetId);
-            float power = SoulProgressionRuntime.GetNecromanticPower();
-            float healthVulnerability = SoulClaimHealthThreshold <= 0.0f
-                ? 0.0f
-                : Mathf.Clamp01(
-                    (SoulClaimHealthThreshold - healthFraction)
-                    / SoulClaimHealthThreshold);
-            float powerChance = GetSoulClaimPowerChance(power);
-            float quality01 = CalculateQuality01(targetLocation, target);
-            Grailwright.Shared.CorpseQualityTier qualityTier =
-                Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
             string corpseFingerprint = GetCorpseFingerprint(targetLocation);
             int nativeSoulVigor =
                 SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
@@ -3132,35 +5024,6 @@ namespace SoulAndService
                 true,
                 true,
                 target.Coords);
-            float qualityFactor = GetSoulClaimQualityFactor(qualityTier);
-            float chance = Mathf.Min(
-                SoulClaimAbsoluteChanceCap,
-                healthVulnerability
-                    * powerChance
-                    * qualityFactor
-                    * (1.0f
-                        + (FrayedSoulChanceBonusPerStack * frayedStacks)));
-            float roll = UnityEngine.Random.value;
-            if (roll >= chance)
-            {
-                SoulProgressionRuntime.ShowSoulClaimFeedback(
-                    SoulProgressionRuntime.GetSoulClaimFailureMessage(),
-                    highPriority: false);
-                plugin.LogDiagnostic(
-                    "Soul Claim resisted by " + displayName
-                    + "; health="
-                    + healthFraction.ToString("0.###", CultureInfo.InvariantCulture)
-                    + "; tier=" + qualityTier
-                    + "; power=" + power.ToString("0.##", CultureInfo.InvariantCulture)
-                    + "; frayedStacks="
-                    + frayedStacks.ToString(CultureInfo.InvariantCulture)
-                    + "; chance="
-                    + (chance * 100.0f).ToString("0.##", CultureInfo.InvariantCulture)
-                    + "%; roll="
-                    + (roll * 100.0f).ToString("0.##", CultureInfo.InvariantCulture)
-                    + "%.");
-                return;
-            }
 
             DamageParameters parameters = DamageParameters.Default;
             parameters.CanBeCritical = false;
@@ -3199,21 +5062,26 @@ namespace SoulAndService
                     "The soul tore loose, but the body refused your command.",
                     highPriority: false);
                 plugin.LogWarning(
-                    "Soul Claim won its roll against " + displayName
+                    "Soul Claim executed " + displayName
                     + " but the native killing-damage path did not produce a corpse.");
                 return;
             }
 
+            SoulClaimPreparations.Remove(targetId);
             SoulProgressionRuntime.ShowSoulClaimFeedback(
                 displayName + "'s soul is yours.",
                 highPriority: true);
             plugin.LogDiagnostic(
                 "Soul Claim succeeded against " + displayName
                 + "; tier=" + qualityTier
-                + "; chance="
-                + (chance * 100.0f).ToString("0.##", CultureInfo.InvariantCulture)
-                + "%; roll="
-                + (roll * 100.0f).ToString("0.##", CultureInfo.InvariantCulture)
+                + "; health="
+                + (healthFraction * 100.0f).ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + "%; threshold="
+                + (claimThreshold * 100.0f).ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
                 + "%. Reanimating through the protected corpse lifecycle.");
             TryRaiseCorpse(
                 sourceItem,
@@ -3226,35 +5094,67 @@ namespace SoulAndService
                 preparedVigorCost: vigorCost);
         }
 
-        private static float GetSoulClaimPowerChance(float power)
+        private static float GetSoulClaimPowerThreshold(float power)
         {
             float safePower = Mathf.Clamp(power, 0.0f, 200.0f);
-            return safePower <= 100.0f
-                ? Mathf.Lerp(
-                    SoulClaimPowerZeroChance,
-                    SoulClaimPowerNormalChance,
-                    safePower / 100.0f)
-                : Mathf.Lerp(
-                    SoulClaimPowerNormalChance,
-                    SoulClaimPowerMaximumChance,
-                    (safePower - 100.0f) / 100.0f);
+            if (safePower <= 25.0f)
+            {
+                return Mathf.Lerp(0.00f, 0.05f, safePower / 25.0f);
+            }
+            if (safePower <= 50.0f)
+            {
+                return Mathf.Lerp(0.05f, 0.10f, (safePower - 25.0f) / 25.0f);
+            }
+            if (safePower <= 75.0f)
+            {
+                return Mathf.Lerp(0.10f, 0.15f, (safePower - 50.0f) / 25.0f);
+            }
+            if (safePower <= 100.0f)
+            {
+                return Mathf.Lerp(0.15f, 0.20f, (safePower - 75.0f) / 25.0f);
+            }
+            if (safePower <= 150.0f)
+            {
+                return Mathf.Lerp(0.20f, 0.25f, (safePower - 100.0f) / 50.0f);
+            }
+            return Mathf.Lerp(0.25f, 0.30f, (safePower - 150.0f) / 50.0f);
         }
 
-        private static float GetSoulClaimQualityFactor(
+        private static float GetSoulClaimQualityResistance(
             Grailwright.Shared.CorpseQualityTier tier)
         {
             switch (tier)
             {
                 case Grailwright.Shared.CorpseQualityTier.Worthy:
-                    return 0.85f;
+                    return 0.03f;
                 case Grailwright.Shared.CorpseQualityTier.Potent:
-                    return 0.65f;
+                    return 0.06f;
                 case Grailwright.Shared.CorpseQualityTier.Prime:
-                    return 0.45f;
+                    return 0.09f;
                 case Grailwright.Shared.CorpseQualityTier.Meager:
                 default:
-                    return 1.0f;
+                    return 0.0f;
             }
+        }
+
+        private static float CalculateSoulClaimThreshold(
+            float power,
+            Grailwright.Shared.CorpseQualityTier qualityTier,
+            int preparationHits)
+        {
+            float presetAdjustment = SoulAndServicePlugin
+                    .GetEffectiveBalanceTuning()
+                    .SoulClaimThresholdAdjustment
+                / 100.0f;
+            return Mathf.Clamp(
+                GetSoulClaimPowerThreshold(power)
+                    + (SoulClaimThresholdBonusPerHit * Math.Min(
+                        SoulClaimMaximumPreparationHits,
+                        Math.Max(0, preparationHits)))
+                    - GetSoulClaimQualityResistance(qualityTier)
+                    + presetAdjustment,
+                SoulClaimMinimumHealthThreshold,
+                SoulClaimMaximumHealthThreshold);
         }
 
         private static bool TryGetSummonCapacity(
@@ -3264,9 +5164,9 @@ namespace SoulAndService
             out int summonLimit)
         {
             summonCount = 0;
-            foreach (NpcHeroSummon ignored in World.All<NpcHeroSummon>())
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
             {
-                summonCount++;
+                summonCount += IsReanimatedMiniboss(summon) ? 2 : 1;
             }
             summonLimit = hero.HeroStats.SummonLimit.ModifiedInt
                 + SoulProgressionRuntime.GetProgressionSummonLimitBonus()
@@ -3274,44 +5174,83 @@ namespace SoulAndService
             return summonCount < summonLimit;
         }
 
-        private static int ConsumeFrayedSoulStacks(string targetId)
+        private static bool TryGetMinibossSummonCapacity(
+            Hero hero,
+            SoulAndServicePlugin plugin,
+            out int occupiedSlots,
+            out int summonLimit)
         {
-            FrayedSoulState state;
+            occupiedSlots = 0;
+            bool hasActiveMiniboss = false;
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
+            {
+                if (summon == null || summon.HasBeenDiscarded)
+                {
+                    continue;
+                }
+                ReanimationRecord record;
+                bool isMiniboss = Reanimations.TryGetValue(
+                        ((Model)summon).ID,
+                        out record)
+                    && record != null
+                    && record.IsMiniboss;
+                occupiedSlots += isMiniboss ? 2 : 1;
+                hasActiveMiniboss |= isMiniboss;
+            }
+            summonLimit = hero.HeroStats.SummonLimit.ModifiedInt
+                + SoulProgressionRuntime.GetProgressionSummonLimitBonus()
+                + plugin.SummonLimitBonus.Value;
+            return !hasActiveMiniboss
+                && occupiedSlots <= Math.Max(0, summonLimit - 2);
+        }
+
+        private static int GetSoulClaimPreparationHits(
+            string targetId,
+            NpcElement target)
+        {
+            SoulClaimPreparationState state;
             if (string.IsNullOrEmpty(targetId)
-                || !FrayedSouls.TryGetValue(targetId, out state))
+                || target == null
+                || !SoulClaimPreparations.TryGetValue(targetId, out state)
+                || state == null
+                || state.Target != target)
             {
                 return 0;
             }
-            FrayedSouls.Remove(targetId);
-            return state.ExpiresAt > Time.unscaledTime
-                ? Math.Min(FrayedSoulMaximumStacks, Math.Max(0, state.Stacks))
-                : 0;
+            return Math.Min(
+                SoulClaimMaximumPreparationHits,
+                Math.Max(0, state.Hits));
         }
 
-        private static void RemoveExpiredFrayedSouls()
+        private static void RemoveStaleSoulClaimPreparations()
         {
-            if (FrayedSouls.Count == 0)
+            if (SoulClaimPreparations.Count == 0)
             {
-                _nextFrayedSoulCleanupAt = 0.0f;
+                _nextSoulClaimPreparationCleanupAt = 0.0f;
                 return;
             }
             float now = Time.unscaledTime;
-            if (now < _nextFrayedSoulCleanupAt)
+            if (now < _nextSoulClaimPreparationCleanupAt)
             {
                 return;
             }
-            _nextFrayedSoulCleanupAt = now + FrayedSoulCleanupIntervalSeconds;
-            FrayedSoulRemovalBuffer.Clear();
-            foreach (KeyValuePair<string, FrayedSoulState> pair in FrayedSouls)
+            _nextSoulClaimPreparationCleanupAt = now
+                + SoulClaimPreparationCleanupIntervalSeconds;
+            SoulClaimPreparationRemovalBuffer.Clear();
+            foreach (KeyValuePair<string, SoulClaimPreparationState> pair
+                in SoulClaimPreparations)
             {
-                if (pair.Value == null || pair.Value.ExpiresAt <= now)
+                NpcElement target = pair.Value == null ? null : pair.Value.Target;
+                if (target == null
+                    || ((Model)target).HasBeenDiscarded
+                    || !target.IsAlive)
                 {
-                    FrayedSoulRemovalBuffer.Add(pair.Key);
+                    SoulClaimPreparationRemovalBuffer.Add(pair.Key);
                 }
             }
-            foreach (string targetId in FrayedSoulRemovalBuffer)
+            foreach (string targetId in SoulClaimPreparationRemovalBuffer)
             {
-                FrayedSouls.Remove(targetId);
+                SoulClaimPreparations.Remove(targetId);
             }
         }
 
@@ -3348,6 +5287,22 @@ namespace SoulAndService
             return overflowHits;
         }
 
+        private static bool TryRaiseMiniboss(
+            Item sourceItem,
+            HighSoulCorpseInfo highSoul)
+        {
+            return highSoul.CanReanimate
+                && highSoul.Corpse != null
+                && highSoul.SpawnTemplate != null
+                && TryRaiseCorpse(
+                    sourceItem,
+                    highSoul.Corpse,
+                    highSoul.SpawnTemplate,
+                    bindingAlreadyWon: false,
+                    summonLimitAlreadyChecked: false,
+                    highSoul: highSoul);
+        }
+
         private static bool TryRaiseCorpse(
             Item sourceItem,
             Location source,
@@ -3356,7 +5311,8 @@ namespace SoulAndService
             bool summonLimitAlreadyChecked,
             string preparedCorpseFingerprint = null,
             int preparedNativeSoulVigor = 0,
-            int preparedVigorCost = 0)
+            int preparedVigorCost = 0,
+            HighSoulCorpseInfo? highSoul = null)
         {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
@@ -3368,12 +5324,35 @@ namespace SoulAndService
                 return false;
             }
 
+            bool isMiniboss = highSoul.HasValue;
+            LocationTemplate durableMinibossTemplate = null;
+            if (isMiniboss
+                && !TryResolveCanonicalPersistentSpawnTemplate(
+                    source,
+                    spawnTemplate,
+                    out durableMinibossTemplate))
+            {
+                plugin.LogWarning(
+                    "Soul Rend rejected a miniboss whose reusable spawn template could not be resolved safely.");
+                return false;
+            }
+            if (isMiniboss)
+            {
+                spawnTemplate = durableMinibossTemplate;
+            }
+
             if (!summonLimitAlreadyChecked
-                && !TryGetSummonCapacity(
-                    hero,
-                    plugin,
-                    out int summonCount,
-                    out int summonLimit))
+                && !(isMiniboss
+                    ? TryGetMinibossSummonCapacity(
+                        hero,
+                        plugin,
+                        out int summonCount,
+                        out int summonLimit)
+                    : TryGetSummonCapacity(
+                        hero,
+                        plugin,
+                        out summonCount,
+                        out summonLimit)))
             {
                 plugin.LogWarning(
                     "Soul Rend could not raise " + source.DebugName
@@ -3389,25 +5368,42 @@ namespace SoulAndService
                 return false;
             }
 
-            float quality01 = CalculateQuality01(source, null);
+            float quality01 = isMiniboss
+                ? 1.0f
+                : CalculateQuality01(source, null);
             Grailwright.Shared.CorpseQualityTier qualityTier =
-                Grailwright.Shared.CorpseQualityBuckets.GetTier(quality01, true);
+                isMiniboss
+                    ? Grailwright.Shared.CorpseQualityTier.Prime
+                    : Grailwright.Shared.CorpseQualityBuckets.GetTier(
+                        quality01,
+                        true);
             string corpseFingerprint = string.IsNullOrEmpty(
                 preparedCorpseFingerprint)
-                    ? GetCorpseFingerprint(source)
+                    ? isMiniboss
+                        ? highSoul.Value.Fingerprint
+                        : GetCorpseFingerprint(source)
                     : preparedCorpseFingerprint;
             int nativeSoulVigor = preparedNativeSoulVigor > 0
                 ? preparedNativeSoulVigor
-                : SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
-                    corpseFingerprint,
-                    qualityTier,
-                    quality01);
+                : isMiniboss
+                    ? highSoul.Value.ExtractionValue
+                    : SoulProgressionRuntime.GetOrRollCorpseSoulVigorValue(
+                        corpseFingerprint,
+                        qualityTier,
+                        quality01);
             float reanimationPower = SoulProgressionRuntime.GetNecromanticPower();
             int vigorCost = preparedVigorCost > 0
                 ? preparedVigorCost
-                : GetReanimationSoulVigorCost(
-                    nativeSoulVigor,
-                    reanimationPower);
+                : isMiniboss
+                    ? GetMinibossReanimationSoulVigorCost(
+                        SoulProgressionRuntime.GetOrInitializeHighSoulVigorPool(
+                            highSoul.Value.Fingerprint,
+                            highSoul.Value.ExtractionValue),
+                        highSoul.Value.ExtractionValue,
+                        reanimationPower)
+                    : GetReanimationSoulVigorCost(
+                        nativeSoulVigor,
+                        reanimationPower);
             if (SoulProgressionRuntime.GetSoulVigor() + 0.001f < vigorCost)
             {
                 SoulProgressionRuntime.ShowInsufficientSoulVigor(vigorCost);
@@ -3417,11 +5413,23 @@ namespace SoulAndService
             float bindingResistance;
             if (!bindingAlreadyWon)
             {
-                bool bindingWon = SoulProgressionRuntime.ApplyBindingAttempt(
-                    corpseFingerprint,
-                    qualityTier,
-                    out bindingProgress01,
-                    out bindingResistance);
+                int serviceCycle = isMiniboss
+                    ? SoulProgressionRuntime.GetHighSoulServiceCycle(
+                        highSoul.Value.Fingerprint,
+                        highSoul.Value.ExtractionValue)
+                    : 0;
+                bool bindingWon = isMiniboss
+                    ? SoulProgressionRuntime.ApplyHighSoulBindingAttempt(
+                        highSoul.Value.Fingerprint,
+                        serviceCycle,
+                        MinibossBindingResistance,
+                        out bindingProgress01,
+                        out bindingResistance)
+                    : SoulProgressionRuntime.ApplyBindingAttempt(
+                        corpseFingerprint,
+                        qualityTier,
+                        out bindingProgress01,
+                        out bindingResistance);
                 SoulSalvageAudioRuntime.PlayImpact(
                     true,
                     true,
@@ -3463,9 +5471,13 @@ namespace SoulAndService
                 ? 0.0f
                 : GetHeavyCastManaCost(sourceItem);
             Location raised = null;
+            string summonId = string.Empty;
             try
             {
-                TriggerRuntimeCorpseVisualEvent(source, "OnResurrectStarted");
+                if (!isMiniboss)
+                {
+                    TriggerRuntimeCorpseVisualEvent(source, "OnResurrectStarted");
+                }
                 raised = spawnTemplate.SpawnLocation(source.Coords, source.Rotation);
                 bool persistent = plugin.PersistentServants != null
                     && plugin.PersistentServants.Value;
@@ -3494,7 +5506,7 @@ namespace SoulAndService
                 raised.RemoveElementsOfType<PickpocketAction>();
 
                 NpcHeroSummon summon = npc.Element<NpcHeroSummon>();
-                string summonId = ((Model)summon).ID;
+                summonId = ((Model)summon).ID;
                 Reanimations[summonId] = new ReanimationRecord
                 {
                     SourceCorpse = source,
@@ -3509,21 +5521,47 @@ namespace SoulAndService
                     BindingManaCost = bindingManaCost,
                     InvestedSoulVigor = committedVigor,
                     NativeSoulVigor = nativeSoulVigor,
+                    Recovery = new ServantRecoveryLedger
+                    {
+                        OriginalSoulVigor = Math.Max(
+                            0,
+                            committedVigor + nativeSoulVigor)
+                    },
                     OriginalCoords = source.Coords,
                     OriginalRotation = source.Rotation,
                     LastSafeCoords = raised.Coords,
                     LastSafeRotation = raised.Rotation,
                     SpawnTemplateGuid = persistent
                         ? spawnTemplate.GUID
-                        : string.Empty
+                        : string.Empty,
+                    IsMiniboss = isMiniboss,
+                    HighSoulFingerprint = isMiniboss
+                        ? highSoul.Value.Fingerprint
+                        : string.Empty,
+                    HighSoulExtractionValue = isMiniboss
+                        ? highSoul.Value.ExtractionValue
+                        : 0,
+                    HighSoulServiceCycle = isMiniboss
+                        ? SoulProgressionRuntime.GetHighSoulServiceCycle(
+                            highSoul.Value.Fingerprint,
+                            highSoul.Value.ExtractionValue)
+                        : 0
                 };
+                if (isMiniboss
+                    && !TryPrepareMinibossSourceForService(
+                        source,
+                        spawnTemplate,
+                        out string sourceFailure))
+                {
+                    throw new InvalidOperationException(sourceFailure);
+                }
+                source.SetInteractability(LocationInteractability.Hidden);
                 if (persistent)
                 {
                     SavePersistentReanimation(
                         summonId,
                         Reanimations[summonId]);
                 }
-                source.SetInteractability(LocationInteractability.Hidden);
                 PrefabPool.InstantiateAndReturn(
                     new ShareableARAssetReference(SkeletonSummonVfxKey),
                     source.Coords,
@@ -3551,8 +5589,9 @@ namespace SoulAndService
                             raised.RemoveElementsOfType<SearchAction>();
                             raised.RemoveElementsOfType<PickpocketAction>();
                             npc.RemoveElementsOfType<NpcHealthRegeneration>();
-                            float qualityHealthMultiplier =
-                                SoulProgressionRuntime.GetQualityHealthMultiplier(
+                            float qualityHealthMultiplier = record.IsMiniboss
+                                ? 0.50f
+                                : SoulProgressionRuntime.GetQualityHealthMultiplier(
                                     record.QualityTier);
                             if (npc.AliveStats != null
                                 && npc.AliveStats.MaxHealth != null
@@ -3571,8 +5610,9 @@ namespace SoulAndService
                             float maximumHealth = npc.Health.UpperLimit;
                             float necromanticPower =
                                 SoulProgressionRuntime.GetNecromanticPower();
-                            float retainedHealthFraction =
-                                SoulProgressionRuntime.RollRaisedHealthFraction(
+                            float retainedHealthFraction = record.IsMiniboss
+                                ? 1.0f
+                                : SoulProgressionRuntime.RollRaisedHealthFraction(
                                     necromanticPower);
                             float retainedHealth = maximumHealth * retainedHealthFraction;
                             if (npc.Health.ModifiedValue > retainedHealth)
@@ -3580,8 +5620,10 @@ namespace SoulAndService
                                 npc.Health.DecreaseBy(
                                     npc.Health.ModifiedValue - retainedHealth);
                             }
-                            float exsanguinationSeverity =
-                                GetBloodExsanguinationSeverity(record.SourceCorpse);
+                            float exsanguinationSeverity = record.IsMiniboss
+                                ? 0.0f
+                                : GetBloodExsanguinationSeverity(
+                                    record.SourceCorpse);
                             if (exsanguinationSeverity > 0.0001f)
                             {
                                 npc.Health.DecreaseBy(
@@ -3632,8 +5674,17 @@ namespace SoulAndService
                             plugin.ShowSoulSalvageHeavyCastDiagnostic(
                                 "binding",
                                 outcome);
-                            SoulProgressionRuntime.CommitSuccessfulBinding(
-                                record.CorpseFingerprint);
+                            if (record.IsMiniboss)
+                            {
+                                SoulProgressionRuntime.CommitHighSoulBinding(
+                                    record.HighSoulFingerprint,
+                                    record.HighSoulServiceCycle);
+                            }
+                            else
+                            {
+                                SoulProgressionRuntime.CommitSuccessfulBinding(
+                                    record.CorpseFingerprint);
+                            }
                             record.ServiceInitialized = true;
                             SavePersistentReanimation(summonId, record);
                             SoulforgedRuntime.RefreshOriginalMaximumHealth(
@@ -3650,6 +5701,14 @@ namespace SoulAndService
                         }
                         catch (Exception exception)
                         {
+                            ReanimationRecord failedRecord;
+                            if (Reanimations.TryGetValue(
+                                    summonId,
+                                    out failedRecord)
+                                && failedRecord != null)
+                            {
+                                failedRecord.ServiceInitialized = false;
+                            }
                             RestoreSourceCorpse(
                                 summonId,
                                 discardRaisedCopy: true,
@@ -3667,13 +5726,43 @@ namespace SoulAndService
             }
             catch (Exception exception)
             {
-                if (raised != null && !raised.HasBeenDiscarded)
+                if (!string.IsNullOrEmpty(summonId)
+                    && Reanimations.ContainsKey(summonId))
                 {
-                    raised.Discard();
+                    RestoreSourceCorpse(
+                        summonId,
+                        discardRaisedCopy: true,
+                        showDiagnostic: false);
+                    committedVigor = 0;
                 }
-                if (source != null && !source.HasBeenDiscarded)
+                else
                 {
-                    source.SetInteractability(previousInteractability);
+                    if (raised != null && !raised.HasBeenDiscarded)
+                    {
+                        try
+                        {
+                            raised.Discard();
+                        }
+                        catch (Exception discardException)
+                        {
+                            plugin.LogWarning(
+                                "Soul Rend could not discard a failed raised copy: "
+                                + discardException.GetBaseException().Message);
+                        }
+                    }
+                    if (source != null && !source.HasBeenDiscarded)
+                    {
+                        try
+                        {
+                            source.SetInteractability(previousInteractability);
+                        }
+                        catch (Exception restoreException)
+                        {
+                            plugin.LogWarning(
+                                "Soul Rend could not restore the failed source presentation: "
+                                + restoreException.GetBaseException().Message);
+                        }
+                    }
                 }
                 SoulProgressionRuntime.RestoreSoulVigor(committedVigor);
                 plugin.LogWarning(
@@ -3881,6 +5970,44 @@ namespace SoulAndService
             return GetPowerScaledSoulVigorCost(nativeSoulVigor, power);
         }
 
+        private static int GetMinibossReanimationSoulVigorCost(
+            int remainingSoulVigor,
+            int extractionValue,
+            float power)
+        {
+            extractionValue = Math.Max(1, extractionValue);
+            int remainingPortions = Mathf.Clamp(
+                Mathf.CeilToInt(
+                    Math.Max(0, remainingSoulVigor)
+                    / (float)extractionValue),
+                1,
+                HighSoulPoolPortions);
+            float depletionMultiplier = 1.0f
+                + (0.10f * (HighSoulPoolPortions - remainingPortions));
+            int pristineCost = GetPowerScaledSoulVigorCost(
+                MinibossReanimationBaseSoulVigor,
+                power);
+            return Math.Max(
+                1,
+                Mathf.CeilToInt(pristineCost * depletionMultiplier));
+        }
+
+        private static string GetUnbindableHighSoulMessage(string fingerprint)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                string safe = fingerprint ?? string.Empty;
+                for (int i = 0; i < safe.Length; i++)
+                {
+                    hash ^= safe[i];
+                    hash *= 16777619u;
+                }
+                return UnbindableHighSoulMessages[
+                    (int)(hash % (uint)UnbindableHighSoulMessages.Length)];
+            }
+        }
+
         private static int GetPowerScaledSoulVigorCost(int baseCost, float power)
         {
             float safePower = Mathf.Clamp(power, 0.0f, 200.0f);
@@ -3892,7 +6019,11 @@ namespace SoulAndService
                     (safePower - 100.0f) / 100.0f);
             return Math.Max(
                 1,
-                Mathf.CeilToInt(Math.Max(0, baseCost) * multiplier));
+                Mathf.CeilToInt(
+                    Math.Max(0, baseCost)
+                    * multiplier
+                    * SoulAndServicePlugin.GetEffectiveBalanceTuning()
+                        .SoulVigorCostMultiplier));
         }
 
         private static float GetBloodExsanguinationSeverity(object sourceCorpse)
@@ -3948,6 +6079,75 @@ namespace SoulAndService
             }
         }
 
+        private static void ReportCorpseHarvestThreatToEyes(float quality)
+        {
+            ResolveEyesInTheDarkBridge();
+            if (_eyesInTheDarkRegisterCorpseDrainMethod == null)
+            {
+                return;
+            }
+
+            try
+            {
+                _eyesInTheDarkRegisterCorpseDrainMethod.Invoke(
+                    null,
+                    new object[] { Mathf.Clamp01(quality) });
+            }
+            catch (Exception exception)
+            {
+                if (!_eyesInTheDarkFailureLogged)
+                {
+                    _eyesInTheDarkFailureLogged = true;
+                    SoulAndServicePlugin.Instance?.LogWarning(
+                        "Eyes in the Dark corpse-harvest threat integration failed: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+        }
+
+        private static void ResolveEyesInTheDarkBridge()
+        {
+            if (_eyesInTheDarkBridgeResolved)
+            {
+                return;
+            }
+
+            _eyesInTheDarkBridgeResolved = true;
+            PluginInfo pluginInfo;
+            if (!Chainloader.PluginInfos.TryGetValue(
+                    EyesInTheDarkPluginGuid,
+                    out pluginInfo)
+                || pluginInfo == null
+                || pluginInfo.Instance == null)
+            {
+                return;
+            }
+
+            Type apiType = pluginInfo.Instance.GetType().Assembly.GetType(
+                EyesInTheDarkCorpseDrainApiTypeName,
+                false);
+            _eyesInTheDarkRegisterCorpseDrainMethod = apiType == null
+                ? null
+                : apiType.GetMethod(
+                    "TryRegisterCorpseDrain",
+                    BindingFlags.Public | BindingFlags.Static,
+                    null,
+                    new[] { typeof(float) },
+                    null);
+            if (_eyesInTheDarkRegisterCorpseDrainMethod == null
+                || _eyesInTheDarkRegisterCorpseDrainMethod.ReturnType
+                    != typeof(bool))
+            {
+                _eyesInTheDarkRegisterCorpseDrainMethod = null;
+                if (!_eyesInTheDarkFailureLogged)
+                {
+                    _eyesInTheDarkFailureLogged = true;
+                    SoulAndServicePlugin.Instance?.LogWarning(
+                        "Eyes in the Dark is loaded, but its corpse-drain threat API could not be found.");
+                }
+            }
+        }
+
         internal static bool TryResolveOwnedReanimatedServantForInterop(
             object candidate,
             out object sourceCorpse)
@@ -3957,6 +6157,7 @@ namespace SoulAndService
             Hero hero = Hero.Current;
             if (hero == null
                 || !TryResolveReanimationRecord(candidate, out record)
+                || record.IsMiniboss
                 || record.SourceCorpse == null
                 || record.RaisedNpc == null
                 || !record.RaisedNpc.IsAlive
@@ -3998,7 +6199,8 @@ namespace SoulAndService
             ReanimationRecord record;
             if (TryResolveReanimationRecord(candidate, out record))
             {
-                if (record.SourceCorpse == null
+                if (record.IsMiniboss
+                    || record.SourceCorpse == null
                     || record.RaisedNpc == null
                     || !record.RaisedNpc.IsAlive
                     || (record.BloodRitualHoldUntil > Time.unscaledTime
@@ -4041,6 +6243,10 @@ namespace SoulAndService
             ReanimationRecord record;
             if (TryResolveReanimationRecord(candidate, out record))
             {
+                if (record.IsMiniboss)
+                {
+                    return false;
+                }
                 return SetOwnedReanimatedServantBloodRitualStateForInterop(
                     candidate,
                     channeling,
@@ -4071,6 +6277,11 @@ namespace SoulAndService
             ReanimationRecord record;
             if (TryResolveReanimationRecord(candidate, out record))
             {
+                if (record.IsMiniboss)
+                {
+                    killed = false;
+                    return false;
+                }
                 return TryExsanguinateOwnedReanimatedServantForInterop(
                     candidate,
                     severity,
@@ -4112,7 +6323,8 @@ namespace SoulAndService
             ReanimationRecord record;
             if (TryResolveReanimationRecord(candidate, out record))
             {
-                if (record.SourceCorpse == null
+                if (record.IsMiniboss
+                    || record.SourceCorpse == null
                     || record.SourceCorpse.HasBeenDiscarded
                     || record.SourceCorpse.TryGetElement<NpcDummy>() == null
                     || record.RaisedLocation == null
@@ -4230,6 +6442,10 @@ namespace SoulAndService
             {
                 return false;
             }
+            if (record.IsMiniboss)
+            {
+                return false;
+            }
             if (completed)
             {
                 record.BloodRitualHoldUntil = Time.unscaledTime + 8.0f;
@@ -4260,6 +6476,7 @@ namespace SoulAndService
             killed = false;
             ReanimationRecord record;
             if (!TryResolveReanimationRecord(candidate, out record)
+                || record.IsMiniboss
                 || record.RaisedNpc == null
                 || !record.RaisedNpc.IsAlive
                 || record.RaisedNpc.Health == null)
@@ -4512,6 +6729,522 @@ namespace SoulAndService
                 }
             }
             return false;
+        }
+
+        private static bool TryFindFocusedHighSoulCorpse(
+            out HighSoulCorpseInfo highSoul)
+        {
+            highSoul = default(HighSoulCorpseInfo);
+            Hero hero = Hero.Current;
+            if (hero == null
+                || hero.VHeroController == null
+                || hero.VHeroController.Raycaster == null)
+            {
+                return false;
+            }
+
+            hero.VHeroController.Raycaster.GetViewRay(
+                out Vector3 origin,
+                out Vector3 direction);
+            RaycastHit[] hits = GetSortedSoulTargetHits(
+                origin,
+                direction,
+                out int hitCount);
+            if (hitCount <= 0)
+            {
+                return false;
+            }
+
+            RaycastHit hit = hits[0];
+            VLocation view = hit.collider == null
+                ? null
+                : hit.collider.GetComponentInParent<LocationParent>()
+                    ?.GetComponentInChildren<VLocation>();
+            Location candidate = view == null ? null : view.Target;
+            if (IsSoulRendAssistSurface(hit, candidate))
+            {
+                return TryFindNearestHighSoulCorpse(
+                    hero,
+                    hit.point,
+                    hit.normal,
+                    out highSoul);
+            }
+            return TryResolveHighSoulCorpse(hero, candidate, out highSoul);
+        }
+
+        private static bool TryFindFocusedHighSoulCorpseCached(
+            out HighSoulCorpseInfo highSoul)
+        {
+            int frame = Time.frameCount;
+            if (_focusedHighSoulCacheFrame != frame)
+            {
+                _focusedHighSoulCacheFrame = frame;
+                _focusedHighSoulCacheFound = TryFindFocusedHighSoulCorpse(
+                    out _focusedHighSoulCacheInfo);
+            }
+            highSoul = _focusedHighSoulCacheInfo;
+            return _focusedHighSoulCacheFound;
+        }
+
+        private static bool TryFindNearestHighSoulCorpse(
+            Hero hero,
+            Vector3 impactPoint,
+            Vector3 surfaceNormal,
+            out HighSoulCorpseInfo highSoul)
+        {
+            highSoul = default(HighSoulCorpseInfo);
+            int count = Physics.OverlapSphereNonAlloc(
+                impactPoint,
+                SoulRendAssistRadius,
+                SoulRendAssistColliderBuffer,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            float nearestDistanceSqr = float.PositiveInfinity;
+            for (int i = 0; i < count; i++)
+            {
+                Collider collider = SoulRendAssistColliderBuffer[i];
+                SoulRendAssistColliderBuffer[i] = null;
+                VLocation view = collider == null
+                    ? null
+                    : collider.GetComponentInParent<LocationParent>()
+                        ?.GetComponentInChildren<VLocation>();
+                Location candidate = view == null ? null : view.Target;
+                if (!TryResolveHighSoulCorpse(
+                        hero,
+                        candidate,
+                        out HighSoulCorpseInfo candidateHighSoul))
+                {
+                    continue;
+                }
+
+                Vector3 closestPoint = collider.ClosestPoint(impactPoint);
+                Vector3 offset = closestPoint - impactPoint;
+                if (Vector3.Dot(offset, surfaceNormal) < -0.10f)
+                {
+                    continue;
+                }
+                float distanceSqr = offset.sqrMagnitude;
+                if (distanceSqr >= nearestDistanceSqr)
+                {
+                    continue;
+                }
+                nearestDistanceSqr = distanceSqr;
+                highSoul = candidateHighSoul;
+            }
+            return highSoul.Corpse != null;
+        }
+
+        private static bool TryResolveHighSoulCorpse(
+            Hero hero,
+            Location candidate,
+            out HighSoulCorpseInfo highSoul)
+        {
+            highSoul = default(HighSoulCorpseInfo);
+            if (hero == null
+                || candidate == null
+                || candidate.HasBeenDiscarded
+                || (!(candidate.Initializer is SceneLocationInitializer)
+                    && (!(candidate.Initializer is RuntimeLocationInitializer)
+                        || !IsAuthoredSourceDiscarded(((Model)candidate).ID)))
+                || ((Model)candidate).IsNotSaved
+                || candidate.TryGetElement<Corpse>() == null
+                || PendingRaisedDiscards.Contains(candidate)
+                || ExecutedServantRemains.ContainsKey(((Model)candidate).ID)
+                || Reanimations.Values.Any(record =>
+                    record.SourceCorpse == candidate
+                    || record.RaisedLocation == candidate))
+            {
+                return false;
+            }
+
+            Corpse corpse = candidate.TryGetElement<Corpse>();
+            NpcTemplate npcTemplate = NpcTemplate.FromNpcOrDummy(candidate);
+            if (corpse == null
+                || npcTemplate == null
+                || npcTemplate.IsSummon
+                || (npcTemplate.NpcType != NpcType.MiniBoss
+                    && npcTemplate.NpcType != NpcType.Boss)
+                || corpse.Faction == null
+                || hero.Faction == null
+                || !corpse.Faction.IsHostileTo(hero.Faction))
+            {
+                return false;
+            }
+
+            LocationSpec spec = candidate.Spec;
+            if (spec != null
+                && (spec.GetComponent<TemporaryDeathAttachment>() != null
+                    || spec.GetComponent<KillPreventionAttachment>() != null
+                    || spec.GetComponent<NpcKillOnSpawnAttachment>() != null))
+            {
+                return false;
+            }
+
+            int nativeTier = GetHighSoulNativeTier(
+                npcTemplate,
+                candidate.Template);
+            int extractionValue = CalculateHighSoulExtractionValue(
+                npcTemplate,
+                candidate.Template);
+            string fingerprint = GetHighSoulCorpseFingerprint(
+                candidate,
+                npcTemplate);
+            if (string.IsNullOrEmpty(fingerprint))
+            {
+                return false;
+            }
+
+            LocationTemplate spawnTemplate = ResolveSoulTargetSpawnTemplate(
+                candidate);
+            bool canSafelySimplify = CanSafelySimplifyHighSoulCorpse(
+                candidate,
+                npcTemplate);
+            bool canReanimate = CanReanimateMiniboss(
+                candidate,
+                npcTemplate,
+                spawnTemplate,
+                canSafelySimplify,
+                out LocationTemplate durableTemplate);
+            if (canReanimate)
+            {
+                spawnTemplate = durableTemplate;
+            }
+            highSoul = new HighSoulCorpseInfo
+            {
+                Corpse = candidate,
+                NpcTemplate = npcTemplate,
+                NpcType = npcTemplate.NpcType,
+                NativeTier = nativeTier,
+                ExtractionValue = extractionValue,
+                Fingerprint = fingerprint,
+                CanSafelySimplify = canSafelySimplify,
+                CanReanimate = canReanimate,
+                SpawnTemplate = spawnTemplate
+            };
+            return true;
+        }
+
+        private static bool CanReanimateMiniboss(
+            Location candidate,
+            NpcTemplate npcTemplate,
+            LocationTemplate spawnTemplate,
+            bool canSafelySimplify,
+            out LocationTemplate durableTemplate)
+        {
+            durableTemplate = null;
+            if (!canSafelySimplify
+                || candidate == null
+                || candidate.Initializer == null
+                || (!(candidate.Initializer is SceneLocationInitializer)
+                    && !(candidate.Initializer is RuntimeLocationInitializer))
+                || candidate.TryGetElement<NpcDummy>() == null
+                || npcTemplate == null
+                || npcTemplate.NpcType != NpcType.MiniBoss
+                || !ReanimatableMinibossTemplateGuids.Contains(npcTemplate.GUID)
+                || spawnTemplate == null
+                || string.IsNullOrEmpty(spawnTemplate.GUID))
+            {
+                return false;
+            }
+
+            if (!TryResolveCanonicalPersistentSpawnTemplate(
+                    candidate,
+                    spawnTemplate,
+                    out durableTemplate))
+            {
+                return false;
+            }
+
+            RepetitiveNpcAttachment reusable =
+                durableTemplate.GetComponent<RepetitiveNpcAttachment>();
+            bool initializerSafe = candidate.Initializer is SceneLocationInitializer
+                || (candidate.Initializer is RuntimeLocationInitializer
+                    && IsAuthoredSourceDiscarded(((Model)candidate).ID)
+                    && candidate.Template != null
+                    && string.Equals(
+                        candidate.Template.GUID,
+                        durableTemplate.GUID,
+                        StringComparison.Ordinal));
+            return initializerSafe
+                && reusable != null
+                && reusable.NpcTemplate != null
+                && string.Equals(
+                    reusable.NpcTemplate.GUID,
+                    npcTemplate.GUID,
+                    StringComparison.Ordinal)
+                && (reusable.StoryOnDeath == null
+                    || !reusable.StoryOnDeath.IsSet);
+        }
+
+        private static ContextualFacts GetDiscardedPlacesFacts()
+        {
+            GameplayMemory memory = World.Services == null
+                ? null
+                : World.Services.TryGet<GameplayMemory>();
+            return memory == null
+                ? null
+                : memory.Context(Location.DiscardedPlacesKey);
+        }
+
+        private static bool IsAuthoredSourceDiscarded(string sourceId)
+        {
+            ContextualFacts facts = GetDiscardedPlacesFacts();
+            return facts != null
+                && !string.IsNullOrEmpty(sourceId)
+                && facts.Get(sourceId, false);
+        }
+
+        private static bool TryPrepareMinibossSourceForService(
+            Location source,
+            LocationTemplate durableTemplate,
+            out string failure)
+        {
+            failure = string.Empty;
+            if (source == null
+                || source.HasBeenDiscarded
+                || durableTemplate == null
+                || string.IsNullOrEmpty(durableTemplate.GUID))
+            {
+                failure = "the canonical miniboss corpse or spawn template was unavailable";
+                return false;
+            }
+
+            string sourceId = ((Model)source).ID;
+            if (source.Initializer is RuntimeLocationInitializer)
+            {
+                if (!IsAuthoredSourceDiscarded(sourceId)
+                    || source.Template == null
+                    || !string.Equals(
+                        source.Template.GUID,
+                        durableTemplate.GUID,
+                        StringComparison.Ordinal))
+                {
+                    failure = "the persistent miniboss corpse identity did not match its saved runtime template";
+                    return false;
+                }
+                if (source.CurrentDomain != Domain.Gameplay)
+                {
+                    source.MoveToDomain(Domain.Gameplay);
+                }
+                if (source.CurrentDomain != Domain.Gameplay)
+                {
+                    failure = "the persistent miniboss corpse did not enter the gameplay domain";
+                    return false;
+                }
+                return true;
+            }
+            if (!(source.Initializer is SceneLocationInitializer)
+                || LocationInitializerField == null
+                || string.IsNullOrEmpty(sourceId))
+            {
+                failure = "the scene-authored miniboss corpse could not be promoted safely";
+                return false;
+            }
+
+            ContextualFacts discarded = GetDiscardedPlacesFacts();
+            if (discarded == null)
+            {
+                failure = "the game's discarded-location memory was unavailable";
+                return false;
+            }
+
+            LocationInitializer previousInitializer = source.Initializer;
+            Domain previousDomain = source.CurrentDomain;
+            bool hadDiscardedValue = discarded.HasValue(sourceId);
+            bool previousDiscardedValue = discarded.Get(sourceId, false);
+            bool initializerReplaced = false;
+            try
+            {
+                RuntimeLocationData data = new RuntimeLocationData(
+                    durableTemplate,
+                    source.Coords,
+                    source.Rotation,
+                    source.SpecInitialScale,
+                    previousInitializer.OverridenLocationPrefab,
+                    source.DisplayName,
+                    null,
+                    previousInitializer.OverridenNewGamePlusLevel);
+                RuntimeLocationInitializer runtimeInitializer =
+                    new RuntimeLocationInitializer(in data);
+                runtimeInitializer.PrepareSpec(source);
+                LocationInitializerField.SetValue(source, runtimeInitializer);
+                initializerReplaced = true;
+                if (!(source.Initializer is RuntimeLocationInitializer)
+                    || source.Spec == null
+                    || source.Template == null
+                    || !string.Equals(
+                        source.Template.GUID,
+                        durableTemplate.GUID,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "the runtime initializer did not retain the canonical template");
+                }
+
+                discarded.Set(sourceId, true);
+                source.MoveToDomain(Domain.Gameplay);
+                if (source.CurrentDomain != Domain.Gameplay)
+                {
+                    throw new InvalidOperationException(
+                        "the promoted corpse did not enter the persistent gameplay domain");
+                }
+                return true;
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    if (source.CurrentDomain != previousDomain)
+                    {
+                        source.MoveToDomain(previousDomain);
+                    }
+                    if (source.CurrentDomain != previousDomain)
+                    {
+                        throw new InvalidOperationException(
+                            "the promoted corpse could not return to its original scene during rollback");
+                    }
+                    if (initializerReplaced)
+                    {
+                        LocationInitializerField.SetValue(source, previousInitializer);
+                    }
+                    if (hadDiscardedValue)
+                    {
+                        discarded.Set(sourceId, previousDiscardedValue);
+                    }
+                    else
+                    {
+                        discarded.Remove(sourceId);
+                    }
+                }
+                catch (Exception rollbackException)
+                {
+                    failure = exception.GetBaseException().Message
+                        + "; rollback also failed: "
+                        + rollbackException.GetBaseException().Message;
+                    return false;
+                }
+                failure = exception.GetBaseException().Message;
+                return false;
+            }
+        }
+
+        private static bool TryReturnMinibossSourceToCurrentScene(
+            Location source,
+            out string failure)
+        {
+            failure = string.Empty;
+            string sourceId = source == null ? string.Empty : ((Model)source).ID;
+            if (source == null
+                || source.HasBeenDiscarded
+                || !(source.Initializer is RuntimeLocationInitializer)
+                || !IsAuthoredSourceDiscarded(sourceId))
+            {
+                failure = "the persistent miniboss corpse identity was unavailable";
+                return false;
+            }
+            SceneService sceneService = World.Services == null
+                ? null
+                : World.Services.TryGet<SceneService>();
+            if (sceneService == null || sceneService.ActiveSceneRef == null)
+            {
+                failure = "the current scene domain was unavailable";
+                return false;
+            }
+            Domain currentScene = sceneService.ActiveDomain;
+            if (source.CurrentDomain != currentScene)
+            {
+                source.MoveToDomain(currentScene);
+            }
+            if (source.CurrentDomain != currentScene)
+            {
+                failure = "the persistent miniboss corpse did not enter the current scene";
+                return false;
+            }
+            return true;
+        }
+
+        private static int GetHighSoulNativeTier(
+            NpcTemplate npcTemplate,
+            LocationTemplate fallbackTemplate)
+        {
+            int nativeTier;
+            if (!TryReadNativeTier(npcTemplate, out nativeTier)
+                && !TryReadNativeTier(fallbackTemplate, out nativeTier))
+            {
+                nativeTier = 1;
+            }
+            return Mathf.Clamp(nativeTier, 1, 7);
+        }
+
+        private static int CalculateHighSoulExtractionValue(
+            NpcTemplate npcTemplate,
+            LocationTemplate fallbackTemplate)
+        {
+            int nativeTier = GetHighSoulNativeTier(
+                npcTemplate,
+                fallbackTemplate);
+            return npcTemplate != null
+                && npcTemplate.NpcType == NpcType.Boss
+                    ? Mathf.Clamp(nativeTier + 5, 6, 12)
+                    : Mathf.Clamp(nativeTier + 3, 5, 10);
+        }
+
+        private static bool CanSafelySimplifyHighSoulCorpse(
+            Location candidate,
+            NpcTemplate npcTemplate)
+        {
+            if (candidate == null
+                || candidate.Spec == null
+                || npcTemplate == null)
+            {
+                return false;
+            }
+
+            NpcAttachment attachment = candidate.Spec
+                .GetComponent<NpcAttachment>();
+            if (attachment == null && candidate.Template != null)
+            {
+                attachment = candidate.Template.GetComponent<NpcAttachment>();
+            }
+            RepetitiveNpcAttachment repetitive =
+                attachment as RepetitiveNpcAttachment;
+            if (repetitive == null
+                || repetitive.NpcTemplate == null
+                || !string.Equals(
+                    npcTemplate.GUID,
+                    repetitive.NpcTemplate.GUID,
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            CrimeReactionArchetype crimeReaction =
+                npcTemplate.CrimeReactionArchetype;
+            return crimeReaction != CrimeReactionArchetype.Guard
+                && crimeReaction != CrimeReactionArchetype.Defender
+                && crimeReaction != CrimeReactionArchetype.Vigilante
+                && !candidate.HasElement<GameplayUniqueLocation>()
+                && !candidate.HasElement<NpcPresence>()
+                && !candidate.HasElement<NpcAlly>()
+                && !candidate.HasElement<Shop>()
+                && !candidate.HasElement<DialogueAction>()
+                && (attachment.StoryOnDeath == null
+                    || !attachment.StoryOnDeath.IsSet)
+                && !HasProtectedSoulTargetAttachment(candidate.Spec);
+        }
+
+        private static string GetHighSoulCorpseFingerprint(
+            Location corpse,
+            NpcTemplate npcTemplate)
+        {
+            if (corpse == null || npcTemplate == null)
+            {
+                return string.Empty;
+            }
+            string locationId = ((Model)corpse).ID;
+            return !string.IsNullOrEmpty(locationId)
+                ? "high|" + npcTemplate.GUID + "|" + locationId
+                : "high|" + GetCorpseFingerprint(corpse);
         }
 
         private static bool TryFindEligibleCorpse(
@@ -4789,6 +7522,18 @@ namespace SoulAndService
                 rejection = "that corpse is already serving";
                 return false;
             }
+            string harvestIdentity = GetCorpseHarvestIdentity(candidate);
+            if (SoulProgressionRuntime.IsCorpseHarvested(harvestIdentity))
+            {
+                rejection = "no Soul Vigor remains in that corpse";
+                return false;
+            }
+            if (!needsSpawnTemplate
+                && IsCurrentSessionCorpseHarvestEligible(corpse))
+            {
+                rejection = string.Empty;
+                return true;
+            }
             if (!TryResolveEligibleSoulTargetIdentity(
                     candidate,
                     null,
@@ -4807,6 +7552,27 @@ namespace SoulAndService
             }
             rejection = string.Empty;
             return true;
+        }
+
+        private static bool IsCurrentSessionCorpseHarvestEligible(Corpse corpse)
+        {
+            CurrentSessionCorpseState state;
+            return corpse != null
+                && CurrentSessionCorpses.TryGetValue(corpse, out state)
+                && state != null
+                && !state.IsSummon;
+        }
+
+        private static bool CanSafelySimplifyOrdinaryCorpse(Location candidate)
+        {
+            LocationTemplate ignoredSpawnTemplate;
+            string ignoredRejection;
+            return TryResolveEligibleSoulTargetIdentity(
+                candidate,
+                null,
+                needsSpawnTemplate: false,
+                out ignoredSpawnTemplate,
+                out ignoredRejection);
         }
 
         private static bool TryResolveEligibleSoulTargetIdentity(
@@ -5079,6 +7845,11 @@ namespace SoulAndService
             {
                 return;
             }
+            if (record.IsMiniboss)
+            {
+                EndMinibossService(summonId, record, showDiagnostic);
+                return;
+            }
 
             SoulProgressionRuntime.CorpseHarvestReceipt harvestReceipt = null;
             string failure = string.Empty;
@@ -5201,6 +7972,209 @@ namespace SoulAndService
             }
         }
 
+        private static void EndMinibossService(
+            string summonId,
+            ReanimationRecord record,
+            bool showDiagnostic)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            SoulProgressionRuntime.HighSoulDrainReceipt depletionReceipt = null;
+            bool depleted = SoulProgressionRuntime
+                .TryConsumeHighSoulServicePortion(
+                    record.HighSoulFingerprint,
+                    record.HighSoulExtractionValue,
+                    out depletionReceipt);
+            Location source = record.SourceCorpse;
+            string failure = string.Empty;
+            bool terminalRemains = false;
+            bool sourceRestored = false;
+            int remaining = -1;
+
+            try
+            {
+                if (!depleted)
+                {
+                    failure = "the saved soul pool was unavailable or inconsistent";
+                }
+                else if (source == null || source.HasBeenDiscarded)
+                {
+                    failure = "the canonical corpse was unavailable";
+                }
+                else if (!SoulProgressionRuntime.TryGetExistingHighSoulVigorPool(
+                        record.HighSoulFingerprint,
+                        record.HighSoulExtractionValue,
+                        out remaining))
+                {
+                    failure = "the saved soul pool became inconsistent";
+                }
+                else
+                {
+                    source.MoveAndRotateTo(
+                        record.LastSafeCoords,
+                        record.LastSafeRotation,
+                        teleport: true);
+                    if (!TryReturnMinibossSourceToCurrentScene(
+                            source,
+                            out failure))
+                    {
+                        sourceRestored = false;
+                    }
+                    else if (remaining <= 0)
+                    {
+                        terminalRemains = TryCreateRemains(
+                            source,
+                            record.LastSafeCoords,
+                            record.LastSafeRotation,
+                            out failure);
+                    }
+                    if (!terminalRemains)
+                    {
+                        if (string.IsNullOrEmpty(failure))
+                        {
+                            source.SetInteractability(record.SourceInteractability);
+                            sourceRestored = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                failure = exception.GetBaseException().Message;
+            }
+
+            bool serviceCommitted = depleted
+                && (terminalRemains
+                    || (sourceRestored && string.IsNullOrEmpty(failure)));
+            if (!serviceCommitted && depletionReceipt != null)
+            {
+                SoulProgressionRuntime.RollbackHighSoulDrain(depletionReceipt);
+                SoulProgressionRuntime.TryGetExistingHighSoulVigorPool(
+                    record.HighSoulFingerprint,
+                    record.HighSoulExtractionValue,
+                    out remaining);
+            }
+            if (!terminalRemains && !sourceRestored)
+            {
+                try
+                {
+                    if (source != null && !source.HasBeenDiscarded)
+                    {
+                        if (!TryReturnMinibossSourceToCurrentScene(
+                                source,
+                                out string returnFailure))
+                        {
+                            failure = string.IsNullOrEmpty(failure)
+                                ? returnFailure
+                                : failure;
+                        }
+                        else
+                        {
+                            source.SetInteractability(record.SourceInteractability);
+                            sourceRestored = true;
+                        }
+                    }
+                }
+                catch (Exception exception)
+                {
+                    failure = string.IsNullOrEmpty(failure)
+                        ? exception.GetBaseException().Message
+                        : failure;
+                }
+                if (!sourceRestored)
+                {
+                    try
+                    {
+                        ScheduleDeferredSourceRestoration(record);
+                    }
+                    catch (Exception exception)
+                    {
+                        plugin?.LogWarning(
+                            "Soul Rend could not record deferred miniboss corpse recovery: "
+                            + exception.GetBaseException().Message);
+                    }
+                }
+            }
+
+            try
+            {
+                ReanimationGlyphRuntime.Remove(summonId);
+            }
+            catch (Exception exception)
+            {
+                plugin?.LogWarning(
+                    "Soul Rend could not remove a miniboss servant glyph: "
+                    + exception.GetBaseException().Message);
+            }
+            Reanimations.Remove(summonId);
+            try
+            {
+                ClearPersistedServant(summonId);
+            }
+            catch (Exception exception)
+            {
+                plugin?.LogWarning(
+                    "Soul Rend could not clear a completed miniboss snapshot immediately: "
+                    + exception.GetBaseException().Message);
+            }
+            if (record.RaisedLocation != null
+                && !record.RaisedLocation.HasBeenDiscarded
+                && !PendingRaisedDiscards.Contains(record.RaisedLocation))
+            {
+                PendingRaisedDiscards.Add(record.RaisedLocation);
+            }
+            if (record.QualityHealthTweak != null
+                && !((Model)record.QualityHealthTweak).HasBeenDiscarded)
+            {
+                try
+                {
+                    ((Model)record.QualityHealthTweak).Discard();
+                }
+                catch (Exception exception)
+                {
+                    plugin?.LogWarning(
+                        "Soul Rend could not discard a completed miniboss health modifier: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+
+            if (plugin == null)
+            {
+                return;
+            }
+            if (terminalRemains)
+            {
+                plugin.LogDiagnostic(
+                    "Miniboss service exhausted " + record.SourceDisplayName
+                    + " and left one loot-preserving set of simplified remains.");
+            }
+            else if (serviceCommitted)
+            {
+                plugin.LogDiagnostic(
+                    "Miniboss service ended for " + record.SourceDisplayName
+                    + "; remaining Soul Vigor="
+                    + remaining.ToString(CultureInfo.InvariantCulture)
+                    + ". Canonical full corpse restored at the servant's last position.");
+            }
+            else
+            {
+                plugin.LogWarning(
+                    "Miniboss service ended without consuming a soul portion: "
+                    + failure + ". The canonical corpse was retained for recovery.");
+            }
+            if (showDiagnostic)
+            {
+                plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                    "lifecycle",
+                    terminalRemains
+                        ? "Soul Rend: the miniboss soul is exhausted; remains were left behind."
+                        : remaining >= 0
+                            ? "Soul Rend: miniboss service ended; "
+                                + remaining.ToString(CultureInfo.InvariantCulture)
+                                + " Soul Vigor remains."
+                            : "Soul Rend: miniboss service ended; its soul portion was retained for recovery.");
+            }
+        }
+
         private static bool TryCreateRemains(
             Location source,
             Vector3 coords,
@@ -5253,7 +8227,7 @@ namespace SoulAndService
                     failure = "the native remains prefab did not spawn";
                     return false;
                 }
-                remains.AddElement(new SearchAction(items, false));
+                remains.AddElement(new SearchAction(items, true));
                 if (dummy.Template != null
                     && dummy.Template.corpseVFX != null
                     && dummy.Template.corpseVFX.IsSet)
@@ -5291,33 +8265,94 @@ namespace SoulAndService
             {
                 return;
             }
-            ReanimationGlyphRuntime.Remove(summonId);
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            try
+            {
+                ReanimationGlyphRuntime.Remove(summonId);
+            }
+            catch (Exception exception)
+            {
+                plugin?.LogWarning(
+                    "Soul Rend could not remove a failed servant glyph: "
+                    + exception.GetBaseException().Message);
+            }
             Reanimations.Remove(summonId);
-            ClearPersistedServant(summonId);
+            try
+            {
+                ClearPersistedServant(summonId);
+            }
+            catch (Exception exception)
+            {
+                plugin?.LogWarning(
+                    "Soul Rend could not clear a failed servant snapshot immediately: "
+                    + exception.GetBaseException().Message);
+            }
             if (!record.ServiceInitialized && record.InvestedSoulVigor > 0)
             {
-                SoulProgressionRuntime.RestoreSoulVigor(record.InvestedSoulVigor);
-            }
-            if (record.SourceCorpse != null && !record.SourceCorpse.HasBeenDiscarded)
-            {
-                record.SourceCorpse.SetInteractability(record.SourceInteractability);
-                TriggerRuntimeCorpseVisualEvent(record.SourceCorpse, "OnDeath");
-                SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-                if (plugin != null)
+                try
                 {
-                    plugin.LogDiagnostic("Soul Rend restored the source corpse.");
-                    if (showDiagnostic)
-                    {
-                        plugin.ShowSoulSalvageHeavyCastDiagnostic(
-                            "lifecycle",
-                            "Soul Rend: " + record.SourceDisplayName
-                            + "'s service ended; source corpse restored.");
-                    }
+                    SoulProgressionRuntime.RestoreSoulVigor(
+                        record.InvestedSoulVigor);
+                }
+                catch (Exception exception)
+                {
+                    plugin?.LogWarning(
+                        "Soul Rend could not refund failed reanimation Vigor: "
+                        + exception.GetBaseException().Message);
                 }
             }
-            else
+            bool sourceRestored = false;
+            if (record.SourceCorpse != null && !record.SourceCorpse.HasBeenDiscarded)
             {
-                ScheduleDeferredSourceRestoration(record);
+                try
+                {
+                    if (record.IsMiniboss
+                        && !TryReturnMinibossSourceToCurrentScene(
+                            record.SourceCorpse,
+                            out string returnFailure))
+                    {
+                        throw new InvalidOperationException(returnFailure);
+                    }
+                    record.SourceCorpse.SetInteractability(
+                        record.SourceInteractability);
+                    if (!record.IsMiniboss)
+                    {
+                        TriggerRuntimeCorpseVisualEvent(
+                            record.SourceCorpse,
+                            "OnDeath");
+                    }
+                    sourceRestored = true;
+                }
+                catch (Exception exception)
+                {
+                    plugin?.LogWarning(
+                        "Soul Rend could not restore a source corpse immediately: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+            if (!sourceRestored)
+            {
+                try
+                {
+                    ScheduleDeferredSourceRestoration(record);
+                }
+                catch (Exception exception)
+                {
+                    plugin?.LogWarning(
+                        "Soul Rend could not record deferred source restoration: "
+                        + exception.GetBaseException().Message);
+                }
+            }
+            else if (plugin != null)
+            {
+                plugin.LogDiagnostic("Soul Rend restored the source corpse.");
+                if (showDiagnostic)
+                {
+                    plugin.ShowSoulSalvageHeavyCastDiagnostic(
+                        "lifecycle",
+                        "Soul Rend: " + record.SourceDisplayName
+                        + "'s service ended; source corpse restored.");
+                }
             }
             if (discardRaisedCopy
                 && record.RaisedLocation != null
@@ -5329,7 +8364,16 @@ namespace SoulAndService
             if (record.QualityHealthTweak != null
                 && !((Model)record.QualityHealthTweak).HasBeenDiscarded)
             {
-                ((Model)record.QualityHealthTweak).Discard();
+                try
+                {
+                    ((Model)record.QualityHealthTweak).Discard();
+                }
+                catch (Exception exception)
+                {
+                    plugin?.LogWarning(
+                        "Soul Rend could not discard a failed health modifier: "
+                        + exception.GetBaseException().Message);
+                }
             }
         }
 
@@ -5342,8 +8386,18 @@ namespace SoulAndService
             }
             if (record.SourceCorpse != null && !record.SourceCorpse.HasBeenDiscarded)
             {
+                if (record.IsMiniboss
+                    && !TryReturnMinibossSourceToCurrentScene(
+                        record.SourceCorpse,
+                        out string returnFailure))
+                {
+                    throw new InvalidOperationException(returnFailure);
+                }
                 record.SourceCorpse.SetInteractability(record.SourceInteractability);
-                TriggerRuntimeCorpseVisualEvent(record.SourceCorpse, "OnDeath");
+                if (!record.IsMiniboss)
+                {
+                    TriggerRuntimeCorpseVisualEvent(record.SourceCorpse, "OnDeath");
+                }
             }
             else
             {
@@ -5392,11 +8446,13 @@ namespace SoulAndService
             _lightCastActive = false;
             _heavyCastActive = false;
             _lightHarvestCompleted = false;
+            _lightPreserveTarget = false;
             _lightTarget = null;
             _heavyTarget = null;
             _lightOriginalMana = 0.0f;
             _lightHealthFraction = 0.0f;
             _lightMaximumManaReturn = float.PositiveInfinity;
+            _lightResolvedManaReturn = 0.0f;
         }
 
         internal static int GetFocusedTargetStateForInterop(
@@ -5409,6 +8465,12 @@ namespace SoulAndService
                 || (requireRelevantSpell && !IsSoulSalvageEquipped()))
             {
                 return (int)SoulSalvageFocusedTargetState.None;
+            }
+
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo ignoredHighSoul))
+            {
+                return (int)SoulSalvageFocusedTargetState.Corpse;
             }
 
             Location location;
@@ -5477,6 +8539,49 @@ namespace SoulAndService
                 return false;
             }
 
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo focusedHighSoul))
+            {
+                Location highSoulCorpse = focusedHighSoul.Corpse;
+                viewObject = highSoulCorpse == null
+                    || highSoulCorpse.Spec == null
+                        ? null
+                        : highSoulCorpse.Spec.gameObject;
+                int remaining = SoulProgressionRuntime
+                    .GetOrInitializeHighSoulVigorPool(
+                        focusedHighSoul.Fingerprint,
+                        focusedHighSoul.ExtractionValue);
+                if (remaining <= 0)
+                {
+                    state = (int)HeavySoulRendHoverState.RequiresSoulVigor;
+                    text = "No soul remains to bind.";
+                    return true;
+                }
+                if (!focusedHighSoul.CanReanimate)
+                {
+                    state = (int)HeavySoulRendHoverState.RequiresSoulVigor;
+                    text = GetUnbindableHighSoulMessage(
+                        focusedHighSoul.Fingerprint);
+                    return true;
+                }
+
+                int highSoulCost = GetMinibossReanimationSoulVigorCost(
+                    remaining,
+                    SoulProgressionRuntime.GetHighSoulExtractionValue(
+                        focusedHighSoul.Fingerprint,
+                        focusedHighSoul.ExtractionValue),
+                    SoulProgressionRuntime.GetNecromanticPower());
+                bool highSoulAffordable = SoulProgressionRuntime.GetSoulVigor()
+                    + 0.001f >= highSoulCost;
+                state = highSoulAffordable
+                    ? (int)HeavySoulRendHoverState.Reanimate
+                    : (int)HeavySoulRendHoverState.RequiresSoulVigor;
+                text = (highSoulAffordable ? "Reanimate: " : "Requires ")
+                    + highSoulCost.ToString(CultureInfo.InvariantCulture)
+                    + " Soul Vigor";
+                return true;
+            }
+
             Location location;
             NpcHeroSummon summon;
             if (TryFindFocusedSoulTargetCached(out location, out summon))
@@ -5526,6 +8631,7 @@ namespace SoulAndService
                 }
                 else if (SoulProgressionRuntime.GetNecromanticPower()
                         >= SoulProgressionRuntime.EmpowermentPower
+                    && !IsReanimatedMiniboss(summon)
                     && !SummonRuntime.IsEmpoweredSummon(summon))
                 {
                     int cost = GetEmpowermentSoulVigorCost(
@@ -5566,63 +8672,43 @@ namespace SoulAndService
                     out ignoredLivingSpawnTemplate,
                     out rejection)
                 || target == null
-                || target.Health == null
-                || target.Health.Percentage > SoulClaimHealthThreshold)
+                || target.Health == null)
             {
                 return false;
             }
-            viewObject = hitCollider == null ? null : hitCollider.gameObject;
-            float chance = CalculateSoulClaimChance(
-                targetLocation,
-                target,
-                GetActiveFrayedSoulStacks(((Model)target).ID));
-            state = (int)HeavySoulRendHoverState.ClaimSoul;
-            text = "Claim Soul: "
-                + (chance * 100.0f).ToString("0", CultureInfo.InvariantCulture)
-                + "% Chance";
-            return true;
-        }
-
-        private static int GetActiveFrayedSoulStacks(string targetId)
-        {
-            FrayedSoulState frayed;
-            return !string.IsNullOrEmpty(targetId)
-                && FrayedSouls.TryGetValue(targetId, out frayed)
-                && frayed != null
-                && frayed.ExpiresAt > Time.unscaledTime
-                    ? Math.Min(FrayedSoulMaximumStacks, Math.Max(0, frayed.Stacks))
-                    : 0;
-        }
-
-        private static float CalculateSoulClaimChance(
-            Location targetLocation,
-            NpcElement target,
-            int frayedStacks)
-        {
-            float healthFraction = target == null || target.Health == null
-                ? 1.0f
-                : Mathf.Clamp01(target.Health.Percentage);
-            float healthVulnerability = SoulClaimHealthThreshold <= 0.0f
-                ? 0.0f
-                : Mathf.Clamp01(
-                    (SoulClaimHealthThreshold - healthFraction)
-                    / SoulClaimHealthThreshold);
             Grailwright.Shared.CorpseQualityTier qualityTier =
                 Grailwright.Shared.CorpseQualityBuckets.GetTier(
                     CalculateQuality01(targetLocation, target),
                     true);
-            return Mathf.Min(
-                SoulClaimAbsoluteChanceCap,
-                healthVulnerability
-                    * GetSoulClaimPowerChance(
-                        SoulProgressionRuntime.GetNecromanticPower())
-                    * GetSoulClaimQualityFactor(qualityTier)
-                    * (1.0f
-                        + (FrayedSoulChanceBonusPerStack * frayedStacks)));
+            float threshold = CalculateSoulClaimThreshold(
+                SoulProgressionRuntime.GetNecromanticPower(),
+                qualityTier,
+                GetSoulClaimPreparationHits(((Model)target).ID, target));
+            int claimThresholdPercent = Mathf.Clamp(
+                Mathf.RoundToInt(threshold * 100.0f),
+                0,
+                100);
+            int targetHealthPercent = Mathf.Clamp(
+                Mathf.RoundToInt(target.Health.Percentage * 100.0f),
+                0,
+                100);
+            viewObject = hitCollider == null ? null : hitCollider.gameObject;
+            state = (int)HeavySoulRendHoverState.ClaimSoul;
+            text = "Claim Soul at "
+                + claimThresholdPercent.ToString(CultureInfo.InvariantCulture)
+                + "% ("
+                + targetHealthPercent.ToString(CultureInfo.InvariantCulture)
+                + "%)";
+            return true;
         }
 
         internal static float GetFocusedTargetQuality01ForInterop()
         {
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo ignoredHighSoul))
+            {
+                return 1.0f;
+            }
             Location location;
             NpcHeroSummon summon;
             if (!TryFindFocusedSoulTargetCached(out location, out summon))
@@ -5655,6 +8741,18 @@ namespace SoulAndService
 
         internal static float GetFocusedBindingProgress01ForInterop()
         {
+            if (TryFindFocusedHighSoulCorpseCached(
+                    out HighSoulCorpseInfo focusedHighSoul))
+            {
+                return focusedHighSoul.CanReanimate
+                    ? SoulProgressionRuntime.GetHighSoulBindingProgress01(
+                        focusedHighSoul.Fingerprint,
+                        SoulProgressionRuntime.GetHighSoulServiceCycle(
+                            focusedHighSoul.Fingerprint,
+                            focusedHighSoul.ExtractionValue),
+                        MinibossBindingResistance)
+                    : 0.0f;
+            }
             Location location;
             NpcHeroSummon summon;
             if (!TryFindFocusedSoulTargetCached(out location, out summon)
@@ -5668,6 +8766,43 @@ namespace SoulAndService
             return SoulProgressionRuntime.GetBindingProgress01(
                 GetCorpseFingerprint(location),
                 tier);
+        }
+
+        internal static bool IsReanimatedMiniboss(NpcHeroSummon summon)
+        {
+            if (summon == null)
+            {
+                return false;
+            }
+            ReanimationRecord record;
+            return Reanimations.TryGetValue(((Model)summon).ID, out record)
+                && record != null
+                && record.IsMiniboss;
+        }
+
+        internal static bool IsReanimatedServant(NpcHeroSummon summon)
+        {
+            return summon != null
+                && Reanimations.ContainsKey(((Model)summon).ID);
+        }
+
+        internal static float GetReanimatedHealthMultiplier(
+            NpcHeroSummon summon)
+        {
+            if (summon == null)
+            {
+                return 1.0f;
+            }
+            ReanimationRecord record;
+            if (!Reanimations.TryGetValue(((Model)summon).ID, out record)
+                || record == null)
+            {
+                return 1.0f;
+            }
+            return record.IsMiniboss
+                ? 0.50f
+                : SoulProgressionRuntime.GetQualityHealthMultiplier(
+                    record.QualityTier);
         }
 
         private static bool IsSoulSalvageEquipped()
@@ -5911,6 +9046,14 @@ namespace SoulAndService
                 Mathf.RoundToInt(position.y * 4.0f).ToString(CultureInfo.InvariantCulture),
                 Mathf.RoundToInt(position.z * 4.0f).ToString(CultureInfo.InvariantCulture),
                 GetCorpseDisplayName(source));
+        }
+
+        private static string GetCorpseHarvestIdentity(Location source)
+        {
+            string modelId = source == null ? string.Empty : ((Model)source).ID;
+            return string.IsNullOrEmpty(modelId)
+                ? GetCorpseFingerprint(source)
+                : "corpse-model|" + modelId;
         }
 
         private static float CalculateQuality01(Location source, NpcElement knownNpc)

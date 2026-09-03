@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using Awaken.TG.Main.AudioSystem;
 using Awaken.TG.Main.Heroes;
 using FMODUnity;
 using UnityEngine;
@@ -54,6 +55,9 @@ namespace SoulAndService
         private static readonly List<string> HeavyImpactPaths = new List<string>();
         private static readonly List<FMOD.Channel> ImpactChannels =
             new List<FMOD.Channel>();
+        private static FMOD.Studio.Bus _sfxBus;
+        private static FMOD.ChannelGroup _sfxChannelGroup;
+        private static bool _sfxBusLocked;
         private static int _lastLightImpactIndex = -1;
         private static int _lastHeavyImpactIndex = -1;
         private static float _lastLightImpactAt = float.NegativeInfinity;
@@ -61,6 +65,7 @@ namespace SoulAndService
 
         private static bool _pathsResolved;
         private static bool _loggedMissingSounds;
+        private static bool _loggedSfxUnavailable;
 
         internal static void Play(
             Grailwright.Shared.CorpseQualityTier qualityTier,
@@ -288,6 +293,8 @@ namespace SoulAndService
             _lastHeavyImpactAt = float.NegativeInfinity;
             _pathsResolved = false;
             _loggedMissingSounds = false;
+            _loggedSfxUnavailable = false;
+            ReleaseSfxBus();
         }
 
         private static void EnsurePathsResolved()
@@ -559,10 +566,10 @@ namespace SoulAndService
                 }
 
                 FMOD.ChannelGroup channelGroup;
-                if (RuntimeManager.CoreSystem.getMasterChannelGroup(out channelGroup)
-                    != FMOD.RESULT.OK)
+                if (!TryGetSfxChannelGroup(out channelGroup))
                 {
-                    channelGroup = default(FMOD.ChannelGroup);
+                    LogSfxUnavailable(plugin);
+                    return false;
                 }
                 FMOD.Channel channel;
                 FMOD.RESULT playResult = RuntimeManager.CoreSystem.playSound(
@@ -635,7 +642,11 @@ namespace SoulAndService
                     SoundsByPath[path] = sound;
                 }
                 FMOD.ChannelGroup group;
-                RuntimeManager.CoreSystem.getMasterChannelGroup(out group);
+                if (!TryGetSfxChannelGroup(out group))
+                {
+                    LogSfxUnavailable(SoulAndServicePlugin.Instance);
+                    return false;
+                }
                 if (RuntimeManager.CoreSystem.playSound(
                         sound,
                         group,
@@ -659,6 +670,75 @@ namespace SoulAndService
                 }
                 return false;
             }
+        }
+
+        private static bool TryGetSfxChannelGroup(
+            out FMOD.ChannelGroup channelGroup)
+        {
+            if (_sfxBusLocked && _sfxChannelGroup.hasHandle())
+            {
+                channelGroup = _sfxChannelGroup;
+                return true;
+            }
+
+            ReleaseSfxBus();
+
+            FMOD.Studio.Bus sfxBus;
+            if (!BusGroup.SFX.TryGetBus(out sfxBus))
+            {
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            if (sfxBus.lockChannelGroup() != FMOD.RESULT.OK)
+            {
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.ChannelGroup sfxChannelGroup;
+            FMOD.RESULT groupResult = sfxBus.getChannelGroup(out sfxChannelGroup);
+            if (groupResult != FMOD.RESULT.OK || !sfxChannelGroup.hasHandle())
+            {
+                sfxBus.unlockChannelGroup();
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            _sfxBus = sfxBus;
+            _sfxChannelGroup = sfxChannelGroup;
+            _sfxBusLocked = true;
+            channelGroup = sfxChannelGroup;
+            return true;
+        }
+
+        private static void LogSfxUnavailable(SoulAndServicePlugin plugin)
+        {
+            if (_loggedSfxUnavailable || plugin == null)
+            {
+                return;
+            }
+            _loggedSfxUnavailable = true;
+            plugin.LogWarning(
+                "Soul Rend audio could not access the game's SFX mixer bus; "
+                + "custom playback was skipped.");
+        }
+
+        private static void ReleaseSfxBus()
+        {
+            if (_sfxBusLocked)
+            {
+                try
+                {
+                    _sfxBus.unlockChannelGroup();
+                }
+                catch
+                {
+                }
+            }
+            _sfxBus = default(FMOD.Studio.Bus);
+            _sfxChannelGroup = default(FMOD.ChannelGroup);
+            _sfxBusLocked = false;
         }
 
         private static void PruneImpactChannels()

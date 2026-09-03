@@ -48,7 +48,7 @@ foreach ($required in @(
     'internal static void ShowSoulVigorWanesAfterSpend(int before, int after)',
     'IsSoulVigorOverrideActive()',
     'ShowSoulVigorThresholdMessage(',
-    'GetBindingIncrement(corpseFingerprint, attempt)',
+    'GetBindingIncrement(bindingFingerprint, attempt)',
     'facts.Set(key + ".progress", progress)',
     'TryHarvestCorpse(',
     'RollbackCorpseHarvest(',
@@ -90,6 +90,31 @@ foreach ($required in @(
     'GetCorpseIconId(tier)')) {
     if (!$progression.Contains($required)) { throw "Missing necromantic progression contract: $required" }
 }
+foreach ($required in @(
+    'private const int HighSoulPoolPortions = 6',
+    'internal static int GetOrInitializeHighSoulVigorPool(',
+    'internal static bool TryGetExistingHighSoulVigorPool(',
+    'internal static bool TryDrainHighSoulVigorPool(',
+    'internal static bool TryConsumeHighSoulServicePortion(',
+    'internal static int GetHighSoulServiceCycle(',
+    'internal static bool ApplyHighSoulBindingAttempt(',
+    'internal static void CommitHighSoulBinding(',
+    'internal static float GetHighSoulBindingProgress01(',
+    'SaturatingMultiply(',
+    'facts.Set(key + ".initialized", 1)',
+    'Math.Max(0, remaining - extractionValue)',
+    'TryRestoreHighSoulDrain(receipt)')) {
+    if (!$progression.Contains($required)) {
+        throw "Missing high-soul persistence contract: $required"
+    }
+}
+if (($progression -notmatch '(?s)GetOrInitializeHighSoulVigorPool\(.*?storedExtraction <= 0.*?return 0;.*?Mathf\.Clamp\(storedRemaining, 0, maximum\)') -or
+    ($progression -notmatch '(?s)TryDrainHighSoulVigorPool\(.*?BeforeSoulVigor = beforeSoulVigor.*?BeforeRemaining = remaining.*?facts\.Set\(\s*SoulVigorKey.*?facts\.Set\(remainingKey.*?catch \(Exception exception\).*?TryRestoreHighSoulDrain\(receipt\)') -or
+    ($progression -notmatch '(?s)TryGetExistingHighSoulVigorPool\(.*?\.initialized", int\.MinValue\) != 1.*?\.extraction", int\.MinValue\).*?!= expectedExtractionValue.*?storedRemaining % expectedExtractionValue != 0') -or
+    ($progression -notmatch '(?s)TryConsumeHighSoulServicePortion\(.*?TryGetExistingHighSoulVigorPool\(.*?Award = 0.*?remaining - extractionValue.*?TryRestoreHighSoulDrain\(receipt\)') -or
+    ($progression -notmatch '(?s)ApplyHighSoulBindingAttempt\(.*?service-cycle.*?baseResistance.*?0\.90f.*?1\.10f.*?ApplyBindingAttempt\(')) {
+    throw 'High-soul pools are not deterministic, bounded, transactional, and cycle-bound.'
+}
 if (($progression -notmatch '(?s)private static void ShowSoulVigorThresholdMessages\(.*?if \(IsSoulVigorOverrideActive\(\)\).*?return;') -or
     ($progression -notmatch '(?s)private static void ShowSoulVigorThresholdMessage\(.*?"necro".*?"High".*?string\.Empty.*?rises \? "Reward" : "Status".*?"Medium"')) {
     throw 'Soul Vigor threshold feedback must suppress diagnostic overrides and use the approved Necrotic GFT presentation.'
@@ -100,7 +125,7 @@ $trySpendBlock = [regex]::Match(
 if ((-not $trySpendBlock.Success) -or
     $trySpendBlock.Value.Contains('ShowSoulVigor') -or
     ($salvage -notmatch '(?s)OrdinarySummonInvestments\[summonId\] =.*?ShowSoulVigorWanesAfterSpend\(before, after\);') -or
-    ($salvage -notmatch '(?s)CommitSuccessfulBinding\(\s*record\.CorpseFingerprint\);\s*record\.ServiceInitialized = true;.*?SoulProgressionRuntime\.ShowSoulVigorWanesAfterSpend\(\s*vigorBefore,\s*vigorAfter\);') -or
+    ($salvage -notmatch '(?s)CommitHighSoulBinding\(.*?CommitSuccessfulBinding\(\s*record\.CorpseFingerprint\);.*?record\.ServiceInitialized = true;.*?SoulProgressionRuntime\.ShowSoulVigorWanesAfterSpend\(\s*vigorBefore,\s*vigorAfter\);') -or
     ($salvage -notmatch '(?s)TryServeHeavyTarget\(.*?TrySpendSoulVigor\(.*?TryEmpowerSummon\(.*?AddEmpowermentSoulVigorInvestment\(.*?ShowSoulVigorWanesAfterSpend\(\s*beforeVigor,\s*afterVigor\);')) {
     throw 'Soul Vigor waning feedback must wait for a durable summon or reanimation investment.'
 }
@@ -158,8 +183,11 @@ foreach ($required in @(
 foreach ($required in @(
     'GetUpkeepPercentPerMinute(',
     'Math.Min(8.0f, activeServants + 1.0f)',
-    'Mathf.Clamp01(',
-    '1.0f - (necromanticPower / 100.0f)',
+    'UpkeepThreeServantPowerZeroPercentPerMinute',
+    'UpkeepThreeServantPowerFiftyPercentPerMinute',
+    'UpkeepThreeServantPowerNinetyPercentPerMinute',
+    'Mathf.Clamp(necromanticPower, 0.0f, 100.0f)',
+    'Math.Min(8.0f, activeServants + 1.0f) / 4.0f',
     'SoulProgressionRuntime.GetNecromanticPower()',
     'SwarmFirstHitMultiplier',
     'receiverEmpowerment.CombatMultiplier',
@@ -191,6 +219,42 @@ function Get-NecromanticPower([double]$soulVigor) {
     }
     $y = [Math]::Min(1.0, ($soulVigor - 1000.0) / 4000.0)
     return 100.0 + (100.0 * $y)
+}
+
+function Get-UpkeepPercentPerMinute([int]$activeServants, [double]$power) {
+    if ($activeServants -le 0) {
+        return 0.0
+    }
+    $safePower = [Math]::Max(0.0, [Math]::Min(100.0, $power))
+    if ($safePower -lt 50.0) {
+        $threeServantRate = (100.0 / 3.0) +
+            ((5.0 - (100.0 / 3.0)) * ($safePower / 50.0))
+    } elseif ($safePower -lt 90.0) {
+        $threeServantRate = 5.0 +
+            ((2.0 - 5.0) * (($safePower - 50.0) / 40.0))
+    } else {
+        $threeServantRate = 2.0 +
+            ((0.0 - 2.0) * (($safePower - 90.0) / 10.0))
+    }
+    $hostScale = [Math]::Min(8.0, $activeServants + 1.0) / 4.0
+    return $threeServantRate * $hostScale
+}
+
+foreach ($case in @(
+    @{ Servants = 1; Power = 0; Expected = 100.0 / 6.0 },
+    @{ Servants = 3; Power = 0; Expected = 100.0 / 3.0 },
+    @{ Servants = 7; Power = 0; Expected = 200.0 / 3.0 },
+    @{ Servants = 1; Power = 50; Expected = 2.5 },
+    @{ Servants = 3; Power = 50; Expected = 5.0 },
+    @{ Servants = 7; Power = 50; Expected = 10.0 },
+    @{ Servants = 1; Power = 90; Expected = 1.0 },
+    @{ Servants = 3; Power = 90; Expected = 2.0 },
+    @{ Servants = 7; Power = 90; Expected = 4.0 },
+    @{ Servants = 3; Power = 100; Expected = 0.0 })) {
+    $actual = Get-UpkeepPercentPerMinute $case.Servants $case.Power
+    if ([Math]::Abs($actual - $case.Expected) -gt 0.001) {
+        throw "Upkeep mismatch for $($case.Servants) servants at Power $($case.Power): $actual."
+    }
 }
 
 foreach ($threshold in @(

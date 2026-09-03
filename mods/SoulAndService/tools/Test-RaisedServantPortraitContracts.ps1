@@ -36,17 +36,7 @@ foreach ($required in @(
     }
 }
 
-$spawnIndex = $source.IndexOf(
-    "raised = source.Template.SpawnLocation",
-    [StringComparison]::Ordinal)
-$portraitIndex = $source.IndexOf(
-    "bool usedFallbackPortrait = EnsureRaisedServantPortrait(raisedNpc);",
-    [StringComparison]::Ordinal)
-$summonIndex = $source.IndexOf(
-    "npc = SummonUtils.InitializeSummon(",
-    [StringComparison]::Ordinal)
-if ($spawnIndex -lt 0 -or $portraitIndex -le $spawnIndex -or
-    $summonIndex -le $portraitIndex) {
+if ($source -notmatch '(?s)TryRaiseCorpse\(.*?raised = spawnTemplate\.SpawnLocation\(source\.Coords, source\.Rotation\);.*?bool usedFallbackPortrait = EnsureRaisedServantPortrait\(raisedNpc\);.*?npc = SummonUtils\.InitializeSummon\(') {
     throw "Raised-servant portrait fallback must run after the instance spawns and before hero-summon initialization."
 }
 

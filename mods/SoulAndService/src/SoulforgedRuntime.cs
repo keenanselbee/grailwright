@@ -26,7 +26,7 @@ namespace SoulAndService
         }
 
         private const string MemoryContext = "SoulAndService";
-        private const int MaximumRank = 17;
+        internal const int MaximumRank = 17;
         private static readonly float[] DamageEquivalents =
         {
             2.0f, 4.0f, 6.0f, 8.0f, 11.0f, 14.0f, 17.0f, 20.0f,
@@ -154,6 +154,14 @@ namespace SoulAndService
             }
         }
 
+        internal static void ClearSavedEmpowerment(NpcHeroSummon summon)
+        {
+            if (summon != null)
+            {
+                WriteFloat(((Model)summon).ID, "empowerment", 0.0f);
+            }
+        }
+
         internal static void GetPersistenceState(
             NpcHeroSummon summon,
             out float originalMaximumHealth,
@@ -277,6 +285,62 @@ namespace SoulAndService
         internal static float GetMultiplier(string summonId)
         {
             return 1.0f + (GetEffectiveRank(summonId) * 0.01f);
+        }
+
+        internal static float GetVisualSizeMultiplier(string summonId)
+        {
+            return 1.0f + (GetEffectiveRank(summonId) * 0.005f);
+        }
+
+        internal static int GetRealRank(NpcHeroSummon summon)
+        {
+            if (summon == null)
+            {
+                return 0;
+            }
+            SoulforgedState state;
+            return States.TryGetValue(((Model)summon).ID, out state)
+                && state != null
+                    ? Mathf.Clamp(state.EarnedRank, 0, MaximumRank)
+                    : 0;
+        }
+
+        internal static bool TryReduceRealRanks(
+            NpcHeroSummon summon,
+            int amount,
+            out int previousRank,
+            out int currentRank)
+        {
+            previousRank = GetRealRank(summon);
+            currentRank = previousRank;
+            if (summon == null || amount <= 0 || previousRank <= 0)
+            {
+                return false;
+            }
+            string id = ((Model)summon).ID;
+            SoulforgedState state;
+            if (!States.TryGetValue(id, out state) || state == null)
+            {
+                return false;
+            }
+
+            currentRank = Math.Max(0, previousRank - amount);
+            state.EarnedRank = currentRank;
+            state.DamageDealt = currentRank <= 0
+                || state.OriginalMaximumHealth <= 0.0f
+                    ? 0.0f
+                    : state.OriginalMaximumHealth
+                        * DamageEquivalents[currentRank - 1];
+            WriteInt(id, "rank", state.EarnedRank);
+            WriteFloat(id, "damage", state.DamageDealt);
+            RefreshPresentation(state);
+            return true;
+        }
+
+        internal static string GetRankLabel(int rank)
+        {
+            int clamped = Mathf.Clamp(rank, 0, MaximumRank);
+            return clamped <= 0 ? "Base" : RomanRanks[clamped];
         }
 
         internal static float GetVisualPotential(string summonId, bool empowered)

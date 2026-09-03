@@ -29,11 +29,15 @@ namespace SoulAndService
         private const int MaximumRecoveryProbeHostsPerFrame = 2;
         private const float RecallInnerRadius = 3.5f;
         private const float RecallRingSpacing = 2.25f;
-        private const float RecallArcStartDegrees = 45.0f;
-        private const float RecallArcDegrees = 270.0f;
-        private const int RecallSlotsPerRing = 6;
+        private const float RecallArcStartDegrees = 75.0f;
+        private const float RecallArcDegrees = 210.0f;
+        private const int RecallSlotsPerRing = 7;
         private const int RecallPlacementAttempts = 12;
         private const float RecallMaximumSnapDistance = 2.0f;
+        private static readonly int[] RecallSlotOrder =
+        {
+            3, 2, 4, 1, 5, 0, 6
+        };
 
         internal sealed class MemberState
         {
@@ -372,7 +376,70 @@ namespace SoulAndService
                 return false;
             }
             SetPurpose(state, FormationPurpose.Recall);
+            int activeSlot = GetDenseSlotRank(state, true);
+            float requiredSpacing = GetRequiredSpacing(state, true);
+            if (!TryResolveRecallPlacement(
+                    hero,
+                    heroNode,
+                    activeSlot,
+                    rotation,
+                    requiredSpacing,
+                    candidate => IsReservedOrOccupied(state, candidate),
+                    out placement))
+            {
+                return false;
+            }
+            InitializeAnchorState(
+                state,
+                summon.ParentModel.Coords,
+                placement,
+                Time.unscaledTime);
+            return true;
+        }
 
+        internal static bool TryReserveRestoredPlacement(
+            Hero hero,
+            Pathfinding.GraphNode heroNode,
+            int slotIndex,
+            ICollection<Vector3> reservedPlacements,
+            out Vector3 placement)
+        {
+            placement = Vector3.zero;
+            if (reservedPlacements == null
+                || !TryResolveRecallPlacement(
+                    hero,
+                    heroNode,
+                    slotIndex,
+                    0.0f,
+                    MinimumReservedSpacing,
+                    candidate => IsRestoredPlacementOccupied(
+                        candidate,
+                        reservedPlacements),
+                    out placement))
+            {
+                return false;
+            }
+            reservedPlacements.Add(placement);
+            return true;
+        }
+
+        private static bool TryResolveRecallPlacement(
+            Hero hero,
+            Pathfinding.GraphNode heroNode,
+            int activeSlot,
+            float rotation,
+            float requiredSpacing,
+            Func<Vector3, bool> isOccupied,
+            out Vector3 placement)
+        {
+            placement = Vector3.zero;
+            if (hero == null
+                || heroNode == null
+                || activeSlot < 0
+                || AstarPath.active == null)
+            {
+                return false;
+            }
             Vector3 forward = hero.VHeroController == null
                 ? Vector3.forward
                 : hero.VHeroController.transform.forward;
@@ -386,13 +453,12 @@ namespace SoulAndService
                 forward.Normalize();
             }
 
-            int activeSlot = GetDenseSlotRank(state, true);
             int ring = activeSlot / RecallSlotsPerRing;
             int slot = activeSlot % RecallSlotsPerRing;
+            int orderedSlot = RecallSlotOrder[slot];
             float cellDegrees = RecallArcDegrees / RecallSlotsPerRing;
             float baseAngle = RecallArcStartDegrees
-                + (slot + 0.5f) * cellDegrees + rotation;
-            float requiredSpacing = GetRequiredSpacing(state, true);
+                + (orderedSlot + 0.5f) * cellDegrees + rotation;
             float requiredRadius = requiredSpacing
                 / (2.0f * Mathf.Sin(cellDegrees * 0.5f * Mathf.Deg2Rad));
             float baseRadius = Math.Max(RecallInnerRadius, requiredRadius)
@@ -422,17 +488,40 @@ namespace SoulAndService
                             * RecallMaximumSnapDistance
                     || Math.Abs(nearest.position.y - hero.Coords.y) > 4.0f
                     || (nearest.position - hero.Coords).sqrMagnitude < 4.0f
-                    || IsReservedOrOccupied(state, nearest.position))
+                    || (isOccupied != null && isOccupied(nearest.position)))
                 {
                     continue;
                 }
-                InitializeAnchorState(
-                    state,
-                    summon.ParentModel.Coords,
-                    nearest.position,
-                    Time.unscaledTime);
                 placement = nearest.position;
                 return true;
+            }
+            return false;
+        }
+
+        private static bool IsRestoredPlacementOccupied(
+            Vector3 candidate,
+            IEnumerable<Vector3> reservedPlacements)
+        {
+            float spacingSqr = MinimumReservedSpacing
+                * MinimumReservedSpacing;
+            foreach (Vector3 reserved in reservedPlacements)
+            {
+                if ((reserved - candidate).sqrMagnitude < spacingSqr)
+                {
+                    return true;
+                }
+            }
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
+            {
+                if (summon != null
+                    && !summon.HasBeenDiscarded
+                    && summon.ParentModel != null
+                    && !summon.ParentModel.HasBeenDiscarded
+                    && (summon.ParentModel.Coords - candidate).sqrMagnitude
+                        < spacingSqr)
+                {
+                    return true;
+                }
             }
             return false;
         }
@@ -833,7 +922,7 @@ namespace SoulAndService
             try
             {
                 float radius = summon.ParentModel.Radius
-                    * SummonRuntime.GetEmpowermentSizeMultiplier(summon);
+                    * SummonRuntime.GetCombinedVisualSizeMultiplier(summon);
                 if (!float.IsNaN(radius) && !float.IsInfinity(radius))
                 {
                     return Mathf.Clamp(

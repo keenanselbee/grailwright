@@ -27,7 +27,7 @@ if (!$manifest.Contains('src/SummonFormationCoordinator.cs')) {
 }
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 23',
+    'ConfigSchemaVersion = 27',
     'public enum SummonBehavior',
     'Guard = 0',
     'Bulwark = 1',
@@ -360,10 +360,10 @@ if ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?GetEmpowermentVisua
     throw 'Empower does not continually enforce its visual-only scale from a stable baseline.'
 }
 if (($runtimeSource -notmatch '(?s)class EmpowermentState.*?CombatMultiplier.*?SizeMultiplier.*?MovementMultiplier') -or
-    ($runtimeSource -notmatch '(?s)TryEmpowerSummon\(.*?CombatMultiplier = Mathf\.Clamp\(multiplier, 1\.20f, 1\.50f\).*?SizeMultiplier = Mathf\.Lerp\(\s*1\.10f,\s*1\.30f,\s*Mathf\.InverseLerp\(\s*1\.20f,\s*1\.50f,\s*state\.CombatMultiplier\)\).*?MovementMultiplier = Mathf\.Sqrt\(Mathf\.Clamp\(\s*state\.CombatMultiplier - 0\.10f,\s*1\.10f,\s*1\.40f\)\)') -or
-    ($runtimeSource -notmatch '(?s)ApplyEmpowermentVisual\(.*?soulforgedMultiplier.*?empowermentSize.*?Vector3\.Scale\(\s*state\.OriginalLocalScale,\s*Vector3\.one \* soulforgedMultiplier \* empowermentSize\)') -or
+    ($runtimeSource -notmatch '(?s)TryEmpowerSummon\(.*?CombatMultiplier = Mathf\.Clamp\(multiplier, 1\.20f, 1\.50f\).*?SizeMultiplier = Mathf\.Lerp\(\s*1\.05f,\s*1\.20f,\s*Mathf\.InverseLerp\(\s*1\.20f,\s*1\.50f,\s*state\.CombatMultiplier\)\).*?MovementMultiplier = Mathf\.Sqrt\(Mathf\.Clamp\(\s*state\.CombatMultiplier - 0\.10f,\s*1\.10f,\s*1\.40f\)\)') -or
+    ($runtimeSource -notmatch '(?s)GetCombinedVisualSizeMultiplier\(.*?Mathf\.Min\(\s*1\.30f,\s*SoulforgedRuntime\.GetVisualSizeMultiplier\(summonId\)\s*\* GetEmpowermentSizeMultiplier\(summon\)\).*?ApplyEmpowermentVisual\(.*?combinedSize.*?Vector3\.Scale\(\s*state\.OriginalLocalScale,\s*Vector3\.one \* combinedSize\)') -or
     ($runtimeSource -notmatch '(?s)AfterApplyDamageModifiers\(.*?receiverEmpowerment\.CombatMultiplier.*?dealerEmpowerment\.CombatMultiplier')) {
-    throw 'Empower does not keep its 1.2-1.5 combat and movement scaling while remapping visual size to 1.1-1.3.'
+    throw 'Empower does not keep its 1.2-1.5 combat and movement scaling while composing 1.05-1.20 visual size under the 1.30 cap.'
 }
 
 if ($pluginSource -notmatch '(?s)ShowDirectedHuntPreview = BindOrdered\(.*?false' -or
@@ -464,12 +464,12 @@ if (($formationSource -notmatch '(?s)class MemberState.*?Purpose.*?StableSlotId.
     throw 'Formation ownership is not consolidated into one per-summon coordinator state.'
 }
 if (($formationSource -notmatch '(?s)Synchronize\(.*?NewMemberBuffer\.Sort\(LargestFirstComparer\.Instance\).*?FindNextStableSlotId\(\).*?ReadNavigationRadius\(summon\)') -or
-    ($formationSource -notmatch '(?s)ReadNavigationRadius\(.*?summon\.ParentModel\.Radius\s*\* SummonRuntime\.GetEmpowermentSizeMultiplier\(summon\).*?MinimumNavigationRadius.*?MaximumNavigationRadius') -or
+    ($formationSource -notmatch '(?s)ReadNavigationRadius\(.*?summon\.ParentModel\.Radius\s*\* SummonRuntime\.GetCombinedVisualSizeMultiplier\(summon\).*?MinimumNavigationRadius.*?MaximumNavigationRadius') -or
     ($formationSource -match '\.Where\(|\.OrderBy\(|\.ToArray\(')) {
     throw 'Formation membership is not stable, largest-first, size-aware, and allocation-conscious.'
 }
 if (($formationSource -notmatch '(?s)GetRadialAnchor\(.*?GetDenseSlotRank\(state, false\).*?GetRequiredSpacing\(state, false\)') -or
-    ($formationSource -notmatch '(?s)TryReserveRecallPlacement\(.*?GetDenseSlotRank\(state, true\).*?GetRequiredSpacing\(state, true\)') -or
+    ($formationSource -notmatch '(?s)TryReserveRecallPlacement\(.*?GetDenseSlotRank\(state, true\).*?GetRequiredSpacing\(state, true\).*?TryResolveRecallPlacement') -or
     ($formationSource -notmatch '(?s)GetDenseSlotRank\(.*?includeSuspended \|\| !other\.Suspended.*?other\.StableSlotId < member\.StableSlotId') -or
     ($formationSource -notmatch '(?s)GetRequiredSpacing\(.*?includeSuspended \|\| !other\.Suspended')) {
     throw 'Formation slots are not densely ranked or participation-aware after host changes.'
@@ -702,6 +702,21 @@ if ($runtimeSource -notmatch '(?s)LogSummonControlState\(.*?LastControlDiagnosti
 if ($runtimeSource -notmatch '(?s)LogSummonControlState\(.*?overridePresent=.*?overrideActive=.*?overrideMode=.*?overrideTarget=.*?overrideDistance=') {
     throw 'Summon ownership diagnostics do not distinguish absent, suspended, explicit, and autonomous override state.'
 }
+if (($runtimeSource -notmatch '(?s)TryValidateAttackCommand\(.*?out string rejectionReason.*?modifier-not-detected.*?target-missing.*?target-discarded.*?target-dead.*?target-unconscious.*?target-is-owned-summon.*?target-out-of-range.*?no-commandable-owned-summon') -or
+    ($runtimeSource -notmatch '(?s)StartInteraction\(.*?TryValidateAttackCommand\(.*?CommandSummons\(hero, _target\).*?LogAttackCommandAttempt') -or
+    ($runtimeSource -notmatch '(?s)LogAttackCommandAttempt\(.*?mode=.*?sprintHeld=.*?modifierHeld=.*?targetValid=.*?commanded=.*?result=') -or
+    ($runtimeSource -notmatch '(?s)HandleBehaviorCommandInput\(.*?evt is UIKeyDownAction.*?LogFocusedFormationCommandAttempt\(\)') -or
+    ($runtimeSource -notmatch '(?s)LogFocusedFormationCommandAttempt\(\).*?TryFindFocusedFormationSummon\(.*?false\).*?mode=.*?sprintHeld=.*?modifierHeld=.*?commandKind=.*?targetValid=.*?holdRequired=.*?result=.*?focusDetail=')) {
+    throw 'Explicit Attack and focused formation attempts no longer provide bounded modifier, focus, validity, outcome, and rejection diagnostics.'
+}
+$commandPollingBody = [regex]::Match(
+    $runtimeSource,
+    '(?s)private static void UpdateCommandOverride\(.*?(?=\r?\n\s*private static void ShowAttackCommandOverride\()').Value
+if ([string]::IsNullOrEmpty($commandPollingBody) -or
+    $commandPollingBody.Contains('LogAttackCommandAttempt') -or
+    $commandPollingBody.Contains('LogFocusedFormationCommandAttempt')) {
+    throw 'Explicit command-attempt diagnostics must not run from the per-frame interaction polling path.'
+}
 if ($runtimeSource -notmatch '(?s)bool BeforeFindTarget\(.*?IsRecallTargetSuppressed\(summon\).*?return false;.*?RefreshAutonomousTargets\(summon, plugin, behavior\).*?AfterFindTarget\(.*?IsRecallTargetSuppressed\(summon\).*?return;.*?EnforceSummonBehavior\(summon, behavior\)') {
     throw "Autonomous priority targets are not injected before native selection or suppressed during Recall Host."
 }
@@ -720,8 +735,17 @@ if (($runtimeSource -notmatch '(?s)ForceRecallCombatExit\(NpcElement npc\).*?Npc
     ($runtimeSource -notmatch '(?s)RestoreRecallLocomotion\(.*?DestinationConsumed.*?LocomotionRestored.*?placement\.LocomotionRestored = true.*?reachedReservedDestination.*?placement\.Position = summon\.ParentModel\.Coords.*?ForceRecallCombatExit\(summon\.ParentModel\).*?Movement\.ResetMainState\(patrol\).*?patrol\.UpdatePlace\(placement\.Position\).*?NpcStateType\.Idle.*?AnimationWatchdogsBySummon\.Remove\(summonId\)')) {
     throw 'Recall does not force a real combat exit and restore clean idle patrol locomotion exactly once after teleport.'
 }
-if (($formationSource -notmatch '(?s)TryReserveRecallPlacement\(.*?FormationPurpose\.Recall.*?RecallSlotsPerRing.*?RecallArcDegrees.*?RecallArcStartDegrees.*?GetRequiredSpacing.*?AstarPath\.active\.GetNearest.*?NNConstraint\.Walkable.*?PathUtilities\.IsPathPossible.*?RecallMaximumSnapDistance.*?IsReservedOrOccupied')) {
-    throw 'Recall placement does not use stable, navigable, size-aware, non-overlapping side-biased reservations.'
+if (($formationSource -notmatch 'RecallArcStartDegrees = 75\.0f') -or
+    ($formationSource -notmatch 'RecallArcDegrees = 210\.0f') -or
+    ($formationSource -notmatch 'RecallSlotsPerRing = 7') -or
+    ($formationSource -notmatch '(?s)RecallSlotOrder =.*?3, 2, 4, 1, 5, 0, 6') -or
+    ($formationSource -notmatch '(?s)TryReserveRecallPlacement\(.*?FormationPurpose\.Recall.*?GetRequiredSpacing.*?TryResolveRecallPlacement.*?IsReservedOrOccupied') -or
+    ($formationSource -notmatch '(?s)TryResolveRecallPlacement\(.*?RecallSlotsPerRing.*?RecallSlotOrder\[slot\].*?RecallArcDegrees.*?RecallArcStartDegrees.*?AstarPath\.active\.GetNearest.*?NNConstraint\.Walkable.*?PathUtilities\.IsPathPossible.*?RecallMaximumSnapDistance')) {
+    throw 'Recall placement does not use the stable, navigable, size-aware rear horseshoe.'
+}
+if ($formationSource -notmatch '(?s)TryReserveRestoredPlacement\(.*?TryResolveRecallPlacement\(\s*hero,\s*heroNode,\s*slotIndex,\s*0\.0f,\s*MinimumReservedSpacing.*?IsRestoredPlacementOccupied.*?reservedPlacements\.Add\(placement\)' -or
+    $formationSource -notmatch '(?s)IsRestoredPlacementOccupied\(.*?reservedPlacements.*?World\.All<NpcHeroSummon>\(\).*?summon\.ParentModel\.Coords - candidate') {
+    throw 'Load restoration does not share Recall horseshoe resolution or avoid reserved and living-summon positions.'
 }
 if ($runtimeSource -notmatch '(?s)BeforeNpcTeleport\(.*?PendingRecallPlacements\.TryGetValue.*?placement\.DestinationConsumed = true.*?placement\.HasReservedDestination = false.*?!placement\.HasReservedDestination.*?destination\.position = placement\.Position.*?TryGetRecallAnchor\(.*?!placement\.LocomotionRestored.*?RecallPlacementHeroMoveReleaseDistance.*?BeforeStayCloseToAlly\(.*?TryGetRecallAnchor\(summon, out recallAnchor\).*?patrol\.UpdatePlace\(recallAnchor\)') {
     throw "Native Recall fallback is not tracked independently from optional reserved placement and preserved as a temporary arrival anchor."
@@ -808,6 +832,11 @@ if (($runtimeSource -notmatch '(?s)UpdateAnimationWatchdog\(.*?IsOwnedSummon\(su
     ($runtimeSource -notmatch '(?s)ResetAnimationWatchdog\(AnimationWatchdogState state\).*?FailedMovingSamples = 0.*?LastAnimationState = null.*?LastAnimationTime = 0\.0')) {
     throw 'Owned moving summons do not use the bounded native animation FSM watchdog.'
 }
+if (($runtimeSource -notmatch 'RequireMethod\(typeof\(LostKnight\), "ActivateCombat"\)') -or
+    ($runtimeSource -notmatch '(?s)UpdateAnimationWatchdog\(.*?SpawnReadinessBySummon\.ContainsKey\(id\).*?ActivateReanimatedLostKnight\(npc, summon\).*?IsMovingForAnimationWatchdog') -or
+    ($runtimeSource -notmatch '(?s)ActivateReanimatedLostKnight\(.*?SoulSalvageRuntime\.IsReanimatedServant\(summon\).*?TryGetElement<LostKnight>\(\).*?LostKnightActivateCombatMethod\.Invoke\(lostKnight, null\)')) {
+    throw 'Reanimated Lost Knights do not leave their native passive statue state before locomotion recovery.'
+}
 if (($runtimeSource -notmatch '(?s)AfterSummonDiscard\(.*?SpawnReadinessBySummon\.Remove\(id\).*?AnimationWatchdogsBySummon\.Remove\(id\)') -or
     ($runtimeSource -notmatch '(?s)Shutdown\(\).*?ReleaseAllSpawnReadinessLocks\(\).*?AnimationWatchdogsBySummon\.Clear\(\)')) {
     throw 'Summon animation readiness and watchdog state is not cleaned up with runtime ownership.'
@@ -822,11 +851,31 @@ if (($runtimeSource -notmatch '(?s)HuntBehaviorMovementMultiplier = 1\.10f.*?Upd
 if ($runtimeSource -notmatch '(?s)RemoveBehaviorSpeedState\(string id\).*?string\.IsNullOrEmpty\(id\).*?return;.*?BehaviorSpeedStates\.TryGetValue\(id, out state\)') {
     throw "Behavior speed cleanup does not reject null or empty IDs before dictionary lookup."
 }
+foreach ($required in @(
+    'SoulSalvageRuntime.IsReanimatedMiniboss(summon)',
+    'GetMinibossUpkeepPercentPerMinute(',
+    'GetMinibossRestAttritionPercent(',
+    'minibossPercentPerMinute',
+    'minibossPercent',
+    'dmgModifier *= 0.60f',
+    '__result = Math.Max(0, __result - 1)',
+    '|| SoulSalvageRuntime.IsReanimatedMiniboss(summon)')) {
+    if (!$runtimeSource.Contains($required)) {
+        throw "Miniboss summon balance contract is missing: $required"
+    }
+}
+if (($runtimeSource -notmatch '(?s)GetMinibossUpkeepPercentPerMinute\(.*?power <= 90\.0f.*?2\.0f \* GetUpkeepPercentPerMinute.*?GetUpkeepPercentPerMinute\(\s*activeServants,\s*90\.0f\).*?\(power - 90\.0f\) / 110\.0f') -or
+    ($runtimeSource -notmatch '(?s)GetMinibossRestAttritionPercent\(.*?power <= 90\.0f.*?2\.0f \* GetRestAttritionPercent.*?GetRestAttritionPercent\(\s*activeServants,\s*hours,\s*90\.0f\).*?\(power - 90\.0f\) / 110\.0f') -or
+    ($runtimeSource -notmatch '(?s)UpdateServantUpkeep\(.*?personalPercent =\s*SoulSalvageRuntime\.IsReanimatedMiniboss\(summon\).*?minibossPercentPerMinute.*?percentPerMinute') -or
+    ($runtimeSource -notmatch '(?s)AfterRestTimeSkipped\(.*?personalPercent =\s*SoulSalvageRuntime\.IsReanimatedMiniboss\(summon\).*?minibossPercent.*?percent') -or
+    ($runtimeSource -notmatch '(?s)TryEmpowerSummon\(.*?SoulSalvageRuntime\.IsReanimatedMiniboss\(summon\).*?return false;')) {
+    throw 'Miniboss servants do not retain their two-slot, reduced-damage, no-Empower, and Power-200 upkeep balance.'
+}
 
 foreach ($required in @(
     '45 m',
-    'returns its investment but creates',
-    'Version under test: 2.9.7',
+    'dismantles an owned servant safely in layers',
+    'Version under test: 3.3.0',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',

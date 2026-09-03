@@ -11,6 +11,7 @@ using Awaken.TG.MVC.UI;
 using Awaken.TG.MVC.UI.Events;
 using Awaken.TG.Main.AI;
 using Awaken.TG.Main.AI.Combat.Attachments;
+using Awaken.TG.Main.AI.Combat.Attachments.Customs;
 using Awaken.TG.Main.AI.Grid;
 using Awaken.TG.Main.AI.Fights.Projectiles;
 using Awaken.TG.Main.AI.Idle;
@@ -29,6 +30,7 @@ using Awaken.TG.Main.Fights.Factions;
 using Awaken.TG.Main.Fights.NPCs;
 using Awaken.TG.Main.Heroes;
 using Awaken.TG.Main.Heroes.Combat;
+using Awaken.TG.Main.Heroes.Development.Talents;
 using Awaken.TG.Main.Heroes.Interactions;
 using Awaken.TG.Main.Heroes.Resting;
 using Awaken.TG.Main.Heroes.Stats;
@@ -50,6 +52,8 @@ namespace SoulAndService
 {
     internal static class SummonRuntime
     {
+        private const string InvocationsOfMightTalentGuid =
+            "a3c1f159efbec4647ace8fafcba7da14";
         private const float NativePatrolRadius = 7.5f;
         private const float NativeSummonCommandRange = 45.0f;
         private const float NativeSummonTargetAcquisitionRange = 44.0f;
@@ -207,6 +211,10 @@ namespace SoulAndService
         private const float HeldSummonCombatLeash = 8.0f;
         private const float SteelAndBoneTransferFraction = 0.80f;
         private const float UpkeepIntervalSeconds = 1.0f;
+        private const float UpkeepThreeServantPowerZeroPercentPerMinute =
+            100.0f / 3.0f;
+        private const float UpkeepThreeServantPowerFiftyPercentPerMinute = 5.0f;
+        private const float UpkeepThreeServantPowerNinetyPercentPerMinute = 2.0f;
         private const float SwarmDurationSeconds = 5.0f;
         private const float SwarmMovementMultiplier = 1.25f;
         private const float SwarmFirstHitMultiplier = 1.25f;
@@ -259,6 +267,12 @@ namespace SoulAndService
             internal StatTweak Ranged;
             internal StatTweak Magic;
             internal StatTweak Health;
+        }
+
+        private sealed class RestWarningState
+        {
+            internal string NativeText = string.Empty;
+            internal string RenderedText;
         }
 
         private sealed class AwarenessTargetRecord
@@ -672,6 +686,9 @@ namespace SoulAndService
         private static bool _steelAndBoneAwarenessUnavailable;
         private static readonly FieldInfo RestWarningTextField =
             AccessTools.Field(typeof(VRestPopupUI), "warningText");
+        private static readonly ConditionalWeakTable<Component, RestWarningState>
+            RestWarningStates =
+                new ConditionalWeakTable<Component, RestWarningState>();
         private static float _nextSteelAndBoneAwarenessRefreshAt;
         private static float _cachedSteelAndBoneSightMultiplier = 1.0f;
         private static float _cachedSteelAndBoneAggroMultiplier = 1.0f;
@@ -754,6 +771,7 @@ namespace SoulAndService
         private static float _upkeepElapsed;
         private static int _lastUpkeepHostSize = -1;
         private static float _lastUpkeepPercentPerMinute = -1.0f;
+        private static float _lastMinibossUpkeepPercentPerMinute = -1.0f;
 
         private static readonly FieldInfo PatrolField =
             AccessTools.Field(typeof(NpcAlly), "_patrol");
@@ -771,6 +789,8 @@ namespace SoulAndService
             AccessTools.Field(CharacterLocationsType, "_emptyCount");
         private static readonly FieldInfo MovementPreventedField =
             AccessTools.Field(typeof(NpcAlly), "_movementPrevented");
+        private static readonly MethodInfo LostKnightActivateCombatMethod =
+            RequireMethod(typeof(LostKnight), "ActivateCombat");
 
         internal static void Patch(Harmony harmony)
         {
@@ -871,11 +891,13 @@ namespace SoulAndService
                 postfix: new HarmonyMethod(
                     typeof(SummonRuntime),
                     nameof(AfterRestTimeSkipped)));
+            HarmonyMethod restPreviewPostfix = new HarmonyMethod(
+                typeof(SummonRuntime),
+                nameof(AfterRestPreviewRefreshed));
+            restPreviewPostfix.after = new[] { "ks.tgfoa.glorious-ui" };
             harmony.Patch(
                 RequireMethod(typeof(VRestPopupUI), "Refresh"),
-                postfix: new HarmonyMethod(
-                    typeof(SummonRuntime),
-                    nameof(AfterRestPreviewRefreshed)));
+                postfix: restPreviewPostfix);
             harmony.Patch(
                 RequireMethod(typeof(NpcHeroSummon), "LimitForCharacter"),
                 postfix: new HarmonyMethod(
@@ -1099,6 +1121,7 @@ namespace SoulAndService
             _upkeepElapsed = 0.0f;
             _lastUpkeepHostSize = -1;
             _lastUpkeepPercentPerMinute = -1.0f;
+            _lastMinibossUpkeepPercentPerMinute = -1.0f;
             _commandFeedbackEndsAt = 0.0f;
             _nextTransientStatePruneTime = 0.0f;
             _nextAiDecisionIntervalRefreshTime = 0.0f;
@@ -1125,7 +1148,8 @@ namespace SoulAndService
             float multiplier)
         {
             Hero hero = Hero.Current;
-            if (!IsOwnedSummon(summon, hero))
+            if (!IsOwnedSummon(summon, hero)
+                || SoulSalvageRuntime.IsReanimatedMiniboss(summon))
             {
                 return false;
             }
@@ -1146,8 +1170,8 @@ namespace SoulAndService
             state.IsEmpowered = true;
             state.CombatMultiplier = Mathf.Clamp(multiplier, 1.20f, 1.50f);
             state.SizeMultiplier = Mathf.Lerp(
-                1.10f,
-                1.30f,
+                1.05f,
+                1.20f,
                 Mathf.InverseLerp(
                     1.20f,
                     1.50f,
@@ -1210,6 +1234,57 @@ namespace SoulAndService
                 && state.IsEmpowered
                 ? state.SizeMultiplier
                 : 1.0f;
+        }
+
+        internal static float GetCombinedVisualSizeMultiplier(
+            NpcHeroSummon summon)
+        {
+            if (summon == null)
+            {
+                return 1.0f;
+            }
+            string summonId = ((Model)summon).ID;
+            return Mathf.Min(
+                1.30f,
+                SoulforgedRuntime.GetVisualSizeMultiplier(summonId)
+                    * GetEmpowermentSizeMultiplier(summon));
+        }
+
+        internal static bool TryRemoveEmpowerment(NpcHeroSummon summon)
+        {
+            if (summon == null)
+            {
+                return false;
+            }
+            string id = ((Model)summon).ID;
+            EmpowermentState state;
+            if (!EmpowermentStates.TryGetValue(id, out state)
+                || state == null
+                || !state.IsEmpowered)
+            {
+                return false;
+            }
+
+            ClearEmpowerment(id);
+            SoulforgedRuntime.ClearSavedEmpowerment(summon);
+            RefreshSoulforgedPresentation(summon);
+            SummonFormationCoordinator.InvalidateAppliedAnchor(id);
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (summon.ParentModel != null
+                && summon.ParentModel.Controller != null)
+            {
+                UpdateCatchUpSpeed(
+                    summon.ParentModel.Controller,
+                    plugin,
+                    summon,
+                    id);
+                UpdateBehaviorSpeed(
+                    summon.ParentModel.Controller,
+                    plugin,
+                    summon,
+                    id);
+            }
+            return true;
         }
 
         internal static float GetEmpowermentCombatMultiplier(string summonId)
@@ -1280,19 +1355,31 @@ namespace SoulAndService
             float percentPerMinute = GetUpkeepPercentPerMinute(
                 summons.Length,
                 SoulProgressionRuntime.GetNecromanticPower());
+            float minibossPercentPerMinute =
+                GetMinibossUpkeepPercentPerMinute(
+                    summons.Length,
+                    SoulProgressionRuntime.GetNecromanticPower());
             if (summons.Length != _lastUpkeepHostSize
                 || Math.Abs(percentPerMinute - _lastUpkeepPercentPerMinute)
-                    > 0.0001f)
+                    > 0.0001f
+                || Math.Abs(
+                    minibossPercentPerMinute
+                    - _lastMinibossUpkeepPercentPerMinute) > 0.0001f)
             {
                 plugin.LogDiagnostic(
                     "Necromantic upkeep: servants=" + summons.Length
                     + "; drain="
                     + percentPerMinute.ToString("0.###")
-                    + "% max health per minute.");
+                    + "% max health per minute; miniboss="
+                    + minibossPercentPerMinute.ToString("0.###")
+                    + "%.");
                 _lastUpkeepHostSize = summons.Length;
                 _lastUpkeepPercentPerMinute = percentPerMinute;
+                _lastMinibossUpkeepPercentPerMinute =
+                    minibossPercentPerMinute;
             }
-            if (percentPerMinute <= 0.0f)
+            if (percentPerMinute <= 0.0f
+                && minibossPercentPerMinute <= 0.0f)
             {
                 return;
             }
@@ -1306,8 +1393,12 @@ namespace SoulAndService
                 {
                     continue;
                 }
+                float personalPercent =
+                    SoulSalvageRuntime.IsReanimatedMiniboss(summon)
+                        ? minibossPercentPerMinute
+                        : percentPerMinute;
                 float drain = Math.Max(0.0f, npc.Health.UpperLimit)
-                    * (percentPerMinute / 100.0f)
+                    * (personalPercent / 100.0f)
                     * (elapsed / 60.0f);
                 if (drain <= 0.0f)
                 {
@@ -1332,10 +1423,34 @@ namespace SoulAndService
             {
                 return 0.0f;
             }
-            float basePercent = Math.Min(8.0f, activeServants + 1.0f);
-            float powerFactor = Mathf.Clamp01(
-                1.0f - (necromanticPower / 100.0f));
-            return basePercent * powerFactor;
+            float power = Mathf.Clamp(necromanticPower, 0.0f, 100.0f);
+            float threeServantPercentPerMinute;
+            if (power < 50.0f)
+            {
+                threeServantPercentPerMinute = Mathf.Lerp(
+                    UpkeepThreeServantPowerZeroPercentPerMinute,
+                    UpkeepThreeServantPowerFiftyPercentPerMinute,
+                    power / 50.0f);
+            }
+            else if (power < 90.0f)
+            {
+                threeServantPercentPerMinute = Mathf.Lerp(
+                    UpkeepThreeServantPowerFiftyPercentPerMinute,
+                    UpkeepThreeServantPowerNinetyPercentPerMinute,
+                    (power - 50.0f) / 40.0f);
+            }
+            else
+            {
+                threeServantPercentPerMinute = Mathf.Lerp(
+                    UpkeepThreeServantPowerNinetyPercentPerMinute,
+                    0.0f,
+                    (power - 90.0f) / 10.0f);
+            }
+            float hostScale = Math.Min(8.0f, activeServants + 1.0f) / 4.0f;
+            return threeServantPercentPerMinute
+                * hostScale
+                * SoulAndServicePlugin.GetEffectiveBalanceTuning()
+                    .ServantUpkeepMultiplier;
         }
 
         internal static float GetRestAttritionPercent(
@@ -1353,7 +1468,68 @@ namespace SoulAndService
             float duration = Math.Max(0.0f, hours) / 8.0f;
             float powerFactor = Mathf.Clamp01(
                 1.0f - (necromanticPower / 100.0f));
-            return Math.Min(90.0f, basePercent * duration * powerFactor);
+            return Math.Min(
+                90.0f,
+                basePercent
+                    * duration
+                    * powerFactor
+                    * SoulAndServicePlugin.GetEffectiveBalanceTuning()
+                        .ServantUpkeepMultiplier);
+        }
+
+        internal static float GetMinibossUpkeepPercentPerMinute(
+            int activeServants,
+            float necromanticPower)
+        {
+            if (activeServants <= 0)
+            {
+                return 0.0f;
+            }
+            float power = Mathf.Clamp(necromanticPower, 0.0f, 200.0f);
+            if (power <= 90.0f)
+            {
+                return 2.0f * GetUpkeepPercentPerMinute(
+                    activeServants,
+                    power);
+            }
+            float atPowerNinety = 2.0f * GetUpkeepPercentPerMinute(
+                activeServants,
+                90.0f);
+            return Mathf.Lerp(
+                atPowerNinety,
+                0.0f,
+                (power - 90.0f) / 110.0f);
+        }
+
+        internal static float GetMinibossRestAttritionPercent(
+            int activeServants,
+            float hours,
+            float necromanticPower)
+        {
+            if (activeServants <= 0 || hours <= 0.0f)
+            {
+                return 0.0f;
+            }
+            float power = Mathf.Clamp(necromanticPower, 0.0f, 200.0f);
+            if (power <= 90.0f)
+            {
+                return Math.Min(
+                    90.0f,
+                    2.0f * GetRestAttritionPercent(
+                        activeServants,
+                        hours,
+                        power));
+            }
+            float atPowerNinety = Math.Min(
+                90.0f,
+                2.0f * GetRestAttritionPercent(
+                    activeServants,
+                    hours,
+                    90.0f));
+            return Mathf.Lerp(
+                atPowerNinety,
+                0.0f,
+                (power - 90.0f) / 110.0f);
         }
 
         private static void AfterRestTimeSkipped(
@@ -1373,7 +1549,11 @@ namespace SoulAndService
                 summons.Length,
                 hourValue,
                 SoulProgressionRuntime.GetNecromanticPower());
-            if (percent <= 0.0f)
+            float minibossPercent = GetMinibossRestAttritionPercent(
+                summons.Length,
+                hourValue,
+                SoulProgressionRuntime.GetNecromanticPower());
+            if (percent <= 0.0f && minibossPercent <= 0.0f)
             {
                 return;
             }
@@ -1384,8 +1564,12 @@ namespace SoulAndService
                 {
                     continue;
                 }
+                float personalPercent =
+                    SoulSalvageRuntime.IsReanimatedMiniboss(summon)
+                        ? minibossPercent
+                        : percent;
                 float damage = Math.Max(0.0f, npc.Health.UpperLimit)
-                    * (percent / 100.0f);
+                    * (personalPercent / 100.0f);
                 if (npc.Health.ModifiedValue <= damage + 0.001f)
                 {
                     npc.HealthElement.Kill();
@@ -1398,7 +1582,9 @@ namespace SoulAndService
             plugin.LogDiagnostic(
                 "Rest attrition: servants=" + summons.Length
                 + "; hours=" + hourValue.ToString("0.##")
-                + "; loss=" + percent.ToString("0.##") + "% max Health.");
+                + "; loss=" + percent.ToString("0.##")
+                + "%; minibossLoss="
+                + minibossPercent.ToString("0.##") + "% max Health.");
         }
 
         private static void AfterRestPreviewRefreshed(VRestPopupUI __instance)
@@ -1406,6 +1592,7 @@ namespace SoulAndService
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             Hero hero = Hero.Current;
             if (__instance == null
+                || __instance.Target == null
                 || plugin == null
                 || !plugin.IsEnabled
                 || hero == null
@@ -1423,57 +1610,89 @@ namespace SoulAndService
             }
             string current = textProperty.GetValue(warning, null) as string
                 ?? string.Empty;
-            int prior = current.IndexOf(
-                "\nNecromantic ",
-                StringComparison.Ordinal);
-            if (prior >= 0)
+            RestWarningState warningState = RestWarningStates.GetValue(
+                warning,
+                ignored => new RestWarningState());
+            if (warningState.RenderedText == null
+                || !string.Equals(
+                    current,
+                    warningState.RenderedText,
+                    StringComparison.Ordinal))
             {
-                current = current.Substring(0, prior);
+                warningState.NativeText = current;
             }
-            bool showNativeWarning = __instance.Target != null
-                && __instance.Target.WillBeSurprisedByWyrdNight;
-            if (!showNativeWarning)
-            {
-                current = string.Empty;
-            }
+            bool showNativeWarning =
+                __instance.Target.WillBeSurprisedByWyrdNight;
             NpcHeroSummon[] summons = GetFormationHost(hero);
-            if (summons.Length <= 0)
-            {
-                textProperty.SetValue(warning, current, null);
-                warning.gameObject.SetActive(
-                    showNativeWarning && !string.IsNullOrWhiteSpace(current));
-                return;
-            }
-            string message;
-            if (plugin.RestBehavior != null
+            string message = string.Empty;
+            if (summons.Length > 0
+                && plugin.RestBehavior != null
                 && plugin.RestBehavior.Value == RestHostBehavior.Dismiss)
             {
                 message = "Necromantic host: resting will dismiss every servant.";
             }
-            else
+            else if (summons.Length > 0)
             {
+                bool hasMiniboss = summons.Any(
+                    SoulSalvageRuntime.IsReanimatedMiniboss);
+                bool hasOrdinary = summons.Any(summon =>
+                    !SoulSalvageRuntime.IsReanimatedMiniboss(summon));
                 float percent = GetRestAttritionPercent(
                     summons.Length,
                     __instance.Target.HourValueChange,
                     SoulProgressionRuntime.GetNecromanticPower());
+                float minibossPercent = GetMinibossRestAttritionPercent(
+                    summons.Length,
+                    __instance.Target.HourValueChange,
+                    SoulProgressionRuntime.GetNecromanticPower());
+                bool showOrdinaryLoss = hasOrdinary && percent > 0.0f;
+                bool showMinibossLoss = hasMiniboss
+                    && minibossPercent > 0.0f;
                 int mayPerish = summons.Count(summon =>
                     summon.ParentModel != null
                     && summon.ParentModel.Health != null
                     && summon.ParentModel.Health.ModifiedValue
                         <= summon.ParentModel.Health.UpperLimit
-                            * (percent / 100.0f) + 0.001f);
-                message = "Necromantic upkeep: -"
-                    + percent.ToString("0.#")
-                    + "% max Health"
-                    + (mayPerish > 0
+                            * ((SoulSalvageRuntime.IsReanimatedMiniboss(summon)
+                                ? minibossPercent
+                                : percent) / 100.0f) + 0.001f);
+                if (showOrdinaryLoss || showMinibossLoss)
+                {
+                    message = showOrdinaryLoss
+                        ? "Necromantic upkeep: -"
+                            + FormatRestLossPercent(percent)
+                            + "% max Health"
+                            + (showMinibossLoss
+                                ? "; miniboss -"
+                                    + FormatRestLossPercent(minibossPercent)
+                                    + "%"
+                                : string.Empty)
+                        : "Necromantic upkeep: miniboss -"
+                            + FormatRestLossPercent(minibossPercent)
+                            + "% max Health";
+                    message += mayPerish > 0
                         ? "; " + mayPerish + " servant(s) may perish."
-                        : ".");
+                        : ".";
+                }
             }
-            string combined = string.IsNullOrWhiteSpace(current)
+            string nativeText = showNativeWarning
+                ? warningState.NativeText
+                : string.Empty;
+            string combined = string.IsNullOrWhiteSpace(nativeText)
                 ? message
-                : current + "\n" + message;
+                : string.IsNullOrWhiteSpace(message)
+                    ? nativeText
+                    : nativeText + "\n" + message;
             textProperty.SetValue(warning, combined, null);
-            warning.gameObject.SetActive(true);
+            warningState.RenderedText = combined;
+            warning.gameObject.SetActive(!string.IsNullOrWhiteSpace(combined));
+        }
+
+        private static string FormatRestLossPercent(float percent)
+        {
+            return percent < 0.1f
+                ? "<0.1"
+                : percent.ToString("0.#");
         }
 
         private static void BeginSwarm(
@@ -1632,15 +1851,13 @@ namespace SoulAndService
             }
             Transform visualRoot = state.VisualRoot;
 
-            float soulforgedMultiplier = controller.Npc == null
+            float combinedSize = controller.Npc == null
                 ? 1.0f
-                : SoulforgedRuntime.GetMultiplier(GetSummonId(controller.Npc));
-            float empowermentSize = state.IsEmpowered
-                ? state.SizeMultiplier
-                : 1.0f;
+                : GetCombinedVisualSizeMultiplier(
+                    controller.Npc.TryGetElement<NpcHeroSummon>());
             Vector3 expectedScale = Vector3.Scale(
                 state.OriginalLocalScale,
-                Vector3.one * soulforgedMultiplier * empowermentSize);
+                Vector3.one * combinedSize);
             Vector3 scaleBeforeCorrection = visualRoot.localScale;
             if ((visualRoot.localScale - expectedScale).sqrMagnitude <= 0.000001f)
             {
@@ -5114,17 +5331,80 @@ namespace SoulAndService
             Hero hero,
             NpcElement target)
         {
+            return TryValidateAttackCommand(
+                hero,
+                target,
+                out string ignoredReason);
+        }
+
+        private static bool TryValidateAttackCommand(
+            Hero hero,
+            NpcElement target,
+            out string rejectionReason)
+        {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-            if (plugin == null
-                || !plugin.IsEnabled
-                || !plugin.AttackCommandPrompt.Value
-                || !HasAttackCommandControl()
-                || !IsTargetCommandModifierHeld(plugin, hero)
-                || !IsAttackCommandTarget(
+            if (plugin == null)
+            {
+                rejectionReason = "plugin-unavailable";
+                return false;
+            }
+            if (!plugin.IsEnabled)
+            {
+                rejectionReason = "mod-disabled";
+                return false;
+            }
+            if (plugin.AttackCommandPrompt == null
+                || !plugin.AttackCommandPrompt.Value)
+            {
+                rejectionReason = "attack-command-disabled";
+                return false;
+            }
+            if (!HasAttackCommandControl())
+            {
+                rejectionReason = "attack-command-locked";
+                return false;
+            }
+            if (!IsTargetCommandModifierHeld(plugin, hero))
+            {
+                rejectionReason = "modifier-not-detected";
+                return false;
+            }
+            if (hero == null)
+            {
+                rejectionReason = "hero-unavailable";
+                return false;
+            }
+            if (target == null)
+            {
+                rejectionReason = "target-missing";
+                return false;
+            }
+            if (target.HasBeenDiscarded)
+            {
+                rejectionReason = "target-discarded";
+                return false;
+            }
+            if (!target.IsAlive)
+            {
+                rejectionReason = "target-dead";
+                return false;
+            }
+            if (target.IsUnconscious)
+            {
+                rejectionReason = "target-unconscious";
+                return false;
+            }
+            if (target.IsHeroSummon)
+            {
+                rejectionReason = "target-is-owned-summon";
+                return false;
+            }
+            if (!IsAttackCommandTarget(
                     hero,
                     target,
                     GetTargetingRange(plugin)))
             {
+                rejectionReason = "target-out-of-range";
                 return false;
             }
 
@@ -5132,10 +5412,43 @@ namespace SoulAndService
             {
                 if (IsCommandableSummon(summon, hero, target))
                 {
+                    rejectionReason = string.Empty;
                     return true;
                 }
             }
+            rejectionReason = "no-commandable-owned-summon";
             return false;
+        }
+
+        private static void LogAttackCommandAttempt(
+            Hero hero,
+            NpcElement target,
+            string result,
+            int commanded)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null)
+            {
+                return;
+            }
+            TargetCommandModifierMode mode = plugin.TargetCommandModifier == null
+                ? TargetCommandModifierMode.Sprint
+                : plugin.TargetCommandModifier.Value;
+            bool sprintHeld = IsSprintActionHeld(hero);
+            bool modifierHeld = IsTargetCommandModifierHeld(plugin, hero);
+            bool targetValid = IsAttackCommandTarget(
+                hero,
+                target,
+                GetTargetingRange(plugin));
+            plugin.LogDiagnostic(
+                "Attack command attempt: mode=" + mode
+                + "; sprintHeld=" + sprintHeld
+                + "; modifierHeld=" + modifierHeld
+                + "; targetValid=" + targetValid
+                + "; target="
+                + (target == null ? "<missing>" : ((Model)target).ID)
+                + "; commanded=" + commanded
+                + "; result=" + result + ".");
         }
 
         private static bool IsAttackCommandTarget(
@@ -5354,10 +5667,6 @@ namespace SoulAndService
                     useSwarm ? "Swarm" : "Attack",
                     StandardCommandFeedbackSeconds,
                     false);
-                plugin.LogDiagnostic(
-                    "Ordered " + commanded + " summon(s) to attack "
-                    + ((Model)target).ID
-                    + (useSwarm ? " with Swarm." : "."));
             }
             return commanded;
         }
@@ -6402,8 +6711,24 @@ namespace SoulAndService
                 }
                 if (_kind == SummonCommandState.Attack)
                 {
-                    return CanCommandSummons(hero, _target)
-                        && CommandSummons(hero, _target) > 0;
+                    bool eligible = TryValidateAttackCommand(
+                        hero,
+                        _target,
+                        out string rejectionReason);
+                    int commanded = eligible
+                        ? CommandSummons(hero, _target)
+                        : 0;
+                    string result = commanded > 0
+                        ? "accepted"
+                        : string.IsNullOrEmpty(rejectionReason)
+                            ? "no-summon-accepted-command"
+                            : rejectionReason;
+                    LogAttackCommandAttempt(
+                        hero,
+                        _target,
+                        result,
+                        commanded);
+                    return commanded > 0;
                 }
                 SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
                 if (plugin != null
@@ -6850,6 +7175,7 @@ namespace SoulAndService
             }
             if (evt is UIKeyDownAction)
             {
+                LogFocusedFormationCommandAttempt();
                 if (_commandInteractable != null
                     && _commandInteractable.IsFeedback)
                 {
@@ -6931,6 +7257,100 @@ namespace SoulAndService
             _individualFormationCommandState = _commandInteractable.Kind;
             result = UIResult.Accept;
             return true;
+        }
+
+        private static void LogFocusedFormationCommandAttempt()
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            Hero hero = Hero.Current;
+            if (plugin == null
+                || hero == null
+                || (_commandInteractable != null
+                    && _commandInteractable.Target != null))
+            {
+                return;
+            }
+
+            NpcHeroSummon focusedSummon = _commandInteractable == null
+                ? null
+                : _commandInteractable.Summon;
+            string focusDiagnostic = focusedSummon == null
+                ? "no command focus"
+                : "current interaction override";
+            VCHeroRaycaster raycaster = hero.VHeroController == null
+                ? null
+                : hero.VHeroController.Raycaster;
+            if (focusedSummon == null && raycaster != null)
+            {
+                RaycastCheck detection = NpcDetectionField == null
+                    ? null
+                    : NpcDetectionField.GetValue(raycaster) as RaycastCheck;
+                raycaster.GetViewRay(out Vector3 origin, out Vector3 direction);
+                TryFindFocusedFormationSummon(
+                    hero,
+                    detection,
+                    origin,
+                    direction,
+                    GetTargetingRange(plugin),
+                    out focusedSummon,
+                    out GameObject ignoredViewObject,
+                    out focusDiagnostic,
+                    false);
+            }
+            if (focusedSummon == null)
+            {
+                return;
+            }
+
+            TargetCommandModifierMode mode = plugin.TargetCommandModifier == null
+                ? TargetCommandModifierMode.Sprint
+                : plugin.TargetCommandModifier.Value;
+            bool sprintHeld = IsSprintActionHeld(hero);
+            bool modifierHeld = IsTargetCommandModifierHeld(plugin, hero);
+            bool formationEnabled = plugin.FormationCommands != null
+                && plugin.FormationCommands.Value;
+            bool controlUnlocked = HasIndividualFormationControl();
+            bool owned = IsOwnedSummon(focusedSummon, hero);
+            bool inRange = IsWithinFormationCommandRange(
+                hero,
+                focusedSummon,
+                GetTargetingRange(plugin));
+            bool targetValid = plugin.IsEnabled
+                && formationEnabled
+                && controlUnlocked
+                && modifierHeld
+                && owned
+                && inRange;
+            string result = !plugin.IsEnabled
+                ? "mod-disabled"
+                : !formationEnabled
+                    ? "host-commands-disabled"
+                    : !controlUnlocked
+                        ? "individual-command-locked"
+                        : !modifierHeld
+                            ? "modifier-not-detected"
+                            : !owned
+                                ? "summon-not-owned"
+                                : !inRange
+                                    ? "summon-out-of-range"
+                                    : _commandInteractable == null
+                                        ? "focus-override-unavailable"
+                                        : "ready";
+            bool holdRequired = plugin.HoldIndividualFormationCommands != null
+                && plugin.HoldIndividualFormationCommands.Value;
+            plugin.LogDiagnostic(
+                "Formation command attempt: mode=" + mode
+                + "; sprintHeld=" + sprintHeld
+                + "; modifierHeld=" + modifierHeld
+                + "; focus=" + ((Model)focusedSummon).ID
+                + "; commandKind="
+                + (_commandInteractable == null
+                    ? SummonCommandState.None
+                    : _commandInteractable.Kind)
+                + "; targetValid=" + targetValid
+                + "; holdRequired=" + holdRequired
+                + "; result=" + result
+                + "; focusDetail=" + focusDiagnostic + ".");
         }
 
         private static bool TryBeginBehaviorCommandHold(
@@ -7451,7 +7871,6 @@ namespace SoulAndService
             {
                 RepairInvocationScaling(
                     (NpcHeroSummon)location,
-                    outgoing,
                     plugin);
             }
         }
@@ -7490,16 +7909,22 @@ namespace SoulAndService
 
         private static void RepairInvocationScaling(
             NpcHeroSummon incoming,
-            NpcHeroSummon outgoing,
             SoulAndServicePlugin plugin)
         {
             Hero hero = Hero.Current;
             if (hero == null
                 || incoming == null
-                || outgoing == null
-                || incoming.ParentModel == null
-                || outgoing.ParentModel == null)
+                || incoming.ParentModel == null)
             {
+                return;
+            }
+
+            if (!HasLearnedInvocationsOfMight(hero))
+            {
+                plugin.LogDiagnostic(
+                    "Skipped Invocations of Might repair for replacement summon "
+                    + ((Model)incoming.ParentModel).ID
+                    + " because the hero has not learned the native talent.");
                 return;
             }
 
@@ -7509,42 +7934,38 @@ namespace SoulAndService
                 return;
             }
 
-            NpcElement source = outgoing.ParentModel;
             NpcElement target = incoming.ParentModel;
-            if (source.AliveStats == null
-                || source.NpcStats == null
-                || target.AliveStats == null
+            if (target.AliveStats == null
                 || target.NpcStats == null)
             {
                 return;
             }
 
             float multiplier = 1.0f + spirituality * 0.05f;
-            if (!HasExpectedMultiplier(source.AliveStats.MaxHealth, multiplier))
-            {
-                plugin.LogDiagnostic(
-                    "Skipped Invocation of Might repair for replacement summon "
-                    + ((Model)target).ID
-                    + " because the outgoing summon did not prove that the native scaling was active.");
-                return;
-            }
-
+            float healthFraction = target.Health == null
+                ? 1.0f
+                : Mathf.Clamp01(target.Health.Percentage);
             ScalingTweaks tweaks = new ScalingTweaks();
-            tweaks.Melee = AddMissingMultiplier(
+            tweaks.Melee = AddMissingInvocationMultiplier(
                 target.NpcStats.MeleeDamage,
                 multiplier,
+                multiplier,
                 target);
-            tweaks.Ranged = AddMissingMultiplier(
+            tweaks.Ranged = AddMissingInvocationMultiplier(
                 target.NpcStats.RangedDamage,
                 multiplier,
+                multiplier,
                 target);
-            tweaks.Magic = AddMissingMultiplier(
+            tweaks.Magic = AddMissingInvocationMultiplier(
                 target.NpcStats.MagicDamage,
                 multiplier,
+                multiplier,
                 target);
-            tweaks.Health = AddMissingMultiplier(
+            tweaks.Health = AddMissingInvocationMultiplier(
                 target.AliveStats.MaxHealth,
                 multiplier,
+                multiplier
+                    * SoulSalvageRuntime.GetReanimatedHealthMultiplier(incoming),
                 target);
             if (tweaks.Melee == null
                 && tweaks.Ranged == null
@@ -7553,7 +7974,7 @@ namespace SoulAndService
             {
                 plugin.LogDiagnostic(
                     "Replacement summon " + ((Model)target).ID
-                    + " already retained Invocation of Might scaling.");
+                    + " already retained Invocations of Might scaling.");
                 return;
             }
 
@@ -7561,11 +7982,33 @@ namespace SoulAndService
             if (tweaks.Health != null)
             {
                 target.Health.SetToFull();
+                if (healthFraction < 1.0f)
+                {
+                    target.Health.DecreaseBy(
+                        target.Health.ModifiedValue * (1.0f - healthFraction));
+                }
             }
             plugin.LogDiagnostic(
-                "Repaired Invocation of Might scaling for replacement summon "
+                "Repaired Invocations of Might scaling for replacement summon "
                 + ((Model)target).ID
-                + " after confirming it on the outgoing summon.");
+                + " after confirming the hero owns the native talent.");
+        }
+
+        private static bool HasLearnedInvocationsOfMight(Hero hero)
+        {
+            return hero != null
+                && hero.Talents != null
+                && hero.Talents.Elements<TalentTable>().Any(table =>
+                    table != null
+                    && table.talents != null
+                    && table.talents.Any(talent =>
+                        talent != null
+                        && talent.Level > 0
+                        && talent.Template != null
+                        && string.Equals(
+                            talent.Template.GUID,
+                            InvocationsOfMightTalentGuid,
+                            StringComparison.OrdinalIgnoreCase)));
         }
 
         private static bool HasExpectedMultiplier(Stat stat, float multiplier)
@@ -7575,26 +8018,29 @@ namespace SoulAndService
                 && Math.Abs(stat.ModifiedValue / stat.BaseValue - multiplier) <= 0.02f;
         }
 
-        private static StatTweak AddMissingMultiplier(
+        private static StatTweak AddMissingInvocationMultiplier(
             Stat stat,
-            float targetMultiplier,
+            float invocationMultiplier,
+            float composedMultiplier,
             NpcElement owner)
         {
             if (stat == null
                 || stat.BaseValue <= 0.0001f
-                || targetMultiplier <= 1.0f)
+                || invocationMultiplier <= 1.0f)
             {
                 return null;
             }
             float currentMultiplier = stat.ModifiedValue / stat.BaseValue;
-            if (currentMultiplier >= targetMultiplier - 0.01f)
+            if (HasExpectedMultiplier(stat, invocationMultiplier)
+                || HasExpectedMultiplier(stat, composedMultiplier)
+                || currentMultiplier
+                    >= Math.Max(invocationMultiplier, composedMultiplier) - 0.01f)
             {
                 return null;
             }
-            float missingMultiplier = targetMultiplier / Math.Max(currentMultiplier, 0.0001f);
             StatTweak tweak = StatTweak.Multi(
                 stat,
-                missingMultiplier,
+                invocationMultiplier,
                 null,
                 owner);
             ((Model)tweak).MarkedNotSaved = true;
@@ -7728,6 +8174,11 @@ namespace SoulAndService
                 __result += SoulProgressionRuntime
                     .GetProgressionSummonLimitBonus()
                     + plugin.SummonLimitBonus.Value;
+                if (World.All<NpcHeroSummon>().Any(
+                    SoulSalvageRuntime.IsReanimatedMiniboss))
+                {
+                    __result = Math.Max(0, __result - 1);
+                }
             }
         }
 
@@ -7788,6 +8239,8 @@ namespace SoulAndService
                 }
                 return;
             }
+
+            ActivateReanimatedLostKnight(npc, summon);
 
             AnimationWatchdogState state;
             if (!AnimationWatchdogsBySummon.TryGetValue(id, out state))
@@ -7859,6 +8312,22 @@ namespace SoulAndService
                 + AnimationWatchdogRecoveryCooldownSeconds;
             state.LastAnimationState = null;
             state.LastAnimationTime = 0.0;
+        }
+
+        private static void ActivateReanimatedLostKnight(
+            NpcElement npc,
+            NpcHeroSummon summon)
+        {
+            if (npc == null
+                || !SoulSalvageRuntime.IsReanimatedServant(summon))
+            {
+                return;
+            }
+            LostKnight lostKnight = npc.TryGetElement<LostKnight>();
+            if (lostKnight != null && !lostKnight.HasBeenDiscarded)
+            {
+                LostKnightActivateCombatMethod.Invoke(lostKnight, null);
+            }
         }
 
         private static bool IsMovingForAnimationWatchdog(
@@ -8286,6 +8755,11 @@ namespace SoulAndService
             {
                 dmgModifier *= SoulProgressionRuntime
                     .GetSummonDamageMultiplier();
+                if (SoulSalvageRuntime.IsReanimatedMiniboss(
+                    dealer.TryGetElement<NpcHeroSummon>()))
+                {
+                    dmgModifier *= 0.60f;
+                }
                 dmgModifier *= SoulforgedRuntime.GetMultiplier(
                     GetSummonId(dealer));
                 EmpowermentState dealerEmpowerment;

@@ -78,12 +78,19 @@ foreach ($required in @(
     'Mathf.Pow(2.0f, semitones / 12.0f)',
     'GetTierFallbacks(',
     'SoundsByPath[path] = sound;',
+    'BusGroup.SFX.TryGetBus(out sfxBus)',
+    'sfxBus.lockChannelGroup()',
+    'sfxBus.getChannelGroup(out sfxChannelGroup)',
+    'ReleaseSfxBus();',
     'RuntimeManager.CoreSystem.playSound(',
     'FMOD.Channel channel;',
     'pair.Value.release();')) {
     if (!$audioSource.Contains($required)) {
         throw "Soul Salvage FMOD runtime contract is missing: $required"
     }
+}
+if ($audioSource.Contains('getMasterChannelGroup(')) {
+    throw "Soul Rend audio must not bypass the game's SFX mixer through the Core master channel group."
 }
 foreach ($required in @(
     'private const int MaximumPendingEchoes = 24;',
@@ -108,6 +115,9 @@ foreach ($required in @(
     if (!$audioSource.Contains($required)) {
         throw "Soul Rend impact contract is missing: $required"
     }
+}
+if ($audioSource -notmatch '(?s)internal static void PlayImpact\(.+?float volume = baseVolume \* GetRangeVolumeMultiplier\(\s*plugin,\s*hasSourcePosition,\s*sourcePosition\);') {
+    throw "Soul Rend impact audio does not use target-distance volume attenuation."
 }
 if ($salvageSource -notmatch '(?s)Vector3 targetCoords = target\.Coords;.*?Vector3 impactPosition =.*?target\.HealthElement\.TakeDamage\(damage\);.*?SoulSalvageAudioRuntime\.PlayImpact\(\s*false,\s*true,\s*impactPosition\);' -or
     $salvageSource -match '(?s)target\.HealthElement\.TakeDamage\(damage\);.*?SoulSalvageAudioRuntime\.PlayImpact\(\s*false,\s*true,\s*target\.Coords\);') {
@@ -135,8 +145,9 @@ foreach ($required in @(
         throw "Soul Salvage playback hook is missing: $required"
     }
 }
-if ($salvageSource -notmatch '(?s)SoulSalvageAudioRuntime\.Play\(\s*audioTier,\s*hasAudioPosition,\s*audioPosition,\s*audioTargetClass\);') {
-    throw "Summon sacrifice audio is not shared by ordinary and raised servants."
+if ($salvageSource -notmatch '(?s)CompleteLightSummonHarvest\(.*?PlayServantSoulRendFeedback\(summon, raisedRecord\)' -or
+    $salvageSource -notmatch '(?s)PlayServantSoulRendFeedback\(.*?SoulSalvageAudioRuntime\.Play\(\s*audioTier,\s*hasAudioPosition,\s*audioPosition,\s*GetSoulSalvageAudioTargetClass') {
+    throw "Each staged Soul Rend servant resolution does not share immediate quality-matched ritual audio."
 }
 if ($salvageSource -match '(?s)if \(record\.Sacrificed\)\s*\{\s*SoulSalvageAudioRuntime\.Play') {
     throw "Raised-servant audio is still deferred to remains cleanup."
@@ -160,7 +171,7 @@ if (!$livingBlock.Success -or $livingBlock.Value.Contains('SoulSalvageAudioRunti
 }
 $claimBlock = [regex]::Match(
     $salvageSource,
-    '(?s)private static void TryClaimLivingTarget\(.+?(?=\r?\n\s*private static float GetSoulClaimPowerChance\()')
+    '(?s)private static void TryClaimLivingTarget\(.+?(?=\r?\n\s*private static float GetSoulClaimPowerThreshold\()')
 if (!$claimBlock.Success -or $claimBlock.Value.Contains('SoulSalvageAudioRuntime.Play(')) {
     throw "Soul Claim must not use the ritual audio bank."
 }

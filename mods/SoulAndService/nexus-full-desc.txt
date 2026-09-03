@@ -6,9 +6,9 @@
 
 [b]Soul and Service - Summon Overhaul[/b] transforms the vanilla Soul Salvage spell into [b]Soul Rend[/b], the heart of a complete necromancer playstyle. Defeat enemies, judge the value of their remains, and choose whether to harvest their souls or bind them into your growing host.
 
-Soul Rend can harvest corpses, damage and claim living enemies, raise the fallen, unbind servants for Mana and Soul Vigor, and Empower the worthy. The souls you harvest build [b]Soul Vigor[/b], which becomes [b]Necromantic Power[/b] and transforms a novice summoner into the master of a larger, stronger, more disciplined army.
+Soul Rend can harvest corpses, damage and claim living enemies, raise the fallen, carefully dismantle servants for Mana and Soul Vigor, and Empower the worthy. The souls you harvest build [b]Soul Vigor[/b], which becomes [b]Necromantic Power[/b] and transforms a novice summoner into the master of a larger, stronger, more disciplined army.
 
-Your servants are no longer disposable bodies that wander, spin, block doorways, or disappear behind you. Order them to attack, hold ground, form around you, change their behavior, regroup from anywhere, and surge forward as a Swarm. Keep proven servants alive and their victories permanently forge them into stronger, larger, brighter champions.
+Your servants are no longer disposable bodies that wander, spin, block doorways, or disappear behind you. Order them to attack, hold ground, form around you, change their behavior, regroup from anywhere, and surge forward as a Swarm. Keep proven servants alive and their victories forge them into stronger, larger, brighter champions whose power can later be dismantled deliberately.
 
 [b]For the full experience, these companion mods are highly recommended:[/b] [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url], [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url], [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url], and [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url]. Together they add purpose-built reticles for corpse quality, servant commands, and confirmation pulses; track your necromantic progression; surface binding, summon-cost, reward, and command feedback in the world; and give your orders a voice.
 
@@ -21,11 +21,14 @@ Everything serves one necromancer fantasy: every death is a choice, every harves
 [list]
 [*][b]Soul Salvage becomes Soul Rend:[/b] One spell can harvest, damage, claim, bind, unbind, or Empower according to its target and cast type.[/*]
 [*][b]Every corpse has value:[/b] Meager, Worthy, Potent, and Prime enemies offer different Soul Vigor rewards, binding resistance, raised health, and ritual presence.[/*]
+[*][b]Drain or command greater souls:[/b] Genuine miniboss and boss corpses carry restrained six-part Soul Vigor pools, while selected safe scene-authored minibosses can enter service at a steep, rising price.[/*]
 [*][b]Soul Vigor defines progression and price:[/b] Harvested souls become Necromantic Power, while summoning and Empowering spend Vigor according to spell tier or soul value.[/*]
+[*][b]Choose your covenant with death:[/b] Soul Famine, Grave Pact, and Dominion presets move from ruthless scarcity to abundant power, while Custom preserves any personal mix of the five visible balance controls.[/*]
 [*][b]Command a disciplined host:[/b] Attack, Hold, Follow, Recall, and formations control one servant or the whole host, while three distinct tactical behaviors shape them into Guard bodyguards, a Bulwark screen, or Hunt scouts.[/*]
-[*][b]Sustain and perfect your servants:[/b] A growing host demands Health upkeep, while heavy Soul Rend restores wounded servants and eventually Empowers the worthy.[/*]
-[*][b]Service earns lasting power:[/b] Seventeen Soulforged ranks reward servants for real damage dealt, permanently improving damage, resistance, size, and necromantic presence.[/*]
+[*][b]Sustain and perfect your servants:[/b] A growing host demands Health upkeep, while heavy Soul Rend restores and Empowers the worthy; light Soul Rend safely strips that investment in layers before unbinding.[/*]
+[*][b]Service earns lasting power:[/b] Seventeen Soulforged ranks reward servants for real damage dealt, improving damage, resistance, size, and necromantic presence until deliberately Soul Rended away.[/*]
 [*][b]Keep a true persistent host:[/b] Ordinary and reanimated servants can survive saving, loading, and rest, while severe rest attrition makes maintaining an army a meaningful choice.[/*]
+[*][b]Optional [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] consequence:[/b] Successfully harvesting an ordinary corpse during an exposed Wyrdnight adds quality-scaled Wyrd Threat.[/*]
 [*][b]Deep [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] integration:[/b] Eligible flesh servants can be drained, executed, or sacrificed through its spells, with both mods coordinating progression and one-time rewards while preserving original loot without duplication.[/*]
 [*][b]Deep [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241]Steel and Bone[/url] integration:[/b] Soul Rend becomes a fully featured Necrotic damage type, while Guard and Hunt inherit most of its expanded sight and pursuit.[/*]
 [/list]
@@ -40,7 +43,7 @@ In FoA Mod Manager, enable [b]Diagnostics > Override Soul Vigor[/b] and set [b]S
 
 [b][color=#ffffff]1. Harvest Soul Vigor[/color][/b]
 
-Light-cast Soul Rend on an eligible hostile corpse. Stronger corpses provide more Vigor, raising Necromantic Power and unlocking commands, capacity, and stronger servants.
+Light-cast Soul Rend on almost any freshly killed non-summon corpse. Stronger corpses provide more Vigor, raising Necromantic Power and unlocking commands, capacity, and stronger servants. Protected bodies remain intact even after their soul is spent.
 
 [b][color=#ffffff]2. Raise the Fallen[/color][/b]
 
@@ -52,7 +55,7 @@ Use Sprint with Interact to Attack, Hold, Follow, or change behavior. Guard prot
 
 [b][color=#ffffff]4. Sustain Your Servants[/color][/b]
 
-At low Power, necromantic upkeep steadily drains servant Health. Heavy Soul Rend restores them; at Power 100, a healthy servant can be permanently Empowered by spending twice its base Soul Vigor value at the current Power-scaled rate. From Power 40 onward, damage dealt also earns permanent Soulforged ranks.
+At low Power, necromantic upkeep steadily drains servant Health. Heavy Soul Rend restores them; at Power 100, a healthy servant can be Empowered by spending twice its base Soul Vigor value at the current Power-scaled rate. From Power 40 onward, damage dealt also earns durable Soulforged ranks that remain until deliberately stripped.
 
 [b][color=#ffffff]5. Spend and Rebuild[/color][/b]
 
@@ -77,8 +80,8 @@ Soul Rend changes purpose according to its target and cast type:
 | Target         | Light cast                         | Heavy cast                       |
 |----------------|------------------------------------|----------------------------------|
 | Corpse         | Harvest for Soul Vigor             | Bind and reanimate               |
-| Owned servant  | Unbind for Mana and Soul Vigor     | Restore; Empower at 95% Health   |
-| Living hostile | Rend its soul and improve Claim    | Claim at 40% Health or less      |[/code]
+| Owned servant  | Strip Empower, then ranks; unbind at rank 0 | Restore; Empower at 95% Health   |
+| Living hostile | Rend; each survived hit adds 2%    | Claim at its final threshold     |[/code]
 
 This creates the central choice behind the mod: consume the dead for immediate progression, bind them into your host, or keep a proven servant alive long enough to Empower it. Claim a badly wounded enemy and it falls by your hand, then immediately rises into service without granting duplicate rewards.
 
@@ -97,11 +100,12 @@ Soul Vigor remains stored with the active character and can continue rising, but
 | 65         | 10    | Attack Command                                   |
 | 133        | 20    | Individual Hold and Follow Commands              |
 | 206        | 30    | Hold All and Follow All Commands                 |
+| 284        | 40    | Soulforged progression unlocks; Rank I           |
 | 369        | 50    | Guard and Hunt Behavior Command                  |
 | 463        | 60    | Bulwark Behavior                                 |
 | 567        | 70    | Recall Host Command                              |
 | 826        | 90    | Swarm Attack Command                             |
-| 1,000      | 100   | Empower and no necromantic upkeep                |
+| 1,000      | 100   | Empower; ordinary-servant upkeep ends             |
 | 3,000      | 150   | Maximum Summon Capacity                          |
 | 5,000      | 200   | Raise All; peak scaling                          |[/code]
 
@@ -120,13 +124,32 @@ Damage and resistance apply to every hero-owned summon, including ordinary summo
 
 [line]
 
+[heading][color=#38A840][size=5]Balance Presets[/size][/color][/heading]
+
+[b]Grave Pact[/b] is the default intended experience. [b]Soul Famine[/b] makes every soul and servant costly, while [b]Dominion[/b] favors an abundant necromancer power fantasy. Choosing one immediately writes its complete values into the five bounded controls shown below the selector and refreshes their FoA Mod Manager display. Changing any of those values switches the preset to [b]Custom[/b] and preserves the resulting mix.
+
+[code]
+| Effective value        | Soul Famine | Grave Pact | Dominion |
+|------------------------|-------------|------------|----------|
+| Soul Vigor rewards     | x1.00       | x1.50      | x2.25    |
+| Soul Vigor costs       | x1.00       | x0.75      | x0.50    |
+| Active and rest upkeep | x1.00       | x0.60      | x0.25    |
+| Raised starting Health | x1.00       | x1.35      | x2.00    |
+| Soul Claim threshold   | -5%         | +0%        | +5%      |[/code]
+
+Starting Health is capped at full Health. Claim adds the preset value to its Power-, hit-, and quality-based threshold before the final 1-40% clamp. Harvest rewards round to whole Vigor; costs round up and remain at least one. Greater-soul pools still lose one native portion per drain, and investment refunds are never multiplied.
+
+Presets do not alter Necromantic Power milestones, Summon Capacity, damage scaling, Soulforged ranks, corpse eligibility, persistence, commands, AI, or safety rules. Changing a preset never rerolls or heals an existing servant or retroactively changes a completed payment.
+
+[line]
+
 [heading][color=#38A840][size=5]Soulforged Servants[/size][/color][/heading]
 
 At Power 40, servants can begin earning permanent [b]Soulforged ranks[/b] through damage actually dealt to hostile enemies. Rank I requires damage equal to twice that servant's original maximum Health. A new rank opens every 10 Power, with later ranks asking more of the servant and the final Soulforged XVII available at Power 200 after 54 Health-bars of service.
 
-Damage progress is never wasted. A servant that has fought enough but lacks the next Power milestone waits at 100% until your mastery catches up, and earned ranks never fall when Soul Vigor is spent. Death, dismissal, or unbinding still ends that servant's personal legend.
+Damage progress is never wasted. A servant that has fought enough but lacks the next Power milestone waits at 100% until your mastery catches up, and earned ranks never fall when Soul Vigor is spent. Light Soul Rend can deliberately remove two real ranks at a time, lowering stored damage to the new rank floor so those ranks must be earned again. Death, dismissal, or final unbinding still ends that servant's personal legend.
 
-Each rank adds 1% damage, 1% matching resistance, 1% visible size, and 1% Reanimation VFX brightness. These bonuses multiply with Empower rather than replacing it. Simply aim at a servant to see its name, rank, Health, and progress toward the next ascent; rank changes announce themselves without adding another command input.
+Each rank adds 1% damage, 1% matching resistance, 0.5% visible size, and its share of Reanimation VFX brightness. Visual rank growth multiplies with Empower under a firm 1.30x body-size ceiling, while combat scaling is unchanged. Simply aim at a servant to see its name, rank, Health, and progress toward the next ascent; rank changes announce themselves without adding another command input.
 
 For testing, [b]Diagnostics > Override Soulforged Rank[/b] can temporarily force the exact effective rank of every current and future servant. Disabling it restores each servant's real saved progress.
 
@@ -173,11 +196,32 @@ Soul Rend changes with its target, turning every cast into a choice between imme
 
 [b]Light cast - Harvest or Rend[/b]
 
-Harvesting an eligible hostile corpse preserves its loot and faction identity, leaves simplified remains, and grants randomized Soul Vigor: 2-4 Meager, 7-11 Worthy, 12-18 Potent, or 24-36 Prime. Light casting an owned servant instead unbinds it, returning Mana from its original investment and current Health plus its native soul and invested Vigor. The default Mana return is 50% at full Health; a newly summoned servant can return its investment but never creates a profit, and damage reduces the return.
+Almost every genuine non-summon corpse created during the current session can be harvested, regardless of faction or whether its NPC identity can be reused safely. Harvesting starts from native randomized Soul Vigor values of 2-4 Meager, 7-11 Worthy, 12-18 Potent, or 24-36 Prime before the active reward multiplier. Ordinary structurally safe bodies become one-copy, loot-preserving simplified remains. Unique, scripted, merchant, guard, companion, and otherwise protected bodies remain intact but become soul-spent: they cannot pay twice or be reanimated afterward. Corpses restored from an earlier session retain conservative structural eligibility, and summon corpses remain excluded to prevent renewable-Vigor farming.
 
-Every summon also costs Soul Vigor. At Power 100, tier-one through tier-six spells cost 3/6/9/12/15/18. Power 0 doubles those costs and Power 200 halves them, rounded up, while corpse reanimation follows the same curve against that corpse's stable soul value.
+Light casting an owned servant dismantles it in deliberate stages rather than destroying a veteran by accident. Empowerment is severed first for 75% of its exact recorded Vigor cost. Each later cast removes two real Soulforged ranks; every unique rank releases 3% of the original refundable Mana and base Soul Vigor at current Health with a 50% minimum efficiency. Re-earned ranks cannot pay twice. Only the next cast against an unempowered rank-0 servant completes unbinding and returns the remaining Health-scaled pool. A rank-XVII servant can expose 51% of its base pool before final unbinding without ever creating more principal.
 
-Against a living hostile, Soul Rend deals a normal hero-attributed magical hit at 50%/100%/200% of a comparable tier-one light spell at Power 0/100/200. A surviving target gains one eight-second Claim stack, up to three; each adds 10% relative Claim chance and is consumed by the attempt. With Steel and Bone installed, the hit becomes Necrotic, making flesh, spirits, flora, and fungi vulnerable while corrupted, undead, skeletal, and constructed bodies increasingly resist it. Claim ignores those resistances, and living-target Soul Rend grants no Soul Vigor.
+With [url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] 1.3.2 or newer installed, a successful ordinary corpse harvest reports its normalized quality through Eyes' soft API. Eyes applies its configured quality-scaled threat only during an exposed outdoor Wyrdnight. Failed and repeated harvests, greater-soul portions, living servant unbinding, and remains already executed through Blood Magic Expansion add no corpse-harvest threat.
+
+Every summon also costs Soul Vigor. Before preset scaling, Power-100 tier-one through tier-six spells cost 3/6/9/12/15/18. Power 0 doubles those costs and Power 200 halves them, rounded up, while corpse reanimation follows the same curve against that corpse's stable soul value. Tooltips and interactions always show the effective price.
+
+Against a living hostile, Soul Rend deals a normal hero-attributed magical hit at 50%/100%/200% of a comparable tier-one light spell at Power 0/100/200. Each hit the enemy survives raises that enemy's Soul Claim threshold by 2% for as long as it remains present, up to five hits and +10%. With Steel and Bone installed, the hit becomes Necrotic, making flesh, spirits, flora, and fungi vulnerable while corrupted, undead, skeletal, and constructed bodies increasingly resist it. Claim ignores those damage resistances, and living-target Soul Rend grants no Soul Vigor.
+
+[b]Greater soul pools[/b]
+
+Genuine saved scene-authored miniboss and boss corpses hold six equal, deterministic Soul Vigor portions. Runtime-spawned, summoned, respawned, temporary-death, kill-protected, and reward-free copies cannot create a pool. With Soul Rend equipped, the corpse's normal Search line shows only its remaining value, such as [b]54 Soul Vigor[/b]. Holding heavy cast replaces that line entirely with its reanimation price or a stable unbindable-spirit message.
+
+[code]
+| Native tier | Miniboss portion / total | Boss portion / total |
+|-------------|--------------------------|----------------------|
+| 1           | 5 / 30                   | 6 / 36               |
+| 2           | 5 / 30                   | 7 / 42               |
+| 3           | 6 / 36                   | 8 / 48               |
+| 4           | 7 / 42                   | 9 / 54               |
+| 5           | 8 / 48                   | 10 / 60              |
+| 6           | 9 / 54                   | 11 / 66              |
+| 7           | 10 / 60                  | 12 / 72              |[/code]
+
+Each light cast removes and awards one portion. The final drain simplifies a structurally safe repetitive body through the normal one-copy, loot-preserving remains transaction. Protected unique, story, presence, dialogue, and merchant bodies stay intact at [b]0 Soul Vigor[/b] and can never be bound.
 
 [b]Heavy cast - Bind or Claim[/b]
 
@@ -185,7 +229,9 @@ Heavy casting costs 30 base mana and challenges an eligible hostile corpse's bin
 
 If the crosshair rests on nearby ground or harmless clutter, heavy Soul Rend can assist to an eligible corpse within 0.4 meters without selecting through walls or floors.
 
-Living enemies at or below 40% Health can instead be [b]Claimed[/b]. Maximum chance rises from 5% at Power 0 to 17.5% at 100 and 30% at 200 before Health, quality, and Claim stacks, with a final cap of 35%. Meager, Worthy, Potent, and Prime enemies apply x1.00/x0.85/x0.65/x0.45 chance.
+Living enemies can instead be [b]Claimed[/b] deterministically when their Health reaches the final threshold. Base thresholds are 5%/10%/15%/20%/25%/30% at Power 25/50/75/100/150/200. Meager, Worthy, Potent, and Prime souls resist by 0%/3%/6%/9%; every surviving light hit adds 2% up to +10%; and the active preset adds -5%/+0%/+5%. The result is clamped to 1-40%.
+
+Success executes the enemy, immediately raises it through the normal protected corpse lifecycle, and gives the new servant the same starting Health it would receive from ordinary corpse reanimation.
 
 Failure leaves the enemy alive. Success awards the normal kill and XP once, then raises a reward-free servant through the protected reanimation lifecycle. Claim grants no immediate Soul Vigor, although the resulting servant can later be harvested for its corpse-quality reward.
 
@@ -209,9 +255,24 @@ Idle servants trot when 4 meters behind, run at 8, and safely teleport at 60, wi
 
 Guard, Close Guard, and Hunt ignore brief player movements, follow smoothly once movement becomes deliberate, and settle shortly after the hero stops. Bulwark Advance responds immediately while Sprint is held. Automatic catch-up teleports use the green-dark summoning effect, while native scene-transition relocation remains silent. Idle Movement Amount controls how often settled Guard and Hunt servants wander near their positions; zero disables voluntary wandering without disabling formation correction.
 
-[b]Persistent Servants[/b] is enabled by default, keeping ordinary summons plus each raised servant's source identity, Health, Empowerment, investment, and Soulforged progress through saves, reloads, and game restarts. Generated raised copies never enter the native save graph. If persistence is disabled or one servant cannot be reconstructed safely, its protected source is restored from the same all-or-nothing recovery snapshot instead.
+[b]Persistent Servants[/b] is enabled by default, keeping ordinary summons plus each raised servant's source identity, Health, Empowerment, investment, Soulforged progress, and finite staged-recovery ledger through saves, reloads, and game restarts. Generated raised copies never enter the native save graph. If persistence is disabled or one servant cannot be reconstructed safely, its protected source is restored from the same all-or-nothing recovery snapshot instead.
 
 Ordinary summons remain on the game's native save path. Soul Rend-raised copies are instead rebuilt from one versioned host snapshot after the main scene is ready, keeping their Health, Empowerment, Soulforged progress, investment, and protected source relationship without placing the generated NPC tree in the native save graph. If a raised record cannot be trusted or reconstructed safely, its source is restored and trustworthy committed Soul Vigor is refunded.
+
+[b]Spirituality Summoning tree[/b]
+
+Ordinary summons, fresh raised servants, persistently restored servants, and replacement servants are genuine hero summons, so Soul and Service keeps the game's nine Summoning talents native:
+
+[list]
+[*][b]Astral Bonds[/b] establishes the native summon limit before Soul and Service adds Summon Capacity and the configured bonus.[/*]
+[*][b]Summoner's Battery[/b] and [b]Power Conduit[/b] count every living servant.[/*]
+[*][b]Invocations of Might[/b] and [b]Mana-Infused Blood[/b] use the native summon-spawn lifecycle. The narrow replacement repair explicitly verifies that the hero has learned Invocations; it composes with raised quality Health, preserves current Health percentage, and never reapplies an already-present multiplier.[/*]
+[*][b]Feeding Frenzy[/b] affects the living host after a hero kill.[/*]
+[*][b]Worthy Sacrifice[/b] and [b]Hold The Line[/b] respond to genuine servant death.[/*]
+[*][b]Prepared Rituals[/b] reduces mana reserved by ordinary summon spells. Reanimation spends Soul Vigor rather than reserving mana, so it receives no invented Vigor discount.[/*]
+[/list]
+
+Combat death, lethal upkeep or rest attrition, Soul Rend harvest, Blood ritual sacrifice, and native active-summon destruction retain the game's death semantics. Failed reconstruction, invalid-record recovery, source restoration, plugin shutdown, and other administrative cleanup discard the generated copy without fabricating a death trigger.
 
 [b]Awareness[/b]
 
@@ -223,7 +284,7 @@ Optional passive crosshair sharing lets an uncommitted servant adopt the hostile
 
 [b]Summon Pass-Through[/b] lets the hero move through servants while they continue colliding with enemies, the world, and incoming attacks. The default [b]CombatOnly[/b] Player Attack Pass-Through mode also lets confirmed hero projectiles and magic-gauntlet contacts pass through servants during combat; Vanilla, MagicOnly, and AllProjectiles modes are available.
 
-Replacement summons recover missing Invocation of Might scaling only when the outgoing summon proves it was active, leaving already-scaled stats untouched. Idle-loop volume defaults to 60%; combat sounds remain unchanged.
+Idle-loop volume defaults to 60%; combat sounds remain unchanged.
 
 [line]
 
@@ -231,43 +292,58 @@ Replacement summons recover missing Invocation of Might scaling only when the ou
 
 [b]Safe reanimation[/b]
 
-Heavy Soul Rend accepts ordinary hostile corpses and living enemies that can safely become native hero summons. Named or scripted characters, quest actors, merchants, guards, companions, bosses, minibosses, friendlies, claimed corpses, blocked targets, and enemies without safe summon data are rejected.
+Heavy Soul Rend accepts ordinary hostile corpses and living enemies that can safely become native hero summons. Named or scripted characters, quest actors, merchants, guards, companions, bosses, unallowlisted minibosses, friendlies, claimed corpses, blocked targets, and enemies without safe summon data are rejected.
+
+Those strict rules apply only to binding. A fresh protected corpse may still yield Soul Vigor while its body remains intact. Heavy Soul Rend reports [b]This soul is too resistant to bind[/b] for an intact corpse that cannot safely become a servant, or [b]No soul remains to bind[/b] after that corpse has already been harvested.
 
 Successful binding protects the original corpse and creates an allied copy. When that servant dies, is dismissed, or is harvested, its original loot appears in simplified remains at its last safe position, with the corpse location as a fallback. Failed initialization safely restores the protected source instead. Persistent hosts reconnect the servant to that same protected corpse after loading rather than duplicating rewards.
 
 Persistent reanimation additionally requires one canonical reusable NPC spawn template. Ambiguous or runtime-only spawn data is rejected before Soul Vigor is committed.
 
+[b]Miniboss service[/b]
+
+Selected minibosses have no Power gate, but must pass a stricter identity check: the exact non-scalable NPC template must be allowlisted, and that individual corpse must be a saved, full, repetitive, nonunique, unprotected scene body backed by one durable LocationTemplate. The initial allowlist covers Foredweller Weaver and Weaver Mage, Blood Abomination, Rootambusher, Forlorn Ogre, and Sleepwalker templates. An encounter using one of those families is still rejected if any typed safety condition fails. Bosses, scalable Drowned Knights, Tibby, and the Lancelot-crypt Eldritch Reaver remain unbindable.
+
+Binding has 340 base resistance, twice Prime, and each service cycle begins a fresh deterministic attempt ledger. The base reanimation price is 120 Soul Vigor through the ordinary Power curve, rising by 10% after each completed service. At Power 100, the six prices are 120/132/144/156/168/180. The soul pool is not spent when service begins: combat death, upkeep, rest, dismissal, execution, or light unbinding consumes one portion without awarding it, while failed initialization, saving, loading, scene travel, and Recall do not.
+
+A miniboss occupies two Summon Capacity slots and only one may serve at once. It begins with a full bar at 50% native maximum Health, deals 60% damage before ordinary Power, behavior, and Soulforged scaling, receives half normal Soul Rend healing, and cannot be Claimed, Raised All, Empowered, Blood-drained, or harvested for refunds. Its Soulforged progress lasts for that service only.
+
+The original full corpse and its native Search inventory remain the only saved inventory owner. Before service, that same corpse is promoted to the game's native saved runtime form while preserving any authored prefab override, its authored scene ID is permanently retired, and it moves hidden into Gameplay; the reward-free combat copy owns no loot. When service ends, the full corpse returns to the current scene at the servant's last safe position and stays there across saves until it is bound or drained again. Deferred recovery keeps it hidden until a main scene is ready and its runtime source identity validates. The retired scene ID cannot spawn another copy. On the sixth service end, only that canonical source becomes normal simplified remains with native empty-container cleanup. If terminal conversion fails, the last portion is restored and the full corpse remains available for retry.
+
 [b]Necromantic upkeep[/b]
 
-At 0 Necromantic Power, one servant loses 2% maximum Health per minute, and each additional servant adds 1% upkeep to the entire host, capped at 8%. Upkeep continues during combat and can be lethal, but steadily falls with Power and disappears at Power 100.
+Necromantic weakness makes an early host fiercely temporary. At full Health, three servants last about 3 minutes at Power 0, 20 minutes at Power 50, and 50 minutes at Power 90 before upkeep alone kills them. One servant receives half that drain and seven or more receive twice that drain, with intermediate host sizes scaling smoothly. Ordinary-servant upkeep continues during combat, can be lethal, and ends only at Power 100. Heavy Soul Rend restoration is therefore essential for sustaining an ambitious host before full mastery.
+
+A miniboss counts as one body for host-size pressure, but its own active and rest upkeep is twice the ordinary host rate through Power 90. From that Power-90 value it fades slowly to zero only at Power 200, so sustaining a greater soul remains meaningful throughout overmastery without doubling upkeep on ordinary servants.
 
 [b]Rest and persistence[/b]
 
-The default [b]Sustain[/b] rest behavior keeps the host but makes long rests costly. An eight-hour rest at Power 0 removes 45% maximum Health from one servant, with each additional servant adding 18% to the whole host up to a 90% cap. Shorter rests scale by their actual duration, Power steadily reduces the loss, and Power 100 removes it entirely. The rest screen previews the loss and warns when servants may perish. Choose [b]Dismiss[/b] instead to end the host through its normal safe remains lifecycle.
+The default [b]Sustain[/b] rest behavior keeps the host but makes long rests costly. An eight-hour rest at Power 0 removes 45% maximum Health from one servant, with each additional servant adding 18% to the whole host up to a 90% cap. Shorter rests scale by their actual duration, Power steadily reduces the loss, and Power 100 removes it entirely. The rest screen previews only nonzero loss that applies to the current host, warns when servants may perish, preserves the native Wyrdnight warning, and composes cleanly with Glorious UI. Choose [b]Dismiss[/b] instead to end the host through its normal safe remains lifecycle.
 
 [b]Restore and Empower[/b]
 
 Heavy Soul Rend restores one friendly servant by 20%/35%/50% maximum Health at Power 0/100/200. Below 95% Health, restoration is the cast's only service even when it fills the Health bar. At or above 95%, Soul Rend generously restores the remainder and, from Power 100 (1,000 Soul Vigor), can [b]Empower[/b] the servant in the same ritual.
 
-Empower applies once per servant lifetime and costs twice the servant's stable base Soul Vigor value, reduced by the same Power curve as reanimation. The hover shows [b]Empower: X Soul Vigor[/b] or [b]Requires X Soul Vigor[/b], and payment occurs only when Empower succeeds. That investment can later be recovered in proportion to the servant's remaining Health.
+Empower costs twice the servant's stable base Soul Vigor value, reduced by the same Power curve as reanimation. The hover shows [b]Empower: X Soul Vigor[/b] or [b]Requires X Soul Vigor[/b], and payment occurs only when Empower succeeds. Its exact investment is recorded separately; light Soul Rend must sever Empowerment before touching ranks and immediately returns 75% of that cost. A later new Empower ritual records its own new payment.
 
-A lower-biased 1.2x-1.5x combat roll improves both damage and resistance, while visible growth scales from 1.1x-1.3x. It cannot stack or be rerolled, but Empowered servants can still be restored.
+A lower-biased 1.2x-1.5x combat roll improves both damage and resistance, while visible Empower growth scales from 1.05x-1.20x. Soulforged contributes another 0.5% visible size per rank, and the combined result never exceeds 1.30x. Empower cannot stack while active, but Empowered servants can still be restored.
 
 [b]Necromantic presentation[/b]
 
-Reanimation and Recall use the Forgotten Cemetery necromancer's green-dark summoning effect. Raised servants carry configurable bright-green arcs, a pale corpse-green core, and dark body-bound smoke; ordinary summons gain the treatment when they become Soulforged. Rank and Empowerment brighten the effect and draw all three colors toward the configurable [b]Full Potential Color[/b], white by default.
+Reanimation and Recall use the Forgotten Cemetery necromancer's green-dark summoning effect. Raised servants carry configurable dark-green arcs, a corpse-green core, and deep body-bound smoke; ordinary summons gain the treatment when they become Soulforged. Rank and Empowerment interpolate from the default 5 [b]Base Brightness[/b] to 20 [b]Full Potential Brightness[/b] while drawing all three colors toward saturated emerald by default. [b]Use Custom Full Potential Color[/b] can instead blend them toward a configurable endpoint, including the original white presentation.
 
-Every servant retains its native NPC portrait, with the vanilla skeleton-summon portrait as a fallback, so the summon HUD always has a valid image. Soul Rend hands emit a configurable no-shadow green light. Forty quality-matched ritual sounds give stronger souls greater weight, while separate light and heavy impact sounds make every valid Soul Rend contact feel immediate.
+Every servant retains its native NPC portrait, with the vanilla skeleton-summon portrait as a fallback, so the summon HUD always has a valid image. Soul Rend hands emit a configurable no-shadow green light. Forty quality-matched ritual sounds give stronger souls greater weight, while separate light and heavy impact sounds make every valid Soul Rend contact feel immediate. Every custom clip follows the game's SFX mixer, including its Master and SFX volume controls and mute states.
 
 [line]
 
 [heading][color=#38A840][size=5]Configuration[/size][/color][/heading]
 
-Every setting is available through FoA Mod Manager, with common controls first and Diagnostics and Import Previous Settings at the end.
+Every setting is available through FoA Mod Manager. Gameplay, host, command, behavior, following, and collision controls come first; presentation and Advanced tuning follow; Diagnostics and Import Previous Settings remain at the end.
 
 [code]
 | Area            | Important defaults                                                 |
 |-----------------|--------------------------------------------------------------------|
+| Balance         | Grave Pact; editing any balance value selects Custom              |
 | Soul Rend       | Overhaul/living targets enabled; heavy cast costs 30 Mana          |
 | Host behavior   | Guard; passive crosshair sharing disabled                          |
 | Following       | Trot at 4m; run at 8m; teleport at 60m; x1.25 catch-up             |
@@ -277,7 +353,7 @@ Every setting is available through FoA Mod Manager, with common controls first a
 | Collision       | Summon Pass-Through enabled; player attacks CombatOnly             |
 | Persistence     | Enabled; Sustain through rest with severe attrition                |
 | Summon capacity | Additional bonus 0                                                 |
-| Reanimation VFX | 75% particles; brightness 10.0; full potential white               |
+| Reanimation VFX | 75% particles; brightness 5.0-20.0; emerald full potential        |
 | Soul Rend audio | Ritual at 0.85; impact at 0.8; both enabled                       |
 | Diagnostics     | Disabled; Vigor 5,000 and exact-rank overrides available           |[/code]
 
@@ -285,7 +361,7 @@ Start the game once to generate:
 
 [code]BepInEx/config/ks.tgfoa.soul-and-service.cfg[/code]
 
-Additional controls cover rest behavior, formations, engagement distances, idle movement, summon costs and returns, collision modes, ritual pitch and echoes, Soul Rend hand lighting, VFX colors and scale, particle budgeting, and diagnostic messages.
+Additional controls cover rest behavior, formations, engagement distances, idle movement, Custom balance, collision modes, ritual pitch and echoes, Soul Rend hand lighting, VFX colors and scale, particle budgeting, and diagnostic messages.
 
 [line]
 
@@ -295,7 +371,8 @@ Additional controls cover rest behavior, formations, engagement distances, idle 
 
 [list]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252]Battlecry Voice Tuner[/url] voices successful commands with order-specific, gender-matched necromantic lines.[/*]
-[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] shares the corpse-quality model and mastery-curve style while Blood Essence and Soul Vigor remain separate. Drained corpses remain usable but reanimate with a randomized 20-30% current-Health penalty improved by Blood Power. Outside combat, Blood/Life Transfusion can drain an owned living flesh servant; raised servants complete only their source's remaining rewards, while ordinary spell summons such as Corpse Eaters provide healing with no XP or Blood Essence. Execution at 20% Health or below leaves a raised servant available for light Soul Rend. Dishonored Dynamic Crosshair shows eligible servants as desaturated blocked blood targets during combat and desaturated spent targets after draining; bloodless servants remain invalid.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254]Eyes in the Dark[/url] 1.3.2+ can add its configured quality-scaled Wyrd Threat after successful ordinary corpse harvests made during an exposed Wyrdnight. It remains fully optional and owns every activity-eligibility decision.[/*]
+[*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224]Blood Magic Expansion[/url] shares the corpse-quality model and mastery-curve style while Blood Essence and Soul Vigor remain separate. Drained corpses remain usable but reanimate with a randomized 20-30% current-Health penalty improved by Blood Power. Outside combat, Blood/Life Transfusion can drain an owned living flesh servant; ordinary raised servants complete only their source's remaining rewards, while spell summons such as Corpse Eaters provide healing with no XP or Blood Essence. Execution at 20% Health or below leaves an ordinary raised servant available for light Soul Rend. Miniboss servants are deliberately excluded from Blood draining and sacrifice. Dishonored Dynamic Crosshair shows eligible servants as desaturated blocked blood targets during combat and desaturated spent targets after draining; bloodless servants remain invalid.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277]Deeds of Avalon[/url] displays Soul Vigor, Necromantic Power, harvest counts, and Necrotic Soul Rend kills without owning or changing progression.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223]Dishonored Dynamic Crosshair[/url] adds quality reticles, command icons, and confirmation pulses while leaving Soul and Service fully usable on its own.[/*]
 [*][url=https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247]Grail Floating Text[/url] adds Necrotic binding, summon-cost, reanimation, reward, progression, and command messages with matching quality icons.[/*]

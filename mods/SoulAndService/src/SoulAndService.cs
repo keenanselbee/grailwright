@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("2.9.7.0")]
-[assembly: AssemblyFileVersion("2.9.7.0")]
-[assembly: AssemblyInformationalVersion("2.9.7")]
+[assembly: AssemblyVersion("3.3.0.0")]
+[assembly: AssemblyFileVersion("3.3.0.0")]
+[assembly: AssemblyInformationalVersion("3.3.0")]
 
 namespace SoulAndService
 {
@@ -74,6 +74,37 @@ namespace SoulAndService
         Dismiss
     }
 
+    public enum BalanceProfile
+    {
+        SoulFamine,
+        GravePact,
+        Dominion,
+        Custom
+    }
+
+    internal readonly struct SoulBalanceTuning
+    {
+        internal SoulBalanceTuning(
+            float soulVigorRewardMultiplier,
+            float soulVigorCostMultiplier,
+            float servantUpkeepMultiplier,
+            float raisedStartingHealthMultiplier,
+            float soulClaimThresholdAdjustment)
+        {
+            SoulVigorRewardMultiplier = soulVigorRewardMultiplier;
+            SoulVigorCostMultiplier = soulVigorCostMultiplier;
+            ServantUpkeepMultiplier = servantUpkeepMultiplier;
+            RaisedStartingHealthMultiplier = raisedStartingHealthMultiplier;
+            SoulClaimThresholdAdjustment = soulClaimThresholdAdjustment;
+        }
+
+        internal float SoulVigorRewardMultiplier { get; }
+        internal float SoulVigorCostMultiplier { get; }
+        internal float ServantUpkeepMultiplier { get; }
+        internal float RaisedStartingHealthMultiplier { get; }
+        internal float SoulClaimThresholdAdjustment { get; }
+    }
+
     public enum SoulforgedRankOverride
     {
         Disabled = -1,
@@ -116,6 +147,9 @@ namespace SoulAndService
     [BepInDependency(
         "ks.tgfoa.first-person-arms-adjuster",
         BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency(
+        "ks.tgfoa.eyes-in-the-dark",
+        BepInDependency.DependencyFlags.SoftDependency)]
     [BepInIncompatibility("kane.tgfoa.avalon-summons")]
     [BepInIncompatibility("com.user.bettersummon")]
     [BepInIncompatibility("ks.tgfoa.summon-pass-through-test")]
@@ -123,9 +157,9 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "2.9.7";
+        public const string PluginVersion = "3.3.0";
 
-        private const int ConfigSchemaVersion = 23;
+        private const int ConfigSchemaVersion = 27;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -140,7 +174,12 @@ namespace SoulAndService
                         23,
                         "Persistence",
                         "PersistentServants",
-                        "Persistent Servants now controls save-and-load continuity and defaults on; rest behavior is configured separately.")
+                        "Persistent Servants now controls save-and-load continuity and defaults on; rest behavior is configured separately."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        26,
+                        "Reanimation VFX",
+                        "AuraIntensity",
+                        "Aura Intensity now means base brightness; Full Potential Brightness controls the progression endpoint.")
                 };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
@@ -157,8 +196,16 @@ namespace SoulAndService
                 new Dictionary<ConfigDefinition, object>();
         private readonly Dictionary<string, int> _configSettingOrders =
             new Dictionary<string, int>(StringComparer.Ordinal);
+        private bool _applyingBalancePreset;
+        private bool _foaModManagerRefreshPending;
 
         internal ConfigEntry<bool> FeatureEnabled;
+        internal ConfigEntry<BalanceProfile> BalanceProfileSetting;
+        internal ConfigEntry<float> CustomSoulVigorRewardMultiplier;
+        internal ConfigEntry<float> CustomSoulVigorCostMultiplier;
+        internal ConfigEntry<float> CustomServantUpkeepMultiplier;
+        internal ConfigEntry<float> CustomRaisedStartingHealthMultiplier;
+        internal ConfigEntry<float> CustomSoulClaimThresholdAdjustment;
         internal ConfigEntry<float> AiTickInterval;
         internal ConfigEntry<float> SpawnRecoverySeconds;
         internal ConfigEntry<float> TrotDistance;
@@ -224,9 +271,11 @@ namespace SoulAndService
         internal ConfigEntry<string> ReanimationAuraArcColor;
         internal ConfigEntry<string> ReanimationAuraGlowColor;
         internal ConfigEntry<string> ReanimationAuraHazeColor;
+        internal ConfigEntry<bool> ReanimationUseCustomFullPotentialColor;
         internal ConfigEntry<string> ReanimationFullPotentialColor;
         internal ConfigEntry<int> ReanimationAuraParticleAmount;
         internal ConfigEntry<float> ReanimationAuraIntensity;
+        internal ConfigEntry<float> ReanimationFullPotentialBrightness;
         internal ConfigEntry<float> ReanimationElectricityOpacity;
         internal ConfigEntry<float> ReanimationSmokeOpacity;
         internal ConfigEntry<float> ReanimationAuraScale;
@@ -240,6 +289,78 @@ namespace SoulAndService
         private Harmony _harmony;
 
         internal bool IsEnabled => FeatureEnabled != null && FeatureEnabled.Value;
+
+        internal static SoulBalanceTuning GetEffectiveBalanceTuning()
+        {
+            SoulAndServicePlugin plugin = Instance;
+            if (plugin == null)
+            {
+                return GetPresetBalanceTuning(BalanceProfile.SoulFamine);
+            }
+
+            return new SoulBalanceTuning(
+                plugin.CustomSoulVigorRewardMultiplier == null
+                    ? 1.50f
+                    : plugin.CustomSoulVigorRewardMultiplier.Value,
+                plugin.CustomSoulVigorCostMultiplier == null
+                    ? 0.75f
+                    : plugin.CustomSoulVigorCostMultiplier.Value,
+                plugin.CustomServantUpkeepMultiplier == null
+                    ? 0.60f
+                    : plugin.CustomServantUpkeepMultiplier.Value,
+                plugin.CustomRaisedStartingHealthMultiplier == null
+                    ? 1.35f
+                    : plugin.CustomRaisedStartingHealthMultiplier.Value,
+                plugin.CustomSoulClaimThresholdAdjustment == null
+                    ? 0.00f
+                    : plugin.CustomSoulClaimThresholdAdjustment.Value);
+        }
+
+        private static SoulBalanceTuning GetPresetBalanceTuning(
+            BalanceProfile profile)
+        {
+            switch (profile)
+            {
+                case BalanceProfile.GravePact:
+                    return new SoulBalanceTuning(1.50f, 0.75f, 0.60f, 1.35f, 0.00f);
+                case BalanceProfile.Dominion:
+                    return new SoulBalanceTuning(2.25f, 0.50f, 0.25f, 2.00f, 5.00f);
+                case BalanceProfile.SoulFamine:
+                default:
+                    return new SoulBalanceTuning(1.00f, 1.00f, 1.00f, 1.00f, -5.00f);
+            }
+        }
+
+        private string GetBalanceSummary()
+        {
+            SoulBalanceTuning tuning = GetEffectiveBalanceTuning();
+            BalanceProfile profile = BalanceProfileSetting == null
+                ? BalanceProfile.SoulFamine
+                : BalanceProfileSetting.Value;
+            return profile
+                + " (reward x"
+                + tuning.SoulVigorRewardMultiplier.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + ", cost x"
+                + tuning.SoulVigorCostMultiplier.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + ", upkeep x"
+                + tuning.ServantUpkeepMultiplier.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + ", starting Health x"
+                + tuning.RaisedStartingHealthMultiplier.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
+                + ", Claim "
+                + tuning.SoulClaimThresholdAdjustment.ToString(
+                    "+0.##;-0.##;0",
+                    CultureInfo.InvariantCulture)
+                + "%"
+                + ")";
+        }
 
         private void Awake()
         {
@@ -259,6 +380,8 @@ namespace SoulAndService
                     + PlayerAttackPassThrough.Value
                     + "; persistent servants="
                     + PersistentServants.Value
+                    + "; balance="
+                    + GetBalanceSummary()
                     + ".");
             }
             catch (Exception exception)
@@ -272,6 +395,7 @@ namespace SoulAndService
 
         private void Update()
         {
+            RefreshFoaModManagerIfPending();
             SoulProgressionRuntime.Update();
             SoulforgedRuntime.Update();
             SummonRuntime.Update();
@@ -287,6 +411,7 @@ namespace SoulAndService
 
         private void OnDestroy()
         {
+            UnbindBalancePresetEvents();
             SoulSalvageRuntime.Shutdown();
             SoulforgedRuntime.Shutdown();
             SoulRendInnerLightRuntime.Shutdown();
@@ -362,14 +487,16 @@ namespace SoulAndService
             string key,
             T defaultValue,
             string description,
-            string displayName = null)
+            string displayName = null,
+            int? displayOrder = null)
         {
             return BindOrdered(
                 section,
                 key,
                 defaultValue,
                 new ConfigDescription(description),
-                displayName);
+                displayName,
+                displayOrder);
         }
 
         private ConfigEntry<T> BindOrdered<T>(
@@ -377,7 +504,8 @@ namespace SoulAndService
             string key,
             T defaultValue,
             ConfigDescription description,
-            string displayName = null)
+            string displayName = null,
+            int? displayOrder = null)
         {
             if (String.Equals(
                     key,
@@ -387,12 +515,13 @@ namespace SoulAndService
                 return base.Config.Bind(section, key, defaultValue, description);
             }
 
+            string displaySection = GetConfigDisplaySection(section, key);
             int order;
-            if (!_configSettingOrders.TryGetValue(section, out order))
+            if (!_configSettingOrders.TryGetValue(displaySection, out order))
             {
                 order = 0;
             }
-            _configSettingOrders[section] = order + 10;
+            _configSettingOrders[displaySection] = order + 10;
 
             return base.Config.Bind(
                 section,
@@ -400,46 +529,81 @@ namespace SoulAndService
                 defaultValue,
                 Grailwright.Shared.ConfigUiDescription.Create(
                     description.Description,
-                    section == "Soul Salvage" ? "Soul Rend" : section,
+                    displaySection,
                     displayName ?? HumanizeConfigKey(key),
-                    GetConfigSectionOrder(section),
-                    order,
+                    GetConfigSectionOrder(displaySection),
+                    displayOrder ?? order,
                     description.AcceptableValues));
         }
 
-        private static int GetConfigSectionOrder(string section)
+        private static string GetConfigDisplaySection(string section, string key)
         {
             switch (section)
             {
                 case "Core":
-                    return 0;
+                    return string.Equals(
+                            key,
+                            "BalanceProfile",
+                            StringComparison.Ordinal)
+                        ? "Balance Preset"
+                        : section;
                 case "Soul Salvage":
-                    return 10;
-                case "Soul Rend Inner Light":
-                    return 15;
-                case "Reanimation VFX":
-                    return 17;
-                case "Following":
-                    return 20;
-                case "Summon Behaviors":
-                    return 25;
-                case "Targeting":
-                    return 30;
-                case "Collision":
-                    return 40;
+                    return "Soul Rend";
                 case "Persistence":
-                    return 50;
-                case "Balance":
-                    return 60;
-                case "Audio":
-                    return 65;
+                    return "Host and Persistence";
+                case "Targeting":
+                    return "Commands and Targeting";
+                case "Soul Rend Inner Light":
+                    return "Soul Rend Hand Light";
                 case "Responsiveness":
+                    return "Advanced";
+                case "Custom Balance":
+                    return "Balance Preset";
+                case "Balance":
+                    return string.Equals(
+                            key,
+                            "IdleSoundVolumePercent",
+                            StringComparison.Ordinal)
+                        ? "Audio"
+                        : "Advanced";
+                default:
+                    return section;
+            }
+        }
+
+        private static int GetConfigSectionOrder(string displaySection)
+        {
+            switch (displaySection)
+            {
+                case "Core":
+                    return 0;
+                case "Balance Preset":
+                    return 10;
+                case "Soul Rend":
+                    return 20;
+                case "Host and Persistence":
+                    return 30;
+                case "Commands and Targeting":
+                    return 40;
+                case "Summon Behaviors":
+                    return 50;
+                case "Following":
+                    return 60;
+                case "Collision":
                     return 70;
+                case "Reanimation VFX":
+                    return 80;
+                case "Soul Rend Hand Light":
+                    return 90;
+                case "Audio":
+                    return 100;
+                case "Advanced":
+                    return 110;
                 case "Diagnostics":
                     return Grailwright.Shared.ConfigUiDescription.DiagnosticsSectionOrder;
                 default:
                     throw new InvalidOperationException(
-                        "Missing config section order for " + section + ".");
+                        "Missing config section order for " + displaySection + ".");
             }
         }
 
@@ -478,6 +642,12 @@ namespace SoulAndService
                 "Enabled",
                 true,
                 "Master switch for every Soul and Service feature.");
+            BalanceProfileSetting = BindOrdered(
+                "Core",
+                "BalanceProfile",
+                BalanceProfile.GravePact,
+                "Apply a complete set of the balance values below. Soul Famine is demanding, Grave Pact is the intended balanced experience, Dominion favors an abundant necromancer power fantasy, and Custom preserves the current values.",
+                "Balance Preset");
 
             AiTickInterval = BindOrdered(
                 "Responsiveness",
@@ -535,23 +705,30 @@ namespace SoulAndService
                 "Targeting",
                 "ShareHeroTarget",
                 false,
-                "Let an uncommitted summon adopt a hostile NPC under the hero's crosshair. Off by default so looking at an enemy does not start a fight; native attacker sharing remains intact.");
+                "Let an uncommitted summon adopt a hostile NPC under the hero's crosshair. Off by default so looking at an enemy does not start a fight; native attacker sharing remains intact.",
+                "Passive Crosshair Target Sharing",
+                displayOrder: 50);
             AttackCommandPrompt = BindOrdered(
                 "Targeting",
                 "AttackCommandPrompt",
                 true,
-                "At 10 Necromantic Power (65 Soul Vigor), hold the configured command modifier while aiming at a nearby hostile NPC and press Interact to order every owned summon to attack it.");
+                "At 10 Necromantic Power (65 Soul Vigor), hold the configured command modifier while aiming at a nearby hostile NPC and press Interact to order every owned summon to attack it.",
+                "Enable Attack Command",
+                displayOrder: 10);
             FormationCommands = BindOrdered(
                 "Targeting",
                 "FormationCommands",
                 true,
-                "At 20 Necromantic Power (133 Soul Vigor), hold the configured command modifier while aiming at an owned summon and press Interact to make it Hold or Follow. At 30 Power (206 Soul Vigor), hold Sprint and Take All Items for at least 0.45 seconds and release to issue Hold All or Follow All. Once Recall unlocks at 70 Power (567 Soul Vigor), keep Sprint held and continue holding Take All Items for 1.5 seconds to Recall Host. At 50 Power (369 Soul Vigor), hold Sprint and Interact for 0.45 seconds over empty space to cycle Guard and Hunt. Guard grants +5% damage and 5% damage reduction; Hunt grants +10% damage and +10% pursuit speed. Bulwark joins at Power 60 (463 Soul Vigor) with 15% damage reduction. At Power 200 (5,000 Soul Vigor), hold Sprint and Take All Items for 1.5 seconds with no living servants to Raise All viable corpses within 30 meters. Directed Hunt and Bulwark Advance have their own controls in Summon Behaviors.");
+                "Enable Hold, Follow, group formation, behavior, Recall, and Raise All commands as they unlock through Necromantic Power. Directed Hunt and Bulwark Advance have their own controls in Summon Behaviors.",
+                "Enable Host Commands",
+                displayOrder: 20);
             HoldIndividualFormationCommands = BindOrdered(
                 "Targeting",
                 "HoldIndividualFormationCommands",
                 false,
                 "Require holding Interact for 0.45 seconds to issue an individual Hold or Follow command. Releasing early cancels the command. Attack, Directed Hunt, behavior cycling, Hold All, Follow All, and Recall keep their normal inputs.",
-                "Hold Individual Formation Commands");
+                "Hold Individual Formation Commands",
+                displayOrder: 30);
             DirectedHuntEnabled = BindOrdered(
                 "Summon Behaviors",
                 "EnableDirectedHunt",
@@ -656,7 +833,8 @@ namespace SoulAndService
                 TargetCommandModifierMode.Sprint,
                 new ConfigDescription(
                     "Choose whether targeted Attack, Hold, and Follow prompts require the remappable Sprint action to be held. None keeps targeted command prompts visible without a modifier."),
-                "Target Command Modifier");
+                "Target Command Modifier",
+                displayOrder: 0);
             ShareTargetMaxDistance = BindOrdered(
                 "Targeting",
                 "ShareTargetMaxDistance",
@@ -664,7 +842,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Maximum hero-to-target distance for passive crosshair sharing and explicit Attack, Hold, and Follow commands, capped at the game's native 45 m summon-command tether. Attack acquires targets within a 44 m safety boundary and retains an existing order through 44.75 m with brief release grace.",
                     new AcceptableValueRange<float>(5.0f, 45.0f)),
-                "Targeting Range");
+                "Targeting Range",
+                displayOrder: 40);
 
             SummonPassThrough = BindOrdered(
                 "Collision",
@@ -701,21 +880,24 @@ namespace SoulAndService
                 "Balance",
                 "RepairInvocationOfMightScaling",
                 true,
-                "Repair replacement-summon Invocation of Might scaling only after the outgoing summon proves the native effect is active. Already-scaled stats are left unchanged.");
+                "Repair replacement-summon Invocations of Might scaling only when the hero has learned the native talent. Raised-servant quality scaling composes normally, and already-scaled stats are left unchanged.");
             IdleSoundVolumePercent = BindOrdered(
                 "Balance",
                 "IdleSoundVolumePercent",
                 60.0f,
                 new ConfigDescription(
                     "Volume of owned summons' idle loop. This does not scale attack, hurt, or death sounds.",
-                    new AcceptableValueRange<float>(0.0f, 100.0f)));
+                    new AcceptableValueRange<float>(0.0f, 100.0f)),
+                "Summon Idle Volume Percent",
+                displayOrder: 50);
 
             PlaySoulSalvageAudio = BindOrdered(
                 "Audio",
                 "PlaySoulSalvageAudio",
                 true,
                 "Play a quality-matched FMOD WAV after light Soul Rend successfully harvests a corpse or sacrifices a summon.",
-                "Play Soul Rend Audio");
+                "Play Soul Rend Ritual Audio",
+                displayOrder: 0);
             SoulSalvageAudioVolume = BindOrdered(
                 "Audio",
                 "SoulSalvageAudioVolume",
@@ -723,21 +905,24 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Global FMOD volume for Soul Rend ritual sounds. The authored loudness differences between quality tiers remain intact.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)),
-                "Soul Rend Audio Volume");
+                "Ritual Audio Volume",
+                displayOrder: 10);
             SoulSalvageAudioRangeVolume = BindOrdered(
                 "Audio",
                 "SoulSalvageAudioRangeVolume",
                 1.0f,
                 new ConfigDescription(
-                    "How strongly ritual sounds fade with corpse or summon distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.",
+                    "How strongly Soul Rend ritual and impact sounds fade with target distance. 0 disables distance fade; 1 uses the full 0m=100%, 30m+=10% curve.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)),
-                "Soul Rend Audio Range Volume");
+                "Distance Fade Strength",
+                displayOrder: 40);
             AvoidRecentSoulSalvageAudioRepeats = BindOrdered(
                 "Audio",
                 "AvoidRecentSoulSalvageAudioRepeats",
                 true,
                 "Avoid replaying recently used Soul Rend sounds from the same quality tier when enough alternatives are available.",
-                "Avoid Recent Soul Rend Audio Repeats");
+                "Avoid Recent Soul Rend Audio Repeats",
+                displayOrder: 60);
             RecentSoulSalvageAudioMemory = BindOrdered(
                 "Audio",
                 "RecentSoulSalvageAudioMemory",
@@ -745,7 +930,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "How many recently played Soul Rend sounds to avoid per quality tier.",
                     new AcceptableValueRange<int>(0, 20)),
-                "Recent Soul Rend Audio Memory");
+                "Recent Soul Rend Audio Memory",
+                displayOrder: 70);
             SoulSalvageAudioRandomPitchSemitones = BindOrdered(
                 "Audio",
                 "SoulSalvageAudioRandomPitchSemitones",
@@ -753,7 +939,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Random FMOD pitch variation in semitones. Zero disables it.",
                     new AcceptableValueRange<float>(0.0f, 12.0f)),
-                "Soul Rend Audio Random Pitch Semitones");
+                "Soul Rend Audio Random Pitch Semitones",
+                displayOrder: 90);
             FemaleSoulSalvageAudioPitchSemitones = BindOrdered(
                 "Audio",
                 "FemaleSoulSalvageAudioPitchSemitones",
@@ -761,7 +948,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Pitch offset in semitones for Soul Rend targets whose runtime body is explicitly female.",
                     new AcceptableValueRange<float>(-12.0f, 12.0f)),
-                "Female Soul Rend Audio Pitch Semitones");
+                "Female Soul Rend Audio Pitch Semitones",
+                displayOrder: 100);
             MaleSoulSalvageAudioPitchSemitones = BindOrdered(
                 "Audio",
                 "MaleSoulSalvageAudioPitchSemitones",
@@ -769,7 +957,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Pitch offset in semitones for Soul Rend targets whose runtime body is explicitly male.",
                     new AcceptableValueRange<float>(-12.0f, 12.0f)),
-                "Male Soul Rend Audio Pitch Semitones");
+                "Male Soul Rend Audio Pitch Semitones",
+                displayOrder: 110);
             FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones = BindOrdered(
                 "Audio",
                 "FemaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",
@@ -777,7 +966,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Additional pitch adjustment for clearly non-humanoid Soul Rend targets whose runtime body is explicitly female. The default combines with the female offset for a final +2 semitones.",
                     new AcceptableValueRange<float>(-12.0f, 12.0f)),
-                "Female Monster Soul Rend Audio Pitch Adjustment Semitones");
+                "Female Monster Soul Rend Audio Pitch Adjustment Semitones",
+                displayOrder: 120);
             MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones = BindOrdered(
                 "Audio",
                 "MaleMonsterSoulSalvageAudioPitchAdjustmentSemitones",
@@ -785,7 +975,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Additional pitch adjustment for clearly non-humanoid Soul Rend targets whose runtime body is explicitly male. The default combines with the male offset for a final -6 semitones.",
                     new AcceptableValueRange<float>(-12.0f, 12.0f)),
-                "Male Monster Soul Rend Audio Pitch Adjustment Semitones");
+                "Male Monster Soul Rend Audio Pitch Adjustment Semitones",
+                displayOrder: 130);
             NonHumanoidSoulSalvageAudioPitchSemitones = BindOrdered(
                 "Audio",
                 "NonHumanoidSoulSalvageAudioPitchSemitones",
@@ -793,7 +984,8 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Fallback pitch offset in semitones for clearly non-humanoid Soul Rend targets whose runtime gender is unknown. Other unknown targets retain normal pitch.",
                     new AcceptableValueRange<float>(-12.0f, 0.0f)),
-                "Non-Humanoid Soul Rend Audio Pitch Semitones");
+                "Non-Humanoid Soul Rend Audio Pitch Semitones",
+                displayOrder: 140);
             SoulSalvageAudioEchoAmount = BindOrdered(
                 "Audio",
                 "SoulSalvageAudioEchoAmount",
@@ -801,13 +993,15 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Strength of two quiet delayed echoes added to successful light Soul Rend ritual sounds. Zero disables the added echoes.",
                     new AcceptableValueRange<float>(0.0f, 1.0f)),
-                "Soul Rend Audio Echo Amount");
+                "Soul Rend Audio Echo Amount",
+                displayOrder: 80);
             PlaySoulRendImpactAudio = BindOrdered(
                 "Audio",
                 "PlaySoulRendImpactAudio",
                 true,
                 "Play a short tactile impact when a valid light or heavy Soul Rend connects. Invalid and unaffordable casts remain silent.",
-                "Soul Rend Impact Audio");
+                "Play Soul Rend Impact Audio",
+                displayOrder: 20);
             SoulRendImpactAudioVolume = BindOrdered(
                 "Audio",
                 "SoulRendImpactAudioVolume",
@@ -815,26 +1009,27 @@ namespace SoulAndService
                 new ConfigDescription(
                     "Volume of successful light and heavy Soul Rend impact sounds.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)),
-                "Soul Rend Impact Volume");
+                "Impact Audio Volume",
+                displayOrder: 30);
 
             SoulSalvageOverhaul = BindOrdered(
                 "Soul Salvage",
                 "EnableSoulSalvageOverhaul",
                 true,
-                "Enable Soul Rend: light cast harvests eligible corpses into loot-preserving remains or unbinds owned summons to restore mana and harvest Soul Vigor; heavy cast binds and raises eligible hostile corpses as servants. Living-target effects can be controlled separately below.",
+                "Enable Soul Rend: light cast harvests almost every fresh non-summon corpse for Soul Vigor, simplifying only bodies that are safe to replace. Against owned servants it removes Empowerment, then two real Soulforged ranks per cast, before finally unbinding at rank 0 for remaining Mana and Vigor. Heavy cast binds and raises only eligible hostile corpses as servants. Living-target effects can be controlled separately below.",
                 "Enable Soul Rend");
             LivingTargetSoulSalvage = BindOrdered(
                 "Soul Salvage",
                 "EnableLivingTargetSoulSalvage",
                 true,
-                "Let light cast deal Necrotic damage to eligible living hostiles and strengthen later claim attempts, while heavy cast can attempt Soul Claim below 40% Health. Protected NPCs and Soul Vigor awards remain unchanged.",
+                "Let light cast deal Necrotic damage to eligible living hostiles. Each surviving hit raises that enemy's Soul Claim threshold by 2%, up to 10%; heavy cast claims at or below the final threshold. Protected NPCs and Soul Vigor awards remain unchanged.",
                 "Enable Living-Target Soul Rend");
             SoulSalvageManaReturnPercent = BindOrdered(
                 "Soul Salvage",
                 "LightCastManaReturnPercent",
                 50.0f,
                 new ConfigDescription(
-                    "Percent of the summon's original mana investment restored at full health. Current health scales every return; raised servants also scale with corpse quality and can never restore more than 75% of their binding cost.",
+                    "Percent of the summon's original mana investment available for Soul Rend recovery at full health. Each unique stripped Soulforged rank releases 3% of that pool at no less than 50% Health efficiency; final unbinding uses current Health. Raised servants also scale with corpse quality and can never restore more than 75% of their binding cost.",
                     new AcceptableValueRange<float>(0.0f, 100.0f)),
                 "Mana Return Percent");
 
@@ -842,14 +1037,16 @@ namespace SoulAndService
                 "Soul Rend Inner Light",
                 "Enabled",
                 true,
-                "Show a necromantic-green no-shadow light from each raised hand that has Soul Rend equipped.");
+                "Show a necromantic-green no-shadow light from each raised hand that has Soul Rend equipped.",
+                "Enable Soul Rend Hand Light");
             SoulRendInnerLightIntensity = BindOrdered(
                 "Soul Rend Inner Light",
                 "Intensity",
                 0.5f,
                 new ConfigDescription(
                     "Base brightness of each green hand light while Soul Rend is readied. Actual casting temporarily triples that hand's final value after 0.3 seconds. Zero disables visible light without disabling the feature.",
-                    new AcceptableValueRange<float>(0.0f, 8.0f)));
+                    new AcceptableValueRange<float>(0.0f, 8.0f)),
+                "Base Hand-Light Intensity");
             SoulRendInnerLightIntensityMultiplier = BindOrdered(
                 "Soul Rend Inner Light",
                 "SoulRendIntensityMultiplier",
@@ -922,26 +1119,32 @@ namespace SoulAndService
             ReanimationAuraArcColor = BindOrdered(
                 "Reanimation VFX",
                 "AuraArcColor",
-                "#28FF5E",
-                "Color of the reanimation electricity's arc layer. Use a hex color such as #28FF5E.",
+                "#179B43",
+                "Color of the reanimation electricity's arc layer. Use a hex color such as #179B43.",
                 "Arc Color");
             ReanimationAuraGlowColor = BindOrdered(
                 "Reanimation VFX",
                 "AuraGlowColor",
-                "#C8FFD5",
-                "Color of the reanimation electricity's pale core. Use a hex color such as #C8FFD5.",
+                "#78C98F",
+                "Color of the reanimation electricity's corpse-green core. Use a hex color such as #78C98F.",
                 "Core Color");
             ReanimationAuraHazeColor = BindOrdered(
                 "Reanimation VFX",
                 "AuraHazeColor",
-                "#237A55",
-                "Color of the reanimation effect's integrated smoke. Use a hex color such as #237A55.",
+                "#123F2D",
+                "Color of the reanimation effect's integrated smoke. Use a hex color such as #123F2D.",
                 "Smoke Color");
+            ReanimationUseCustomFullPotentialColor = BindOrdered(
+                "Reanimation VFX",
+                "UseCustomFullPotentialColor",
+                false,
+                "Use Full Potential Color as the progression endpoint instead of the default saturated emerald.",
+                "Use Custom Full Potential Color");
             ReanimationFullPotentialColor = BindOrdered(
                 "Reanimation VFX",
                 "FullPotentialColor",
                 "#FFFFFF",
-                "Color approached as a servant gains Soulforged ranks and Empowerment. White marks full potential.",
+                "Custom color approached as a servant gains Soulforged ranks and Empowerment when Use Custom Full Potential Color is enabled.",
                 "Full Potential Color");
             ReanimationAuraParticleAmount = BindOrdered(
                 "Reanimation VFX",
@@ -954,11 +1157,19 @@ namespace SoulAndService
             ReanimationAuraIntensity = BindOrdered(
                 "Reanimation VFX",
                 "AuraIntensity",
-                10.0f,
+                5.0f,
                 new ConfigDescription(
-                    "Brightness multiplier for the reanimation electricity and smoke. Opacity is controlled separately.",
+                    "Brightness of the reanimation electricity and smoke with no Soulforged rank or Empowerment. Opacity is controlled separately.",
                     new AcceptableValueRange<float>(0.0f, 20.0f)),
-                "Brightness");
+                "Base Brightness");
+            ReanimationFullPotentialBrightness = BindOrdered(
+                "Reanimation VFX",
+                "FullPotentialBrightness",
+                20.0f,
+                new ConfigDescription(
+                    "Brightness reached at maximum Soulforged rank with Empowerment.",
+                    new AcceptableValueRange<float>(0.0f, 20.0f)),
+                "Full Potential Brightness");
             ReanimationElectricityOpacity = BindOrdered(
                 "Reanimation VFX",
                 "ElectricityOpacity",
@@ -989,6 +1200,46 @@ namespace SoulAndService
                 true,
                 "Automatically reduce per-servant reanimation electricity and smoke density as the active reanimated host grows. The full presentation is retained for small hosts.",
                 "Dynamic Particle Budget");
+            CustomSoulVigorRewardMultiplier = BindOrdered(
+                "Custom Balance",
+                "SoulVigorRewardMultiplier",
+                1.50f,
+                new ConfigDescription(
+                    "Current multiplier for Soul Vigor awarded by ordinary corpse harvests and greater-soul extractions. Changing it manually sets Balance Preset to Custom. Investment refunds are never multiplied.",
+                    new AcceptableValueRange<float>(0.25f, 5.0f)),
+                "Soul Vigor Reward Multiplier");
+            CustomSoulVigorCostMultiplier = BindOrdered(
+                "Custom Balance",
+                "SoulVigorCostMultiplier",
+                0.75f,
+                new ConfigDescription(
+                    "Current multiplier for Soul Vigor spent on ordinary summons, reanimation, Empowerment, and miniboss service. Changing it manually sets Balance Preset to Custom.",
+                    new AcceptableValueRange<float>(0.10f, 2.0f)),
+                "Soul Vigor Cost Multiplier");
+            CustomServantUpkeepMultiplier = BindOrdered(
+                "Custom Balance",
+                "ServantUpkeepMultiplier",
+                0.60f,
+                new ConfigDescription(
+                    "Current multiplier for active and rest Health upkeep, including miniboss upkeep. Changing it manually sets Balance Preset to Custom. Zero disables upkeep.",
+                    new AcceptableValueRange<float>(0.0f, 2.0f)),
+                "Servant Upkeep Multiplier");
+            CustomRaisedStartingHealthMultiplier = BindOrdered(
+                "Custom Balance",
+                "RaisedStartingHealthMultiplier",
+                1.35f,
+                new ConfigDescription(
+                    "Current multiplier for the starting Health fraction rolled by newly raised ordinary servants, capped at full Health. Changing it manually sets Balance Preset to Custom. Existing servants and minibosses are unchanged.",
+                    new AcceptableValueRange<float>(0.50f, 3.0f)),
+                "Raised Starting Health Multiplier");
+            CustomSoulClaimThresholdAdjustment = BindOrdered(
+                "Custom Balance",
+                "SoulClaimThresholdAdjustment",
+                0.00f,
+                new ConfigDescription(
+                    "Flat adjustment to Soul Claim's final Health threshold. For example, 3 raises a 20% threshold to 23%. Changing it manually sets Balance Preset to Custom.",
+                    new AcceptableValueRange<float>(-10.0f, 10.0f)),
+                "Soul Claim Threshold Adjustment");
             Diagnostics = BindOrdered(
                 "Diagnostics",
                 "Diagnostics",
@@ -1027,7 +1278,135 @@ namespace SoulAndService
                 ConfigRecoveryBaselineSchema,
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
+            ApplySelectedBalancePreset();
+            BindBalancePresetEvents();
             Config.Save();
+        }
+
+        private void BindBalancePresetEvents()
+        {
+            BalanceProfileSetting.SettingChanged += OnBalancePresetChanged;
+            CustomSoulVigorRewardMultiplier.SettingChanged += OnBalanceValueChanged;
+            CustomSoulVigorCostMultiplier.SettingChanged += OnBalanceValueChanged;
+            CustomServantUpkeepMultiplier.SettingChanged += OnBalanceValueChanged;
+            CustomRaisedStartingHealthMultiplier.SettingChanged += OnBalanceValueChanged;
+            CustomSoulClaimThresholdAdjustment.SettingChanged += OnBalanceValueChanged;
+        }
+
+        private void UnbindBalancePresetEvents()
+        {
+            if (BalanceProfileSetting != null)
+            {
+                BalanceProfileSetting.SettingChanged -= OnBalancePresetChanged;
+            }
+            if (CustomSoulVigorRewardMultiplier != null)
+            {
+                CustomSoulVigorRewardMultiplier.SettingChanged -= OnBalanceValueChanged;
+            }
+            if (CustomSoulVigorCostMultiplier != null)
+            {
+                CustomSoulVigorCostMultiplier.SettingChanged -= OnBalanceValueChanged;
+            }
+            if (CustomServantUpkeepMultiplier != null)
+            {
+                CustomServantUpkeepMultiplier.SettingChanged -= OnBalanceValueChanged;
+            }
+            if (CustomRaisedStartingHealthMultiplier != null)
+            {
+                CustomRaisedStartingHealthMultiplier.SettingChanged -= OnBalanceValueChanged;
+            }
+            if (CustomSoulClaimThresholdAdjustment != null)
+            {
+                CustomSoulClaimThresholdAdjustment.SettingChanged -= OnBalanceValueChanged;
+            }
+        }
+
+        private void OnBalancePresetChanged(object sender, EventArgs eventArgs)
+        {
+            if (!_applyingBalancePreset)
+            {
+                ApplySelectedBalancePreset();
+                _foaModManagerRefreshPending = true;
+            }
+        }
+
+        private void OnBalanceValueChanged(object sender, EventArgs eventArgs)
+        {
+            if (_applyingBalancePreset
+                || BalanceProfileSetting == null
+                || BalanceProfileSetting.Value == BalanceProfile.Custom)
+            {
+                return;
+            }
+
+            _applyingBalancePreset = true;
+            try
+            {
+                BalanceProfileSetting.Value = BalanceProfile.Custom;
+            }
+            finally
+            {
+                _applyingBalancePreset = false;
+            }
+            _foaModManagerRefreshPending = true;
+        }
+
+        private void RefreshFoaModManagerIfPending()
+        {
+            if (!_foaModManagerRefreshPending)
+            {
+                return;
+            }
+
+            _foaModManagerRefreshPending = false;
+            try
+            {
+                Type apiType = AccessTools.TypeByName(
+                    "FoAModManager.FoAModManagerApi");
+                MethodInfo refreshMethod = apiType == null
+                    ? null
+                    : AccessTools.Method(apiType, "Refresh");
+                if (refreshMethod != null)
+                {
+                    refreshMethod.Invoke(null, null);
+                }
+            }
+            catch (Exception exception)
+            {
+                LogDiagnostic(
+                    "FoA Mod Manager refresh failed: "
+                    + exception.GetBaseException().Message);
+            }
+        }
+
+        private void ApplySelectedBalancePreset()
+        {
+            if (BalanceProfileSetting == null
+                || BalanceProfileSetting.Value == BalanceProfile.Custom)
+            {
+                return;
+            }
+
+            SoulBalanceTuning tuning = GetPresetBalanceTuning(
+                BalanceProfileSetting.Value);
+            _applyingBalancePreset = true;
+            try
+            {
+                CustomSoulVigorRewardMultiplier.Value =
+                    tuning.SoulVigorRewardMultiplier;
+                CustomSoulVigorCostMultiplier.Value =
+                    tuning.SoulVigorCostMultiplier;
+                CustomServantUpkeepMultiplier.Value =
+                    tuning.ServantUpkeepMultiplier;
+                CustomRaisedStartingHealthMultiplier.Value =
+                    tuning.RaisedStartingHealthMultiplier;
+                CustomSoulClaimThresholdAdjustment.Value =
+                    tuning.SoulClaimThresholdAdjustment;
+            }
+            finally
+            {
+                _applyingBalancePreset = false;
+            }
         }
 
         private void ResetConfigIfSchemaChanged()
@@ -1129,6 +1508,12 @@ namespace SoulAndService
                     ConfigRecoveryPermanentExclusions);
 
             CapturePreservedValue<bool>(profile, "Core", "Enabled");
+            CapturePreservedValue<BalanceProfile>(profile, "Core", "BalanceProfile");
+            CapturePreservedValue<float>(profile, "Custom Balance", "SoulVigorRewardMultiplier");
+            CapturePreservedValue<float>(profile, "Custom Balance", "SoulVigorCostMultiplier");
+            CapturePreservedValue<float>(profile, "Custom Balance", "ServantUpkeepMultiplier");
+            CapturePreservedValue<float>(profile, "Custom Balance", "RaisedStartingHealthMultiplier");
+            CapturePreservedValue<float>(profile, "Custom Balance", "SoulClaimThresholdAdjustment");
             CapturePreservedValue<float>(profile, "Responsiveness", "AITickInterval");
             CapturePreservedValue<float>(profile, "Responsiveness", "SpawnRecoverySeconds");
             CapturePreservedValue<float>(profile, "Following", "TrotDistance");
@@ -1194,9 +1579,11 @@ namespace SoulAndService
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraArcColor");
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraGlowColor");
             CapturePreservedValue<string>(profile, "Reanimation VFX", "AuraHazeColor");
+            CapturePreservedValue<bool>(profile, "Reanimation VFX", "UseCustomFullPotentialColor");
             CapturePreservedValue<string>(profile, "Reanimation VFX", "FullPotentialColor");
             CapturePreservedValue<int>(profile, "Reanimation VFX", "AuraParticleAmount");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "AuraIntensity");
+            CapturePreservedValue<float>(profile, "Reanimation VFX", "FullPotentialBrightness");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "ElectricityOpacity");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "SmokeOpacity");
             CapturePreservedValue<float>(profile, "Reanimation VFX", "AuraScale");
@@ -1228,6 +1615,12 @@ namespace SoulAndService
             int clamped = 0;
             int invalid = 0;
             RestorePreservedValue(FeatureEnabled, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(BalanceProfileSetting, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(CustomSoulVigorRewardMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(CustomSoulVigorCostMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(CustomServantUpkeepMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(CustomRaisedStartingHealthMultiplier, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(CustomSoulClaimThresholdAdjustment, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(AiTickInterval, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SpawnRecoverySeconds, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(TrotDistance, ref restored, ref clamped, ref invalid);
@@ -1293,9 +1686,11 @@ namespace SoulAndService
             RestorePreservedValue(ReanimationAuraArcColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraGlowColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraHazeColor, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationUseCustomFullPotentialColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationFullPotentialColor, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraParticleAmount, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraIntensity, ref restored, ref clamped, ref invalid);
+            RestorePreservedValue(ReanimationFullPotentialBrightness, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationElectricityOpacity, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationSmokeOpacity, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(ReanimationAuraScale, ref restored, ref clamped, ref invalid);

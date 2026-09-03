@@ -1,3 +1,368 @@
+Version 3.3.0
+-----
+- Gave Empower-severing and Soulforged-rank reductions dedicated high-priority,
+  short Necrotic GFT status messages that collapse only against the same servant.
+- Changed the stripped rank-zero label from "0" to "Base", standardized resource
+  separators, and omitted zero-value Mana or Soul Vigor segments without adding
+  a next-cast unbinding warning.
+- Kept ConfigSchemaVersion 27 and SoulAndServiceApi 10; no setting or public API
+  contract changed.
+
+Version 3.2.9
+-----
+- Made veteran servants harder to unbind accidentally. Light Soul Rend now
+  removes Empowerment first, then removes two real Soulforged ranks per cast,
+  and only unbinds an unempowered rank-0 servant on a later cast.
+- Added finite staged recovery. Severing Empowerment returns 75% of its exact
+  recorded Soul Vigor cost. Each unique Soulforged rank removed consumes 3% of
+  the servant's original refundable Mana and base Soul Vigor, paid at current
+  Health with a 50% minimum efficiency; re-earned ranks cannot pay twice.
+- Added a version-3 raised-servant recovery ledger and matching ordinary-summon
+  persistence so staged refunds, exact future Empower investments, and recovered
+  rank identities survive saving and loading without duplicating resources.
+  Legacy servants retain all known investment conservatively when their old
+  aggregate data cannot prove the historical Empower cost.
+- Reduced visual-only Soulforged growth to 0.5% per rank, reduced Empowered body
+  growth to 1.05x-1.20x, and capped their combined visible scale at 1.30x. Damage,
+  resistance, and movement bonuses are unchanged, while formation spacing now
+  follows the same combined visible footprint.
+- Changed Full Potential Brightness from 10 to 20 so a rank-XVII Empowered
+  reanimation reaches the existing supported maximum. Incremented
+  ConfigSchemaVersion from 26 to 27 because this setting default changed;
+  customized compatible values remain eligible for typed recovery.
+- Kept SoulAndServiceApi at version 10; no public integration contract changed.
+
+Version 3.2.7
+-----
+- Added optional Eyes in the Dark integration. Each successful ordinary corpse
+  harvest reports its normalized quality so Eyes can add its configured threat
+  only during an exposed Wyrdnight.
+- Kept failed and repeated harvests, high-soul portions, living-servant unbinding,
+  and remains already executed through Blood Magic Expansion from adding this
+  corpse-harvest threat. Missing or incompatible Eyes installs remain harmless.
+- Kept ConfigSchemaVersion 26 and SoulAndServiceApi 10; no setting or public API
+  contract changed.
+
+Version 3.2.6
+-----
+- Kept the Soul Claim interaction preview visible while aiming at any eligible
+  living enemy, including above its current claim threshold. The prompt now
+  shows both values as "Claim Soul at 34% (39%)" so preparation progress and
+  remaining Health are readable before the finishing heavy cast is available.
+
+Version 3.2.5
+-----
+- Restored raised servants now appear in navigable, non-overlapping slots across
+  a rear horseshoe around the hero instead of stacking two metres directly in
+  front. A lone servant begins behind the hero, additional servants alternate
+  across the rear and sides, and hosts beyond seven continue on wider rings.
+- Shared the placement resolver with Recall, including reachability, height,
+  spacing, and occupied-position checks. Load recovery retains its old safe
+  fallback when no placement can be resolved and never invokes Recall's target,
+  Hold, combat, feedback, or Power-gating side effects.
+- Added the existing necromantic teleport effect after each restored servant
+  finishes initialization, making its load arrival visible without teleporting
+  it a second time.
+- Replaced raised-servant JSON collection writes after runtime evidence proved
+  Unity omitted plugin-defined record arrays regardless of their visibility.
+  Snapshots now use a bounded, versioned binary payload stored as Base64, with
+  exact field-by-field round-trip validation before a corpse can be hidden.
+- Kept safe legacy reads for version-1 JSON snapshots and rejected malformed,
+  oversized, excessive-record, wrong-version, and trailing-data payloads without
+  making the save unloadable.
+- Kept existing saves loadable: the broken empty 3.2.0 payload is treated as an
+  empty roster, while new reanimations persist complete servant records.
+
+Version 3.2.0
+-----
+- Changed Base Brightness from 10.0 to 5.0 and added Full Potential Brightness
+  at 10.0. Soulforged rank and Empowerment now interpolate cleanly between those
+  endpoints instead of multiplying one brightness value.
+- Added JSON round-trip, ContextualFacts readback, and payload-length diagnostics
+  around raised-servant snapshot writes. The latest logs proved that the exact
+  serialization callback captured two active servants but the saved slot loaded
+  an empty payload; the added evidence distinguishes JSON storage from later save
+  pipeline replacement without allowing invalid JSON to replace a valid snapshot.
+- Incremented ConfigSchemaVersion from 25 to 26 because AuraIntensity now means
+  base brightness and defaults to 5.0. Its old values are intentionally reset;
+  compatible customized colors and other durable settings remain recoverable.
+- Kept SoulAndServiceApi 10; no public API contract changed.
+
+Version 3.1.9
+-----
+- Replaced the default white Soulforged full-potential blend with a darker
+  necromantic base palette that progresses toward saturated emerald green.
+- Added Use Custom Full Potential Color, disabled by default. Enabling it makes
+  the existing Full Potential Color value the progression endpoint, preserving
+  white and other custom endpoints as opt-in choices.
+- Incremented ConfigSchemaVersion from 24 to 25 because the Arc Color, Core
+  Color, and Smoke Color defaults changed. Compatible customized colors and
+  other durable settings remain recoverable after reset.
+- Kept SoulAndServiceApi 10; no public API contract changed.
+
+Version 3.1.8
+-----
+- Fixed persistent raised servants disappearing after save/load by reading and
+  writing the exact GameplayMemory instance supplied to the serialization
+  callbacks instead of resolving a potentially stale service instance.
+- Extended snapshot-write diagnostics to identify whether persistence used the
+  serialized instance or the normal live service context.
+- Kept ConfigSchemaVersion 24 and SoulAndServiceApi 10; no setting or API contract
+  changed.
+
+Version 3.1.7
+-----
+- Added Diagnostics-gated raised-persistence summaries for snapshot writes and
+  loads, record rejection reasons, reconstruction scheduling and completion,
+  immediate source restoration, and deferred recovery.
+- Added one-shot command-attempt diagnostics that report the configured modifier,
+  detected Sprint state, focus or target validity, hold mode, commanded count, and
+  actionable rejection reason without logging from per-frame UI polling.
+- Kept ConfigSchemaVersion 24 and SoulAndServiceApi 10; no setting or API contract
+  changed.
+
+Version 3.1.6
+-----
+- Rebalanced Soul Claim preparation to add 2% threshold per surviving light Soul
+  Rend hit, capped at +10% after five hits. Necromantic Power remains the primary
+  source of Claim strength.
+- Widened the preset contrast: Soul Famine now applies -5% to the final threshold,
+  Grave Pact remains neutral, and Dominion now applies +5%.
+- Kept ConfigSchemaVersion 24 and SoulAndServiceApi 10; the existing preset and
+  custom setting identities, types, defaults, and supported range are unchanged.
+
+Version 3.1.5
+-----
+- Keyed the soul-spent state of retained corpses to their stable model identity
+  while leaving quality and reward rolls on the established corpse fingerprint.
+  Protected or conversion-failed bodies cannot pay twice after ragdoll movement,
+  saving, or loading.
+- Made the Invocations of Might replacement repair verify the hero's committed
+  native talent level directly instead of inferring ownership from an outgoing
+  servant's Health ratio. Unrelated stat modifiers can no longer authorize the
+  talent repair or conceal a learned talent.
+- Kept ConfigSchemaVersion 24 and SoulAndServiceApi 10; no setting or API contract
+  changed.
+
+Version 3.1.4
+-----
+- Broadened light Soul Rend to harvest almost every genuine non-summon corpse
+  created during the current session, regardless of faction or reusable summon
+  identity. Quality rewards and active balance-preset scaling remain unchanged.
+- Kept corpse cleanup separate from extraction. Structurally safe ordinary bodies
+  still become one-copy loot-preserving simplified remains; unique, scripted,
+  merchant, guard, companion, and otherwise protected bodies remain intact but
+  become durably soul-spent. A safe conversion failure now retains the fresh body
+  and committed reward instead of making that corpse useless.
+- Kept restored corpses on the conservative structural path and excluded summon
+  corpses from broad harvesting to prevent renewable-Vigor farming. Boss and
+  miniboss greater-soul handling retains priority.
+- Added normal Grail Floating Text feedback for resistant but harvestable bodies,
+  previously harvested corpses, and attempts to bind a corpse with no soul left.
+  The stricter reanimation and Soul Claim protections are unchanged.
+- Kept ConfigSchemaVersion 24 and SoulAndServiceApi 10; no setting or API contract
+  changed.
+
+Version 3.1.3
+-----
+- Integrated every Spirituality Summoning talent through the game's native
+  NpcHeroSummon lifecycle for ordinary, raised, persistently restored, and
+  replacement servants. Native summon counts, stat/status effects, kill effects,
+  mana reservation, values, ranks, and durations remain authoritative.
+- Fixed the narrow Invocations of Might replacement repair when the incoming
+  servant has a Soul and Service quality Health multiplier. It now verifies the
+  hero's committed native talent level directly, applies only the missing native
+  multiplier, and preserves current Health percentage instead of flattening quality
+  or healing.
+- Defined genuine death versus administrative cleanup semantics and added a focused
+  contract plus in-game coverage for all nine Summoning talents. ConfigSchemaVersion
+  remains 24 and SoulAndServiceApi remains 10.
+
+Version 3.1.2
+-----
+- Fixed schema-24 recovery so the selected balance preset and all five customized
+  balance values survive the reset. Named presets reapply their complete matrix,
+  while Custom retains its compatible values and receives the new Claim threshold
+  adjustment at its default.
+- Updated the Soulforged rest-attrition contract to verify the current
+  balance-preset multiplier as part of the approved formula.
+
+Version 3.1.1
+-----
+- Replaced Soul Claim's random roll and three expiring internal stacks with a
+  deterministic Health threshold. Power establishes a 5-30% base curve, each
+  surviving light Soul Rend hit adds 3% up to +15%, stronger soul qualities
+  resist by up to 9%, and the final threshold remains within 1-40%.
+- Made Claim preparation target-specific and non-decaying while the enemy remains
+  present. Successful Claim still executes through native hero damage and raises
+  the result with the normal reanimation starting-Health roll.
+- Replaced the balance preset's Soul Claim Chance Multiplier with a flat Soul
+  Claim Threshold Adjustment of -3%/+0%/+3% for Soul Famine/Grave Pact/Dominion.
+- Incremented ConfigSchemaVersion to 24 because the old Claim multiplier was
+  removed and its replacement has a different key, range, default, and meaning.
+  Compatible customized settings continue through typed recovery; the obsolete
+  multiplier is deliberately skipped.
+
+Version 3.1.0
+-----
+- Refreshes FoA Mod Manager one frame after a balance preset writes its values
+  or a manual balance edit selects Custom, keeping every displayed draft aligned
+  with the live config.
+- Uses the manager's optional public refresh API without adding a hard dependency.
+- Kept ConfigSchemaVersion 23 because no stored setting changed.
+
+Version 3.0.9
+-----
+- Changed balance profiles into visible applied presets. Choosing Soul Famine,
+  Grave Pact, or Dominion now writes all five balance values immediately, while
+  changing any value selects Custom and preserves the resulting mix.
+- Grouped Balance Preset and its five bounded values in one FoA Mod Manager tab
+  without changing their stored config identities.
+- Kept ConfigSchemaVersion 23 because no setting identity, type, default, or
+  supported range changed.
+
+Version 3.0.8
+-----
+- Added Soul Famine, Grave Pact, Dominion, and Custom balance profiles, with
+  Grave Pact as the new default. Profiles tune corpse and greater-soul Vigor
+  rewards, every Vigor spend, active and rest upkeep, newly raised starting
+  Health, and Soul Claim chance without changing progression milestones or
+  safety rules.
+- Added an Advanced - Custom Balance tab with bounded controls for all five
+  effective multipliers. Custom defaults reproduce Grave Pact, profile changes
+  remain reversible, and startup logging reports the resolved effective values.
+- Kept investment refunds unscaled, greater-soul pools depleting by their native
+  portions, existing servant Health unchanged, and cost previews aligned with
+  actual payment.
+- Kept ConfigSchemaVersion 23 because all profile settings are new and compatible.
+
+Version 3.0.7
+-----
+- Reanimated Lost Knights now leave their native passive statue state and resume
+  normal servant movement and combat behavior.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10.
+
+Version 3.0.6
+-----
+- Routed every custom Soul Rend ritual, echo, and impact sound through the
+  game's SFX mixer so the Master and SFX volume controls and mute states apply.
+- Skips custom playback if the SFX bus is unavailable instead of bypassing the
+  game mixer through FMOD Core's master channel group.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10.
+
+Version 3.0.5
+-----
+- Hid the rest-menu Necromantic upkeep line when the current host would lose no
+  Health, while retaining a miniboss-only warning when greater-soul upkeep still
+  applies and showing sub-0.1% positive losses without rounding them to zero.
+- Preserved the native Wyrdnight rest warning, prevented upkeep text from
+  duplicating across time-selection refreshes, and ordered the final warning
+  composition after Glorious UI's Sensible Rest Menu presentation.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10.
+
+Version 3.0.4
+-----
+- Deferred full-corpse recovery now retries after the main scene is fully
+  initialized, keeps an unvalidated source hidden, and clears its recovery marker
+  only after the promoted runtime source safely returns to the active scene.
+- Preserved authored location prefab overrides when promoting an eligible miniboss
+  corpse to the game's saved runtime initializer.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10.
+
+Version 3.0.3
+-----
+- Promoted an eligible scene-authored miniboss corpse in place to the game's
+  native saved runtime initializer before moving it into Gameplay. Its original
+  scene ID is retired at the same transaction boundary, preventing the scene
+  spawner from recreating the sole full corpse or its inventory.
+- Returned the same persistent full corpse to the current scene at the servant's
+  last safe position whenever service ends or recovery rolls back. Rehydration
+  now accepts only the promoted runtime source in Gameplay with matching source,
+  template, pool, and cycle identity; failures retain a save-safe hidden source
+  until it can be restored instead of exposing a scene initializer cross-domain.
+- Made exhausted simplified remains use the game's native discard-on-empty Search
+  lifecycle. ConfigSchemaVersion remains 23 and SoulAndServiceApi remains 10.
+
+Version 3.0.2
+-----
+- Added deterministic six-extraction Soul Vigor pools to genuine hostile
+  miniboss and boss corpses. Tier-scaled pools total 30-60 Vigor for minibosses
+  and 36-72 for bosses without changing ordinary corpse rewards or regenerating
+  when a corpse is hovered, reloaded, or revisited.
+- Soul Rend now shows the remaining high-soul pool as a single numerical Vigor
+  value beside Search while equipped. Holding a heavy cast replaces that line
+  with the exact reanimation price or stable unbindable-spirit feedback.
+- Final drains use the normal loot-preserving simplified-remains lifecycle only
+  for structurally safe repetitive enemies. Protected unique, story, dialogue,
+  presence, and similar bodies remain full and searchable at zero Vigor. A
+  failed terminal conversion restores the final extraction instead of losing the
+  body or its inventory.
+- Added carefully allowlisted miniboss reanimation for saved, scene-authored,
+  non-scalable Foredweller Weaver, Weaver Mage, Blood Abomination, Rootambusher,
+  Forlorn Ogre, and Sleepwalker templates that also pass every ordinary typed
+  identity and lifecycle protection. Bosses and unsafe or runtime instances stay
+  unbindable, with no Power milestone replacing those safety requirements.
+- Miniboss binding uses 340 base resistance and a fresh saved attempt ledger for
+  each service. Reanimation starts at 120 Soul Vigor through the ordinary Power
+  cost curve and rises 10% after every completed service; a true service end
+  consumes one of the corpse's six portions without awarding it.
+- Balanced greater servants around a two-slot capacity cost, one-active limit,
+  half native maximum Health, 60% outgoing damage, half Soul Rend healing, no
+  Empowerment or Blood Magic service, and no Claim, Raise All, Mana, or Soul
+  Vigor refund shortcuts. Soulforged progress remains valid for that service.
+- Made miniboss active and rest upkeep twice the ordinary personal rate through
+  Power 90, then fade from that Power-90 rate to zero at Power 200. The miniboss
+  counts as one body for host-size pressure and does not increase allies' personal
+  upkeep multiplier.
+- Kept the original full corpse and native Search inventory as the sole durable
+  inventory owner. It moves hidden into Gameplay while a reward-free, unsaved
+  combat copy serves, then returns at the servant's last safe position. Source,
+  spawn-template, pool, and cycle identity are validated before reconstruction;
+  malformed or failed records restore the source and trusted Vigor instead of
+  exposing generated NPC graphs to native save serialization.
+- Hardened terminal and recovery paths so initialization failures, scene travel,
+  Recall, save/load, rest, and failed remains conversion cannot consume an extra
+  pool portion, replay source death scripting, or duplicate the canonical corpse
+  and inventory. Runtime encounter, Enemy Respawn Control, summoned, temporary,
+  kill-protected, raised, and reward-free products cannot acquire high-soul pools.
+- Kept ConfigSchemaVersion 23; the new corpse ledger is save data rather than a
+  player configuration change. Kept SoulAndServiceApi 10 because no public
+  signatures changed.
+
+Version 2.9.9
+-----
+- Reorganized FoA Mod Manager into a player-first flow: core spell and host
+  decisions now lead into commands, behaviors, following, and collision before
+  presentation, audio, and Advanced tuning. Diagnostics remains second-to-last
+  and Import Previous Settings remains last.
+- Renamed misleading display labels so Attack clearly controls the command rather
+  than only its prompt, ritual and impact audio are distinct, shared range fading
+  reads as Distance Fade Strength, and the Soul Rend hand light exposes a clear
+  enable switch and base intensity.
+- Put command modifier and core command toggles before passive sharing, and moved
+  ritual/impact toggles, their volumes, shared distance fade, and summon idle
+  volume ahead of specialist repeat, echo, and body-pitch controls.
+- Kept every raw config section, key, default, type, and meaning unchanged.
+  ConfigSchemaVersion remains 23 and compatible customized settings need no
+  migration.
+
+Version 2.9.8
+-----
+- Rebalanced active necromantic upkeep around explicit mastery milestones. At
+  full Health, a three-servant host now lasts about 3 minutes at Power 0, 20
+  minutes at Power 50, and 50 minutes at Power 90 before upkeep alone kills it;
+  upkeep still ends completely at Power 100.
+- Preserved the existing host-size relationship: one servant receives half the
+  three-servant drain, seven or more receive twice the drain, and intermediate
+  host sizes scale smoothly. Upkeep remains lethal and active during combat,
+  while rest attrition is unchanged.
+- Clarified that Soul Rend Audio Range Volume attenuates both ritual and impact
+  sounds through the shared 0m=100%, 30m+=10% curve, and strengthened the audio
+  contract against regression.
+- Kept ConfigSchemaVersion 23 and SoulAndServiceApi 10 because this changes
+  gameplay balance and setting guidance without changing stored configuration or
+  public signatures.
+
 Version 2.9.7
 -----
 - Removed Soul Rend-generated raised copies from the game's native save graph and

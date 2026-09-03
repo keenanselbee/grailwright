@@ -22,11 +22,13 @@ namespace SoulAndService
         private const float MinimumAuraParticleBudgetScale = 0.25f;
         private const float MaximumAuraIntensity = 20.0f;
         private static readonly Color DefaultNecroticGreen =
-            new Color(0.15686275f, 1.0f, 0.36862746f);
+            new Color(0.09019608f, 0.60784316f, 0.26274510f);
         private static readonly Color DefaultAuraGlowColor =
-            new Color(0.78431374f, 1.0f, 0.83529413f);
+            new Color(0.47058824f, 0.78823530f, 0.56078434f);
         private static readonly Color DefaultAuraHazeColor =
-            new Color(0.13725491f, 0.47843137f, 0.33333334f);
+            new Color(0.07058824f, 0.24705882f, 0.17647059f);
+        private static readonly Color DefaultFullPotentialColor =
+            new Color(0.0f, 0.90196080f, 0.46274510f);
 
         private sealed class GlyphState
         {
@@ -518,11 +520,16 @@ namespace SoulAndService
                     ? null
                     : plugin.ReanimationAuraHazeColor.Value,
                 DefaultAuraHazeColor);
-            Color fullPotentialColor = ResolveConfiguredColor(
-                plugin.ReanimationFullPotentialColor == null
-                    ? null
-                    : plugin.ReanimationFullPotentialColor.Value,
-                Color.white);
+            Color fullPotentialColor = DefaultFullPotentialColor;
+            if (plugin.ReanimationUseCustomFullPotentialColor != null
+                && plugin.ReanimationUseCustomFullPotentialColor.Value)
+            {
+                fullPotentialColor = ResolveConfiguredColor(
+                    plugin.ReanimationFullPotentialColor == null
+                        ? null
+                        : plugin.ReanimationFullPotentialColor.Value,
+                    DefaultFullPotentialColor);
+            }
             bool empowered = SummonRuntime.GetEmpowermentCombatMultiplier(
                 summonId) > 1.0001f;
             float potential = SoulforgedRuntime.GetVisualPotential(
@@ -546,13 +553,18 @@ namespace SoulAndService
                     : plugin.ReanimationAuraParticleAmount.Value,
                 auraBudgetScale);
             float configuredIntensity = plugin.ReanimationAuraIntensity == null
-                ? 10.0f
+                ? 5.0f
                 : plugin.ReanimationAuraIntensity.Value;
+            float configuredFullPotentialIntensity =
+                plugin.ReanimationFullPotentialBrightness == null
+                    ? 20.0f
+                    : plugin.ReanimationFullPotentialBrightness.Value;
             settings.AuraIntensity = Mathf.Min(
                 MaximumAuraIntensity,
-                configuredIntensity
-                    * SoulforgedRuntime.GetMultiplier(summonId)
-                    * SummonRuntime.GetEmpowermentCombatMultiplier(summonId));
+                Mathf.Lerp(
+                    configuredIntensity,
+                    configuredFullPotentialIntensity,
+                    potential));
             settings.ElectricityOpacity =
                 plugin.ReanimationElectricityOpacity == null
                     ? 1.0f

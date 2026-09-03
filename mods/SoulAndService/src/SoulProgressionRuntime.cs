@@ -24,6 +24,15 @@ namespace SoulAndService
             internal float Award;
         }
 
+        internal sealed class HighSoulDrainReceipt
+        {
+            internal ContextualFacts Facts;
+            internal string RemainingKey;
+            internal float BeforeSoulVigor;
+            internal int BeforeRemaining;
+            internal int Award;
+        }
+
         private const string MemoryContext = "SoulAndService";
         private const string InitializedKey = "soul_vigor.initialized";
         private const string SoulVigorKey = "soul_vigor.total";
@@ -31,6 +40,7 @@ namespace SoulAndService
         private const string WorthyHarvestsKey = "soul_vigor.harvests.worthy";
         private const string PotentHarvestsKey = "soul_vigor.harvests.potent";
         private const string PrimeHarvestsKey = "soul_vigor.harvests.prime";
+        private const int HighSoulPoolPortions = 6;
         private const string SummonBehaviorKey = "soul_vigor.summon_behavior";
         private const float SoulVigorAtNormalMaximumPower = 1000.0f;
         private const float SoulVigorAtAbsoluteMaximumPower = 5000.0f;
@@ -64,15 +74,6 @@ namespace SoulAndService
             "The dead hear you, but remain beyond your grasp.",
             "Necromantic threads tighten around the reluctant soul."
         };
-        private static readonly string[] SoulClaimFailureMessages =
-        {
-            "The soul recoils from your grasp.",
-            "The living spirit knots itself against your command.",
-            "Your claim slips from the wounded soul.",
-            "The mortal tether bends, but does not break.",
-            "The soul shudders and clings to its flesh."
-        };
-
         private static MethodInfo _deedsRecordStatisticsMethod;
         private static MethodInfo _gftTryShowEventMethod;
         private static float _lastReportedSoulVigor = -1.0f;
@@ -278,7 +279,11 @@ namespace SoulAndService
             float upper = 0.60f + (0.0020f * power);
             lower = Mathf.Clamp01(lower);
             upper = Mathf.Clamp(upper, lower, 1.0f);
-            return UnityEngine.Random.Range(lower, upper);
+            float rolled = UnityEngine.Random.Range(lower, upper);
+            return Mathf.Clamp01(
+                rolled
+                * SoulAndServicePlugin.GetEffectiveBalanceTuning()
+                    .RaisedStartingHealthMultiplier);
         }
 
         internal static float GetQualityHealthMultiplier(
@@ -304,16 +309,60 @@ namespace SoulAndService
             out float progress01,
             out float resistance)
         {
+            return ApplyBindingAttempt(
+                corpseFingerprint,
+                GetBindingResistance(corpseFingerprint, tier),
+                out progress01,
+                out resistance);
+        }
+
+        internal static bool ApplyHighSoulBindingAttempt(
+            string corpseFingerprint,
+            int serviceCycle,
+            float baseResistance,
+            out float progress01,
+            out float resistance)
+        {
+            string cycleFingerprint = corpseFingerprint
+                + ":service-cycle:"
+                + Math.Max(0, serviceCycle).ToString(
+                    CultureInfo.InvariantCulture);
+            float random01 = StableUnit(cycleFingerprint + ":resistance");
+            return ApplyBindingAttempt(
+                cycleFingerprint,
+                Math.Max(1.0f, baseResistance)
+                    * Mathf.Lerp(0.90f, 1.10f, random01),
+                out progress01,
+                out resistance);
+        }
+
+        internal static void CommitHighSoulBinding(
+            string corpseFingerprint,
+            int serviceCycle)
+        {
+            CommitSuccessfulBinding(
+                corpseFingerprint
+                + ":service-cycle:"
+                + Math.Max(0, serviceCycle).ToString(
+                    CultureInfo.InvariantCulture));
+        }
+
+        private static bool ApplyBindingAttempt(
+            string bindingFingerprint,
+            float bindingResistance,
+            out float progress01,
+            out float resistance)
+        {
             progress01 = 0.0f;
-            resistance = GetBindingResistance(corpseFingerprint, tier);
+            resistance = bindingResistance;
             ContextualFacts facts = GetFacts();
-            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            if (facts == null || string.IsNullOrEmpty(bindingFingerprint))
             {
                 return false;
             }
 
             EnsureInitialized(facts);
-            string key = BindingKey(corpseFingerprint);
+            string key = BindingKey(bindingFingerprint);
             if (facts.Get(key + ".bound", 0) != 0)
             {
                 progress01 = 1.0f;
@@ -329,7 +378,7 @@ namespace SoulAndService
             }
             else
             {
-                progress += GetBindingIncrement(corpseFingerprint, attempt)
+                progress += GetBindingIncrement(bindingFingerprint, attempt)
                     + (0.75f * power);
             }
 
@@ -367,11 +416,279 @@ namespace SoulAndService
             return TryHarvestCorpse(
                 corpseFingerprint,
                 tier,
-                GetOrRollCorpseSoulVigorValue(
-                    corpseFingerprint,
-                    tier,
-                    quality01),
+                ApplySoulVigorRewardMultiplier(
+                    GetOrRollCorpseSoulVigorValue(
+                        corpseFingerprint,
+                        tier,
+                        quality01)),
                 out receipt);
+        }
+
+        internal static bool TryHarvestCorpse(
+            string corpseFingerprint,
+            string harvestIdentity,
+            Grailwright.Shared.CorpseQualityTier tier,
+            float quality01,
+            out CorpseHarvestReceipt receipt)
+        {
+            return TryHarvestCorpse(
+                harvestIdentity,
+                tier,
+                ApplySoulVigorRewardMultiplier(
+                    GetOrRollCorpseSoulVigorValue(
+                        corpseFingerprint,
+                        tier,
+                        quality01)),
+                out receipt);
+        }
+
+        internal static int GetOrInitializeHighSoulVigorPool(
+            string corpseFingerprint,
+            int extractionValue)
+        {
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return 0;
+            }
+
+            EnsureInitialized(facts);
+            string key = HighSoulPoolKey(corpseFingerprint);
+            int initialized = facts.Get(key + ".initialized", int.MinValue);
+            if (initialized != int.MinValue && initialized != 0)
+            {
+                int storedExtraction = facts.Get(key + ".extraction", 0);
+                if (storedExtraction <= 0)
+                {
+                    return 0;
+                }
+                int maximum = SaturatingMultiply(
+                    storedExtraction,
+                    HighSoulPoolPortions);
+                int storedRemaining = facts.Get(key + ".remaining", 0);
+                int remaining = Mathf.Clamp(storedRemaining, 0, maximum);
+                if (remaining != storedRemaining)
+                {
+                    facts.Set(key + ".remaining", remaining);
+                }
+                return remaining;
+            }
+
+            int partialExtraction = facts.Get(
+                key + ".extraction",
+                int.MinValue);
+            int partialRemaining = facts.Get(
+                key + ".remaining",
+                int.MinValue);
+            if (initialized != int.MinValue
+                || partialExtraction != int.MinValue
+                || partialRemaining != int.MinValue)
+            {
+                facts.Set(key + ".extraction", 0);
+                facts.Set(key + ".remaining", 0);
+                facts.Set(key + ".initialized", 1);
+                return 0;
+            }
+
+            extractionValue = Mathf.Clamp(extractionValue, 1, 1000);
+            int initialPool = SaturatingMultiply(
+                extractionValue,
+                HighSoulPoolPortions);
+            facts.Set(key + ".extraction", extractionValue);
+            facts.Set(key + ".remaining", initialPool);
+            facts.Set(key + ".initialized", 1);
+            return initialPool;
+        }
+
+        internal static int GetHighSoulExtractionValue(
+            string corpseFingerprint,
+            int fallbackExtractionValue)
+        {
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return Math.Max(1, fallbackExtractionValue);
+            }
+            string key = HighSoulPoolKey(corpseFingerprint);
+            int stored = facts.Get(key + ".extraction", 0);
+            return stored > 0
+                ? stored
+                : Math.Max(1, fallbackExtractionValue);
+        }
+
+        internal static bool TryGetExistingHighSoulVigorPool(
+            string corpseFingerprint,
+            int expectedExtractionValue,
+            out int remaining)
+        {
+            remaining = 0;
+            ContextualFacts facts = GetFacts();
+            if (facts == null
+                || string.IsNullOrEmpty(corpseFingerprint)
+                || expectedExtractionValue <= 0)
+            {
+                return false;
+            }
+
+            EnsureInitialized(facts);
+            string key = HighSoulPoolKey(corpseFingerprint);
+            if (facts.Get(key + ".initialized", int.MinValue) != 1
+                || facts.Get(key + ".extraction", int.MinValue)
+                    != expectedExtractionValue)
+            {
+                return false;
+            }
+            int storedRemaining = facts.Get(key + ".remaining", int.MinValue);
+            int maximum = SaturatingMultiply(
+                expectedExtractionValue,
+                HighSoulPoolPortions);
+            if (storedRemaining < 0
+                || storedRemaining > maximum
+                || storedRemaining % expectedExtractionValue != 0)
+            {
+                return false;
+            }
+            remaining = storedRemaining;
+            return true;
+        }
+
+        internal static bool TryDrainHighSoulVigorPool(
+            string corpseFingerprint,
+            int extractionValue,
+            out HighSoulDrainReceipt receipt)
+        {
+            receipt = null;
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return false;
+            }
+
+            try
+            {
+                int remaining = GetOrInitializeHighSoulVigorPool(
+                    corpseFingerprint,
+                    extractionValue);
+                if (remaining <= 0)
+                {
+                    return false;
+                }
+                string remainingKey = HighSoulPoolKey(corpseFingerprint)
+                    + ".remaining";
+                int stableExtraction = GetHighSoulExtractionValue(
+                    corpseFingerprint,
+                    extractionValue);
+                int consumed = Math.Min(remaining, stableExtraction);
+                int award = ApplySoulVigorRewardMultiplier(consumed);
+                float beforeSoulVigor = Math.Max(
+                    0.0f,
+                    Mathf.Round(facts.Get(SoulVigorKey, 0.0f)));
+                receipt = new HighSoulDrainReceipt
+                {
+                    Facts = facts,
+                    RemainingKey = remainingKey,
+                    BeforeSoulVigor = beforeSoulVigor,
+                    BeforeRemaining = remaining,
+                    Award = award
+                };
+                facts.Set(
+                    SoulVigorKey,
+                    SaturatingAdd(beforeSoulVigor, award));
+                facts.Set(remainingKey, Math.Max(0, remaining - consumed));
+                InvalidateReportedProgression();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (receipt != null)
+                {
+                    TryRestoreHighSoulDrain(receipt);
+                    receipt = null;
+                }
+                LogProgressionWarning(
+                    "High-soul Vigor could not be saved: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        internal static bool TryConsumeHighSoulServicePortion(
+            string corpseFingerprint,
+            int extractionValue,
+            out HighSoulDrainReceipt receipt)
+        {
+            receipt = null;
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (!TryGetExistingHighSoulVigorPool(
+                        corpseFingerprint,
+                        extractionValue,
+                        out int remaining)
+                    || remaining <= 0)
+                {
+                    return false;
+                }
+                string remainingKey = HighSoulPoolKey(corpseFingerprint)
+                    + ".remaining";
+                receipt = new HighSoulDrainReceipt
+                {
+                    Facts = facts,
+                    RemainingKey = remainingKey,
+                    BeforeSoulVigor = Math.Max(
+                        0.0f,
+                        Mathf.Round(facts.Get(SoulVigorKey, 0.0f))),
+                    BeforeRemaining = remaining,
+                    Award = 0
+                };
+                facts.Set(
+                    remainingKey,
+                    Math.Max(0, remaining - extractionValue));
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (receipt != null)
+                {
+                    TryRestoreHighSoulDrain(receipt);
+                    receipt = null;
+                }
+                LogProgressionWarning(
+                    "High-soul service depletion could not be saved: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
+        internal static int GetHighSoulServiceCycle(
+            string corpseFingerprint,
+            int extractionValue)
+        {
+            int stableExtraction = GetHighSoulExtractionValue(
+                corpseFingerprint,
+                extractionValue);
+            int remaining = GetOrInitializeHighSoulVigorPool(
+                corpseFingerprint,
+                extractionValue);
+            int remainingPortions = Mathf.Clamp(
+                Mathf.CeilToInt(remaining / (float)Math.Max(1, stableExtraction)),
+                0,
+                HighSoulPoolPortions);
+            return HighSoulPoolPortions - remainingPortions;
+        }
+
+        internal static void RollbackHighSoulDrain(HighSoulDrainReceipt receipt)
+        {
+            if (receipt != null && !TryRestoreHighSoulDrain(receipt))
+            {
+                LogProgressionWarning(
+                    "High-soul Vigor rollback failed after remains could not be created.");
+            }
         }
 
         internal static bool TryHarvestCorpse(
@@ -442,6 +759,17 @@ namespace SoulAndService
                 LogProgressionWarning(
                     "Soul Vigor rollback failed after remains could not be created.");
             }
+        }
+
+        internal static bool IsCorpseHarvested(string corpseFingerprint)
+        {
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return false;
+            }
+            EnsureInitialized(facts);
+            return facts.Get(HarvestKey(corpseFingerprint), 0) != 0;
         }
 
         internal static int GetOrRollCorpseSoulVigorValue(
@@ -607,6 +935,19 @@ namespace SoulAndService
             return Mathf.RoundToInt(after - before);
         }
 
+        private static int ApplySoulVigorRewardMultiplier(int award)
+        {
+            award = Math.Max(0, award);
+            if (award == 0)
+            {
+                return 0;
+            }
+            float multiplier = SoulAndServicePlugin
+                .GetEffectiveBalanceTuning()
+                .SoulVigorRewardMultiplier;
+            return Math.Max(1, Mathf.RoundToInt(award * multiplier));
+        }
+
         internal static float GetBindingProgress01(
             string corpseFingerprint,
             Grailwright.Shared.CorpseQualityTier tier)
@@ -626,6 +967,35 @@ namespace SoulAndService
             return resistance <= 0.0001f
                 ? 0.0f
                 : Mathf.Clamp01(facts.Get(key + ".progress", 0.0f) / resistance);
+        }
+
+        internal static float GetHighSoulBindingProgress01(
+            string corpseFingerprint,
+            int serviceCycle,
+            float baseResistance)
+        {
+            ContextualFacts facts = GetFacts();
+            if (facts == null || string.IsNullOrEmpty(corpseFingerprint))
+            {
+                return 0.0f;
+            }
+            EnsureInitialized(facts);
+            string cycleFingerprint = corpseFingerprint
+                + ":service-cycle:"
+                + Math.Max(0, serviceCycle).ToString(
+                    CultureInfo.InvariantCulture);
+            string key = BindingKey(cycleFingerprint);
+            if (facts.Get(key + ".bound", 0) != 0)
+            {
+                return 1.0f;
+            }
+            float resistance = Math.Max(1.0f, baseResistance)
+                * Mathf.Lerp(
+                    0.90f,
+                    1.10f,
+                    StableUnit(cycleFingerprint + ":resistance"));
+            return Mathf.Clamp01(
+                facts.Get(key + ".progress", 0.0f) / resistance);
         }
 
         internal static string GetBindingFailureMessage(
@@ -988,13 +1358,6 @@ namespace SoulAndService
                 && plugin.OverrideSoulVigor.Value;
         }
 
-        internal static string GetSoulClaimFailureMessage()
-        {
-            return SoulClaimFailureMessages[UnityEngine.Random.Range(
-                0,
-                SoulClaimFailureMessages.Length)];
-        }
-
         internal static void ShowSoulClaimFeedback(
             string text,
             bool highPriority)
@@ -1015,6 +1378,24 @@ namespace SoulAndService
                 "necro",
                 "Normal",
                 "summon-command");
+        }
+
+        internal static void ShowServantSoulRendStage(
+            string eventId,
+            string summonId,
+            string text)
+        {
+            string collapseKey = string.IsNullOrEmpty(summonId)
+                ? "servant-soul-rend"
+                : "servant-soul-rend-" + summonId;
+            TryShowGft(
+                eventId,
+                text,
+                "necro",
+                "High",
+                collapseKey,
+                "Status",
+                "Short");
         }
 
         internal static string GetCorpseIconId(
@@ -1095,6 +1476,32 @@ namespace SoulAndService
             }
         }
 
+        private static bool TryRestoreHighSoulDrain(HighSoulDrainReceipt receipt)
+        {
+            if (receipt == null
+                || receipt.Facts == null
+                || string.IsNullOrEmpty(receipt.RemainingKey))
+            {
+                return false;
+            }
+            try
+            {
+                receipt.Facts.Set(SoulVigorKey, receipt.BeforeSoulVigor);
+                receipt.Facts.Set(
+                    receipt.RemainingKey,
+                    Math.Max(0, receipt.BeforeRemaining));
+                InvalidateReportedProgression();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogProgressionWarning(
+                    "High-soul Vigor rollback could not restore save facts: "
+                    + exception.GetBaseException().Message);
+                return false;
+            }
+        }
+
         private static int GetBindingCount(
             ContextualFacts facts,
             Grailwright.Shared.CorpseQualityTier tier)
@@ -1136,6 +1543,12 @@ namespace SoulAndService
         private static string CorpseSoulVigorKey(string corpseFingerprint)
         {
             return "native_soul."
+                + StableHash(corpseFingerprint).ToString("x8", CultureInfo.InvariantCulture);
+        }
+
+        private static string HighSoulPoolKey(string corpseFingerprint)
+        {
+            return "high_soul."
                 + StableHash(corpseFingerprint).ToString("x8", CultureInfo.InvariantCulture);
         }
 
@@ -1192,6 +1605,12 @@ namespace SoulAndService
             return double.IsNaN(sum) || sum <= 0.0
                 ? 0.0f
                 : sum >= float.MaxValue ? float.MaxValue : (float)sum;
+        }
+
+        private static int SaturatingMultiply(int left, int right)
+        {
+            long product = (long)Math.Max(0, left) * Math.Max(0, right);
+            return product >= int.MaxValue ? int.MaxValue : (int)product;
         }
 
         private static ContextualFacts GetFacts()

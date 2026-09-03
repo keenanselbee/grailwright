@@ -119,7 +119,7 @@ When [b]Diagnostics[/b] is enabled, throttled per-target log entries identify se
 [line]
 
 [heading][color=#C94A4A][size=5]Finisher Sounds[/size][/color][/heading]
-The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matching category sound for the kill source, then uses FMOD for playback with optional no-repeat selection, subtle pitch randomization, and distance-based volume fade.
+The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matching category sound for the kill source, then routes FMOD playback through the game's SFX bus. The game's Master and SFX volume or mute controls therefore apply alongside optional no-repeat selection, subtle pitch randomization, and distance-based volume fade.
 
 [code]
 | Mode           | Sound style       |
@@ -142,7 +142,7 @@ The default sound mode is [b]WeaponSpecific[/b]. The mod tries to play a matchin
 | 30m+     | 10%    |
 [/code]
 
-If FMOD playback fails, the mod falls back to the older Unity AudioSource path and logs the failure when Diagnostics is enabled.
+If the game's FMOD SFX bus is unavailable, the mod safely skips the reward sound and logs the failure when Diagnostics is enabled.
 
 [b]UseNonCorporealEnemySounds[/b] is enabled by default. Matched non-corporeal targets use [b]non_corporeal1.wav[/b] through [b]non_corporeal5.wav[/b] only, overriding weapon, magic, Soulslike, and [b]_dry[/b] routing for those targets. [b]GoatTest[/b] still uses [b]goat.wav[/b] for diagnostics, and [b]Off[/b] remains silent.
 

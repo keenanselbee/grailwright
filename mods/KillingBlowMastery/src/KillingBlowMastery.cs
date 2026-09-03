@@ -6,6 +6,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using BusGroup = Awaken.TG.Main.AudioSystem.BusGroup;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -17,9 +18,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.9.6.0")]
-[assembly: AssemblyFileVersion("1.9.6.0")]
-[assembly: AssemblyInformationalVersion("1.9.6")]
+[assembly: AssemblyVersion("1.9.7.0")]
+[assembly: AssemblyFileVersion("1.9.7.0")]
+[assembly: AssemblyInformationalVersion("1.9.7")]
 
 namespace KillingBlowMastery
 {
@@ -64,7 +65,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.9.6";
+        public const string PluginVersion = "1.9.7";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -154,7 +155,6 @@ namespace KillingBlowMastery
         private const float ExecutionReadyStateSeconds = 0.5f;
         private const float ExecutionCompletedStateSeconds = 1.0f;
         private const int DefaultRewardSoundSlots = 5;
-        private const string AudioSourceObjectName = "Killing Blow Mastery Audio";
         private const string DefaultNotificationTextFormat = "Killing blow: +{xp} {skill}";
         private const int ConfigSchemaVersion = 19;
         private const int ConfigRecoveryBaselineSchema = 13;
@@ -249,9 +249,11 @@ namespace KillingBlowMastery
         private readonly Dictionary<string, List<RewardSoundClip>> _rewardSoundClipsByPool = new Dictionary<string, List<RewardSoundClip>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<object, KillSourceMemory> _recentKillSourcesByKey = new Dictionary<object, KillSourceMemory>(ReferenceEqualityComparer.Instance);
         private readonly Dictionary<string, FMOD.Sound> _fmodSoundsByPath = new Dictionary<string, FMOD.Sound>(StringComparer.OrdinalIgnoreCase);
+        private FMOD.Studio.Bus _rewardSfxBus;
+        private FMOD.ChannelGroup _rewardSfxChannelGroup;
+        private bool _rewardSfxBusLocked;
         private readonly Dictionary<string, Queue<string>> _recentRewardSoundPathsByPool = new Dictionary<string, Queue<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly System.Random _random = new System.Random();
-        private AudioSource _rewardAudioSource;
         private bool _rewardSoundLoadStarted;
         private bool _grailFloatingTextBridgeResolved;
         private bool _grailFloatingTextSupportsSpecificWeaponIcons;
@@ -328,12 +330,6 @@ namespace KillingBlowMastery
             {
                 _harmony.UnpatchSelf();
                 _harmony = null;
-            }
-
-            if (_rewardAudioSource != null)
-            {
-                Destroy(_rewardAudioSource.gameObject);
-                _rewardAudioSource = null;
             }
 
             ReleaseFmodRewardSounds();
@@ -4252,8 +4248,8 @@ namespace KillingBlowMastery
                 return;
             }
 
-            PlayUnityRewardSound(selection, volume);
-            RememberRewardSoundSelection(selection);
+            LogDiagnostic(
+                "Skipped reward sound because the game's FMOD SFX bus was unavailable.");
         }
 
         private bool TryPlayFmodRewardSound(RewardSoundSelection selection, float volume)
@@ -4282,10 +4278,9 @@ namespace KillingBlowMastery
                 }
 
                 FMOD.ChannelGroup channelGroup;
-                FMOD.RESULT groupResult = RuntimeManager.CoreSystem.getMasterChannelGroup(out channelGroup);
-                if (groupResult != FMOD.RESULT.OK)
+                if (!TryGetRewardSfxChannelGroup(out channelGroup))
                 {
-                    channelGroup = default(FMOD.ChannelGroup);
+                    return false;
                 }
 
                 FMOD.Channel channel;
@@ -4325,20 +4320,6 @@ namespace KillingBlowMastery
             }
         }
 
-        private void PlayUnityRewardSound(RewardSoundSelection selection, float volume)
-        {
-            EnsureRewardAudioSource();
-            if (_rewardAudioSource == null || selection == null || selection.Clip == null)
-            {
-                return;
-            }
-
-            float pitch = GetRandomPitchMultiplier();
-            _rewardAudioSource.pitch = pitch;
-            _rewardAudioSource.PlayOneShot(selection.Clip, volume);
-            LogDiagnostic("Played Unity reward sound " + selection.Clip.name + " from pool " + selection.PoolName + " at pitch " + pitch.ToString("0.###", CultureInfo.InvariantCulture) + ".");
-        }
-
         private void ReleaseFmodRewardSounds()
         {
             foreach (KeyValuePair<string, FMOD.Sound> pair in _fmodSoundsByPath)
@@ -4353,21 +4334,74 @@ namespace KillingBlowMastery
             }
 
             _fmodSoundsByPath.Clear();
+            ReleaseRewardSfxBus();
         }
 
-        private void EnsureRewardAudioSource()
+        private bool TryGetRewardSfxChannelGroup(
+            out FMOD.ChannelGroup channelGroup)
         {
-            if (_rewardAudioSource != null)
+            if (_rewardSfxBusLocked
+                && _rewardSfxChannelGroup.hasHandle())
             {
-                return;
+                channelGroup = _rewardSfxChannelGroup;
+                return true;
             }
 
-            GameObject audioObject = new GameObject(AudioSourceObjectName);
-            DontDestroyOnLoad(audioObject);
-            _rewardAudioSource = audioObject.AddComponent<AudioSource>();
-            _rewardAudioSource.playOnAwake = false;
-            _rewardAudioSource.loop = false;
-            _rewardAudioSource.spatialBlend = 0.0f;
+            ReleaseRewardSfxBus();
+
+            FMOD.Studio.Bus sfxBus;
+            if (!BusGroup.SFX.TryGetBus(out sfxBus))
+            {
+                Log.LogWarning(
+                    "FMOD could not resolve the game's SFX bus for reward sound playback.");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.RESULT lockResult = sfxBus.lockChannelGroup();
+            if (lockResult != FMOD.RESULT.OK)
+            {
+                Log.LogWarning(
+                    "FMOD could not lock the game's SFX bus channel group for reward sound playback: "
+                    + lockResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.RESULT groupResult = sfxBus.getChannelGroup(
+                out channelGroup);
+            if (groupResult != FMOD.RESULT.OK
+                || !channelGroup.hasHandle())
+            {
+                sfxBus.unlockChannelGroup();
+                Log.LogWarning(
+                    "FMOD could not access the game's SFX bus channel group for reward sound playback: "
+                    + groupResult
+                    + ".");
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            _rewardSfxBus = sfxBus;
+            _rewardSfxChannelGroup = channelGroup;
+            _rewardSfxBusLocked = true;
+            LogDiagnostic("Reward sound playback connected to the game's SFX bus.");
+            return true;
+        }
+
+        private void ReleaseRewardSfxBus()
+        {
+            _rewardSfxChannelGroup = default(FMOD.ChannelGroup);
+            if (_rewardSfxBusLocked
+                && _rewardSfxBus.isValid())
+            {
+                FMOD.RESULT unlockResult = _rewardSfxBus.unlockChannelGroup();
+                LogDiagnostic("Reward SFX bus unlock result=" + unlockResult + ".");
+            }
+
+            _rewardSfxBus = default(FMOD.Studio.Bus);
+            _rewardSfxBusLocked = false;
         }
 
         private void EnsureRewardSoundLoadStarted()

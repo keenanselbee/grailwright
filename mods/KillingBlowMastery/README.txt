@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.9.6
+Version 1.9.7
 
 Platforms: Windows and Linux through Proton.
 
@@ -191,8 +191,9 @@ sound modes. Zero disables distance fade. The default 1 uses the full 0m = 100%,
 22.5m -> 33%
 30m+ -> 10%
 
-FMOD is used for reward sounds. If FMOD playback fails, the mod falls back to the
-older Unity AudioSource path and logs the failure when Diagnostics is enabled.
+FMOD reward sounds are routed through the game's SFX bus, so both the game
+Master and SFX volume or mute controls apply. If that bus is unavailable, the
+mod safely skips the sound and logs the failure when Diagnostics is enabled.
 
 The mod looks for numbered WAV files beside KillingBlowMastery.dll or inside an
 audio folder beside it. It loads only files that exist, with up to five files per

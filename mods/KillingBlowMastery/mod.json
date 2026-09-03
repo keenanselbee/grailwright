@@ -2,7 +2,7 @@
   "id": "KillingBlowMastery",
   "displayName": "Killing Blow Mastery",
   "packageName": "KillingBlowMastery",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "pluginGuid": "ks.tgfoa.killing-blow-mastery",
   "dll": "KillingBlowMastery.dll",
   "sourceFiles": [
@@ -15,6 +15,7 @@
     "%BEPINEX%/BepInEx/core/BepInEx.dll",
     "%BEPINEX%/BepInEx/core/0Harmony.dll",
     "%GAME%/Fall of Avalon_Data/Managed/FMODUnity.dll",
+    "%GAME%/Fall of Avalon_Data/Managed/Awaken.Utility.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.dll",
     "%GAME%/Fall of Avalon_Data/Managed/TG.Main.dll",
     "%GAME%/Fall of Avalon_Data/Managed/UnityEngine.CoreModule.dll",

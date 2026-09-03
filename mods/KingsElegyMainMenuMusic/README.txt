@@ -1,7 +1,7 @@
 Main Menu Music
 ===============
 
-Version 2.2.2
+Version 2.2.3
 
 Platforms: Windows and Linux through Proton.
 
@@ -59,6 +59,8 @@ Default ambience layers:
 
 Music volume settings are relative mix controls. The default value of 1.0 now
 plays at the previous 0.2 FMOD volume baseline.
+Every replacement layer uses the game's Music mixer category, so the Master and
+Music volume controls and mute states apply to base music, ambience, and custom files.
 
 Advanced DSP defaults for the base title music layer:
 
@@ -105,7 +107,7 @@ The config is generated after first launch:
 
   BepInEx\config\ks.tgfoa.main-menu-music.cfg
 
-Version 2.2.2 uses ConfigSchemaVersion 17. Older configs are backed up and a
+Version 2.2.3 uses ConfigSchemaVersion 17. Older configs are backed up and a
 fresh config is generated once so the updated defaults apply cleanly.
 
 FoA Mod Manager section order:

@@ -1,5 +1,3 @@
-TargetVersion=2.2.2
-BaselineVersion=2.2.1
-Removed numeric prefixes from every generated config section and added explicit semantic ordering metadata to every visible setting.
-Advanced the config schema to 17 because settings moved to clean raw sections; this one-time cleanup regenerates defaults rather than guessing mappings from retired section names.
-Placed advanced DSP near the bottom, with Diagnostics penultimate and Import Previous Settings last.
+TargetVersion=2.2.3
+BaselineVersion=2.2.2
+Routed every replacement layer through the game's Music mixer so the Master and Music volume controls and mute states apply. Replacement playback now fails closed if the Music bus is unavailable instead of bypassing the game mixer.

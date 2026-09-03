@@ -18,9 +18,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Controls Tainted Grail: The Fall of Avalon's title music with layered or custom FMOD playback")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Main Menu Music")]
-[assembly: AssemblyVersion("2.2.2.0")]
-[assembly: AssemblyFileVersion("2.2.2.0")]
-[assembly: AssemblyInformationalVersion("2.2.2")]
+[assembly: AssemblyVersion("2.2.3.0")]
+[assembly: AssemblyFileVersion("2.2.3.0")]
+[assembly: AssemblyInformationalVersion("2.2.3")]
 
 namespace MainMenuMusic
 {
@@ -45,7 +45,7 @@ namespace MainMenuMusic
     {
         public const string PluginGuid = "ks.tgfoa.main-menu-music";
         public const string PluginName = "Main Menu Music";
-        public const string PluginVersion = "2.2.2";
+        public const string PluginVersion = "2.2.3";
 
         private const int ConfigSchemaVersion = 17;
         private const int ConfigRecoveryBaselineSchema = 16;
@@ -56,6 +56,7 @@ namespace MainMenuMusic
             new ConfigDefinition[0];
         private const float VolumeOutputScale = 0.2f;
         private const uint MinimumLoopLengthMs = 250;
+        private const string MusicBusPath = "bus:/MUSIC";
 
         private const string TitleMusicTypeName =
             "Awaken.TG.Main.UI.TitleScreen.VTitleScreenMusic";
@@ -91,6 +92,10 @@ namespace MainMenuMusic
         private Harmony _harmony;
         private FieldInfo _musicEmitterField;
         private FieldInfo _nonCopyrightedEmitterField;
+        private Bus _musicBus;
+        private FMOD.ChannelGroup _musicChannelGroup;
+        private bool _musicBusLocked;
+        private bool _musicBusFailureLogged;
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<MusicMode> _musicMode;
@@ -1296,11 +1301,9 @@ namespace MainMenuMusic
         {
             layer = null;
             FMOD.ChannelGroup channelGroup;
-            RESULT groupResult = RuntimeManager.CoreSystem.getMasterChannelGroup(
-                out channelGroup);
-            if (groupResult != RESULT.OK)
+            if (!TryGetMusicChannelGroup(out channelGroup))
             {
-                channelGroup = default(FMOD.ChannelGroup);
+                return false;
             }
 
             FMOD.Channel channel;
@@ -1346,6 +1349,82 @@ namespace MainMenuMusic
             channel.setVolume(Math.Max(0.0f, spec.Volume * volumeScale));
             channel.setPaused(false);
             return true;
+        }
+
+        private bool TryGetMusicChannelGroup(
+            out FMOD.ChannelGroup channelGroup)
+        {
+            if (_musicBusLocked && _musicChannelGroup.hasHandle())
+            {
+                channelGroup = _musicChannelGroup;
+                return true;
+            }
+
+            ReleaseMusicBus();
+
+            Bus musicBus;
+            RESULT busResult = RuntimeManager.StudioSystem.getBus(
+                MusicBusPath,
+                out musicBus);
+            if (busResult != RESULT.OK)
+            {
+                LogMusicBusFailure("resolve", busResult);
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            RESULT lockResult = musicBus.lockChannelGroup();
+            if (lockResult != RESULT.OK)
+            {
+                LogMusicBusFailure("lock", lockResult);
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            FMOD.ChannelGroup musicChannelGroup;
+            RESULT groupResult = musicBus.getChannelGroup(out musicChannelGroup);
+            if (groupResult != RESULT.OK || !musicChannelGroup.hasHandle())
+            {
+                musicBus.unlockChannelGroup();
+                LogMusicBusFailure("access its channel group", groupResult);
+                channelGroup = default(FMOD.ChannelGroup);
+                return false;
+            }
+
+            _musicBus = musicBus;
+            _musicChannelGroup = musicChannelGroup;
+            _musicBusLocked = true;
+            channelGroup = musicChannelGroup;
+            return true;
+        }
+
+        private void LogMusicBusFailure(string operation, RESULT result)
+        {
+            if (_musicBusFailureLogged)
+            {
+                return;
+            }
+            _musicBusFailureLogged = true;
+            Logger.LogWarning(
+                "Could not " + operation + " the game's Music mixer bus: "
+                + result + ". Replacement music was not started.");
+        }
+
+        private void ReleaseMusicBus()
+        {
+            if (_musicBusLocked)
+            {
+                try
+                {
+                    _musicBus.unlockChannelGroup();
+                }
+                catch
+                {
+                }
+            }
+            _musicBus = default(Bus);
+            _musicChannelGroup = default(FMOD.ChannelGroup);
+            _musicBusLocked = false;
         }
 
         private void CalculateLoopPoints(FMOD.Sound sound)
@@ -2241,6 +2320,7 @@ namespace MainMenuMusic
 
             StopCustomMusic("plugin destroyed");
             UnmuteOriginals();
+            ReleaseMusicBus();
 
             if (_harmony != null)
             {

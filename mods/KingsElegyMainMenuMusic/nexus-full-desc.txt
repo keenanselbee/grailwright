@@ -46,7 +46,7 @@ EnableWindAmbience = true
 WindAmbienceVolume = 1.0
 WindAmbienceFile = menu_layer_03.ksaudio[/code]
 
-Music volume settings are relative mix controls. The default value of 1.0 now plays at the previous 0.2 FMOD volume baseline.
+Music volume settings are relative mix controls. The default value of 1.0 now plays at the previous 0.2 FMOD volume baseline. Every base, ambience, and custom layer follows the game's Music mixer, including its Master and Music volume controls and mute states.
 
 The three built-in layered files are stereo 44.1 kHz 16-bit PCM files with WAV data and matching duration for synchronized playback.
 

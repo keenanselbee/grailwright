@@ -1,3 +1,11 @@
+Version 2.2.3
+Routed every replacement layer - base music, fire, wind, and custom files -
+through the game's Music mixer so the Master and Music volume controls and mute
+states apply.
+Skips replacement playback if the Music bus is unavailable instead of bypassing
+the game mixer through FMOD Core's master channel group.
+Kept ConfigSchemaVersion 17 because no stored setting changed.
+
 Version 2.2.2
 Removed numeric prefixes from every generated config section and added explicit semantic SectionOrder and Order metadata to every visible setting.
 Advanced ConfigSchemaVersion from 16 to 17 because settings moved to clean raw sections; this one-time cleanup regenerates defaults instead of guessing mappings from the retired section names.

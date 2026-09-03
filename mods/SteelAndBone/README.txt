@@ -1,5 +1,5 @@
 Steel and Bone
-Version 4.2.3
+Version 4.2.6
 
 Platforms: Windows and Linux through Proton.
 
@@ -45,22 +45,24 @@ The design is inspired by Requiem's emphasis on coherent rules, preparation, and
 PRESETS
 -------
 
+Selecting Tempered, Hardened, or Crucible writes that preset's 23 balance values into the three adjacent Preset sections in FoA Mod Manager. Those values are ordinary live settings: changing any one of them switches the selector to Custom without undoing the edit. Selecting a named preset again reapplies its complete template and refreshes the manager display. System enable toggles, diagnostics, damage-number styling, player-arrow gravity, native multiplier limits, elite clamps, and target-family terms are not overwritten by preset changes. Prevent Food Use In Combat is the preset-governed Boolean rule value.
+
 Tempered increases incoming health damage by 5%, reduces outgoing health damage and experience gains by 5%, adds 10% base damage to confirmed weak-spot hits, keeps resource, armor-weight, recovery, poise, enemy combat movement, combat mana regeneration, positive critical-damage bonuses, positive parry-window bonuses, and dash cost neutral, gives a third same-class potion a 5-second poisoning window, uses x1.10 arrows, and raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.20. Food remains usable during combat, heals at half rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted.
 
-Hardened is the default. Incoming health damage rises by 10%, while outgoing health damage and experience gains fall by 10%. Confirmed weak spots add 20% base damage. Stamina use, mana use, and native armor-weight penalties rise by 5%; dash stamina cost uses an additional x1.15; positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses use x0.75; a third same-class potion has a 10-second poisoning window; food cannot be consumed during combat by default, heals at 37.5% rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted; agile common enemies gain up to 5% combat movement; enemy attack slots gain 1; enemy sight, hero footstep hearing range, and native aggro persistence rise to x1.40; enemy recovery and player poise damage fall by 5%; light armor movement gains 2.5%; medium physical armor is x1.05; heavy and overloaded physical armor are x1.10; and arrows use x1.30.
+Hardened is the default. Incoming health damage rises by 10%, while outgoing health damage and experience gains fall by 10%. Confirmed weak spots add 20% base damage. Stamina use, mana use, and native armor-weight penalties rise by 5%; dash stamina cost uses an additional x1.15; positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses use x0.75; a third same-class potion has a 10-second poisoning window; food cannot be consumed during combat by default, heals at 37.5% rate for four times its native duration, and restores 1 stamina each second outside Stamina Depleted; agile common enemies gain up to 5% combat movement; enemy attack slots gain 1; enemy sight, hero footstep hearing range, and native aggro persistence rise to x1.40; enemy recovery and player poise damage fall by 5%; light armor movement gains 2.5%; player armor protection remains native; and arrows use x1.30.
 
-Crucible increases incoming health damage by 15%, reduces outgoing health damage and experience gains by 15%, adds 30% base damage to confirmed weak-spot hits, uses 10% resource, armor-weight, recovery, poise, and enemy combat movement pressure, applies an additional x1.30 dash stamina cost, and reduces positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses to x0.50. It gives a third same-class potion a 15-second poisoning window, prevents food consumption during combat by default, makes food heal at 25% rate for four times its native duration with 1 stamina restored each second outside Stamina Depleted, raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.60, adds 2 enemy attack slots, grants 5% light armor movement, makes medium physical armor x1.10 and heavy or overloaded physical armor x1.20, and uses x1.50 arrows.
+Crucible increases incoming health damage by 15%, reduces outgoing health damage and experience gains by 15%, adds 30% base damage to confirmed weak-spot hits, uses 10% resource, armor-weight, recovery, poise, and enemy combat movement pressure, applies an additional x1.30 dash stamina cost, and reduces positive combat mana regeneration, accumulated positive critical-damage bonuses above the native baseline, and accumulated positive parry-window bonuses to x0.50. It gives a third same-class potion a 15-second poisoning window, prevents food consumption during combat by default, makes food heal at 25% rate for four times its native duration with 1 stamina restored each second outside Stamina Depleted, raises enemy sight, hero footstep hearing range, and native aggro persistence to x1.60, adds 2 enemy attack slots, grants 5% light armor movement, leaves player armor protection native, and uses x1.50 arrows.
 
 PlayerArrowGravityMultiplier also remains independent from presets and defaults to 0.75, reducing player-arrow gravity by 25% on every preset without tilting the native launch direction.
 
-HostileArcherAimScatter changes to 1.50, 1.25, or 1.00 meters with Tempered, Hardened, or Crucible. It remains freely adjustable afterward, and 0 restores native accuracy.
+HostileArcherAimScatter changes to 1.50, 1.25, or 1.00 meters with Tempered, Hardened, or Crucible. Editing it afterward selects Custom, and 0 restores native accuracy.
 
 Every global modifier has its own control. Set WeakSpotDamageBonus=0 to disable only the added weak-spot reward, or set DifficultyModifiersEnabled=false to retain material combat and damage feedback while disabling the complete preset-driven layer.
 
 VANILLA SYSTEMS
 ---------------
 
-Steel and Bone reads the game's current Light, Medium, Heavy, or Overload armor tier. It scales the native armor-penalty stat, so vanilla thresholds, individual penalty rules, armor proficiency, and overload behavior remain in control. Light receives a modest movement bonus; Medium and Heavy receive progressively stronger physical protection. Overload inherits Heavy protection but keeps its native overload penalties.
+Steel and Bone reads the game's current Light, Medium, Heavy, or Overload armor tier. It scales the native armor-penalty stat, so vanilla thresholds, individual penalty rules, armor proficiency, and overload behavior remain in control. Light receives a modest movement bonus, while every tier keeps its native protection. Overload retains its native protection and penalties.
 
 Player arrows are scaled at the native bow launch and use 0.75x gravity by default on every preset. The separate gravity control reduces drop without changing native aim, draw strength, projectile offsets, collision, elemental payloads, or damage. Hostile NPC arrows receive preset-scaled minimum aim scatter at the native target-point route, then their speed is scaled before the game's movement-prediction and ballistic solve. Larger authored scatter and native gravity are preserved. The optional material layer modifies only the physical share of direct player arrow hits.
 
@@ -70,7 +72,7 @@ Positive mana regeneration is scaled only while the hero is in combat: x1.00 on 
 
 Potion healing, auxiliary effects, item tooltips, and Better UI presentation remain native. Steel and Bone tracks overdrinking independently for Health, Mana, Stamina, and Utility potions. Every potion adds 40 buildup to its matching class, so two same-class potions are safe. A third triggers Potion Poisoning when the first-to-third span is within 5 seconds on Tempered, 10 seconds on Hardened, or 15 seconds on Crucible; a lone potion fully clears after 10, 20, or 30 seconds respectively. Mixing classes does not combine their buildup. Direct multi-resource restoratives contribute once to every resource they restore; temporary buffs, cures, locks, regeneration effects, reset potions, and other non-restoratives share Utility. Triggering any class clears every bucket and pauses buildup during the native status. Health, Mana, or Stamina poisoning drains 30% of the matching snapshotted maximum over the status, while Utility drains 15% of maximum HP, MP, and SP. Normal recovery can offset the drain; Health stops at 1 HP, while Mana and Stamina can reach zero.
 
-Standard food always lasts four times its native duration and restores 1 stamina in discrete one-second ticks. Tempered heals at 50% of the native rate (200% total), Hardened at 37.5% (150% total), and Crucible at 25% (100% total). Selecting Tempered sets PreventFoodUseInCombat off, while Hardened and Crucible set it on; customize the setting afterward if desired. When enabled, food and dishes cannot be consumed during combat, while noncombat use remains unrestricted. Blocked attempts are silent unless Grail Floating Text is installed, which shows a brief food-styled explanation. Food does not stack: when several native food statuses exist, Steel and Bone keeps only the one with the greatest remaining queued health recovery, using remaining time as the tie-breaker. Health and stamina share that status, timer, and icon. Direct stamina ticks remain effective through ordinary regeneration lockouts from sprinting, blocking, attacks, and ranged-weapon use. During true native Overexertion, however, active food halves the calculated regeneration lock and matching Stamina Depleted duration; its added stamina ticks pause for the complete lock. The first food stamina point arrives 0.1 seconds after that lock ends, then the normal one-second cadence resumes. Food health recovery and the shared status duration continue normally, so missed stamina ticks are not banked or repaid. If the food status expires or food recovery is disabled during exhaustion, the pending point is discarded. Exact-zero stamina and Potion Poisoning remain distinct because neither creates native Overexertion. The native health status still drives queued-healing prediction. Food tooltips update from the current preset without adding Steel and Bone or preset labels. Better UI receives the adjusted health and maximum possible stamina-recovery overlay values when installed; its normal slot refresh timing remains authoritative.
+Standard food always lasts four times its native duration and restores 1 stamina in discrete one-second ticks. Tempered heals at 50% of the native rate (200% total), Hardened at 37.5% (150% total), and Crucible at 25% (100% total). Selecting Tempered sets PreventFoodUseInCombat off, while Hardened and Crucible set it on; editing the setting afterward selects Custom. When enabled, food and dishes cannot be consumed during combat, while noncombat use remains unrestricted. Blocked attempts are silent unless Grail Floating Text is installed, which shows a brief food-styled explanation. Food does not stack: when several native food statuses exist, Steel and Bone keeps only the one with the greatest remaining queued health recovery, using remaining time as the tie-breaker. Health and stamina share that status, timer, and icon. Direct stamina ticks remain effective through ordinary regeneration lockouts from sprinting, blocking, attacks, and ranged-weapon use. During true native Overexertion, however, active food halves the calculated regeneration lock and matching Stamina Depleted duration; its added stamina ticks pause for the complete lock. The first food stamina point arrives 0.1 seconds after that lock ends, then the normal one-second cadence resumes. Food health recovery and the shared status duration continue normally, so missed stamina ticks are not banked or repaid. If the food status expires or food recovery is disabled during exhaustion, the pending point is discarded. Exact-zero stamina and Potion Poisoning remain distinct because neither creates native Overexertion. The native health status still drives queued-healing prediction. Food tooltips update from the live food values without adding Steel and Bone or preset labels. Better UI receives the adjusted health and maximum possible stamina-recovery overlay values when installed; its normal slot refresh timing remains authoritative.
 
 Stamina Depleted uses Smooth vignette presentation by default. Steel and Bone keeps the game's existing image but replaces its repeating flash and abrupt removal with one eased fade in and fade out over 0.30 seconds. Native restores the original presentation, while Off hides both the HUD vignette and stamina-depleted post-process. All modes retain native exhaustion audio, movement penalties, action restrictions, and status behavior. StaminaDepletedVignetteFadeSeconds adjusts the Smooth transition from 0.05 to 2 seconds.
 
@@ -83,6 +85,19 @@ MAIN DIFFICULTY SETTINGS
 
 Enabled = true
 Preset = Hardened
+MaterialRuleIntensity = 1.00
+VanillaAmplificationStrength = 0.35
+PlayerDamagePressure = 0.10
+SupportingPressure = 0.05
+PassiveShieldProtectionShare = 0.10
+PotionPoisoningWindowSeconds = 10.00
+FoodHealthRateMultiplier = 0.375
+FoodHealthDurationMultiplier = 4.00
+FoodStaminaPerSecond = 1.00
+ArrowVelocityMultiplier = 1.30
+EnemyAwarenessMultiplier = 1.40
+TenacityFactor = 1.00
+ExperienceMultiplier = 0.90
 ArrowMaterialRulesEnabled = true
 MaterialImpactRulesEnabled = true
 ArmoredSpellWeaknessEnabled = true
@@ -109,7 +124,6 @@ ModifyPlayerArrowDrop = true
 PlayerArrowGravityMultiplier = 0.75
 ModifyArmorWeightPenalties = true
 ModifyLightArmorMobility = true
-ModifyArmorPhysicalProtection = true
 ModifyPotionOverdrinking = true
 ModifyFoodRecovery = true
 PreventFoodUseInCombat = true
@@ -165,7 +179,7 @@ Direct melee damage numbers remain visible for 2x the final duration of other da
 
 Bleed, Poison, Burn, and Breath status-tick numbers begin at 3x the ordinary world-space height and 0.75x the ordinary text size by default so they remain visually distinct from direct hits. DamageOverTimeNumberHeightMultiplier can be tuned from 0 to 6, and DamageOverTimeNumberScale can be tuned from 0.5 to 2.
 
-EffectivenessFeedbackSensitivity expands or compresses resistance and weakness distance from neutral for damage-number color and hit-marker tier selection only. Changing Preset sets it to 1.20 on Tempered, 1.10 on Hardened, or 1.00 on Crucible; customize the single value afterward without changing combat damage, number size, or duration.
+EffectivenessFeedbackSensitivity expands or compresses resistance and weakness distance from neutral for damage-number color and hit-marker tier selection only. Selecting Tempered, Hardened, or Crucible sets it to 1.20, 1.10, or 1.00; editing it afterward selects Custom without changing combat damage, number size, or duration.
 
 WeakSpotDamageBonus changes to 0.10, 0.20, or 0.30 with Tempered, Hardened, or Crucible. It is added beside the game's native precision bonuses before outgoing and matchup multipliers. PositiveCriticalDamageBonusMultiplier scales only critical-damage bonuses above the native 0.45 bonus by x1.00, x0.75, or x0.50; the native x1.45 critical hit is unchanged. Critical and weak-spot number size and red tint follow their combined real bonus up to x1.50 size and 50% red on unresisted hits, then fade with material resistance so heavily resisted hits remain dim; immunity remains grey. Hit-marker frames continue to report material effectiveness rather than being promoted by precision hits.
 

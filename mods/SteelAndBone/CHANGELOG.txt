@@ -1,3 +1,14 @@
+Version 4.2.6
+Reworked Tempered, Hardened, and Crucible into applied templates that write 23 visible live balance settings across combat and materials, player pressure and recovery, and enemies and progression.
+Added Custom as the automatic state after any governed value is edited; selecting a named preset reapplies its complete template and refreshes FoA Mod Manager without requiring manager changes.
+Replaced three inactive per-preset native-amplification settings with one live VanillaAmplificationStrength value, while keeping system enable toggles, diagnostics, presentation settings, native multiplier limits, elite clamps, player-arrow gravity, and target-family terms independent from presets.
+Advanced ConfigSchemaVersion from 30 to 31 because Preset changed from a hybrid runtime profile into an applied template and the three per-preset native-amplification settings were replaced. Compatible customized values remain recoverable, including the active legacy amplification value.
+
+Version 4.2.4
+Removed Steel and Bone's preset physical-armor multipliers so Light, Medium, Heavy, and Overload protection remain fully native on every preset instead of pushing high late-game armor toward the game's 95% reduction cap.
+Kept native armor tiers and proficiency, preset armor-weight penalties, Light mobility, enemy armor matchups, and passive shield protection unchanged.
+Advanced ConfigSchemaVersion from 29 to 30 because the obsolete ModifyArmorPhysicalProtection setting was removed. Compatible durable settings remain recoverable.
+
 Version 4.2.3
 Smoothed Host Resolve into seven equal steps from summons two through eight, leaving the first qualifying summon free while preserving the x1.50 MiniBoss and x1.75 Boss endpoints.
 Reduced the front-loaded response against ordinary summon groups while keeping every additional summon predictable and preserving the existing 80% Tenacity cap behavior.

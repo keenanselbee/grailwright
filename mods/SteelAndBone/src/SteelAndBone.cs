@@ -32,9 +32,9 @@ using UnityEngine.TextCore.Text;
 [assembly: AssemblyDescription("Lightweight but impactful difficulty mod for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Steel and Bone")]
-[assembly: AssemblyVersion("4.2.3.0")]
-[assembly: AssemblyFileVersion("4.2.3.0")]
-[assembly: AssemblyInformationalVersion("4.2.3")]
+[assembly: AssemblyVersion("4.2.6.0")]
+[assembly: AssemblyFileVersion("4.2.6.0")]
+[assembly: AssemblyInformationalVersion("4.2.6")]
 
 namespace SteelAndBone
 {
@@ -219,7 +219,7 @@ namespace SteelAndBone
     {
         public const string PluginGuid = "ks.tgfoa.steel-and-bone";
         public const string PluginName = "Steel and Bone";
-        public const string PluginVersion = "4.2.3";
+        public const string PluginVersion = "4.2.6";
 
         private const string VersatileWeaponsPluginGuid =
             "ks.tgfoa.versatile-weapons";
@@ -231,7 +231,7 @@ namespace SteelAndBone
             "ks.tgfoa.blood-magic-expansion";
         private const string BloodMagicApiTypeName =
             "BloodMagicExpansion.BloodMagicApi";
-        private const int ConfigSchemaVersion = 29;
+        private const int ConfigSchemaVersion = 31;
         private const int ConfigRecoveryBaselineSchema = 14;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -261,7 +261,12 @@ namespace SteelAndBone
                         24,
                         "4. Target Families",
                         "FleshUndeadTerms",
-                        "Wights are now corrected to their Wyrd-flora identity instead of being treated as broad flesh undead.")
+                        "Wights are now corrected to their Wyrd-flora identity instead of being treated as broad flesh undead."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        31,
+                        "General",
+                        "Preset",
+                        "Preset changed from a hybrid runtime profile into a durable applied template over visible settings.")
                 };
         private static readonly ConfigDefinition[] ConfigRecoveryPermanentExclusions =
             new ConfigDefinition[0];
@@ -496,15 +501,14 @@ namespace SteelAndBone
 
         private ConfigEntry<bool> _enabled;
         private ConfigEntry<Preset> _preset;
+        private ConfigEntry<float> _materialRuleIntensity;
+        private ConfigEntry<float> _vanillaAmplificationStrength;
         private ConfigEntry<bool> _respectVanillaMultipliers;
         private ConfigEntry<bool> _arrowMaterialRulesEnabled;
         private ConfigEntry<bool> _materialImpactRulesEnabled;
         private ConfigEntry<bool> _armoredSpellWeaknessEnabled;
         private ConfigEntry<bool> _techniqueMatchupRulesEnabled;
         private ConfigEntry<bool> _amplifyVanillaMultipliers;
-        private ConfigEntry<float> _temperedVanillaAmplification;
-        private ConfigEntry<float> _hardenedVanillaAmplification;
-        private ConfigEntry<float> _crucibleVanillaAmplification;
         private ConfigEntry<float> _minimumAmplifiedVanillaResistance;
         private ConfigEntry<float> _maximumAmplifiedVanillaWeakness;
         private ConfigEntry<bool> _eliteRuleClampsEnabled;
@@ -577,6 +581,9 @@ namespace SteelAndBone
         private float _nextGftDamageDiagnosticTime;
         private FontAsset _imguiDefaultFontAsset;
         private Grailwright.Shared.ConfigRecoveryCustomizationProfile _pendingConfigRecoveryProfile;
+        private Preset _pendingConfigRecoveryPreset = Preset.Hardened;
+        private bool _applyingPreset;
+        private bool _foaModManagerRefreshPending;
 
         private void Awake()
         {
@@ -665,22 +672,21 @@ namespace SteelAndBone
                     "Configuration layout version. It changes only when an update requires fresh defaults.",
                     null,
                     new System.ComponentModel.BrowsableAttribute(false)));
-            _preset = Config.Bind("General", "Preset", Preset.Hardened, ConfigUi("Difficulty profile. Tempered applies 5% incoming, outgoing, and experience pressure while keeping resource, armor-weight, recovery, poise, and enemy movement modifiers neutral. Hardened applies 10% damage and experience pressure plus the default 5% supporting profile. Crucible applies 15% damage and experience pressure plus the 10% supporting profile and stronger material rules.", "General", "Preset", 0, 10));
-            _respectVanillaMultipliers = Config.Bind("General", "RespectVanillaMultipliers", true, ConfigUi("Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.", "Combat Rules", "Respect Native Multipliers", 10, 0));
-            _arrowMaterialRulesEnabled = Config.Bind("General", "ArrowMaterialRulesEnabled", true, ConfigUi("Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.", "Combat Rules", "Arrow Material Rules", 10, 10));
-            _materialImpactRulesEnabled = Config.Bind("General", "MaterialImpactRulesEnabled", true, ConfigUi("Let resistance shape secondary impact for direct player hits. Resistance partially reduces poise and force without amplifying weaknesses, while immunity or very strong resistance removes the routine small flinch. Genuine poise breaks, stumbles, and ragdolls remain possible.", "Combat Rules", "Material Impact Rules", 10, 15));
-            _armoredSpellWeaknessEnabled = Config.Bind("General", "ArmoredSpellWeaknessEnabled", true, ConfigUi("Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.", "Combat Rules", "Armored Spell Weaknesses", 10, 20));
-            _techniqueMatchupRulesEnabled = Config.Bind("General", "TechniqueMatchupRulesEnabled", true, ConfigUi("Enable the compact technique layer: pommel strikes count as limited Blunt against rigid targets, heavy melee attacks partially breach custom rigid resistance, and direct area hits pressure swarms.", "Combat Rules", "Technique Matchup Rules", 10, 30));
-            _eliteRuleClampsEnabled = Config.Bind("General", "EliteRuleClampsEnabled", true, ConfigUi("Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.", "Combat Rules", "Elite Rule Limits", 10, 40));
-            _eliteWeaknessBonusReduction = Config.Bind("General", "EliteWeaknessBonusReduction", 0.10f, ConfigUi("Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets when Elite Rule Limits is enabled. 0.10 turns a 1.15 weakness into 1.05.", "Advanced - Elite Rules", "Weakness Bonus Reduction", 20, 0, new AcceptableValueRange<float>(0.0f, 0.50f)));
-            _eliteMinimumResistanceMultiplier = Config.Bind("General", "EliteMinimumResistanceMultiplier", 0.20f, ConfigUi("Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets when Elite Rule Limits is enabled.", "Advanced - Elite Rules", "Minimum Resistance Multiplier", 20, 10, new AcceptableValueRange<float>(0.05f, 0.95f)));
+            _preset = Config.Bind("General", "Preset", Preset.Hardened, ConfigUi("Apply every visible value in the three adjacent preset sections. Tempered stays closest to vanilla, Hardened is the intended default, Crucible applies the strongest pressure, and Custom preserves the current values.", "Difficulty Preset", "Difficulty Preset", 10, 0));
+            _materialRuleIntensity = Config.Bind("Preset Values", "MaterialRuleIntensity", 1.0f, ConfigUi("Scales the distance of custom material weaknesses and resistances from neutral. Changing this value manually selects Custom.", "Preset - Combat and Materials", "Material Rule Intensity", 11, 10, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _vanillaAmplificationStrength = Config.Bind("Vanilla Multipliers", "VanillaAmplificationStrength", 0.35f, ConfigUi("Current extra distance from neutral applied to native weakness and resistance multipliers when Amplify Native Multipliers is enabled. Changing this value manually selects Custom.", "Preset - Combat and Materials", "Native Multiplier Amplification", 11, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _respectVanillaMultipliers = Config.Bind("General", "RespectVanillaMultipliers", true, ConfigUi("Skip Steel and Bone subtype overlays when the target already has a non-neutral vanilla multiplier for the same damage subtype.", "Combat Rules", "Respect Native Multipliers", 20, 0));
+            _arrowMaterialRulesEnabled = Config.Bind("General", "ArrowMaterialRulesEnabled", true, ConfigUi("Give direct arrow hits a distinct material identity. Physical arrow damage strongly rewards exposed flesh and is resisted by armor, bone, swarms, flora or wood, spirits, and constructs or stone. Existing numerical armor prevents duplicate resistance from becoming excessive.", "Combat Rules", "Arrow Material Rules", 20, 10));
+            _materialImpactRulesEnabled = Config.Bind("General", "MaterialImpactRulesEnabled", true, ConfigUi("Let resistance shape secondary impact for direct player hits. Resistance partially reduces poise and force without amplifying weaknesses, while immunity or very strong resistance removes the routine small flinch. Genuine poise breaks, stumbles, and ragdolls remain possible.", "Combat Rules", "Material Impact Rules", 20, 15));
+            _armoredSpellWeaknessEnabled = Config.Bind("General", "ArmoredSpellWeaknessEnabled", true, ConfigUi("Give direct player spells tiered advantages against armor, with Fire, Electric, and Cold also reacting to the armor's native Fabric, Leather, or Metal surface when vanilla does not already define the subtype reaction.", "Combat Rules", "Armored Spell Weaknesses", 20, 20));
+            _techniqueMatchupRulesEnabled = Config.Bind("General", "TechniqueMatchupRulesEnabled", true, ConfigUi("Enable the compact technique layer: pommel strikes count as limited Blunt against rigid targets, heavy melee attacks partially breach custom rigid resistance, and direct area hits pressure swarms.", "Combat Rules", "Technique Matchup Rules", 20, 30));
+            _eliteRuleClampsEnabled = Config.Bind("General", "EliteRuleClampsEnabled", true, ConfigUi("Reduce custom Steel and Bone weakness bonuses and floor custom resistances on elite-class targets.", "Combat Rules", "Elite Rule Limits", 20, 40));
+            _eliteWeaknessBonusReduction = Config.Bind("General", "EliteWeaknessBonusReduction", 0.10f, ConfigUi("Flat reduction applied to custom Steel and Bone weakness bonuses on elite-class targets when Elite Rule Limits is enabled. 0.10 turns a 1.15 weakness into 1.05.", "Advanced - Elite Rules", "Weakness Bonus Reduction", 21, 0, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _eliteMinimumResistanceMultiplier = Config.Bind("General", "EliteMinimumResistanceMultiplier", 0.20f, ConfigUi("Lowest custom Steel and Bone non-immunity resistance multiplier allowed on elite-class targets when Elite Rule Limits is enabled.", "Advanced - Elite Rules", "Minimum Resistance Multiplier", 21, 10, new AcceptableValueRange<float>(0.05f, 0.95f)));
 
-            _amplifyVanillaMultipliers = Config.Bind("Vanilla Multipliers", "AmplifyVanillaMultipliers", true, ConfigUi("Amplify vanilla enemy weakness and resistance multipliers according to the Steel and Bone preset.", "Advanced - Vanilla Multipliers", "Amplify Native Multipliers", 30, 0));
-            _temperedVanillaAmplification = Config.Bind("Vanilla Multipliers", "TemperedVanillaAmplification", 0.00f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Tempered when Amplify Native Multipliers is enabled. 0 leaves vanilla unchanged.", "Advanced - Vanilla Multipliers", "Tempered Amplification", 30, 10, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _hardenedVanillaAmplification = Config.Bind("Vanilla Multipliers", "HardenedVanillaAmplification", 0.35f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Hardened when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Hardened Amplification", 30, 20, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _crucibleVanillaAmplification = Config.Bind("Vanilla Multipliers", "CrucibleVanillaAmplification", 0.70f, ConfigUi("Extra distance from neutral applied to vanilla weakness and resistance multipliers on Crucible when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Crucible Amplification", 30, 30, new AcceptableValueRange<float>(0.0f, 2.0f)));
-            _minimumAmplifiedVanillaResistance = Config.Bind("Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Minimum Amplified Resistance", 30, 40, new AcceptableValueRange<float>(0.01f, 0.95f)));
-            _maximumAmplifiedVanillaWeakness = Config.Bind("Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Vanilla Multipliers", "Maximum Amplified Weakness", 30, 50, new AcceptableValueRange<float>(1.05f, 3.0f)));
+            _amplifyVanillaMultipliers = Config.Bind("Vanilla Multipliers", "AmplifyVanillaMultipliers", true, ConfigUi("Use the current Native Multiplier Amplification value for existing enemy weaknesses and resistances.", "Combat Rules", "Amplify Native Multipliers", 20, 50));
+            _minimumAmplifiedVanillaResistance = Config.Bind("Vanilla Multipliers", "MinimumAmplifiedVanillaResistance", 0.20f, ConfigUi("Lowest non-immune vanilla resistance multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Native Multiplier Limits", "Minimum Amplified Resistance", 50, 0, new AcceptableValueRange<float>(0.01f, 0.95f)));
+            _maximumAmplifiedVanillaWeakness = Config.Bind("Vanilla Multipliers", "MaximumAmplifiedVanillaWeakness", 1.85f, ConfigUi("Highest vanilla weakness multiplier Steel and Bone amplification can produce when Amplify Native Multipliers is enabled.", "Advanced - Native Multiplier Limits", "Maximum Amplified Weakness", 50, 10, new AcceptableValueRange<float>(1.05f, 3.0f)));
 
             _damageNumbersEnabled = Config.Bind("Feedback", "DamageNumbersEnabled", true, ConfigUi("Master switch for Steel and Bone floating combat text. Damage Number Mode controls whether this shows numbers or only resistance and immunity notices.", "Damage Numbers", "Enabled", 40, 0));
             _damageNumberMode = Config.Bind("Feedback", "DamageNumberMode", DamageNumberMode.AllDamage, ConfigUi("AllDamage shows the current outgoing damage numbers. ResistAndImmuneOnly replaces numbers with RESISTED or IMMUNE on every qualifying direct hit. ResistAndImmuneOnlyOnce shows each notice only once per enemy. Damage-over-time ticks never produce notice-only text.", "Damage Numbers", "Mode", 40, 5));
@@ -695,7 +701,7 @@ namespace SteelAndBone
             _damageOverTimeNumberHeightMultiplier = Config.Bind("Feedback", "DamageOverTimeNumberHeightMultiplier", 3.0f, ConfigUi("When Damage Numbers is enabled, multiplies the initial world-space height of Bleed, Poison, Burn, and Breath status-tick numbers. 1 uses the ordinary height, while 3 starts them three times higher.", "Damage Numbers", "Damage-Over-Time Height Multiplier", 40, 90, new AcceptableValueRange<float>(0.0f, 6.0f)));
             _damageOverTimeNumberScale = Config.Bind("Feedback", "DamageOverTimeNumberScale", 0.75f, ConfigUi("When Damage Numbers is enabled, scales the text size of Bleed, Poison, Burn, and Breath status-tick numbers after normal resistance, weakness, weak-spot, and critical sizing. 1 uses the ordinary size, while 0.75 makes status ticks 25% smaller.", "Damage Numbers", "Damage-Over-Time Text Scale", 40, 100, new AcceptableValueRange<float>(0.5f, 2.0f)));
             _damageNumberSizeContrast = Config.Bind("Feedback", "DamageNumberSizeContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls the size difference between resisted, neutral, and weakness numbers. 0 uses neutral sizing, 1 keeps the default contrast, and values above 1 exaggerate it. Critical and weak-spot pop remain independent.", "Damage Numbers", "Size Contrast", 40, 110, new AcceptableValueRange<float>(0.0f, 3.0f)));
-            _effectivenessFeedbackSensitivity = Config.Bind("Feedback", "EffectivenessFeedbackSensitivity", GetPresetEffectivenessFeedbackSensitivity(_preset.Value), ConfigUi("Scales resistance and weakness distance from neutral for hit-marker tier selection and damage-number color only. Changing Preset sets this to 1.20 for Tempered, 1.10 for Hardened, or 1.00 for Crucible; customize it afterward without changing combat damage, number size, or duration.", "Damage Numbers", "Effectiveness Feedback Sensitivity", 40, 120, new AcceptableValueRange<float>(0.0f, 3.0f)));
+            _effectivenessFeedbackSensitivity = Config.Bind("Feedback", "EffectivenessFeedbackSensitivity", 1.10f, ConfigUi("Scales resistance and weakness distance from neutral for hit-marker tier selection and damage-number color only. Changing this value manually selects Custom.", "Preset - Combat and Materials", "Effectiveness Feedback Sensitivity", 11, 80, new AcceptableValueRange<float>(0.0f, 3.0f)));
             _damageNumberColorContrast = Config.Bind("Feedback", "DamageNumberColorContrast", 1.0f, ConfigUi("When Damage Numbers is enabled, controls resistance grey and weakness red-orange tinting after effectiveness sensitivity is applied. 0 keeps non-immune numbers neutral, 1 keeps the default contrast, and values above 1 reach the endpoint colors sooner.", "Damage Numbers", "Color Contrast", 40, 130, new AcceptableValueRange<float>(0.0f, 3.0f)));
             _damageNumberMinimumAmount = Config.Bind("Feedback", "DamageNumberMinimumAmount", 0.10f, ConfigUi("When Damage Numbers is enabled, suppresses non-immune numbers below this final damage amount.", "Damage Numbers", "Minimum Amount", 40, 140, new AcceptableValueRange<float>(0.0f, 1000.0f)));
             _damageNumberMaximumActive = Config.Bind("Feedback", "DamageNumberMaximumActive", 36, ConfigUi("When Damage Numbers is enabled, limits how many Steel and Bone floating numbers remain on screen at once.", "Damage Numbers", "Maximum Active", 40, 150, new AcceptableValueRange<int>(1, 128)));
@@ -704,64 +710,66 @@ namespace SteelAndBone
                 "Target Families",
                 "BoneUndeadTerms",
                 "Skeleton;Skull;Bone;Animated Armor;JollySkeleton;Keeper Of The Barrow;KeeperOfTheBarrow",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.", "Advanced - Target Families", "Bone Undead Terms", 50, 0));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for skeleton, bone, or animated armor enemies.", "Advanced - Target Families", "Bone Undead Terms", 51, 0));
             _constructTerms = Config.Bind(
                 "Target Families",
                 "ConstructTerms",
                 "Stone;Golem;Construct;Automaton;Statue;CrystalCrawler;Crystal Crawler;CrystalWalker;Crystal Walker;Lost Knight;LostKnight;Forgeborn;ForgeBorn;Cairnguard;Tibby;Sentinel;Barnaclator",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.", "Advanced - Target Families", "Construct Terms", 50, 10));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for stone, golem, or construct enemies.", "Advanced - Target Families", "Construct Terms", 51, 10));
             _wyrdTerms = Config.Bind(
                 "Target Families",
                 "WyrdTerms",
                 "Wyrdspawn;Wyrdspirit;Wyrd Spirit;WyrdSlime;Wyrd Slime;Wyrdness",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.", "Advanced - Target Families", "Wyrd Terms", 50, 20));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Wyrd enemies.", "Advanced - Target Families", "Wyrd Terms", 51, 20));
             _drownedZombieTerms = Config.Bind(
                 "Target Families",
                 "DrownedZombieTerms",
                 "Drowner;Drowned;Drowned Knight;Ghost Crew;Scourge",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.", "Advanced - Target Families", "Drowned Zombie Terms", 50, 30));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for drowned undead and corpse-sea enemies.", "Advanced - Target Families", "Drowned Zombie Terms", 51, 30));
             _infectedFleshTerms = Config.Bind(
                 "Target Families",
                 "InfectedFleshTerms",
                 "Red Death;RedDeath;Infected",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.", "Advanced - Target Families", "Infected Flesh Terms", 50, 40));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for Red Death and infected flesh enemies.", "Advanced - Target Families", "Infected Flesh Terms", 51, 40));
             _seaFleshTerms = Config.Bind(
                 "Target Families",
                 "SeaFleshTerms",
                 "Sarras;Finbled;Tadpole;Tidewraith;Scion;Archivist;Floatling;Reefback;Wailcap;Grindylow;Croakmaw",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.", "Advanced - Target Families", "Sea Flesh Terms", 50, 50));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for sea creatures and Sarras aquatic enemies.", "Advanced - Target Families", "Sea Flesh Terms", 51, 50));
             _spiritTerms = Config.Bind(
                 "Target Families",
                 "SpiritTerms",
                 "Ghost;Spirit;Wraith;Banshee;Melancholy;Mistling;Mistbearer;Strawchild;Strawfather",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.", "Advanced - Target Families", "Spirit Terms", 50, 60));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for spirit, ghost, and mist enemies.", "Advanced - Target Families", "Spirit Terms", 51, 60));
             _floraTerms = Config.Bind(
                 "Target Families",
                 "FloraTerms",
                 "Dryad;Gloomfrond;Fleshtree",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.", "Advanced - Target Families", "Flora Terms", 50, 70));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for plant and fungus enemies.", "Advanced - Target Families", "Flora Terms", 51, 70));
             _fleshUndeadTerms = Config.Bind(
                 "Target Families",
                 "FleshUndeadTerms",
                 "Zombie;Undead;Bloody;Frostbitten Warrior;Plaguewraith",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.", "Advanced - Target Families", "Flesh Undead Terms", 50, 80));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for fleshy undead. Specific drowned and infected families win when also detected.", "Advanced - Target Families", "Flesh Undead Terms", 51, 80));
             _fleshTerms = Config.Bind(
                 "Target Families",
                 "FleshTerms",
                 "Bandit;Outlaw;Human;Humanoid;Remor;Redcap;Corpse Eater;Wolf;Bear",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.", "Advanced - Target Families", "Flesh Terms", 50, 90));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for ordinary flesh targets. Specific undead, sea, spirit, flora, construct, and armor families win when also detected.", "Advanced - Target Families", "Flesh Terms", 51, 90));
             _armoredHumanoidTerms = Config.Bind(
                 "Target Families",
                 "ArmoredHumanoidTerms",
                 "Knight;Guard;Squire;Warrior;Deserter;Kamelot;Soldier;Armor;Armored",
-                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.", "Advanced - Target Families", "Armored Humanoid Terms", 50, 100));
+                ConfigUi("Semicolon, comma, pipe, or newline separated target terms for armored humanoids. This high-specificity family can override broad flesh metadata.", "Advanced - Target Families", "Armored Humanoid Terms", 51, 100));
 
             _diagnostics = Config.Bind("Diagnostics", "Diagnostics", false, ConfigUi("Log damage-rule classification, global difficulty adjustments, compatibility overlaps, vanilla multiplier checks, and multiplier decisions.", "Diagnostics", "Diagnostics", 90, 0));
             _showGrailFloatingTextDiagnostics = Config.Bind("Diagnostics", "ShowGrailFloatingTextDiagnostics", true, ConfigUi("When Diagnostics is enabled and Grail Floating Text is installed, show concise damage-decision summaries. Detailed BepInEx logging remains active when this is disabled.", "Diagnostics", "Show Grail Floating Text Diagnostics", 90, 5));
             _logPatchWarnings = Config.Bind("Diagnostics", "LogPatchWarnings", true, ConfigUi("Log warnings when required game methods cannot be patched.", "Diagnostics", "Patch Failure Warnings", 90, 10));
 
             BindDifficultyConfig();
+            PrepareAppliedPresetRecovery();
             RestorePreservedConfigSettings();
+            CompleteAppliedPresetRecovery();
 
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -771,6 +779,7 @@ namespace SteelAndBone
                 ConfigRecoveryBaselineSchema,
                 ConfigRecoveryKeepCurrentDefaultRules,
                 ConfigRecoveryPermanentExclusions);
+            ApplySelectedPreset();
             Config.Save();
         }
 
@@ -783,6 +792,7 @@ namespace SteelAndBone
             }
 
             int storedSchemaVersion = 0;
+            _pendingConfigRecoveryPreset = Preset.Hardened;
             string currentSection = string.Empty;
             foreach (string rawLine in File.ReadLines(configPath))
             {
@@ -793,17 +803,30 @@ namespace SteelAndBone
                     continue;
                 }
 
+                bool coreSection = string.Equals(currentSection, "1. Core", StringComparison.Ordinal)
+                    || string.Equals(currentSection, "General", StringComparison.Ordinal);
                 const string schemaPrefix = "ConfigSchemaVersion =";
-                if ((string.Equals(currentSection, "1. Core", StringComparison.Ordinal)
-                    || string.Equals(currentSection, "General", StringComparison.Ordinal))
-                    && line.StartsWith(schemaPrefix, StringComparison.Ordinal))
+                if (coreSection && line.StartsWith(schemaPrefix, StringComparison.Ordinal))
                 {
                     int.TryParse(
                         line.Substring(schemaPrefix.Length).Trim(),
                         NumberStyles.Integer,
                         CultureInfo.InvariantCulture,
                         out storedSchemaVersion);
-                    break;
+                    continue;
+                }
+
+                const string presetPrefix = "Preset =";
+                Preset parsedPreset;
+                if (coreSection
+                    && line.StartsWith(presetPrefix, StringComparison.Ordinal)
+                    && Enum.TryParse(
+                        line.Substring(presetPrefix.Length).Trim(),
+                        true,
+                        out parsedPreset)
+                    && parsedPreset != Preset.Custom)
+                {
+                    _pendingConfigRecoveryPreset = parsedPreset;
                 }
             }
 
@@ -880,6 +903,8 @@ namespace SteelAndBone
             int clampedCount = 0;
             RestorePreservedSetting(profile, _enabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _preset, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _materialRuleIntensity, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _vanillaAmplificationStrength, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _respectVanillaMultipliers, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _arrowMaterialRulesEnabled, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _materialImpactRulesEnabled, ref restoredCount, ref clampedCount);
@@ -890,9 +915,6 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _eliteWeaknessBonusReduction, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _eliteMinimumResistanceMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _amplifyVanillaMultipliers, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _temperedVanillaAmplification, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _hardenedVanillaAmplification, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _crucibleVanillaAmplification, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _minimumAmplifiedVanillaResistance, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _maximumAmplifiedVanillaWeakness, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _damageNumbersEnabled, ref restoredCount, ref clampedCount);
@@ -927,6 +949,17 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _showGrailFloatingTextDiagnostics, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _logPatchWarnings, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _difficultyModifiersEnabled, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _playerDamagePressure, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _supportingPressure, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _passiveShieldProtectionShare, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _arrowVelocityMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _enemyAwarenessMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _potionPoisoningWindowSeconds, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _foodHealthRateMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _foodHealthDurationMultiplier, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _foodStaminaPerSecond, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _tenacityFactor, ref restoredCount, ref clampedCount);
+            RestorePreservedSetting(profile, _experienceMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPlayerDamageDealt, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _weakSpotDamageBonus, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyCriticalDamageBonus, ref restoredCount, ref clampedCount);
@@ -947,7 +980,6 @@ namespace SteelAndBone
             RestorePreservedSetting(profile, _playerArrowGravityMultiplier, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyArmorWeightPenalties, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyLightArmorMobility, ref restoredCount, ref clampedCount);
-            RestorePreservedSetting(profile, _modifyArmorPhysicalProtection, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyPotionOverdrinking, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _modifyFoodRecovery, ref restoredCount, ref clampedCount);
             RestorePreservedSetting(profile, _preventFoodUseInCombat, ref restoredCount, ref clampedCount);
@@ -973,7 +1005,93 @@ namespace SteelAndBone
                 + " customized setting(s) across the config schema reset; clamped="
                 + clampedCount.ToString(CultureInfo.InvariantCulture)
                 + ".");
+        }
+
+        private void PrepareAppliedPresetRecovery()
+        {
+            Grailwright.Shared.ConfigRecoveryCustomizationProfile profile =
+                _pendingConfigRecoveryProfile;
+            if (profile == null)
+            {
+                return;
+            }
+
+            ApplyPreset(_pendingConfigRecoveryPreset);
+
+            string oldAmplificationKey = _pendingConfigRecoveryPreset == Preset.Tempered
+                ? "TemperedVanillaAmplification"
+                : _pendingConfigRecoveryPreset == Preset.Crucible
+                    ? "CrucibleVanillaAmplification"
+                    : "HardenedVanillaAmplification";
+            float oldAmplification;
+            if (profile.TryGetCustomizedValue(
+                "Vanilla Multipliers",
+                oldAmplificationKey,
+                out oldAmplification))
+            {
+                _vanillaAmplificationStrength.Value = Clamp(oldAmplification, 0.0f, 2.0f);
+            }
+        }
+
+        private void CompleteAppliedPresetRecovery()
+        {
+            if (_pendingConfigRecoveryProfile == null)
+            {
+                return;
+            }
+
+            AppliedPresetTuning tuning;
+            bool matchesNamedPreset = TryGetAppliedPresetTuning(
+                    _pendingConfigRecoveryPreset,
+                    out tuning)
+                && AppliedPresetValuesMatch(tuning);
+
+            _applyingPreset = true;
+            try
+            {
+                _preset.Value = matchesNamedPreset
+                    ? _pendingConfigRecoveryPreset
+                    : Preset.Custom;
+            }
+            finally
+            {
+                _applyingPreset = false;
+            }
+
             _pendingConfigRecoveryProfile = null;
+        }
+
+        private bool AppliedPresetValuesMatch(AppliedPresetTuning tuning)
+        {
+            return tuning != null
+                && Approximately(_materialRuleIntensity.Value, tuning.MaterialRuleIntensity)
+                && Approximately(_vanillaAmplificationStrength.Value, tuning.VanillaAmplificationStrength)
+                && Approximately(_weakSpotDamageBonus.Value, tuning.WeakSpotDamageBonus)
+                && Approximately(_positiveCriticalDamageBonusMultiplier.Value, tuning.PositiveBonusMultiplier)
+                && Approximately(_effectivenessFeedbackSensitivity.Value, tuning.EffectivenessFeedbackSensitivity)
+                && Approximately(_playerDamagePressure.Value, tuning.PlayerDamagePressure)
+                && Approximately(_supportingPressure.Value, tuning.SupportingPressure)
+                && Approximately(_dashStaminaCostMultiplier.Value, tuning.DashStaminaCostMultiplier)
+                && Approximately(_combatManaRegenerationMultiplier.Value, tuning.PositiveBonusMultiplier)
+                && Approximately(_positiveParryWindowBonusMultiplier.Value, tuning.PositiveBonusMultiplier)
+                && Approximately(_passiveShieldProtectionShare.Value, tuning.PassiveShieldProtectionShare)
+                && Approximately(_potionPoisoningWindowSeconds.Value, tuning.PotionPoisoningWindowSeconds)
+                && Approximately(_foodHealthRateMultiplier.Value, tuning.FoodHealthRateMultiplier)
+                && Approximately(_foodHealthDurationMultiplier.Value, tuning.FoodHealthDurationMultiplier)
+                && Approximately(_foodStaminaPerSecond.Value, tuning.FoodStaminaPerSecond)
+                && _preventFoodUseInCombat.Value == tuning.PreventFoodUseInCombat
+                && Approximately(_arrowVelocityMultiplier.Value, tuning.ArrowVelocityMultiplier)
+                && Approximately(_hostileArcherAimScatter.Value, tuning.HostileArcherAimScatter)
+                && Approximately(_enemyAwarenessMultiplier.Value, tuning.EnemyAwarenessMultiplier)
+                && _enemyAttackSlotBonus.Value == tuning.EnemyAttackSlotBonus
+                && Approximately(_enemyMovementSpeedMultiplier.Value, tuning.EnemyMovementSpeedMultiplier)
+                && Approximately(_tenacityFactor.Value, tuning.TenacityFactor)
+                && Approximately(_experienceMultiplier.Value, tuning.ExperienceMultiplier);
+        }
+
+        private static bool Approximately(float left, float right)
+        {
+            return Math.Abs(left - right) <= 0.0001f;
         }
 
         private static void RestorePreservedSetting<T>(
@@ -1475,22 +1593,9 @@ namespace SteelAndBone
 
         private float GetVanillaAmplificationStrength()
         {
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float value;
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    value = _temperedVanillaAmplification == null ? 0.0f : _temperedVanillaAmplification.Value;
-                    break;
-                case Preset.Crucible:
-                    value = _crucibleVanillaAmplification == null ? 0.70f : _crucibleVanillaAmplification.Value;
-                    break;
-                case Preset.Hardened:
-                default:
-                    value = _hardenedVanillaAmplification == null ? 0.35f : _hardenedVanillaAmplification.Value;
-                    break;
-            }
-
+            float value = _vanillaAmplificationStrength == null
+                ? 0.35f
+                : _vanillaAmplificationStrength.Value;
             return Clamp(value, 0.0f, 2.0f);
         }
 
@@ -1766,8 +1871,7 @@ namespace SteelAndBone
                 }
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             if (ordinaryArmorResistance)
             {
                 presetMultiplier = DampArmorTierResistanceAgainstNativeArmor(
@@ -1856,8 +1960,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             match = new DamageRuleMatch(
                 multiplier,
@@ -1946,8 +2049,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             match = new DamageRuleMatch(
                 multiplier,
@@ -2040,8 +2142,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             string damageLabel = damageClass.IsElectric
                 ? "Electric Spell"
@@ -2259,8 +2360,7 @@ namespace SteelAndBone
                     break;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             presetMultiplier = DampArmorTierResistanceAgainstNativeArmor(
                 presetMultiplier,
                 targetClass,
@@ -2358,8 +2458,7 @@ namespace SteelAndBone
                     : armorTier == EnemyArmorTier.Medium ? 1.08f : 1.15f;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
 
             match = new DamageRuleMatch(
@@ -2468,8 +2567,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(1.15f, preset);
+            float presetMultiplier = ApplyPresetIntensity(1.15f);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             if (!HasMeaningfulEffect(multiplier))
             {
@@ -2572,7 +2670,6 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
             bool exactRuleSkippedForVanilla;
             bool exactRuleSkippedForEliteClamp;
             if (TryResolveExactDamageRule(
@@ -2700,7 +2797,7 @@ namespace SteelAndBone
                     continue;
                 }
 
-                float ruleMultiplier = ApplyPresetIntensity(rule.BaseMultiplier, preset);
+                float ruleMultiplier = ApplyPresetIntensity(rule.BaseMultiplier);
                 float presetMultiplier = ruleMultiplier;
                 ruleMultiplier = ApplyEliteRuleClamp(ruleMultiplier, targetClass);
                 if (!HasMeaningfulEffect(ruleMultiplier))
@@ -2751,7 +2848,6 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
             for (int i = 0; i < ExactDamageRules.Length; i++)
             {
                 ExactDamageRule rule = ExactDamageRules[i];
@@ -2776,7 +2872,7 @@ namespace SteelAndBone
                     continue;
                 }
 
-                float presetMultiplier = ApplyPresetIntensity(rule.BaseMultiplier, preset);
+                float presetMultiplier = ApplyPresetIntensity(rule.BaseMultiplier);
                 float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
                 if (!HasMeaningfulEffect(multiplier))
                 {
@@ -2844,8 +2940,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(1.20f, preset);
+            float presetMultiplier = ApplyPresetIntensity(1.20f);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             if (!HasMeaningfulEffect(multiplier))
             {
@@ -2937,8 +3032,7 @@ namespace SteelAndBone
                 return false;
             }
 
-            Preset preset = _preset == null ? Preset.Hardened : _preset.Value;
-            float presetMultiplier = ApplyPresetIntensity(baseMultiplier, preset);
+            float presetMultiplier = ApplyPresetIntensity(baseMultiplier);
             float multiplier = ApplyEliteRuleClamp(presetMultiplier, targetClass);
             if (!HasMeaningfulEffect(multiplier))
             {
@@ -3035,53 +3129,13 @@ namespace SteelAndBone
             return false;
         }
 
-        private float ApplyPresetIntensity(float baseMultiplier, Preset preset)
+        private float ApplyPresetIntensity(float baseMultiplier)
         {
-            float strength = GetPresetIntensity(preset);
+            float strength = _materialRuleIntensity == null
+                ? 1.0f
+                : Clamp(_materialRuleIntensity.Value, 0.0f, 2.0f);
             float scaled = 1.0f + ((baseMultiplier - 1.0f) * strength);
             return Clamp(scaled, 0.05f, 2.0f);
-        }
-
-        private float GetPresetIntensity(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    return 0.55f;
-                case Preset.Crucible:
-                    return 1.35f;
-                case Preset.Hardened:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private static float GetPresetEffectivenessFeedbackSensitivity(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    return 1.20f;
-                case Preset.Crucible:
-                    return 1.00f;
-                case Preset.Hardened:
-                default:
-                    return 1.10f;
-            }
-        }
-
-        private void ApplyPresetEffectivenessFeedbackSensitivity()
-        {
-            if (_effectivenessFeedbackSensitivity == null || _preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetEffectivenessFeedbackSensitivity(_preset.Value);
-            if (Math.Abs(_effectivenessFeedbackSensitivity.Value - presetValue) > 0.0001f)
-            {
-                _effectivenessFeedbackSensitivity.Value = presetValue;
-            }
         }
 
         private bool HasMeaningfulEffect(float multiplier)
@@ -5768,7 +5822,7 @@ namespace SteelAndBone
             }
 
             float sensitivity = _effectivenessFeedbackSensitivity == null
-                ? GetPresetEffectivenessFeedbackSensitivity(_preset == null ? Preset.Hardened : _preset.Value)
+                ? 1.10f
                 : Clamp(_effectivenessFeedbackSensitivity.Value, 0.0f, 3.0f);
             return Clamp(1.0f + ((effectivenessMultiplier - 1.0f) * sensitivity), 0.0f, 3.0f);
         }
@@ -6194,7 +6248,8 @@ namespace SteelAndBone
         {
             Tempered,
             Hardened,
-            Crucible
+            Crucible,
+            Custom
         }
 
         private enum DamageNumberFontMode

@@ -1,4 +1,4 @@
-TargetVersion=4.2.3
-BaselineVersion=4.2.2
+TargetVersion=4.2.6
+BaselineVersion=4.2.4
 
-Smoothed Host Resolve into seven equal steps from summons two through eight, leaving the first qualifying summon free while preserving the x1.50 MiniBoss and x1.75 Boss endpoints. This reduces the front-loaded response against ordinary summon groups while keeping every additional summon predictable and preserving the existing 80% Tenacity cap behavior.
+Reworked Tempered, Hardened, and Crucible into applied templates that write 23 visible live balance settings across three adjacent FoA Mod Manager sections. Editing any governed value now selects Custom without undoing the edit, while choosing a named preset reapplies its complete template and refreshes the manager display. Replaced three inactive per-preset native-amplification settings with one live value and kept system enable toggles, diagnostics, presentation controls, player-arrow gravity, limits, clamps, and target-family terms independent.

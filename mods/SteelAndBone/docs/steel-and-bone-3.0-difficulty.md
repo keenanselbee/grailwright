@@ -1,10 +1,12 @@
 # Steel and Bone 3.0 Difficulty Contract
 
-Current release: 4.2.3.
+Current release: 4.2.6.
 
 Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the game's native damage, stat, armor-weight, projectile, awareness, enemy-pressure, and reward routes.
 
 ## Preset Scope
+
+Tempered, Hardened, and Crucible are applied templates rather than permanent runtime branches. Selecting one writes the 23 governed values shown by the preset model into ordinary live config entries. Editing any governed entry selects `Custom` without reverting the change; selecting a named preset reapplies its complete template. System toggles and non-balance presentation or expert settings stay independent.
 
 | Lever | Tempered | Hardened | Crucible | Toggle |
 |---|---:|---:|---:|---|
@@ -24,8 +26,6 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Native combat aggro persistence | 1.20 | 1.40 | 1.60 | `ModifyEnemyAggroPersistence` |
 | Native armor-weight penalties | 1.00 | 1.05 | 1.10 | `ModifyArmorWeightPenalties` |
 | Light armor movement | 1.00 | 1.025 | 1.05 | `ModifyLightArmorMobility` |
-| Medium physical armor | 1.00 | 1.05 | 1.10 | `ModifyArmorPhysicalProtection` |
-| Heavy/Overload physical armor | 1.00 | 1.10 | 1.20 | `ModifyArmorPhysicalProtection` |
 | Passive shield share of effective Block | 8% | 10% | 12% | `PassiveShieldProtectionEnabled` |
 | Enemy attack slots | +0 | +1 | +2 | `ModifyEnemyAttackSlots`, `EnemyAttackSlotBonus` |
 | Enemy attack recovery | 1.00 | 0.95 | 0.90 | `ModifyEnemyAttackRecovery` |
@@ -38,7 +38,7 @@ Steel and Bone 3.0 is a lightweight but impactful difficulty layer built on the 
 | Discrete food stamina per second | 1 | 1 | 1 | `ModifyFoodRecovery` |
 | Kill, quest, and proficiency XP | 0.95 | 0.90 | 0.85 | Separate XP toggles |
 
-`DifficultyModifiersEnabled` disables this entire table without disabling material rules or feedback. Outgoing and incoming player damage each have one toggle, and their exact values come directly from the selected preset.
+`DifficultyModifiersEnabled` disables the supporting difficulty layer without disabling material rules or feedback. Outgoing and incoming player damage each have one toggle, and their exact values come from the live applied settings. Material-rule intensity and native-multiplier amplification remain effective through their own combat-rule toggles.
 
 ## Tenacity
 
@@ -86,7 +86,7 @@ Native hero-owned summon attacks count as player-caused, while Hero Summon targe
 | Hostile arrows | `CombatBehaviourUtils.FireProjectile` prefix/transpiler/finalizer | Apply the configured minimum native aim-point scatter, then scale clamped speed before movement prediction and ballistic solving, only for hostile NPC Quiver projectiles. Preserve larger authored scatter, native gravity, and damage. |
 | Armor penalties | Non-saved tweak on `HeroStats.ArmorPenaltyMultiplier` | Let native tier penalties, proficiency mitigation, and overload rules remain authoritative. |
 | Light mobility | Non-saved tweak on `CharacterStats.MovementSpeedMultiplier` | Apply only while native `ArmorWeightType` is Light. |
-| Physical protection | `Hero.TotalArmor(DamageSubType)` postfix | Scale only physical subtype queries. Medium and Heavy use distinct values; Overload inherits Heavy. |
+| Player armor protection | No owned armor-value patch | Leave physical and magical armor protection native on every preset. |
 | Passive shields | Hero-target branch of `HealthElement.ApplyDamageModifiers` | For direct physical hits within native `BlockAngle`, reduce damage by effective Block multiplied by the preset share. Require a readied shield, cap coverage to the forward 180 degrees, and skip active blocks, rear hits, magic, status effects, and damage over time. |
 | Tenacity buildup | `CharacterStatuses.BuildupStatus` prefix plus scoped `PersistentAoE.ApplyBuildupStatus` owner recovery | Scale only positive harmful buildup contributions against eligible hostile NPCs when the source is the hero or a native hero-owned summon. Compose multiplicatively with other buildup modifiers and preserve direct statuses, forced completion, native thresholds, and active-status behavior. |
 | Critical and weak-spot tuning | Hero-source branch of `HealthElement.ApplyDamageModifiers` | Preserve the native +0.45 critical bonus, scale only accumulated positive critical bonus above it by 1.00/0.75/0.50, and add the preset's `WeakSpotDamageBonus` beside native precision components before outgoing pressure and material matchups. Do not mutate hero stats, item stats, or hitbox definitions. |
@@ -163,8 +163,8 @@ Normal operation is silent. With Grail Floating Text installed, a confirmed over
 | Player arrow with default gravity control | Uses 0.75x gravity on every preset without changing its native launch direction or draw strength. |
 | Hostile arrow, thrown item, or non-arrow projectile | Receives no Steel and Bone gravity adjustment. |
 | Standard hostile archer | Speed is scaled before trajectory solving and collision remains native. |
-| Light/Medium/Heavy/Overload swap | Owned stat tweaks refresh within one second and protection follows the current tier. |
-| Physical versus magical armor query | Only physical armor receives the preset multiplier. |
+| Light/Medium/Heavy/Overload swap | Owned armor-penalty and Light-mobility tweaks refresh within one second while protection remains native. |
+| Physical versus magical armor query | Neither receives a Steel and Bone armor multiplier. |
 | Readied Block 50 shield, frontal physical hit | Passive reduction is 4%/5%/6%; active blocking is unchanged and never double-dips. |
 | Confirmed weak spot with no native precision bonus | Adds 10%/20%/30% before the 0.95/0.90/0.85 outgoing multiplier and the material matchup. |
 | Critical without a weak spot | Uses native critical damage only; Steel and Bone adds no critical damage. |
@@ -177,7 +177,7 @@ Normal operation is silent. With Grail Floating Text installed, a confirmed over
 | Smooth Stamina Depleted vignette | The native repeating image tween is stopped without suppressing the native StartFlash or StopFlash audio paths. The existing image performs one 0.30-second eased unscaled fade in and fade out by default. |
 | Off Stamina Depleted vignette | Both the native HUD image and dedicated stamina-depleted post-process stay hidden while native audio, movement penalty, continuous-action restriction, and status timing remain active. |
 | Multiple native food-health statuses | Keep only the status with the greatest remaining queued health recovery; use remaining duration as the tie-breaker. Removing the others also removes their native health-bar prediction and stamina channel. |
-| Food tooltip after a preset change | The next descriptor resolution uses the current preset, retains unrelated/native text, replaces the native health values through graph tokens, and appends exactly one unlabeled stamina line. Already-active statuses keep their consumed values. |
+| Food tooltip after a preset or Custom value change | The next descriptor resolution uses the live food values, retains unrelated/native text, replaces the native health values through graph tokens, and appends exactly one unlabeled stamina line. Already-active statuses keep their consumed values. |
 | Better UI food overlay | When Better UI is present, its existing consumable helper resolves the temporary adjusted health values and receives a green stamina-total token over the same duration. Refresh timing remains owned by Better UI. |
 | Avalon AI Overhaul overlap active | Warning lists only the matching effective Steel and Bone sight, hearing, or aggro-persistence toggles. Avalon-neutral settings remain silent. |
 | HarderLife overlap active | Warning lists only the matching active Steel and Bone toggles, including hearing, persistence, or consumable recovery when applicable. |
@@ -185,7 +185,7 @@ Normal operation is silent. With Grail Floating Text installed, a confirmed over
 | Tainted Instincts sight tuning active | Warning names `ModifyEnemySightRange`; other active exact overlaps are listed. |
 | Tenacity external overlap | Matching Custom Difficulty or HarderLife outgoing-health changes and Tainted Combat poise changes name `TenacityEnabled` in the warning. |
 | External overlap inactive | No in-game notification. |
-| Schema reset from a supported backup | Restore compatible customized values automatically, retain the current Preset default through its schema-16 meaning-change rule, skip removed settings, and clamp restored values to current ranges. |
+| Schema reset from a supported backup | Apply the old named preset as the recovery base, restore compatible customized values, select `Custom` when the result differs from that template, migrate the active legacy amplification value, skip removed settings, and clamp restored values to current ranges. |
 | Package | One top-level `SteelAndBone` folder with DLL and installed-user docs only. |
 
-Config schema is 29. Version 4.1.0 renamed `ProgressiveTenacityEnabled` to `TenacityEnabled` and changed the system from a preset-independent late-game curve to campaign-wide preset and host scaling. Version 4.2.1 expands that same setting to harmful status buildup, so schema-28 configs are backed up and regenerated rather than silently inheriting the broader meaning. Compatible durable settings remain recoverable, and the fixed recovery baseline remains 14.
+Config schema is 31. Version 4.1.0 renamed `ProgressiveTenacityEnabled` to `TenacityEnabled` and changed the system from a preset-independent late-game curve to campaign-wide preset and host scaling. Version 4.2.1 expands that same setting to harmful status buildup, so schema-28 configs are backed up and regenerated rather than silently inheriting the broader meaning. Version 4.2.4 removes `ModifyArmorPhysicalProtection` so every player armor tier retains native protection on every preset. Version 4.2.6 changes `Preset` from a hybrid runtime profile into an applied template and replaces the three per-preset native-amplification settings with one live value; schema-30 configs are backed up and regenerated while compatible durable settings remain recoverable. The fixed recovery baseline remains 14.

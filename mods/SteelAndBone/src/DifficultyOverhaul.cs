@@ -117,6 +117,17 @@ namespace SteelAndBone
         private static ICharacter _activePersistentAoEBuildupDealer;
 
         private ConfigEntry<bool> _difficultyModifiersEnabled;
+        private ConfigEntry<float> _playerDamagePressure;
+        private ConfigEntry<float> _supportingPressure;
+        private ConfigEntry<float> _passiveShieldProtectionShare;
+        private ConfigEntry<float> _arrowVelocityMultiplier;
+        private ConfigEntry<float> _enemyAwarenessMultiplier;
+        private ConfigEntry<float> _potionPoisoningWindowSeconds;
+        private ConfigEntry<float> _foodHealthRateMultiplier;
+        private ConfigEntry<float> _foodHealthDurationMultiplier;
+        private ConfigEntry<float> _foodStaminaPerSecond;
+        private ConfigEntry<float> _tenacityFactor;
+        private ConfigEntry<float> _experienceMultiplier;
         private ConfigEntry<bool> _modifyPlayerDamageDealt;
         private ConfigEntry<float> _weakSpotDamageBonus;
         private ConfigEntry<bool> _modifyCriticalDamageBonus;
@@ -143,7 +154,6 @@ namespace SteelAndBone
         private ConfigEntry<float> _playerArrowGravityMultiplier;
         private ConfigEntry<bool> _modifyArmorWeightPenalties;
         private ConfigEntry<bool> _modifyLightArmorMobility;
-        private ConfigEntry<bool> _modifyArmorPhysicalProtection;
         private ConfigEntry<bool> _modifyFoodRecovery;
         private ConfigEntry<bool> _preventFoodUseInCombat;
         private ConfigEntry<bool> _modifyPotionOverdrinking;
@@ -343,7 +353,63 @@ namespace SteelAndBone
                 "General",
                 "DifficultyModifiersEnabled",
                 true,
-                ConfigUi("Master switch for Steel and Bone's global damage, resource, armor, projectile, enemy-awareness, enemy-pressure, poise, and experience modifiers. Material matchup rules remain active when this is disabled.", "General", "Difficulty Modifiers", 0, 20));
+                ConfigUi("Master switch for Steel and Bone's global damage, resource, armor, projectile, enemy-awareness, enemy-pressure, poise, and experience modifiers. Material matchup rules remain active when this is disabled.", "General", "Difficulty Modifiers", 0, 10));
+
+            _playerDamagePressure = Config.Bind(
+                "Preset Values",
+                "PlayerDamagePressure",
+                0.10f,
+                ConfigUi("Symmetric pressure applied to outgoing and incoming player health damage: 0.10 means outgoing x0.90 and incoming x1.10. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Player Damage Pressure", 12, 10, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _supportingPressure = Config.Bind(
+                "Preset Values",
+                "SupportingPressure",
+                0.05f,
+                ConfigUi("Shared pressure behind stamina and mana costs, armor-weight penalties, enemy attack recovery, player poise damage, and half-strength Light armor mobility. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Supporting Pressure", 12, 20, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _passiveShieldProtectionShare = Config.Bind(
+                "Preset Values",
+                "PassiveShieldProtectionShare",
+                0.10f,
+                ConfigUi("Share of a readied shield's effective Block used for passive frontal physical protection. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Passive Shield Protection Share", 12, 60, new AcceptableValueRange<float>(0.0f, 0.50f)));
+            _potionPoisoningWindowSeconds = Config.Bind(
+                "Preset Values",
+                "PotionPoisoningWindowSeconds",
+                10.0f,
+                ConfigUi("Approximate first-to-third same-class potion window that can trigger Potion Poisoning. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Third-Potion Window (Seconds)", 12, 70, new AcceptableValueRange<float>(1.0f, 60.0f)));
+            _foodHealthRateMultiplier = Config.Bind(
+                "Preset Values",
+                "FoodHealthRateMultiplier",
+                0.375f,
+                ConfigUi("Health-recovery rate used by standard food. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Food Health Rate Multiplier", 12, 80, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _foodHealthDurationMultiplier = Config.Bind(
+                "Preset Values",
+                "FoodHealthDurationMultiplier",
+                4.0f,
+                ConfigUi("Duration multiplier used by standard food. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Food Health Duration Multiplier", 12, 90, new AcceptableValueRange<float>(0.25f, 8.0f)));
+            _foodStaminaPerSecond = Config.Bind(
+                "Preset Values",
+                "FoodStaminaPerSecond",
+                1.0f,
+                ConfigUi("Discrete stamina restored per second by standard food outside Stamina Depleted. Changing this value manually selects Custom.", "Preset - Player Pressure and Recovery", "Food Stamina Per Second", 12, 100, new AcceptableValueRange<float>(0.0f, 10.0f)));
+            _arrowVelocityMultiplier = Config.Bind(
+                "Preset Values",
+                "ArrowVelocityMultiplier",
+                1.30f,
+                ConfigUi("Shared velocity multiplier for enabled player and hostile arrow-speed rules. Changing this value manually selects Custom.", "Preset - Enemies and Progression", "Arrow Velocity Multiplier", 13, 10, new AcceptableValueRange<float>(1.0f, 3.0f)));
+            _enemyAwarenessMultiplier = Config.Bind(
+                "Preset Values",
+                "EnemyAwarenessMultiplier",
+                1.40f,
+                ConfigUi("Shared multiplier for enabled enemy sight, hero-footstep hearing range, and native combat-aggro persistence. Changing this value manually selects Custom.", "Preset - Enemies and Progression", "Enemy Awareness Multiplier", 13, 30, new AcceptableValueRange<float>(1.0f, 3.0f)));
+            _tenacityFactor = Config.Bind(
+                "Preset Values",
+                "TenacityFactor",
+                1.0f,
+                ConfigUi("Multiplier for the campaign-wide Tenacity curve. Changing this value manually selects Custom.", "Preset - Enemies and Progression", "Tenacity Factor", 13, 60, new AcceptableValueRange<float>(0.0f, 2.0f)));
+            _experienceMultiplier = Config.Bind(
+                "Preset Values",
+                "ExperienceMultiplier",
+                0.90f,
+                ConfigUi("Shared multiplier for enabled kill, quest, objective, and proficiency experience rules. Changing this value manually selects Custom.", "Preset - Enemies and Progression", "Experience Multiplier", 13, 70, new AcceptableValueRange<float>(0.25f, 1.0f)));
 
             _staminaDepletedVignetteMode = Config.Bind(
                 "Feedback",
@@ -371,17 +437,17 @@ namespace SteelAndBone
                 "Difficulty - Player",
                 "ModifyPlayerDamageDealt",
                 true,
-                ConfigUi("Reduce health damage dealt by the player by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Outgoing Player Damage", 60, 0));
+                ConfigUi("Reduce health damage dealt by the player using the current Player Damage Pressure when Difficulty Modifiers is enabled.", "Difficulty - Player", "Outgoing Player Damage", 60, 0));
             _weakSpotDamageBonus = Config.Bind(
                 "Difficulty - Player",
                 "WeakSpotDamageBonus",
-                GetPresetWeakSpotDamageBonus(_preset.Value),
+                0.20f,
                 ConfigUi(
-                    "Add 10%, 20%, or 30% base damage to confirmed weak-spot hits according to the preset when Difficulty Modifiers is enabled. This is added beside the game's native critical, weak-spot, sneak, and backstab bonuses before Steel and Bone's outgoing and matchup multipliers. Changing Preset resets this value; customize it afterward if desired.",
-                    "Difficulty - Player",
+                    "Added base damage for confirmed weak-spot hits. This is applied beside the game's native critical, weak-spot, sneak, and backstab bonuses before outgoing and material multipliers. Changing this value manually selects Custom.",
+                    "Preset - Combat and Materials",
                     "Weak Spot Damage Bonus",
-                    60,
-                    5,
+                    11,
+                    30,
                     new AcceptableValueRange<float>(0.0f, 0.50f)));
             _modifyCriticalDamageBonus = Config.Bind(
                 "Difficulty - Player",
@@ -391,19 +457,19 @@ namespace SteelAndBone
             _positiveCriticalDamageBonusMultiplier = Config.Bind(
                 "Difficulty - Player",
                 "PositiveCriticalDamageBonusMultiplier",
-                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                0.75f,
                 ConfigUi(
-                    "Multiplier for accumulated positive critical-damage bonuses above the native 0.45 bonus. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. The native x1.45 critical hit is not reduced.",
-                    "Difficulty - Player",
+                    "Multiplier for accumulated positive critical-damage bonuses above the native 0.45 bonus. Changing this value manually selects Custom. The native x1.45 critical hit is not reduced.",
+                    "Preset - Combat and Materials",
                     "Positive Critical Damage Bonus Multiplier",
-                    60,
-                    7,
+                    11,
+                    40,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _modifyPlayerDamageTaken = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerDamageTaken",
                 true,
-                ConfigUi("Increase health damage taken from all routed damage sources by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Incoming Player Damage", 60, 10));
+                ConfigUi("Increase health damage taken from all routed damage sources using the current Player Damage Pressure when Difficulty Modifiers is enabled.", "Difficulty - Player", "Incoming Player Damage", 60, 10));
             _passiveShieldProtectionEnabled = Config.Bind(
                 "Difficulty - Player",
                 "PassiveShieldProtectionEnabled",
@@ -413,7 +479,7 @@ namespace SteelAndBone
                 "Difficulty - Player",
                 "ModifyStaminaUsage",
                 true,
-                ConfigUi("Increase player stamina usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Stamina Usage", 60, 30));
+                ConfigUi("Increase player stamina usage using the current Supporting Pressure when Difficulty Modifiers is enabled.", "Difficulty - Player", "Stamina Usage", 60, 30));
             _modifyDashStaminaCost = Config.Bind(
                 "Difficulty - Player",
                 "ModifyDashStaminaCost",
@@ -422,19 +488,19 @@ namespace SteelAndBone
             _dashStaminaCostMultiplier = Config.Bind(
                 "Difficulty - Player",
                 "DashStaminaCostMultiplier",
-                GetPresetDashStaminaCostMultiplier(_preset.Value),
+                1.15f,
                 ConfigUi(
-                    "Multiplier for dash stamina cost. Changing Preset sets this to 1.00 for Tempered, 1.15 for Hardened, or 1.30 for Crucible; customize it afterward if desired.",
-                    "Difficulty - Player",
+                    "Multiplier for dash stamina cost. Changing this value manually selects Custom.",
+                    "Preset - Player Pressure and Recovery",
                     "Dash Stamina Cost Multiplier",
-                    60,
-                    32,
+                    12,
+                    30,
                     new AcceptableValueRange<float>(0.25f, 3.0f)));
             _modifyManaUsage = Config.Bind(
                 "Difficulty - Player",
                 "ModifyManaUsage",
                 true,
-                ConfigUi("Increase player mana usage by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Mana Usage", 60, 40));
+                ConfigUi("Increase player mana usage using the current Supporting Pressure when Difficulty Modifiers is enabled.", "Difficulty - Player", "Mana Usage", 60, 40));
             _modifyCombatManaRegeneration = Config.Bind(
                 "Difficulty - Player",
                 "ModifyCombatManaRegeneration",
@@ -443,13 +509,13 @@ namespace SteelAndBone
             _combatManaRegenerationMultiplier = Config.Bind(
                 "Difficulty - Player",
                 "CombatManaRegenerationMultiplier",
-                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                0.75f,
                 ConfigUi(
-                    "Multiplier for positive mana regeneration during combat when Combat Mana Regeneration and Difficulty Modifiers are enabled. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. Out-of-combat regeneration is unchanged.",
-                    "Difficulty - Player",
+                    "Multiplier for positive mana regeneration during combat when Combat Mana Regeneration and Difficulty Modifiers are enabled. Changing this value manually selects Custom. Out-of-combat regeneration is unchanged.",
+                    "Preset - Player Pressure and Recovery",
                     "Combat Mana Regeneration Multiplier",
-                    60,
-                    46,
+                    12,
+                    40,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _modifyParryWindowBonus = Config.Bind(
                 "Difficulty - Player",
@@ -459,24 +525,24 @@ namespace SteelAndBone
             _positiveParryWindowBonusMultiplier = Config.Bind(
                 "Difficulty - Player",
                 "PositiveParryWindowBonusMultiplier",
-                GetPresetCombatSustainabilityMultiplier(_preset.Value),
+                0.75f,
                 ConfigUi(
-                    "Multiplier for the accumulated positive parry-window bonus from skills, equipment, and other effects. Changing Preset sets this to 1.00 for Tempered, 0.75 for Hardened, or 0.50 for Crucible; customize it afterward if desired. The native 0.05-second base window is not reduced.",
-                    "Difficulty - Player",
+                    "Multiplier for the accumulated positive parry-window bonus from skills, equipment, and other effects. Changing this value manually selects Custom. The native 0.05-second base window is not reduced.",
+                    "Preset - Player Pressure and Recovery",
                     "Positive Parry Window Bonus Multiplier",
-                    60,
-                    48,
+                    12,
+                    50,
                     new AcceptableValueRange<float>(0.0f, 1.0f)));
             _modifyPlayerPoiseDamageDealt = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerPoiseDamageDealt",
                 true,
-                ConfigUi("Reduce poise damage dealt by the player by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled, making enemies slightly harder to stagger-lock.", "Difficulty - Player", "Player Poise Damage Dealt", 60, 50));
+                ConfigUi("Reduce poise damage dealt by the player using the current Supporting Pressure when Difficulty Modifiers is enabled, making enemies slightly harder to stagger-lock.", "Difficulty - Player", "Player Poise Damage Dealt", 60, 50));
             _modifyPlayerArrowVelocity = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerArrowVelocity",
                 true,
-                ConfigUi("Multiply player-fired arrow speed by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled. This setting does not alter damage; Arrow Material Rules controls the separate material matchup.", "Difficulty - Player", "Player Arrow Speed", 60, 60));
+                ConfigUi("Multiply player-fired arrow speed by the current Arrow Velocity Multiplier when Difficulty Modifiers is enabled. This setting does not alter damage; Arrow Material Rules controls the separate material matchup.", "Difficulty - Player", "Player Arrow Speed", 60, 60));
             _modifyPlayerArrowDrop = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPlayerArrowDrop",
@@ -497,32 +563,27 @@ namespace SteelAndBone
                 "Difficulty - Player",
                 "ModifyArmorWeightPenalties",
                 true,
-                ConfigUi("Multiply the game's native armor-weight penalties by 1.00, 1.05, or 1.10 according to the preset when Difficulty Modifiers is enabled. Existing armor proficiency still softens eligible penalties.", "Difficulty - Player", "Armor Weight Penalties", 60, 90));
+                ConfigUi("Multiply the game's native armor-weight penalties using the current Supporting Pressure when Difficulty Modifiers is enabled. Existing armor proficiency still softens eligible penalties.", "Difficulty - Player", "Armor Weight Penalties", 60, 90));
             _modifyLightArmorMobility = Config.Bind(
                 "Difficulty - Player",
                 "ModifyLightArmorMobility",
                 true,
-                ConfigUi("Increase movement speed while in the game's Light armor tier by 0%, 2.5%, or 5% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Player", "Light Armor Mobility", 60, 100));
-            _modifyArmorPhysicalProtection = Config.Bind(
-                "Difficulty - Player",
-                "ModifyArmorPhysicalProtection",
-                true,
-                ConfigUi("Multiply physical armor in Medium by 1.00/1.05/1.10 and in Heavy or Overload by 1.00/1.10/1.20 according to the preset when Difficulty Modifiers is enabled. Magical armor checks are unchanged.", "Difficulty - Player", "Physical Armor Protection", 60, 110));
+                ConfigUi("Increase movement speed while in the game's Light armor tier by half of the current Supporting Pressure when Difficulty Modifiers is enabled.", "Difficulty - Player", "Light Armor Mobility", 60, 100));
             _modifyPotionOverdrinking = Config.Bind(
                 "Difficulty - Player",
                 "ModifyPotionOverdrinking",
                 true,
-                ConfigUi("Track Potion Poisoning separately for Health, Mana, Stamina, and Utility potions when Difficulty Modifiers is enabled. Two same-class potions are safe; a third triggers poisoning when the first-to-third span is within 5, 10, or 15 seconds according to the preset. A Health, Mana, or Stamina trigger drains 30% of that resource over the native status; Utility drains 15% of all three. Mixing classes does not combine their buildup.", "Difficulty - Player", "Potion Overdrinking", 60, 120));
+                ConfigUi("Track Potion Poisoning separately for Health, Mana, Stamina, and Utility potions when Difficulty Modifiers is enabled. Two same-class potions are safe; a third triggers poisoning within the current Third-Potion Window. A Health, Mana, or Stamina trigger drains 30% of that resource over the native status; Utility drains 15% of all three. Mixing classes does not combine their buildup.", "Difficulty - Player", "Potion Overdrinking", 60, 120));
             _modifyFoodRecovery = Config.Bind(
                 "Difficulty - Player",
                 "ModifyFoodRecovery",
                 true,
-                ConfigUi("Reshape standard food healing over time when Difficulty Modifiers is enabled. Every preset uses 4x duration and restores 1 stamina in discrete one-second ticks outside Stamina Depleted. Active food halves native Stamina Depleted duration and pauses its added stamina ticks during it; the first point follows 0.1 seconds after the lock ends, then normal one-second ticks resume. Health rate is 50% on Tempered, 37.5% on Hardened, or 25% on Crucible. Only the food status with the greatest remaining queued healing stays active.", "Difficulty - Player", "Food Recovery", 60, 125));
+                ConfigUi("Reshape standard food healing with the current Food Health Rate, Food Health Duration, and Food Stamina values when Difficulty Modifiers is enabled. Active food halves native Stamina Depleted duration and pauses its added stamina ticks during it; the first point follows 0.1 seconds after the lock ends, then normal one-second ticks resume. Only the food status with the greatest remaining queued healing stays active.", "Difficulty - Player", "Food Recovery", 60, 125));
             _preventFoodUseInCombat = Config.Bind(
                 "Difficulty - Player",
                 "PreventFoodUseInCombat",
-                GetPresetPreventFoodUseInCombat(_preset.Value),
-                ConfigUi("Prevent food and dishes from being consumed while the hero is in combat when Difficulty Modifiers is enabled. Changing Preset sets this off for Tempered or on for Hardened and Crucible; customize it afterward if desired. Noncombat use remains unrestricted.", "Difficulty - Player", "Prevent Food Use In Combat", 60, 130));
+                true,
+                ConfigUi("Prevent food and dishes from being consumed while the hero is in combat when Difficulty Modifiers is enabled. This Boolean is governed by the applied preset; changing it manually selects Custom. Noncombat use remains unrestricted.", "Preset - Player Pressure and Recovery", "Prevent Food Use In Combat", 12, 110));
 
             _modifyEnemyAttackSlots = Config.Bind(
                 "Difficulty - Enemies",
@@ -537,19 +598,19 @@ namespace SteelAndBone
             _enemyAttackSlotBonus = Config.Bind(
                 "Difficulty - Enemies",
                 "EnemyAttackSlotBonus",
-                GetPresetAttackSlotBonus(_preset.Value),
+                1,
                 ConfigUi(
-                    "Additional simultaneous enemy attack slots when Enemy Attack Slots and Difficulty Modifiers are enabled. Changing Preset resets this to 0 for Tempered, 1 for Hardened, or 2 for Crucible; customize it afterward if desired.",
-                    "Difficulty - Enemies",
+                    "Additional simultaneous enemy attack slots when Enemy Attack Slots and Difficulty Modifiers are enabled. Changing this value manually selects Custom.",
+                    "Preset - Enemies and Progression",
                     "Additional Enemy Attack Slots",
-                    70,
-                    10,
+                    13,
+                    40,
                     new AcceptableValueRange<int>(0, 11)));
             _modifyEnemyAttackRecovery = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyAttackRecovery",
                 true,
-                ConfigUi("Shorten the delay before enemies release attack slots by 0%, 5%, or 10% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Recovery Time", 70, 20));
+                ConfigUi("Shorten the delay before enemies release attack slots using the current Supporting Pressure when Difficulty Modifiers is enabled.", "Difficulty - Enemies", "Enemy Attack Recovery Time", 70, 20));
             _modifyEnemyMovementSpeed = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyMovementSpeed",
@@ -558,61 +619,61 @@ namespace SteelAndBone
             _enemyMovementSpeedMultiplier = Config.Bind(
                 "Difficulty - Enemies",
                 "EnemyMovementSpeedMultiplier",
-                GetPresetEnemyMovementSpeedMultiplier(_preset.Value),
+                1.05f,
                 ConfigUi(
-                    "Maximum combat movement multiplier for eligible hostile enemies when Enemy Movement Speed and Difficulty Modifiers are enabled. Changing Preset resets this to 1.00 for Tempered, 1.05 for Hardened, or 1.10 for Crucible; customize it afterward if desired. Medium and restricted enemy tiers receive less or no bonus.",
-                    "Difficulty - Enemies",
+                    "Maximum combat movement multiplier for eligible hostile enemies when Enemy Movement Speed and Difficulty Modifiers are enabled. Changing this value manually selects Custom. Medium and restricted enemy tiers receive less or no bonus.",
+                    "Preset - Enemies and Progression",
                     "Enemy Movement Speed Multiplier",
-                    70,
-                    35,
+                    13,
+                    50,
                     new AcceptableValueRange<float>(1.0f, 2.0f)));
             _modifyHostileArrowVelocity = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyHostileArrowVelocity",
                 true,
-                ConfigUi("Multiply hostile NPC arrow speed by 1.10, 1.30, or 1.50 according to the preset when Difficulty Modifiers is enabled while preserving the game's ballistic aim calculation. Hostile arrow damage is unchanged.", "Difficulty - Enemies", "Hostile Arrow Speed", 70, 40));
+                ConfigUi("Multiply hostile NPC arrow speed by the current Arrow Velocity Multiplier when Difficulty Modifiers is enabled while preserving the game's ballistic aim calculation. Hostile arrow damage is unchanged.", "Difficulty - Enemies", "Hostile Arrow Speed", 70, 40));
             _hostileArcherAimScatter = Config.Bind(
                 "Difficulty - Enemies",
                 "HostileArcherAimScatter",
-                GetPresetHostileArcherAimScatter(_preset.Value),
+                1.25f,
                 ConfigUi(
-                    "Minimum random aim-point scatter in meters for hostile NPC arrows when Difficulty Modifiers is enabled. Changing Preset sets this to 1.50 for Tempered, 1.25 for Hardened, or 1.00 for Crucible; customize it afterward or set it to 0 for native accuracy.",
-                    "Difficulty - Enemies",
+                    "Minimum random aim-point scatter in meters for hostile NPC arrows when Difficulty Modifiers is enabled. Changing this value manually selects Custom; set it to 0 for native accuracy.",
+                    "Preset - Enemies and Progression",
                     "Hostile Archer Aim Scatter (Meters)",
-                    70,
-                    45,
+                    13,
+                    20,
                     new AcceptableValueRange<float>(0.0f, 2.0f)));
             _modifyEnemySightRange = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemySightRange",
                 true,
-                ConfigUi("Multiply the native sight distance of active hostile NPCs by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Line of sight, visibility, alert behavior, and authored perception distances remain native.", "Difficulty - Enemies", "Hostile Enemy Sight Distance", 70, 50));
+                ConfigUi("Multiply the native sight distance of active hostile NPCs by the current Enemy Awareness Multiplier when Difficulty Modifiers is enabled. Line of sight, visibility, alert behavior, and authored perception distances remain native.", "Difficulty - Enemies", "Hostile Enemy Sight Distance", 70, 50));
             _modifyEnemyHearingRange = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyHearingRange",
                 true,
-                ConfigUi("Multiply the native range of hero footstep noise by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Native hearing strength, wall checks, armor noise, and NPC hearing differences remain in control.", "Difficulty - Enemies", "Hostile Enemy Hearing Range", 70, 60));
+                ConfigUi("Multiply the native range of hero footstep noise by the current Enemy Awareness Multiplier when Difficulty Modifiers is enabled. Native hearing strength, wall checks, armor noise, and NPC hearing differences remain in control.", "Difficulty - Enemies", "Hostile Enemy Hearing Range", 70, 60));
             _modifyEnemyAggroPersistence = Config.Bind(
                 "Difficulty - Enemies",
                 "ModifyEnemyAggroPersistence",
                 true,
-                ConfigUi("Multiply native combat aggro persistence by 1.20, 1.40, or 1.60 according to the preset when Difficulty Modifiers is enabled. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.", "Difficulty - Enemies", "Enemy Aggro Persistence", 70, 70));
+                ConfigUi("Multiply native combat aggro persistence by the current Enemy Awareness Multiplier when Difficulty Modifiers is enabled. Chase boundaries, forced combat exit, target-loss rules, and alert behavior remain native.", "Difficulty - Enemies", "Enemy Aggro Persistence", 70, 70));
 
             _modifyKillExperience = Config.Bind(
                 "Difficulty - Progression",
                 "ModifyKillExperience",
                 true,
-                ConfigUi("Reduce experience gained from enemy kills by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Kill XP", 80, 0));
+                ConfigUi("Multiply experience gained from enemy kills by the current Experience Multiplier when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Kill XP", 80, 0));
             _modifyQuestExperience = Config.Bind(
                 "Difficulty - Progression",
                 "ModifyQuestExperience",
                 true,
-                ConfigUi("Reduce experience gained from quest and objective rewards by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Quest and Objective XP", 80, 10));
+                ConfigUi("Multiply experience gained from quest and objective rewards by the current Experience Multiplier when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Quest and Objective XP", 80, 10));
             _modifyProficiencyExperience = Config.Bind(
                 "Difficulty - Progression",
                 "ModifyProficiencyExperience",
                 true,
-                ConfigUi("Reduce proficiency experience by 5%, 10%, or 15% according to the preset when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Proficiency XP", 80, 20));
+                ConfigUi("Multiply proficiency experience by the current Experience Multiplier when Difficulty Modifiers is enabled.", "Difficulty - Progression", "Proficiency XP", 80, 20));
         }
 
         private void InitializeDifficultyOverhaul()
@@ -635,6 +696,7 @@ namespace SteelAndBone
 
         private void Update()
         {
+            RefreshFoaModManagerIfPending();
             UpdateStaminaVignetteFade();
             if (Time.unscaledTime < _nextDifficultyRefreshAt)
             {
@@ -655,21 +717,36 @@ namespace SteelAndBone
 
         private void OnDifficultySettingChanged(object sender, SettingChangedEventArgs args)
         {
-            if (args != null && ReferenceEquals(args.ChangedSetting, _preset))
+            if (_applyingPreset || args == null)
             {
-                ApplyPresetEffectivenessFeedbackSensitivity();
-                ApplyPresetWeakSpotDamageBonus();
-                ApplyPresetAttackSlotBonus();
-                ApplyPresetEnemyMovementSpeedMultiplier();
-                ApplyPresetHostileArcherAimScatter();
-                ApplyPresetPreventFoodUseInCombat();
-                ApplyPresetCombatSustainabilityMultipliers();
-                ApplyPresetDashStaminaCostMultiplier();
+                return;
             }
-            if (args != null
-                && (ReferenceEquals(args.ChangedSetting, _enabled)
+
+            ConfigEntryBase changedSetting = args.ChangedSetting;
+            if (ReferenceEquals(changedSetting, _preset))
+            {
+                ApplySelectedPreset();
+                _foaModManagerRefreshPending = true;
+            }
+            else if (IsPresetValueSetting(changedSetting)
+                && _preset != null
+                && _preset.Value != Preset.Custom)
+            {
+                _applyingPreset = true;
+                try
+                {
+                    _preset.Value = Preset.Custom;
+                }
+                finally
+                {
+                    _applyingPreset = false;
+                }
+                _foaModManagerRefreshPending = true;
+            }
+
+            if (ReferenceEquals(changedSetting, _enabled)
                     || ReferenceEquals(args.ChangedSetting, _staminaDepletedVignetteMode)
-                    || ReferenceEquals(args.ChangedSetting, _staminaDepletedVignetteFadeSeconds)))
+                    || ReferenceEquals(args.ChangedSetting, _staminaDepletedVignetteFadeSeconds))
             {
                 ApplyCurrentStaminaVignetteMode();
             }
@@ -677,6 +754,243 @@ namespace SteelAndBone
             ReapplyDifficultyStatTweaks();
             RefreshEnemyRuntimeTweaks();
             EvaluateCompatibilityOverlaps();
+        }
+
+        private ConfigEntryBase[] GetPresetValueSettings()
+        {
+            return new ConfigEntryBase[]
+            {
+                _materialRuleIntensity,
+                _vanillaAmplificationStrength,
+                _weakSpotDamageBonus,
+                _positiveCriticalDamageBonusMultiplier,
+                _effectivenessFeedbackSensitivity,
+                _playerDamagePressure,
+                _supportingPressure,
+                _dashStaminaCostMultiplier,
+                _combatManaRegenerationMultiplier,
+                _positiveParryWindowBonusMultiplier,
+                _passiveShieldProtectionShare,
+                _potionPoisoningWindowSeconds,
+                _foodHealthRateMultiplier,
+                _foodHealthDurationMultiplier,
+                _foodStaminaPerSecond,
+                _preventFoodUseInCombat,
+                _arrowVelocityMultiplier,
+                _hostileArcherAimScatter,
+                _enemyAwarenessMultiplier,
+                _enemyAttackSlotBonus,
+                _enemyMovementSpeedMultiplier,
+                _tenacityFactor,
+                _experienceMultiplier
+            };
+        }
+
+        private bool IsPresetValueSetting(ConfigEntryBase setting)
+        {
+            ConfigEntryBase[] settings = GetPresetValueSettings();
+            for (int i = 0; i < settings.Length; i++)
+            {
+                if (ReferenceEquals(setting, settings[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void ApplySelectedPreset()
+        {
+            if (_preset == null || _preset.Value == Preset.Custom)
+            {
+                return;
+            }
+            ApplyPreset(_preset.Value);
+        }
+
+        private void ApplyPreset(Preset preset)
+        {
+            AppliedPresetTuning tuning;
+            if (!TryGetAppliedPresetTuning(preset, out tuning))
+            {
+                return;
+            }
+
+            _applyingPreset = true;
+            try
+            {
+                _materialRuleIntensity.Value = tuning.MaterialRuleIntensity;
+                _vanillaAmplificationStrength.Value = tuning.VanillaAmplificationStrength;
+                _weakSpotDamageBonus.Value = tuning.WeakSpotDamageBonus;
+                _positiveCriticalDamageBonusMultiplier.Value = tuning.PositiveBonusMultiplier;
+                _effectivenessFeedbackSensitivity.Value = tuning.EffectivenessFeedbackSensitivity;
+                _playerDamagePressure.Value = tuning.PlayerDamagePressure;
+                _supportingPressure.Value = tuning.SupportingPressure;
+                _dashStaminaCostMultiplier.Value = tuning.DashStaminaCostMultiplier;
+                _combatManaRegenerationMultiplier.Value = tuning.PositiveBonusMultiplier;
+                _positiveParryWindowBonusMultiplier.Value = tuning.PositiveBonusMultiplier;
+                _passiveShieldProtectionShare.Value = tuning.PassiveShieldProtectionShare;
+                _potionPoisoningWindowSeconds.Value = tuning.PotionPoisoningWindowSeconds;
+                _foodHealthRateMultiplier.Value = tuning.FoodHealthRateMultiplier;
+                _foodHealthDurationMultiplier.Value = tuning.FoodHealthDurationMultiplier;
+                _foodStaminaPerSecond.Value = tuning.FoodStaminaPerSecond;
+                _preventFoodUseInCombat.Value = tuning.PreventFoodUseInCombat;
+                _arrowVelocityMultiplier.Value = tuning.ArrowVelocityMultiplier;
+                _hostileArcherAimScatter.Value = tuning.HostileArcherAimScatter;
+                _enemyAwarenessMultiplier.Value = tuning.EnemyAwarenessMultiplier;
+                _enemyAttackSlotBonus.Value = tuning.EnemyAttackSlotBonus;
+                _enemyMovementSpeedMultiplier.Value = tuning.EnemyMovementSpeedMultiplier;
+                _tenacityFactor.Value = tuning.TenacityFactor;
+                _experienceMultiplier.Value = tuning.ExperienceMultiplier;
+            }
+            finally
+            {
+                _applyingPreset = false;
+            }
+        }
+
+        private static bool TryGetAppliedPresetTuning(
+            Preset preset,
+            out AppliedPresetTuning tuning)
+        {
+            switch (preset)
+            {
+                case Preset.Tempered:
+                    tuning = new AppliedPresetTuning
+                    {
+                        MaterialRuleIntensity = 0.55f,
+                        VanillaAmplificationStrength = 0.0f,
+                        WeakSpotDamageBonus = 0.10f,
+                        PositiveBonusMultiplier = 1.0f,
+                        EffectivenessFeedbackSensitivity = 1.20f,
+                        PlayerDamagePressure = 0.05f,
+                        SupportingPressure = 0.0f,
+                        DashStaminaCostMultiplier = 1.0f,
+                        PassiveShieldProtectionShare = 0.08f,
+                        PotionPoisoningWindowSeconds = 5.0f,
+                        FoodHealthRateMultiplier = 0.50f,
+                        FoodHealthDurationMultiplier = 4.0f,
+                        FoodStaminaPerSecond = 1.0f,
+                        PreventFoodUseInCombat = false,
+                        ArrowVelocityMultiplier = 1.10f,
+                        HostileArcherAimScatter = 1.50f,
+                        EnemyAwarenessMultiplier = 1.20f,
+                        EnemyAttackSlotBonus = 0,
+                        EnemyMovementSpeedMultiplier = 1.0f,
+                        TenacityFactor = 0.75f,
+                        ExperienceMultiplier = 0.95f
+                    };
+                    return true;
+                case Preset.Crucible:
+                    tuning = new AppliedPresetTuning
+                    {
+                        MaterialRuleIntensity = 1.35f,
+                        VanillaAmplificationStrength = 0.70f,
+                        WeakSpotDamageBonus = 0.30f,
+                        PositiveBonusMultiplier = 0.50f,
+                        EffectivenessFeedbackSensitivity = 1.0f,
+                        PlayerDamagePressure = 0.15f,
+                        SupportingPressure = 0.10f,
+                        DashStaminaCostMultiplier = 1.30f,
+                        PassiveShieldProtectionShare = 0.12f,
+                        PotionPoisoningWindowSeconds = 15.0f,
+                        FoodHealthRateMultiplier = 0.25f,
+                        FoodHealthDurationMultiplier = 4.0f,
+                        FoodStaminaPerSecond = 1.0f,
+                        PreventFoodUseInCombat = true,
+                        ArrowVelocityMultiplier = 1.50f,
+                        HostileArcherAimScatter = 1.0f,
+                        EnemyAwarenessMultiplier = 1.60f,
+                        EnemyAttackSlotBonus = 2,
+                        EnemyMovementSpeedMultiplier = 1.10f,
+                        TenacityFactor = 1.25f,
+                        ExperienceMultiplier = 0.85f
+                    };
+                    return true;
+                case Preset.Hardened:
+                    tuning = new AppliedPresetTuning
+                    {
+                        MaterialRuleIntensity = 1.0f,
+                        VanillaAmplificationStrength = 0.35f,
+                        WeakSpotDamageBonus = 0.20f,
+                        PositiveBonusMultiplier = 0.75f,
+                        EffectivenessFeedbackSensitivity = 1.10f,
+                        PlayerDamagePressure = 0.10f,
+                        SupportingPressure = 0.05f,
+                        DashStaminaCostMultiplier = 1.15f,
+                        PassiveShieldProtectionShare = 0.10f,
+                        PotionPoisoningWindowSeconds = 10.0f,
+                        FoodHealthRateMultiplier = 0.375f,
+                        FoodHealthDurationMultiplier = 4.0f,
+                        FoodStaminaPerSecond = 1.0f,
+                        PreventFoodUseInCombat = true,
+                        ArrowVelocityMultiplier = 1.30f,
+                        HostileArcherAimScatter = 1.25f,
+                        EnemyAwarenessMultiplier = 1.40f,
+                        EnemyAttackSlotBonus = 1,
+                        EnemyMovementSpeedMultiplier = 1.05f,
+                        TenacityFactor = 1.0f,
+                        ExperienceMultiplier = 0.90f
+                    };
+                    return true;
+                case Preset.Custom:
+                default:
+                    tuning = default(AppliedPresetTuning);
+                    return false;
+            }
+        }
+
+        private sealed class AppliedPresetTuning
+        {
+            internal float MaterialRuleIntensity;
+            internal float VanillaAmplificationStrength;
+            internal float WeakSpotDamageBonus;
+            internal float PositiveBonusMultiplier;
+            internal float EffectivenessFeedbackSensitivity;
+            internal float PlayerDamagePressure;
+            internal float SupportingPressure;
+            internal float DashStaminaCostMultiplier;
+            internal float PassiveShieldProtectionShare;
+            internal float PotionPoisoningWindowSeconds;
+            internal float FoodHealthRateMultiplier;
+            internal float FoodHealthDurationMultiplier;
+            internal float FoodStaminaPerSecond;
+            internal bool PreventFoodUseInCombat;
+            internal float ArrowVelocityMultiplier;
+            internal float HostileArcherAimScatter;
+            internal float EnemyAwarenessMultiplier;
+            internal int EnemyAttackSlotBonus;
+            internal float EnemyMovementSpeedMultiplier;
+            internal float TenacityFactor;
+            internal float ExperienceMultiplier;
+        }
+
+        private void RefreshFoaModManagerIfPending()
+        {
+            if (!_foaModManagerRefreshPending)
+            {
+                return;
+            }
+            _foaModManagerRefreshPending = false;
+
+            try
+            {
+                Type apiType = AccessTools.TypeByName("FoAModManager.FoAModManagerApi");
+                MethodInfo refreshMethod = apiType == null
+                    ? null
+                    : AccessTools.Method(apiType, "Refresh");
+                if (refreshMethod != null && refreshMethod.IsStatic)
+                {
+                    refreshMethod.Invoke(null, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogWarning("Could not refresh FoA Mod Manager after applying a preset: " + ex.GetBaseException().Message);
+                }
+            }
         }
 
         private void PatchDifficultyOverhaul()
@@ -784,12 +1098,6 @@ namespace SteelAndBone
                 nameof(PlayerArrowGravityPatch.Postfix),
                 "DamageDealingProjectile.ProcessFixedUpdate",
                 "player arrow-drop modifier");
-            PatchOptionalPostfix(
-                AccessTools.Method(typeof(Hero), "TotalArmor", new[] { typeof(DamageSubType) }),
-                typeof(HeroPhysicalArmorPatch),
-                nameof(HeroPhysicalArmorPatch.Postfix),
-                "Hero.TotalArmor",
-                "armor physical-protection modifier");
             PatchOptionalPrefix(
                 AccessTools.Method(typeof(Item), nameof(Item.Use), Type.EmptyTypes),
                 typeof(FoodCombatUsePatch),
@@ -1344,93 +1652,14 @@ namespace SteelAndBone
 
         private float PresetPenaltyAmount()
         {
-            if (_preset == null)
-            {
-                return 0.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 0.05f;
-                case Preset.Crucible:
-                    return 0.10f;
-                case Preset.Tempered:
-                default:
-                    return 0.0f;
-            }
+            return _supportingPressure == null
+                ? 0.05f
+                : Mathf.Clamp(_supportingPressure.Value, 0.0f, 0.50f);
         }
 
         private float PresetCostMultiplier()
         {
             return 1.0f + PresetPenaltyAmount();
-        }
-
-        private static float GetPresetCombatSustainabilityMultiplier(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Hardened:
-                    return 0.75f;
-                case Preset.Crucible:
-                    return 0.50f;
-                case Preset.Tempered:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private void ApplyPresetCombatSustainabilityMultipliers()
-        {
-            if (_preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetCombatSustainabilityMultiplier(_preset.Value);
-            if (_combatManaRegenerationMultiplier != null
-                && Math.Abs(_combatManaRegenerationMultiplier.Value - presetValue) > NeutralTolerance)
-            {
-                _combatManaRegenerationMultiplier.Value = presetValue;
-            }
-            if (_positiveParryWindowBonusMultiplier != null
-                && Math.Abs(_positiveParryWindowBonusMultiplier.Value - presetValue) > NeutralTolerance)
-            {
-                _positiveParryWindowBonusMultiplier.Value = presetValue;
-            }
-            if (_positiveCriticalDamageBonusMultiplier != null
-                && Math.Abs(_positiveCriticalDamageBonusMultiplier.Value - presetValue) > NeutralTolerance)
-            {
-                _positiveCriticalDamageBonusMultiplier.Value = presetValue;
-            }
-        }
-
-        private static float GetPresetDashStaminaCostMultiplier(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Hardened:
-                    return 1.15f;
-                case Preset.Crucible:
-                    return 1.30f;
-                case Preset.Tempered:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private void ApplyPresetDashStaminaCostMultiplier()
-        {
-            if (_dashStaminaCostMultiplier == null || _preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetDashStaminaCostMultiplier(_preset.Value);
-            if (Math.Abs(_dashStaminaCostMultiplier.Value - presetValue) > NeutralTolerance)
-            {
-                _dashStaminaCostMultiplier.Value = presetValue;
-            }
         }
 
         private float PresetReductionMultiplier()
@@ -1440,21 +1669,9 @@ namespace SteelAndBone
 
         private float PresetPlayerPressureAmount()
         {
-            if (_preset == null)
-            {
-                return 0.05f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 0.10f;
-                case Preset.Crucible:
-                    return 0.15f;
-                case Preset.Tempered:
-                default:
-                    return 0.05f;
-            }
+            return _playerDamagePressure == null
+                ? 0.10f
+                : Mathf.Clamp(_playerDamagePressure.Value, 0.0f, 0.50f);
         }
 
         private float PresetPlayerPressureCostMultiplier()
@@ -1558,95 +1775,16 @@ namespace SteelAndBone
 
         private float PresetArrowVelocityMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.10f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 1.30f;
-                case Preset.Crucible:
-                    return 1.50f;
-                case Preset.Tempered:
-                default:
-                    return 1.10f;
-            }
-        }
-
-        private static float GetPresetHostileArcherAimScatter(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    return 1.50f;
-                case Preset.Crucible:
-                    return 1.00f;
-                case Preset.Hardened:
-                default:
-                    return 1.25f;
-            }
-        }
-
-        private void ApplyPresetHostileArcherAimScatter()
-        {
-            if (_hostileArcherAimScatter == null || _preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetHostileArcherAimScatter(_preset.Value);
-            if (Math.Abs(_hostileArcherAimScatter.Value - presetValue) > NeutralTolerance)
-            {
-                _hostileArcherAimScatter.Value = presetValue;
-            }
-        }
-
-        private static bool GetPresetPreventFoodUseInCombat(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    return false;
-                case Preset.Hardened:
-                case Preset.Crucible:
-                default:
-                    return true;
-            }
-        }
-
-        private void ApplyPresetPreventFoodUseInCombat()
-        {
-            if (_preventFoodUseInCombat == null || _preset == null)
-            {
-                return;
-            }
-
-            bool presetValue = GetPresetPreventFoodUseInCombat(_preset.Value);
-            if (_preventFoodUseInCombat.Value != presetValue)
-            {
-                _preventFoodUseInCombat.Value = presetValue;
-            }
+            return _arrowVelocityMultiplier == null
+                ? 1.30f
+                : Mathf.Clamp(_arrowVelocityMultiplier.Value, 1.0f, 3.0f);
         }
 
         private float PresetEnemySightRangeMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.20f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 1.40f;
-                case Preset.Crucible:
-                    return 1.60f;
-                case Preset.Tempered:
-                default:
-                    return 1.20f;
-            }
+            return _enemyAwarenessMultiplier == null
+                ? 1.40f
+                : Mathf.Clamp(_enemyAwarenessMultiplier.Value, 1.0f, 3.0f);
         }
 
         internal float GetEnemySightRangeMultiplierForInterop()
@@ -1658,40 +1796,12 @@ namespace SteelAndBone
 
         private float PresetEnemyHearingRangeMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.20f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 1.40f;
-                case Preset.Crucible:
-                    return 1.60f;
-                case Preset.Tempered:
-                default:
-                    return 1.20f;
-            }
+            return PresetEnemySightRangeMultiplier();
         }
 
         private float PresetEnemyAggroPersistenceMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.20f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 1.40f;
-                case Preset.Crucible:
-                    return 1.60f;
-                case Preset.Tempered:
-                default:
-                    return 1.20f;
-            }
+            return PresetEnemySightRangeMultiplier();
         }
 
         internal float GetEnemyAggroPersistenceMultiplierForInterop()
@@ -1703,88 +1813,31 @@ namespace SteelAndBone
 
         private float PresetPotionPoisoningDecayPerSecond()
         {
-            if (_preset == null)
-            {
-                return 2.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 2.0f;
-                case Preset.Crucible:
-                    return 4.0f / 3.0f;
-                case Preset.Tempered:
-                default:
-                    return 4.0f;
-            }
+            float windowSeconds = _potionPoisoningWindowSeconds == null
+                ? 10.0f
+                : Mathf.Clamp(_potionPoisoningWindowSeconds.Value, 1.0f, 60.0f);
+            return 20.0f / windowSeconds;
         }
 
         private float PresetFoodHealthRateMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 0.375f;
-                case Preset.Crucible:
-                    return 0.25f;
-                case Preset.Tempered:
-                default:
-                    return 0.5f;
-            }
+            return _foodHealthRateMultiplier == null
+                ? 0.375f
+                : Mathf.Clamp(_foodHealthRateMultiplier.Value, 0.0f, 2.0f);
         }
 
         private float PresetFoodHealthDurationMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.0f;
-            }
-
-            return 4.0f;
+            return _foodHealthDurationMultiplier == null
+                ? 4.0f
+                : Mathf.Clamp(_foodHealthDurationMultiplier.Value, 0.25f, 8.0f);
         }
 
         private float PresetFoodStaminaRate()
         {
-            if (_preset == null)
-            {
-                return 0.0f;
-            }
-
-            return 1.0f;
-        }
-
-        private static float GetPresetEnemyMovementSpeedMultiplier(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Hardened:
-                    return 1.05f;
-                case Preset.Crucible:
-                    return 1.10f;
-                case Preset.Tempered:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private void ApplyPresetEnemyMovementSpeedMultiplier()
-        {
-            if (_enemyMovementSpeedMultiplier == null || _preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetEnemyMovementSpeedMultiplier(_preset.Value);
-            if (Math.Abs(_enemyMovementSpeedMultiplier.Value - presetValue) > NeutralTolerance)
-            {
-                _enemyMovementSpeedMultiplier.Value = presetValue;
-            }
+            return _foodStaminaPerSecond == null
+                ? 1.0f
+                : Mathf.Clamp(_foodStaminaPerSecond.Value, 0.0f, 10.0f);
         }
 
         private float ConfiguredEnemyMovementSpeedMultiplier(NpcElement npc)
@@ -1850,74 +1903,7 @@ namespace SteelAndBone
 
         private float PresetLightArmorMovementMultiplier()
         {
-            if (_preset == null)
-            {
-                return 1.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return 1.025f;
-                case Preset.Crucible:
-                    return 1.05f;
-                case Preset.Tempered:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private float PresetPhysicalArmorMultiplier(ItemWeight armorWeight)
-        {
-            if (_preset == null || armorWeight == null)
-            {
-                return 1.0f;
-            }
-
-            bool heavy = armorWeight == ItemWeight.Heavy || armorWeight == ItemWeight.Overload;
-            if (armorWeight != ItemWeight.Medium && !heavy)
-            {
-                return 1.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Hardened:
-                    return heavy ? 1.10f : 1.05f;
-                case Preset.Crucible:
-                    return heavy ? 1.20f : 1.10f;
-                case Preset.Tempered:
-                default:
-                    return 1.0f;
-            }
-        }
-
-        private static int GetPresetAttackSlotBonus(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Hardened:
-                    return 1;
-                case Preset.Crucible:
-                    return 2;
-                case Preset.Tempered:
-                default:
-                    return 0;
-            }
-        }
-
-        private void ApplyPresetAttackSlotBonus()
-        {
-            if (_enemyAttackSlotBonus == null || _preset == null)
-            {
-                return;
-            }
-
-            int presetValue = GetPresetAttackSlotBonus(_preset.Value);
-            if (_enemyAttackSlotBonus.Value != presetValue)
-            {
-                _enemyAttackSlotBonus.Value = presetValue;
-            }
+            return 1.0f + (PresetPenaltyAmount() * 0.5f);
         }
 
         private int ConfiguredAttackSlotBonus()
@@ -1941,34 +1927,6 @@ namespace SteelAndBone
             float before = damageModifier;
             damageModifier *= multiplier;
             LogDifficultyDiagnostic("PlayerDamageDealt", before, damageModifier, multiplier);
-        }
-
-        private static float GetPresetWeakSpotDamageBonus(Preset preset)
-        {
-            switch (preset)
-            {
-                case Preset.Tempered:
-                    return 0.10f;
-                case Preset.Crucible:
-                    return 0.30f;
-                case Preset.Hardened:
-                default:
-                    return 0.20f;
-            }
-        }
-
-        private void ApplyPresetWeakSpotDamageBonus()
-        {
-            if (_weakSpotDamageBonus == null || _preset == null)
-            {
-                return;
-            }
-
-            float presetValue = GetPresetWeakSpotDamageBonus(_preset.Value);
-            if (Math.Abs(_weakSpotDamageBonus.Value - presetValue) > NeutralTolerance)
-            {
-                _weakSpotDamageBonus.Value = presetValue;
-            }
         }
 
         private float GetActiveWeakSpotDamageBonus()
@@ -2081,19 +2039,9 @@ namespace SteelAndBone
                 * ItemRequirementsUtils.GetBlockDamageReductionMultiplier(hero, shield);
             effectiveBlock = Mathf.Clamp(effectiveBlock, 0.0f, 100.0f);
 
-            float presetShare = 0.10f;
-            if (_preset != null)
-            {
-                switch (_preset.Value)
-                {
-                    case Preset.Tempered:
-                        presetShare = 0.08f;
-                        break;
-                    case Preset.Crucible:
-                        presetShare = 0.12f;
-                        break;
-                }
-            }
+            float presetShare = _passiveShieldProtectionShare == null
+                ? 0.10f
+                : Mathf.Clamp(_passiveShieldProtectionShare.Value, 0.0f, 0.50f);
 
             float passiveReduction = effectiveBlock * 0.01f * presetShare;
             if (passiveReduction <= 0.0f)
@@ -2246,35 +2194,6 @@ namespace SteelAndBone
             float localTimeScale = deltaTime / fixedDeltaTime;
             float cancellationScale = (1.0f - gravityMultiplier) * localTimeScale * localTimeScale;
             body.AddForce(-Physics.gravity * cancellationScale, ForceMode.Acceleration);
-        }
-
-        private void ApplyPhysicalArmorProtection(Hero hero, DamageSubType damageType, ref float armor)
-        {
-            if (!DifficultyModifierIsEnabled(_modifyArmorPhysicalProtection)
-                || !IsPhysicalDamageSubtype(damageType)
-                || armor <= 0.0f)
-            {
-                return;
-            }
-
-            ArmorWeight armorWeight = hero == null ? null : hero.TryGetElement<ArmorWeight>();
-            float multiplier = PresetPhysicalArmorMultiplier(armorWeight == null ? null : armorWeight.ArmorWeightType);
-            if (ApproximatelyNeutral(multiplier))
-            {
-                return;
-            }
-
-            float before = armor;
-            armor *= multiplier;
-            LogDifficultyDiagnostic("PhysicalArmor", before, armor, multiplier);
-        }
-
-        private static bool IsPhysicalDamageSubtype(DamageSubType damageType)
-        {
-            return damageType == DamageSubType.GenericPhysical
-                || damageType == DamageSubType.Slashing
-                || damageType == DamageSubType.Piercing
-                || damageType == DamageSubType.Bludgeoning;
         }
 
         private void ApplyEnemyHearingRange(ref float noiseRange)
@@ -3880,7 +3799,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetPlayerPressureReductionMultiplier();
+            float multiplier = ConfiguredExperienceMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -3898,7 +3817,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetPlayerPressureReductionMultiplier();
+            float multiplier = ConfiguredExperienceMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -3916,7 +3835,7 @@ namespace SteelAndBone
                 return;
             }
 
-            float multiplier = PresetPlayerPressureReductionMultiplier();
+            float multiplier = ConfiguredExperienceMultiplier();
             if (ApproximatelyNeutral(multiplier))
             {
                 return;
@@ -3925,6 +3844,13 @@ namespace SteelAndBone
             float before = value;
             value *= multiplier;
             LogDifficultyDiagnostic("ProficiencyExperience", before, value, multiplier);
+        }
+
+        private float ConfiguredExperienceMultiplier()
+        {
+            return _experienceMultiplier == null
+                ? 0.90f
+                : Mathf.Clamp(_experienceMultiplier.Value, 0.25f, 1.0f);
         }
 
         private void ApplyPlayerPoiseDamage(DamageOutcome damageOutcome, ref PoisePatchState state)
@@ -4315,21 +4241,9 @@ namespace SteelAndBone
 
         private float PresetTenacityFactor()
         {
-            if (_preset == null)
-            {
-                return 1.0f;
-            }
-
-            switch (_preset.Value)
-            {
-                case Preset.Tempered:
-                    return 0.75f;
-                case Preset.Crucible:
-                    return 1.25f;
-                case Preset.Hardened:
-                default:
-                    return 1.0f;
-            }
+            return _tenacityFactor == null
+                ? 1.0f
+                : Mathf.Clamp(_tenacityFactor.Value, 0.0f, 2.0f);
         }
 
         private float HostResolveFactor(NpcElement target, Hero hero)
@@ -5603,18 +5517,6 @@ namespace SteelAndBone
                 if (plugin != null)
                 {
                     plugin.ApplyPlayerArrowGravity(__instance, deltaTime);
-                }
-            }
-        }
-
-        private static class HeroPhysicalArmorPatch
-        {
-            public static void Postfix(Hero __instance, DamageSubType damageType, ref float __result)
-            {
-                SteelAndBonePlugin plugin = Instance;
-                if (plugin != null)
-                {
-                    plugin.ApplyPhysicalArmorProtection(__instance, damageType, ref __result);
                 }
             }
         }

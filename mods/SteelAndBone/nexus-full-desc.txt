@@ -21,7 +21,7 @@ Around that foundation, optional systems improve combat feedback, enemy pressure
 [*][b]Expanded Combat Systems.[/b] Stronger perception, group aggression, projectiles, armor roles, shields, and resource pressure make positioning and equipment matter.[/*]
 [*][b]Tenacity.[/b] The campaign-wide difficulty anchor absorbs part of growing burst, control, and harmful buildup, including the considerable power ramps from Blood Magic Expansion and Soul and Service.[/*]
 [*][b]Preparation and Recovery.[/b] Food rewards sustained preparation, while repeated use of the same potion class risks resource-specific Potion Poisoning.[/*]
-[*][b]Presets.[/b] Tempered, Hardened, and Crucible scale one coherent ruleset, while major systems remain configurable or can be disabled.[/*]
+[*][b]Applied presets.[/b] Tempered, Hardened, and Crucible write one coherent set of visible balance values; editing any of them selects Custom, while major systems remain independently toggleable.[/*]
 [/list]
 
 [line]
@@ -136,15 +136,15 @@ Native aiming, movement prediction, collision, draw strength, animations, and el
 
 [b]Armor roles[/b]
 
-Armor gains clearer strengths and tradeoffs:
+Armor keeps its native protection while Steel and Bone sharpens its other strengths and tradeoffs:
 
 [list]
 [*][b]Light armor[/b] supports mobility and gains a small movement bonus on higher presets.[/*]
-[*][b]Medium armor[/b] provides improved physical protection without the full burden of Heavy armor.[/*]
-[*][b]Heavy armor[/b] provides the strongest physical protection but carries greater movement and resource costs.[/*]
+[*][b]Medium armor[/b] retains its native balance of protection and burden.[/*]
+[*][b]Heavy armor[/b] retains the strongest native protection but carries greater movement and resource costs.[/*]
 [/list]
 
-Native armor proficiency, weight classes, individual penalties, and Overload behavior remain authoritative. Magical armor checks are unchanged.
+Native armor values, proficiency, weight classes, individual penalties, and Overload behavior remain authoritative. Steel and Bone does not multiply player armor on any preset.
 
 
 [b]Passive shield protection[/b]
@@ -250,7 +250,7 @@ Potion Poisoning uses the game's native status icon and duration. Class buildup 
 
 [heading][color=#C94A4A][size=5]Presets[/size][/color][/heading]
 
-Tempered, Hardened, and Crucible scale material matchups, combat pressure, recovery, and progression as one coherent ruleset. The table below shows their main differences; individual systems can still be adjusted or disabled.
+Tempered, Hardened, and Crucible are applied templates for material matchups, combat pressure, recovery, and progression. Selecting one writes its 23 visible balance values into the three adjacent Preset sections. Editing any governed value afterward selects Custom without undoing the edit; choosing a named preset again reapplies its complete template. The table below shows their main differences.
 
 [code]
 | Modifier                        | Tempered | Hardened    | Crucible    |
@@ -279,8 +279,6 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 | Discrete food stamina / second  | 1        | 1           | 1           |
 | Native armor-weight penalties   | x1.00    | x1.05       | x1.10       |
 | Light armor movement            | x1.00    | x1.025      | x1.05       |
-| Medium physical armor           | x1.00    | x1.05       | x1.10       |
-| Heavy/Overload physical armor   | x1.00    | x1.10       | x1.20       |
 | Enemy attack slots              | +0       | +1          | +2          |
 | Enemy attack recovery time      | x1.00    | x0.95       | x0.90       |
 | Player poise damage dealt       | x1.00    | x0.95       | x0.90       |[/code]
@@ -289,9 +287,9 @@ Tempered, Hardened, and Crucible scale material matchups, combat pressure, recov
 
 Progression follows the same curve: kill, quest, objective, and proficiency experience are reduced by preset, creating a slower and more deliberate journey. Coin rewards remain unchanged.
 
-Each preset supplies coherent defaults rather than locking the player into them. Incoming and outgoing damage, weak-spot power, archer accuracy, arrow flight, resource pressure, armor, enemy aggression, recovery, and progression remain independently adjustable. The complete supporting difficulty layer can also be disabled without turning off material combat or damage feedback.
+Each preset supplies coherent live values rather than locking the player into them. Incoming and outgoing damage, weak-spot power, archer accuracy, arrow flight, resource pressure, armor-weight penalties, Light mobility, enemy aggression, recovery, and progression remain independently adjustable. System enable toggles, diagnostics, damage-number styling, player-arrow gravity, native multiplier limits, elite clamps, and target-family terms are not overwritten when a preset is selected. Prevent Food Use In Combat is the preset-governed Boolean rule value. The complete supporting difficulty layer can also be disabled without turning off material combat or damage feedback.
 
-EnemyAttackSlotBonus can be customized after selecting a preset and adds directly to the value supplied by the game or another mod.
+EnemyAttackSlotBonus can be customized after selecting a preset and adds directly to the value supplied by the game or another mod. That edit changes the selector to Custom like every other governed value.
 
 [line]
 
@@ -319,7 +317,7 @@ Start the game once to generate:
 
 [code]BepInEx/config/ks.tgfoa.steel-and-bone.cfg[/code]
 
-FoA Mod Manager organizes the settings into clear groups for presets, material combat, feedback, player pressure, armor, projectiles, enemy aggression, food, potions, progression, and diagnostics. Hardened is the default preset, but every supporting system can be adjusted or disabled independently. Expert sections expose rule intensity, family terms, and specialized tuning without crowding the common controls.
+FoA Mod Manager places the Difficulty Preset selector immediately before three visible value groups: Combat and Materials, Player Pressure and Recovery, and Enemies and Progression. Selecting Tempered, Hardened, or Crucible updates those live values and refreshes the manager display; editing one selects Custom. Hardened is the fresh-config default. Independent system enable toggles and expert sections remain separate, so choosing a preset does not overwrite system enablement, diagnostics, presentation preferences, player-arrow gravity, limits, clamps, or target-family terms. Prevent Food Use In Combat remains part of the preset template.
 
 [line]
 

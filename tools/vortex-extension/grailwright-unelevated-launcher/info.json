@@ -1,0 +1,6 @@
+{
+  "name": "Grailwright Unelevated Launcher",
+  "author": "Keenan Selbee",
+  "version": "1.0.3",
+  "description": "Redirects Vortex's Tainted Grail Play launch directly through a limited Windows task so the game does not inherit Vortex's administrator token."
+}

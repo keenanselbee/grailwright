@@ -275,6 +275,28 @@ request and reason every five minutes.
 `-SkipVortexMetadataPromotion` disables only the
 post-upload promotion step for an exceptional publish.
 
+### Unelevated Tainted Grail launcher
+
+The optional Grailwright Unelevated Launcher extension intercepts only the
+Steam `Fall of Avalon.exe` launch behind Vortex's Play button. After Vortex's
+normal deployment check, it registers and starts the per-user
+`Grailwright Launch Tainted Grail` scheduled task at Windows' limited run level.
+The Play hook invokes Task Scheduler directly, and the task runs
+`G:\Steam\steamapps\common\Tainted Grail FoA\Fall of Avalon.exe` with the game
+directory as its working directory. This prevents the game from inheriting an
+elevated Vortex process token. Alternate primary tools and non-Steam
+installations are left alone. The
+existing Tainted Grail game extension continues to own discovery, BepInEx, and
+deployment.
+
+Test, build, and install the extension, then restart Vortex once:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-VortexUnelevatedLauncherExtension.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-VortexUnelevatedLauncherExtension.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Install-VortexUnelevatedLauncherExtension.ps1 -UpdateExisting
+```
+
 Compare authored Nexus metadata with the latest recorded live state:
 
 ```powershell

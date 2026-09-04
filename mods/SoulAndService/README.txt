@@ -1,4 +1,4 @@
-Soul and Service - Summon Overhaul 3.3.3
+Soul and Service - Summon Overhaul 3.3.7
 ================================================
 
 Soul and Service makes hero summons responsive, close-following servants while
@@ -236,7 +236,8 @@ Default behavior
 - Soul Rend light cast can harvest almost every genuine non-summon corpse created
   during the current session, regardless of faction or reusable summon data.
   Meager/Worthy/Potent/Prime corpses have native randomized integer
-  values of 2-4/7-11/12-18/24-36 Soul Vigor. Rolls favor the center, corpse
+  values of 2-4/7-11/12-18/24-36 Soul Vigor and restore 20/30/40/50 Mana.
+  Rolls favor the center, corpse
   quality nudges the result within its tier, mastery adds only a subtle positive
   bonus, and the current balance value scales the final harvest award. Ordinary
   structurally safe bodies become loot-preserving simplified remains. Unique,
@@ -256,7 +257,7 @@ Default behavior
   one-copy loot-preserving simplified remains used by ordinary harvest; protected
   unique, story, presence, dialogue, and merchant bodies remain intact at
   `0 Soul Vigor` and cannot be bound.
-- Every summon costs Soul Vigor. Before balance-preset scaling, Power-100
+- Every summon costs Soul Vigor. Power-100
   tier-one through tier-six summon spells cost 3/6/9/12/15/18; Power 0 doubles
   those costs and Power 200 halves them, rounded up, with smooth scaling between.
   Each spell shows its exact effective cost.
@@ -268,17 +269,18 @@ Default behavior
   Spending can relock abilities; a Swarm order already in progress may finish.
 - Light Soul Rend dismantles an owned servant safely in layers. The first cast on
   an Empowered servant removes Empowerment and returns 75% of its exact recorded
-  Soul Vigor cost. Later casts remove two real Soulforged ranks at a time, and only
-  an unempowered rank-0 servant is unbound by the next cast. Every unique stripped
-  rank releases 3% of the servant's original refundable Mana and base Soul Vigor,
-  paid at current Health with a 50% minimum efficiency. Re-earned ranks cannot pay
-  twice; final unbinding returns the remaining pool under the normal Health rules.
+  Soul Vigor cost plus 10/15/20/25 Mana by Meager/Worthy/Potent/Prime quality.
+  Later casts remove two real Soulforged ranks at a time and award 10/15/20/25
+  Mana plus half the quality's normal corpse Vigor. Re-earned ranks can pay again.
+  The next cast on an unempowered rank-0 servant unbinds it for 15/23/30/38 Mana
+  plus 75% of its normal corpse Vigor. Rewards are immediate, ignore servant
+  Health, and final unbinding cannot leave a second harvestable corpse.
 - With Grail Floating Text, each completed ritual appears as a short Necrotic
   result. Empower and rank removal use reliable high-priority per-servant Status
   lines, show `Base` below rank I, and omit zero-value resource segments. Corpse
-  harvests show `+X Soul Vigor`; servant unbinding shows
-  `+X Mana | +Y Soul Vigor`, or Mana alone when ordinary-summon Vigor is capped.
-  GFT has no separate Mana-restoration event, so the combined line duplicates none.
+  harvests and servant unbinding show their combined `+X Mana | +Y Soul Vigor`
+  return, or only the resource that actually changed. GFT has no separate
+  Mana-restoration event, so the combined line duplicates none.
   Successful summons and reanimations report the servant name and exact Vigor
   spent; unaffordable attempts show `Requires X Soul Vigor`.
 - Successful corpse harvests and summon sacrifices each start an independent one
@@ -314,7 +316,7 @@ Default behavior
 - Successful corpse harvests advance authoritative save-backed Meager, Worthy,
   Potent, and Prime counts. Deeds of Avalon can show one total or the default four
   Necrotic quality-icon rows. Old Souls Bound and binding-count data is not imported.
-- Before balance-preset scaling, raised servants begin at a randomized 40-60%
+- Before balance-profile scaling, raised servants begin at a randomized 40-60%
   health at Power 0; the range rises and narrows until Power 200 guarantees 100%.
 - Every active ordinary or reanimated servant shares lethal necromantic upkeep,
   scaled by the current balance-preset value.
@@ -489,23 +491,27 @@ servant sustain, newly raised starting Health, and Soul Claim threshold. Progres
 milestones, capacity, damage scaling, corpse eligibility, persistence, commands,
 AI, safety rules, and investment refunds are unchanged.
 
+Grave Pact is the x1.00 baseline, with actual x1.25 Soul Vigor rewards and
+x0.75 upkeep. The visible preset values modify that baseline.
+
                           Soul        Grave
-Effective value           Famine      Pact       Dominion
-Soul Vigor rewards        x1.00       x1.50      x2.25
-Soul Vigor costs          x1.00       x0.75      x0.50
-Active and rest upkeep    x1.00       x0.60      x0.25
-Raised starting Health    x0.85       x1.00      x1.25
+Relative modifier         Famine      Pact       Dominion
+Soul Vigor rewards        x0.80       x1.00      x1.20
+Active and rest upkeep    x1.20       x1.00      x0.80
+Raised starting Health    x0.85       x1.00      x1.15
 Soul Claim threshold      -5%         +0%        +5%
 
 Starting Health is capped at full Health. At Power 0, the ordinary 40-60% base
 roll becomes approximately 34-51% on Soul Famine, 40-60% on Grave Pact, and
-50-75% on Dominion. Claim adds the preset value to its Power-, hit-, and
-quality-based threshold before the final 1-40% clamp. Harvest
-rewards round to the nearest whole Vigor; costs round up and remain at least one.
+46-69% on Dominion. Claim adds the preset value to its Power-, hit-, and
+quality-based threshold before the final 1-40% clamp. The reward and upkeep
+modifiers produce actual x1.00/x1.25/x1.50 rewards and x0.90/x0.75/x0.60
+upkeep. Harvest rewards round to the nearest whole Vigor. Soul Vigor costs stay at x1.00,
+round up, and remain at least one.
 Greater-soul pools still lose one native portion per drain, and summon or servant
 investment refunds are never multiplied.
 
-The five bounded controls appear directly below Balance Preset. Choosing Soul
+The four bounded controls appear directly below Balance Preset. Choosing Soul
 Famine, Grave Pact, or Dominion immediately writes that preset's complete values.
 Changing any one of those values switches Balance Preset to Custom and preserves
 the resulting mix. FoA Mod Manager refreshes the displayed values after either
@@ -596,7 +602,7 @@ its equipment slot and returns normally when the weapon switches back to one han
 
 Raised servants are allied copies that grant no XP or scripted death reward. With
 Persistent Servants enabled, the copy's Health, Empowerment, Soulforged progress,
-investment, staged-recovery ledger, and protected source relationship survive saving, loading, and
+quality, exact Empowerment investment, and protected source relationship survive saving, loading, and
 restarting without adding the generated copy to the game's native save graph.
 Incomplete, invalid, and persistence-disabled recovery restores the source safely
 and refunds committed Soul Vigor. The snapshot is replaced only when every hidden

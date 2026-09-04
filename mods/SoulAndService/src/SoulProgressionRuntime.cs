@@ -887,6 +887,34 @@ namespace SoulAndService
             return rolled + wholeBonus;
         }
 
+        internal static int GetNominalCorpseSoulVigorValue(
+            Grailwright.Shared.CorpseQualityTier tier)
+        {
+            switch (tier)
+            {
+                case Grailwright.Shared.CorpseQualityTier.Worthy:
+                    return 9;
+                case Grailwright.Shared.CorpseQualityTier.Potent:
+                    return 15;
+                case Grailwright.Shared.CorpseQualityTier.Prime:
+                    return 30;
+                case Grailwright.Shared.CorpseQualityTier.Meager:
+                default:
+                    return 3;
+            }
+        }
+
+        internal static int GetScaledCorpseSoulVigorAward(
+            int baseAward,
+            float rewardFraction)
+        {
+            int fullAward = ApplySoulVigorRewardMultiplier(baseAward);
+            return Math.Max(
+                0,
+                Mathf.FloorToInt(
+                    fullAward * Mathf.Clamp01(rewardFraction) + 0.5f));
+        }
+
         internal static bool TrySpendSoulVigor(
             int amount,
             out int before,
@@ -945,7 +973,9 @@ namespace SoulAndService
             float multiplier = SoulAndServicePlugin
                 .GetEffectiveBalanceTuning()
                 .SoulVigorRewardMultiplier;
-            return Math.Max(1, Mathf.RoundToInt(award * multiplier));
+            return Math.Max(
+                1,
+                Mathf.FloorToInt(award * multiplier + 0.5f));
         }
 
         internal static float GetBindingProgress01(

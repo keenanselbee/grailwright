@@ -8,7 +8,7 @@ $salvage = Get-Content -LiteralPath (Join-Path $modRoot 'src\SoulSalvageRuntime.
 $glyph = Get-Content -LiteralPath (Join-Path $modRoot 'src\ReanimationGlyphRuntime.cs') -Raw
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 28',
+    'ConfigSchemaVersion = 30',
     'RestHostBehavior.Sustain',
     'SoulforgedRankOverride.Disabled',
     'public enum SoulforgedPromotionTarget',

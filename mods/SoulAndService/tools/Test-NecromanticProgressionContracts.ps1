@@ -156,7 +156,7 @@ foreach ($legacyContract in @(
 
 foreach ($required in @(
     'HeavyCastManaCostMultiplier = 2.0f',
-    'RaisedSalvageMaximumRefundFraction = 0.75f',
+    'ServantFinalRewardFraction = 0.75f',
     'CalculateQuality01(source, null)',
     'GetQualityHealthMultiplier(',
     'RollRaisedHealthFraction(',

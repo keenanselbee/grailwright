@@ -1,3 +1,63 @@
+Version 3.3.7
+-----
+- Made the four visible balance values relative to Grave Pact so its settings
+  and startup summary now read x1.00. Soul Famine, Grave Pact, and Dominion use
+  x0.80/x1.00/x1.20 reward modifiers and x1.20/x1.00/x0.80 upkeep modifiers.
+- Retained the 3.3.6 runtime balance through fixed Grave Pact baselines of x1.25
+  Soul Vigor rewards and x0.75 upkeep. Starting Health remains
+  x0.85/x1.00/x1.15 and Soul Claim remains -5%/+0%/+5%.
+- Incremented ConfigSchemaVersion from 29 to 30 because the existing reward and
+  upkeep settings now store Grave Pact-relative modifiers instead of direct
+  runtime multipliers. Their old custom values reset safely; compatible starting
+  Health, Soul Claim, and other durable settings remain recoverable.
+  SoulAndServiceApi remains 10.
+
+Version 3.3.6
+-----
+- Rebased Grave Pact as the neutral balance profile: Soul Famine, Grave Pact,
+  and Dominion now use x1.00/x1.25/x1.50 Soul Vigor rewards,
+  x0.90/x0.75/x0.60 active and rest upkeep, x0.85/x1.00/x1.15 raised
+  starting Health, and -5%/+0%/+5% Soul Claim thresholds.
+- Fixed Soul Vigor costs at x1.00 and removed their profile setting. Light Soul
+  Rend now always costs 5 Mana, and its obsolete percentage Mana-return setting
+  was removed.
+- Made ordinary corpse harvest restore 20/30/40/50 Mana for
+  Meager/Worthy/Potent/Prime quality. Greater-soul corpse portions remain their
+  separate finite Vigor-only mechanic.
+- Simplified servant dismantling into immediate quality rewards. Severing
+  Empowerment restores half a corpse's Mana plus 75% of that Empowerment's exact
+  paid Vigor; each two-rank strip restores half the normal corpse Mana and Vigor;
+  final unbinding restores 75% of both. Re-earned ranks can pay again, Health no
+  longer reduces awards, and final unbinding cannot leave a second harvestable
+  corpse.
+- Persisted servant quality and exact Empowerment investment in the streamlined
+  version-4 raised-servant payload while retaining safe reads of versions 1-3.
+- Incremented ConfigSchemaVersion from 28 to 29 because Soul Vigor Cost
+  Multiplier and Mana Return Percent were removed and the Grave Pact reward and
+  upkeep defaults changed. Compatible customized settings remain recoverable.
+  SoulAndServiceApi remains 10.
+
+Version 3.3.5
+-----
+- Blocked ordinary summon spells before spawning when capacity has fallen below
+  the existing host size. The guard preserves native per-item restrictions and
+  normal oldest-summon replacement at the exact effective cap.
+- Kept Soul and Service reanimation and persistence recovery on their dedicated
+  capacity and restoration paths. ConfigSchemaVersion remains 28 and
+  SoulAndServiceApi remains 10; no setting or public API contract changed.
+
+Version 3.3.4
+-----
+- Kept Summon Capacity additive when Astral Bonds changes, an Origin respec
+  rebuilds talents, or a saved host reloads. The native live registry now uses
+  the same effective limit as ordinary summoning and Soul Rend admission.
+- Grew the live summon registry before adding a servant when Necromantic Power
+  or the configured bonus raises capacity. Capacity reductions preserve living
+  servants and block further admission until the host returns within its limit.
+- Kept miniboss capacity accounting consistent between its two logical slots and
+  its single physical summon-registry entry. ConfigSchemaVersion remains 28 and
+  SoulAndServiceApi remains 10; no setting or public API contract changed.
+
 Version 3.3.3
 -----
 - Extended intermediate light Soul Rend preservation across every native

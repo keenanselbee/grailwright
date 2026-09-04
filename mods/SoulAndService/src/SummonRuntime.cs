@@ -35,6 +35,7 @@ using Awaken.TG.Main.Heroes.Interactions;
 using Awaken.TG.Main.Heroes.Resting;
 using Awaken.TG.Main.Heroes.Stats;
 using Awaken.TG.Main.Heroes.Stats.Tweaks;
+using Awaken.TG.Main.Skills.Units.Variables;
 using Awaken.TG.Main.Locations;
 using Awaken.TG.Main.Locations.Actions;
 using Awaken.TG.Main.Locations.Attachments.Elements;
@@ -783,10 +784,23 @@ namespace SoulAndService
             RequireNestedType(typeof(CharacterLimitedLocations), "CharacterLocations");
         private static readonly FieldInfo LimitedLocationsField =
             AccessTools.Field(CharacterLocationsType, "_locations");
+        private static readonly FieldInfo LimitedLocationTypeField =
+            AccessTools.Field(CharacterLocationsType, "_type");
         private static readonly FieldInfo OldestIndexField =
             AccessTools.Field(CharacterLocationsType, "_oldestIndex");
         private static readonly FieldInfo EmptyCountField =
             AccessTools.Field(CharacterLocationsType, "_emptyCount");
+        private static readonly MethodInfo LimitChangedMethod =
+            RequireMethod(
+                CharacterLocationsType,
+                "LimitChanged",
+                new[] { typeof(int) });
+        private static readonly Type SummonLimitClosureType =
+            RequireNestedType(
+                typeof(SkillHeroSummonsLimit),
+                "<>c__DisplayClass0_0");
+        private static readonly MethodInfo CanSpawnSummonMethod =
+            RequireMethod(SummonLimitClosureType, "<Definition>b__1");
         private static readonly FieldInfo MovementPreventedField =
             AccessTools.Field(typeof(NpcAlly), "_movementPrevented");
         private static readonly MethodInfo LostKnightActivateCombatMethod =
@@ -872,6 +886,11 @@ namespace SoulAndService
                     typeof(SummonRuntime),
                     nameof(BeforeAddLimitedLocation)));
             harmony.Patch(
+                LimitChangedMethod,
+                prefix: new HarmonyMethod(
+                    typeof(SummonRuntime),
+                    nameof(BeforeLimitedLocationLimitChanged)));
+            harmony.Patch(
                 RequireMethod(typeof(NpcHeroSummon), "ToggleWalkThroughColliders"),
                 postfix: new HarmonyMethod(
                     typeof(SummonRuntime),
@@ -903,6 +922,11 @@ namespace SoulAndService
                 postfix: new HarmonyMethod(
                     typeof(SummonRuntime),
                     nameof(AfterGetSummonLimit)));
+            harmony.Patch(
+                CanSpawnSummonMethod,
+                postfix: new HarmonyMethod(
+                    typeof(SummonRuntime),
+                    nameof(AfterCanSpawnSummon)));
 
             harmony.Patch(
                 RequireMethod(typeof(NpcController), "Update"),
@@ -7841,9 +7865,14 @@ namespace SoulAndService
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
             if (plugin == null
                 || !plugin.IsEnabled
-                || !plugin.RepairInvocationScaling.Value
                 || __instance == null
                 || !(location is NpcHeroSummon))
+            {
+                return;
+            }
+
+            SynchronizeSummonRegistryCapacity(__instance);
+            if (!plugin.RepairInvocationScaling.Value)
             {
                 return;
             }
@@ -7873,6 +7902,67 @@ namespace SoulAndService
                     (NpcHeroSummon)location,
                     plugin);
             }
+        }
+
+        private static void SynchronizeSummonRegistryCapacity(object registry)
+        {
+            ICharacterLimitedLocation[] locations = LimitedLocationsField == null
+                ? null
+                : LimitedLocationsField.GetValue(registry)
+                    as ICharacterLimitedLocation[];
+            Hero hero = Hero.Current;
+            if (locations == null || hero == null)
+            {
+                return;
+            }
+
+            int emptyCount = EmptyCountField == null
+                ? 0
+                : (int)EmptyCountField.GetValue(registry);
+            int occupiedCount = Math.Max(0, locations.Length - emptyCount);
+            int registryLimit = Math.Max(
+                GetEffectiveSummonRegistryLimit(
+                    hero.HeroStats.SummonLimit.ModifiedInt),
+                occupiedCount);
+            if (locations.Length != registryLimit)
+            {
+                LimitChangedMethod.Invoke(
+                    registry,
+                    new object[] { hero.HeroStats.SummonLimit.ModifiedInt });
+            }
+        }
+
+        private static void BeforeLimitedLocationLimitChanged(
+            object __instance,
+            ref int __0)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null
+                || !plugin.IsEnabled
+                || __instance == null
+                || LimitedLocationTypeField == null
+                || (CharacterLimitedLocationType)LimitedLocationTypeField
+                    .GetValue(__instance) != CharacterLimitedLocationType.HeroSummon)
+            {
+                return;
+            }
+
+            ICharacterLimitedLocation[] locations = LimitedLocationsField == null
+                ? null
+                : LimitedLocationsField.GetValue(__instance)
+                    as ICharacterLimitedLocation[];
+            if (locations == null)
+            {
+                return;
+            }
+
+            int emptyCount = EmptyCountField == null
+                ? 0
+                : (int)EmptyCountField.GetValue(__instance);
+            int occupiedCount = Math.Max(0, locations.Length - emptyCount);
+            __0 = Math.Max(
+                GetEffectiveSummonRegistryLimit(__0),
+                occupiedCount);
         }
 
         private static void AfterSummonInit(NpcHeroSummon __instance)
@@ -8168,18 +8258,63 @@ namespace SoulAndService
 
         private static void AfterGetSummonLimit(ref int __result)
         {
+            __result = GetEffectiveSummonRegistryLimit(__result);
+        }
+
+        private static void AfterCanSpawnSummon(ref bool __result)
+        {
             SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
-            if (plugin != null && plugin.IsEnabled)
+            Hero hero = Hero.Current;
+            if (!__result
+                || plugin == null
+                || !plugin.IsEnabled
+                || hero == null)
             {
-                __result += SoulProgressionRuntime
-                    .GetProgressionSummonLimitBonus()
-                    + plugin.SummonLimitBonus.Value;
-                if (World.All<NpcHeroSummon>().Any(
-                    SoulSalvageRuntime.IsReanimatedMiniboss))
-                {
-                    __result = Math.Max(0, __result - 1);
-                }
+                return;
             }
+
+            int occupiedSlots = 0;
+            foreach (NpcHeroSummon summon in World.All<NpcHeroSummon>())
+            {
+                if (summon.Owner != hero
+                    || summon.Type != CharacterLimitedLocationType.HeroSummon)
+                {
+                    continue;
+                }
+                occupiedSlots += SoulSalvageRuntime.IsReanimatedMiniboss(summon)
+                    ? 2
+                    : 1;
+            }
+
+            if (occupiedSlots > GetEffectiveSummonLimit(
+                    hero.HeroStats.SummonLimit.ModifiedInt))
+            {
+                __result = false;
+            }
+        }
+
+        internal static int GetEffectiveSummonLimit(int nativeLimit)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            if (plugin == null || !plugin.IsEnabled)
+            {
+                return Math.Max(0, nativeLimit);
+            }
+
+            return Math.Max(0, nativeLimit)
+                + SoulProgressionRuntime.GetProgressionSummonLimitBonus()
+                + plugin.SummonLimitBonus.Value;
+        }
+
+        private static int GetEffectiveSummonRegistryLimit(int nativeLimit)
+        {
+            int effectiveLimit = GetEffectiveSummonLimit(nativeLimit);
+            if (World.All<NpcHeroSummon>().Any(
+                SoulSalvageRuntime.IsReanimatedMiniboss))
+            {
+                effectiveLimit--;
+            }
+            return Math.Max(0, effectiveLimit);
         }
 
         private static void AfterNpcControllerUpdate(NpcController __instance)

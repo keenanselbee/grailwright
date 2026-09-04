@@ -69,7 +69,6 @@ namespace SoulAndService
         public string CorpseFingerprint;
         public float Quality01;
         public int QualityTier;
-        public float BindingManaCost;
         public int InvestedSoulVigor;
         public int NativeSoulVigor;
         public float HealthFraction;
@@ -77,12 +76,7 @@ namespace SoulAndService
         public float SoulforgedDamageDealt;
         public int SoulforgedRank;
         public float EmpowermentMultiplier;
-        public bool RecoveryManaInitialized;
-        public float RecoveryOriginalMana;
-        public float RecoveryRemainingMana;
-        public int RecoveryOriginalSoulVigor;
         public int EmpowermentSoulVigorInvestment;
-        public int RecoveredSoulforgedRankMask;
         public bool IsMiniboss;
         public string HighSoulFingerprint;
         public int HighSoulExtractionValue;
@@ -106,17 +100,14 @@ namespace SoulAndService
             "d858e5e33ccd9ec4ea9b3099ee02d32e";
         private const string BloodRitualGreaterVfxKey =
             "bfa9aa86addeec347877ffb0fc0b4315";
-        private const float NativeManaRefundMultiplier = 0.75f;
+        private const float LightCastManaCost = 5.0f;
         private const float HeavyCastManaCostMultiplier = 2.0f;
         private const float ServantEmpowerHealthThreshold = 0.95f;
         private const float ServantHealingPowerZeroFraction = 0.20f;
         private const float ServantHealingPowerMaximumFraction = 0.50f;
-        private const float RaisedSalvageMinimumQualityFactor = 0.65f;
-        private const float RaisedSalvageMaximumQualityFactor = 1.50f;
-        private const float RaisedSalvageMaximumRefundFraction = 0.75f;
+        private const float ServantRankRewardFraction = 0.50f;
+        private const float ServantFinalRewardFraction = 0.75f;
         private const float EmpowermentSeverRefundFraction = 0.75f;
-        private const float SoulforgedRecoveryFractionPerRank = 0.03f;
-        private const float SoulforgedRecoveryMinimumHealthFraction = 0.50f;
         private const float SoulSalvageRange = 50.0f;
         private const float ReanimationPositionRefreshSeconds = 0.10f;
         private const float ComparableLightSpellBaseDamage = 5.0f;
@@ -134,7 +125,8 @@ namespace SoulAndService
         private const float ExecutedServantCleanupSeconds = 1.0f;
         private const int RaisedPersistenceLegacyVersion = 1;
         private const int RaisedPersistencePreviousVersion = 2;
-        private const int RaisedPersistenceVersion = 3;
+        private const int RaisedPersistenceRecoveryLedgerVersion = 3;
+        private const int RaisedPersistenceVersion = 4;
         private const int RaisedPersistenceMagic = 0x53525032;
         private const int RaisedPersistenceMaximumRecords = 256;
         private const int RaisedPersistenceMaximumPayloadCharacters = 2097152;
@@ -196,11 +188,9 @@ namespace SoulAndService
             internal string CorpseFingerprint;
             internal float Quality01;
             internal Grailwright.Shared.CorpseQualityTier QualityTier;
-            internal float BindingManaCost;
             internal int InvestedSoulVigor;
             internal int NativeSoulVigor;
-            internal ServantRecoveryLedger Recovery =
-                new ServantRecoveryLedger();
+            internal int EmpowermentSoulVigorInvestment;
             internal float SalvageHealthFraction = 1.0f;
             internal float ManaReturnedOnSacrifice;
             internal StatTweak QualityHealthTweak;
@@ -222,21 +212,11 @@ namespace SoulAndService
             internal int HighSoulServiceCycle;
         }
 
-        private sealed class ServantRecoveryLedger
-        {
-            internal bool ManaInitialized;
-            internal float OriginalMana;
-            internal float RemainingMana;
-            internal int OriginalSoulVigor;
-            internal int EmpowermentSoulVigorInvestment;
-            internal int RecoveredSoulforgedRankMask;
-        }
-
         private sealed class OrdinarySummonInvestment
         {
             internal int InvestedSoulVigor;
-            internal ServantRecoveryLedger Recovery =
-                new ServantRecoveryLedger();
+            internal int EmpowermentSoulVigorInvestment;
+            internal Grailwright.Shared.CorpseQualityTier QualityTier;
         }
 
         private sealed class SoulClaimPreparationState
@@ -373,6 +353,8 @@ namespace SoulAndService
             new List<string>();
         private static readonly Dictionary<string, StatTweak> HeavyCostTweaks =
             new Dictionary<string, StatTweak>();
+        private static readonly Dictionary<string, StatTweak> LightCostTweaks =
+            new Dictionary<string, StatTweak>();
         private static readonly Dictionary<Type, Dictionary<string, PropertyInfo>>
             OptionalPropertyCache =
                 new Dictionary<Type, Dictionary<string, PropertyInfo>>();
@@ -409,9 +391,6 @@ namespace SoulAndService
         private static int _pendingLightLayerPreserveThroughFrame = -1;
         private static NpcHeroSummon _lightTarget;
         private static NpcHeroSummon _heavyTarget;
-        private static float _lightOriginalMana;
-        private static float _lightHealthFraction;
-        private static float _lightMaximumManaReturn;
         private static float _lightResolvedManaReturn;
         private static float _itemRefreshDelay;
         private static float _nextSoulClaimPreparationCleanupAt;
@@ -781,6 +760,7 @@ namespace SoulAndService
                 Reanimations.Clear();
                 ExecutedServantRemains.Clear();
                 OrdinarySummonInvestments.Clear();
+                ClearSoulRendCostTweaks();
                 ReanimationGlyphRuntime.Shutdown();
                 SoulSalvageAudioRuntime.Shutdown();
                 return;
@@ -798,14 +778,7 @@ namespace SoulAndService
             }
             ExecutedServantRemains.Clear();
             Update();
-            foreach (StatTweak tweak in HeavyCostTweaks.Values.ToArray())
-            {
-                if (tweak != null && !((Model)tweak).HasBeenDiscarded)
-                {
-                    tweak.Discard();
-                }
-            }
-            HeavyCostTweaks.Clear();
+            ClearSoulRendCostTweaks();
             SoulSalvageItems.Clear();
             LightCastInfos.Clear();
             HeavyCastInfos.Clear();
@@ -924,60 +897,36 @@ namespace SoulAndService
                 OrdinarySummonInvestment investment =
                     new OrdinarySummonInvestment
                     {
-                        InvestedSoulVigor = investedVigor
-                    };
-                if (ReadPersistedInt(
-                        summonId,
-                        "ordinary_recovery_version") > 0)
-                {
-                    investment.Recovery.ManaInitialized =
-                        ReadPersistedInt(
-                            summonId,
-                            "ordinary_recovery_mana_initialized") != 0;
-                    investment.Recovery.OriginalMana = Math.Max(
-                        0.0f,
-                        ReadPersistedFloat(
-                            summonId,
-                            "ordinary_recovery_original_mana"));
-                    investment.Recovery.RemainingMana = Mathf.Clamp(
-                        ReadPersistedFloat(
-                            summonId,
-                            "ordinary_recovery_remaining_mana"),
-                        0.0f,
-                        investment.Recovery.OriginalMana);
-                    investment.Recovery.OriginalSoulVigor = Math.Max(
-                        investedVigor,
-                        ReadPersistedInt(
-                            summonId,
-                            "ordinary_recovery_original_vigor"));
-                    investment.Recovery.EmpowermentSoulVigorInvestment =
-                        Mathf.Clamp(
+                        InvestedSoulVigor = investedVigor,
+                        EmpowermentSoulVigorInvestment = Mathf.Clamp(
                             ReadPersistedInt(
                                 summonId,
                                 "ordinary_empowerment_investment"),
                             0,
-                            investedVigor);
-                    investment.Recovery.RecoveredSoulforgedRankMask =
-                        ReadPersistedInt(
-                            summonId,
-                            "ordinary_recovered_rank_mask")
-                        & ((1 << SoulforgedRuntime.MaximumRank) - 1);
-                }
-                else
-                {
-                    investment.Recovery.OriginalSoulVigor = investedVigor;
-                }
+                            investedVigor),
+                        QualityTier = ResolveOrdinarySummonQualityTier(
+                            ReadPersistedInt(
+                                summonId,
+                                "ordinary_quality_tier"),
+                            ReadPersistedInt(
+                                summonId,
+                                "ordinary_recovery_version") >= 2,
+                            summon.Item)
+                    };
                 OrdinarySummonInvestments[summonId] = investment;
                 return;
             }
             if (!plugin.SoulSalvageOverhaul.Value)
             {
-                OrdinarySummonInvestments[summonId] =
-                    new OrdinarySummonInvestment();
+                OrdinarySummonInvestment investment =
+                    new OrdinarySummonInvestment
+                    {
+                        QualityTier = GetOrdinarySummonQualityTier(summon.Item)
+                    };
+                OrdinarySummonInvestments[summonId] = investment;
                 if (persistent)
                 {
-                    WritePersistedInt(summonId, "ordinary_active", 1);
-                    WritePersistedInt(summonId, "ordinary_investment", 0);
+                    SaveOrdinarySummonInvestment(summonId, investment);
                 }
                 return;
             }
@@ -999,9 +948,9 @@ namespace SoulAndService
                 OrdinarySummonInvestment investment =
                     new OrdinarySummonInvestment
                     {
-                        InvestedSoulVigor = committedVigor
+                        InvestedSoulVigor = committedVigor,
+                        QualityTier = GetOrdinarySummonQualityTier(summon.Item)
                     };
-                investment.Recovery.OriginalSoulVigor = committedVigor;
                 OrdinarySummonInvestments[summonId] = investment;
                 if (persistent)
                 {
@@ -1100,15 +1049,18 @@ namespace SoulAndService
                     ReadPersistedInt(summonId, "quality_tier"),
                     (int)Grailwright.Shared.CorpseQualityTier.Meager,
                     (int)Grailwright.Shared.CorpseQualityTier.Prime),
-                BindingManaCost = Math.Max(0.0f, ReadPersistedFloat(
-                    summonId,
-                    "binding_mana")),
                 InvestedSoulVigor = Math.Max(0, ReadPersistedInt(
                     summonId,
                     "invested_vigor")),
                 NativeSoulVigor = Math.Max(0, ReadPersistedInt(
                     summonId,
                     "native_vigor")),
+                EmpowermentSoulVigorInvestment = Mathf.Clamp(
+                    ReadPersistedInt(summonId, "empowerment_investment"),
+                    0,
+                    Math.Max(0, ReadPersistedInt(
+                        summonId,
+                        "invested_vigor"))),
                 OriginalCoords = source == null ? npc.Coords : source.Coords,
                 OriginalRotation = source == null
                     ? npc.ParentModel.Rotation
@@ -1119,7 +1071,6 @@ namespace SoulAndService
                     : npc.ParentModel.Rotation,
                 ServiceInitialized = true
             };
-            EnsureRaisedRecoveryLedger(record);
             if (string.IsNullOrEmpty(record.SourceDisplayName))
             {
                 record.SourceDisplayName = GetCorpseDisplayName(source);
@@ -1261,6 +1212,7 @@ namespace SoulAndService
                 }
                 if (loadedVersion != RaisedPersistenceLegacyVersion
                     && loadedVersion != RaisedPersistencePreviousVersion
+                    && loadedVersion != RaisedPersistenceRecoveryLedgerVersion
                     && loadedVersion != RaisedPersistenceVersion)
                 {
                     throw new InvalidOperationException(
@@ -1703,30 +1655,12 @@ namespace SoulAndService
                         snapshot.QualityTier,
                         (int)Grailwright.Shared.CorpseQualityTier.Meager,
                         (int)Grailwright.Shared.CorpseQualityTier.Prime),
-                    BindingManaCost = Math.Max(0.0f, snapshot.BindingManaCost),
                     InvestedSoulVigor = Math.Max(0, snapshot.InvestedSoulVigor),
                     NativeSoulVigor = Math.Max(0, snapshot.NativeSoulVigor),
-                    Recovery = new ServantRecoveryLedger
-                    {
-                        ManaInitialized = snapshot.RecoveryManaInitialized,
-                        OriginalMana = Math.Max(
-                            0.0f,
-                            snapshot.RecoveryOriginalMana),
-                        RemainingMana = Mathf.Clamp(
-                            snapshot.RecoveryRemainingMana,
-                            0.0f,
-                            Math.Max(0.0f, snapshot.RecoveryOriginalMana)),
-                        OriginalSoulVigor = Math.Max(
-                            0,
-                            snapshot.RecoveryOriginalSoulVigor),
-                        EmpowermentSoulVigorInvestment = Mathf.Clamp(
-                            snapshot.EmpowermentSoulVigorInvestment,
-                            0,
-                            Math.Max(0, snapshot.InvestedSoulVigor)),
-                        RecoveredSoulforgedRankMask =
-                            snapshot.RecoveredSoulforgedRankMask
-                            & ((1 << SoulforgedRuntime.MaximumRank) - 1)
-                    },
+                    EmpowermentSoulVigorInvestment = Mathf.Clamp(
+                        snapshot.EmpowermentSoulVigorInvestment,
+                        0,
+                        Math.Max(0, snapshot.InvestedSoulVigor)),
                     OriginalCoords = source == null ? position : source.Coords,
                     OriginalRotation = source == null ? hero.Rotation : source.Rotation,
                     LastSafeCoords = position,
@@ -1737,7 +1671,6 @@ namespace SoulAndService
                     HighSoulExtractionValue = snapshot.HighSoulExtractionValue,
                     HighSoulServiceCycle = snapshot.HighSoulServiceCycle
                 };
-                EnsureRaisedRecoveryLedger(record);
                 Reanimations[summonId] = record;
                 if (source != null)
                 {
@@ -1791,18 +1724,9 @@ namespace SoulAndService
             if (string.IsNullOrEmpty(snapshot.SourceId)
                 || !IsPersistedInteractability(snapshot.SourceInteractability)
                 || snapshot.InvestedSoulVigor < 0
-                || !IsFinite(snapshot.RecoveryOriginalMana)
-                || snapshot.RecoveryOriginalMana < 0.0f
-                || !IsFinite(snapshot.RecoveryRemainingMana)
-                || snapshot.RecoveryRemainingMana < 0.0f
-                || snapshot.RecoveryRemainingMana
-                    > snapshot.RecoveryOriginalMana
-                || snapshot.RecoveryOriginalSoulVigor < 0
                 || snapshot.EmpowermentSoulVigorInvestment < 0
                 || snapshot.EmpowermentSoulVigorInvestment
-                    > snapshot.InvestedSoulVigor
-                || (snapshot.RecoveredSoulforgedRankMask
-                    & ~((1 << SoulforgedRuntime.MaximumRank) - 1)) != 0)
+                    > snapshot.InvestedSoulVigor)
             {
                 return false;
             }
@@ -1818,8 +1742,6 @@ namespace SoulAndService
                     >= (int)Grailwright.Shared.CorpseQualityTier.Meager
                 && snapshot.QualityTier
                     <= (int)Grailwright.Shared.CorpseQualityTier.Prime
-                && IsFinite(snapshot.BindingManaCost)
-                && snapshot.BindingManaCost >= 0.0f
                 && snapshot.NativeSoulVigor >= 0
                 && IsFinite(snapshot.HealthFraction)
                 && snapshot.HealthFraction >= 0.0f
@@ -2278,7 +2200,6 @@ namespace SoulAndService
                         snapshot.CorpseFingerprint);
                     writer.Write(snapshot.Quality01);
                     writer.Write(snapshot.QualityTier);
-                    writer.Write(snapshot.BindingManaCost);
                     writer.Write(snapshot.InvestedSoulVigor);
                     writer.Write(snapshot.NativeSoulVigor);
                     writer.Write(snapshot.HealthFraction);
@@ -2286,12 +2207,7 @@ namespace SoulAndService
                     writer.Write(snapshot.SoulforgedDamageDealt);
                     writer.Write(snapshot.SoulforgedRank);
                     writer.Write(snapshot.EmpowermentMultiplier);
-                    writer.Write(snapshot.RecoveryManaInitialized);
-                    writer.Write(snapshot.RecoveryOriginalMana);
-                    writer.Write(snapshot.RecoveryRemainingMana);
-                    writer.Write(snapshot.RecoveryOriginalSoulVigor);
                     writer.Write(snapshot.EmpowermentSoulVigorInvestment);
-                    writer.Write(snapshot.RecoveredSoulforgedRankMask);
                     writer.Write(snapshot.IsMiniboss);
                     WriteRaisedPersistenceString(
                         writer,
@@ -2340,6 +2256,7 @@ namespace SoulAndService
                 }
                 version = reader.ReadInt32();
                 if (version != RaisedPersistencePreviousVersion
+                    && version != RaisedPersistenceRecoveryLedgerVersion
                     && version != RaisedPersistenceVersion)
                 {
                     throw new InvalidDataException(
@@ -2370,34 +2287,34 @@ namespace SoulAndService
                         CorpseFingerprint =
                             ReadRaisedPersistenceString(reader),
                         Quality01 = reader.ReadSingle(),
-                        QualityTier = reader.ReadInt32(),
-                        BindingManaCost = reader.ReadSingle(),
-                        InvestedSoulVigor = reader.ReadInt32(),
-                        NativeSoulVigor = reader.ReadInt32(),
-                        HealthFraction = reader.ReadSingle(),
-                        SoulforgedOriginalMaximumHealth = reader.ReadSingle(),
-                        SoulforgedDamageDealt = reader.ReadSingle(),
-                        SoulforgedRank = reader.ReadInt32(),
-                        EmpowermentMultiplier = reader.ReadSingle()
+                        QualityTier = reader.ReadInt32()
                     };
-                    if (version >= RaisedPersistenceVersion)
+                    if (version <= RaisedPersistenceRecoveryLedgerVersion)
                     {
-                        snapshot.RecoveryManaInitialized =
-                            reader.ReadBoolean();
-                        snapshot.RecoveryOriginalMana = reader.ReadSingle();
-                        snapshot.RecoveryRemainingMana = reader.ReadSingle();
-                        snapshot.RecoveryOriginalSoulVigor = reader.ReadInt32();
+                        reader.ReadSingle();
+                    }
+                    snapshot.InvestedSoulVigor = reader.ReadInt32();
+                    snapshot.NativeSoulVigor = reader.ReadInt32();
+                    snapshot.HealthFraction = reader.ReadSingle();
+                    snapshot.SoulforgedOriginalMaximumHealth =
+                        reader.ReadSingle();
+                    snapshot.SoulforgedDamageDealt = reader.ReadSingle();
+                    snapshot.SoulforgedRank = reader.ReadInt32();
+                    snapshot.EmpowermentMultiplier = reader.ReadSingle();
+                    if (version == RaisedPersistenceRecoveryLedgerVersion)
+                    {
+                        reader.ReadBoolean();
+                        reader.ReadSingle();
+                        reader.ReadSingle();
+                        reader.ReadInt32();
                         snapshot.EmpowermentSoulVigorInvestment =
                             reader.ReadInt32();
-                        snapshot.RecoveredSoulforgedRankMask =
-                            reader.ReadInt32();
+                        reader.ReadInt32();
                     }
-                    else
+                    else if (version >= RaisedPersistenceVersion)
                     {
-                        snapshot.RecoveryOriginalSoulVigor = Math.Max(
-                            0,
-                            snapshot.NativeSoulVigor
-                                + snapshot.InvestedSoulVigor);
+                        snapshot.EmpowermentSoulVigorInvestment =
+                            reader.ReadInt32();
                     }
                     snapshot.IsMiniboss = reader.ReadBoolean();
                     snapshot.HighSoulFingerprint =
@@ -2475,7 +2392,6 @@ namespace SoulAndService
                     StringComparison.Ordinal)
                 && expected.Quality01 == actual.Quality01
                 && expected.QualityTier == actual.QualityTier
-                && expected.BindingManaCost == actual.BindingManaCost
                 && expected.InvestedSoulVigor == actual.InvestedSoulVigor
                 && expected.NativeSoulVigor == actual.NativeSoulVigor
                 && expected.HealthFraction == actual.HealthFraction
@@ -2486,18 +2402,8 @@ namespace SoulAndService
                 && expected.SoulforgedRank == actual.SoulforgedRank
                 && expected.EmpowermentMultiplier
                     == actual.EmpowermentMultiplier
-                && expected.RecoveryManaInitialized
-                    == actual.RecoveryManaInitialized
-                && expected.RecoveryOriginalMana
-                    == actual.RecoveryOriginalMana
-                && expected.RecoveryRemainingMana
-                    == actual.RecoveryRemainingMana
-                && expected.RecoveryOriginalSoulVigor
-                    == actual.RecoveryOriginalSoulVigor
                 && expected.EmpowermentSoulVigorInvestment
                     == actual.EmpowermentSoulVigorInvestment
-                && expected.RecoveredSoulforgedRankMask
-                    == actual.RecoveredSoulforgedRankMask
                 && expected.IsMiniboss == actual.IsMiniboss
                 && string.Equals(
                     expected.HighSoulFingerprint,
@@ -2517,7 +2423,6 @@ namespace SoulAndService
             {
                 return null;
             }
-            EnsureRaisedRecoveryLedger(record);
             RaisedPersistenceSnapshot snapshot = new RaisedPersistenceSnapshot
             {
                 Phase = RaisedPersistencePending,
@@ -2525,30 +2430,10 @@ namespace SoulAndService
                 SourceInteractability = GetPersistedInteractability(
                     record.SourceInteractability),
                 InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor),
-                RecoveryManaInitialized = record.Recovery != null
-                    && record.Recovery.ManaInitialized,
-                RecoveryOriginalMana = record.Recovery == null
-                    ? 0.0f
-                    : Math.Max(0.0f, record.Recovery.OriginalMana),
-                RecoveryRemainingMana = record.Recovery == null
-                    ? 0.0f
-                    : Mathf.Clamp(
-                        record.Recovery.RemainingMana,
-                        0.0f,
-                        Math.Max(0.0f, record.Recovery.OriginalMana)),
-                RecoveryOriginalSoulVigor = record.Recovery == null
-                    ? 0
-                    : Math.Max(0, record.Recovery.OriginalSoulVigor),
-                EmpowermentSoulVigorInvestment = record.Recovery == null
-                    ? 0
-                    : Mathf.Clamp(
-                        record.Recovery.EmpowermentSoulVigorInvestment,
-                        0,
-                        Math.Max(0, record.InvestedSoulVigor)),
-                RecoveredSoulforgedRankMask = record.Recovery == null
-                    ? 0
-                    : record.Recovery.RecoveredSoulforgedRankMask
-                        & ((1 << SoulforgedRuntime.MaximumRank) - 1),
+                EmpowermentSoulVigorInvestment = Mathf.Clamp(
+                    record.EmpowermentSoulVigorInvestment,
+                    0,
+                    Math.Max(0, record.InvestedSoulVigor)),
                 IsMiniboss = record.IsMiniboss,
                 HighSoulFingerprint = record.HighSoulFingerprint,
                 HighSoulExtractionValue = record.HighSoulExtractionValue,
@@ -2578,7 +2463,6 @@ namespace SoulAndService
             snapshot.CorpseFingerprint = record.CorpseFingerprint;
             snapshot.Quality01 = record.Quality01;
             snapshot.QualityTier = (int)record.QualityTier;
-            snapshot.BindingManaCost = record.BindingManaCost;
             snapshot.NativeSoulVigor = record.NativeSoulVigor;
             snapshot.HealthFraction = record.RaisedNpc.Health == null
                 ? 1.0f
@@ -2597,30 +2481,10 @@ namespace SoulAndService
                     SourceInteractability = GetPersistedInteractability(
                         record.SourceInteractability),
                     InvestedSoulVigor = Math.Max(0, record.InvestedSoulVigor),
-                    RecoveryManaInitialized = record.Recovery != null
-                        && record.Recovery.ManaInitialized,
-                    RecoveryOriginalMana = record.Recovery == null
-                        ? 0.0f
-                        : Math.Max(0.0f, record.Recovery.OriginalMana),
-                    RecoveryRemainingMana = record.Recovery == null
-                        ? 0.0f
-                        : Mathf.Clamp(
-                            record.Recovery.RemainingMana,
-                            0.0f,
-                            Math.Max(0.0f, record.Recovery.OriginalMana)),
-                    RecoveryOriginalSoulVigor = record.Recovery == null
-                        ? 0
-                        : Math.Max(0, record.Recovery.OriginalSoulVigor),
-                    EmpowermentSoulVigorInvestment = record.Recovery == null
-                        ? 0
-                        : Mathf.Clamp(
-                            record.Recovery.EmpowermentSoulVigorInvestment,
-                            0,
-                            Math.Max(0, record.InvestedSoulVigor)),
-                    RecoveredSoulforgedRankMask = record.Recovery == null
-                        ? 0
-                        : record.Recovery.RecoveredSoulforgedRankMask
-                            & ((1 << SoulforgedRuntime.MaximumRank) - 1),
+                    EmpowermentSoulVigorInvestment = Mathf.Clamp(
+                        record.EmpowermentSoulVigorInvestment,
+                        0,
+                        Math.Max(0, record.InvestedSoulVigor)),
                     IsMiniboss = record.IsMiniboss,
                     HighSoulFingerprint = record.HighSoulFingerprint,
                     HighSoulExtractionValue = record.HighSoulExtractionValue,
@@ -2773,49 +2637,6 @@ namespace SoulAndService
             }
         }
 
-        private static void EnsureRaisedRecoveryLedger(
-            ReanimationRecord record)
-        {
-            if (record == null)
-            {
-                return;
-            }
-            if (record.Recovery == null)
-            {
-                record.Recovery = new ServantRecoveryLedger();
-            }
-            int baseVigor = Math.Max(
-                0,
-                record.NativeSoulVigor
-                    + record.InvestedSoulVigor
-                    - record.Recovery.EmpowermentSoulVigorInvestment);
-            if (record.Recovery.OriginalSoulVigor <= 0 && baseVigor > 0)
-            {
-                record.Recovery.OriginalSoulVigor = baseVigor;
-            }
-        }
-
-        private static void EnsureOrdinaryRecoveryLedger(
-            OrdinarySummonInvestment investment)
-        {
-            if (investment == null)
-            {
-                return;
-            }
-            if (investment.Recovery == null)
-            {
-                investment.Recovery = new ServantRecoveryLedger();
-            }
-            int baseVigor = Math.Max(
-                0,
-                investment.InvestedSoulVigor
-                    - investment.Recovery.EmpowermentSoulVigorInvestment);
-            if (investment.Recovery.OriginalSoulVigor <= 0 && baseVigor > 0)
-            {
-                investment.Recovery.OriginalSoulVigor = baseVigor;
-            }
-        }
-
         private static void SaveOrdinarySummonInvestment(
             string summonId,
             OrdinarySummonInvestment investment)
@@ -2824,44 +2645,23 @@ namespace SoulAndService
             {
                 return;
             }
-            EnsureOrdinaryRecoveryLedger(investment);
             WritePersistedInt(summonId, "ordinary_active", 1);
             WritePersistedInt(
                 summonId,
                 "ordinary_investment",
                 Math.Max(0, investment.InvestedSoulVigor));
-            WritePersistedInt(summonId, "ordinary_recovery_version", 1);
-            WritePersistedInt(
-                summonId,
-                "ordinary_recovery_mana_initialized",
-                investment.Recovery.ManaInitialized ? 1 : 0);
-            WritePersistedFloat(
-                summonId,
-                "ordinary_recovery_original_mana",
-                Math.Max(0.0f, investment.Recovery.OriginalMana));
-            WritePersistedFloat(
-                summonId,
-                "ordinary_recovery_remaining_mana",
-                Mathf.Clamp(
-                    investment.Recovery.RemainingMana,
-                    0.0f,
-                    Math.Max(0.0f, investment.Recovery.OriginalMana)));
-            WritePersistedInt(
-                summonId,
-                "ordinary_recovery_original_vigor",
-                Math.Max(0, investment.Recovery.OriginalSoulVigor));
+            WritePersistedInt(summonId, "ordinary_recovery_version", 2);
             WritePersistedInt(
                 summonId,
                 "ordinary_empowerment_investment",
                 Mathf.Clamp(
-                    investment.Recovery.EmpowermentSoulVigorInvestment,
+                    investment.EmpowermentSoulVigorInvestment,
                     0,
                     Math.Max(0, investment.InvestedSoulVigor)));
             WritePersistedInt(
                 summonId,
-                "ordinary_recovered_rank_mask",
-                investment.Recovery.RecoveredSoulforgedRankMask
-                    & ((1 << SoulforgedRuntime.MaximumRank) - 1));
+                "ordinary_quality_tier",
+                (int)investment.QualityTier);
         }
 
         private static int ReadDeferredSourceInt(string sourceId, string value)
@@ -3049,6 +2849,7 @@ namespace SoulAndService
                 summonId,
                 "ordinary_empowerment_investment",
                 0);
+            WritePersistedInt(summonId, "ordinary_quality_tier", 0);
             WritePersistedInt(
                 summonId,
                 "ordinary_recovered_rank_mask",
@@ -3098,11 +2899,12 @@ namespace SoulAndService
             }
 
             string itemId = ((Model)item).ID;
+            RemoveLightCostTweak(itemId);
             RemoveHeavyCostTweak(itemId);
             SoulSalvageItems[itemId] = __instance;
             LightCastInfos.Add(item.LightCastInfo);
             HeavyCastInfos.Add(item.HeavyCastInfo);
-            EnsureHeavyCostTweak(itemId, __instance);
+            EnsureSoulRendCostTweaks(itemId, __instance);
         }
 
         private static void AfterGetItemDisplayName(Item __instance, ref string __result)
@@ -3160,8 +2962,8 @@ namespace SoulAndService
 
             if (LightCastInfos.Contains(__instance))
             {
-                __result = "Corpses: Harvest for Soul Vigor.\n"
-                    + "Servants: Strip Empowerment, then two Soulforged ranks per cast; unbind at rank 0."
+                __result = "Corpses: Harvest quality-based Mana and Soul Vigor.\n"
+                    + "Servants: Strip Empowerment, then two Soulforged ranks per cast; unbind at rank 0 for quality-based rewards."
                     + (plugin.LivingTargetSoulSalvage.Value
                         ? "\nEnemies: Deal Necrotic damage. Each surviving hit raises that enemy's Soul Claim threshold by 2%, up to 10%."
                         : string.Empty);
@@ -3237,6 +3039,38 @@ namespace SoulAndService
             return 1;
         }
 
+        private static Grailwright.Shared.CorpseQualityTier
+            GetOrdinarySummonQualityTier(Item item)
+        {
+            int summonTier = GetOrdinarySummonTier(item);
+            if (summonTier >= 6)
+            {
+                return Grailwright.Shared.CorpseQualityTier.Prime;
+            }
+            if (summonTier >= 4)
+            {
+                return Grailwright.Shared.CorpseQualityTier.Potent;
+            }
+            return summonTier >= 3
+                ? Grailwright.Shared.CorpseQualityTier.Worthy
+                : Grailwright.Shared.CorpseQualityTier.Meager;
+        }
+
+        private static Grailwright.Shared.CorpseQualityTier
+            ResolveOrdinarySummonQualityTier(
+                int persistedTier,
+                bool hasPersistedQuality,
+                Item item)
+        {
+            return hasPersistedQuality
+                && persistedTier
+                    >= (int)Grailwright.Shared.CorpseQualityTier.Meager
+                && persistedTier
+                    <= (int)Grailwright.Shared.CorpseQualityTier.Prime
+                ? (Grailwright.Shared.CorpseQualityTier)persistedTier
+                : GetOrdinarySummonQualityTier(item);
+        }
+
         private static int GetOrdinarySummonSoulVigorCost(int summonTier, float power)
         {
             return GetPowerScaledSoulVigorCost(
@@ -3280,9 +3114,8 @@ namespace SoulAndService
             if (Reanimations.TryGetValue(summonId, out record)
                 && record != null)
             {
-                EnsureRaisedRecoveryLedger(record);
                 record.InvestedSoulVigor += committedVigor;
-                record.Recovery.EmpowermentSoulVigorInvestment +=
+                record.EmpowermentSoulVigorInvestment +=
                     committedVigor;
                 SavePersistentReanimation(summonId, record);
                 return;
@@ -3293,12 +3126,14 @@ namespace SoulAndService
                     out investment)
                 || investment == null)
             {
-                investment = new OrdinarySummonInvestment();
+                investment = new OrdinarySummonInvestment
+                {
+                    QualityTier = GetOrdinarySummonQualityTier(summon.Item)
+                };
                 OrdinarySummonInvestments[summonId] = investment;
             }
-            EnsureOrdinaryRecoveryLedger(investment);
             investment.InvestedSoulVigor += committedVigor;
-            investment.Recovery.EmpowermentSoulVigorInvestment +=
+            investment.EmpowermentSoulVigorInvestment +=
                 committedVigor;
             SaveOrdinarySummonInvestment(summonId, investment);
         }
@@ -3338,12 +3173,59 @@ namespace SoulAndService
                     SoulSalvageItemRemovalBuffer.Add(itemId);
                     continue;
                 }
-                EnsureHeavyCostTweak(itemId, stats);
+                EnsureSoulRendCostTweaks(itemId, stats);
             }
             foreach (string itemId in SoulSalvageItemRemovalBuffer)
             {
+                RemoveLightCostTweak(itemId);
                 RemoveHeavyCostTweak(itemId);
                 SoulSalvageItems.Remove(itemId);
+            }
+        }
+
+        private static void EnsureSoulRendCostTweaks(
+            string itemId,
+            ItemStats stats)
+        {
+            SoulAndServicePlugin plugin = SoulAndServicePlugin.Instance;
+            bool shouldApply = plugin != null
+                && plugin.IsEnabled
+                && plugin.SoulSalvageOverhaul.Value;
+            StatTweak existing;
+            if (LightCostTweaks.TryGetValue(itemId, out existing))
+            {
+                if (existing != null
+                    && !((Model)existing).HasBeenDiscarded
+                    && shouldApply)
+                {
+                    EnsureHeavyCostTweak(itemId, stats);
+                    return;
+                }
+                RemoveLightCostTweak(itemId);
+            }
+            if (shouldApply && stats != null && stats.LightCastManaCost != null)
+            {
+                StatTweak tweak = StatTweak.Override(
+                    stats.LightCastManaCost,
+                    LightCastManaCost,
+                    null,
+                    stats.ParentModel);
+                ((Model)tweak).MarkedNotSaved = true;
+                LightCostTweaks[itemId] = tweak;
+            }
+            EnsureHeavyCostTweak(itemId, stats);
+        }
+
+        private static void RemoveLightCostTweak(string itemId)
+        {
+            StatTweak tweak;
+            if (LightCostTweaks.TryGetValue(itemId, out tweak))
+            {
+                LightCostTweaks.Remove(itemId);
+                if (tweak != null && !((Model)tweak).HasBeenDiscarded)
+                {
+                    tweak.Discard();
+                }
             }
         }
 
@@ -3389,6 +3271,20 @@ namespace SoulAndService
                     tweak.Discard();
                 }
             }
+        }
+
+        private static void ClearSoulRendCostTweaks()
+        {
+            foreach (StatTweak tweak in LightCostTweaks.Values
+                .Concat(HeavyCostTweaks.Values).ToArray())
+            {
+                if (tweak != null && !((Model)tweak).HasBeenDiscarded)
+                {
+                    tweak.Discard();
+                }
+            }
+            LightCostTweaks.Clear();
+            HeavyCostTweaks.Clear();
         }
 
         internal static bool IsSoulSalvageItem(Item item)
@@ -3486,9 +3382,6 @@ namespace SoulAndService
             _lightPreserveTarget = false;
             _lightTarget = null;
             _heavyTarget = null;
-            _lightOriginalMana = 0.0f;
-            _lightHealthFraction = 0.0f;
-            _lightMaximumManaReturn = float.PositiveInfinity;
             _lightResolvedManaReturn = 0.0f;
             if (!lightCast)
             {
@@ -3589,43 +3482,8 @@ namespace SoulAndService
             }
 
             _lightTarget = __instance;
-            ReanimationRecord raisedRecord;
-            if (Reanimations.TryGetValue(((Model)__instance).ID, out raisedRecord))
-            {
-                if (raisedRecord.IsMiniboss)
-                {
-                    _lightOriginalMana = 0.0f;
-                    _lightMaximumManaReturn = 0.0f;
-                }
-                else
-                {
-                    float corpseQuality = Mathf.Lerp(
-                        RaisedSalvageMinimumQualityFactor,
-                        RaisedSalvageMaximumQualityFactor,
-                        Mathf.Clamp01(raisedRecord.Quality01));
-                    _lightOriginalMana = Math.Max(
-                        0.0f,
-                        raisedRecord.BindingManaCost * corpseQuality);
-                    _lightMaximumManaReturn = Math.Max(
-                        0.0f,
-                        raisedRecord.BindingManaCost
-                        * RaisedSalvageMaximumRefundFraction);
-                }
-            }
-            else
-            {
-                _lightOriginalMana = Math.Max(0.0f, ____manaExpended);
-                _lightMaximumManaReturn = float.PositiveInfinity;
-            }
-            _lightHealthFraction = __instance.ParentModel != null
-                && __instance.ParentModel.Health != null
-                    ? Mathf.Clamp01(__instance.ParentModel.Health.Percentage)
-                    : 0.0f;
-
             CompleteLightSummonHarvest(__instance);
-            __result = NativeManaRefundMultiplier > 0.0f
-                ? _lightResolvedManaReturn / NativeManaRefundMultiplier
-                : 0.0f;
+            __result = 0.0f;
             return false;
         }
 
@@ -3780,18 +3638,22 @@ namespace SoulAndService
                         out ordinaryInvestment)
                     || ordinaryInvestment == null))
             {
-                ordinaryInvestment = new OrdinarySummonInvestment();
+                ordinaryInvestment = new OrdinarySummonInvestment
+                {
+                    QualityTier = GetOrdinarySummonQualityTier(summon.Item)
+                };
                 OrdinarySummonInvestments[summonId] = ordinaryInvestment;
             }
-
-            ServantRecoveryLedger recovery = EnsureLightRecoveryLedger(
-                summonId,
-                raisedRecord,
-                ordinaryInvestment,
-                plugin);
             string displayName = raisedServant
                 ? raisedRecord.SourceDisplayName
                 : GetSummonDisplayName(summon);
+            Grailwright.Shared.CorpseQualityTier qualityTier = raisedServant
+                ? raisedRecord.QualityTier
+                : ordinaryInvestment.QualityTier;
+            int baseCorpseVigor = raisedServant
+                ? Math.Max(0, raisedRecord.NativeSoulVigor)
+                : SoulProgressionRuntime.GetNominalCorpseSoulVigorValue(
+                    qualityTier);
 
             if (SummonRuntime.IsEmpoweredSummon(summon))
             {
@@ -3805,15 +3667,18 @@ namespace SoulAndService
                     return;
                 }
 
-                int empowermentInvestment = recovery == null
-                    ? 0
+                int empowermentInvestment = raisedServant
+                    ? Math.Max(
+                        0,
+                        raisedRecord.EmpowermentSoulVigorInvestment)
                     : Math.Max(
                         0,
-                        recovery.EmpowermentSoulVigorInvestment);
+                        ordinaryInvestment.EmpowermentSoulVigorInvestment);
                 int requestedRefund = Mathf.Clamp(
-                    Mathf.RoundToInt(
+                    Mathf.FloorToInt(
                         empowermentInvestment
-                            * EmpowermentSeverRefundFraction),
+                            * EmpowermentSeverRefundFraction
+                            + 0.5f),
                     0,
                     empowermentInvestment);
                 if (raisedServant)
@@ -3822,7 +3687,7 @@ namespace SoulAndService
                         0,
                         raisedRecord.InvestedSoulVigor
                             - empowermentInvestment);
-                    recovery.EmpowermentSoulVigorInvestment = 0;
+                    raisedRecord.EmpowermentSoulVigorInvestment = 0;
                     SavePersistentReanimation(summonId, raisedRecord);
                 }
                 else
@@ -3831,17 +3696,22 @@ namespace SoulAndService
                         0,
                         ordinaryInvestment.InvestedSoulVigor
                             - empowermentInvestment);
-                    recovery.EmpowermentSoulVigorInvestment = 0;
+                    ordinaryInvestment.EmpowermentSoulVigorInvestment = 0;
                     SaveOrdinarySummonInvestment(
                         summonId,
                         ordinaryInvestment);
                 }
                 int actualRefund = SoulProgressionRuntime.RestoreSoulVigor(
                     requestedRefund);
+                _lightResolvedManaReturn = RestoreHeroMana(
+                    GetFractionalCorpseManaReward(
+                        qualityTier,
+                        ServantRankRewardFraction));
                 SoulProgressionRuntime.ShowServantSoulRendStage(
                     "servant-empowerment-severed",
                     summonId,
                     displayName + ": Empowerment severed"
+                    + FormatManaReward(_lightResolvedManaReturn)
                     + (actualRefund > 0
                         ? " | +" + actualRefund.ToString(
                             CultureInfo.InvariantCulture)
@@ -3853,6 +3723,10 @@ namespace SoulAndService
                 plugin.LogDiagnostic(
                     "Soul Rend severed Empowerment from " + summonId
                     + ": investedVigor=" + empowermentInvestment
+                    + "; mana="
+                    + _lightResolvedManaReturn.ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
                     + "; refund=" + actualRefund + ".");
                 return;
             }
@@ -3874,28 +3748,23 @@ namespace SoulAndService
                     return;
                 }
 
-                int vigorAward = 0;
-                if (!raisedServant || !raisedRecord.IsMiniboss)
+                _lightResolvedManaReturn = RestoreHeroMana(
+                    GetFractionalCorpseManaReward(
+                        qualityTier,
+                        ServantRankRewardFraction));
+                int vigorAward = SoulProgressionRuntime.RestoreSoulVigor(
+                    SoulProgressionRuntime.GetScaledCorpseSoulVigorAward(
+                        baseCorpseVigor,
+                        ServantRankRewardFraction));
+                if (raisedServant)
                 {
-                    ApplySoulforgedRecovery(
-                        raisedRecord,
-                        ordinaryInvestment,
-                        recovery,
-                        previousRank,
-                        currentRank,
-                        _lightHealthFraction,
-                        out _lightResolvedManaReturn,
-                        out vigorAward);
-                    if (raisedServant)
-                    {
-                        SavePersistentReanimation(summonId, raisedRecord);
-                    }
-                    else
-                    {
-                        SaveOrdinarySummonInvestment(
-                            summonId,
-                            ordinaryInvestment);
-                    }
+                    SavePersistentReanimation(summonId, raisedRecord);
+                }
+                else
+                {
+                    SaveOrdinarySummonInvestment(
+                        summonId,
+                        ordinaryInvestment);
                 }
                 string recoveryText = string.Empty;
                 if (_lightResolvedManaReturn > 0.0f)
@@ -3926,226 +3795,99 @@ namespace SoulAndService
                 plugin.LogDiagnostic(
                     "Soul Rend reduced " + summonId + " from rank "
                     + previousRank + " to " + currentRank
-                    + ": healthFraction="
-                    + _lightHealthFraction.ToString("0.###")
-                    + "; mana="
+                    + ": mana="
                     + _lightResolvedManaReturn.ToString("0.##")
                     + "; vigor=" + vigorAward + ".");
                 return;
             }
 
-            float manaReturned = recovery == null
-                ? CalculateFullHealthLightManaReturn(plugin)
-                    * _lightHealthFraction
-                : Mathf.Round(
-                    Math.Max(0.0f, recovery.RemainingMana)
-                        * _lightHealthFraction);
-            _lightResolvedManaReturn = manaReturned;
-            if (recovery != null)
-            {
-                recovery.RemainingMana = 0.0f;
-            }
+            _lightResolvedManaReturn = RestoreHeroMana(
+                GetFractionalCorpseManaReward(
+                    qualityTier,
+                    ServantFinalRewardFraction));
             int soulVigorAward = 0;
-            Grailwright.Shared.CorpseQualityTier qualityTier;
             if (raisedServant)
             {
                 raisedRecord.Sacrificed = true;
-                raisedRecord.SalvageHealthFraction = _lightHealthFraction;
-                raisedRecord.ManaReturnedOnSacrifice = manaReturned;
-                qualityTier = raisedRecord.QualityTier;
+                raisedRecord.ManaReturnedOnSacrifice =
+                    _lightResolvedManaReturn;
                 SavePersistentReanimation(summonId, raisedRecord);
             }
             else
             {
-                int investedVigor = Math.Max(
-                    0,
-                    ordinaryInvestment.InvestedSoulVigor);
                 OrdinarySummonInvestments.Remove(summonId);
                 ClearPersistedServant(summonId);
                 soulVigorAward = SoulProgressionRuntime.RestoreSoulVigor(
-                    Mathf.Clamp(
-                        Mathf.RoundToInt(
-                            investedVigor * _lightHealthFraction),
-                        0,
-                        investedVigor));
-                qualityTier = Grailwright.Shared.CorpseQualityTier.None;
+                    SoulProgressionRuntime.GetScaledCorpseSoulVigorAward(
+                        baseCorpseVigor,
+                        ServantFinalRewardFraction));
                 SoulProgressionRuntime.ShowSoulVigorHarvest(
                     displayName,
                     qualityTier,
                     soulVigorAward,
-                    manaReturned);
+                    _lightResolvedManaReturn);
                 SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
                     soulVigorAward);
             }
             PlayServantSoulRendFeedback(summon, raisedRecord);
             plugin.LogDiagnostic(
                 "Soul Rend unbound " + summonId
-                + ": remainingMana=" + manaReturned.ToString("0.##")
-                + "; healthFraction=" + _lightHealthFraction.ToString("0.###")
+                + ": mana="
+                + _lightResolvedManaReturn.ToString("0.##")
                 + "; soulVigor=" + (raisedServant
                     ? "pending remains"
                     : soulVigorAward.ToString(CultureInfo.InvariantCulture))
                 + ".");
         }
 
-        private static ServantRecoveryLedger EnsureLightRecoveryLedger(
-            string summonId,
-            ReanimationRecord raisedRecord,
-            OrdinarySummonInvestment ordinaryInvestment,
-            SoulAndServicePlugin plugin)
+        private static int GetCorpseManaReward(
+            Grailwright.Shared.CorpseQualityTier tier)
         {
-            ServantRecoveryLedger recovery;
-            if (raisedRecord != null)
+            switch (tier)
             {
-                EnsureRaisedRecoveryLedger(raisedRecord);
-                recovery = raisedRecord.Recovery;
+                case Grailwright.Shared.CorpseQualityTier.Worthy:
+                    return 30;
+                case Grailwright.Shared.CorpseQualityTier.Potent:
+                    return 40;
+                case Grailwright.Shared.CorpseQualityTier.Prime:
+                    return 50;
+                case Grailwright.Shared.CorpseQualityTier.Meager:
+                default:
+                    return 20;
             }
-            else
-            {
-                EnsureOrdinaryRecoveryLedger(ordinaryInvestment);
-                recovery = ordinaryInvestment.Recovery;
-            }
-            if (!recovery.ManaInitialized)
-            {
-                recovery.ManaInitialized = true;
-                recovery.OriginalMana = CalculateFullHealthLightManaReturn(
-                    plugin);
-                recovery.RemainingMana = recovery.OriginalMana;
-                if (raisedRecord != null)
-                {
-                    SavePersistentReanimation(summonId, raisedRecord);
-                }
-                else
-                {
-                    SaveOrdinarySummonInvestment(
-                        summonId,
-                        ordinaryInvestment);
-                }
-            }
-            return recovery;
         }
 
-        private static void ApplySoulforgedRecovery(
-            ReanimationRecord raisedRecord,
-            OrdinarySummonInvestment ordinaryInvestment,
-            ServantRecoveryLedger recovery,
-            int previousRank,
-            int currentRank,
-            float healthFraction,
-            out float manaAward,
-            out int vigorAward)
+        private static int GetFractionalCorpseManaReward(
+            Grailwright.Shared.CorpseQualityTier tier,
+            float rewardFraction)
         {
-            manaAward = 0.0f;
-            vigorAward = 0;
-            if (recovery == null || previousRank <= currentRank)
-            {
-                return;
-            }
-
-            int previousMask = recovery.RecoveredSoulforgedRankMask;
-            int currentMask = previousMask;
-            for (int rank = previousRank; rank > currentRank; rank--)
-            {
-                if (rank >= 1 && rank <= SoulforgedRuntime.MaximumRank)
-                {
-                    currentMask |= 1 << (rank - 1);
-                }
-            }
-            recovery.RecoveredSoulforgedRankMask = currentMask;
-            int previousRecovered = CountRecoveredSoulforgedRanks(previousMask);
-            int currentRecovered = CountRecoveredSoulforgedRanks(currentMask);
-            if (currentRecovered <= previousRecovered)
-            {
-                return;
-            }
-
-            float targetManaConsumed = Mathf.Round(
-                recovery.OriginalMana
-                    * SoulforgedRecoveryFractionPerRank
-                    * currentRecovered);
-            float previousManaConsumed = Math.Max(
-                0.0f,
-                recovery.OriginalMana - recovery.RemainingMana);
-            float grossMana = Mathf.Clamp(
-                targetManaConsumed - previousManaConsumed,
-                0.0f,
-                recovery.RemainingMana);
-            recovery.RemainingMana = Math.Max(
-                0.0f,
-                recovery.RemainingMana - grossMana);
-
-            int currentBaseVigor = raisedRecord != null
-                ? Math.Max(
-                    0,
-                    raisedRecord.NativeSoulVigor
-                        + raisedRecord.InvestedSoulVigor)
-                : Math.Max(0, ordinaryInvestment.InvestedSoulVigor);
-            int targetVigorConsumed = Mathf.Clamp(
-                Mathf.RoundToInt(
-                    recovery.OriginalSoulVigor
-                        * SoulforgedRecoveryFractionPerRank
-                        * currentRecovered),
+            return Math.Max(
                 0,
-                recovery.OriginalSoulVigor);
-            int previousVigorConsumed = Math.Max(
-                0,
-                recovery.OriginalSoulVigor - currentBaseVigor);
-            int grossVigor = Mathf.Clamp(
-                targetVigorConsumed - previousVigorConsumed,
-                0,
-                currentBaseVigor);
-            if (raisedRecord != null)
-            {
-                int investedReduction = Math.Min(
-                    raisedRecord.InvestedSoulVigor,
-                    grossVigor);
-                raisedRecord.InvestedSoulVigor -= investedReduction;
-                raisedRecord.NativeSoulVigor = Math.Max(
-                    0,
-                    raisedRecord.NativeSoulVigor
-                        - (grossVigor - investedReduction));
-            }
-            else
-            {
-                ordinaryInvestment.InvestedSoulVigor = Math.Max(
-                    0,
-                    ordinaryInvestment.InvestedSoulVigor - grossVigor);
-            }
-
-            float recoveryEfficiency = Math.Max(
-                SoulforgedRecoveryMinimumHealthFraction,
-                Mathf.Clamp01(healthFraction));
-            manaAward = Mathf.Round(grossMana * recoveryEfficiency);
-            vigorAward = SoulProgressionRuntime.RestoreSoulVigor(
-                Mathf.Clamp(
-                    Mathf.RoundToInt(grossVigor * recoveryEfficiency),
-                    0,
-                    grossVigor));
+                Mathf.FloorToInt(
+                    GetCorpseManaReward(tier)
+                        * Mathf.Clamp01(rewardFraction)
+                        + 0.5f));
         }
 
-        private static int CountRecoveredSoulforgedRanks(int mask)
+        private static float RestoreHeroMana(int requestedMana)
         {
-            int count = 0;
-            int remaining = mask
-                & ((1 << SoulforgedRuntime.MaximumRank) - 1);
-            while (remaining != 0)
-            {
-                count += remaining & 1;
-                remaining >>= 1;
-            }
-            return count;
-        }
-
-        private static float CalculateFullHealthLightManaReturn(
-            SoulAndServicePlugin plugin)
-        {
-            if (plugin == null || plugin.SoulSalvageManaReturnPercent == null)
+            Hero hero = Hero.Current;
+            if (hero == null || hero.Mana == null || requestedMana <= 0)
             {
                 return 0.0f;
             }
-            float rawReturn = _lightOriginalMana
-                * (plugin.SoulSalvageManaReturnPercent.Value / 100.0f);
-            return Mathf.Round(Math.Min(rawReturn, _lightMaximumManaReturn));
+            float before = hero.Mana.ModifiedValue;
+            hero.Mana.IncreaseBy(requestedMana);
+            return Math.Max(0.0f, hero.Mana.ModifiedValue - before);
+        }
+
+        private static string FormatManaReward(float manaAward)
+        {
+            return manaAward > 0.0f
+                ? " | +" + manaAward.ToString(
+                    "0",
+                    CultureInfo.InvariantCulture) + " Mana"
+                : string.Empty;
         }
 
         private static void PlayServantSoulRendFeedback(
@@ -4677,11 +4419,12 @@ namespace SoulAndService
             {
                 ReportCorpseHarvestThreatToEyes(quality01);
             }
+            float manaAward = RestoreHeroMana(GetCorpseManaReward(tier));
             SoulProgressionRuntime.ShowSoulVigorHarvest(
                 displayName,
                 tier,
                 harvestReceipt.Award,
-                0.0f);
+                manaAward);
             SoulProgressionRuntime.ShowCommandUnlocksAfterCorpseHarvest(
                 harvestReceipt);
             SoulSalvageAudioRuntime.Play(
@@ -4696,6 +4439,9 @@ namespace SoulAndService
             plugin.LogDiagnostic(
                 "Soul Rend harvested " + displayName
                 + "; quality=" + tier
+                + "; mana=" + manaAward.ToString(
+                    "0.##",
+                    CultureInfo.InvariantCulture)
                 + "; soulVigor=" + harvestReceipt.Award.ToString(
                     "0.##",
                     CultureInfo.InvariantCulture)
@@ -5212,9 +4958,8 @@ namespace SoulAndService
             {
                 summonCount += IsReanimatedMiniboss(summon) ? 2 : 1;
             }
-            summonLimit = hero.HeroStats.SummonLimit.ModifiedInt
-                + SoulProgressionRuntime.GetProgressionSummonLimitBonus()
-                + plugin.SummonLimitBonus.Value;
+            summonLimit = SummonRuntime.GetEffectiveSummonLimit(
+                hero.HeroStats.SummonLimit.ModifiedInt);
             return summonCount < summonLimit;
         }
 
@@ -5241,9 +4986,8 @@ namespace SoulAndService
                 occupiedSlots += isMiniboss ? 2 : 1;
                 hasActiveMiniboss |= isMiniboss;
             }
-            summonLimit = hero.HeroStats.SummonLimit.ModifiedInt
-                + SoulProgressionRuntime.GetProgressionSummonLimitBonus()
-                + plugin.SummonLimitBonus.Value;
+            summonLimit = SummonRuntime.GetEffectiveSummonLimit(
+                hero.HeroStats.SummonLimit.ModifiedInt);
             return !hasActiveMiniboss
                 && occupiedSlots <= Math.Max(0, summonLimit - 2);
         }
@@ -5511,9 +5255,6 @@ namespace SoulAndService
             int committedVigor = vigorAfter < vigorBefore ? vigorCost : 0;
 
             LocationInteractability previousInteractability = source.Interactability;
-            float bindingManaCost = sourceItem == null
-                ? 0.0f
-                : GetHeavyCastManaCost(sourceItem);
             Location raised = null;
             string summonId = string.Empty;
             try
@@ -5562,15 +5303,8 @@ namespace SoulAndService
                     CorpseFingerprint = corpseFingerprint,
                     Quality01 = quality01,
                     QualityTier = qualityTier,
-                    BindingManaCost = bindingManaCost,
                     InvestedSoulVigor = committedVigor,
                     NativeSoulVigor = nativeSoulVigor,
-                    Recovery = new ServantRecoveryLedger
-                    {
-                        OriginalSoulVigor = Math.Max(
-                            0,
-                            committedVigor + nativeSoulVigor)
-                    },
                     OriginalCoords = source.Coords,
                     OriginalRotation = source.Rotation,
                     LastSafeCoords = raised.Coords,
@@ -6068,9 +5802,7 @@ namespace SoulAndService
                 1,
                 Mathf.CeilToInt(
                     Math.Max(0, baseCost)
-                    * multiplier
-                    * SoulAndServicePlugin.GetEffectiveBalanceTuning()
-                        .SoulVigorCostMultiplier));
+                    * multiplier));
         }
 
         private static float GetBloodExsanguinationSeverity(object sourceCorpse)
@@ -7900,12 +7632,10 @@ namespace SoulAndService
 
             SoulProgressionRuntime.CorpseHarvestReceipt harvestReceipt = null;
             string failure = string.Empty;
-            int salvageAward = Mathf.Clamp(
-                Mathf.RoundToInt(
-                    (record.NativeSoulVigor + record.InvestedSoulVigor)
-                    * Mathf.Clamp01(record.SalvageHealthFraction)),
-                0,
-                record.NativeSoulVigor + record.InvestedSoulVigor);
+            int salvageAward = SoulProgressionRuntime
+                .GetScaledCorpseSoulVigorAward(
+                    record.NativeSoulVigor,
+                    ServantFinalRewardFraction);
             bool harvestReady = !record.Sacrificed
                 || SoulProgressionRuntime.TryHarvestCorpse(
                     record.CorpseFingerprint,
@@ -8187,6 +7917,22 @@ namespace SoulAndService
             if (plugin == null)
             {
                 return;
+            }
+            int salvageAward = serviceCommitted && record.Sacrificed
+                ? SoulProgressionRuntime.RestoreSoulVigor(
+                    SoulProgressionRuntime.GetScaledCorpseSoulVigorAward(
+                        record.NativeSoulVigor,
+                        ServantFinalRewardFraction))
+                : 0;
+            if (serviceCommitted && record.Sacrificed)
+            {
+                SoulProgressionRuntime.ShowSoulVigorHarvest(
+                    record.SourceDisplayName,
+                    record.QualityTier,
+                    salvageAward,
+                    record.ManaReturnedOnSacrifice);
+                SoulProgressionRuntime.ShowCommandUnlocksAfterSummonHarvest(
+                    salvageAward);
             }
             if (terminalRemains)
             {
@@ -8496,9 +8242,6 @@ namespace SoulAndService
             _lightPreserveTarget = false;
             _lightTarget = null;
             _heavyTarget = null;
-            _lightOriginalMana = 0.0f;
-            _lightHealthFraction = 0.0f;
-            _lightMaximumManaReturn = float.PositiveInfinity;
             _lightResolvedManaReturn = 0.0f;
         }
 
@@ -9126,15 +8869,6 @@ namespace SoulAndService
             location = _focusedTargetCacheLocation;
             summon = _focusedTargetCacheSummon;
             return _focusedTargetCacheFound;
-        }
-
-        private static float GetHeavyCastManaCost(Item item)
-        {
-            return item != null
-                && item.ItemStats != null
-                && item.ItemStats.HeavyCastManaCost != null
-                    ? Math.Max(0.0f, item.ItemStats.HeavyCastManaCost.ModifiedValue)
-                    : 30.0f;
         }
 
         private static string GetCorpseFingerprint(Location source)

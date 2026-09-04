@@ -27,7 +27,7 @@ if (!$manifest.Contains('src/SummonFormationCoordinator.cs')) {
 }
 
 foreach ($required in @(
-    'ConfigSchemaVersion = 28',
+    'ConfigSchemaVersion = 30',
     'public enum SummonBehavior',
     'Guard = 0',
     'Bulwark = 1',
@@ -449,8 +449,7 @@ if ($runtimeSource -notmatch '(?s)ShouldOwnTakeAllHoldForInterop\(\).*?!IsSprint
     throw "Raise All and the Sprint-gated Take All command modes are not latched, cancellable, and single-fire."
 }
 if ($salvageSource -notmatch '(?s)HasEligibleRaiseAllCorpse\(.*?_raiseAllEligibilityFrame == frame.*?_raiseAllEligibilityResult.*?World\.All<Location>\(\).*?TryValidateEligibleCorpse' -or
-    $salvageSource -notmatch '(?s)RaiseAll\(Hero hero, float radius\).*?RaiseAllPower.*?World\.All<NpcHeroSummon>\(\).*?TryGetSummonCapacity.*?World\.All<Location>\(\).*?candidates\.Sort.*?remainingCapacity.*?GetReanimationSoulVigorCost\(.*?GetNecromanticPower\(\).*?ShowInsufficientSoulVigor.*?bindingAlreadyWon: true.*?summonLimitAlreadyChecked: true.*?hero\.Coords.*?hero\.Rotation' -or
-    $salvageSource -notmatch '(?s)bindingManaCost = sourceItem == null\s*\? 0\.0f\s*:\s*GetHeavyCastManaCost\(sourceItem\)') {
+    $salvageSource -notmatch '(?s)RaiseAll\(Hero hero, float radius\).*?RaiseAllPower.*?World\.All<NpcHeroSummon>\(\).*?TryGetSummonCapacity.*?World\.All<Location>\(\).*?candidates\.Sort.*?remainingCapacity.*?GetReanimationSoulVigorCost\(.*?GetNecromanticPower\(\).*?ShowInsufficientSoulVigor.*?bindingAlreadyWon: true.*?summonLimitAlreadyChecked: true.*?hero\.Coords.*?hero\.Rotation') {
     throw "Raise All does not reuse eligible-corpse validation, nearest-first ordering, current costs, capacity limits, and player-centered VFX."
 }
 if ($runtimeSource -notmatch '(?s)GetBulwarkVelocityScheme\(.*?bool advanceHeld.*?leader\.HorizontalVelocity\.magnitude.*?if \(advanceHeld\).*?BulwarkAdvanceRunDistance.*?VelocityScheme\.Run.*?BulwarkAdvanceAnchorTolerance.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk.*?BulwarkLeaderRunSpeed.*?VelocityScheme\.Run.*?BulwarkLeaderMovingSpeed.*?VelocityScheme\.Trot.*?VelocityScheme\.Walk') {
@@ -858,7 +857,7 @@ foreach ($required in @(
     'minibossPercentPerMinute',
     'minibossPercent',
     'dmgModifier *= 0.60f',
-    '__result = Math.Max(0, __result - 1)',
+    'effectiveLimit--',
     '|| SoulSalvageRuntime.IsReanimatedMiniboss(summon)')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Miniboss summon balance contract is missing: $required"
@@ -875,7 +874,7 @@ if (($runtimeSource -notmatch '(?s)GetMinibossUpkeepPercentPerMinute\(.*?power <
 foreach ($required in @(
     '45 m',
     'dismantles an owned servant safely in layers',
-    'Version under test: 3.3.3',
+    'Version under test: 3.3.7',
     'SAS-SMOKE-30',
     'SAS-SMOKE-31',
     'SAS-SMOKE-16',

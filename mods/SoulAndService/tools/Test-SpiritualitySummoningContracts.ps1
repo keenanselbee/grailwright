@@ -10,9 +10,9 @@ $nexus = Get-Content -LiteralPath (Join-Path $modRoot 'nexus-full-desc.txt') -Ra
 $matrix = Get-Content -LiteralPath (Join-Path $modRoot 'docs\TEST-MATRIX.md') -Raw
 
 foreach ($required in @(
-    'AssemblyInformationalVersion("3.3.3")',
-    'public const string PluginVersion = "3.3.3"',
-    '"version": "3.3.3"')) {
+    'AssemblyInformationalVersion("3.3.7")',
+    'public const string PluginVersion = "3.3.7"',
+    '"version": "3.3.7"')) {
     if (!$plugin.Contains($required) -and !$manifest.Contains($required)) {
         throw "Spirituality integration release metadata is missing: $required"
     }
@@ -28,7 +28,7 @@ if ($summons.Contains('INpcSummon.Events.SummonSpawned') -or
     throw 'Soul and Service must not replay the native summon-spawned event and double-apply talent effects.'
 }
 
-if (($summons -notmatch '(?s)BeforeAddLimitedLocation\(.*?emptyCount != 0.*?oldestIndex.*?RepairInvocationScaling\(') -or
+if (($summons -notmatch '(?s)BeforeAddLimitedLocation\(.*?SynchronizeSummonRegistryCapacity\(__instance\);.*?if \(!plugin\.RepairInvocationScaling\.Value\).*?emptyCount != 0.*?oldestIndex.*?RepairInvocationScaling\(') -or
     ($summons -notmatch 'InvocationsOfMightTalentGuid\s*=\s*\r?\n?\s*"a3c1f159efbec4647ace8fafcba7da14"') -or
     ($summons -notmatch '(?s)RepairInvocationScaling\(.*?HasLearnedInvocationsOfMight\(hero\).*?1\.0f \+ spirituality \* 0\.05f') -or
     ($summons -notmatch '(?s)HasLearnedInvocationsOfMight\(Hero hero\).*?hero\.Talents\.Elements<TalentTable>\(\).*?talent\.Level > 0.*?talent\.Template\.GUID.*?InvocationsOfMightTalentGuid') -or
@@ -39,8 +39,25 @@ if (($summons -notmatch '(?s)BeforeAddLimitedLocation\(.*?emptyCount != 0.*?olde
     throw 'Replacement-only Invocations of Might repair no longer verifies learned talent ownership, composes, or preserves raised-servant Health correctly.'
 }
 
-if ($summons -notmatch '(?s)AfterGetSummonLimit\(.*?__result \+= SoulProgressionRuntime\s*\.GetProgressionSummonLimitBonus\(\)\s*\+ plugin\.SummonLimitBonus\.Value') {
-    throw 'Soul and Service capacity must remain additive to the native Astral Bonds summon limit.'
+if (($summons -notmatch '(?s)GetEffectiveSummonLimit\(int nativeLimit\).*?Math\.Max\(0, nativeLimit\).*?GetProgressionSummonLimitBonus\(\).*?plugin\.SummonLimitBonus\.Value') -or
+    ($summons -notmatch '(?s)GetEffectiveSummonRegistryLimit\(int nativeLimit\).*?GetEffectiveSummonLimit\(nativeLimit\).*?IsReanimatedMiniboss.*?effectiveLimit--') -or
+    ($summons -notmatch '(?s)AfterGetSummonLimit\(ref int __result\).*?__result = GetEffectiveSummonRegistryLimit\(__result\)') -or
+    ([regex]::Matches($salvage, 'SummonRuntime\.GetEffectiveSummonLimit\(').Count -ne 2)) {
+    throw 'Logical and physical summon limits must share the additive Astral Bonds, Summon Capacity, configured bonus, and miniboss accounting paths.'
+}
+if (($summons -notmatch '(?s)LimitChangedMethod\s*=\s*RequireMethod\(\s*CharacterLocationsType,\s*"LimitChanged",\s*new\[\] \{ typeof\(int\) \}\)') -or
+    ($summons -notmatch '(?s)harmony\.Patch\(\s*LimitChangedMethod,\s*prefix:.*?BeforeLimitedLocationLimitChanged') -or
+    ($summons -notmatch '(?s)BeforeLimitedLocationLimitChanged\(\s*object __instance,\s*ref int __0\).*?occupiedCount.*?__0 = Math\.Max\(\s*GetEffectiveSummonRegistryLimit\(__0\),\s*occupiedCount\)') -or
+    ($summons -notmatch '(?s)SynchronizeSummonRegistryCapacity\(object registry\).*?registryLimit = Math\.Max\(.*?GetEffectiveSummonRegistryLimit\(.*?occupiedCount\).*?LimitChangedMethod\.Invoke\(\s*registry,\s*new object\[\] \{ hero\.HeroStats\.SummonLimit\.ModifiedInt \}\)') -or
+    $summons.Contains('LimitedLocationsField.SetValue') -or
+    $summons.Contains('OldestIndexField.SetValue') -or
+    $summons.Contains('EmptyCountField.SetValue')) {
+    throw 'Live summon registry synchronization must grow through the native resize path and preserve occupied overflow across native limit changes.'
+}
+if (($summons -notmatch '(?s)SummonLimitClosureType\s*=\s*RequireNestedType\(\s*typeof\(SkillHeroSummonsLimit\),\s*"<>c__DisplayClass0_0"\).*?CanSpawnSummonMethod\s*=\s*RequireMethod\(SummonLimitClosureType, "<Definition>b__1"\)') -or
+    ($summons -notmatch '(?s)harmony\.Patch\(\s*CanSpawnSummonMethod,\s*postfix:.*?AfterCanSpawnSummon') -or
+    ($summons -notmatch '(?s)AfterCanSpawnSummon\(ref bool __result\).*?if \(!__result.*?foreach \(NpcHeroSummon summon in World\.All<NpcHeroSummon>\(\)\).*?summon\.Owner != hero.*?summon\.Type != CharacterLimitedLocationType\.HeroSummon.*?occupiedSlots \+= SoulSalvageRuntime\.IsReanimatedMiniboss\(summon\).*?\? 2\s*: 1.*?occupiedSlots > GetEffectiveSummonLimit\(\s*hero\.HeroStats\.SummonLimit\.ModifiedInt\).*?__result = false;')) {
+    throw 'Native ordinary-summon admission must reject only an already-over-cap logical host before spawning while preserving native at-cap replacement.'
 }
 if (($summons -notmatch '(?s)UpdateServantUpkeep\(.*?npc\.HealthElement\.Kill\(\)') -or
     ($summons -notmatch '(?s)AfterRestTimeSkipped\(.*?npc\.HealthElement\.Kill\(\)') -or
@@ -76,7 +93,7 @@ foreach ($required in @(
     'replacement servant',
     'administrative cleanup',
     'SAS-SMOKE-53',
-    'Version under test: 3.3.3')) {
+    'Version under test: 3.3.7')) {
     if (!$matrix.Contains($required)) {
         throw "Spirituality integration smoke coverage is missing: $required"
     }

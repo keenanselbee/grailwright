@@ -20,7 +20,7 @@ $nexus = Get-Content -LiteralPath (
 $matrix = Get-Content -LiteralPath (
     Join-Path $modRoot "docs\TEST-MATRIX.md") -Raw
 foreach ($required in @(
-    'ConfigSchemaVersion = 28',
+    'ConfigSchemaVersion = 30',
     '"ks.tgfoa.versatile-weapons"',
     '"ks.tgfoa.first-person-arms-adjuster"',
     '"EnableLivingTargetSoulSalvage"',
@@ -112,7 +112,7 @@ foreach ($forbidden in @(
     }
 }
 foreach ($required in @(
-    'can never restore more than 75% of their binding cost',
+    'light cast costs 5 Mana',
     "Keep ordinary summons and each raised servant's source identity, Health, Empowerment, investment, and Soulforged progress through saving, loading, and restarting the game",
     'GetConfigDisplaySection(section, key)',
     '"Host and Persistence"',
@@ -125,17 +125,16 @@ foreach ($required in @(
     '"Play Soul Rend Ritual Audio"',
     '"Distance Fade Strength"',
     '"Enable Soul Rend"',
-    '"Enable Living-Target Soul Rend"',
-    'internal ConfigEntry<float> SoulSalvageManaReturnPercent',
-    '"LightCastManaReturnPercent"',
-    '"Mana Return Percent"')) {
+    '"Enable Living-Target Soul Rend"')) {
     if (!$pluginSource.Contains($required)) {
         throw "Soul Salvage configuration UX is missing: $required"
     }
 }
 
 foreach ($required in @(
+    'LightCastManaCost = 5.0f',
     'HeavyCastManaCostMultiplier = 2.0f',
+    'stats.LightCastManaCost',
     'StatTweak.Multi(',
     'stats.HeavyCastManaCost',
     'SoulRendDisplayName = "Soul Rend"',
@@ -161,7 +160,6 @@ foreach ($required in @(
     'TryCreateRemains(',
     'SoulProgressionRuntime.GetQualityHealthMultiplier(',
     'SoulProgressionRuntime.RollRaisedHealthFraction(',
-    'RaisedSalvageMaximumRefundFraction = 0.75f',
     'ReanimationPositionRefreshSeconds = 0.10f',
     '_nextReanimationPositionRefreshTime',
     'Time.unscaledTime < _nextReanimationPositionRefreshTime',
@@ -217,19 +215,20 @@ if ($runtimeSource -notmatch '(?s)BeforeCastingCanceled\(Item castingItem\).*?Cl
 if ($runtimeSource -notmatch '(?s)BeforeGetManaExpended\(.*?_heavyCastActive.*?_heavyTarget = __instance;\s*__result = 0\.0f;\s*return false;') {
     throw "Heavy Soul Rend does not suppress the vanilla Health refund while capturing its servant target."
 }
-if ($runtimeSource -notmatch '(?s)CalculateFullHealthLightManaReturn\(.*?_lightOriginalMana\s*\* \(plugin\.SoulSalvageManaReturnPercent\.Value / 100\.0f\).*?Mathf\.Round\(Math\.Min\(rawReturn, _lightMaximumManaReturn\)\)' -or
-    $runtimeSource -notmatch '(?s)BeforeGetManaExpended\(.*?CompleteLightSummonHarvest\(__instance\);.*?__result = NativeManaRefundMultiplier > 0\.0f\s*\? _lightResolvedManaReturn / NativeManaRefundMultiplier') {
-    throw "Light Soul Rend does not route its stage-specific Mana award through the native refund path."
+if ($runtimeSource -notmatch '(?s)EnsureSoulRendCostTweaks\(.*?StatTweak\.Override\(\s*stats\.LightCastManaCost,\s*LightCastManaCost,' -or
+    $runtimeSource -notmatch '(?s)AfterItemStatsInitialized\(.*?RemoveLightCostTweak\(itemId\);.*?RemoveHeavyCostTweak\(itemId\);.*?EnsureSoulRendCostTweaks\(itemId, __instance\);' -or
+    $runtimeSource -notmatch '(?s)BeforeGetManaExpended\(.*?CompleteLightSummonHarvest\(__instance\);.*?__result = 0\.0f;\s*return false;') {
+    throw "Light Soul Rend does not use its fixed 5-Mana cost and direct stage-specific Mana award."
 }
 foreach ($required in @(
     'internal float ManaReturnedOnSacrifice;',
-    'raisedRecord.ManaReturnedOnSacrifice = manaReturned;',
+    'raisedRecord.ManaReturnedOnSacrifice =',
     'record.ManaReturnedOnSacrifice);')) {
     if (!$runtimeSource.Contains($required)) {
         throw "Raised-servant combined reward state is missing: $required"
     }
 }
-if ($runtimeSource -notmatch '(?s)ShowSoulVigorHarvest\(\s*displayName,\s*qualityTier,\s*soulVigorAward,\s*manaReturned\);') {
+if ($runtimeSource -notmatch '(?s)ShowSoulVigorHarvest\(\s*displayName,\s*qualityTier,\s*soulVigorAward,\s*_lightResolvedManaReturn\);') {
     throw 'Ordinary servant unbinding does not pass the exact Mana return into its Soul Vigor reward.'
 }
 if ($runtimeSource -notmatch '(?s)TryServeHeavyTarget\(.*?beforeFraction.*?ServantEmpowerHealthThreshold.*?requestedHealing = empowerEligibleHealth\s*\? missingHealth\s*:\s*Math\.Min\(missingHealth, maximumHealth \* healingFraction\).*?npc\.Health\.IncreaseBy\(requestedHealing\).*?if \(empowerEligibleHealth.*?SummonRuntime\.TryEmpowerSummon') {
@@ -239,8 +238,8 @@ if ($summonRuntimeSource -notmatch '(?s)internal static bool IsEmpoweredSummon\(
     throw "Heavy Soul Rend cannot distinguish an already-Empowered servant before selecting its one service."
 }
 foreach ($required in @(
-    'Corpses: Harvest for Soul Vigor.',
-    'Servants: Strip Empowerment, then two Soulforged ranks per cast; unbind at rank 0.',
+    'Corpses: Harvest quality-based Mana and Soul Vigor.',
+    'Servants: Strip Empowerment, then two Soulforged ranks per cast; unbind at rank 0 for quality-based rewards.',
     "Enemies: Deal Necrotic damage. Each surviving hit raises that enemy's Soul Claim threshold by 2%, up to 10%.",
     'Corpses: Bind and reanimate; cost scales with soul quality.',
     'Wounded enemies: Claim at or below their Power- and soul-quality threshold.',
@@ -354,7 +353,7 @@ if ($progressionSource -notmatch '(?s)GetOrRollCorpseSoulVigorValue\(.*?CorpseSo
     throw "Corpse Soul Vigor is not rolled once and persisted by corpse fingerprint."
 }
 if ($runtimeSource -notmatch '(?s)GetReanimationSoulVigorCost\(\s*int nativeSoulVigor,\s*float power\).*?GetPowerScaledSoulVigorCost\(nativeSoulVigor, power\)' -or
-    $runtimeSource -notmatch '(?s)GetPowerScaledSoulVigorCost\(int baseCost, float power\).*?Mathf\.Lerp\(2\.0f, 1\.0f, safePower / 100\.0f\).*?Mathf\.Lerp\(\s*1\.0f,\s*0\.5f,\s*\(safePower - 100\.0f\) / 100\.0f\).*?Math\.Max\(0, baseCost\).*?\* multiplier.*?\.SoulVigorCostMultiplier') {
+    $runtimeSource -notmatch '(?s)GetPowerScaledSoulVigorCost\(int baseCost, float power\).*?Mathf\.Lerp\(2\.0f, 1\.0f, safePower / 100\.0f\).*?Mathf\.Lerp\(\s*1\.0f,\s*0\.5f,\s*\(safePower - 100\.0f\) / 100\.0f\).*?Math\.Max\(0, baseCost\).*?\* multiplier') {
     throw "Summon and reanimation costs do not share the 2x/1x/0.5x Power curve."
 }
 if ($runtimeSource -notmatch '(?s)GetOrdinarySummonSoulVigorCost\(int summonTier, float power\).*?Math\.Max\(1, summonTier\) \* OrdinarySummonVigorCostPerTier.*?power' -or
@@ -363,21 +362,22 @@ if ($runtimeSource -notmatch '(?s)GetOrdinarySummonSoulVigorCost\(int summonTier
 }
 if ($runtimeSource -notmatch '(?s)GetEmpowermentSoulVigorCost\(.*?GetOrdinarySummonTier\(summon == null \? null : summon\.Item\).*?OrdinarySummonVigorCostPerTier.*?Reanimations\.TryGetValue\(.*?record\.NativeSoulVigor.*?GetPowerScaledSoulVigorCost\(baseSoulVigor \* 2, power\)' -or
     $runtimeSource -notmatch '(?s)TryServeHeavyTarget\(.*?GetEmpowermentSoulVigorCost\(summon, power\).*?TrySpendSoulVigor\(.*?SummonRuntime\.TryEmpowerSummon\(.*?RestoreSoulVigor\(committedVigor\).*?AddEmpowermentSoulVigorInvestment\(.*?ShowSoulVigorWanesAfterSpend\(' -or
-    $runtimeSource -notmatch '(?s)AddEmpowermentSoulVigorInvestment\(.*?record\.InvestedSoulVigor \+= committedVigor.*?record\.Recovery\.EmpowermentSoulVigorInvestment \+=\s*committedVigor.*?investment\.InvestedSoulVigor \+= committedVigor.*?investment\.Recovery\.EmpowermentSoulVigorInvestment \+=\s*committedVigor') {
+    $runtimeSource -notmatch '(?s)AddEmpowermentSoulVigorInvestment\(.*?record\.InvestedSoulVigor \+= committedVigor.*?record\.EmpowermentSoulVigorInvestment \+=\s*committedVigor.*?investment\.InvestedSoulVigor \+= committedVigor.*?investment\.EmpowermentSoulVigorInvestment \+=\s*committedVigor') {
     throw 'Empower does not price twice the stable servant soul value through the current Power curve, commit only on success, and record its exact severable payment.'
 }
 
 foreach ($required in @(
     'EmpowermentSeverRefundFraction = 0.75f',
-    'SoulforgedRecoveryFractionPerRank = 0.03f',
-    'SoulforgedRecoveryMinimumHealthFraction = 0.50f',
+    'ServantRankRewardFraction = 0.50f',
+    'ServantFinalRewardFraction = 0.75f',
     'SummonRuntime.TryRemoveEmpowerment(summon)',
     'SoulforgedRuntime.TryReduceRealRanks(',
-    'RecoveredSoulforgedRankMask',
-    'for (int rank = previousRank; rank > currentRank; rank--)',
-    'currentMask |= 1 << (rank - 1)',
-    'SoulforgedRecoveryMinimumHealthFraction,',
-    'CalculateFullHealthLightManaReturn(plugin)',
+    'GetCorpseManaReward(',
+    'GetFractionalCorpseManaReward(',
+    'GetScaledCorpseSoulVigorAward(',
+    'RestoreHeroMana(',
+    'ordinary_quality_tier',
+    '"ordinary_recovery_version") >= 2',
     '_lightPreserveTarget = true;',
     'ArmPendingLightLayerPreservation(summon);',
     '_pendingLightLayerPreserveSummon = summon;',
@@ -403,12 +403,12 @@ if (!$runtimeSource.Contains('+ "; startingHealth="') -or
     $runtimeSource.Contains('+ "; retainedHealth="')) {
     throw 'Raised-servant diagnostics must report starting Health as an explicit percentage rather than an ambiguous normalized retainedHealth value.'
 }
-if ($runtimeSource -notmatch '(?s)CompleteLightSummonHarvest\(.*?IsEmpoweredSummon\(summon\).*?TryRemoveEmpowerment\(summon\).*?EmpowermentSeverRefundFraction.*?return;.*?GetRealRank\(summon\).*?TryReduceRealRanks\(\s*summon,\s*2,.*?ApplySoulforgedRecovery\(.*?return;.*?recovery\.RemainingMana.*?_lightHealthFraction' -or
-    $runtimeSource -notmatch '(?s)ApplySoulforgedRecovery\(.*?RecoveredSoulforgedRankMask.*?SoulforgedRecoveryFractionPerRank.*?recovery\.RemainingMana = Math\.Max\(.*?SoulforgedRecoveryMinimumHealthFraction.*?RestoreSoulVigor') {
-    throw 'Light Soul Rend no longer resolves Empowerment, unique rank tranches, and final unbinding in the approved order.'
+if ($runtimeSource -notmatch '(?s)CompleteLightSummonHarvest\(.*?IsEmpoweredSummon\(summon\).*?TryRemoveEmpowerment\(summon\).*?EmpowermentSeverRefundFraction.*?GetFractionalCorpseManaReward\(\s*qualityTier,\s*ServantRankRewardFraction\).*?return;.*?GetRealRank\(summon\).*?TryReduceRealRanks\(\s*summon,\s*2,.*?ServantRankRewardFraction.*?return;.*?ServantFinalRewardFraction' -or
+    $runtimeSource -notmatch '(?s)GetCorpseManaReward\(.*?Worthy:\s*return 30;.*?Potent:\s*return 40;.*?Prime:\s*return 50;.*?Meager:.*?return 20;') {
+    throw 'Light Soul Rend no longer resolves Empowerment, repeatable rank tranches, and final unbinding with the approved quality rewards.'
 }
 if ($progressionSource -notmatch '(?s)ShowServantSoulRendStage\(.*?"servant-soul-rend".*?"servant-soul-rend-" \+ summonId.*?eventId,\s*text,\s*"necro",\s*"High",\s*collapseKey,\s*"Status",\s*"Short"' -or
-    $runtimeSource -notmatch '(?s)"servant-empowerment-severed",\s*summonId,\s*displayName \+ ": Empowerment severed"\s*\+ \(actualRefund > 0' -or
+    $runtimeSource -notmatch '(?s)"servant-empowerment-severed",\s*summonId,\s*displayName \+ ": Empowerment severed"\s*\+ FormatManaReward\(_lightResolvedManaReturn\).*?actualRefund > 0' -or
     $runtimeSource -notmatch '(?s)if \(_lightResolvedManaReturn > 0\.0f\).*?" Mana";.*?if \(vigorAward > 0\).*?" Soul Vigor";.*?ShowServantSoulRendStage\(\s*"servant-rank-reduced",\s*summonId,.*?" -> ".*?GetRankLabel\(currentRank\)') {
     throw 'Staged servant Soul Rend GFT does not use dedicated per-servant High/Short Necrotic Status messages with conditional resource segments.'
 }
@@ -608,18 +608,14 @@ foreach ($required in @(
 foreach ($required in @(
     'RaisedPersistenceLegacyVersion = 1',
     'RaisedPersistencePreviousVersion = 2',
-    'RaisedPersistenceVersion = 3',
+    'RaisedPersistenceRecoveryLedgerVersion = 3',
+    'RaisedPersistenceVersion = 4',
     'RaisedPersistencePayloadPrefix = "SASRP2:"',
     'RaisedPersistenceMaximumRecords = 256',
     'public sealed class RaisedPersistencePayload',
     'public sealed class RaisedPersistenceSnapshot',
     'public RaisedPersistenceSnapshot[] Records',
-    'public bool RecoveryManaInitialized;',
-    'public float RecoveryOriginalMana;',
-    'public float RecoveryRemainingMana;',
-    'public int RecoveryOriginalSoulVigor;',
     'public int EmpowermentSoulVigorInvestment;',
-    'public int RecoveredSoulforgedRankMask;',
     'persistent_raised.payload',
     'GameplayMemory.OnBeforeSerialize',
     'GameplayMemory.OnAfterDeserialize',
@@ -684,9 +680,9 @@ if ($runtimeSource -notmatch '(?s)List<RaisedPersistenceSnapshot> records.*?reco
     throw 'Raised-servant snapshot writes are not round-trip validated before storage and verified through immediate ContextualFacts readback.'
 }
 if ($runtimeSource -notmatch '(?s)SerializeRaisedPersistencePayload\(.*?RaisedPersistenceMaximumRecords.*?BinaryWriter.*?RaisedPersistenceMagic.*?RaisedPersistenceVersion.*?Convert\.ToBase64String' -or
-    $runtimeSource -notmatch '(?s)DeserializeRaisedPersistencePayload\(.*?RaisedPersistenceMaximumPayloadCharacters.*?Convert\.FromBase64String.*?RaisedPersistenceMagic.*?version != RaisedPersistencePreviousVersion.*?version != RaisedPersistenceVersion.*?recordCount > RaisedPersistenceMaximumRecords.*?version >= RaisedPersistenceVersion.*?RecoveryManaInitialized.*?stream\.Position != stream\.Length' -or
+    $runtimeSource -notmatch '(?s)DeserializeRaisedPersistencePayload\(.*?RaisedPersistenceMaximumPayloadCharacters.*?Convert\.FromBase64String.*?RaisedPersistenceMagic.*?version != RaisedPersistencePreviousVersion.*?version != RaisedPersistenceRecoveryLedgerVersion.*?version != RaisedPersistenceVersion.*?recordCount > RaisedPersistenceMaximumRecords.*?version == RaisedPersistenceRecoveryLedgerVersion.*?EmpowermentSoulVigorInvestment.*?version >= RaisedPersistenceVersion.*?stream\.Position != stream\.Length' -or
     $runtimeSource -notmatch '(?s)AfterGameplayMemoryDeserialize\(.*?StartsWith\(\s*RaisedPersistencePayloadPrefix.*?DeserializeRaisedPersistencePayload.*?JsonUtility\.FromJson<RaisedPersistencePayload>.*?RaisedPersistenceLegacyVersion') {
-    throw 'Raised-servant persistence does not use the v3 bounded binary codec with safe v2 and legacy JSON reads.'
+    throw 'Raised-servant persistence does not use the v4 bounded binary codec with safe v2, v3, and legacy JSON reads.'
 }
 if (($runtimeSource -notmatch '(?s)BeforeGameplayMemorySerialize\(\s*GameplayMemory __instance\).*?WriteRaisedPersistencePayload\(__instance\)') -or
     ($runtimeSource -notmatch '(?s)AfterGameplayMemoryDeserialize\(\s*GameplayMemory __instance\).*?GetPersistenceFacts\(__instance\).*?snapshot=missing.*?snapshot=loaded.*?recoveryScheduled=true') -or
@@ -1063,7 +1059,7 @@ foreach ($required in @(
 }
 
 foreach ($required in @(
-    'Version under test: 3.3.3',
+    'Version under test: 3.3.7',
     'exactly 2x',
     'raises a native hero summon',
     'simplified remains',
@@ -1073,8 +1069,8 @@ foreach ($required in @(
     'SAS-SMOKE-39',
     'SAS-SMOKE-43',
     'SAS-SMOKE-56',
-    '75% of its exact recorded cost',
-    '3%-per-rank',
+    '75% of its exact recorded Vigor cost',
+    '20/30/40/50 Mana',
     '1.05x-1.20x',
     '1.30x',
     'Pale/System diagnostics',

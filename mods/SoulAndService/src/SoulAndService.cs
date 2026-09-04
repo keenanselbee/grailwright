@@ -13,9 +13,9 @@ using HarmonyLib;
 [assembly: AssemblyDescription("A focused overhaul of hero summons and Soul Rend")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Soul and Service - Summon Overhaul")]
-[assembly: AssemblyVersion("3.3.3.0")]
-[assembly: AssemblyFileVersion("3.3.3.0")]
-[assembly: AssemblyInformationalVersion("3.3.3")]
+[assembly: AssemblyVersion("3.3.7.0")]
+[assembly: AssemblyFileVersion("3.3.7.0")]
+[assembly: AssemblyInformationalVersion("3.3.7")]
 
 namespace SoulAndService
 {
@@ -86,20 +86,17 @@ namespace SoulAndService
     {
         internal SoulBalanceTuning(
             float soulVigorRewardMultiplier,
-            float soulVigorCostMultiplier,
             float servantUpkeepMultiplier,
             float raisedStartingHealthMultiplier,
             float soulClaimThresholdAdjustment)
         {
             SoulVigorRewardMultiplier = soulVigorRewardMultiplier;
-            SoulVigorCostMultiplier = soulVigorCostMultiplier;
             ServantUpkeepMultiplier = servantUpkeepMultiplier;
             RaisedStartingHealthMultiplier = raisedStartingHealthMultiplier;
             SoulClaimThresholdAdjustment = soulClaimThresholdAdjustment;
         }
 
         internal float SoulVigorRewardMultiplier { get; }
-        internal float SoulVigorCostMultiplier { get; }
         internal float ServantUpkeepMultiplier { get; }
         internal float RaisedStartingHealthMultiplier { get; }
         internal float SoulClaimThresholdAdjustment { get; }
@@ -179,9 +176,11 @@ namespace SoulAndService
     {
         public const string PluginGuid = "ks.tgfoa.soul-and-service";
         public const string PluginName = "Soul and Service";
-        public const string PluginVersion = "3.3.3";
+        public const string PluginVersion = "3.3.7";
 
-        private const int ConfigSchemaVersion = 28;
+        private const int ConfigSchemaVersion = 30;
+        private const float GravePactSoulVigorRewardBaseline = 1.25f;
+        private const float GravePactServantUpkeepBaseline = 0.75f;
         private const int ConfigRecoveryBaselineSchema = 1;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
             ConfigRecoveryKeepCurrentDefaultRules =
@@ -201,7 +200,17 @@ namespace SoulAndService
                         26,
                         "Reanimation VFX",
                         "AuraIntensity",
-                        "Aura Intensity now means base brightness; Full Potential Brightness controls the progression endpoint.")
+                        "Aura Intensity now means base brightness; Full Potential Brightness controls the progression endpoint."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        30,
+                        "Custom Balance",
+                        "SoulVigorRewardMultiplier",
+                        "Soul Vigor Reward Multiplier is now relative to the fixed Grave Pact x1.25 reward baseline."),
+                    new Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule(
+                        30,
+                        "Custom Balance",
+                        "ServantUpkeepMultiplier",
+                        "Servant Upkeep Multiplier is now relative to the fixed Grave Pact x0.75 upkeep baseline.")
                 };
         private static readonly ConfigDefinition[]
             ConfigRecoveryPermanentExclusions =
@@ -226,7 +235,6 @@ namespace SoulAndService
         internal ConfigEntry<bool> FeatureEnabled;
         internal ConfigEntry<BalanceProfile> BalanceProfileSetting;
         internal ConfigEntry<float> CustomSoulVigorRewardMultiplier;
-        internal ConfigEntry<float> CustomSoulVigorCostMultiplier;
         internal ConfigEntry<float> CustomServantUpkeepMultiplier;
         internal ConfigEntry<float> CustomRaisedStartingHealthMultiplier;
         internal ConfigEntry<float> CustomSoulClaimThresholdAdjustment;
@@ -279,7 +287,6 @@ namespace SoulAndService
         internal ConfigEntry<float> SoulRendImpactAudioVolume;
         internal ConfigEntry<bool> SoulSalvageOverhaul;
         internal ConfigEntry<bool> LivingTargetSoulSalvage;
-        internal ConfigEntry<float> SoulSalvageManaReturnPercent;
         internal ConfigEntry<bool> SoulRendInnerLightEnabled;
         internal ConfigEntry<float> SoulRendInnerLightIntensity;
         internal ConfigEntry<float> SoulRendInnerLightIntensityMultiplier;
@@ -317,28 +324,34 @@ namespace SoulAndService
 
         internal static SoulBalanceTuning GetEffectiveBalanceTuning()
         {
-            SoulAndServicePlugin plugin = Instance;
-            if (plugin == null)
-            {
-                return GetPresetBalanceTuning(BalanceProfile.SoulFamine);
-            }
-
+            SoulBalanceTuning relative = GetConfiguredBalanceTuning();
             return new SoulBalanceTuning(
-                plugin.CustomSoulVigorRewardMultiplier == null
-                    ? 1.50f
-                    : plugin.CustomSoulVigorRewardMultiplier.Value,
-                plugin.CustomSoulVigorCostMultiplier == null
-                    ? 0.75f
-                    : plugin.CustomSoulVigorCostMultiplier.Value,
-                plugin.CustomServantUpkeepMultiplier == null
-                    ? 0.60f
-                    : plugin.CustomServantUpkeepMultiplier.Value,
-                plugin.CustomRaisedStartingHealthMultiplier == null
-                    ? 1.00f
-                    : plugin.CustomRaisedStartingHealthMultiplier.Value,
-                plugin.CustomSoulClaimThresholdAdjustment == null
-                    ? 0.00f
-                    : plugin.CustomSoulClaimThresholdAdjustment.Value);
+                GravePactSoulVigorRewardBaseline
+                    * relative.SoulVigorRewardMultiplier,
+                GravePactServantUpkeepBaseline
+                    * relative.ServantUpkeepMultiplier,
+                relative.RaisedStartingHealthMultiplier,
+                relative.SoulClaimThresholdAdjustment);
+        }
+
+        private static SoulBalanceTuning GetConfiguredBalanceTuning()
+        {
+            SoulAndServicePlugin plugin = Instance;
+            return plugin == null
+                ? GetPresetBalanceTuning(BalanceProfile.GravePact)
+                : new SoulBalanceTuning(
+                    plugin.CustomSoulVigorRewardMultiplier == null
+                        ? 1.00f
+                        : plugin.CustomSoulVigorRewardMultiplier.Value,
+                    plugin.CustomServantUpkeepMultiplier == null
+                        ? 1.00f
+                        : plugin.CustomServantUpkeepMultiplier.Value,
+                    plugin.CustomRaisedStartingHealthMultiplier == null
+                        ? 1.00f
+                        : plugin.CustomRaisedStartingHealthMultiplier.Value,
+                    plugin.CustomSoulClaimThresholdAdjustment == null
+                        ? 0.00f
+                        : plugin.CustomSoulClaimThresholdAdjustment.Value);
         }
 
         private static SoulBalanceTuning GetPresetBalanceTuning(
@@ -347,28 +360,24 @@ namespace SoulAndService
             switch (profile)
             {
                 case BalanceProfile.GravePact:
-                    return new SoulBalanceTuning(1.50f, 0.75f, 0.60f, 1.00f, 0.00f);
+                    return new SoulBalanceTuning(1.00f, 1.00f, 1.00f, 0.00f);
                 case BalanceProfile.Dominion:
-                    return new SoulBalanceTuning(2.25f, 0.50f, 0.25f, 1.25f, 5.00f);
+                    return new SoulBalanceTuning(1.20f, 0.80f, 1.15f, 5.00f);
                 case BalanceProfile.SoulFamine:
                 default:
-                    return new SoulBalanceTuning(1.00f, 1.00f, 1.00f, 0.85f, -5.00f);
+                    return new SoulBalanceTuning(0.80f, 1.20f, 0.85f, -5.00f);
             }
         }
 
         private string GetBalanceSummary()
         {
-            SoulBalanceTuning tuning = GetEffectiveBalanceTuning();
+            SoulBalanceTuning tuning = GetConfiguredBalanceTuning();
             BalanceProfile profile = BalanceProfileSetting == null
-                ? BalanceProfile.SoulFamine
+                ? BalanceProfile.GravePact
                 : BalanceProfileSetting.Value;
             return profile
                 + " (reward x"
                 + tuning.SoulVigorRewardMultiplier.ToString(
-                    "0.##",
-                    CultureInfo.InvariantCulture)
-                + ", cost x"
-                + tuning.SoulVigorCostMultiplier.ToString(
                     "0.##",
                     CultureInfo.InvariantCulture)
                 + ", upkeep x"
@@ -1041,7 +1050,7 @@ namespace SoulAndService
                 "Soul Salvage",
                 "EnableSoulSalvageOverhaul",
                 true,
-                "Enable Soul Rend: light cast harvests almost every fresh non-summon corpse for Soul Vigor, simplifying only bodies that are safe to replace. Against owned servants it removes Empowerment, then two real Soulforged ranks per cast, before finally unbinding at rank 0 for remaining Mana and Vigor. Heavy cast binds and raises only eligible hostile corpses as servants. Living-target effects can be controlled separately below.",
+                "Enable Soul Rend: light cast costs 5 Mana and harvests almost every fresh non-summon corpse for quality-based Mana and Soul Vigor, simplifying only bodies that are safe to replace. Against owned servants it removes Empowerment, then two real Soulforged ranks per cast, before finally unbinding at rank 0 for an immediate quality-based return. Heavy cast binds and raises only eligible hostile corpses as servants. Living-target effects can be controlled separately below.",
                 "Enable Soul Rend");
             LivingTargetSoulSalvage = BindOrdered(
                 "Soul Salvage",
@@ -1049,15 +1058,6 @@ namespace SoulAndService
                 true,
                 "Let light cast deal Necrotic damage to eligible living hostiles. Each surviving hit raises that enemy's Soul Claim threshold by 2%, up to 10%; heavy cast claims at or below the final threshold. Protected NPCs and Soul Vigor awards remain unchanged.",
                 "Enable Living-Target Soul Rend");
-            SoulSalvageManaReturnPercent = BindOrdered(
-                "Soul Salvage",
-                "LightCastManaReturnPercent",
-                50.0f,
-                new ConfigDescription(
-                    "Percent of the summon's original mana investment available for Soul Rend recovery at full health. Each unique stripped Soulforged rank releases 3% of that pool at no less than 50% Health efficiency; final unbinding uses current Health. Raised servants also scale with corpse quality and can never restore more than 75% of their binding cost.",
-                    new AcceptableValueRange<float>(0.0f, 100.0f)),
-                "Mana Return Percent");
-
             SoulRendInnerLightEnabled = BindOrdered(
                 "Soul Rend Inner Light",
                 "Enabled",
@@ -1228,27 +1228,19 @@ namespace SoulAndService
             CustomSoulVigorRewardMultiplier = BindOrdered(
                 "Custom Balance",
                 "SoulVigorRewardMultiplier",
-                1.50f,
+                1.00f,
                 new ConfigDescription(
-                    "Current multiplier for Soul Vigor awarded by ordinary corpse harvests and greater-soul extractions. Changing it manually sets Balance Preset to Custom. Investment refunds are never multiplied.",
+                    "Soul Vigor rewards relative to Grave Pact's x1.25 baseline. Changing it manually sets Balance Preset to Custom. Empowerment refunds are never multiplied.",
                     new AcceptableValueRange<float>(0.25f, 5.0f)),
-                "Soul Vigor Reward Multiplier");
-            CustomSoulVigorCostMultiplier = BindOrdered(
-                "Custom Balance",
-                "SoulVigorCostMultiplier",
-                0.75f,
-                new ConfigDescription(
-                    "Current multiplier for Soul Vigor spent on ordinary summons, reanimation, Empowerment, and miniboss service. Changing it manually sets Balance Preset to Custom.",
-                    new AcceptableValueRange<float>(0.10f, 2.0f)),
-                "Soul Vigor Cost Multiplier");
+                "Soul Vigor Rewards vs Grave Pact");
             CustomServantUpkeepMultiplier = BindOrdered(
                 "Custom Balance",
                 "ServantUpkeepMultiplier",
-                0.60f,
+                1.00f,
                 new ConfigDescription(
-                    "Current multiplier for active and rest Health upkeep, including miniboss upkeep. Changing it manually sets Balance Preset to Custom. Zero disables upkeep.",
+                    "Active and rest Health upkeep relative to Grave Pact's x0.75 baseline, including miniboss upkeep. Changing it manually sets Balance Preset to Custom. Zero disables upkeep.",
                     new AcceptableValueRange<float>(0.0f, 2.0f)),
-                "Servant Upkeep Multiplier");
+                "Servant Upkeep vs Grave Pact");
             CustomRaisedStartingHealthMultiplier = BindOrdered(
                 "Custom Balance",
                 "RaisedStartingHealthMultiplier",
@@ -1324,7 +1316,6 @@ namespace SoulAndService
         {
             BalanceProfileSetting.SettingChanged += OnBalancePresetChanged;
             CustomSoulVigorRewardMultiplier.SettingChanged += OnBalanceValueChanged;
-            CustomSoulVigorCostMultiplier.SettingChanged += OnBalanceValueChanged;
             CustomServantUpkeepMultiplier.SettingChanged += OnBalanceValueChanged;
             CustomRaisedStartingHealthMultiplier.SettingChanged += OnBalanceValueChanged;
             CustomSoulClaimThresholdAdjustment.SettingChanged += OnBalanceValueChanged;
@@ -1341,10 +1332,6 @@ namespace SoulAndService
             if (CustomSoulVigorRewardMultiplier != null)
             {
                 CustomSoulVigorRewardMultiplier.SettingChanged -= OnBalanceValueChanged;
-            }
-            if (CustomSoulVigorCostMultiplier != null)
-            {
-                CustomSoulVigorCostMultiplier.SettingChanged -= OnBalanceValueChanged;
             }
             if (CustomServantUpkeepMultiplier != null)
             {
@@ -1476,8 +1463,6 @@ namespace SoulAndService
             {
                 CustomSoulVigorRewardMultiplier.Value =
                     tuning.SoulVigorRewardMultiplier;
-                CustomSoulVigorCostMultiplier.Value =
-                    tuning.SoulVigorCostMultiplier;
                 CustomServantUpkeepMultiplier.Value =
                     tuning.ServantUpkeepMultiplier;
                 CustomRaisedStartingHealthMultiplier.Value =
@@ -1592,7 +1577,6 @@ namespace SoulAndService
             CapturePreservedValue<bool>(profile, "Core", "Enabled");
             CapturePreservedValue<BalanceProfile>(profile, "Core", "BalanceProfile");
             CapturePreservedValue<float>(profile, "Custom Balance", "SoulVigorRewardMultiplier");
-            CapturePreservedValue<float>(profile, "Custom Balance", "SoulVigorCostMultiplier");
             CapturePreservedValue<float>(profile, "Custom Balance", "ServantUpkeepMultiplier");
             CapturePreservedValue<float>(profile, "Custom Balance", "RaisedStartingHealthMultiplier");
             CapturePreservedValue<float>(profile, "Custom Balance", "SoulClaimThresholdAdjustment");
@@ -1645,7 +1629,6 @@ namespace SoulAndService
             CapturePreservedValue<float>(profile, "Audio", "SoulRendImpactAudioVolume");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableSoulSalvageOverhaul");
             CapturePreservedValue<bool>(profile, "Soul Salvage", "EnableLivingTargetSoulSalvage");
-            CapturePreservedValue<float>(profile, "Soul Salvage", "LightCastManaReturnPercent");
             CapturePreservedValue<bool>(profile, "Soul Rend Inner Light", "Enabled");
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "Intensity");
             CapturePreservedValue<float>(profile, "Soul Rend Inner Light", "SoulRendIntensityMultiplier");
@@ -1699,7 +1682,6 @@ namespace SoulAndService
             RestorePreservedValue(FeatureEnabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(BalanceProfileSetting, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CustomSoulVigorRewardMultiplier, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(CustomSoulVigorCostMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CustomServantUpkeepMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CustomRaisedStartingHealthMultiplier, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(CustomSoulClaimThresholdAdjustment, ref restored, ref clamped, ref invalid);
@@ -1752,7 +1734,6 @@ namespace SoulAndService
             RestorePreservedValue(SoulRendImpactAudioVolume, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulSalvageOverhaul, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(LivingTargetSoulSalvage, ref restored, ref clamped, ref invalid);
-            RestorePreservedValue(SoulSalvageManaReturnPercent, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightEnabled, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightIntensity, ref restored, ref clamped, ref invalid);
             RestorePreservedValue(SoulRendInnerLightIntensityMultiplier, ref restored, ref clamped, ref invalid);

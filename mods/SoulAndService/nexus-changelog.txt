@@ -1,4 +1,8 @@
-TargetVersion=3.3.3
-BaselineVersion=3.3.0
+TargetVersion=3.3.7
+BaselineVersion=3.3.3
 
-Light Soul Rend now preserves the same active servant after severing Empowerment or removing Soulforged ranks across the native summon, NPC, and Health-removal paths. Newly raised ordinary servants begin with a tighter preset curve: Soul Famine uses x0.85 starting Health, Grave Pact x1.00, and Dominion x1.25. Diagnostics now reports starting Health as a percentage and gains a one-shot action that promotes every currently active owned summon below a selected Soulforged rank to that genuine saved rank, making normal rank stripping easy to test.
+Summon Capacity now remains additive through Astral Bonds changes, Origin respecs, and saved-host reloads. The live summon registry grows with capacity increases, preserves existing servants when capacity falls, and blocks new admissions until the host is back within the effective limit. Ordinary summon spells now apply that same limit before spawning while preserving native item restrictions, exact-cap replacement, Soul and Service recovery paths, and consistent miniboss accounting.
+
+Grave Pact is now the visible x1.00 baseline. Soul Famine, Grave Pact, and Dominion use x0.80/x1.00/x1.20 reward modifiers, x1.20/x1.00/x0.80 upkeep modifiers, x0.85/x1.00/x1.15 raised starting Health, and -5%/+0%/+5% Soul Claim thresholds. Fixed Grave Pact baselines of x1.25 rewards and x0.75 upkeep preserve the intended actual runtime balance, while Soul Vigor costs remain fixed at x1.00.
+
+Light Soul Rend now always costs 5 Mana. Ordinary Meager, Worthy, Potent, and Prime corpse harvests restore 20/30/40/50 Mana, while greater-soul corpse portions remain Vigor-only. Servant dismantling uses those same quality bands: severing Empowerment restores half the corpse Mana and 75% of the exact Empowerment payment; each two-rank strip restores half the normal corpse Mana and Vigor; final unbinding restores 75% of both. Rewards are immediate, do not scale with servant Health, and re-earned ranks can pay again without creating a second harvestable corpse at final unbinding.

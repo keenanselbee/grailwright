@@ -16,14 +16,14 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | --- | --- | --- |
 | [Ambush Integrity - Stealth Overhaul](mods/AmbushIntegrity) | 0.1.8 | Unpublished |
 | [Glorious UI](mods/GloriousUI) | 1.7.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/248) |
-| [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.2.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
+| [Blood Magic Expansion](mods/BloodMagicExpansion) | 3.2.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/224) |
 | [Deeds of Avalon - Character Statistics](mods/DeedsOfAvalon) | 1.9.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/277) |
 | [Dishonored Dynamic Crosshair](mods/DishonoredDynamicCrosshair) | 3.6.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/223) |
 | [Enemy Respawn Control](mods/EnemyRespawnControl) | 2.2.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/240) |
 | [Eyes in the Dark - Wyrdnight Overhaul](mods/EyesInTheDark) | 1.4.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/254) |
-| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.8.8 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
+| [First Person Arms Adjuster](mods/FirstPersonArmsAdjuster) | 0.9.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/263) |
 | [Grail Floating Text](mods/GrailFloatingText) | 2.6.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/247) |
-| [Killing Blow Mastery](mods/KillingBlowMastery) | 1.9.9 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
+| [Killing Blow Mastery](mods/KillingBlowMastery) | 2.0.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/234) |
 | [King's Elegy - Main Menu Music](mods/KingsElegyMainMenuMusic) | 2.2.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/230) |
 | [KS Better Movement Addon](mods/KSAddons/KSBetterMovementAddon) | 0.2.2 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Movement](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/102) |
 | [KS Better Volumetric Fog Addon](mods/KSAddons/KSTGVolumetricFixAddon) | 0.1.3 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Better Volumetric Fog](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/145) |
@@ -34,11 +34,11 @@ page when one is known; addon rows also include the parent Nexus mod they patch.
 | [KS Wyrd Sight Addon](mods/KSAddons/KSWyrdSightAddon) | 1.2.8 | [KS Addons](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/225); targets [Wyrd Sight](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/94) |
 | [No Player Light](mods/NoPlayerLight) | 1.3.5 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/238) |
 | [Battlecry Voice Tuner](mods/BattlecryVoiceTuner) | 1.4.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/252) |
-| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 3.3.3 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290) |
+| [Soul and Service - Summon Overhaul](mods/SoulAndService) | 3.3.7 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/290) |
 | [Steel and Bone - Expanded Combat and Difficulty](mods/SteelAndBone) | 4.2.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/241) |
 | [Torchlight Rekindled](mods/TorchlightRekindled) | 0.4.4 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/272) |
 | [Ultrawide Fixes](mods/UltrawideFixes) | 1.1.1 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/239) |
-| [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.9.0 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |
+| [Versatile Weapons - Dynamic Grip](mods/VersatileWeapons) | 0.9.2 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/276) |
 | [Wyrdsoul Reserve](mods/WyrdsoulReserve) | 1.0.6 | [Nexus](https://www.nexusmods.com/taintedgrailthefallofavalon/mods/264) |
 
 ## Layout

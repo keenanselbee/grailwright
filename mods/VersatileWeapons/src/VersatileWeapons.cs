@@ -39,9 +39,9 @@ using UnityEngine;
 [assembly: AssemblyDescription("Strength-scaled one-handed greatweapons and switchable melee grips for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("Keenan")]
 [assembly: AssemblyProduct("Versatile Weapons")]
-[assembly: AssemblyVersion("0.9.0.0")]
-[assembly: AssemblyFileVersion("0.9.0.0")]
-[assembly: AssemblyInformationalVersion("0.9.0")]
+[assembly: AssemblyVersion("0.9.2.0")]
+[assembly: AssemblyFileVersion("0.9.2.0")]
+[assembly: AssemblyInformationalVersion("0.9.2")]
 
 namespace VersatileWeapons
 {
@@ -63,7 +63,7 @@ namespace VersatileWeapons
         public const string PluginGuid =
             "ks.tgfoa.versatile-weapons";
         public const string PluginName = "Versatile Weapons";
-        public const string PluginVersion = "0.9.0";
+        public const string PluginVersion = "0.9.2";
 
         private const int ConfigSchemaVersion = 13;
         private const int ConfigRecoveryBaselineSchema = 1;
@@ -2265,12 +2265,7 @@ namespace VersatileWeapons
                 _drawnWeaponHiddenSince = -1.0f;
                 if (_gripItem != null)
                 {
-                    RestoreHiddenPairedHand();
-                    ClearRememberedGripAnimationRefresh();
-                    _gripItem = null;
-                    _gripPairedItem = null;
-                    _twoHandedGrip = false;
-                    ResetToggleWeaponHold();
+                    CancelStaleGripWorkForEquipmentChange(hero);
                 }
             }
             else
@@ -3567,8 +3562,8 @@ namespace VersatileWeapons
             Logger.LogInfo(
                 nativeOneHandedWeapon
                     ? (_twoHandedGrip
-                        ? "Changed the one-handed weapon to a two-handed grip and stowed its offhand item."
-                        : "Restored the weapon's one-handed grip and offhand item.")
+                        ? "Changed the one-handed weapon to a two-handed grip and stowed its paired hand."
+                        : "Restored the weapon's one-handed grip and paired hand.")
                     : (_twoHandedGrip
                         ? (IsShield(pairedItem)
                             ? "Changed the shielded two-handed weapon to its native grip and stowed its shield."
@@ -3816,6 +3811,17 @@ namespace VersatileWeapons
 
         internal void RecordAnimatorLoad(CharacterHandBase hand)
         {
+            Hero hero = Hero.Current;
+            if (_gripItem != null
+                && hero != null
+                && hand != null
+                && (ReferenceEquals(hand, hero.MainHandWeapon)
+                    || ReferenceEquals(hand, hero.OffHandWeapon))
+                && !GripContextMatchesCurrentEquipment(hero))
+            {
+                CancelStaleGripWorkForEquipmentChange(hero);
+            }
+
             MarkHandAnimatorLoading(hand);
 
             if (hand != null
@@ -4097,6 +4103,76 @@ namespace VersatileWeapons
                 + DescribeGripContext(
                     Hero.Current,
                     FindGripSwitchWeapon(Hero.Current)));
+        }
+
+        private bool GripContextMatchesCurrentEquipment(Hero hero)
+        {
+            if (hero == null || _gripItem == null)
+            {
+                return false;
+            }
+
+            CharacterHand weapon = FindHandForItem(hero, _gripItem);
+            return weapon != null
+                && ReferenceEquals(
+                    GetPairedItem(hero, _gripItem),
+                    _gripPairedItem)
+                && ReferenceEquals(
+                    FindGripSwitchWeapon(hero),
+                    weapon);
+        }
+
+        private void CancelStaleGripWorkForEquipmentChange(Hero hero)
+        {
+            CharacterHand previousWeapon =
+                FindHandForItem(hero, _gripItem);
+            CharacterHandBase recoveryCandidate =
+                _pairedRefreshPairedHand != null
+                && _pairedRefreshPairedHand.IsHidden
+                    ? _pairedRefreshPairedHand
+                    : _hiddenPairedHand != null
+                        && _hiddenPairedHand.IsHidden
+                            ? _hiddenPairedHand
+                            : null;
+
+            _gripItem = null;
+            _gripPairedItem = null;
+            _twoHandedGrip = false;
+            _weaponTransitionGeneration++;
+            _weaponTransitionRefreshPending = false;
+            _weaponTransitionRefreshFramesRemaining = 0;
+            _oneHandedReconciliationPending = false;
+            _magicVisualRecoveryHand = null;
+            _gripFsmMismatchFrames = 0;
+            _selectedGripControllerKnown = false;
+            _selectedGripControllerItem = null;
+            CancelGripEquipInputGuard();
+            ClearRememberedGripAnimationRefresh();
+            CancelPairedRefresh();
+            CancelEquipFsmReset();
+            RestoreFirstPersonWeaponPosition();
+            RestoreOffHandTwoHandedPresentation();
+            RestoreHiddenPairedHand();
+            ResetToggleWeaponHold();
+            ClearObservedWeapon();
+            if (recoveryCandidate != null
+                && hero != null
+                && (ReferenceEquals(recoveryCandidate, hero.MainHandWeapon)
+                    || ReferenceEquals(recoveryCandidate, hero.OffHandWeapon)))
+            {
+                _pairedHandVisibilityRecoveryCandidate =
+                    recoveryCandidate;
+                _drawnPairedHandHiddenSince = -1.0f;
+            }
+
+            LogDiagnostic(
+                "Canceled stale grip animation and FSM work because the exact weapon, paired item, or owning hand changed; native equipment loading now owns the transition. generation="
+                + _weaponTransitionGeneration
+                + "; previousOwnerHand="
+                + (previousWeapon == null
+                    ? "none"
+                    : GetGripOwnerHand(hero, previousWeapon))
+                + ".");
         }
 
         private void ObserveLoadoutIndex(Hero hero)
@@ -4729,9 +4805,25 @@ namespace VersatileWeapons
             return hero != null
                 && item != null
                 && item.Template != null
-                && ReferenceEquals(item, hero.MainHandItem)
+                && (ReferenceEquals(item, hero.MainHandItem)
+                    || ReferenceEquals(item, hero.OffHandItem))
                 && item.Template.IsOneHanded
                 && IsSupportedWeaponFamily(item.Template);
+        }
+
+        private static bool IsGripSwitchCandidate(
+            Hero hero,
+            CharacterHand weapon)
+        {
+            if (hero == null || weapon == null || weapon.Item == null)
+            {
+                return false;
+            }
+
+            Item pairedItem = GetPairedItem(hero, weapon.Item);
+            return IsSupportedPairedHandItem(pairedItem)
+                && (IsNativeOneHandedGripWeapon(weapon)
+                    || IsConvertedTwoHandedGripWeapon(weapon));
         }
 
         private static CharacterHand FindConvertedTwoHandedGripWeapon(
@@ -4763,8 +4855,14 @@ namespace VersatileWeapons
             }
 
             CharacterHand mainHand = hero.MainHandWeapon as CharacterHand;
-            return IsNativeOneHandedGripWeapon(mainHand)
-                ? mainHand
+            if (IsNativeOneHandedGripWeapon(mainHand))
+            {
+                return mainHand;
+            }
+
+            CharacterHand offHand = hero.OffHandWeapon as CharacterHand;
+            return IsNativeOneHandedGripWeapon(offHand)
+                ? offHand
                 : null;
         }
 
@@ -4790,7 +4888,8 @@ namespace VersatileWeapons
             return offHand != null
                 && offHand.Item != null
                 && offHand.Item.Template != null
-                && offHand.Item.Template.IsTwoHanded
+                && (offHand.Item.Template.IsOneHanded
+                    || offHand.Item.Template.IsTwoHanded)
                 && IsSupportedWeaponFamily(offHand.Item.Template)
                 ? offHand
                 : null;
@@ -4804,28 +4903,15 @@ namespace VersatileWeapons
             }
 
             CharacterHand mainHand = hero.MainHandWeapon as CharacterHand;
-            if (IsConvertedTwoHandedGripWeapon(mainHand))
-            {
-                Item pairedItem = GetPairedItem(hero, mainHand.Item);
-                if (IsSupportedPairedHandItem(pairedItem))
-                {
-                    return mainHand;
-                }
-            }
-
-            if (IsNativeOneHandedGripWeapon(mainHand))
+            if (IsGripSwitchCandidate(hero, mainHand))
             {
                 return mainHand;
             }
 
             CharacterHand offHand = hero.OffHandWeapon as CharacterHand;
-            if (IsConvertedTwoHandedGripWeapon(offHand))
+            if (IsGripSwitchCandidate(hero, offHand))
             {
-                Item pairedItem = GetPairedItem(hero, offHand.Item);
-                if (IsSupportedPairedHandItem(pairedItem))
-                {
-                    return offHand;
-                }
+                return offHand;
             }
 
             return null;
@@ -5243,6 +5329,10 @@ namespace VersatileWeapons
                 + (effectiveTwoHanded ? "two-handed" : "one-handed")
                 + "; gripSource="
                 + (explicitGrip ? "explicit" : "default")
+                + "; ownerHand="
+                + (weapon == null
+                    ? "none"
+                    : GetGripOwnerHand(hero, weapon))
                 + "; pairing="
                 + pairing
                 + "; rawPairSameItem="

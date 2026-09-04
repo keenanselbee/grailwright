@@ -1,5 +1,5 @@
 Versatile Weapons - Dynamic Grip
-Version 0.9.0
+Version 0.9.2
 
 Standalone dynamic weapon-grip mod for Tainted Grail: The Fall of Avalon.
 
@@ -26,10 +26,10 @@ one-handed grip.
 While a supported weapon is drawn, hold the game's remappable Toggle Weapon
 action for 0.45 seconds to change grip. Converted two-handed swords, axes,
 hammers, and spears return to their native animations and stow the paired hand.
-Native one-handed weapons in the same four families adopt the matching native
-two-handed animation profile and stow any equipped offhand item. Hold the same
-action again to restore the one-handed grip and offhand. A short press still
-sheathes or draws normally.
+Native one-handed weapons in the same four families can own this change from
+either hand, adopt the matching native two-handed animation profile, and stow
+their paired hand. Hold the same action again to restore the one-handed grip
+and paired item. A short press still sheathes or draws normally.
 
 By default, each native or Glorious UI weapon loadout remembers its last
 manually selected grip. The remembered grip is restored only when that loadout
@@ -38,12 +38,12 @@ equipment makes the new setup use its normal default grip until changed
 manually, so stale grip choices cannot carry onto replacement weapons.
 
 When both equipped weapons can change grip, the main-hand weapon owns Toggle
-Weapon. An offhand greatweapon owns the grip control when the main hand is a
-spell, shield, rod, or another item that Versatile Weapons does not grip-switch.
-Changing the offhand weapon to two-handed grip stows the paired main-hand item;
-its weapon view moves to the main-hand socket expected by the two-handed
-animations. Returning to one-handed grip moves the view back and restores the
-paired item.
+Weapon. A supported offhand weapon owns the grip control when the main hand is
+a spell, shield, rod, or another item that Versatile Weapons does not
+grip-switch. Changing an offhand weapon to two-handed grip stows its paired
+main-hand item; its weapon view moves to the main-hand socket expected by the
+two-handed animations. Returning to one-handed grip moves the view back and
+restores the paired item.
 
 After a grip change, new attacks and blocks wait briefly for the selected
 grip's equip animation to reach its stable idle or movement state. This prevents
@@ -184,7 +184,9 @@ grip state, and effective One-Handed or Two-Handed proficiency. Integrations
 fall back to native behavior when Versatile Weapons is absent or disabled.
 
 Equipment changes made through the inventory UI are monitored independently of
-loadout-index switches. Once the new weapon animator is ready, Versatile Weapons
+loadout-index switches. New equipment cancels obsolete grip-restoration work
+before an unsupported replacement resumes its normal native behavior. Once the
+new weapon animator is ready, Versatile Weapons
 restores the correct main-hand, offhand-melee, dual-wield, or two-handed combat
 FSM if the game left conflicting layers active. When a converted greatweapon is
 paired with a spell, the spell controller and visible gauntlet settle first;

@@ -49,8 +49,11 @@ if ($source -notmatch 'private static readonly string\[\] OffHandMeleeLayers' -o
     $source -notmatch '"Magic_MeleeOffHand"') {
     throw "Offhand converted weapons must retain the game''s offhand-melee layer."
 }
-if ($source -notmatch '(?s)FindGripSwitchWeapon\(Hero hero\).+IsConvertedTwoHandedGripWeapon\(mainHand\).+IsNativeOneHandedGripWeapon\(mainHand\).+IsConvertedTwoHandedGripWeapon\(offHand\)') {
-    throw "Grip ownership must prefer a grip-capable main hand before a converted offhand."
+if ($source -notmatch '(?s)IsNativeOneHandedGripWeapon\(.+ReferenceEquals\(item, hero\.MainHandItem\).+ReferenceEquals\(item, hero\.OffHandItem\)' -or
+    $source -notmatch '(?s)IsGripSwitchCandidate\(.+IsSupportedPairedHandItem\(pairedItem\).+IsNativeOneHandedGripWeapon\(weapon\).+IsConvertedTwoHandedGripWeapon\(weapon\)' -or
+    $source -notmatch '(?s)FindGripSwitchWeapon\(Hero hero\).+IsGripSwitchCandidate\(hero, mainHand\).+return mainHand;.+IsGripSwitchCandidate\(hero, offHand\).+return offHand;' -or
+    $source -notmatch '(?s)FindDiagnosticWeapon\(Hero hero\).+offHand\.Item\.Template\.IsOneHanded.+offHand\.Item\.Template\.IsTwoHanded') {
+    throw "Supported native one-handed and converted two-handed weapons must use the same pairing rules in either hand, with main-hand ownership priority."
 }
 $nativeRefresh = [regex]::Match(
     $source,
@@ -261,6 +264,26 @@ if ($updateLoop -notmatch 'MonitorCanceledPairedHandVisibility\(hero\)' -or
     $clearObservedWeapon -match '_pairedHandVisibilityRecoveryCandidate') {
     throw "Owned paired-hand recovery must run independently and survive temporary loss of a supported grip weapon."
 }
+$animatorLoad = [regex]::Match(
+    $source,
+    '(?s)internal void RecordAnimatorLoad\(.+?(?=\r?\n        internal )'
+).Value
+$staleGripCancellation = [regex]::Match(
+    $source,
+    '(?s)private void CancelStaleGripWorkForEquipmentChange\(.+?(?=\r?\n        private )'
+).Value
+if ($missingGripBranch -notmatch 'CancelStaleGripWorkForEquipmentChange\(hero\)' -or
+    $animatorLoad -notmatch '!GripContextMatchesCurrentEquipment\(hero\)' -or
+    $animatorLoad -notmatch 'CancelStaleGripWorkForEquipmentChange\(hero\)' -or
+    $staleGripCancellation -notmatch '_weaponTransitionGeneration\+\+' -or
+    $staleGripCancellation -notmatch '_weaponTransitionRefreshPending = false' -or
+    $staleGripCancellation -notmatch 'CancelGripEquipInputGuard\(\)' -or
+    $staleGripCancellation -notmatch 'CancelPairedRefresh\(\)' -or
+    $staleGripCancellation -notmatch 'CancelEquipFsmReset\(\)' -or
+    $staleGripCancellation -notmatch 'RestoreOffHandTwoHandedPresentation\(\)' -or
+    $staleGripCancellation -notmatch 'RestoreHiddenPairedHand\(\)') {
+    throw "An unsupported replacement must cancel stale grip work before its animator loads, advance transition ownership, restore VW presentation state, and leave native FSM loading authoritative."
+}
 if ($source -notmatch '(?s)UsesParallelOffHandMeleeMode\(.+?GripCombatMode\.OneHandedWithOffHandMelee') {
     throw "Independent offhand weapons must select the parallel offhand-melee mode."
 }
@@ -331,9 +354,9 @@ if ($readme -notmatch 'any one-slot hand item' -or
 if ($source -match 'IsOffHandWeaponPairedWithMainHandSpell' -or
     $source -notmatch '(?s)CanClaimGripInput\(Hero hero\).+IsSupportedPairedHandItem\(pairedItem\)' -or
     $source -notmatch '(?s)TryToggleGrip\(Hero hero\).+IsSupportedPairedHandItem\(pairedItem\)' -or
-    $readme -notmatch 'An offhand greatweapon owns the grip control when the main hand is a\s+spell' -or
-    $readme -notmatch 'Changing the offhand weapon to two-handed grip stows the paired main-hand item') {
-    throw "A supported offhand greatweapon must retain grip control beside a main-hand spell and stow that spell in two-handed grip."
+    $readme -notmatch 'A supported offhand weapon owns the grip control when the main hand is\s+a spell' -or
+    $readme -notmatch 'Changing an offhand weapon to two-handed grip stows its paired\s+main-hand item') {
+    throw "A supported offhand weapon must retain grip control beside a main-hand spell and stow that spell in two-handed grip."
 }
 if ($source -notmatch 'GetActiveOffHandTwoHandedGripWeapon' -or
     $source -notmatch 'class TwoHandedFsmStatsItemPatch' -or
@@ -351,7 +374,7 @@ if ($source -notmatch 'UpdateOffHandTwoHandedPresentation' -or
     $source -notmatch 'weaponTransform\.SetParent\(mainHandSocket, false\)' -or
     $source -notmatch 'weaponTransform\.SetParent\(originalParent, false\)' -or
     $source -notmatch '(?s)ApplyObservedGripTransition.+StartGripEquipInputGuard\(weapon\.Item\);\s+UpdateOffHandTwoHandedPresentation\(hero\)' -or
-    $readme -notmatch 'weapon view moves to the main-hand socket expected by the two-handed\s+animations') {
+    $readme -notmatch 'weapon view moves to the main-hand socket expected by the\s+two-handed\s+animations') {
     throw "An offhand weapon in two-handed grip must move only its loaded view to the main-hand socket and restore that view to the offhand socket afterward."
 }
 

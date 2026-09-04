@@ -6,7 +6,7 @@
 
 [b]Versatile Weapons - Dynamic Grip[/b] lets supported melee weapons move naturally between one-handed and two-handed use.
 
-Characters who meet a weapon's normal requirements can wield native two-handed swords, axes, hammers, and spears in either hand beside any one-slot hand item, with handling that improves as Strength rises. Native one-handed weapons from the same families can be gripped with both hands for stronger, faster attacks. Hold the normal Toggle Weapon action to change grip; tap it to sheathe or draw as usual.
+Characters who meet a weapon's normal requirements can wield native two-handed swords, axes, hammers, and spears in either hand beside any one-slot hand item, with handling that improves as Strength rises. Native one-handed weapons from the same families can likewise be gripped with both hands from either hand for stronger, faster attacks. Hold the normal Toggle Weapon action to change grip; tap it to sheathe or draw as usual.
 
 Each weapon keeps its native requirements, stamina behavior, enchantments, and effects that explicitly require a particular weapon type. By default, the active grip selects One-Handed or Two-Handed proficiency damage scaling and XP. Proper native grips remain unchanged.
 
@@ -17,7 +17,7 @@ Each weapon keeps its native requirements, stamina behavior, enchantments, and e
 [*][b]Dynamic grip switching:[/b] Hold Toggle Weapon to change grip; tap it to sheathe or draw normally.[/*]
 [*][b]Per-loadout grip memory:[/b] Each weapon loadout remembers its last manually selected grip while its exact weapon, paired item, and owning hand remain unchanged.[/*]
 [*][b]Strength-scaled greatweapons:[/b] Wield a supported two-handed weapon in one hand as soon as you meet its normal Strength requirement, but expect slow, unwieldy handling at first. Its handling improves continuously with Strength and reaches the configured maximum at 2x the requirement by default, or at 10 Strength for a weapon with no Strength requirement.[/*]
-[*][b]Two-handed power:[/b] Grip native one-handed weapons with both hands for greater damage, speed, poise, and force.[/*]
+[*][b]Two-handed power:[/b] Grip native one-handed weapons with both hands from either hand for greater damage, speed, poise, and force.[/*]
 [*][b]Flexible hand pairing:[/b] Keep a shield, spell, rod, or another melee weapon active beside a one-handed greatweapon, in either hand order.[/*]
 [*][b]Complete animation support:[/b] Matching main-hand, offhand-melee, dual-wield, and two-handed combat states keep weapons and paired items synchronized across grip, equipment, loadout, and perspective changes.[/*]
 [*][b]True paired-hand suspension:[/b] Shields, weapons, and spells become hidden and inactive while both hands hold the selected weapon, then return with the one-handed grip.[/*]
@@ -39,7 +39,7 @@ Both grip directions support:
 
 Daggers, rods, staves, tools, bows, and other ranged weapons do not gain new grips. Any one-slot item from those categories can still remain active beside a supported greatweapon. Bows, two-handed magic, and other items that inherently require both hand slots cannot be paired.
 
-Converted native two-handed weapons support an empty opposite hand or any one-slot shield, spell, rod, or melee weapon. Native one-handed weapons can likewise enter the two-handed grip with any one-slot paired item; that item is suspended until the one-handed grip returns.
+Converted native two-handed weapons support an empty opposite hand or any one-slot shield, spell, rod, or melee weapon. Native one-handed weapons can likewise enter the two-handed grip from either hand with any one-slot paired item; that paired hand is suspended until the one-handed grip returns.
 
 [line]
 
@@ -63,15 +63,15 @@ Converted native two-handed weapons support an empty opposite hand or any one-sl
 [b]Native one-handed weapon[/b]
 [list]
 [*]Defaults to its ordinary one-handed behavior.[/*]
-[*]Hold Toggle Weapon to use both hands and suspend the equipped offhand.[/*]
-[*]Hold again to restore the native one-handed grip and offhand.[/*]
+[*]From either hand, hold Toggle Weapon to use both hands and suspend the paired hand.[/*]
+[*]Hold again to restore the native one-handed grip and paired item.[/*]
 [/list]
 
-When both equipped weapons can change grip, the main-hand weapon owns Toggle Weapon. An offhand greatweapon owns the grip control when the main hand is a spell, shield, rod, or another item that Versatile Weapons does not grip-switch.
+When both equipped weapons can change grip, the main-hand weapon owns Toggle Weapon. A supported offhand weapon owns the grip control when the main hand is a spell, shield, rod, or another item that Versatile Weapons does not grip-switch.
 
 Grip memory is enabled by default. A loadout restores its last manually selected grip only when the exact weapon, paired item, and grip-owning hand still match. Replacing either hand makes that loadout use the normal default grip until changed manually. Memory is stored with the game save and recognizes Glorious UI's six virtual weapon loadouts independently.
 
-Grip changes are rejected during unsafe action states such as attacks, interactions, loading, or paused play. If a held change cannot complete, releasing the action falls back to the normal sheathe or draw behavior.
+Grip changes are rejected during unsafe action states such as attacks, interactions, loading, or paused play. If a held change cannot complete, releasing the action falls back to the normal sheathe or draw behavior. Replacing equipment cancels obsolete grip-restoration work before an unsupported weapon resumes its normal native behavior.
 
 [line]
 

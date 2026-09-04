@@ -1,3 +1,11 @@
+Version 0.9.2
+Included supported offhand native one-handed weapons in grip-recognition diagnostics so the new either-hand behavior reports its owner, pairing, and readiness consistently.
+
+Version 0.9.1
+Allowed supported native one-handed swords, axes, blunt weapons, and polearms to change grip from either hand; when both hands qualify, the main-hand weapon retains Toggle Weapon priority.
+Two-handed native one-handed grips now suppress and restore the paired hand regardless of which hand owns the weapon.
+Canceled stale equipment-transition work before unsupported replacement weapons, such as knives, resume their native controller and FSM behavior.
+
 Version 0.9.0
 Skipped native and Glorious UI loadout-context polling when grip memory is disabled and no supported grip-switch weapon is equipped. Supported weapons and enabled grip memory still sample the same context once per update, preserving grip behavior and invalidation while removing unnecessary idle reflection and lookup work.
 

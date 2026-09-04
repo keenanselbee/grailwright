@@ -36,8 +36,8 @@ using UnityEngine.Rendering.HighDefinition;
 [assembly: AssemblyDescription("Blood Transfusion and Life Transfusion corpse rituals, live drain rewards, and corpse-fed Blood Essence progression for Tainted Grail: The Fall of Avalon")]
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("Blood Magic Expansion")]
-[assembly: AssemblyVersion("3.2.6.0")]
-[assembly: AssemblyFileVersion("3.2.6.0")]
+[assembly: AssemblyVersion("3.2.8.0")]
+[assembly: AssemblyFileVersion("3.2.8.0")]
 
 namespace BloodMagicExpansion
 {
@@ -60,7 +60,7 @@ namespace BloodMagicExpansion
     {
         public const string PluginGuid = "ks.tgfoa.blood-magic-expansion";
         public const string PluginName = "Blood Magic Expansion";
-        public const string PluginVersion = "3.2.6";
+        public const string PluginVersion = "3.2.8";
         private const int ConfigSchemaVersion = 30;
         private const int ConfigRecoveryBaselineSchema = 10;
         private static readonly Grailwright.Shared.ConfigRecoveryKeepCurrentDefaultRule[]
@@ -131,6 +131,7 @@ namespace BloodMagicExpansion
         private const float BloodSpellBleedProgressionBase = 1.06f;
         private const float BloodSpellTapSpeedProgressionBase = 1.06f;
         private const float BloodSpellHeldSpeedProgressionBase = 1.01f;
+        private const float BloodSpellLightCastRecoveryDelaySeconds = 1.0f;
         private const float AbhartachExplosionDamageProgressionBase = 1.05f;
         private const float AbhartachExplosionRadiusProgressionBase = 1.10f;
         private const float AbhartachExplosionBleedProgressionBase = 1.12f;
@@ -396,6 +397,8 @@ namespace BloodMagicExpansion
         private readonly List<CorpseState> _allCorpseStates = new List<CorpseState>();
         private readonly Dictionary<object, StrongCastState> _strongCastStates =
             new Dictionary<object, StrongCastState>(ReferenceEqualityComparer.Instance);
+        private readonly Dictionary<object, LightCastRecoveryState> _lightCastRecoveryStates =
+            new Dictionary<object, LightCastRecoveryState>(ReferenceEqualityComparer.Instance);
         private readonly Dictionary<object, BloodSpellInnerLightReadyState> _bloodSpellInnerLightReadyStates =
             new Dictionary<object, BloodSpellInnerLightReadyState>(ReferenceEqualityComparer.Instance);
         private readonly Dictionary<object, LiveDrainState> _liveDrainStates =
@@ -1495,6 +1498,28 @@ namespace BloodMagicExpansion
                 _strongCastStates.Remove(remove[i]);
             }
 
+            remove.Clear();
+            foreach (KeyValuePair<object, LightCastRecoveryState> pair
+                in _lightCastRecoveryStates)
+            {
+                bool mainHand;
+                bool offHand;
+                GetBloodSpellInnerLightHandFlags(
+                    pair.Value == null ? null : pair.Value.Hand,
+                    out mainHand,
+                    out offHand);
+                if ((hand == BloodSpellInnerLightHand.MainHand && mainHand)
+                    || (hand == BloodSpellInnerLightHand.OffHand && offHand))
+                {
+                    remove.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < remove.Count; i++)
+            {
+                _lightCastRecoveryStates.Remove(remove[i]);
+            }
+
             BloodSpellInnerLightHandState handState =
                 hand == BloodSpellInnerLightHand.MainHand
                     ? _bloodSpellInnerLightMainHandState
@@ -1959,6 +1984,7 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightReadyStates.Remove(magicFsm);
                 _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
                 return;
             }
 
@@ -6399,6 +6425,7 @@ namespace BloodMagicExpansion
 
             _nextCacheCleanupTime = now + CacheCleanupIntervalSeconds;
             CleanupStrongCastStates(now);
+            CleanupLightCastRecoveryStates(now);
             CleanupBloodSpellInnerLightReadyStates();
             CleanupCorpseStates(now);
             CleanupDestroyedObjectSet(_loggedUnresolvedRaycastHits);
@@ -6472,6 +6499,41 @@ namespace BloodMagicExpansion
             for (int i = 0; i < remove.Count; i++)
             {
                 _strongCastStates.Remove(remove[i]);
+            }
+        }
+
+        private void CleanupLightCastRecoveryStates(float now)
+        {
+            if (_lightCastRecoveryStates.Count == 0)
+            {
+                return;
+            }
+
+            List<object> remove = null;
+            foreach (KeyValuePair<object, LightCastRecoveryState> pair
+                in _lightCastRecoveryStates)
+            {
+                if (pair.Value == null ||
+                    pair.Value.AcceptedAt < now - ExpiredStrongCastRetentionSeconds ||
+                    IsDestroyedUnityObject(pair.Key))
+                {
+                    if (remove == null)
+                    {
+                        remove = new List<object>();
+                    }
+
+                    remove.Add(pair.Key);
+                }
+            }
+
+            if (remove == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < remove.Count; i++)
+            {
+                _lightCastRecoveryStates.Remove(remove[i]);
             }
         }
 
@@ -6899,16 +6961,16 @@ namespace BloodMagicExpansion
                 return false;
             }
 
+            if (!GetBoolProperty(magicFsm, "SpellAttackHeld", false))
+            {
+                return false;
+            }
+
             float now = Now;
             StrongCastState state;
             if (_strongCastStates.TryGetValue(magicFsm, out state) && state.Until >= now)
             {
                 return true;
-            }
-
-            if (!GetBoolProperty(magicFsm, "SpellAttackHeld", false))
-            {
-                return false;
             }
 
             if (!GetBoolProperty(magicFsm, "IsCasting", false))
@@ -11294,6 +11356,7 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightReadyStates.Remove(magicFsm);
                 _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
                 return;
             }
 
@@ -11311,6 +11374,11 @@ namespace BloodMagicExpansion
             string spellSummary = isBloodMagicSpell ? bloodSummary : abhartachSummary;
             if (!castWasAccepted)
             {
+                if (isBloodMagicSpell)
+                {
+                    _strongCastStates.Remove(magicFsm);
+                }
+
                 LogBloodSpellInnerLightDiagnosticThrottled(
                     "matched TryEnterMagicCastState but did not boost; lightCast="
                     + lightCast
@@ -11337,14 +11405,194 @@ namespace BloodMagicExpansion
                 RecordAbhartachFocusedCorpseQuality();
             }
 
-            if (lightCast || !isBloodMagicSpell)
+            if (!isBloodMagicSpell)
             {
                 return;
             }
 
+            if (lightCast)
+            {
+                _strongCastStates.Remove(magicFsm);
+                LightCastRecoveryState lightState = GetLightCastRecoveryState(magicFsm);
+                lightState.Hand = GetHandKey(magicFsm);
+                lightState.AcceptedAt = Now;
+                lightState.PerformedAt = 0f;
+                lightState.PerformObserved = false;
+                lightState.RecoveryAttempted = false;
+                return;
+            }
+
+            _lightCastRecoveryStates.Remove(magicFsm);
             StrongCastState state = GetStrongCastState(magicFsm);
             state.Hand = GetHandKey(magicFsm);
             state.Until = Now + Math.Max(0.05f, _strongHoldGraceSeconds.Value);
+            state.ReleaseFallbackAttempted = false;
+        }
+
+        internal void EndReleasedBloodMagicCastIfStillLooping(object magicFsm)
+        {
+            if (!_enabled.Value || magicFsm == null)
+            {
+                return;
+            }
+
+            StrongCastState state;
+            if (!_strongCastStates.TryGetValue(magicFsm, out state) ||
+                state == null ||
+                state.ReleaseFallbackAttempted ||
+                GetBoolProperty(magicFsm, "SpellAttackHeld", false) ||
+                !GetBoolProperty(magicFsm, "IsLayerActive", false) ||
+                !string.Equals(
+                    GetStringProperty(magicFsm, "CurrentStateType"),
+                    "MagicHeavyLoop",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            object item = GetPropertyValue(magicFsm, "Item");
+            object skill = GetPropertyValue(magicFsm, "Skill");
+            string summary;
+            if (!IsBloodTransfusionItemOrSkill(item, skill, out summary))
+            {
+                _strongCastStates.Remove(magicFsm);
+                return;
+            }
+
+            state.ReleaseFallbackAttempted = true;
+
+            MethodInfo setCurrentState = GetMethodSilent(
+                magicFsm.GetType(),
+                "SetCurrentState",
+                3);
+            if (setCurrentState == null)
+            {
+                Log.LogWarning(
+                    "Blood spell cast release safeguard could not resolve SetCurrentState for "
+                    + magicFsm.GetType().FullName
+                    + ".");
+                return;
+            }
+
+            try
+            {
+                ParameterInfo[] parameters = setCurrentState.GetParameters();
+                object heavyEndState = Enum.Parse(
+                    parameters[0].ParameterType,
+                    "MagicHeavyEnd",
+                    false);
+                setCurrentState.Invoke(
+                    magicFsm,
+                    new object[] { heavyEndState, 0.05f, null });
+
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogInfo(
+                        "Blood spell cast release safeguard ended a lingering held cast; hand="
+                        + GetHandKey(magicFsm)
+                        + ", summary="
+                        + summary
+                        + ".");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning(
+                    "Blood spell cast release safeguard failed for hand "
+                    + GetHandKey(magicFsm)
+                    + ": "
+                    + ex.GetBaseException().Message);
+            }
+        }
+
+        internal void RecoverPerformedBloodMagicLightCastIfStillInitial(object magicFsm)
+        {
+            if (!_enabled.Value || magicFsm == null)
+            {
+                return;
+            }
+
+            LightCastRecoveryState state;
+            if (!_lightCastRecoveryStates.TryGetValue(magicFsm, out state) ||
+                state == null)
+            {
+                return;
+            }
+
+            string currentState = GetStringProperty(magicFsm, "CurrentStateType");
+            if (!string.Equals(
+                currentState,
+                "MagicLightInitial",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                _lightCastRecoveryStates.Remove(magicFsm);
+                return;
+            }
+
+            if (!state.PerformObserved ||
+                state.RecoveryAttempted ||
+                Now < state.PerformedAt + BloodSpellLightCastRecoveryDelaySeconds ||
+                GetBoolProperty(magicFsm, "SpellAttackHeld", false) ||
+                !GetBoolProperty(magicFsm, "IsCasting", false) ||
+                GetBoolProperty(magicFsm, "IsChargingMagic", false) ||
+                !GetBoolProperty(magicFsm, "IsLayerActive", false))
+            {
+                return;
+            }
+
+            object item = GetPropertyValue(magicFsm, "Item");
+            object skill = GetPropertyValue(magicFsm, "Skill");
+            string summary;
+            if (!IsBloodTransfusionItemOrSkill(item, skill, out summary))
+            {
+                _lightCastRecoveryStates.Remove(magicFsm);
+                return;
+            }
+
+            state.RecoveryAttempted = true;
+            MethodInfo setCurrentState = GetMethodSilent(
+                magicFsm.GetType(),
+                "SetCurrentState",
+                3);
+            if (setCurrentState == null)
+            {
+                Log.LogWarning(
+                    "Blood spell light-cast safeguard could not resolve SetCurrentState for "
+                    + magicFsm.GetType().FullName
+                    + ".");
+                return;
+            }
+
+            try
+            {
+                ParameterInfo[] parameters = setCurrentState.GetParameters();
+                object idleState = Enum.Parse(
+                    parameters[0].ParameterType,
+                    "Idle",
+                    false);
+                setCurrentState.Invoke(
+                    magicFsm,
+                    new object[] { idleState, 0.05f, null });
+                _lightCastRecoveryStates.Remove(magicFsm);
+
+                if (DiagnosticsEnabled())
+                {
+                    Log.LogInfo(
+                        "Blood spell light-cast safeguard recovered a lingering initial cast; hand="
+                        + GetHandKey(magicFsm)
+                        + ", summary="
+                        + summary
+                        + ".");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.LogWarning(
+                    "Blood spell light-cast safeguard failed for hand "
+                    + GetHandKey(magicFsm)
+                    + ": "
+                    + ex.GetBaseException().Message);
+            }
         }
 
         internal void RecordMagicFsmUpdate(object magicFsm)
@@ -11358,6 +11606,7 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightReadyStates.Remove(magicFsm);
                 _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
                 return;
             }
 
@@ -11366,6 +11615,14 @@ namespace BloodMagicExpansion
 
             StrongCastState state;
             bool hasState = _strongCastStates.TryGetValue(magicFsm, out state);
+            bool held = GetBoolProperty(magicFsm, "SpellAttackHeld", false);
+            if (hasState && !held)
+            {
+                _strongCastStates.Remove(magicFsm);
+                state = null;
+                hasState = false;
+            }
+
             if (hasState)
             {
                 if (now < state.NextUpdateProbeTime)
@@ -11385,7 +11642,6 @@ namespace BloodMagicExpansion
                 _nextGlobalHoldProbeTime = now + interval;
             }
 
-            bool held = GetBoolProperty(magicFsm, "SpellAttackHeld", false);
             bool casting = GetBoolProperty(magicFsm, "IsCasting", false);
             bool charging = GetBoolProperty(magicFsm, "IsChargingMagic", false);
             int chargeSteps = GetIntProperty(magicFsm, "CurrentChargeSteps", 0);
@@ -11403,6 +11659,8 @@ namespace BloodMagicExpansion
                 out isAbhartach,
                 out spellSummary))
             {
+                _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
                 ClearBloodSpellInnerLightReadyState(
                     magicFsm,
                     "equipped spell is no longer a blood spell",
@@ -11469,15 +11727,9 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            if (!hasState)
+            if (hasState && held)
             {
-                state = GetStrongCastState(magicFsm);
-                state.NextUpdateProbeTime = now + interval;
-            }
-
-            state.Hand = GetHandKey(magicFsm);
-            if (inputOrCastEvidence)
-            {
+                state.Hand = GetHandKey(magicFsm);
                 state.Until = now + Math.Max(0.05f, _strongHoldGraceSeconds.Value);
             }
         }
@@ -11493,6 +11745,7 @@ namespace BloodMagicExpansion
             {
                 _bloodSpellInnerLightReadyStates.Remove(magicFsm);
                 _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
                 return;
             }
 
@@ -11508,6 +11761,17 @@ namespace BloodMagicExpansion
             }
 
             string spellSummary = isBloodMagicSpell ? bloodSummary : abhartachSummary;
+            if (isBloodMagicSpell && lightCast)
+            {
+                LightCastRecoveryState lightState;
+                if (_lightCastRecoveryStates.TryGetValue(magicFsm, out lightState) &&
+                    lightState != null)
+                {
+                    lightState.PerformedAt = Now;
+                    lightState.PerformObserved = true;
+                }
+            }
+
             RegisterBloodSpellInnerLightCastBoost(
                 "MagicFSM.OnPerformCast",
                 magicFsm,
@@ -11532,9 +11796,7 @@ namespace BloodMagicExpansion
                 return;
             }
 
-            StrongCastState state = GetStrongCastState(magicFsm);
-            state.Hand = GetHandKey(magicFsm);
-            state.Until = Now + Math.Max(0.05f, _strongHoldGraceSeconds.Value);
+            _strongCastStates.Remove(magicFsm);
         }
 
         internal void RegisterCastEnding(object magicFsm, string context, bool clearReadied)
@@ -11553,6 +11815,12 @@ namespace BloodMagicExpansion
             if (!isBloodMagicSpell && !isAbhartach)
             {
                 return;
+            }
+
+            if (isBloodMagicSpell)
+            {
+                _strongCastStates.Remove(magicFsm);
+                _lightCastRecoveryStates.Remove(magicFsm);
             }
 
             string spellSummary = isBloodMagicSpell ? bloodSummary : abhartachSummary;
@@ -11595,6 +11863,18 @@ namespace BloodMagicExpansion
             {
                 state = new StrongCastState();
                 _strongCastStates[magicFsm] = state;
+            }
+
+            return state;
+        }
+
+        private LightCastRecoveryState GetLightCastRecoveryState(object magicFsm)
+        {
+            LightCastRecoveryState state;
+            if (!_lightCastRecoveryStates.TryGetValue(magicFsm, out state))
+            {
+                state = new LightCastRecoveryState();
+                _lightCastRecoveryStates[magicFsm] = state;
             }
 
             return state;
@@ -13789,6 +14069,16 @@ namespace BloodMagicExpansion
             public string Hand;
             public float Until;
             public float NextUpdateProbeTime;
+            public bool ReleaseFallbackAttempted;
+        }
+
+        private sealed class LightCastRecoveryState
+        {
+            public string Hand;
+            public float AcceptedAt;
+            public float PerformedAt;
+            public bool PerformObserved;
+            public bool RecoveryAttempted;
         }
 
         private sealed class BloodSpellInnerLightReadyState
@@ -14204,6 +14494,8 @@ namespace BloodMagicExpansion
                 BloodMagicExpansionPlugin plugin = Instance;
                 if (plugin != null)
                 {
+                    plugin.EndReleasedBloodMagicCastIfStillLooping(__instance);
+                    plugin.RecoverPerformedBloodMagicLightCastIfStillInitial(__instance);
                     plugin.RecordMagicFsmUpdate(__instance);
                 }
             }

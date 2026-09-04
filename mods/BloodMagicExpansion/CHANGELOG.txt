@@ -1,3 +1,26 @@
+Version 3.2.8
+Added a performed-light-cast safeguard for Blood/Life Transfusion: if an
+accepted tap cast remains in MagicLightInitial for one second after its cast
+event with input released, that hand now returns through the game's intended
+Idle state and can cast again without changing weapons.
+Kept the recovery hand-local and limited to the same accepted, performed cast;
+normal light sequences, held casts, failed casts, and the existing tap and held
+cast-speed tuning remain unchanged.
+ConfigSchemaVersion remains 30 because no setting, default, type, section, or
+meaning changed.
+
+Version 3.2.7
+Added a hand-local release safeguard for Blood/Life Transfusion held casts: if
+released input remains in MagicHeavyLoop after the native update, the affected
+hand now enters the game's normal MagicHeavyEnd state without disturbing the
+other hand.
+Made physical held input authoritative for Blood/Life channel tracking and
+clear that state on release, cast completion, cancellation, or a rejected cast,
+preventing stale casting evidence from extending corpse and live-drain eligibility.
+Kept the existing tap and held cast-speed tuning unchanged for this focused fix.
+ConfigSchemaVersion remains 30 because no setting, default, type, section, or
+meaning changed.
+
 Version 3.2.6
 Rebalanced those profiles around the same 4% live-drain XP per second: Blood
 Rite remains 30% corpse XP with a 20% live cap, Desecration remains 40% corpse

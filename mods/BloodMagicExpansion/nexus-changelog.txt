@@ -1,8 +1,4 @@
-TargetVersion=3.2.6
-BaselineVersion=3.2.4
+TargetVersion=3.2.8
+BaselineVersion=3.2.6
 
-Reworked presets into visible, editable ritual-economy profiles. Blood Rite, Desecration, and Exsanguination now write only corpse XP, ritual time, live-drain timing, live-drain XP, and its per-target cap; editing any governed value selects Custom, and the manager refreshes immediately.
-
-Rebalanced every preset around the same 4% live-drain XP per second. Deeper rites now permit longer feeding and greater total rewards rather than granting faster XP, while Exsanguination's maximum combined bonus falls from 100% to 85% of the victim's kill XP.
-
-Made Blood Essence and Blood Power the sole source of Blood/Life and Abhartach strength. The established balanced progression is preserved across every preset, so choosing a faster or richer ritual style no longer weakens or strengthens the spells themselves.
+Fixed Blood/Life Transfusion tap and held casts that could leave a hand stranded in a casting state. Released held casts now exit through the game's normal end state, completed taps recover through the intended idle state, and stale channel tracking is cleared without disturbing the other hand or changing cast-speed behavior.

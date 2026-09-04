@@ -1,4 +1,4 @@
-First Person Arms Adjuster 0.8.8
+First Person Arms Adjuster 0.9.2
 ================================
 
 Platforms: Windows and Linux through Proton.
@@ -64,6 +64,8 @@ EnableBowDrawGuard = true
 BowDrawMaximumOffsetPercent = 33
 UseSharedGuardTarget = true
 SharedMoveTowardVanillaPercent = 50
+ExecutionMoveTowardVanillaPercent = 100
+ExecutionShoulderRetraction = 0.12
 HeldMeleeOffsetScale = 1.0
 HeldMeleeExtraForwardOffset = -0.05
 HeldMeleeExtraVerticalOffset = -0.05
@@ -191,12 +193,14 @@ Overlapping guards use the strongest influence instead of multiplying together.
 Shared mode overrides held-melee retained-scale and extra-correction tuning.
 Dodge guarding instead changes only Shoulder Retraction.
 
-When Killing Blow Mastery is installed, its active Executions smoothly retain
-half of FPAA's configured presentation offset and raise shoulder/chest
-retraction to at least 0.12 metres. The two corrections share one eased guard,
-compose by strongest influence with other guards, and restore when the native
-finisher ends. A target-death state fallback prevents a missing native exit from
-leaving the viewmodel guarded indefinitely.
+When Killing Blow Mastery is installed, active Executions smoothly use the
+configurable ExecutionMoveTowardVanillaPercent target, which reaches the full
+vanilla presentation offset at its 100 percent default. The configurable
+ExecutionShoulderRetraction target defaults to a 0.12 metre minimum and never
+reduces the normal Shoulder Retraction value. The two corrections share one
+eased guard, compose by strongest influence with other guards, and restore when
+the native finisher ends. A target-death state fallback prevents a missing
+native exit from leaving the viewmodel guarded indefinitely.
 
 The bow-draw guard follows normalized pull progress so its correction enters
 gradually while the arrow is nocked and holds through the held pose. Release
@@ -236,6 +240,16 @@ covers melee, dual-wield, bows, and magic through their shared unequip states.
 If sheathing is interrupted, the configured offset returns smoothly over 0.20
 seconds.
 
+Version 0.9.2 adds configurable Execution offset and shoulder-retraction
+targets and reaches the vanilla presentation offset by default. Version 0.9.1
+prevents stale melee attack states owned by equipped magic from
+pulling the viewmodel toward vanilla after held casts, while preserving guards
+for the melee hand in mixed magic/melee loadouts. Version 0.9.0 adds focused
+animation-guard diagnostics that identify every active sheathing FSM source
+and report the configured and effective local offsets while a guard is
+influencing the viewmodel. Version 0.8.9 prevents
+inactive stale animator layers from holding the
+sheathing guard at vanilla offsets after magic or equipment transitions.
 Version 0.8.6 changes the default bow-draw ceiling to 33 percent and clears
 reusable presentation-scan buffers during scene transitions. Version 0.8.3 makes dodge detection event-driven and anchors gradual bow
 restoration to the exact projectile-fire point. Version 0.8.2 adds dynamic dodge retraction, smoother guard transitions, and the

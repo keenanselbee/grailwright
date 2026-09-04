@@ -1,3 +1,8 @@
-TargetVersion=0.8.8
-BaselineVersion=0.8.6
-Added smooth Killing Blow Mastery Execution guarding that retains half the configured presentation offset, raises shoulder/chest retraction to at least 0.12 metres, and restores safely when the finisher ends.
+TargetVersion=0.9.2
+BaselineVersion=0.8.8
+
+Added configurable Execution move-toward-vanilla and shoulder-retraction targets, with a full vanilla presentation offset and the existing 0.12 metre minimum retraction as defaults.
+
+Improved animation-guard ownership so inactive FSM layers and stale melee attack states no longer pin or halve first-person arm offsets after magic casts, while valid guards remain intact in mixed magic/melee loadouts.
+
+Expanded diagnostics for guarded offsets with the responsible FSM layer, active and pending states, animation timing, retained blend, and configured versus effective local offset.

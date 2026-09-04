@@ -2,7 +2,7 @@
   "id": "FirstPersonArmsAdjuster",
   "displayName": "First Person Arms Adjuster",
   "packageName": "FirstPersonArmsAdjuster",
-  "version": "0.8.8",
+  "version": "0.9.2",
   "pluginGuid": "ks.tgfoa.first-person-arms-adjuster",
   "dll": "FirstPersonArmsAdjuster.dll",
   "sourceFiles": [

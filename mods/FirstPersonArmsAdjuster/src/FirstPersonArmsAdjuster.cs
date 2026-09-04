@@ -41,8 +41,8 @@ using UnityEngine.VFX;
 [assembly: AssemblyCompany("KS")]
 [assembly: AssemblyProduct("First Person Arms Adjuster")]
 [assembly: AssemblyCopyright("Copyright 2026")]
-[assembly: AssemblyVersion("0.8.8.0")]
-[assembly: AssemblyFileVersion("0.8.8.0")]
+[assembly: AssemblyVersion("0.9.2.0")]
+[assembly: AssemblyFileVersion("0.9.2.0")]
 
 namespace FirstPersonArmsAdjuster
 {
@@ -87,7 +87,7 @@ namespace FirstPersonArmsAdjuster
         public const string PluginGuid =
             "ks.tgfoa.first-person-arms-adjuster";
         public const string PluginName = "First Person Arms Adjuster";
-        public const string PluginVersion = "0.8.8";
+        public const string PluginVersion = "0.9.2";
         public const string TrueThirdPersonPluginGuid =
             "kane.tgfoa.true-third-person";
         public const string KillingBlowMasteryPluginGuid =
@@ -116,8 +116,6 @@ namespace FirstPersonArmsAdjuster
         private const float DodgeActivitySignalGraceSeconds = 0.05f;
         private const float ExecutionGuardBlendInSeconds = 0.15f;
         private const float ExecutionGuardBlendOutSeconds = 0.25f;
-        private const float ExecutionMoveTowardVanillaStrength = 0.50f;
-        private const float ExecutionShoulderRetractionMeters = 0.12f;
         private const float ExecutionNativeStateGraceSeconds = 0.25f;
         private const int ExecutionPhaseActive = 2;
         private const float HeadBobSpeedThreshold = 0.05f;
@@ -333,6 +331,8 @@ namespace FirstPersonArmsAdjuster
         private ConfigEntry<float> _bowDrawMaximumOffsetPercent;
         private ConfigEntry<bool> _useSharedGuardTarget;
         private ConfigEntry<float> _sharedMoveTowardVanillaPercent;
+        private ConfigEntry<float> _executionMoveTowardVanillaPercent;
+        private ConfigEntry<float> _executionShoulderRetraction;
         private ConfigEntry<float> _meleeForwardOffset;
         private ConfigEntry<float> _bowForwardOffset;
         private ConfigEntry<float> _magicForwardOffset;
@@ -368,6 +368,10 @@ namespace FirstPersonArmsAdjuster
         private bool _pendingUseSharedGuardTarget;
         private bool _hasPendingSharedMoveTowardVanillaPercent;
         private float _pendingSharedMoveTowardVanillaPercent;
+        private bool _hasPendingExecutionMoveTowardVanillaPercent;
+        private float _pendingExecutionMoveTowardVanillaPercent;
+        private bool _hasPendingExecutionShoulderRetraction;
+        private float _pendingExecutionShoulderRetraction;
         private bool _hasPendingForwardOffset;
         private float _pendingForwardOffset;
         private bool _hasPendingHorizontalOffset;
@@ -554,6 +558,9 @@ namespace FirstPersonArmsAdjuster
         private float _sheathingOffsetBlend = 1.0f;
         private int _sheathingBlendUpdateFrame = -1;
         private bool _sheathingActive;
+        private string _sheathingFsmDiagnosticSignature;
+        private bool _animationGuardOffsetDiagnosticActive;
+        private float _nextAnimationGuardOffsetDiagnosticTime;
         private float _bowDrawGuardBlend;
         private float _bowDrawGuardBlendTarget;
         private bool _bowDrawGuardActive;
@@ -837,6 +844,9 @@ namespace FirstPersonArmsAdjuster
             _sheathingOffsetBlend = 1.0f;
             _sheathingBlendUpdateFrame = -1;
             _sheathingActive = false;
+            _sheathingFsmDiagnosticSignature = null;
+            _animationGuardOffsetDiagnosticActive = false;
+            _nextAnimationGuardOffsetDiagnosticTime = 0.0f;
             _bowDrawGuardBlend = 0.0f;
             _bowDrawGuardBlendTarget = 0.0f;
             _bowDrawGuardActive = false;
@@ -1037,6 +1047,7 @@ namespace FirstPersonArmsAdjuster
             {
                 if (melee == null
                     || !melee.IsLayerActive
+                    || !HasMeleeGuardEligibleItem(melee)
                     || melee.GeneralStateType
                         != HeroGeneralStateType.HeavyAttack)
                 {
@@ -1067,6 +1078,7 @@ namespace FirstPersonArmsAdjuster
             {
                 if (melee != null
                     && melee.IsLayerActive
+                    && HasMeleeGuardEligibleItem(melee)
                     && (IsExpandedMeleeAttackState(
                             melee.CurrentStateType)
                         || IsExpandedMeleeAttackState(
@@ -1077,6 +1089,21 @@ namespace FirstPersonArmsAdjuster
             }
 
             return false;
+        }
+
+        private static bool HasMeleeGuardEligibleItem(MeleeFSM melee)
+        {
+            Item item = melee == null ? null : melee.StatsItem;
+            if (item == null)
+            {
+                return false;
+            }
+
+            EquipmentType equipmentType = item.EquipmentType;
+            return equipmentType != null
+                && equipmentType != EquipmentType.Magic
+                && equipmentType != EquipmentType.MagicTwoHanded
+                && equipmentType != EquipmentType.Bow;
         }
 
         private static bool IsExpandedMeleeAttackState(
@@ -1335,7 +1362,7 @@ namespace FirstPersonArmsAdjuster
                 {
                     Logger.LogInfo(
                         active
-                            ? "Blending the execution viewmodel halfway toward vanilla with additional shoulder retraction."
+                            ? "Blending the execution viewmodel toward its configured vanilla-offset target with additional shoulder retraction."
                             : "Restoring the configured viewmodel after the execution guard.");
                 }
             }
@@ -1499,11 +1526,17 @@ namespace FirstPersonArmsAdjuster
 
             _sheathingBlendUpdateFrame = Time.frameCount;
             float sheathingBlend = 1.0f;
+            string sheathingSources = string.Empty;
             bool sheathing = IsAnimationGuardEnabled(
                     _enableSheathingGuard)
                 && TryGetSheathingOffsetBlend(
                     Hero.Current,
-                    out sheathingBlend);
+                    out sheathingBlend,
+                    out sheathingSources);
+            if (!sheathing)
+            {
+                sheathingSources = string.Empty;
+            }
             if (sheathing)
             {
                 _sheathingOffsetBlend = sheathingBlend;
@@ -1523,31 +1556,49 @@ namespace FirstPersonArmsAdjuster
             if (sheathing != _sheathingActive)
             {
                 _sheathingActive = sheathing;
-                if (_diagnostics != null && _diagnostics.Value)
+            }
+
+            if (_diagnostics != null
+                && _diagnostics.Value
+                && !string.Equals(
+                    _sheathingFsmDiagnosticSignature,
+                    sheathingSources,
+                    StringComparison.Ordinal))
+            {
+                _sheathingFsmDiagnosticSignature = sheathingSources;
+                if (sheathing)
                 {
                     Logger.LogInfo(
-                        sheathing
-                            ? "Blending the first-person offset to vanilla during the sheathing animation."
-                            : "Restoring the configured first-person offset after sheathing.");
+                        "Sheathing guard source changed: "
+                        + sheathingSources
+                        + ".");
+                }
+                else
+                {
+                    Logger.LogInfo(
+                        "Sheathing guard source cleared; restoring the configured first-person offset.");
                 }
             }
         }
 
         private static bool TryGetSheathingOffsetBlend(
             Hero hero,
-            out float blend)
+            out float blend,
+            out string sourceSummary)
         {
             blend = 1.0f;
+            sourceSummary = string.Empty;
             if (hero == null)
             {
                 return false;
             }
 
             bool sheathing = false;
+            StringBuilder sources = new StringBuilder();
             foreach (HeroAnimatorSubstateMachine fsm
                 in hero.Elements<HeroAnimatorSubstateMachine>())
             {
-                if (fsm == null)
+                if (fsm == null || !fsm.IsLayerActive)
                 {
                     continue;
                 }
@@ -1578,9 +1629,32 @@ namespace FirstPersonArmsAdjuster
                 float easedProgress = progress
                     * progress
                     * (3.0f - (2.0f * progress));
-                blend = Mathf.Min(blend, 1.0f - easedProgress);
+                float retainedBlend = 1.0f - easedProgress;
+                blend = Mathf.Min(blend, retainedBlend);
+
+                if (sources.Length > 0)
+                {
+                    sources.Append("; ");
+                }
+                sources.Append("type=")
+                    .Append(fsm.GetType().FullName)
+                    .Append(", layer=")
+                    .Append(fsm.LayerType)
+                    .Append(", current=")
+                    .Append(currentState)
+                    .Append(", target=")
+                    .Append(targetState)
+                    .Append(", normalized=")
+                    .Append(normalizedTime.ToString(
+                        "0.###",
+                        CultureInfo.InvariantCulture))
+                    .Append(", retainedBlend=")
+                    .Append(retainedBlend.ToString(
+                        "0.###",
+                        CultureInfo.InvariantCulture));
             }
 
+            sourceSummary = sources.ToString();
             return sheathing;
         }
 
@@ -4644,6 +4718,12 @@ namespace FirstPersonArmsAdjuster
             bool useSharedGuardTarget =
                 TryGetSharedAnimationGuardStrength(
                     out sharedGuardStrength);
+            float executionMoveTowardVanillaStrength =
+                _executionMoveTowardVanillaPercent == null
+                    ? 1.0f
+                    : Mathf.Clamp01(
+                        _executionMoveTowardVanillaPercent.Value
+                            / 100.0f);
             float retainedScale;
             Vector3 heldCorrection;
             float sprintAttackRetainedScale;
@@ -4663,7 +4743,7 @@ namespace FirstPersonArmsAdjuster
                         (1.0f - _sheathingOffsetBlend)
                             * sharedGuardStrength,
                         _executionGuardBlend
-                            * ExecutionMoveTowardVanillaStrength));
+                            * executionMoveTowardVanillaStrength));
                 retainedScale = 1.0f - Mathf.Clamp01(
                     strongestMoveTowardVanilla);
                 heldCorrection = Vector3.zero;
@@ -4685,7 +4765,8 @@ namespace FirstPersonArmsAdjuster
                     1.0f - _sprintAttackOffsetBlend;
                 sheathingRetainedScale = _sheathingOffsetBlend;
             }
-            return (configuredOffset * retainedScale + heldCorrection)
+            Vector3 effectiveOffset =
+                (configuredOffset * retainedScale + heldCorrection)
                 * _fireplaceOffsetBlend
                 * sprintAttackRetainedScale
                 * sheathingRetainedScale
@@ -4693,7 +4774,88 @@ namespace FirstPersonArmsAdjuster
                     ? 1.0f
                     : 1.0f
                         - (_executionGuardBlend
-                            * ExecutionMoveTowardVanillaStrength));
+                            * executionMoveTowardVanillaStrength));
+            ReportAnimationGuardOffsetDiagnostics(
+                configuredOffset,
+                effectiveOffset,
+                useSharedGuardTarget,
+                sharedGuardStrength);
+            return effectiveOffset;
+        }
+
+        private void ReportAnimationGuardOffsetDiagnostics(
+            Vector3 configuredOffset,
+            Vector3 effectiveOffset,
+            bool useSharedGuardTarget,
+            float sharedGuardStrength)
+        {
+            if (_diagnostics == null || !_diagnostics.Value)
+            {
+                return;
+            }
+
+            bool guardActive =
+                _heldMeleeMitigationBlend > 0.001f
+                || _sprintAttackOffsetBlend > 0.001f
+                || _sheathingOffsetBlend < 0.999f
+                || _bowDrawGuardBlend > 0.001f
+                || _dodgeShoulderRetractionBlend > 0.001f
+                || _executionGuardBlend > 0.001f
+                || _fireplaceOffsetBlend < 0.999f;
+            float now = Time.unscaledTime;
+            bool changed = guardActive
+                != _animationGuardOffsetDiagnosticActive;
+            if (!changed
+                && (!guardActive
+                    || now < _nextAnimationGuardOffsetDiagnosticTime))
+            {
+                return;
+            }
+
+            _animationGuardOffsetDiagnosticActive = guardActive;
+            _nextAnimationGuardOffsetDiagnosticTime = now + 0.5f;
+            Logger.LogInfo(
+                "Animation guard offset diagnostic: active="
+                + guardActive
+                + ", configuredLocal="
+                + FormatVector3(configuredOffset)
+                + ", effectiveLocal="
+                + FormatVector3(effectiveOffset)
+                + ", shared="
+                + useSharedGuardTarget
+                + "@"
+                + sharedGuardStrength.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", held="
+                + _heldMeleeMitigationBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", sprint="
+                + _sprintAttackOffsetBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", sheathing="
+                + _sheathingOffsetBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", bow="
+                + _bowDrawGuardBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", dodge="
+                + _dodgeShoulderRetractionBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", execution="
+                + _executionGuardBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ", fireplace="
+                + _fireplaceOffsetBlend.ToString(
+                    "0.###",
+                    CultureInfo.InvariantCulture)
+                + ".");
         }
 
         internal void CaptureVisualWorldOffsetAfterCameraRotation(
@@ -4815,7 +4977,12 @@ namespace FirstPersonArmsAdjuster
                     configuredShoulderRetraction,
                     Mathf.Max(
                         configuredShoulderRetraction,
-                        ExecutionShoulderRetractionMeters),
+                        _executionShoulderRetraction == null
+                            ? 0.12f
+                            : Mathf.Clamp(
+                                _executionShoulderRetraction.Value,
+                                0.0f,
+                                0.25f)),
                     _executionGuardBlend);
                 _currentShoulderRetractionMeters = Mathf.Max(
                     dodgeShoulderRetraction,
@@ -5613,6 +5780,34 @@ namespace FirstPersonArmsAdjuster
                         SectionOrder = 30,
                         Order = 70
                     }));
+            _executionMoveTowardVanillaPercent = Config.Bind(
+                "Advanced - Animation Guards",
+                "ExecutionMoveTowardVanillaPercent",
+                100.0f,
+                new ConfigDescription(
+                    "Percentage of the configured presentation offset removed during Killing Blow Mastery Executions. 0 keeps the configured position; 50 matches the previous behavior; 100 reaches vanilla. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 100.0f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Animation Guards",
+                        DisplayName = "Execution Move Toward Vanilla (%)",
+                        SectionOrder = 30,
+                        Order = 80
+                    }));
+            _executionShoulderRetraction = Config.Bind(
+                "Advanced - Animation Guards",
+                "ExecutionShoulderRetraction",
+                0.12f,
+                new ConfigDescription(
+                    "Minimum total shoulder and chest retraction during Killing Blow Mastery Executions. This never reduces the normal Shoulder Retraction value. Changes apply immediately.",
+                    new AcceptableValueRange<float>(0.0f, 0.25f),
+                    new Grailwright.Shared.ConfigRecoveryUiMetadata
+                    {
+                        DisplaySection = "Advanced - Animation Guards",
+                        DisplayName = "Execution Shoulder Retraction (m)",
+                        SectionOrder = 30,
+                        Order = 90
+                    }));
             _forwardOffset = Config.Bind(
                 "Position",
                 "ForwardOffset",
@@ -6268,6 +6463,16 @@ namespace FirstPersonArmsAdjuster
                     "Advanced - Animation Guards",
                     "SharedMoveTowardVanillaPercent",
                     out _pendingSharedMoveTowardVanillaPercent);
+            _hasPendingExecutionMoveTowardVanillaPercent =
+                profile.TryGetCustomizedValue(
+                    "Advanced - Animation Guards",
+                    "ExecutionMoveTowardVanillaPercent",
+                    out _pendingExecutionMoveTowardVanillaPercent);
+            _hasPendingExecutionShoulderRetraction =
+                profile.TryGetCustomizedValue(
+                    "Advanced - Animation Guards",
+                    "ExecutionShoulderRetraction",
+                    out _pendingExecutionShoulderRetraction);
             _hasPendingForwardOffset = profile.TryGetCustomizedValue(
                 "Position",
                 "ForwardOffset",
@@ -6532,6 +6737,18 @@ namespace FirstPersonArmsAdjuster
                 _hasPendingSharedMoveTowardVanillaPercent,
                 _sharedMoveTowardVanillaPercent,
                 _pendingSharedMoveTowardVanillaPercent,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingExecutionMoveTowardVanillaPercent,
+                _executionMoveTowardVanillaPercent,
+                _pendingExecutionMoveTowardVanillaPercent,
+                ref restoredCount,
+                ref clampedCount);
+            RestorePreservedFloat(
+                _hasPendingExecutionShoulderRetraction,
+                _executionShoulderRetraction,
+                _pendingExecutionShoulderRetraction,
                 ref restoredCount,
                 ref clampedCount);
             RestorePreservedFloat(
@@ -6833,6 +7050,8 @@ namespace FirstPersonArmsAdjuster
             _hasPendingBowDrawMaximumOffsetPercent = false;
             _hasPendingUseSharedGuardTarget = false;
             _hasPendingSharedMoveTowardVanillaPercent = false;
+            _hasPendingExecutionMoveTowardVanillaPercent = false;
+            _hasPendingExecutionShoulderRetraction = false;
             _hasPendingForwardOffset = false;
             _hasPendingHorizontalOffset = false;
             _hasPendingVerticalOffset = false;

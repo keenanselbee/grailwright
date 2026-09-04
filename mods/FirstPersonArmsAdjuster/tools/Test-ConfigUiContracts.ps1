@@ -62,6 +62,8 @@ $expectedLabels = @(
     "Bow Draw Maximum Offset (%)",
     "Use Shared Guard Target",
     "Shared Move Toward Vanilla (%)",
+    "Execution Move Toward Vanilla (%)",
+    "Execution Shoulder Retraction (m)",
     "Normal Offset Retained (0-1)",
     "Extra Depth Correction (m)",
     "Extra Vertical Correction (m)",

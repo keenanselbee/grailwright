@@ -97,6 +97,11 @@ foreach ($setting in $groupSettings) {
 if ($source -notmatch '(?s)"ShoulderRetraction",\s*0\.05f,.+?AcceptableValueRange<float>\(0\.0f, 0\.25f\).+?DisplaySection = "Position"') {
     throw "Shoulder retraction must default to 0.05 metres with a 0.25 metre supported maximum."
 }
+if ($source -notmatch '(?s)"ExecutionShoulderRetraction",\s*0\.12f,.+?AcceptableValueRange<float>\(0\.0f, 0\.25f\).+?DisplaySection = "Advanced - Animation Guards"' -or
+    $source -notmatch '(?s)TryGetCustomizedValue\(.+?"ExecutionShoulderRetraction".+?_pendingExecutionShoulderRetraction' -or
+    $source -notmatch '(?s)RestorePreservedFloat\(\s*_hasPendingExecutionShoulderRetraction,\s*_executionShoulderRetraction') {
+    throw "Execution shoulder retraction must be configurable and participate in typed preservation."
+}
 
 $refreshMethod = [regex]::Match(
     $source,
@@ -105,7 +110,7 @@ $refreshMethod = [regex]::Match(
 ).Value
 if ($refreshMethod -notmatch '(?s)configuredShoulderRetraction = Mathf\.Clamp\(.+?_shoulderRetraction\.Value.+?0\.0f,.+?0\.25f' -or
     $refreshMethod -notmatch '(?s)dodgeShoulderRetraction = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?DodgeRetractionMaximumMeters.+?dodgeRetractionProgress' -or
-    $refreshMethod -notmatch '(?s)executionShoulderRetraction = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?ExecutionShoulderRetractionMeters.+?_executionGuardBlend' -or
+    $refreshMethod -notmatch '(?s)executionShoulderRetraction = Mathf\.Lerp\(.+?configuredShoulderRetraction.+?_executionShoulderRetraction\.Value.+?_executionGuardBlend' -or
     $refreshMethod -notmatch '(?s)_currentShoulderRetractionMeters = Mathf\.Max\(.+?dodgeShoulderRetraction.+?executionShoulderRetraction' -or
     $refreshMethod -notmatch '(?s)_currentShoulderRetractionWorldOffset =\s*visualBasis\.TransformVector\(.+?-_currentShoulderRetractionMeters') {
     throw "Shoulder retraction guards must compose by strongest correction and transform through the current arms basis."

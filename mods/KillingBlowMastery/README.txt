@@ -1,6 +1,6 @@
 Killing Blow Mastery
 
-Version 1.9.9
+Version 2.0.1
 
 Platforms: Windows and Linux through Proton.
 
@@ -68,6 +68,7 @@ RecentSoundMemory = 2
 RandomPitchSemitones = 0.35
 Diagnostics = false
 FullPotencyExecutions = false
+ExecuteAtAnyHealth = false
 
 FoA Mod Manager section order:
 General, Combat Finishers, Weapon Skills, Notifications, Reward Audio, Advanced
@@ -126,6 +127,9 @@ Proficiency 100 -> 25% health
 
 The prompt uses current health as a percentage of maximum health. The game's
 normal distance, external-death, and kill-prevention checks still apply.
+KBM retains the exact otherwise-valid target for 0.18 seconds when the combat
+ray briefly loses its collider, allowing the native 0.6-second activation delay
+to survive ordinary aim flicker without widening the targeting cone or range.
 Eligible Executions use the game's existing finisher animations and still
 produce normal killing-blow rewards.
 
@@ -370,6 +374,11 @@ enabled, Execution eligibility treats the selected weapon proficiency as 100
 and uses ExecutionHealthPercentAtMastery. It does not change the character's
 actual proficiency, killing-blow rewards, or save data. Disable Diagnostics to
 restore actual-proficiency behavior immediately.
+
+ExecuteAtAnyHealth is a separate Diagnostics-only test control. When both
+settings are enabled, otherwise eligible living targets can be Executed at any
+health percentage. It bypasses only the health threshold; minimum proficiency,
+hostility, combat state, weapon, animation, and target-safety checks still apply.
 
 Compatibility:
 

@@ -1,3 +1,6 @@
-TargetVersion=1.9.9
-BaselineVersion=1.9.7
-Grouped duplicate native finisher-state callbacks into one logical Execution, immediately cleared the exact dead target's Execute interaction, and added a one-second target-death completion fallback when native OnExit is missing.
+TargetVersion=2.0.1
+BaselineVersion=1.9.9
+
+Added brief exact-target grace for otherwise-valid Executions so ordinary combat-ray flicker no longer repeatedly interrupts the native prompt delay, without widening the targeting cone or range.
+
+Added an off-by-default diagnostics control that allows otherwise eligible living targets to be executed at any health percentage for testing, while retaining proficiency, hostility, combat-state, weapon, animation, and target-safety requirements.

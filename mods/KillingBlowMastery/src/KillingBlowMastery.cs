@@ -18,9 +18,9 @@ using UnityEngine.Networking;
 
 [assembly: AssemblyTitle("Killing Blow Mastery")]
 [assembly: AssemblyProduct("Killing Blow Mastery")]
-[assembly: AssemblyVersion("1.9.9.0")]
-[assembly: AssemblyFileVersion("1.9.9.0")]
-[assembly: AssemblyInformationalVersion("1.9.9")]
+[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyFileVersion("2.0.1.0")]
+[assembly: AssemblyInformationalVersion("2.0.1")]
 
 namespace KillingBlowMastery
 {
@@ -65,7 +65,7 @@ namespace KillingBlowMastery
     {
         public const string PluginGuid = "ks.tgfoa.killing-blow-mastery";
         public const string PluginName = "Killing Blow Mastery";
-        public const string PluginVersion = "1.9.9";
+        public const string PluginVersion = "2.0.1";
 
         private const string GrailFloatingTextPluginGuid = "ks.tgfoa.grail-floating-text";
         private const string GrailFloatingTextApiTypeName = "GrailFloatingText.NotificationApi";
@@ -154,6 +154,7 @@ namespace KillingBlowMastery
         private const float ExecutionLifecycleDiagnosticRepeatSeconds = 3.0f;
         private const float NativeFinisherStuckWarningSeconds = 6.0f;
         private const float ExecutionReadyStateSeconds = 0.5f;
+        private const float ExecutionTargetGraceSeconds = 0.18f;
         private const float ExecutionCompletedStateSeconds = 1.0f;
         private const float ExecutionDeathCompletionGraceSeconds = 1.0f;
         private const int DefaultRewardSoundSlots = 5;
@@ -245,6 +246,7 @@ namespace KillingBlowMastery
         private ConfigEntry<float> _randomPitchSemitones;
         private ConfigEntry<bool> _diagnostics;
         private ConfigEntry<bool> _fullPotencyExecutions;
+        private ConfigEntry<bool> _executeAtAnyHealth;
         private readonly Dictionary<string, int> _configSettingOrders =
             new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -270,6 +272,9 @@ namespace KillingBlowMastery
         private int _nextNativeFinisherDiagnosticSequence;
         private object _executionReadyTarget;
         private float _executionReadyExpiresAt = -9999.0f;
+        private object _executionTargetGraceTarget;
+        private float _executionTargetGraceExpiresAt = -9999.0f;
+        private bool _executionTargetGraceActive;
         private int _nextExecutionSequence;
         private float _lastRewardSoundTime = -9999.0f;
         private string _cachedBloodlessSoundBlacklistTermsRaw;
@@ -327,6 +332,9 @@ namespace KillingBlowMastery
             _activeExecutionFinisher = null;
             _activeNativeFinisherDiagnostic = null;
             _executionReadyTarget = null;
+            _executionTargetGraceTarget = null;
+            _executionTargetGraceExpiresAt = -9999.0f;
+            _executionTargetGraceActive = false;
 
             if (_harmony != null)
             {
@@ -697,6 +705,11 @@ namespace KillingBlowMastery
                 "FullPotencyExecutions",
                 false,
                 "When Diagnostics is enabled, test Executions as if the selected weapon proficiency were 100. This unlocks the configured mastery health threshold without changing proficiency, rewards, or save data.");
+            _executeAtAnyHealth = BindOrdered(
+                "Diagnostics",
+                "ExecuteAtAnyHealth",
+                false,
+                "When Diagnostics is enabled, allow Execute against otherwise eligible living targets at any health percentage. This bypasses only the health threshold; proficiency, hostility, combat, weapon, animation, and safety requirements still apply.");
             RestorePreservedConfigValues();
             Grailwright.Shared.ConfigPreviousSettingsRecovery.Bind(
                 Config,
@@ -2040,6 +2053,8 @@ namespace KillingBlowMastery
                 return;
             }
 
+            ClearExecutionTargetGrace("Execution started");
+
             object payloadValue = GetOptionalFieldValue(runtimeData, "slowDownTime");
             bool? payloadSlowDownTime = payloadValue is bool
                 ? (bool)payloadValue
@@ -2407,6 +2422,8 @@ namespace KillingBlowMastery
             object npc = GetOptionalFieldValue(
                 finisherHandling,
                 "_npcPointingTowards");
+            bool usingTargetGrace = false;
+            FieldInfo targetField = null;
             if (finisherHandling == null)
             {
                 LogExecutionEligibility(
@@ -2416,10 +2433,29 @@ namespace KillingBlowMastery
             }
             if (npc == null)
             {
-                LogExecutionEligibility(
-                    executionAction,
-                    "blocked: no NPC is under the combat targeting ray");
-                return false;
+                if (!TryUseExecutionTargetGrace(
+                        executionAction,
+                        out npc))
+                {
+                    LogExecutionEligibility(
+                        executionAction,
+                        "blocked: no NPC is under the combat targeting ray");
+                    return false;
+                }
+
+                targetField = AccessTools.Field(
+                    finisherHandling.GetType(),
+                    "_npcPointingTowards");
+                if (targetField == null)
+                {
+                    ClearExecutionTargetGrace(
+                        "target field was unavailable");
+                    LogExecutionEligibility(
+                        executionAction,
+                        "blocked: execution target grace could not access the native target field");
+                    return false;
+                }
+                usingTargetGrace = true;
             }
             if (GetBoolProperty(npc, "HasBeenDiscarded", false))
             {
@@ -2652,6 +2688,19 @@ namespace KillingBlowMastery
                             _expandedExecutionTargets.Value);
                     }
                 }
+                if (usingTargetGrace)
+                {
+                    preparedState.SetField(
+                        finisherHandling,
+                        targetField,
+                        npc);
+                }
+                else
+                {
+                    TrackExecutionTargetGraceCandidate(
+                        executionAction,
+                        npc);
+                }
                 preparedState.Activate();
                 state = preparedState;
                 return true;
@@ -2666,6 +2715,88 @@ namespace KillingBlowMastery
                     + ex.GetBaseException().GetType().Name);
                 return false;
             }
+        }
+
+        private void TrackExecutionTargetGraceCandidate(
+            object executionAction,
+            object npc)
+        {
+            if (executionAction == null || npc == null)
+            {
+                return;
+            }
+
+            if (_executionTargetGraceActive)
+            {
+                LogDiagnostic(
+                    "Execution target grace reacquired the exact target before expiry; target="
+                    + DescribeObject(npc)
+                    + ".");
+            }
+
+            _executionTargetGraceTarget = npc;
+            _executionTargetGraceExpiresAt = Time.unscaledTime
+                + ExecutionTargetGraceSeconds;
+            _executionTargetGraceActive = false;
+        }
+
+        private bool TryUseExecutionTargetGrace(
+            object executionAction,
+            out object npc)
+        {
+            npc = null;
+            if (_executionTargetGraceTarget == null)
+            {
+                return false;
+            }
+            if (Time.unscaledTime > _executionTargetGraceExpiresAt)
+            {
+                ClearExecutionTargetGrace("grace expired");
+                return false;
+            }
+
+            object actionTarget = GetOptionalPropertyValue(
+                executionAction,
+                "ParentModel");
+            object graceTarget = GetOptionalPropertyValue(
+                _executionTargetGraceTarget,
+                "ParentModel");
+            if (actionTarget == null
+                || !ReferenceEquals(actionTarget, graceTarget))
+            {
+                ClearExecutionTargetGrace("interaction target changed");
+                return false;
+            }
+
+            npc = _executionTargetGraceTarget;
+            if (!_executionTargetGraceActive)
+            {
+                _executionTargetGraceActive = true;
+                LogDiagnostic(
+                    "Execution target grace preserved the exact target for "
+                    + ExecutionTargetGraceSeconds.ToString(
+                        "0.##",
+                        CultureInfo.InvariantCulture)
+                    + " seconds after combat-ray loss; target="
+                    + DescribeObject(npc)
+                    + ".");
+            }
+            return true;
+        }
+
+        private void ClearExecutionTargetGrace(string reason)
+        {
+            if (_executionTargetGraceActive)
+            {
+                LogDiagnostic(
+                    "Execution target grace ended: "
+                    + reason
+                    + ".");
+            }
+
+            _executionTargetGraceTarget = null;
+            _executionTargetGraceExpiresAt = -9999.0f;
+            _executionTargetGraceActive = false;
         }
 
         private bool TryCacheAutomaticFinisherFallback(
@@ -2942,6 +3073,7 @@ namespace KillingBlowMastery
             float threshold = GetExecutionHealthPercent(
                 proficiencyLevel,
                 minimumProficiency);
+            bool anyHealthTest = IsExecuteAtAnyHealthEnabled();
             status = proficiencyName
                 + " proficiency="
                 + actualProficiencyLevel.ToString(CultureInfo.InvariantCulture)
@@ -2952,8 +3084,12 @@ namespace KillingBlowMastery
                 + FormatFloat(threshold)
                 + "%, health="
                 + FormatFloat(healthPercent)
-                + "%";
-            return healthPercent > 0.0f && healthPercent <= threshold;
+                + "%"
+                + (anyHealthTest
+                    ? ", health gate bypassed (diagnostic)"
+                    : string.Empty);
+            return healthPercent > 0.0f
+                && (anyHealthTest || healthPercent <= threshold);
         }
 
         private int GetExecutionProficiencyLevel(
@@ -3007,6 +3143,11 @@ namespace KillingBlowMastery
             int proficiencyLevel,
             int minimumProficiency)
         {
+            if (IsExecuteAtAnyHealthEnabled())
+            {
+                return 100.0f;
+            }
+
             float unlockThreshold = Math.Max(
                 1.0f,
                 Math.Min(30.0f, _executionHealthPercentAtUnlock.Value));
@@ -3025,6 +3166,11 @@ namespace KillingBlowMastery
 
         private float GetExecutionMaximumHealthPercent()
         {
+            if (IsExecuteAtAnyHealthEnabled())
+            {
+                return 100.0f;
+            }
+
             float unlockThreshold = Math.Max(
                 1.0f,
                 Math.Min(30.0f, _executionHealthPercentAtUnlock.Value));
@@ -3032,6 +3178,14 @@ namespace KillingBlowMastery
                 1.0f,
                 Math.Min(30.0f, _executionHealthPercentAtMastery.Value));
             return Math.Max(unlockThreshold, masteryThreshold);
+        }
+
+        private bool IsExecuteAtAnyHealthEnabled()
+        {
+            return _diagnostics != null
+                && _diagnostics.Value
+                && _executeAtAnyHealth != null
+                && _executeAtAnyHealth.Value;
         }
 
         private void ClearExecutionCandidate(object executionAction)
@@ -6982,6 +7136,14 @@ namespace KillingBlowMastery
                 }
 
                 string mode = Instance.GetCombatExecutionMode();
+                if (!string.Equals(
+                        mode,
+                        CombatExecutionModeExecution,
+                        StringComparison.Ordinal))
+                {
+                    Instance.ClearExecutionTargetGrace(
+                        "Execution mode is inactive");
+                }
                 if (string.Equals(
                     mode,
                     CombatExecutionModeOff,

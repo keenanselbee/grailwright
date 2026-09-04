@@ -38,6 +38,8 @@ $contracts = @(
     'GetConfigDisplayName(key)',
     '"FullPotencyExecutions",',
     'private ConfigEntry<bool> _fullPotencyExecutions;',
+    '"ExecuteAtAnyHealth",',
+    'private ConfigEntry<bool> _executeAtAnyHealth;',
     'return "Combat Finishers";',
     'return "Reward Audio";',
     'return "Advanced Audio Routing";',
@@ -123,6 +125,14 @@ $contracts = @(
     'DescribeAnimationReadiness()',
     'completed-null=',
     'waiting for the native 0.6-second activation delay',
+    'ExecutionTargetGraceSeconds = 0.18f',
+    'TryUseExecutionTargetGrace(',
+    'TrackExecutionTargetGraceCandidate(',
+    'preparedState.SetField(',
+    'Execution target grace preserved the exact target',
+    'Execution target grace reacquired the exact target',
+    'GetOptionalPropertyValue(',
+    '"ParentModel"',
     'TryValidateExecutionProgression(',
     'GetExecutionProficiencyLevel(',
     'GetExecutionHealthPercent(',
@@ -168,6 +178,13 @@ if ($source -notmatch '_combatExecutionMode\s*=\s*BindOrdered\s*\(\s*"General"\s
     throw "Execution must remain the default combat execution mode."
 }
 
+if ($source -notmatch 'actionTarget\s*==\s*null\s*\|\|\s*!ReferenceEquals\(actionTarget, graceTarget\)' -or
+    $source -notmatch 'Time\.unscaledTime\s*>\s*_executionTargetGraceExpiresAt' -or
+    $source -notmatch 'ClearExecutionTargetGrace\("Execution started"\)' -or
+    $source -notmatch 'ExecutionTargetGraceSeconds\s*=\s*0\.18f') {
+    throw "Execution target grace must be short-lived, exact-target scoped, and cleared when execution starts."
+}
+
 if ($source -notmatch '_expandedExecutionTargets\s*=\s*BindOrdered\s*\(\s*"General"\s*,\s*"ExpandedExecutionTargets"\s*,\s*true\s*,') {
     throw "Expanded enemy selection must remain enabled by default."
 }
@@ -189,8 +206,14 @@ if ($source -notmatch '\(proficiencyLevel\s*-\s*minimumProficiency\)\s*/\s*\(100
     throw "Execution health progression must interpolate from the unlock proficiency through 100."
 }
 
-if ($source -notmatch 'return\s+healthPercent\s*>\s*0\.0f\s*&&\s*healthPercent\s*<=\s*threshold;') {
-    throw "The selected weapon proficiency threshold must gate final Execution availability."
+if ($source -notmatch 'return\s+healthPercent\s*>\s*0\.0f\s*&&\s*\(\s*anyHealthTest\s*\|\|\s*healthPercent\s*<=\s*threshold\s*\);') {
+    throw "The selected weapon proficiency threshold must gate final Execution availability unless the diagnostic any-health test is active."
+}
+
+if ($source -notmatch '_executeAtAnyHealth\s*=\s*BindOrdered\s*\(\s*"Diagnostics"\s*,\s*"ExecuteAtAnyHealth"\s*,\s*false\s*,' -or
+    $source -notmatch 'return\s+_diagnostics\s*!=\s*null\s*&&\s*_diagnostics\.Value\s*&&\s*_executeAtAnyHealth\s*!=\s*null\s*&&\s*_executeAtAnyHealth\.Value;' -or
+    ([regex]::Matches($source, 'if\s*\(\s*IsExecuteAtAnyHealthEnabled\(\)\s*\)\s*\{\s*return\s+100\.0f;').Count -ne 2)) {
+    throw "Execute At Any Health must remain disabled by default, require Diagnostics, and replace both explicit Execution thresholds with 100 percent."
 }
 
 $expectedThresholds = @{

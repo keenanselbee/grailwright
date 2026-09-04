@@ -1,3 +1,18 @@
+Version 2.0.1
+Added 0.18 seconds of exact-target grace when the combat ray briefly loses an
+otherwise valid Execution candidate, allowing the native activation delay to
+complete without widening the targeting cone or increasing execution range.
+Kept every existing health, proficiency, hostility, combat, animation,
+distance, and target-safety check, and clear the grace on target changes or
+Execution start.
+Kept ConfigSchemaVersion at 19 because this changes runtime target continuity
+without changing a setting, default, type, section, or meaning.
+
+Version 2.0.0
+Added diagnostics-only ExecuteAtAnyHealth testing, disabled by default, to allow Execute against otherwise eligible living targets at any health percentage.
+Kept minimum proficiency, hostility, combat-state, weapon, animation, and target-safety requirements active while the health gate is bypassed.
+Kept ConfigSchemaVersion at 19 because the new testing control is additive and defaults off.
+
 Version 1.9.9
 Grouped duplicate native FinisherStarted callbacks for one target and action into one logical Execution lifecycle instead of replacing the tracked state.
 Cleared the exact dead target's native Execute interaction immediately and hid its stale prompt when the interaction view refreshes.
